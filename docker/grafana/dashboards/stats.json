@@ -24,7 +24,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": 2,
-  "iteration": 1648712138561,
+  "iteration": 1649418207906,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -198,7 +198,7 @@
       "pluginVersion": "8.2.5",
       "targets": [
         {
-          "query": "domains = from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\" and\n    (\n      r[\"_field\"] == \"viewer_port_spice\" \n    )\n  )\n  |> aggregateWindow(every: 30s, fn: last)\n\nsockets = from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"socket\" and\n    r[\"_field\"] == \"pid\" // we use PID as we could have used any other socket field\n  )\n  |> aggregateWindow(every: 30s, fn: last)\n\njoin(tables: {domains, sockets}, on: [\"_time\"])\n  |> filter(fn: (r) => r[\"source_port\"] == r[\"_value_domains\"])\n  |> keep(columns: [\"_time\", \"id\", \"_field_domains\", \"_value_domains\"])\n  |> rename(columns: {\n    _field_domains: \"viewer_type\",\n    _value_domains: \"port\"\n  })\n  |> unique(column: \"id\")\n  |> distinct(column: \"viewer_type\")\n  |> count(column: \"_value\")\n  |> drop(columns: [\"id\"])\n  |> count(column: \"_value\")\n  |> rename(columns: {\n    _value: \"\",\n  })",
+          "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"viewers\")\n  |> filter(fn: (r) => r[\"viewer_type\"] == \"viewer_port_spice\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
           "refId": "A"
         }
       ],
@@ -261,7 +261,7 @@
       "pluginVersion": "8.2.5",
       "targets": [
         {
-          "query": "domains = from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\" and\n    (\n      r[\"_field\"] == \"viewer_port_spice_tls\" \n    )\n  )\n  |> aggregateWindow(every: 30s, fn: last)\n\nsockets = from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"socket\" and\n    r[\"_field\"] == \"pid\" // we use PID as we could have used any other socket field\n  )\n  |> aggregateWindow(every: 30s, fn: last)\n\njoin(tables: {domains, sockets}, on: [\"_time\"])\n  |> filter(fn: (r) => r[\"source_port\"] == r[\"_value_domains\"])\n  |> keep(columns: [\"_time\", \"id\", \"_field_domains\", \"_value_domains\"])\n  |> rename(columns: {\n    _field_domains: \"viewer_type\",\n    _value_domains: \"port\"\n  })\n  |> unique(column: \"id\")\n  |> distinct(column: \"viewer_type\")\n  |> count(column: \"_value\")\n  |> drop(columns: [\"id\"])\n  |> count(column: \"_value\")\n  |> rename(columns: {\n    _value: \"\",\n  })",
+          "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"viewers\")\n  |> filter(fn: (r) => r[\"viewer_type\"] == \"viewer_port_spice_tls\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
           "refId": "A"
         }
       ],
@@ -320,7 +320,7 @@
       "pluginVersion": "8.2.5",
       "targets": [
         {
-          "query": "domains = from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\" and\n    (\n      r[\"_field\"] == \"viewer_port_spice\" or\n      r[\"_field\"] == \"viewer_port_spice_tls\" or\n      r[\"_field\"] == \"viewer_port_websocket\"\n    )\n  )\n  |> aggregateWindow(every: 10s, fn: last)\n\nsockets = from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"socket\" and\n    r[\"_field\"] == \"pid\" // we use PID as we could have used any other socket field\n  )\n  |> aggregateWindow(every: 10s, fn: last)\n\njoin(tables: {domains, sockets}, on: [\"_time\"])\n  |> filter(fn: (r) => r[\"source_port\"] == r[\"_value_domains\"])\n  |> keep(columns: [\"_time\", \"id\", \"_field_domains\", \"_value_domains\"])\n  |> rename(columns: {\n    _field_domains: \"viewer_type\",\n    _value_domains: \"port\"\n  })\n  |> group()\n  |> unique(column: \"id\")\n  |> count(column: \"id\")\n  |> yield()",
+          "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"visors_started\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
           "refId": "A"
         }
       ],
@@ -904,7 +904,7 @@
       "targets": [
         {
           "hide": false,
-          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => \n    r[\"_measurement\"] == \"system\" and\n    r[\"hypervisor\"] == \"${hypers}\" and\n    r[\"_field\"] == \"cpu_usage\"\n  )\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield()\n",
+          "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"system\")\n  |> filter(fn: (r) => r[\"_field\"] == \"cpu_usage\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
           "refId": "A"
         }
       ],
@@ -1034,7 +1034,7 @@
       "pluginVersion": "8.2.5",
       "targets": [
         {
-          "query": "domains = from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\" and\n    (\n      r[\"_field\"] == \"viewer_port_spice\" or\n      r[\"_field\"] == \"viewer_port_spice_tls\" or\n      r[\"_field\"] == \"viewer_port_websocket\"\n    )\n    and r[\"hypervisor\"] == \"${hypers}\"\n  )\n  |> aggregateWindow(every: 10s, fn: last)\n\nsockets = from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"socket\" and\n    r[\"_field\"] == \"pid\" // we use PID as we could have used any other socket field\n  )\n  |> aggregateWindow(every: 10s, fn: last)\n\njoin(tables: {domains, sockets}, on: [\"_time\"])\n  |> filter(fn: (r) => r[\"source_port\"] == r[\"_value_domains\"])\n  |> keep(columns: [\"_time\", \"id\", \"_field_domains\", \"_value_domains\"])\n  |> rename(columns: {\n    _field_domains: \"viewer_type\",\n    _value_domains: \"port\"\n  })\n  |> group()\n  |> unique(column: \"id\")\n  |> count(column: \"id\")\n  |> yield()",
+          "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"visors_started\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
           "refId": "A"
         }
       ],
@@ -1307,7 +1307,7 @@
       "targets": [
         {
           "hide": false,
-          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => \n    r[\"_measurement\"] == \"hypervisor\" and\n    r[\"hypervisor\"] == \"${hypers}\" and\n    r[\"_field\"] =~ /mem_(total|free|cached)/\n  )\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> map(fn: (r) => ({\n    _time: r[\"_time\"],\n    _value: 100.0 - (float(v: r[\"mem_free\"] + r[\"mem_cached\"]) / float(v: r[\"mem_total\"]) * 100.0)\n  }))\n",
+          "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"system\")\n  |> filter(fn: (r) => r[\"_field\"] == \"ram_usage\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
           "refId": "A"
         }
       ],
@@ -1714,7 +1714,7 @@
       "pluginVersion": "8.2.5",
       "targets": [
         {
-          "query": "domains = from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\" and\n    (\n      r[\"_field\"] == \"viewer_port_spice\" \n    )\n    and r[\"hypervisor\"] == \"${hypers}\"\n  )\n  |> aggregateWindow(every: 30s, fn: last)\n\nsockets = from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"socket\" and\n    r[\"_field\"] == \"pid\" // we use PID as we could have used any other socket field\n  )\n  |> aggregateWindow(every: 30s, fn: last)\n\njoin(tables: {domains, sockets}, on: [\"_time\"])\n  |> filter(fn: (r) => r[\"source_port\"] == r[\"_value_domains\"])\n  |> keep(columns: [\"_time\", \"id\", \"_field_domains\", \"_value_domains\"])\n  |> rename(columns: {\n    _field_domains: \"viewer_type\",\n    _value_domains: \"port\"\n  })\n  |> unique(column: \"id\")\n  |> distinct(column: \"viewer_type\")\n  |> count(column: \"_value\")\n  |> drop(columns: [\"id\"])\n  |> count(column: \"_value\")\n  |> rename(columns: {\n    _value: \"\",\n  })",
+          "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"viewers\")\n  |> filter(fn: (r) => r[\"viewer_type\"] == \"viewer_port_spice\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
           "refId": "A"
         }
       ],
@@ -1777,7 +1777,7 @@
       "pluginVersion": "8.2.5",
       "targets": [
         {
-          "query": "domains = from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\" and\n    (\n      r[\"_field\"] == \"viewer_port_spice_tls\" \n    )\n    and r[\"hypervisor\"] == \"${hypers}\"\n  )\n  |> aggregateWindow(every: 30s, fn: last)\n\nsockets = from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"socket\" and\n    r[\"_field\"] == \"pid\" // we use PID as we could have used any other socket field\n  )\n  |> aggregateWindow(every: 30s, fn: last)\n\njoin(tables: {domains, sockets}, on: [\"_time\"])\n  |> filter(fn: (r) => r[\"source_port\"] == r[\"_value_domains\"])\n  |> keep(columns: [\"_time\", \"id\", \"_field_domains\", \"_value_domains\"])\n  |> rename(columns: {\n    _field_domains: \"viewer_type\",\n    _value_domains: \"port\"\n  })\n  |> unique(column: \"id\")\n  |> distinct(column: \"viewer_type\")\n  |> count(column: \"_value\")\n  |> drop(columns: [\"id\"])\n  |> count(column: \"_value\")\n  |> rename(columns: {\n    _value: \"\",\n  })",
+          "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"viewers\")\n  |> filter(fn: (r) => r[\"viewer_type\"] == \"viewer_port_spice_tls\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
           "refId": "A"
         }
       ],
@@ -1897,13 +1897,8 @@
       "targets": [
         {
           "hide": false,
-          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\" and\n    r[\"hypervisor\"] == \"${hypers}\"\n  )\n  |> keep(columns: [\"_time\", \"id\"])\n  |> group()\n  |> aggregateWindow(every: 30s, column: \"id\", fn:(column, tables=<-) => tables \n    |> unique(column: column)\n    |> count(column:column),)\n  |> rename(columns: {id: \"_value\"})\n  |> map(fn: (r) => ({ Desktops:r._value, _time:r._time }))\n  |> yield()",
+          "query": " Desktops = from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\" \n  )\n  |> keep(columns: [\"_time\", \"id\"])\n  |> group()\n  |> aggregateWindow(every: 30s, column: \"id\", fn:(column, tables=<-) => tables \n    |> unique(column: column)\n    |> count(column:column),)\n  |> rename(columns: {id: \"_value\"})\n  |> map(fn: (r) => ({ Desktops:r._value, _time:r._time }))\n  |> yield()\nVisors = from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"visors_started\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n    |> map(fn: (r) => ({ Visors:r._value, _time:r._time  }))\n  |> yield(name: \"mean\")\n\n",
           "refId": "A"
-        },
-        {
-          "hide": false,
-          "query": "domains = from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\" and\n    (\n      r[\"_field\"] == \"viewer_port_spice\" or\n      r[\"_field\"] == \"viewer_port_spice_tls\" or\n      r[\"_field\"] == \"viewer_port_websocket\"\n    )\n    and r[\"hypervisor\"] == \"${hypers}\"\n  )\n  |> aggregateWindow(every: 30s, fn: last)\n\nsockets = from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"socket\" and\n    r[\"_field\"] == \"pid\" // we use PID as we could have used any other socket field \n  )\n  |> aggregateWindow(every: 30s, fn: last)\n\njoin(tables: {domains, sockets}, on: [\"_time\"])\n  |> filter(fn: (r) => r[\"source_port\"] == r[\"_value_domains\"])\n  |> keep(columns: [\"_time\", \"id\", \"_field_domains\", \"_value_domains\"])\n  |> rename(columns: {\n    _field_domains: \"viewer_type\",\n    _value_domains: \"port\"\n  })\n  |> group()\n  |> aggregateWindow(every: 30s, column: \"id\", fn:(column, tables=<-) => tables \n    |> unique(column: column)\n    |> count(column:column),)\n  |> rename(columns: {id: \"_value\"})\n  |> map(fn: (r) => ({ Visors:r._value, _time:r._time }))\n  |> yield()",
-          "refId": "B"
         }
       ],
       "timeFrom": null,
