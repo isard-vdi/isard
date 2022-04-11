@@ -7,6 +7,7 @@ import json
 import logging as log
 
 from flask import request
+from flask_login import current_user
 
 #!flask/bin/python
 # coding=utf-8
@@ -14,6 +15,7 @@ from api import app
 
 from ..libv2.api_admin import (
     admin_table_delete,
+    admin_table_get,
     admin_table_insert,
     admin_table_list,
     admin_table_update,
@@ -25,13 +27,17 @@ from .decorators import is_admin, is_admin_or_manager
 @is_admin_or_manager
 def api_v3_admin_table(payload, table):
     options = request.get_json(force=True)
-    result = admin_table_list(
-        table,
-        options.get("order_by"),
-        options.get("pluck"),
-        options.get("without"),
-        options.get("id"),
-    )
+    if options.get("id"):
+        result = admin_table_get(
+            table, pluck=options.get("pluck"), id=options.get("id")
+        )
+    else:
+        result = admin_table_list(
+            table,
+            options.get("order_by"),
+            options.get("pluck"),
+            options.get("without"),
+        )
     if payload["role_id"] == "manager":
         if table == "categories":
             result = [
