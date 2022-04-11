@@ -73,6 +73,8 @@ def admin_table_insert(table, data):
     if data["id"] == None:
         data["id"] = _parse_string(data["name"])
     _validate_table(table)
+    if table == "interfaces":
+        _validate_item(table, data)
     with app.app_context():
         if r.table(table).get(data["id"]).run(db.conn) == None:
             if not _check(r.table(table).insert(data).run(db.conn), "inserted"):
@@ -89,6 +91,8 @@ def admin_table_insert(table, data):
 
 def admin_table_update(table, data):
     _validate_table(table)
+    if table == "interfaces":
+        _validate_item(table, data)
     with app.app_context():
         if r.table(table).get(data["id"]).run(db.conn):
             if not _check(

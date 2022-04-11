@@ -1324,6 +1324,7 @@ def get_and_update_personal_vlan_id_from_domain_id(
                 .filter({"kind": "ovs"})
                 .pluck("net")
                 .run(r_conn)
+                if d["net"].isdecimal()
             ]
         )
         set_all_range_vlans = set(range(range_start, range_end))

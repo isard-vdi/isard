@@ -463,18 +463,28 @@ $(document).ready(function() {
 
     // INTERFACES
 
+    window.ParsleyValidator.addValidator('vlanrange', (value) => {
+        values = value.split('-')
+        return values.length === 2 && values[0] <= values[1] && 1 <= values[0] && values[0] <= 4094 && 1 <= values[1] && values[1] <= 4094
+    })
+
     $('#kind').on('change', function () {
+        $('#ifname').removeAttr('min').removeAttr('max').removeAttr('data-parsley-vlanrange')
         if($('#kind').val() == 'bridge'){
             $('#ifname_label').html('Input interface name')
+            $('#ifname').attr('type', 'text')
         }
         if($('#kind').val() == 'network'){
             $('#ifname_label').html('Input network name')
+            $('#ifname').attr('type', 'text')
         }
         if($('#kind').val() == 'ovs'){
             $('#ifname_label').html('Input vlan ID number')
+            $('#ifname').attr('type', 'number').attr('min', 1).attr('max', '4094')
         }
         if($('#kind').val() == 'personal'){
             $('#ifname_label').html('Input vlan range (2000-3000)')
+            $('#ifname').attr('type', 'text').attr('data-parsley-vlanrange', 'true')
         }
     });
     int_table=$('#table-interfaces').DataTable({

@@ -60,6 +60,31 @@ class IsardValidator(Validator):
         else:
             return _parse_string("fa-floppy-o")
 
+    def _check_with_validate_vlan(self, field, value):
+        """
+        Value should be a string with a numeric value >= 1 and <= 4094
+        """
+        if not (value.isnumeric() and 1 <= int(value) <= 4094):
+            self._error(
+                field, "Value should be a string with a numeric value >= 1 and <= 4094"
+            )
+
+    def _check_with_validate_vlan_range(self, field, value):
+        """
+        Value should be a string with a numeric range like 55-33 and range should be >= 1 and <= 4094
+        """
+        range = value.split("-")
+        if len(range) != 2 or not range[0].isnumeric() or not range[1].isnumeric():
+            self._error(
+                field, 'Value should be a string with a numeric range like "55-33"'
+            )
+        elif int(range[0]) > int(range[1]):
+            self._error(
+                field, "Last range number cannot be less than first range number"
+            )
+        elif not 1 <= int(range[0]) <= 4094 or not 1 <= int(range[1]) <= 4094:
+            self._error(field, "Range limits should be >= 1 and <= 4094")
+
 
 def load_validators(purge_unknown=True):
     snippets_path = os.path.join(app.root_path, "schemas/snippets")
