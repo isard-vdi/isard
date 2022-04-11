@@ -9,3 +9,6 @@ services:
     depends_on:
       isard-influxdb:
         condition: service_healthy
+
+      isard-api:
+        condition: service_healthy

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -13,7 +14,12 @@ import (
 	"gitlab.com/isard/isardvdi/stats/collector"
 
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
+	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/knownhosts"
+	"libvirt.org/go/libvirt"
 )
+
+// TODO: Improve logging
 
 func main() {
 	cfg := cfg.New()
@@ -21,18 +27,65 @@ func main() {
 	log := log.New("stats", cfg.Log.Level)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	var wg sync.WaitGroup
 
-	collectors := map[string]collector.Collector{}
-	if cfg.Collectors.Hypervisor.Enable {
-		h, err := collector.NewHypervisor(&wg, cfg)
+	var sshConn *ssh.Client
+	var sshMux sync.Mutex
+	if cfg.Collectors.Socket.Enable || cfg.Collectors.Domain.Enable {
+		kHosts, err := knownhosts.New(filepath.Join(os.Getenv("HOME"), ".ssh", "known_hosts"))
 		if err != nil {
-			log.Fatal().Err(err).Msg("initialize the hypervisor collector")
+			log.Fatal().Err(err).Str("domain", cfg.Domain).Msg("read known hosts")
 		}
 
-		wg.Add(1)
+		b, err := os.ReadFile(filepath.Join(os.Getenv("HOME"), ".ssh", "id_rsa"))
+		if err != nil {
+			log.Fatal().Err(err).Str("domain", cfg.Domain).Msg("read private key")
+		}
 
+		pKey, err := ssh.ParsePrivateKey(b)
+		if err != nil {
+			log.Fatal().Err(err).Str("domain", cfg.Domain).Msg("parse private key")
+		}
+
+		sshCfg := &ssh.ClientConfig{
+			User: cfg.SSH.User,
+			Auth: []ssh.AuthMethod{
+				ssh.PublicKeys(pKey),
+			},
+			HostKeyCallback: kHosts,
+		}
+
+		sshConn, err = ssh.Dial("tcp", fmt.Sprintf("%s:%d", cfg.SSH.Host, cfg.SSH.Port), sshCfg)
+		if err != nil {
+			log.Fatal().Err(err).Str("domain", cfg.Domain).Msg("connect using SSH")
+		}
+	}
+
+	var libvirtConn *libvirt.Connect
+	var libvirtMux sync.Mutex
+	if cfg.Collectors.Hypervisor.Enable || cfg.Collectors.Domain.Enable {
+		// TODO: We should add a libvirt timeout
+		var err error
+		libvirtConn, err = libvirt.NewConnectReadOnly(cfg.LibvirtURI)
+		if err != nil {
+			log.Fatal().Err(err).Str("domain", cfg.Domain).Msg("connect to libvirt")
+		}
+
+		alive, err := libvirtConn.IsAlive()
+		if err != nil || !alive {
+			log.Fatal().Err(err).Str("domain", cfg.Domain).Msg("connection not alive")
+		}
+	}
+
+	collectors := map[string]collector.Collector{}
+
+	if cfg.Collectors.Hypervisor.Enable {
+		h := collector.NewHypervisor(&libvirtMux, cfg, libvirtConn)
 		collectors[h.String()] = h
+	}
+
+	if cfg.Collectors.Domain.Enable {
+		d := collector.NewDomain(&libvirtMux, &sshMux, cfg, libvirtConn, sshConn)
+		collectors[d.String()] = d
 	}
 
 	if cfg.Collectors.System.Enable {
@@ -41,13 +94,7 @@ func main() {
 	}
 
 	if cfg.Collectors.Socket.Enable {
-		s, err := collector.NewSocket(&wg, cfg)
-		if err != nil {
-			log.Fatal().Err(err).Msg("initialize the socket collector")
-		}
-
-		wg.Add(1)
-
+		s := collector.NewSocket(&sshMux, cfg, sshConn)
 		collectors[s.String()] = s
 	}
 
@@ -77,6 +124,7 @@ func main() {
 
 				log.Info().Str("collector", name).Interface("point", &p).Msg("data sent")
 			}
+
 			time.Sleep(time.Second)
 		}
 	}()
@@ -96,5 +144,11 @@ func main() {
 		c.Close()
 	}
 
-	wg.Wait()
+	if libvirtConn != nil {
+		libvirtConn.Close()
+	}
+
+	if sshConn != nil {
+		sshConn.Close()
+	}
 }
