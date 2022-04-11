@@ -29,8 +29,10 @@ RUN CGO_ENABLED=0 go build -o bin/authentication cmd/authentication/main.go
 FROM alpine
 
 RUN apk add --no-cache \
-    ca-certificates
+    ca-certificates \
+    openssl
 
+COPY --from=build /build/authentication/build/package/run.sh /run.sh
 COPY --from=build /build/authentication/bin/authentication /authentication
 
-CMD [ "/authentication" ]
+CMD [ "/run.sh" ]

@@ -119,16 +119,6 @@ func parseLDAPArgs(args map[string]string) (string, string, error) {
 	return username, password, nil
 }
 
-func matchRegex(re *regexp.Regexp, s string) string {
-	result := re.FindStringSubmatch(s)
-	// the first submatch is the whole match, the 2nd is the 1st group
-	if len(result) > 1 {
-		return result[1]
-	}
-
-	return re.FindString(s)
-}
-
 func (l *LDAP) newConn() (*ldap.Conn, error) {
 	conn, err := ldap.DialURL(fmt.Sprintf("%s://%s:%d", l.cfg.Protocol, l.cfg.Host, l.cfg.Port))
 	if err != nil {

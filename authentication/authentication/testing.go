@@ -3,6 +3,7 @@ package authentication
 import (
 	"context"
 
+	"github.com/crewjam/saml/samlsp"
 	"github.com/stretchr/testify/mock"
 	"gitlab.com/isard/isardvdi/authentication/authentication/provider"
 )
@@ -27,7 +28,7 @@ func (m *AuthenticationMock) Check(ctx context.Context, tkn string) error {
 }
 
 func (m *AuthenticationMock) Providers() []string {
-	return []string{"local", "google"}
+	return []string{"local", "google", "ldap", "saml"}
 }
 
 func (m *AuthenticationMock) Provider(prv string) provider.Provider {
@@ -38,4 +39,9 @@ func (m *AuthenticationMock) Provider(prv string) provider.Provider {
 func (m *AuthenticationMock) ShowAdminButton() bool {
 	mArgs := m.Called()
 	return mArgs.Bool(0)
+}
+
+func (m *AuthenticationMock) SAML() *samlsp.Middleware {
+	mArgs := m.Called()
+	return mArgs.Get(0).(*samlsp.Middleware)
 }

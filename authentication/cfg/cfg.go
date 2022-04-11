@@ -27,6 +27,7 @@ type Authentication struct {
 	Secret string
 	Local  AuthenticationLocal
 	LDAP   AuthenticationLDAP
+	SAML   AuthenticationSAML
 	Google AuthenticationGoogle
 }
 
@@ -68,6 +69,23 @@ type AuthenticationLDAP struct {
 	RoleAdvancedGroups []string   `mapstructure:"role_advanced_groups"`
 	RoleUserGroups     []string   `mapstructure:"role_user_groups"`
 	RoleDefault        model.Role `mapstructure:"role_default"`
+}
+
+type AuthenticationSAML struct {
+	Enabled       bool
+	MetadataURL   string `mapstructure:"metadata_url"`
+	KeyFile       string `mapstructure:"key_file"`
+	CertFile      string `mapstructure:"cert_file"`
+	FieldUID      string `mapstructure:"field_uid"`
+	RegexUID      string `mapstructure:"regex_uid"`
+	FieldUsername string `mapstructure:"field_username"`
+	RegexUsername string `mapstructure:"regex_username"`
+	FieldName     string `mapstructure:"field_name"`
+	RegexName     string `mapstructure:"regex_name"`
+	FieldEmail    string `mapstructure:"field_email"`
+	RegexEmail    string `mapstructure:"regex_email"`
+	FieldPhoto    string `mapstructure:"field_photo"`
+	RegexPhoto    string `mapstructure:"regex_photo"`
 }
 
 type AuthenticationGoogle struct {
@@ -138,6 +156,22 @@ func setDefaults() {
 			"role_advanced_groups": []string{},
 			"role_user_groups":     []string{},
 			"role_default":         "user",
+		},
+		"saml": map[string]interface{}{
+			"enabled":        false,
+			"metadata_url":   "",
+			"key_file":       "/keys/isardvdi.key",
+			"cert_file":      "/keys/isardvdi.cert",
+			"field_uid":      "",
+			"regex_uid":      ".*",
+			"field_username": "",
+			"regex_username": ".*",
+			"field_name":     "",
+			"regex_name":     ".*",
+			"field_email":    "",
+			"regex_email":    ".*",
+			"field_photo":    "",
+			"regex_photo":    ".*",
 		},
 		"google": map[string]interface{}{
 			"enabled":       false,

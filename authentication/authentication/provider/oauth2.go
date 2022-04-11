@@ -3,9 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
-	"time"
 
-	"github.com/golang-jwt/jwt"
 	"golang.org/x/oauth2"
 )
 
@@ -16,19 +14,9 @@ type oauth2Provider struct {
 }
 
 func (o *oauth2Provider) login(categoryID, redirect string) (string, error) {
-	tkn := jwt.NewWithClaims(jwt.SigningMethodHS256, &CallbackClaims{
-		&jwt.StandardClaims{
-			Issuer:    "isard-authentication",
-			ExpiresAt: time.Now().Add(10 * time.Minute).Unix(),
-		},
-		o.provider,
-		categoryID,
-		redirect,
-	})
-
-	ss, err := tkn.SignedString([]byte(o.secret))
+	ss, err := signCallbackToken(o.secret, o.provider, categoryID, redirect)
 	if err != nil {
-		return "", fmt.Errorf("sign the token: %w", err)
+		return "", err
 	}
 
 	return o.cfg.AuthCodeURL(ss), nil
