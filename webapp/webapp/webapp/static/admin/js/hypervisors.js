@@ -376,9 +376,11 @@ function setHypervisorDetailButtonsStatus(id,status){
 
           if(status=='Offline' || status=='Error'){
               $('#actions-delete-'+id+' .btn-delete').prop('disabled', false);
+              $('#actions-delete-'+id+' .btn-edit').prop('disabled', false);
               
           }else{
               $('#actions-delete-'+id+' .btn-delete').prop('disabled', true);
+              $('#actions-delete-'+id+' .btn-edit').prop('disabled', true);
           } 
           
           //~ if(status=='Online'){
@@ -401,7 +403,6 @@ function setHypervisorDetailButtonsStatus(id,status){
                 //~ $('#delete_btn_text').html('Delete')
                 //~ $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
           }
-          $('#actions-delete-'+id+' .btn-edit').prop('disabled', false);
           
 
 }
