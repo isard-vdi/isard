@@ -15,7 +15,7 @@ from api import app
 from .api_exceptions import Error
 
 r = RethinkDB()
-import logging
+import logging as log
 import traceback
 
 from .flask_rethink import RDB
@@ -29,30 +29,44 @@ from .helpers import _check, _parse_string
 from .validators import _validate_item, _validate_table
 
 
-def admin_table_list(table, order_by, pluck, without):
+def admin_table_list(table, order_by, pluck, without, id=None):
     _validate_table(table)
 
     if not pluck and not without:
         with app.app_context():
-            return list(r.table(table).order_by(order_by).run(db.conn))
+            if not id:
+                return list(r.table(table).order_by(order_by).run(db.conn))
+            else:
+                return r.table(table).get(id).run(db.conn)
 
     if pluck and not without:
         with app.app_context():
-            return list(r.table(table).pluck(pluck).order_by(order_by).run(db.conn))
+            if not id:
+                return list(r.table(table).pluck(pluck).order_by(order_by).run(db.conn))
+            else:
+                r.table(table).get(id).pluck(pluck).run(db.conn)
 
     if not pluck and without:
         with app.app_context():
-            return list(r.table(table).without(without).order_by(order_by).run(db.conn))
+            if not id:
+                return list(
+                    r.table(table).without(without).order_by(order_by).run(db.conn)
+                )
+            else:
+                return r.table(table).get(id).without(without).run(db.conn)
 
     if pluck and without:
         with app.app_context():
-            return list(
-                r.table(table)
-                .pluck(pluck)
-                .without(without)
-                .order_by(order_by)
-                .run(db.conn)
-            )
+            if not id:
+                return list(
+                    r.table(table)
+                    .pluck(pluck)
+                    .without(without)
+                    .order_by(order_by)
+                    .run(db.conn)
+                )
+            else:
+                return r.table(table).get(id).pluck(pluck).without(without).run(db.conn)
 
 
 def admin_table_insert(table, data):

@@ -1390,7 +1390,10 @@ class isardAdmin:
             result = self.check(
                 r.table("hypervisors").insert(dict).run(db.conn), "inserted"
             )
-        if dict["capabilities"]["disk_operations"] and result:
+        if (
+            dict["capabilities"]["disk_operations"]
+            or dict["capabilities"]["hypervisor"]
+        ) and result:
             self.update_hypervisors_pools()
             return True
         return False

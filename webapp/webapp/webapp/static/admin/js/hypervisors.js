@@ -23,14 +23,16 @@ $(document).ready(function() {
                     $("#modalAddHyper #hypervisors_pools_dropdown").append('<option value=' + value.id + '>' + value.name + '</option>');
                 });
             });
-
+            
+            $('#modalAddHyper #modalAdd #hostname').val(window.location.hostname)
+            $('#modalAddHyper #modalAdd #user').val('root')
+            $('#modalAddHyper #modalAdd #port').val(2022)
             $('#modalAddHyper .capabilities_hypervisor').on('ifChecked', function(event){
                 $('#viewer_fields').show()
-                if( $('#modalAddHyper #viewer-static').val()!='' && $('#modalAddHyper #viewer-proxy_video').val()=='' && $('#modalAddHyper #viewer-proxy_hyper_host').val()==''){
-                    $('#modalAddHyper #viewer-static').val($('#modalAddHyper #hostname').val());
-                    $('#modalAddHyper #viewer-proxy_video').val($('#modalAddHyper #hostname').val());
-                    $('#modalAddHyper #viewer-proxy_hyper_host').val(0);                       
-                }
+                    $('#modalAddHyper #viewer-static').val($('#modalAddHyper #modalAdd #hostname').val());
+                    $('#modalAddHyper #viewer-proxy_video').val($('#modalAddHyper #modalAdd #hostname').val());
+                    $('#modalAddHyper #viewer-proxy_hyper_host').val('isard-hypervisor');
+                    $('#modalAddHyper #viewer-hyper_vpn_host').val('isard-hypervisor');                       
                 
 
             });
@@ -45,13 +47,53 @@ $(document).ready(function() {
     });
 
     $("#modalAddHyper #send").on('click', function(e){
-            var form = $('#modalAddHyper #modalAdd');
-            form.parsley().validate();
-            if (form.parsley().isValid()){
-                    data=$('#modalAddHyper #modalAdd').serializeObject();
-                    socket.emit('hyper_add',data)
-            }
-        });
+
+        var form = new FormData()
+        form.append('hyper_id', $('#modalAddHyper #modalAdd #id').val())
+        form.append('description', $('#modalAddHyper #modalAdd textarea[name="description"]').val())
+        form.append('hostname', $('#modalAddHyper #modalAdd #hostname').val())
+        form.append('user', $('#modalAddHyper #modalAdd #user').val())
+        form.append('port', $('#modalAddHyper #modalAdd #port').val())
+        form.append('cap_hyper', $('#modalAddHyper #modalAdd #capabilities-hypervisor').prop('checked'))
+        form.append('cap_disk', $('#modalAddHyper #modalAdd #capabilities-disk_operations').prop('checked'))
+        form.append('isard_static_url', $('#modalAddHyper #modalAdd #viewer-static').val())
+        form.append('isard_video_url', $('#modalAddHyper #modalAdd #viewer-proxy_video').val())
+        form.append('spice_port', $('#modalAddHyper #modalAdd #viewer-spice_ext_port').val())
+        form.append('browser_port', $('#modalAddHyper #modalAdd #viewer-html5_ext_port').val())
+        form.append('isard_proxy_hyper_url', $('#modalAddHyper #modalAdd #viewer-proxy_hyper_host').val())
+        form.append('isard_hyper_vpn_host', $('#modalAddHyper #modalAdd #viewer-hyper_vpn_host').val())
+        form.append('enabled', false) 
+        
+
+        $('#modalAddHyper #modalAdd').parsley().validate();
+        if ($('#modalAddHyper #modalAdd').parsley().isValid()) {
+            $.ajax({
+                type: "POST",
+                url:"/api/v3/hypervisor",
+                data: form,
+                processData: false,
+                contentType: false,
+                success: function(data)
+                {
+                    $('form').each(function() { this.reset() });
+                    $('.modal').modal('hide');
+                },
+                error: function (xhr, ajaxOptions, thrownError) {
+                    if (xhr.status == 404) {
+                        new PNotify({
+                            title: "Cannot connect to hypervisor",
+                            text: "Can't create the hypervisor, it's not reachable.",
+                            hide: true,
+                            delay: 3000,
+                            icon: 'fa fa-warning',
+                            opacity: 1,
+                            type: 'error'
+                        });
+                    }
+                }
+            });
+        }
+    });
 
     //   function timestamp() { return (new Date).getTime() / 1000; }
     //   chart={}
@@ -130,7 +172,9 @@ $(document).ready(function() {
                             {
                             "targets": 13,
                             "render": function ( data, type, full, meta ) {
-                                return full.info.cpu_cores*full.info.threads_x_core;
+                                if (full.info) {
+                                    return full.info.cpu_cores*full.info.threads_x_core;
+                                }
                             }},
                             {
                             "targets": 14,
@@ -366,6 +410,7 @@ function actionsHyperDetail(){
         $('.btn-enable').on('click', function () {
                 var closest=$(this).closest("div");
                 var pk=closest.attr("data-pk");
+                var data = table.row("#"+pk).data();
                 new PNotify({
                         title: 'Confirmation Needed',
                             text: "Are you sure you want to enable/disable: "+pk+"?",
@@ -383,7 +428,7 @@ function actionsHyperDetail(){
                             },
                             addclass: 'pnotify-center'
                         }).get().on('pnotify.confirm', function() {
-                            socket.emit('hyper_toggle', {'pk':pk})
+                            api.ajax('/admin/table/update/hypervisors', 'PUT',{'id':pk, 'enabled':!data.enabled}).done(function(hyp) {});
                         }).on('pnotify.cancel', function() {
                     }); 
                 });
@@ -407,7 +452,7 @@ function actionsHyperDetail(){
                             },
                             addclass: 'pnotify-center'
                         }).get().on('pnotify.confirm', function() {
-                            socket.emit('hyper_delete', {'pk':pk})
+                            api.ajax('/api/v3/hypervisor/' + pk, 'DELETE').done(function(hyp) {});
                         }).on('pnotify.cancel', function() {
                 }); 
             });  
@@ -431,34 +476,10 @@ function actionsHyperDetail(){
                             },
                             addclass: 'pnotify-center'
                         }).get().on('pnotify.confirm', function() {
-                            socket.emit('hyper_domains_stop', {'pk':pk, 'without_viewer':false})
+                            api.ajax('/api/v3/hypervisor/stop/' + pk, 'PUT').done(function(hyp) {});
                         }).on('pnotify.cancel', function() {
                 }); 
             }); 
-
-        $('.btn-domstop-woviewer').on('click', function () {
-                var pk=$(this).closest("div").attr("data-pk");
-                new PNotify({
-                        title: 'Confirmation Needed',
-                            text: "Are you sure you want to FORCE stop all domains in hypervisor "+pk+" that doesn't have a client viewer now?",
-                            hide: false,
-                            opacity: 0.9,
-                            confirm: {
-                                confirm: true
-                            },
-                            buttons: {
-                                closer: false,
-                                sticker: false
-                            },
-                            history: {
-                                history: false
-                            },
-                            addclass: 'pnotify-center'
-                        }).get().on('pnotify.confirm', function() {
-                            socket.emit('hyper_domains_stop', {'pk':pk, 'without_viewer':true})
-                        }).on('pnotify.cancel', function() {
-                }); 
-            });
 
     $('.btn-webstorage').on('click', function () {
         var pk=$(this).closest("div").attr("data-pk");
@@ -477,26 +498,27 @@ function actionsHyperDetail(){
                 keyboard: false
             }).modal('show');
 
-            api.ajax('/isard-admin/admin/load/hypervisors/post','POST',{'id':pk}).done(function(hyp) {
+            api.ajax('/admin/table/hypervisors','POST',{'id':pk}).done(function(hyp) {
                 $('#modalEditHyper #modalEdit #id').val(pk);
                 $('#modalEditHyper #modalEdit #fake_id').val(pk);
                 $('#modalEditHyper #modalEdit #description').val(hyp.description);
                 $('#modalEditHyper #modalEdit #hostname').val(hyp.hostname);
                 $('#modalEditHyper #modalEdit #user').val(hyp.user);
                 $('#modalEditHyper #modalEdit #port').val(hyp.port);
-                if(hyp['capabilities-disk_operations']){
+                if(hyp.capabilities.disk_operations){
                     $('#modalEditHyper #modalEdit #capabilities-disk_operations').iCheck('check');
                 }
-                if(hyp['capabilities-hypervisor']){
+                if(hyp.capabilities.hypervisor){
                     $('#modalEditHyper #modalEdit #capabilities-hypervisor').iCheck('check');
                 }                
                 //~ $('#modalEditHyper #modalEdit #capabilities-disk_operations').val(hyp['capabilities']['disk_operations']);
                 //~ $('#modalEditHyper #modalEdit #capabilities-hypervisor').val(hyp['capabilities']['hypervisor']);
-                $('#modalEditHyper #modalEdit #viewer-static').val(hyp['viewer-static']);
-                $('#modalEditHyper #modalEdit #viewer-proxy_video').val(hyp['viewer-proxy_video']);
-                $('#modalEditHyper #modalEdit #viewer-spice_ext_port').val(hyp['viewer-spice_ext_port']);
-                $('#modalEditHyper #modalEdit #viewer-html5_ext_port').val(hyp['viewer-html5_ext_port']);
-                $('#modalEditHyper #modalEdit #viewer-proxy_hyper_host').val(hyp['viewer-proxy_hyper_host']);
+                $('#modalEditHyper #modalEdit #viewer-static').val(hyp.viewer.static);
+                $('#modalEditHyper #modalEdit #viewer-proxy_video').val(hyp.viewer.proxy_video);
+                $('#modalEditHyper #modalEdit #viewer-spice_ext_port').val(hyp.viewer.spice_ext_port);
+                $('#modalEditHyper #modalEdit #viewer-html5_ext_port').val(hyp.viewer.html5_ext_port);
+                $('#modalEditHyper #modalEdit #viewer-hyper_vpn_host').val(hyp.isard_hyper_vpn_host);
+                $('#modalEditHyper #modalEdit #viewer-proxy_hyper_host').val(hyp.viewer.proxy_hyper_host);
                 
             });
            api.ajax('/isard-admin/admin/hypervisors_pools','GET','').done(function(pools) {
@@ -538,12 +560,21 @@ function actionsHyperDetail(){
                     var form = $('#modalEditHyper #modalEdit');
                     form.parsley().validate();
                     if (form.parsley().isValid()){
-                            data=$('#modalEditHyper #modalEdit').serializeObject();
-                            //~ console.log(data)
-                            socket.emit('hyper_edit',data)
+                        data=$('#modalEditHyper #modalEdit').serializeObject();
+                        data['hypervisors_pools'] = [$('#modalEditHyper #hypervisors_pools_dropdown').val()];
+                            $.ajax({
+                                type: "PUT",
+                                url:"/admin/table/update/hypervisors",
+                                data: JSON.stringify(data),
+                                contentType: "application/json",
+                                success: function(data)
+                                    {
+                                        $('form').each(function() { this.reset() });
+                                        $('.modal').modal('hide');
+                                    }
+                            });
                     }
                 });
-                    
     });                       
 
             
