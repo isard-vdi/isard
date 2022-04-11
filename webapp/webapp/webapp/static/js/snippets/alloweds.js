@@ -229,7 +229,17 @@
                     data=$('#modalAllowedsForm').serializeObject();
                     data=replaceAlloweds_arrays('#modalAllowedsForm #alloweds-add',data)
                     data['table']=table
-                    socket.emit('allowed_update',data)
+                    $.ajax({
+                        type: "POST",
+                        url: '/admin/alloweds/update/' + table,
+                        dataType: 'json',
+                        contentType: "application/json",
+                        data: JSON.stringify(data),
+                        success: function () {
+                            $('form').each(function() { this.reset() });
+                            $('.modal').modal('hide');
+                        }
+                    })
                 }
 
                 
