@@ -210,7 +210,7 @@ def launch_action_disk(action, hostname, user, port, from_scratch=False):
     pprint(array_out_err)
 
     if action["type"] in ["create_disk", "create_disk_from_scratch"]:
-        if len([k["err"] for k in array_out_err if len(k["err"]) == 0]):
+        if not any(command.get("err") for command in array_out_err):
             ##TODO: TEST WITH MORE THAN ONE DISK, 2 list_backing_chain must be created
             log.debug(
                 "all operations creating disk {} for new domain {} runned ok".format(
