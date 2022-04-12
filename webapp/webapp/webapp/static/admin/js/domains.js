@@ -184,6 +184,7 @@ $(document).ready(function() {
                     data=$('#modalTemplateDesktopForm').serializeObject();
                     data=replaceMedia_arrays('#modalTemplateDesktopForm',data);
                     data=replaceAlloweds_arrays('#modalTemplateDesktopForm #alloweds-add',data)
+                    data['enabled']=$('#modalTemplateDesktopForm #enabled').prop('checked')
                     socket.emit('domain_template_add',data)
                 }else{
                     $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
