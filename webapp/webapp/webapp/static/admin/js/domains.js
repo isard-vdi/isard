@@ -199,37 +199,47 @@ $(document).ready(function() {
         todelete = []
         selected.forEach(function (item) {
             todelete.push({"id":item.data.id, "title":item.title, "kind":item.data.kind, "status":item.data.status})
-        });        
-        //id=$('#modalDeleteTemplate #id').val();
-        api.ajax('/isard-admin/admin/items/delete','POST',todelete).done(function(data) {
-            data=JSON.parse(data);
-            if( data == true ){
-                new PNotify({
-                        title: "Deleting",
-                        text: "Deleting all templates and desktops",
-                        hide: true,
-                        delay: 4000,
-                        icon: 'fa fa-success',
-                        opacity: 1,
-                        type: 'success'
-                });
-            }else{
-                new PNotify({
-                        title: "Error deleting",
-                        text: "Unable to delete templates and desktops: "+data,
-                        hide: true,
-                        delay: 4000,
-                        icon: 'fa fa-warning',
-                        opacity: 1,
-                        type: 'error'
-                });
-            }
-            domains_table.ajax.reload()
-            $("#modalDeleteTemplate").modal('hide');
         });
-             
+        var notice = new PNotify({
+            text: 'Deleting selected item(s)...',
+            hide: false,
+            opacity: 1,
+            icon: 'fa fa-spinner fa-pulse'
+        })
+        $('form').each(function() {
+            this.reset()
+        })
+        $('.modal').modal('hide')
+        $.ajax({
+            type: 'DELETE',
+            url: '/api/v3/admin/domains',
+            data: JSON.stringify(todelete),
+            contentType: 'application/json',
+            error: function(data) {
+                new PNotify({
+                    title: 'ERROR',
+                    text: 'Something went wrong',
+                    type: 'error',
+                    hide: true,
+                    icon: 'fa fa-warning',
+                    delay: 5000,
+                    opacity: 1
+                })
+            },
+            success: function(data) {
+                domains_table.ajax.reload()
+                notice.update({
+                    title: data.title,
+                    text: 'Item(s) deleted successfully',
+                    hide: true,
+                    delay: 2000,
+                    icon: 'fa fa-' + data.icon,
+                    opacity: 1,
+                    type: 'success'
+                })
+            }
+        })
     });
-
 
     // Setup - add a text input to each footer cell
     $('#domains tfoot th').each( function () {
@@ -718,7 +728,7 @@ function actionsDomainDetail(){
                                 },
                                 addclass: 'pnotify-center'
                             }).get().on('pnotify.confirm', function() {
-                                socket.emit('domain_update',{'pk':pk,'name':'status','value':'Deleting'})
+                                api.ajax('/api/v3/desktop/' + pk, 'DELETE').done(function() {});
                             }).on('pnotify.cancel', function() {
                     });	
         });
@@ -1060,6 +1070,7 @@ function renderAction(data){
 }
 
 function populate_tree_template_delete(id){
+    $(":ui-fancytree").fancytree("destroy")
     $("#modalDeleteTemplate .tree_template_delete").fancytree({
         extensions: ["table"],
         table: {
@@ -1067,11 +1078,11 @@ function populate_tree_template_delete(id){
           nodeColumnIdx: 2,     // render the node title into the 2nd column
           checkboxColumnIdx: 0  // render the checkboxes into the 1st column
         },  
-        source: {url: "/isard-admin/admin/domains/tree_list/" + id,
+        source: {url: "/api/v3/admin/desktops/tree_list/" + id,
                 cache: false},
         lazyLoad: function(event, data){
             data.result = $.ajax({
-                url: "/isard-admin/admin/domains/tree_list/" + id,
+                url: "/api/v3/admin/desktops/tree_list/" + id,
                 dataType: "json"
             });
             },
@@ -1105,38 +1116,6 @@ function populate_tree_template_delete(id){
     });
 }
 
-
-function delete_templates(id){
-    //~ var pk=$(this).closest("[data-pk]").attr("data-pk");
-    $('#modalDeleteTemplate #id').val(id);
-	modal_delete_templates = $('#modal_delete_templates').DataTable({
-			"ajax": {
-				"url": "/isard-admin/admin/domains/todelete/"+id,
-				"dataSrc": ""
-			},
-            "scrollY":        "125px",
-            "scrollCollapse": true,
-            "paging":         false,
-			"language": {
-				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
-                "zeroRecords":    "No matching templates found",
-                "info":           "Showing _START_ to _END_ of _TOTAL_ templates",
-                "infoEmpty":      "Showing 0 to 0 of 0 templates",
-                "infoFiltered":   "(filtered from _MAX_ total templates)"
-			},
-			"rowId": "id",
-			"deferRender": true,
-			"columns": [
-				{ "data": "kind"},
-                { "data": "user"},
-                { "data": "status"},
-                { "data": "name"},
-				],
-			 //~ "order": [[0, 'asc']],	
-             "pageLength": 10,	
-             "destroy" : true 
-	} );
-}
 
 // MODAL EDIT DESKTOP
 function modal_edit_desktop_datatables(id){

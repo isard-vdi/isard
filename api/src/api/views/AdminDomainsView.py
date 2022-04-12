@@ -5,6 +5,7 @@
 
 import json
 import logging as log
+import traceback
 
 from flask import request
 
@@ -12,12 +13,18 @@ from flask import request
 # coding=utf-8
 from api import app
 
-from ..libv2.api_admin import ApiAdmin, admin_table_get, admin_table_update
+from ..libv2.api_admin import (
+    ApiAdmin,
+    admin_domains_delete,
+    admin_table_get,
+    admin_table_update,
+)
+from ..libv2.api_desktops_persistent import ApiDesktopsPersistent
 from ..libv2.api_exceptions import Error
-from ..libv2.validators import _validate_item
-from .decorators import has_token, is_admin_or_manager, ownsDomainId
+from .decorators import is_admin_or_manager, ownsDomainId
 
 admins = ApiAdmin()
+desktops_persistent = ApiDesktopsPersistent()
 
 
 @app.route("/api/v3/admin/domains", methods=["GET"])
@@ -101,3 +108,26 @@ def getAllTemplates(payload):
         templates = [d for d in templates if d["category"] == payload["category_id"]]
 
     return json.dumps(templates)
+
+
+@app.route("/api/v3/admin/domains", methods=["DELETE"])
+@is_admin_or_manager
+def api_v3_admin_domains_delete(payload):
+    if request.method == "DELETE":
+        try:
+            domains = request.get_json(force=True)
+        except:
+            import logging as log
+
+            log.debug(traceback.format_exc())
+            raise Error(
+                "internal_server",
+                "Internal server error ",
+                traceback.format_stack(),
+            )
+
+        for i in domains:
+            ownsDomainId(payload, i["id"])
+
+        admin_domains_delete(domains)
+        return json.dumps({}), 200, {"Content-Type": "application/json"}
