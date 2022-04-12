@@ -3,7 +3,7 @@ function setDomainHotplug(id,hardware){
 
     hotplug_table=$("#table-hotplug-"+id).DataTable({
 			"ajax": {
-				"url": "/isard-admin/domain/media_list",
+				"url": "/api/v3/desktops/media_list",
                 "contentType": "application/json",
                 "type": 'POST',
                 "data": function(d){return JSON.stringify({'pk':id})}

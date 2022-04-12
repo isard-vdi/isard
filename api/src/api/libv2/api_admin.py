@@ -246,3 +246,147 @@ class ApiAdmin:
                 "Internal server error " + user_id,
                 traceback.format_exc(),
             )
+
+    def GetTemplateTreeList(self, template_id, user_id):
+        levels = {}
+        derivated = self.TemplateTreeList(template_id, user_id)
+        for n in derivated:
+            levels.setdefault(n["parent"], []).append(n)
+        recursion = self.TemplateTreeRecursion(template_id, levels)
+        with app.app_context():
+            user_id = r.table("users").get(user_id).run(db.conn)
+            d = (
+                r.db("isard")
+                .table("domains")
+                .get(template_id)
+                .pluck(
+                    "id",
+                    "name",
+                    "kind",
+                    "category",
+                    "group",
+                    "user",
+                    "username",
+                    "status",
+                    "parents",
+                )
+                .run(db.conn)
+            )
+        root = [
+            {
+                "id": d["id"],
+                "title": d["name"],
+                "expanded": True,
+                "unselectable": False
+                if user_id["role"] == "manager" or user_id["role"] == "admin"
+                else True,
+                "selected": True if user_id["id"] == d["user"] else False,
+                "parent": d["parents"][-1]
+                if "parents" in d.keys() and len(d["parents"]) > 0
+                else "",
+                "user": d["username"],
+                "category": d["category"],
+                "group": d["group"].split(d["category"] + "-")[1],
+                "kind": d["kind"] if d["kind"] == "desktop" else "template",
+                "status": d["status"],
+                "icon": "fa fa-desktop" if d["kind"] == "desktop" else "fa fa-cube",
+                "children": recursion,
+            }
+        ]
+        return root
+
+    def TemplateTreeRecursion(self, template_id, levels):
+        nodes = [dict(n) for n in levels.get(template_id, [])]
+        for n in nodes:
+            children = self.TemplateTreeRecursion(n["id"], levels)
+            if children:
+                n["children"] = children
+            for c in children:
+                if c["unselectable"] == True:
+                    n["unselectable"] = True
+                    break
+        return nodes
+
+    def TemplateTreeList(self, template_id, user_id):
+        with app.app_context():
+            user_id = r.table("users").get(user_id).run(db.conn)
+            template = (
+                r.db("isard")
+                .table("domains")
+                .get(template_id)
+                .pluck(
+                    "id",
+                    "name",
+                    "kind",
+                    "category",
+                    "group",
+                    "user",
+                    "username",
+                    "status",
+                    "parents",
+                )
+                .run(db.conn)
+            )
+            derivated = list(
+                r.db("isard")
+                .table("domains")
+                .pluck(
+                    "id",
+                    "name",
+                    "kind",
+                    "category",
+                    "group",
+                    "user",
+                    "username",
+                    "status",
+                    "parents",
+                )
+                .filter(lambda derivates: derivates["parents"].contains(template_id))
+                .run(db.conn)
+            )
+        if user_id["role"] == "manager":
+            if template["category"] != user_id["category"]:
+                return []
+            derivated = [d for d in derivated if d["category"] == user_id["category"]]
+        fancyd = []
+        for d in derivated:
+            if user_id["role"] == "manager" or user_id["role"] == "admin":
+                fancyd.append(
+                    {
+                        "id": d["id"],
+                        "title": d["name"],
+                        "expanded": True,
+                        "unselectable": False,
+                        "selected": True if user_id["id"] == d["user"] else False,
+                        "parent": d["parents"][-1],
+                        "user": d["username"],
+                        "category": d["category"],
+                        "group": d["group"].split(d["category"] + "-")[1],
+                        "kind": d["kind"] if d["kind"] == "desktop" else "template",
+                        "status": d["status"],
+                        "icon": "fa fa-desktop"
+                        if d["kind"] == "desktop"
+                        else "fa fa-cube",
+                    }
+                )
+            else:
+                ## It can only be an advanced user
+                fancyd.append(
+                    {
+                        "id": d["id"],
+                        "title": d["name"],
+                        "expanded": True,
+                        "unselectable": False if user_id["id"] == d["user"] else True,
+                        "selected": True if user_id["id"] == d["user"] else False,
+                        "parent": d["parents"][-1],
+                        "user": d["username"],
+                        "category": d["category"],
+                        "group": d["group"].split(d["category"] + "-")[1],
+                        "kind": d["kind"] if d["kind"] == "desktop" else "template",
+                        "status": d["status"],
+                        "icon": "fa fa-desktop"
+                        if d["kind"] == "desktop"
+                        else "fa fa-cube",
+                    }
+                )
+        return fancyd

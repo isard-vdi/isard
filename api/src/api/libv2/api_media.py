@@ -106,3 +106,44 @@ class ApiMedia:
             return alloweds
         except Exception as e:
             raise UserMediaError
+
+    def GetMediaList(self, id):
+        with app.app_context():
+            domain_cd = (
+                r.table("domains")
+                .get(id)
+                .pluck({"create_dict": {"hardware"}})
+                .run(db.conn)["create_dict"]["hardware"]
+            )
+        media = []
+        if "isos" in domain_cd and domain_cd["isos"] != []:
+            for m in domain_cd["isos"]:
+                try:
+                    iso = (
+                        r.table("media")
+                        .get(m["id"])
+                        .pluck("id", "name", {"progress": "total"})
+                        .merge({"kind": "iso"})
+                        .run(db.conn)
+                    )
+                    iso["size"] = iso.pop("progress")["total"]
+                    media.append(iso)
+                except:
+                    """Media does not exist"""
+                    None
+        if "floppies" in domain_cd and domain_cd["floppies"] != []:
+            for m in domain_cd["floppies"]:
+                try:
+                    fd = (
+                        r.table("media")
+                        .get(m["id"])
+                        .pluck("id", "name", {"progress": "total"})
+                        .merge({"kind": "fd"})
+                        .run(db.conn)
+                    )
+                    fd["size"] = fd.pop("progress")["total"]
+                    media.append(fd)
+                except:
+                    """Media does not exist"""
+                    None
+        return media

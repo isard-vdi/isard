@@ -70,3 +70,14 @@ def api_v3_admin_domains_server(payload, id):
         200,
         {"Content-Type": "application/json"},
     )
+
+
+@app.route("/api/v3/admin/desktops/tree_list/<id>", methods=["GET"])
+@is_admin_or_manager
+def api_v3_admin_desktops_tree_list(payload, id):
+    user_id = payload["user_id"]
+    return (
+        json.dumps(admins.GetTemplateTreeList(id, user_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )
