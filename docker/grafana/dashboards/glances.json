@@ -23,8 +23,8 @@
   "fiscalYearStartMonth": 0,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 2,
-  "iteration": 1646132596803,
+  "id": 1,
+  "iteration": 1648467010889,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -65,7 +65,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 6,
+        "h": 7,
         "w": 2,
         "x": 0,
         "y": 0
@@ -137,60 +137,127 @@
       "type": "stat"
     },
     {
-      "aliasColors": {},
-      "annotate": {
-        "enable": false
-      },
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
       "datasource": "Glances",
-      "fill": 1,
-      "fillGradient": 0,
-      "grid": {
-        "max": null,
-        "min": null
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "left",
+            "axisSoftMax": 20,
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "percentage",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 40
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1min"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "5mins"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "yellow",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "15mins"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
-        "h": 6,
+        "h": 7,
         "w": 20,
         "x": 2,
         "y": 0
       },
-      "hiddenSeries": false,
       "id": 4,
-      "interactive": true,
-      "legend": {
-        "alignAsTable": true,
-        "avg": true,
-        "current": false,
-        "max": true,
-        "min": true,
-        "rightSide": true,
-        "show": true,
-        "total": false,
-        "values": true
-      },
-      "legend_counts": true,
-      "lines": true,
-      "linewidth": 2,
       "links": [],
-      "nullPointMode": "null",
       "options": {
-        "alertThreshold": true
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
       },
-      "percentage": false,
       "pluginVersion": "8.2.5",
-      "pointradius": 5,
-      "points": false,
-      "renderer": "flot",
-      "resolution": 100,
-      "scale": 1,
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "spyable": true,
-      "stack": true,
-      "steppedLine": false,
       "targets": [
         {
           "alias": "1min",
@@ -340,46 +407,10 @@
           "target": ""
         }
       ],
-      "thresholds": [],
       "timeFrom": null,
-      "timeRegions": [],
       "timeShift": null,
-      "timezone": "browser",
       "title": "Load",
-      "tooltip": {
-        "query_as_alias": true,
-        "shared": false,
-        "sort": 0,
-        "value_type": "cumulative"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "format": "short",
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        },
-        {
-          "format": "short",
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
+      "type": "timeseries"
     },
     {
       "cacheTimeout": null,
@@ -419,7 +450,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 6,
+        "h": 7,
         "w": 2,
         "x": 22,
         "y": 0
@@ -505,7 +536,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 6
+        "y": 7
       },
       "hiddenSeries": false,
       "id": 6,
@@ -739,7 +770,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 6
+        "y": 7
       },
       "hiddenSeries": false,
       "id": 7,
@@ -925,7 +956,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 13
+        "y": 14
       },
       "hiddenSeries": false,
       "id": 9,
@@ -1105,352 +1136,9 @@
       "grid": {},
       "gridPos": {
         "h": 7,
-        "w": 12,
-        "x": 12,
-        "y": 13
-      },
-      "hiddenSeries": false,
-      "id": 8,
-      "legend": {
-        "avg": false,
-        "current": false,
-        "max": false,
-        "min": false,
-        "show": true,
-        "total": false,
-        "values": false
-      },
-      "lines": true,
-      "linewidth": 1,
-      "links": [],
-      "nullPointMode": "null",
-      "options": {
-        "alertThreshold": true
-      },
-      "percentage": false,
-      "pluginVersion": "8.2.5",
-      "pointradius": 5,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
-      "targets": [
-        {
-          "alias": "Used",
-          "column": "used",
-          "dsType": "influxdb",
-          "function": "mean",
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            }
-          ],
-          "measurement": "$host.memswap",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT mean(\"used\") FROM \"memswap\" WHERE (\"hostname\" =~ /^$host$/) AND $timeFilter GROUP BY time($__interval) fill(none)",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "used"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ],
-          "series": "memswap",
-          "tags": []
-        },
-        {
-          "alias": "Max",
-          "column": "total",
-          "dsType": "influxdb",
-          "function": "mean",
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            }
-          ],
-          "measurement": "$host.memswap",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT mean(\"total\") FROM \"memswap\" WHERE (\"hostname\" =~ /^$host$/) AND $timeFilter GROUP BY time($__interval) fill(none)",
-          "rawQuery": true,
-          "refId": "B",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "total"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ],
-          "series": "memswap",
-          "tags": [],
-          "target": ""
-        }
-      ],
-      "thresholds": [],
-      "timeFrom": null,
-      "timeRegions": [],
-      "timeShift": null,
-      "title": "SWAP",
-      "tooltip": {
-        "shared": false,
-        "sort": 0,
-        "value_type": "cumulative"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "$$hashKey": "object:2690",
-          "format": "bytes",
-          "logBase": 1,
-          "max": null,
-          "min": "0",
-          "show": true
-        },
-        {
-          "$$hashKey": "object:2691",
-          "format": "short",
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
-    },
-    {
-      "aliasColors": {},
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
-      "datasource": "Glances",
-      "editable": true,
-      "error": false,
-      "fill": 0,
-      "fillGradient": 0,
-      "grid": {},
-      "gridPos": {
-        "h": 7,
-        "w": 12,
-        "x": 0,
-        "y": 20
-      },
-      "hiddenSeries": false,
-      "id": 10,
-      "legend": {
-        "avg": true,
-        "current": false,
-        "max": true,
-        "min": true,
-        "show": true,
-        "total": false,
-        "values": true
-      },
-      "lines": true,
-      "linewidth": 1,
-      "links": [],
-      "nullPointMode": "null",
-      "options": {
-        "alertThreshold": true
-      },
-      "percentage": false,
-      "pluginVersion": "8.2.5",
-      "pointradius": 5,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [
-        {
-          "alias": "Write",
-          "yaxis": 2
-        }
-      ],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
-      "targets": [
-        {
-          "alias": "Read",
-          "column": "sda2.read_bytes",
-          "dsType": "influxdb",
-          "function": "mean",
-          "groupBy": [
-            {
-              "params": [
-                "auto"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "none"
-              ],
-              "type": "fill"
-            }
-          ],
-          "measurement": "$host.diskio",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT mean(\"read_bytes\")/mean(\"time_since_update\") FROM \"diskio\" WHERE (\"hostname\" =~ /^$host$/) AND  (\"disk_name\" =~ /^$disk$/) AND $timeFilter GROUP BY time($__interval) fill(none)",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "sda2.read_bytes"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ],
-          "series": "diskio",
-          "tags": []
-        },
-        {
-          "alias": "Write",
-          "column": "sda2.write_bytes",
-          "dsType": "influxdb",
-          "function": "mean",
-          "groupBy": [
-            {
-              "params": [
-                "auto"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "none"
-              ],
-              "type": "fill"
-            }
-          ],
-          "measurement": "$host.diskio",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT mean(\"write_bytes\")/mean(\"time_since_update\") FROM \"diskio\" WHERE (\"hostname\" =~ /^$host$/) AND  (\"disk_name\" =~ /^$disk$/) AND $timeFilter GROUP BY time($__interval) fill(none)",
-          "rawQuery": true,
-          "refId": "B",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "sda2.write_bytes"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ],
-          "series": "diskio",
-          "tags": [],
-          "target": ""
-        }
-      ],
-      "thresholds": [],
-      "timeFrom": null,
-      "timeRegions": [],
-      "timeShift": null,
-      "title": "$disk disk IO",
-      "tooltip": {
-        "shared": false,
-        "sort": 0,
-        "value_type": "cumulative"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "$$hashKey": "object:2782",
-          "format": "bytes",
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        },
-        {
-          "$$hashKey": "object:2783",
-          "format": "bytes",
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
-    },
-    {
-      "aliasColors": {
-        "Max": "#BF1B00"
-      },
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
-      "datasource": "Glances",
-      "editable": true,
-      "error": false,
-      "fill": 0,
-      "fillGradient": 0,
-      "grid": {},
-      "gridPos": {
-        "h": 7,
         "w": 8,
         "x": 12,
-        "y": 20
+        "y": 14
       },
       "hiddenSeries": false,
       "id": 11,
@@ -1682,7 +1370,7 @@
         "h": 7,
         "w": 2,
         "x": 20,
-        "y": 20
+        "y": 14
       },
       "id": 16,
       "interval": null,
@@ -1800,7 +1488,7 @@
         "h": 7,
         "w": 2,
         "x": 22,
-        "y": 20
+        "y": 14
       },
       "id": 17,
       "interval": null,
@@ -1870,81 +1558,86 @@
       "type": "stat"
     },
     {
-      "datasource": null,
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "Glances",
+      "editable": true,
+      "error": false,
+      "fill": 0,
+      "fillGradient": 0,
+      "grid": {},
       "gridPos": {
-        "h": 3,
+        "h": 7,
         "w": 24,
         "x": 0,
-        "y": 27
+        "y": 21
       },
-      "id": 22,
+      "hiddenSeries": false,
+      "id": 10,
+      "legend": {
+        "avg": true,
+        "current": false,
+        "max": true,
+        "min": true,
+        "show": true,
+        "total": false,
+        "values": true
+      },
+      "lines": true,
+      "linewidth": 1,
       "links": [],
+      "nullPointMode": "null",
       "options": {
-        "content": "",
-        "mode": "markdown"
+        "alertThreshold": true
       },
+      "percentage": false,
       "pluginVersion": "8.2.5",
-      "title": "Sensors",
-      "type": "text"
-    },
-    {
-      "cards": {
-        "cardPadding": null,
-        "cardRound": null
-      },
-      "color": {
-        "cardColor": "rgb(255, 0, 0)",
-        "colorScale": "sqrt",
-        "colorScheme": "interpolateReds",
-        "exponent": 1,
-        "min": null,
-        "mode": "opacity"
-      },
-      "dataFormat": "timeseries",
-      "datasource": "Glances",
-      "gridPos": {
-        "h": 6,
-        "w": 12,
-        "x": 0,
-        "y": 30
-      },
-      "heatmap": {},
-      "hideZeroBuckets": false,
-      "highlightCards": true,
-      "id": 21,
-      "legend": {
-        "show": false
-      },
-      "links": [],
-      "reverseYBuckets": false,
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [
+        {
+          "alias": "Write",
+          "yaxis": 2
+        }
+      ],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
       "targets": [
         {
-          "alias": "AmbientTemperature",
+          "alias": "Read",
+          "column": "sda2.read_bytes",
           "dsType": "influxdb",
+          "function": "mean",
           "groupBy": [
             {
               "params": [
-                "$__interval"
+                "auto"
               ],
               "type": "time"
             },
             {
               "params": [
-                "null"
+                "none"
               ],
               "type": "fill"
             }
           ],
-          "measurement": "sensors",
+          "measurement": "$host.diskio",
           "orderByTime": "ASC",
           "policy": "default",
+          "query": "SELECT mean(\"read_bytes\")/mean(\"time_since_update\") FROM \"diskio\" WHERE (\"hostname\" =~ /^$host$/) AND  (\"disk_name\" =~ /^$disk$/) AND $timeFilter GROUP BY time($__interval) fill(none)",
+          "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
           "select": [
             [
               {
                 "params": [
-                  "value"
+                  "sda2.read_bytes"
                 ],
                 "type": "field"
               },
@@ -1954,102 +1647,40 @@
               }
             ]
           ],
-          "tags": [
-            {
-              "key": "label",
-              "operator": "=",
-              "value": "Ambient"
-            },
-            {
-              "condition": "AND",
-              "key": "hostname",
-              "operator": "=~",
-              "value": "/^$host$/"
-            }
-          ]
-        }
-      ],
-      "title": "Ambiant temperature",
-      "tooltip": {
-        "show": true,
-        "showHistogram": false
-      },
-      "type": "heatmap",
-      "xAxis": {
-        "show": true
-      },
-      "xBucketNumber": null,
-      "xBucketSize": null,
-      "yAxis": {
-        "decimals": null,
-        "format": "celsius",
-        "logBase": 1,
-        "max": null,
-        "min": "0",
-        "show": true,
-        "splitFactor": null
-      },
-      "yBucketBound": "auto",
-      "yBucketNumber": null,
-      "yBucketSize": null
-    },
-    {
-      "cards": {
-        "cardPadding": null,
-        "cardRound": null
-      },
-      "color": {
-        "cardColor": "rgb(255, 0, 0)",
-        "colorScale": "sqrt",
-        "colorScheme": "interpolateOranges",
-        "exponent": 1,
-        "mode": "opacity"
-      },
-      "dataFormat": "timeseries",
-      "datasource": "Glances",
-      "gridPos": {
-        "h": 6,
-        "w": 12,
-        "x": 12,
-        "y": 30
-      },
-      "heatmap": {},
-      "hideZeroBuckets": false,
-      "highlightCards": true,
-      "id": 23,
-      "legend": {
-        "show": false
-      },
-      "links": [],
-      "reverseYBuckets": false,
-      "targets": [
+          "series": "diskio",
+          "tags": []
+        },
         {
-          "alias": "CpuTemperature",
+          "alias": "Write",
+          "column": "sda2.write_bytes",
           "dsType": "influxdb",
+          "function": "mean",
           "groupBy": [
             {
               "params": [
-                "$__interval"
+                "auto"
               ],
               "type": "time"
             },
             {
               "params": [
-                "null"
+                "none"
               ],
               "type": "fill"
             }
           ],
-          "measurement": "sensors",
+          "measurement": "$host.diskio",
           "orderByTime": "ASC",
           "policy": "default",
-          "refId": "A",
+          "query": "SELECT mean(\"write_bytes\")/mean(\"time_since_update\") FROM \"diskio\" WHERE (\"hostname\" =~ /^$host$/) AND  (\"disk_name\" =~ /^$disk$/) AND $timeFilter GROUP BY time($__interval) fill(none)",
+          "rawQuery": true,
+          "refId": "B",
           "resultFormat": "time_series",
           "select": [
             [
               {
                 "params": [
-                  "value"
+                  "sda2.write_bytes"
                 ],
                 "type": "field"
               },
@@ -2059,44 +1690,51 @@
               }
             ]
           ],
-          "tags": [
-            {
-              "key": "label",
-              "operator": "=",
-              "value": "CPU"
-            },
-            {
-              "condition": "AND",
-              "key": "hostname",
-              "operator": "=~",
-              "value": "/^$host$/"
-            }
-          ]
+          "series": "diskio",
+          "tags": [],
+          "target": ""
         }
       ],
-      "title": "CPU temperature",
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "$disk disk IO",
       "tooltip": {
+        "shared": false,
+        "sort": 0,
+        "value_type": "cumulative"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
         "show": true,
-        "showHistogram": false
+        "values": []
       },
-      "type": "heatmap",
-      "xAxis": {
-        "show": true
-      },
-      "xBucketNumber": null,
-      "xBucketSize": null,
-      "yAxis": {
-        "decimals": null,
-        "format": "celsius",
-        "logBase": 1,
-        "max": null,
-        "min": "0",
-        "show": true,
-        "splitFactor": null
-      },
-      "yBucketBound": "auto",
-      "yBucketNumber": null,
-      "yBucketSize": null
+      "yaxes": [
+        {
+          "$$hashKey": "object:2782",
+          "format": "bytes",
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:2783",
+          "format": "bytes",
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
     },
     {
       "datasource": null,
@@ -2106,7 +1744,7 @@
         "h": 3,
         "w": 24,
         "x": 0,
-        "y": 36
+        "y": 28
       },
       "id": 13,
       "links": [],
@@ -2146,13 +1784,13 @@
           }
         ]
       },
-      "fill": 0,
+      "fill": 4,
       "fillGradient": 0,
       "gridPos": {
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 39
+        "y": 31
       },
       "hiddenSeries": false,
       "id": 25,
@@ -2357,9 +1995,9 @@
       {
         "allValue": null,
         "current": {
-          "selected": true,
-          "text": "pepino",
-          "value": "pepino"
+          "selected": false,
+          "text": "isard-labs-jhony",
+          "value": "isard-labs-jhony"
         },
         "datasource": "Glances",
         "definition": "show tag values with key=\"hostname\"",
@@ -2385,8 +2023,12 @@
         "allValue": null,
         "current": {
           "selected": false,
-          "text": "All",
-          "value": "$__all"
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
         },
         "datasource": "Glances",
         "definition": "show tag values with key=\"name\"",
@@ -2412,8 +2054,8 @@
         "allValue": null,
         "current": {
           "selected": false,
-          "text": "br-1d2339fa1354",
-          "value": "br-1d2339fa1354"
+          "text": "enp1s0",
+          "value": "enp1s0"
         },
         "datasource": "Glances",
         "definition": "show tag values with key=\"interface_name\"",
@@ -2439,8 +2081,8 @@
         "allValue": null,
         "current": {
           "selected": false,
-          "text": "loop0",
-          "value": "loop0"
+          "text": "vda1",
+          "value": "vda1"
         },
         "datasource": "Glances",
         "definition": "show tag values with key=\"disk_name\"",
@@ -2465,7 +2107,7 @@
     ]
   },
   "time": {
-    "from": "now-1h",
+    "from": "now-5m",
     "to": "now"
   },
   "timepicker": {

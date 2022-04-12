@@ -1,10 +1,25 @@
 #!/bin/bash
-set -e
 
 influx bucket create \
     -o ${DOCKER_INFLUXDB_INIT_ORG} \
-    -n ${DOCKER_INFLUXDB_INIT_BUCKET}-go
+    -n ${DOCKER_INFLUXDB_INIT_BUCKET}-go \
+    -r ${STATS_GLANCES_DATA_RETENTION}
 
+influx bucket create \
+    -o ${DOCKER_INFLUXDB_INIT_ORG} \
+    -n isardvdi-tasks \
+    -r ${STATS_GLANCES_DATA_RETENTION}
+   
+# Import tasks
+for file in $(ls /tasks); do
+    task=${file%".flux"}
+    influx task list --hide-headers | awk '{ print $0 }' | grep -w $task
+
+    if [ $? -ne 0 ]; then
+        influx task create -f "/tasks/$file"
+    fi
+done
+ 
 influx bucket create \
     -o ${DOCKER_INFLUXDB_INIT_ORG} \
     -n glances \

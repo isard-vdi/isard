@@ -23,8 +23,8 @@
   "fiscalYearStartMonth": 0,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 1,
-  "iteration": 1646987983220,
+  "id": 2,
+  "iteration": 1649418207906,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -73,7 +73,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "dark-purple",
                 "value": null
               },
               {
@@ -110,7 +110,7 @@
       "pluginVersion": "8.2.5",
       "targets": [
         {
-          "query": "from(bucket: \"isardvdi\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domains\"\n  )\n  |> keep(columns: [\"_time\", \"id_domain\"])\n  |> group()\n  |> unique(column: \"id_domain\")\n  |> count(column: \"id_domain\")\n  |> yield()",
+          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\"\n  )\n  |> keep(columns: [\"_time\", \"id\"])\n  |> group()\n  |> unique(column: \"id\")\n  |> count(column: \"id\")\n  |> yield()",
           "refId": "A"
         }
       ],
@@ -120,8 +120,8 @@
     {
       "datasource": "Loki",
       "gridPos": {
-        "h": 8,
-        "w": 14,
+        "h": 6,
+        "w": 16,
         "x": 4,
         "y": 0
       },
@@ -147,20 +147,356 @@
     },
     {
       "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "dark-orange",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
       "gridPos": {
-        "h": 4,
+        "h": 3,
+        "w": 2,
+        "x": 20,
+        "y": 0
+      },
+      "id": 166,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 12,
+          "valueSize": 30
+        },
+        "textMode": "value"
+      },
+      "pluginVersion": "8.2.5",
+      "targets": [
+        {
+          "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"viewers\")\n  |> filter(fn: (r) => r[\"viewer_type\"] == \"viewer_port_spice\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Viewer HTML5",
+      "type": "stat"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "displayName": "HTML5",
+          "mappings": [],
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "dark-red",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 2,
+        "x": 22,
+        "y": 0
+      },
+      "id": 167,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 12,
+          "valueSize": 30
+        },
+        "textMode": "value"
+      },
+      "pluginVersion": "8.2.5",
+      "targets": [
+        {
+          "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"viewers\")\n  |> filter(fn: (r) => r[\"viewer_type\"] == \"viewer_port_spice_tls\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Viewer SPICE",
+      "type": "stat"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "dark-blue",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 2,
+        "x": 2,
+        "y": 3
+      },
+      "id": 160,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.2.5",
+      "targets": [
+        {
+          "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"visors_started\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
+          "refId": "A"
+        }
+      ],
+      "title": "Visors started",
+      "type": "stat"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 2,
+        "x": 20,
+        "y": 3
+      },
+      "id": 173,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 12,
+          "valueSize": 30
+        },
+        "textMode": "value"
+      },
+      "pluginVersion": "8.2.5",
+      "targets": [
+        {
+          "query": "",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Viewer RDP",
+      "type": "stat"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "displayName": "HTML5",
+          "mappings": [],
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#24292ea3",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 2,
+        "x": 22,
+        "y": 3
+      },
+      "id": 174,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 12,
+          "valueSize": 30
+        },
+        "textMode": "value"
+      },
+      "pluginVersion": "8.2.5",
+      "targets": [
+        {
+          "query": "",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Viewer RDP HTML5",
+      "type": "stat"
+    },
+    {
+      "datasource": null,
+      "gridPos": {
+        "h": 2,
         "w": 2,
         "x": 0,
         "y": 4
       },
       "id": 159,
       "options": {
-        "content": "## Loki\n\n  [Loki Query Explorer](/monitor/explore?orgId=1&left=%5B%22now-1h%22,%22now%22,%22Loki%22,%7B%22refId%22:%22A%22%7D%5D)\n           ",
+        "content": "[Loki Query Explorer](/monitor/explore?orgId=1&left=%5B%22now-1h%22,%22now%22,%22Loki%22,%7B%22refId%22:%22A%22%7D%5D)\n           ",
         "mode": "markdown"
       },
       "pluginVersion": "8.2.5",
       "title": "Logs",
+      "transparent": true,
       "type": "text"
+    },
+    {
+      "datasource": "Loki",
+      "gridPos": {
+        "h": 6,
+        "w": 16,
+        "x": 4,
+        "y": 6
+      },
+      "id": 170,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": false,
+        "sortOrder": "Descending",
+        "wrapLogMessage": false
+      },
+      "targets": [
+        {
+          "expr": "{job=\"containerlogs\"} |= \"error\" !=\"query\"",
+          "refId": "A"
+        }
+      ],
+      "title": "IsardVDI Error Logs",
+      "type": "logs"
     },
     {
       "collapsed": false,
@@ -169,7 +505,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 8
+        "y": 12
       },
       "id": 6,
       "panels": [],
@@ -190,7 +526,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "dark-purple",
                 "value": null
               },
               {
@@ -206,7 +542,7 @@
         "h": 3,
         "w": 2,
         "x": 0,
-        "y": 9
+        "y": 13
       },
       "id": 151,
       "options": {
@@ -227,7 +563,7 @@
       "pluginVersion": "8.2.5",
       "targets": [
         {
-          "query": "from(bucket: \"isardvdi\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domains\" and\n    r[\"hypervisor\"] == \"${hypers}\"\n  )\n  |> keep(columns: [\"_time\", \"id_domain\"])\n  |> group()\n  |> unique(column: \"id_domain\")\n  |> count(column: \"id_domain\")\n  |> yield()",
+          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\" and\n    r[\"hypervisor\"] == \"${hypers}\"\n  )\n  |> keep(columns: [\"_time\", \"id\"])\n  |> group()\n  |> unique(column: \"id\")\n  |> count(column: \"id\")\n  |> yield()",
           "refId": "A"
         }
       ],
@@ -270,7 +606,7 @@
         "h": 6,
         "w": 2,
         "x": 2,
-        "y": 9
+        "y": 13
       },
       "id": 153,
       "options": {
@@ -362,7 +698,7 @@
         "h": 2,
         "w": 2,
         "x": 4,
-        "y": 9
+        "y": 13
       },
       "id": 76,
       "interval": null,
@@ -387,7 +723,7 @@
       "targets": [
         {
           "hide": false,
-          "query": "from(bucket: \"isardvdi\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => \n    r[\"_measurement\"] == \"domains\" and\n    r[\"hypervisor\"] == \"${hypers}\" and\n    r[\"_field\"] == \"vcpus_current\"\n  )\n  |> group(columns: [\"id_domain\"])\n  |> sort(columns: [\"_time\"])\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> sum()\n",
+          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) => \n    r[\"_measurement\"] == \"domain\" and\n    r[\"hypervisor\"] == \"${hypers}\" and\n    r[\"_field\"] == \"vcpu_current\"\n  )\n  |> group(columns: [\"id\"])\n  |> sort(columns: [\"_time\"])\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> sum()",
           "refId": "A"
         }
       ],
@@ -437,7 +773,7 @@
         "h": 6,
         "w": 2,
         "x": 6,
-        "y": 9
+        "y": 13
       },
       "id": 22,
       "interval": null,
@@ -473,105 +809,109 @@
       "type": "gauge"
     },
     {
-      "aliasColors": {
-        "isard.hypers.isard-hypervisor.stats.cpu_load": "#0a50a1"
-      },
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
       "datasource": null,
       "fieldConfig": {
         "defaults": {
-          "links": []
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "links": [],
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percent"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "cpu_usage"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "dark-green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
       },
-      "fill": 1,
-      "fillGradient": 0,
       "gridPos": {
         "h": 6,
-        "w": 10,
+        "w": 16,
         "x": 8,
-        "y": 9
+        "y": 13
       },
-      "hiddenSeries": false,
       "id": 2,
-      "legend": {
-        "avg": false,
-        "current": false,
-        "max": false,
-        "min": false,
-        "show": false,
-        "total": false,
-        "values": false
-      },
-      "lines": true,
-      "linewidth": 1,
       "links": [],
-      "nullPointMode": "null",
       "options": {
-        "alertThreshold": true
+        "legend": {
+          "calcs": [],
+          "displayMode": "hidden",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
       },
-      "percentage": false,
       "pluginVersion": "8.2.5",
-      "pointradius": 5,
-      "points": false,
-      "renderer": "flot",
       "repeat": null,
       "repeatDirection": "h",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
       "targets": [
         {
           "hide": false,
-          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => \n    r[\"_measurement\"] == \"system\" and\n    r[\"hypervisor\"] == \"${hypers}\" and\n    r[\"_field\"] == \"cpu_usage\"\n  )\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield()\n",
+          "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"system\")\n  |> filter(fn: (r) => r[\"_field\"] == \"cpu_usage\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
           "refId": "A"
         }
       ],
-      "thresholds": [],
       "timeFrom": null,
-      "timeRegions": [],
       "timeShift": null,
       "title": "CPU %",
-      "tooltip": {
-        "shared": true,
-        "sort": 0,
-        "value_type": "individual"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "$$hashKey": "object:246",
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": "100",
-          "min": "0",
-          "show": true
-        },
-        {
-          "$$hashKey": "object:247",
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
+      "type": "timeseries"
     },
     {
       "datasource": null,
@@ -580,6 +920,7 @@
           "color": {
             "mode": "thresholds"
           },
+          "decimals": 1,
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -609,7 +950,7 @@
         "h": 4,
         "w": 2,
         "x": 4,
-        "y": 11
+        "y": 15
       },
       "id": 53,
       "links": [],
@@ -631,7 +972,8 @@
       "pluginVersion": "8.2.5",
       "targets": [
         {
-          "hide": true,
+          "hide": false,
+          "query": "threads = from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => \n     r[\"hypervisor\"] == \"${hypers}\" \n  )\n  |> findRecord(\n    fn: (key) => key[\"_measurement\"] == \"system\" and key[\"_field\"] == \"cpu_threads\",\n    idx: 0,\n  )\n\nfrom(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) => \n    r[\"_measurement\"] == \"domain\" and\n     r[\"hypervisor\"] == \"${hypers}\" and\n    r[\"_field\"] == \"vcpu_current\"\n  )\n  |> group(columns: [\"id\"])\n  |> sort(columns: [\"_time\"])\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> sum()\n  |> map(fn: (r) => ({_time: r[\"_time\"], _value: r[\"_value\"] / float(v: threads[\"_value\"])})\n  )\n",
           "refCount": 1,
           "refId": "A",
           "target": "alias(isard.sysstats.$hypers.system.cpu.totalth, 'cpu threads')"
@@ -643,29 +985,19 @@
       "type": "stat"
     },
     {
-      "cacheTimeout": null,
       "datasource": null,
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "thresholds"
           },
-          "mappings": [
-            {
-              "options": {
-                "match": "null",
-                "result": {
-                  "text": "N/A"
-                }
-              },
-              "type": "special"
-            }
-          ],
+          "mappings": [],
+          "noValue": "0",
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "dark-blue",
                 "value": null
               },
               {
@@ -673,8 +1005,7 @@
                 "value": 80
               }
             ]
-          },
-          "unit": "none"
+          }
         },
         "overrides": []
       },
@@ -682,36 +1013,32 @@
         "h": 3,
         "w": 2,
         "x": 0,
-        "y": 12
+        "y": 16
       },
-      "id": 117,
-      "interval": null,
-      "links": [],
-      "maxDataPoints": 100,
+      "id": 161,
       "options": {
         "colorMode": "background",
-        "graphMode": "none",
+        "graphMode": "area",
         "justifyMode": "auto",
-        "orientation": "horizontal",
+        "orientation": "auto",
         "reduceOptions": {
           "calcs": [
-            "mean"
+            "lastNotNull"
           ],
-          "fields": "/^1$/",
+          "fields": "",
           "values": false
         },
         "text": {},
-        "textMode": "name"
+        "textMode": "auto"
       },
       "pluginVersion": "8.2.5",
       "targets": [
         {
-          "query": "",
-          "refId": "A",
-          "target": "aliasByMetric(isard.sysstats.$hypers.system.cpu.sockets.*)"
+          "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"visors_started\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
+          "refId": "A"
         }
       ],
-      "title": "Sockets",
+      "title": "Visors started",
       "type": "stat"
     },
     {
@@ -721,7 +1048,7 @@
         "h": 2,
         "w": 4,
         "x": 0,
-        "y": 15
+        "y": 19
       },
       "id": 155,
       "options": {
@@ -734,7 +1061,7 @@
     },
     {
       "cacheTimeout": null,
-      "datasource": "Graphite",
+      "datasource": null,
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -765,7 +1092,7 @@
               }
             ]
           },
-          "unit": "none"
+          "unit": "kbytes"
         },
         "overrides": []
       },
@@ -773,7 +1100,7 @@
         "h": 2,
         "w": 2,
         "x": 4,
-        "y": 15
+        "y": 19
       },
       "id": 82,
       "interval": null,
@@ -797,6 +1124,7 @@
       "pluginVersion": "8.2.5",
       "targets": [
         {
+          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) => \n    r[\"_measurement\"] == \"domain\" and\n    r[\"hypervisor\"] == \"${hypers}\" and\n    r[\"_field\"] == \"mem_total\"\n  )\n   |> group(columns: [\"id\"])\n  |> sort(columns: [\"_time\"])\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> sum()",
           "refId": "A",
           "target": "isard.hypers.$hypers.stats.num_domains"
         }
@@ -847,7 +1175,7 @@
         "h": 6,
         "w": 2,
         "x": 6,
-        "y": 15
+        "y": 19
       },
       "id": 20,
       "interval": null,
@@ -874,7 +1202,7 @@
       "pluginVersion": "8.2.5",
       "targets": [
         {
-          "query": "from(bucket: \"isardvdi\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => \n    r[\"_measurement\"] == \"hypervisors\" and\n    r[\"hypervisor\"] == \"${hypers}\" and\n    r[\"_field\"] =~ /memory_(total|free|cached)/\n  )\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> map(fn: (r) => ({\n    _time: r[\"_time\"],\n    _value: 100.0 - (float(v: r[\"memory_free\"] + r[\"memory_cached\"]) / float(v: r[\"memory_total\"]) * 100.0)\n  }))\n  |> last()\n",
+          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] =~ /mem_(total|free|cached)/)\n  |> filter(fn: (r) =>  r[\"hypervisor\"] == \"${hypers}\" )\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> map(fn: (r) => ({\n    _time: r[\"_time\"],\n    _value: 100.0 - (float(v: r[\"mem_free\"] + r[\"mem_cached\"]) / float(v: r[\"mem_total\"]) * 100.0)\n  }))\n  |> last()\n  |> yield()",
           "refCount": 0,
           "refId": "B",
           "target": "isard.sysstats.$hypers.system.mem.perc",
@@ -885,102 +1213,108 @@
       "type": "gauge"
     },
     {
-      "aliasColors": {},
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
       "datasource": null,
       "fieldConfig": {
         "defaults": {
-          "links": []
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "links": [],
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percent"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "dark-green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
       },
-      "fill": 1,
-      "fillGradient": 0,
       "gridPos": {
         "h": 6,
-        "w": 10,
+        "w": 16,
         "x": 8,
-        "y": 15
+        "y": 19
       },
-      "hiddenSeries": false,
       "id": 35,
-      "legend": {
-        "avg": false,
-        "current": false,
-        "max": false,
-        "min": false,
-        "show": false,
-        "total": false,
-        "values": false
-      },
-      "lines": true,
-      "linewidth": 1,
       "links": [],
-      "nullPointMode": "null",
       "options": {
-        "alertThreshold": true
+        "legend": {
+          "calcs": [],
+          "displayMode": "hidden",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
       },
-      "percentage": false,
       "pluginVersion": "8.2.5",
-      "pointradius": 5,
-      "points": false,
-      "renderer": "flot",
       "repeatDirection": "h",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
       "targets": [
         {
           "hide": false,
-          "query": "from(bucket: \"isardvdi\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => \n    r[\"_measurement\"] == \"hypervisors\" and\n    r[\"hypervisor\"] == \"${hypers}\" and\n    r[\"_field\"] =~ /memory_(total|free|cached)/\n  )\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> map(fn: (r) => ({\n    _time: r[\"_time\"],\n    _value: 100.0 - (float(v: r[\"memory_free\"] + r[\"memory_cached\"]) / float(v: r[\"memory_total\"]) * 100.0)\n  }))\n",
+          "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"system\")\n  |> filter(fn: (r) => r[\"_field\"] == \"ram_usage\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
           "refId": "A"
         }
       ],
-      "thresholds": [],
       "timeFrom": null,
-      "timeRegions": [],
       "timeShift": null,
       "title": "RAM %",
-      "tooltip": {
-        "shared": true,
-        "sort": 0,
-        "value_type": "individual"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "$$hashKey": "object:701",
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": "100",
-          "min": "0",
-          "show": true
-        },
-        {
-          "$$hashKey": "object:702",
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
+      "type": "timeseries"
     },
     {
       "cacheTimeout": null,
@@ -1022,7 +1356,7 @@
         "h": 2,
         "w": 2,
         "x": 0,
-        "y": 17
+        "y": 21
       },
       "id": 51,
       "interval": null,
@@ -1094,7 +1428,7 @@
         "h": 2,
         "w": 2,
         "x": 2,
-        "y": 17
+        "y": 21
       },
       "id": 83,
       "interval": null,
@@ -1127,9 +1461,13 @@
       "type": "stat"
     },
     {
-      "datasource": "Graphite",
+      "datasource": null,
       "fieldConfig": {
         "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 2,
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -1151,11 +1489,14 @@
         "h": 4,
         "w": 2,
         "x": 4,
-        "y": 17
+        "y": 21
       },
       "id": 118,
       "links": [],
       "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
           "calcs": [
@@ -1164,36 +1505,23 @@
           "fields": "",
           "values": false
         },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
-        "text": {}
+        "text": {},
+        "textMode": "auto"
       },
       "pluginVersion": "8.2.5",
       "targets": [
         {
-          "hide": true,
+          "hide": false,
+          "query": "host = from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => \n     r[\"hypervisor\"] == \"${hypers}\" \n  )\n  |> findRecord(\n    fn: (key) => key[\"_measurement\"] == \"hypervisor\" and key[\"_field\"] == \"mem_total\",\n    idx: 0,\n  )\n\nfrom(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) => \n    r[\"_measurement\"] == \"domain\" and\n    r[\"_field\"] == \"mem_total\"\n  )\n   |> group(columns: [\"id\"])\n  |> sort(columns: [\"_time\"])\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> sum()\n  |> map(fn: (r) => ({_time: r[\"_time\"], _value: r[\"_value\"] / float(v: host[\"_value\"])})\n  )",
           "refCount": -1,
           "refId": "A",
           "target": "alias(scale(isard.sysstats.$hypers.system.mem.total, 0.001), 'RAM')"
-        },
-        {
-          "hide": true,
-          "refCount": 0,
-          "refId": "C",
-          "target": "alias(isard.domains.global.memory, 'vRAM')"
-        },
-        {
-          "hide": false,
-          "refCount": 0,
-          "refId": "B",
-          "target": "alias(divideSeries(isard.domains.global.memory, #A), 'ratio')",
-          "targetFull": "alias(divideSeries(isard.domains.global.memory, alias(scale(isard.sysstats.$hypers.system.mem.total, 0.001), 'RAM')), 'ratio')"
         }
       ],
       "timeFrom": null,
       "timeShift": null,
       "title": "RAM/vRAM ratio",
-      "type": "gauge"
+      "type": "stat"
     },
     {
       "cacheTimeout": null,
@@ -1232,7 +1560,7 @@
         "h": 2,
         "w": 2,
         "x": 0,
-        "y": 19
+        "y": 23
       },
       "id": 81,
       "interval": null,
@@ -1301,7 +1629,7 @@
         "h": 2,
         "w": 2,
         "x": 2,
-        "y": 19
+        "y": 23
       },
       "id": 21,
       "interval": null,
@@ -1326,15 +1654,385 @@
       "targets": [
         {
           "hide": false,
-          "query": "from(bucket: \"isardvdi\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => \n    r[\"_measurement\"] == \"hypervisors\" and\n    r[\"hypervisor\"] == \"${hypers}\" and\n    r[\"_field\"] == \"memory_total\")\n  |> last()\n  |> map(fn: (r) => ({\n    _value: r[\"_value\"] * 1024\n  }))\n",
+          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\" and\n    r[\"hypervisor\"] == \"${hypers}\" and\n    r[\"_field\"] == \"mem_total\")\n  |> keep(columns: [\"_value\"])\n  |> last()\n  |> map(fn: (r) => ({ _value: r[\"_value\"] * 1024.0 }))\n  |> yield()",
           "refId": "A"
         }
       ],
       "title": "RAM",
       "type": "stat"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "dark-orange",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 2,
+        "x": 0,
+        "y": 25
+      },
+      "id": 164,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 12,
+          "valueSize": 30
+        },
+        "textMode": "value"
+      },
+      "pluginVersion": "8.2.5",
+      "targets": [
+        {
+          "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"viewers\")\n  |> filter(fn: (r) => r[\"viewer_type\"] == \"viewer_port_spice\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Viewer HTML5",
+      "type": "stat"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "displayName": "HTML5",
+          "mappings": [],
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "dark-red",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 2,
+        "x": 2,
+        "y": 25
+      },
+      "id": 165,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 12,
+          "valueSize": 30
+        },
+        "textMode": "value"
+      },
+      "pluginVersion": "8.2.5",
+      "targets": [
+        {
+          "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"viewers\")\n  |> filter(fn: (r) => r[\"viewer_type\"] == \"viewer_port_spice_tls\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Viewer SPICE",
+      "type": "stat"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Desktops"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "purple",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Visors"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 16,
+        "x": 8,
+        "y": 25
+      },
+      "id": 169,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "pluginVersion": "8.2.5",
+      "targets": [
+        {
+          "hide": false,
+          "query": " Desktops = from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\" \n  )\n  |> keep(columns: [\"_time\", \"id\"])\n  |> group()\n  |> aggregateWindow(every: 30s, column: \"id\", fn:(column, tables=<-) => tables \n    |> unique(column: column)\n    |> count(column:column),)\n  |> rename(columns: {id: \"_value\"})\n  |> map(fn: (r) => ({ Desktops:r._value, _time:r._time }))\n  |> yield()\nVisors = from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"visors_started\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n    |> map(fn: (r) => ({ Visors:r._value, _time:r._time  }))\n  |> yield(name: \"mean\")\n\n",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Desktops/Visors Started",
+      "type": "timeseries"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 2,
+        "x": 0,
+        "y": 28
+      },
+      "id": 171,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 12,
+          "valueSize": 30
+        },
+        "textMode": "value"
+      },
+      "pluginVersion": "8.2.5",
+      "targets": [
+        {
+          "query": "",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Viewer RDP",
+      "type": "stat"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "displayName": "HTML5",
+          "mappings": [],
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#24292ea3",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 2,
+        "x": 2,
+        "y": 28
+      },
+      "id": 172,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 12,
+          "valueSize": 30
+        },
+        "textMode": "value"
+      },
+      "pluginVersion": "8.2.5",
+      "targets": [
+        {
+          "query": "",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Viewer RDP HTML5",
+      "type": "stat"
     }
   ],
-  "refresh": "5s",
+  "refresh": "10s",
   "schemaVersion": 32,
   "style": "dark",
   "tags": [],
