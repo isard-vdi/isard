@@ -12,6 +12,7 @@
 ##  - toolbox: service to manage desktops disks
 ##  - toolbox-base: base image for toolbox, just to improve CI/CD build
 ##  - web: services to manage desktops
+##  - monitor: monitoring only host (grafana/loki/influxdb)
 #FLAVOUR=all-in-one
 
 ## This configuration should generate docker-compose file for the following

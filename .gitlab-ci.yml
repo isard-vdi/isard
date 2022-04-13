@@ -93,6 +93,8 @@ docker-compose-build:
     - echo "USAGE=build" >> isardvdi.build.cfg
     - cp isardvdi.build.cfg isardvdi.video-standalone.build.cfg
     - echo "FLAVOUR=video-standalone" >> isardvdi.video-standalone.build.cfg
+    - cp isardvdi.build.cfg isardvdi.monitor.build.cfg
+    - echo "FLAVOUR=monitor" >> isardvdi.monitor.build.cfg
     - cp isardvdi.build.cfg isardvdi.toolbox.build.cfg
     - echo "FLAVOUR=toolbox" >> isardvdi.toolbox.build.cfg
     - BACKUP_DB_ENABLED=true ./build.sh
@@ -131,6 +133,8 @@ docker-image:
           - websockify
       - DOCKER_COMPOSE: video-standalone.build
         IMAGE: video
+      - DOCKER_COMPOSE: monitor.build
+        IMAGE: monitor-proxy
       - DOCKER_COMPOSE: toolbox.build
         IMAGE: toolbox
   script:
@@ -198,6 +202,7 @@ docker-tag:
           - portal
           - squid
           - static
+          - monitor-proxy
           # - stats
           - stats-glances
           - stats-go

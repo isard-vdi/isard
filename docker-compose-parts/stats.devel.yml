@@ -1,14 +1,6 @@
-version: '3.5'
-services:
+# version: '3.5'
+# services:
 # #   This is kept until isard-stats is fixed, then it will be comented out
 #   isard-stats:
 #     volumes:
 #       - ${BUILD_ROOT_PATH}/docker/stats/src:/src:rw
-
-  isard-grafana:
-    ports:
-      - "3000:3000"
-
-  isard-influxdb:
-    ports:
-      - "8086:8086"
