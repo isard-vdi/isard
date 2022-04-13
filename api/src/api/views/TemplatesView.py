@@ -269,3 +269,16 @@ def api_v3_template_delete(payload, template_id=False):
             500,
             {"Content-Type": "application/json"},
         )
+
+
+# Disable or enable template
+@app.route("/api/v3/template/update", methods=["PUT"])
+@has_token
+def api_v3_template_update(payload):
+    data = request.get_json(force=True)
+    template_id = data.pop("id")
+    return (
+        json.dumps(templates.UpdateTemplate(template_id, data)),
+        200,
+        {"Content-Type": "application/json"},
+    )
