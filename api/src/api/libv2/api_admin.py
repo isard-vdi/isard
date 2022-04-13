@@ -16,6 +16,7 @@ from .api_exceptions import Error
 
 r = RethinkDB()
 import logging as log
+import secrets
 import traceback
 
 from .flask_rethink import RDB
@@ -390,3 +391,32 @@ class ApiAdmin:
                     }
                 )
         return fancyd
+
+    def api_get_jumperurl(self, id):
+        with app.app_context():
+            domain = r.table("domains").get(id).run(db.conn)
+        if domain == None:
+            return {}
+        if "jumperurl" not in domain.keys():
+            return {"jumperurl": False}
+        return {"jumperurl": domain["jumperurl"]}
+
+    def api_jumperurl_reset(self, id, disabled=False, length=128):
+        if disabled == True:
+            with app.app_context():
+                r.table("domains").get(id).update({"jumperurl": False}).run(db.conn)
+            return True
+
+        code = self.api_jumperurl_gencode()
+        with app.app_context():
+            r.table("domains").get(id).update({"jumperurl": code}).run(db.conn)
+        return code
+
+    def api_jumperurl_gencode(self, length=128):
+        code = False
+        while code == False:
+            code = secrets.token_urlsafe(length)
+            found = list(r.table("domains").filter({"jumperurl": code}).run(db.conn))
+            if len(found) == 0:
+                return code
+        return False
