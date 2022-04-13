@@ -394,7 +394,7 @@ $(document).ready(function() {
                 }else{
                     enabled=false
                 }
-                api.ajax('/isard-admin/template',
+                api.ajax('/api/v3/template/update',
                         'PUT',
                         {'id':pk,
                         'enabled':enabled})

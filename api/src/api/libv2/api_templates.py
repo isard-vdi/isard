@@ -142,3 +142,13 @@ class ApiTemplates:
     def Delete(self, template_id):
         ## TODO: Delete all related desktops!!!
         ds.delete_desktop(template_id, "Stopped")
+
+    # Disable or enable template
+    def UpdateTemplate(self, template_id, data):
+        with app.app_context():
+            template = r.table("domains").get(template_id).run(db.conn)
+        if template and template["kind"] == "template":
+            with app.app_context():
+                r.table("domains").get(template_id).update(data).run(db.conn)
+            return True
+        return False
