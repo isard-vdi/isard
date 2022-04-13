@@ -160,12 +160,12 @@ function populate_tree_template(id){
 			nodeColumnIdx: 2      // render the node title into the 2nd column
 		},  
 		source: {
-			url: "/isard-admin/admin/domains/tree_list/" + id,
+			url: "/api/v3/admin/desktops/tree_list/" + id,
 			cache: false
 		},
 		lazyLoad: function(event, data) {
 			data.result = $.ajax({
-				url: "/isard-admin/admin/domains/tree_list/" + id,
+				url: "/api/v3/admin/desktops/tree_list/" + id,
 				dataType: "json"
 			});
 		},
@@ -201,5 +201,7 @@ function populate_tree_template(id){
 		}
 		// console.log(data)
 		// console.log('Disabled template tree. The endpoint is filtering managers and admins. It is that needed?')
-		populate_tree_template(data.kind == 'desktop' && data.create_dict.origin ? data.create_dict.origin : data.id);
+		if (data.kind == 'desktop') {
+			populate_tree_template(data.create_dict.origin ? data.create_dict.origin : data.id);
+		}
 	}

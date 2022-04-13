@@ -50,3 +50,14 @@ def api_v3_admin_media(payload):
             500,
             {"Content-Type": "application/json"},
         )
+
+
+@app.route("/api/v3/desktops/media_list", methods=["POST"])
+@has_token
+def api_v3_desktops_media_list(payload):
+    data = request.get_json(force=True)
+    return (
+        json.dumps(api_media.GetMediaList(data["pk"])),
+        200,
+        {"Content-Type": "application/json"},
+    )
