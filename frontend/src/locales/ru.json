@@ -282,8 +282,8 @@
     "validations": {
         "required": "{property} обязателен.",
         "inputFormat": "Допустимыми символами являются буквы, цифры, запятая, точка, -, _",
-        "maxLengthValue": "Поле {property} содержит символы {model}, но оно должно иметь максимальную длину {max}.",
-        "minLengthValue": "Поле {property} содержит символы {model}, но оно должно иметь минимальную длину {min}."
+        "maxLengthValue": "Поле {property} содержит {model} символов, но оно должно иметь максимальную длину {max}.",
+        "minLengthValue": "Поле {property} содержит {model} символов, но оно должно иметь минимальную длину {min}."
     },
     "forms": {
         "new-desktop": {
