@@ -186,7 +186,8 @@
             "button": {
                 "browser": "Браузер"
             },
-            "local-client-help": "Инструкции по установке локального клиента"
+            "local-client-help": "Инструкции по установке локального клиента",
+            "title": "Прямой зритель"
         },
         "cancel": "Отмена"
     },
@@ -272,7 +273,10 @@
             "checkbox-text": "Только запущен",
             "desktops-started": "Запущены рабочие столы",
             "new-desktop": "Новый рабочий стол",
-            "checkbox-text-short": "Запущено"
+            "checkbox-text-short": "Запущено",
+            "cancel": "Отменить",
+            "select": "Выбрать",
+            "upload-file": "Загрузить файл"
         }
     },
     "validations": {
@@ -320,7 +324,8 @@
             "deleting-desktop": "Удаление рабочего стола"
         },
         "confirmation": {
-            "delete-desktop": "'{name}' будет удален, продолжить?"
+            "delete-desktop": "'{name}' будет удален, продолжить?",
+            "change-image": "Выбрать новое изображение для рабочего стола?"
         },
         "loading": "Загрузка"
     },
@@ -336,6 +341,11 @@
         "desktop_start_category_memory_quota_exceeded": "Превышен лимит памяти для данной категории",
         "desktop_start_group_vcpu_quota_exceeded": "Превышен лимит vCPU для группы",
         "desktop_start_memory_quota_exceeded": "Квота памяти для этого пользователя превышена",
-        "desktop_start_category_vcpu_quota_exceeded": "Превышен лимит vCPU для данной категории"
+        "desktop_start_category_vcpu_quota_exceeded": "Превышен лимит vCPU для данной категории",
+        "user_new_category_cuota_exceeded": "Превышен лимит на создание пользователей для этой категории",
+        "user_new_group_cuota_exceeded": "Превышен лимит на создание пользователей для этой группы",
+        "template_new_group_quota_exceeded": "Превышено ограничение на группу создания шаблона",
+        "template_new_category_quota_exceeded": "Превышено ограничение категории создания шаблона",
+        "desktop_new_template_forbidden": "Ошибка разрешения при создании рабочего стола"
     }
 }
