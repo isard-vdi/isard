@@ -386,7 +386,9 @@ class ApiHypervisors:
     def update_media_found(self, medias):
         with app.app_context():
             db_medias = list(r.table("media").pluck("path_downloaded").run(db.conn))
-        db_medias_paths = [dbm["path_downloaded"] for dbm in db_medias]
+        db_medias_paths = [
+            dbm["path_downloaded"] for dbm in db_medias if dbm.get("path_downloaded")
+        ]
 
         medias_paths = [m[0] for m in medias]
         new = list(set(medias_paths) - set(db_medias_paths))
