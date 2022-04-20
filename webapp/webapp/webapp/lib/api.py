@@ -1608,6 +1608,12 @@ class isard:
             "floppies", []
         )
 
+        create_dict["hardware"]["not_change_cpu_section"] = (
+            dom.get("create_dict", {})
+            .get("hardware", {})
+            .get("not_change_cpu_section", False)
+        )
+
         new_domain = {
             "id": "_" + user + "-" + parsed_name,
             "name": create_dict["name"],
