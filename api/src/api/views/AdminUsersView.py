@@ -126,7 +126,7 @@ def api_v3_admin_user_insert(payload):
 
     p = Password()
     data["password"] = p.encrypt(data["password"])
-
+    data["id"] = None
     data["accessed"] = time.time()
 
     data = _validate_item("user", data)
