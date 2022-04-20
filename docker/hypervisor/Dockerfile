@@ -83,7 +83,8 @@ RUN apk add --no-cache \
     lz4-libs \
     spice-server \
     libusb \
-    usbredir
+    usbredir \
+    coreutils
     #vde2-libs 
     #libpulse
 
