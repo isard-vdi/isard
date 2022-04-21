@@ -1375,6 +1375,11 @@ class isard:
         ]
 
         hardware = self.parse_media_info(form_data["create_dict"])["hardware"]
+        hardware["not_change_cpu_section"] = (
+            desktop.get("create_dict", {})
+            .get("hardware", {})
+            .get("not_change_cpu_section", False)
+        )
 
         if "roles" not in form_data["allowed"].keys():
             form_data["allowed"]["roles"] = False
@@ -1601,6 +1606,12 @@ class isard:
         create_dict["hardware"]["isos"] = dom["create_dict"]["hardware"].get("isos", [])
         create_dict["hardware"]["floppies"] = dom["create_dict"]["hardware"].get(
             "floppies", []
+        )
+
+        create_dict["hardware"]["not_change_cpu_section"] = (
+            dom.get("create_dict", {})
+            .get("hardware", {})
+            .get("not_change_cpu_section", False)
         )
 
         new_domain = {

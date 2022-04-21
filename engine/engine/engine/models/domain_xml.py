@@ -1582,7 +1582,11 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
     parent_id = dict_domain["create_dict"].get("origin", "")
     x.add_metadata_isard(user_id, group_id, category_id, parent_id)
 
-    if dict_domain.get("not_change_cpu_section", False) is False:
+    if (
+        not dict_domain.get("create_dict", {})
+        .get("hardware", {})
+        .get("not_change_cpu_section")
+    ):
         x.set_cpu_host_model(cpu_host_model)
 
     # spice video compression
