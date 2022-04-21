@@ -287,6 +287,12 @@ def generate_db_media(path_downloaded, filesize):
             "Skipping uploaded file as has unknown extension",
             traceback.format_stack(),
         )
+
+    with app.app_context():
+        username = r.table("users").get(parts[-2])["username"].run(db.conn)
+    if username == None:
+        raise Error("not_found", "Username not found", traceback.format_stack())
+
     return {
         "accessed": time.time(),
         "allowed": {
@@ -330,5 +336,5 @@ def generate_db_media(path_downloaded, filesize):
         + parts[-5]
         + "-"
         + parts[-2],  # "local-default-admin-admin" ,
-        "username": parts[-2].split("-")[1],
+        "username": username,
     }

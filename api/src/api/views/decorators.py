@@ -149,10 +149,11 @@ def is_hyper(f):
 def ownsUserId(payload, user_id):
     if payload["role_id"] == "admin":
         return True
-    if (
-        payload["role_id"] == "manager"
-        and user_id.split("-")[1] == payload["category_id"]
-    ):
+    if payload["role_id"] == "manager":
+        with app.app_context():
+            category = r.table("users").get(payload["user_id"])["category"].run(db.conn)
+        if category == payload["category_id"]:
+            return True
         return True
     if payload["user_id"] == user_id:
         return True
@@ -196,12 +197,11 @@ def ownsDomainId(payload, desktop_id):
             ).startswith(payload["user_id"]):
                 return True
     # User is manager and the desktop is from its categories
-    if (
-        payload["role_id"] == "manager"
-        and payload["category_id"] == desktop_id.split("-")[1]
-    ):
-        return True
-
+    if payload["role_id"] == "manager":
+        with app.app_context():
+            category = r.table("users").get(payload["user_id"])["category"].run(db.conn)
+        if category == payload["category_id"]:
+            return True
     # User is admin
     if payload["role_id"] == "admin":
         return True

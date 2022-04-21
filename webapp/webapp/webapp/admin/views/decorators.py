@@ -81,7 +81,9 @@ def ownsidortag(fn):
                 id = myargs["pk"]
             except:
                 id = myargs["id"]
-        if current_user.role == "manager" and current_user.category == id.split("-")[1]:
+        with app.app_context():
+            category = r.table("users").get(id)["category"].run(db.conn)
+        if current_user.role == "manager" and current_user.category == category:
             return fn(*args, **kwargs)
         if current_user.role == "advanced":
             with app.app_context():

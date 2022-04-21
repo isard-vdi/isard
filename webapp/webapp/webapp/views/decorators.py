@@ -42,10 +42,13 @@ def ownsid(fn):
                 id = myargs["pk"]
             except:
                 id = myargs["id"]
-        if id.startswith("_" + current_user.id) or (
-            current_user.role == "manager" and current_user.category == id.split("-")[1]
-        ):
-            return fn(*args, **kwargs)
+        if id.startswith("_" + current_user.id):
+
+            with app.app_context():
+                category = r.table("users").get(id)["category"].run(db.conn)
+
+            if current_user.role == "manager" and current_user.category == category:
+                return fn(*args, **kwargs)
 
         logout_user()
         return render_template("login_category.html", category=False)
@@ -69,7 +72,9 @@ def ownsidortag(fn):
                 id = myargs["pk"]
             except:
                 id = myargs["id"]
-        if current_user.role == "manager" and current_user.category == id.split("-")[1]:
+        with app.app_context():
+            category = r.table("users").get(id)["category"].run(db.conn)
+        if current_user.role == "manager" and current_user.category == category:
             return fn(*args, **kwargs)
         with app.app_context():
             domain = r.table("domains").get(id).pluck("id", "tag").run(db.conn)

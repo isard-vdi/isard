@@ -118,16 +118,33 @@ class ApiDesktopsNonPersistent:
         ds.WaitStatus(desktop_id, "Any", "Any", "Started")
         return desktop_id
 
-    def _nonpersistent_desktop_from_tmpl(self, user_id, category, group, template_id):
+    def _nonpersistent_desktop_from_tmpl(self, user_id, template_id):
         with app.app_context():
             template = r.table("domains").get(template_id).run(db.conn)
-        if template == None:
-            raise Error("not_found", "Template not found", traceback.format_stack())
+            if not template:
+                raise Error("not_found", "Template not found", traceback.format_stack())
+            user = r.table("users").get(user_id).run(db.conn)
+            if not user:
+                raise Error("not_found", "NewNonPersistent: user id not found.")
+            group = r.table("groups").get(user["group"]).run(db.conn)
+            if not group:
+                raise Error("not_found", "NewNonPersistent: group id not found.")
+
         timestamp = time.strftime("%Y%m%d%H%M%S")
         parsed_name = (timestamp + "-" + _parse_string(template["name"]))[:40]
 
         parent_disk = template["hardware"]["disks"][0]["file"]
-        dir_disk = "volatiles/" + category + "/" + group + "/" + user_id
+
+        dir_disk = "/".join(
+            (
+                "volatiles",
+                user["category"],
+                group["uid"],
+                user["provider"],
+                user["username"],
+            )
+        )
+
         disk_filename = parsed_name + ".qcow2"
 
         create_dict = template["create_dict"]
@@ -145,11 +162,11 @@ class ApiDesktopsNonPersistent:
             "description": template["description"],
             "kind": "desktop",
             "user": user_id,
-            "username": user_id.split("-")[-1],
+            "username": user["username"],
             "status": "CreatingAndStarting",
             "detail": None,
-            "category": category,
-            "group": group,
+            "category": user["category"],
+            "group": user["group"],
             "xml": None,
             "icon": template["icon"],
             "image": template["image"],
