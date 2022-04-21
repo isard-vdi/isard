@@ -615,60 +615,54 @@ function modal_add_install_datatables(){
             
             if (form.parsley().isValid()){
                 install=$('#modalAddFromMedia #install').val();
-                //~ console.log('install:'+install+'XXX')
-                
-                //~ if (install !=''){console.log('install not empty')}else{console.log('install empty')}
-                
                 if (install !=''){
                     data=$('#modalAddFromMedia  #modalAdd').serializeObject();
-                    socket.emit('domain_media_add',data)
+                    data=parse_media(JSON.unflatten(data));
+                    $.ajax({
+                        type: "POST",
+                        url:"/api/v3/desktop/from/media",
+                        contentType: "application/json",
+                        data: JSON.stringify(data),
+                        success: function(data)
+                        {
+                            $('form').each(function() { this.reset() });
+                            $('.modal').modal('hide');
+                        },
+                        error: function(data){
+                            var error = new PNotify({
+                                title: "ERROR",
+                                text: data.responseJSON.description,
+                                type: 'error',
+                                hide: true,
+                                icon: 'fa fa-warning',
+                                delay: 15000,
+                                opacity: 1
+                            });
+                        }
+                    });
                 }else{
                     show_no_os_hardware_template_selected()
                 }
             }        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-            //~ var form = $('#modalAddFromMedia #modalAdd');
-
-            //~ form.parsley().validate();
-
-            //~ if (form.parsley().isValid()){
-                //~ data=$('#modalAddFromMedia #modalAdd').serializeObject();
-                //~ data=replaceAlloweds_arrays(data)
-                //~ console.log(data)
-                //~ socket.emit('domain_media_add',data)
-            //~ }
-            
-
         });    
-
 }
 
-function setModalUser(){
-    api.ajax_async('/isard-admin/admin/userschema','POST','').done(function(d) {
-        $.each(d, function(key, value) {
-                $("." + key).find('option').remove().end();
-                for(var i in d[key]){
-                    if(value[i].id!='disposables' && value[i].id!='eval'){
-                        $("."+key).append('<option value=' + value[i].id + '>' + value[i].name + '</option>');
-                        //~ if(value[i].id=='local'){
-                            //~ $("."+key+' option[value="'+value[i]+'"]').prop("selected",true);
-                        //~ }
-                    }
-                }
-                $("."+key+' option[value="local"]').prop("selected",true);
-        });
-        $('#add-category').trigger("change")
-    });       
-}
+function parse_media(data){
 
+    return {"media_id":data["media"],
+            "xml_id":data["install"],
+            "kind":data["kind"],
+            "name":data["name"],
+            "description":data["description"],
+            "hardware": {
+                ...("vcpus" in data["hardware"]) && {"vcpus": parseInt(data["hardware"]["vcpus"])},
+                ...("memory" in data["hardware"]) && {"memory": parseFloat(data["hardware"]["memory"])},
+                ...("videos" in data["hardware"]) && {"videos": [data["hardware"]["videos"]]},
+                ...("graphics" in data["hardware"]) && {"graphics": [data["hardware"]["graphics"]]},
+                ...("boot_order" in data["hardware"]) && {"boot_order": [data["hardware"]["boot_order"]]},
+                ...("interfaces" in data["hardware"]) && {"interfaces": [data["hardware"]["interfaces"]]},
+                ...("diskbus" in data["hardware"]) && {"disk_bus": data["hardware"]["diskbus"]},
+                ...("disk_size" in data["hardware"]) && {"disk_size": parseInt(data["hardware"]["disk_size"])},
+              },
+            }
+}
