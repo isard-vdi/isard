@@ -68,7 +68,6 @@ def alloweds_table_term(payload, table):
 @app.route("/api/v3/admin/alloweds/update/<table>", methods=["POST"])
 @has_token
 def admin_allowed_update(payload, table):
-    if payload["role_id"] == "admin" or payload["role_id"] == "manager":
-        data = request.get_json(force=True)
-        admin_table_update(table, {"id": data["id"], "allowed": data["allowed"]})
-        return (json.dumps({}), 200, {"Content-Type": "application/json"})
+    data = request.get_json(force=True)
+    admin_table_update(table, {"id": data["id"], "allowed": data["allowed"]})
+    return (json.dumps({}), 200, {"Content-Type": "application/json"})
