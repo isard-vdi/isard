@@ -913,6 +913,7 @@ function actionsDomainDetail(){
         }else{
             socket.emit('create_dict-server',{'id':data.id,'create_dict-server':false})
         }
+        $("#modalServer").modal('hide');
     });
 
 }

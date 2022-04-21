@@ -21,7 +21,7 @@
           <div class="row">
             <button class="btn btn-danger btn-xs pull-right btn-delete" type="button"  data-placement="top" ><i class="fa fa-remove m-right-xs"></i>Delete</button>
           </div>
-          {% if(current_user.role=='admin') %}
+          {% if(current_user.role in ['admin', 'manager']) %}
           <hr>
           <div class="row">
             <button class="btn btn-success btn-xs pull-right btn-server" type="button"  data-placement="top" ><i class="fa fa-plug m-right-xs"></i>Server</button>
