@@ -226,7 +226,6 @@ $(document).ready(function() {
                      
                 }); 
             });
-            $('#modalAddBulkUsers #send').prop('disabled', true);
         }
     }); 
 
