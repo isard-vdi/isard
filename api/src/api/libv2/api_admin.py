@@ -112,9 +112,10 @@ def admin_table_update(table, data):
 def admin_table_get(table, pluck=False, id=False):
     _validate_table(table)
     with app.app_context():
-        if pluck and id:
-            data = r.table(table).get(id).pluck(pluck).run(db.conn)
-            return data
+        query = r.table(table).get(id)
+        if pluck:
+            query = query.pluck(pluck)
+        return query.run(db.conn)
 
 
 def admin_table_delete(table, data):
