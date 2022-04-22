@@ -323,19 +323,15 @@ $(document).ready(function() {
 							},
 							addclass: 'pnotify-center'
 						}).get().on('pnotify.confirm', function() {
-                api.ajax(
-                    '/isard-admin/admin/mdomains',
-                    'POST',
-                    {'ids': ids, 'action': action}
-                ).done(function(data) {
+                api.ajax('/api/v3/admin/multiple_actions', 'POST', {'ids':ids, 'action':action}).done(function(data) {
                     notify(data)
                 }).fail(function(jqXHR) {
                     notify(jqXHR.responseJSON)
                 }).always(function() {
                     $('#mactions option[value="none"]').prop("selected", true);
                 })
-						}).on('pnotify.cancel', function() {
-                            $('#mactions option[value="none"]').prop("selected",true);
+                    }).on('pnotify.cancel', function() {
+                        $('#mactions option[value="none"]').prop("selected",true);
 				});
     } );
 
