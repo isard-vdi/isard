@@ -105,3 +105,30 @@ def admin_jumperurl_reset(payload, id):
         200,
         {"Content-Type": "application/json"},
     )
+
+
+@app.route("/api/v3/admin/multiple_actions", methods=["POST"])
+@is_admin_or_manager
+def admin_multiple_actions_domains(payload):
+    dict = request.get_json(force=True)
+    selected_desktops = admins.CheckField("domains", "kind", "desktop", dict["ids"])
+    res = admins.MultipleActions("domains", dict["action"], selected_desktops)
+    if res is True:
+        json_data = json.dumps(
+            {
+                "title": "Processing",
+                "text": "Actions will be processed",
+                "type": "success",
+            }
+        )
+        http_code = 200
+    else:
+        json_data = json.dumps(
+            {
+                "title": "Error",
+                "text": res,
+                "type": "error",
+            }
+        )
+        http_code = 409
+    return json_data, http_code, {"Content-Type": "application/json"}
