@@ -229,6 +229,22 @@ def api_v3_admin_category(payload, category_id):
     )
 
 
+@app.route("/api/v3/admin/category/<category_id>", methods=["PUT"])
+@is_admin
+def api_v3_admin_edit_category(payload, category_id):
+    ownsCategoryId(payload, category_id)
+
+    try:
+        data = request.get_json()
+    except Exception as e:
+        raise Error("bad_request", "Unable to parse body data.", traceback.format_exc())
+
+    data = _validate_item("category", data)
+
+    admin_table_update("categories", data)
+    return json.dumps(data), 200, {"Content-Type": "application/json"}
+
+
 # Add category
 @app.route("/api/v3/admin/category", methods=["POST"])
 @is_admin

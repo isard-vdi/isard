@@ -341,11 +341,11 @@ function actionsCategoryDetail(){
                     $("#modalEditCategoryForm #auto-desktops-data").hide();
         }); 
 
-        $("#modalEditCategory #send").on('click', function(e){
+        $("#modalEditCategory #send").unbind().on('click', function(e){
             var form = $('#modalEditCategoryForm');
             form.parsley().validate();
             if (form.parsley().isValid()){
-                data=$('#modalEditCategoryForm').serializeObject();
+                data=form.serializeObject();
                 data['id']=$('#modalEditCategoryForm #id').val();
                 data['name']=$('#modalEditCategoryForm #name').val();
                 if('frontend' in data){
@@ -354,12 +354,27 @@ function actionsCategoryDetail(){
                 if(!('ephimeral-enabled' in data)){
                     delete data['ephimeral-minutes'];
                     delete data['ephimeral-action'];
+                    data['ephimeral'] = false;
+                }else{
+                    delete data['ephimeral-enabled'];
+                    data['ephimeral-minutes'] = parseInt(data['ephimeral-minutes'])
                 }
                 if(!('auto-desktops-enabled' in data)){
                     delete data['auto-desktops'];
+                    data['auto'] = false;
                 }
-                data['table']='categories';
-                socket.emit('role_category_group_add',data)  
+                data=JSON.unflatten(data);
+                $.ajax({
+                    type: "PUT",
+                    url:"/api/v3/admin/category/" + data['id'],
+                    data: JSON.stringify(data),
+                    contentType: "application/json",
+                    success: function(data)
+                    {
+                        $('form').each(function() { this.reset() });
+                        $('.modal').modal('hide');
+                    }
+                });     
             }
         });         
     });

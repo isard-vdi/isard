@@ -19,20 +19,25 @@ allowed_domain:
   nullable: false
   default:
 auto:
-  type: dict
-  required: false
+  type:
+    - dict
+    - boolean
+  default: false
   schema:
     desktops:
       required: true
       type: list
       minlength: 1
 ephimeral:
-  type: dict
+  type:
+    - dict
+    - boolean
   required: false
   schema:
     action:
       required: true
-      type: string
+      type:
+        - string
       nullable: false
       empty: false
       allowed:
