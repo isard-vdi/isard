@@ -15,30 +15,27 @@ from flask import jsonify, request
 
 from api import app
 
+from ..libv2.api_downloads import Downloads
+from ..libv2.api_users import ApiUsers, check_category_domain
 from ..libv2.apiv2_exc import *
 from ..libv2.log import log
 from ..libv2.quotas import Quotas
+from .decorators import is_admin
 
 quotas = Quotas()
-
-from ..libv2.api_users import ApiUsers, check_category_domain
-
 users = ApiUsers()
-
-from ..libv2.api_downloads import Downloads
-from .decorators import is_admin
+downloads = Downloads()
 
 """
 ADMIN/MANAGER jwt endpoints
 """
 
 
-@app.route("/api/v3/admin/downloads/desktops", methods=["GET"])
+@app.route("/api/v3/admin/downloads/<kind>", methods=["GET"])
 @is_admin
-def api_v3_admin_downloads_desktops(payload):
-    downloads = Downloads()
+def api_v3_admin_downloads_desktops(payload, kind):
     return (
-        json.dumps(downloads.getNewKind("domains", payload["user_id"])),
+        json.dumps(downloads.getNewKind(kind, payload["user_id"])),
         200,
         {"Content-Type": "application/json"},
     )
