@@ -822,7 +822,9 @@ class DomainXML(object):
         xpath_same = "/domain/devices/graphics"
         xpath_previous = "/domain/devices/interface"
         xpath_next = "/domain/devices/video"
-        passwd = self.viewer_passwd
+        # VNC protocol limits passwords to 8 characters
+        # https://qemu.readthedocs.io/en/latest/system/vnc-security.html#with-passwords
+        passwd = self.viewer_passwd[:8]
 
         xpath_vlc = '/domain/devices/graphics[@type="vnc"]'
 
@@ -875,6 +877,17 @@ class DomainXML(object):
         for p, v in d_spice_options.items():
             element = etree.Element(p, **v)
             tree_spice.insert(-1, element)
+
+        # libvirt adds the following audio by default if only spice graphic is enabled
+        # but we also add vnc
+        # https://libvirt.org/formatdomain.html#spice-audio-backend
+        if not self.tree.xpath('/domain/devices/audio[@id="1"][@type="spice"]'):
+            self.add_to_domain(
+                "/domain/devices/audio",
+                etree.parse(StringIO('<audio id="1" type="spice"/>')).getroot(),
+                "",
+                "/domain/devices/sound",
+            )
 
     def add_spice_graphics_if_not_exist(self, video_compression=None):
         xpath_spice = '/domain/devices/graphics[@type="spice"]'
