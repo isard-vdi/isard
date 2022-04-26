@@ -137,7 +137,6 @@ docker-image:
           - guac
           - rdpgw
           - hypervisor
-          - influxdb
           - portal
           - squid
           - static
@@ -218,7 +217,6 @@ docker-tag:
           - grafana
           - guac
           - hypervisor
-          - influxdb
           - portal
           - squid
           - static

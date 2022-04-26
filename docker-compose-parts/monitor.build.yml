@@ -4,8 +4,3 @@ services:
     build:
       context: ${BUILD_ROOT_PATH}
       dockerfile: docker/grafana/Dockerfile
-
-  isard-influxdb:
-    build:
-      context: ${BUILD_ROOT_PATH}
-      dockerfile: docker/influxdb/Dockerfile

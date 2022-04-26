@@ -1,69 +1,107 @@
 package collector
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	"gitlab.com/isard/isardvdi/stats/cfg"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/rs/zerolog"
 	"golang.org/x/crypto/ssh"
 )
 
 type Socket struct {
 	mux    *sync.Mutex
 	domain string
+	Log    *zerolog.Logger
 	conn   *ssh.Client
+
+	descScrapeDuration *prometheus.Desc
+	descScrapeSuccess  *prometheus.Desc
+	descSent           *prometheus.Desc
+	descRecv           *prometheus.Desc
 }
 
-func NewSocket(mux *sync.Mutex, cfg cfg.Cfg, conn *ssh.Client) *Socket {
-	return &Socket{
+func NewSocket(mux *sync.Mutex, cfg cfg.Cfg, log *zerolog.Logger, conn *ssh.Client) *Socket {
+	s := &Socket{
 		mux:    mux,
 		domain: cfg.Domain,
+		Log:    log,
 		conn:   conn,
 	}
+
+	s.descScrapeDuration = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, s.String(), "scrape_duration_seconds"),
+		"node_exporter: Duration of a collector scrape",
+		[]string{},
+		prometheus.Labels{
+			"hypervisor": cfg.Domain,
+		},
+	)
+	s.descScrapeSuccess = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, s.String(), "scrape_duration_success"),
+		"node_exporter: Whether a collector succeed",
+		[]string{},
+		prometheus.Labels{
+			"hypervisor": cfg.Domain,
+		},
+	)
+	s.descSent = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, s.String(), "sent_bytes"),
+		"Bytes sent",
+		[]string{"port"},
+		prometheus.Labels{
+			"hypervisor": cfg.Domain,
+		},
+	)
+	s.descRecv = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, s.String(), "recv_bytes"),
+		"Bytes recieved",
+		[]string{"port"},
+		prometheus.Labels{
+			"hypervisor": cfg.Domain,
+		},
+	)
+
+	return s
 }
 
 func (s *Socket) String() string {
 	return "socket"
 }
 
-func (s *Socket) Close() error {
-	return nil
+func (s *Socket) Describe(ch chan<- *prometheus.Desc) {
+	ch <- s.descScrapeDuration
+	ch <- s.descScrapeSuccess
+	ch <- s.descSent
+	ch <- s.descRecv
 }
 
-func (s *Socket) Collect(ctx context.Context) ([]*write.Point, error) {
+func (s *Socket) Collect(ch chan<- prometheus.Metric) {
 	start := time.Now()
 
+	success := 1
 	viewers, err := s.collectViewers()
 	if err != nil {
-		return nil, err
+		s.Log.Info().Str("collector", s.String()).Err(err).Msg("collect viewers")
+		success = 0
 	}
 
-	points := []*write.Point{}
 	for src, v := range viewers {
-		points = append(points, write.NewPoint(
-			s.String(),
-			map[string]string{
-				"hypervisor":  s.domain,
-				"source_port": strconv.Itoa(src),
-			},
-			map[string]interface{}{
-				"destination_ports":             v.DstPorts,
-				"pid":                           v.PID,
-				"sent_by_destination_ports":     v.SentByDstPort,
-				"recieved_by_destination_ports": v.RecvByDstPort,
-				"sent":                          v.Sent,
-				"recieved":                      v.Recv,
-			},
-			start,
-		))
+		port := strconv.Itoa(src)
+		ch <- prometheus.MustNewConstMetric(s.descSent, prometheus.GaugeValue, float64(v.Sent), port)
+		ch <- prometheus.MustNewConstMetric(s.descRecv, prometheus.GaugeValue, float64(v.Recv), port)
 	}
 
-	return points, nil
+	duration := time.Since(start)
+
+	ch <- prometheus.MustNewConstMetric(s.descScrapeDuration, prometheus.GaugeValue, duration.Seconds())
+	ch <- prometheus.MustNewConstMetric(s.descScrapeSuccess, prometheus.GaugeValue, float64(success))
+
 }
 
 type viewer struct {

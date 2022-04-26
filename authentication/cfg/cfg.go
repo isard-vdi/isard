@@ -17,11 +17,6 @@ type Cfg struct {
 	ShowAdminButton bool `mapstructure:"show_admin_button"`
 }
 
-type HTTP struct {
-	Host string
-	Port int
-}
-
 type Authentication struct {
 	Host   string
 	Secret string

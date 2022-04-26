@@ -7,13 +7,12 @@ import (
 	"os/signal"
 	"path/filepath"
 	"sync"
-	"time"
 
 	"gitlab.com/isard/isardvdi/pkg/log"
 	"gitlab.com/isard/isardvdi/stats/cfg"
 	"gitlab.com/isard/isardvdi/stats/collector"
+	"gitlab.com/isard/isardvdi/stats/transport/http"
 
-	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
 	"libvirt.org/go/libvirt"
@@ -27,6 +26,7 @@ func main() {
 	log := log.New("stats", cfg.Log.Level)
 
 	ctx, cancel := context.WithCancel(context.Background())
+	var wg sync.WaitGroup
 
 	var sshConn *ssh.Client
 	var sshMux sync.Mutex
@@ -56,7 +56,7 @@ func main() {
 
 		sshConn, err = ssh.Dial("tcp", fmt.Sprintf("%s:%d", cfg.SSH.Host, cfg.SSH.Port), sshCfg)
 		if err != nil {
-			log.Fatal().Err(err).Str("domain", cfg.Domain).Msg("connect using SSH")
+			log.Fatal().Err(err).Str("domain", cfg.Domain).Str("host", cfg.SSH.Host).Int("port", cfg.SSH.Port).Msg("connect using SSH")
 		}
 	}
 
@@ -76,58 +76,42 @@ func main() {
 		}
 	}
 
-	collectors := map[string]collector.Collector{}
+	collectors := []collector.Collector{}
 
 	if cfg.Collectors.Hypervisor.Enable {
-		h := collector.NewHypervisor(&libvirtMux, cfg, libvirtConn)
-		collectors[h.String()] = h
+		h := collector.NewHypervisor(&libvirtMux, cfg, log, libvirtConn)
+		collectors = append(collectors, h)
 	}
 
 	if cfg.Collectors.Domain.Enable {
-		d := collector.NewDomain(&libvirtMux, &sshMux, cfg, libvirtConn, sshConn)
-		collectors[d.String()] = d
+		d := collector.NewDomain(&libvirtMux, &sshMux, cfg, log, libvirtConn, sshConn)
+		collectors = append(collectors, d)
 	}
 
 	if cfg.Collectors.System.Enable {
-		s := collector.NewSystem(cfg)
-		collectors[s.String()] = s
+		s := collector.NewSystem(cfg, log)
+		collectors = append(collectors, s)
 	}
 
 	if cfg.Collectors.Socket.Enable {
-		s := collector.NewSocket(&sshMux, cfg, sshConn)
-		collectors[s.String()] = s
+		s := collector.NewSocket(&sshMux, cfg, log, sshConn)
+		collectors = append(collectors, s)
 	}
 
 	enabledCollectors := []string{}
-	for k := range collectors {
-		enabledCollectors = append(enabledCollectors, k)
+	for _, c := range collectors {
+		enabledCollectors = append(enabledCollectors, c.String())
 	}
 
-	client := influxdb2.NewClient(cfg.InfluxDB.Address, cfg.InfluxDB.Token)
-	defer client.Close()
+	http := &http.StatsServer{
+		Addr:       cfg.HTTP.Addr(),
+		Log:        log,
+		WG:         &wg,
+		Collectors: collectors,
+	}
 
-	write := client.WriteAPIBlocking(cfg.InfluxDB.Org, cfg.InfluxDB.Bucket)
-
-	go func() {
-		for {
-			for name, c := range collectors {
-				p, err := c.Collect(ctx)
-				if err != nil {
-					log.Error().Err(err).Msgf("collect data from %s", name)
-					continue
-				}
-
-				if err := write.WritePoint(ctx, p...); err != nil {
-					log.Error().Err(err).Msgf("insert data into InfluxDB from %s", name)
-					continue
-				}
-
-				log.Info().Str("collector", name).Interface("point", &p).Msg("data sent")
-			}
-
-			time.Sleep(time.Second)
-		}
-	}()
+	go http.Serve(ctx)
+	wg.Add(1)
 
 	log.Info().Strs("collectors", enabledCollectors).Msg("service started")
 
@@ -139,10 +123,6 @@ func main() {
 	log.Info().Msg("stopping service")
 
 	cancel()
-
-	for _, c := range collectors {
-		c.Close()
-	}
 
 	if libvirtConn != nil {
 		libvirtConn.Close()
