@@ -2032,7 +2032,7 @@ class isardAdmin:
             )  # 15G as a format
 
         image = apic.post(
-            "/images/desktops/generate",
+            "images/desktops/generate",
             {"desktop_id": "_" + user + "-" + parsed_name, "desktop_name": name},
         )
         new_domain = {
@@ -2089,7 +2089,7 @@ class isardAdmin:
             {"file": media["path"], "size": media["progress"]["total"]}
         ]  # 15G as a format
         image = apic.post(
-            "/images/desktops/generate",
+            "images/desktops/generate",
             {"desktop_id": "_" + user + "-" + parsed_name, "desktop_name": name},
         )
         new_domain = {
