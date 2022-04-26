@@ -29,8 +29,7 @@ func (r *RDPGwServer) Serve(ctx context.Context) {
 	}
 
 	go func() {
-		if err := s.ListenAndServe(); err != nil {
-			// if err := s.ListenAndServeTLS("server.crt", "server.key"); err != nil {
+		if err := s.ListenAndServeTLS("/portal-certs/server-cert.pem", "/portal-certs/server-key.pem"); err != nil {
 			r.Log.Fatal().Err(err).Str("addr", r.Addr).Msg("serve http")
 		}
 	}()

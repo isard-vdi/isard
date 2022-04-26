@@ -14,5 +14,15 @@ then
     then
       RENEWED_LINEAGE="/etc/letsencrypt/live/$LETSENCRYPT_DOMAIN" /etc/letsencrypt/renewal-hooks/deploy/concatenate.sh
     fi
+  else
+    if [ ! -f /certs/server-cert.pem ]
+    then
+      cp /etc/letsencrypt/live/$LETSENCRYPT_DOMAIN/fullchain.pem /certs/server-cert.pem
+    fi
+
+    if [ ! -f /certs/server-key.pem ]
+    then
+      cp /etc/letsencrypt/live/$LETSENCRYPT_DOMAIN/privkey.pem /certs/server-key.pem
+    fi
   fi
 fi
