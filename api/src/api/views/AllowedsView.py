@@ -11,7 +11,7 @@ from flask import request
 # coding=utf-8
 from api import app
 
-from ..libv2.api_admin import admin_table_update
+from ..libv2.api_admin import admin_table_get, admin_table_update
 from ..libv2.api_alloweds import ApiAlloweds
 from ..libv2.api_exceptions import Error
 from .decorators import has_token
@@ -69,5 +69,8 @@ def alloweds_table_term(payload, table):
 @has_token
 def admin_allowed_update(payload, table):
     data = request.get_json(force=True)
-    admin_table_update(table, {"id": data["id"], "allowed": data["allowed"]})
+    admin_table_update(
+        table,
+        dict(admin_table_get(table, id=data["id"]), allowed=data["allowed"]),
+    )
     return (json.dumps({}), 200, {"Content-Type": "application/json"})
