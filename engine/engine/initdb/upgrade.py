@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 26
+release_version = 27
+# release 27: Fix interface qos_id value from false to "unlimited"
 # release 26: Added a parents index to domains
 # release 25: Replaced user_template/public_template/base to template
 # release 24: Add missing domains created from qcow2 media disk image field
@@ -1329,6 +1330,10 @@ class Upgrade(object):
             # ~ except Exception as e:
             # ~ log.error('Could not update table '+table+' remove fields for db version '+str(version)+'!')
             # ~ log.error('Error detail: '+str(e))
+        if version == 27:
+            r.table(table).filter({"qos_id": False}).update(
+                {"qos_id": "unlimited"}
+            ).run(self.conn)
 
         return True
 

@@ -689,7 +689,7 @@ class Populate(object):
                                 "kind": "network",
                                 "model": "virtio",
                                 "net": "private" + str(i),
-                                "qos_id": False,
+                                "qos_id": "unlimited",
                                 "allowed": {
                                     "roles": ["admin"],
                                     "categories": False,
