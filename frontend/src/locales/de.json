@@ -155,7 +155,8 @@
             "powered-by": "Angetrieben von {isardvdi}",
             "errors": {
                 "500": "Serverfehler",
-                "401": "Falscher Benutzername oder falsches Passwort"
+                "401": "Falscher Benutzername oder falsches Passwort",
+                "generic": "Ein Fehler ist aufgetreten"
             }
         },
         "expired-session": {
@@ -181,7 +182,10 @@
                 "title": "Es gibt keine Verteilungen von diesem Benutzer"
             }
         },
-        "cancel": "Abbrechen"
+        "cancel": "Abbrechen",
+        "direct-viewer": {
+            "local-client-help": "Installationsanleitung für lokale Clients"
+        }
     },
     "components": {
         "navbar": {
@@ -266,7 +270,10 @@
             "checkbox-text": "Nur gestartet",
             "desktops-started": "Arbeitoberfläche gestartet",
             "new-desktop": "Neue Arbeitoberfläche",
-            "checkbox-text-short": "Gestartet"
+            "checkbox-text-short": "Gestartet",
+            "upload-file": "Datei hochladen",
+            "cancel": "Abbrechen",
+            "select": "Auswählen"
         }
     },
     "forms": {
@@ -277,7 +284,8 @@
                 "selected": "Ausgewählt",
                 "group": "Gruppe",
                 "description": "Beschreibung",
-                "user": "Benutzer"
+                "user": "Benutzer",
+                "image": "Bild"
             },
             "filter-placeholder": "Tippen, um zu suchen",
             "title": "Neue Arbeitoberfläche erstellen:",
@@ -285,12 +293,17 @@
             "desktop-template": "Vorlage",
             "filter": "Filter",
             "desktop-name": "Arbeitoberflächename",
-            "desktop-description": "Arbeitoberflächenbeschreibung"
+            "desktop-description": "Arbeitoberflächenbeschreibung",
+            "description": "Beschreibung",
+            "name": "Name"
         },
         "create": "Erstellen",
         "submit": "Einreichen",
         "clear": "Löschen",
-        "cancel": "Abbrechen"
+        "cancel": "Abbrechen",
+        "registration": {
+            "code": "Registrierungs-Code"
+        }
     },
     "errors": {
         "create_desktop_user_quota": "Benutzerquote für die Erstellung von Arbeitoberflächen überschritten",
