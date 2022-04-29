@@ -102,6 +102,21 @@ docker-compose-build:
     paths:
       - docker-compose*.yml
 
+docker-image-autonomous:
+  image: docker:latest
+  stage: docker-images
+  services:
+    - docker:dind
+  parallel:
+    matrix:
+      - DOCKERFILE: testing/check-isardvdi/Dockerfile
+        IMAGE: check
+  script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - docker build -f $DOCKERFILE -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
+    - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
+    - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
+
 docker-image:
   image: docker:latest
   stage: docker-images
@@ -188,6 +203,7 @@ docker-tag:
   parallel:
     matrix:
       - IMAGE:
+          - check
           - api
           - scheduler
           - authentication
@@ -203,7 +219,6 @@ docker-tag:
           - squid
           - static
           - monitor-proxy
-          # - stats
           - stats-glances
           - stats-go
           - vpn
