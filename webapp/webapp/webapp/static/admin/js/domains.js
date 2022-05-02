@@ -329,6 +329,7 @@ $(document).ready(function() {
                     notify(jqXHR.responseJSON)
                 }).always(function() {
                     $('#mactions option[value="none"]').prop("selected", true);
+                    $('#domains tr.active').removeClass('active')
                 })
                     }).on('pnotify.cancel', function() {
                         $('#mactions option[value="none"]').prop("selected",true);
