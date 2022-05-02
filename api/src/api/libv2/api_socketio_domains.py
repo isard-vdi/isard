@@ -168,17 +168,6 @@ class DomainsThread(threading.Thread):
                         ## Tagged desktops to advanced users
                         if data["kind"] == "desktop" and data.get("tag", False):
                             deployment_id = data.get("tag")
-                            data = _parse_deployment_desktop(data)
-                            data.pop("name")
-                            data.pop("description")
-                            socketio.emit(
-                                "deploymentdesktop_" + event,
-                                json.dumps(data),
-                                namespace="/userspace",
-                                room="deploymentdesktops_" + deployment_id,
-                            )
-
-                            ## And then update deployments to user owner (if the deployment still exists)
                             try:
                                 deployment = (
                                     r.table("deployments")
@@ -197,6 +186,20 @@ class DomainsThread(threading.Thread):
                                     )
                                     .run(db.conn)
                                 )
+
+                                data = _parse_deployment_desktop(
+                                    data, deployment["user"]
+                                )
+                                data.pop("name")
+                                data.pop("description")
+                                socketio.emit(
+                                    "deploymentdesktop_" + event,
+                                    json.dumps(data),
+                                    namespace="/userspace",
+                                    room="deploymentdesktops_" + deployment_id,
+                                )
+
+                                ## And then update deployments to user owner (if the deployment still exists)
                                 if last_deployment == deployment:
                                     continue
                                 else:
@@ -208,7 +211,7 @@ class DomainsThread(threading.Thread):
                                     room="deployments_" + deployment["user"],
                                 )
                             except:
-                                None
+                                log.debug(traceback.format_exc())
 
             except ReqlDriverError:
                 print("DomainsThread: Rethink db connection lost!")

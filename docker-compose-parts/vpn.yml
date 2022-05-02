@@ -25,7 +25,7 @@ services:
     volumes:
       - /sys:/sys:rw
       - /opt/isard/wireguard/certs:/certs
-      - /opt/isard/certs/default:/portal-certs
+      - /opt/isard/certs/default:/portal-certs:ro
     env_file:
       - .env  
 

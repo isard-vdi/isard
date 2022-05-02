@@ -27,9 +27,6 @@ from .flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
-from ..libv2.isardViewer import isardViewer
-
-isardviewer = isardViewer()
 
 from .apiv2_exc import *
 from .ds import DS
@@ -65,7 +62,7 @@ def check_category_domain(category_id, domain):
 
 
 class ApiUsers:
-    def Jwt(self, user_id):
+    def Jwt(self, user_id, minutes=240):
         # user_id = provider_id+'-'+category_id+'-'+id+'-'+id
         try:
             with app.app_context():
@@ -93,7 +90,7 @@ class ApiUsers:
         return {
             "jwt": jwt.encode(
                 {
-                    "exp": datetime.utcnow() + timedelta(hours=4),
+                    "exp": datetime.utcnow() + timedelta(minutes=minutes),
                     "kid": "isardvdi",
                     "data": user,
                 },
@@ -467,7 +464,9 @@ class ApiUsers:
                         if not desktop["ip"]:
                             desktop["status"] = "WaitingIP"
                         if desktop["os"].startswith("win"):
-                            desktop["viewers"].extend(["file-rdpvpn", "browser-rdp"])
+                            desktop["viewers"].extend(
+                                ["file-rdpgw", "file-rdpvpn", "browser-rdp"]
+                            )
                 return desktop
             else:
                 return None
