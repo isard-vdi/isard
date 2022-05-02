@@ -145,7 +145,7 @@
             "viewer-name": {
                 "browser-vnc": "Navigateur",
                 "file-spice": "SPICE",
-                "file-rdpvpn": "RDP",
+                "file-rdpvpn": "RDP VPN",
                 "browser-rdp": "Navigateur RDP"
             },
             "viewer": "Visionneuse {name}",

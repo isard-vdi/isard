@@ -194,8 +194,9 @@
             "viewer-name": {
                 "file-spice": "SPICE",
                 "browser-vnc": "Browser",
-                "file-rdpvpn": "RDP",
-                "browser-rdp": "RDP Browser"
+                "file-rdpvpn": "RDP VPN",
+                "browser-rdp": "RDP Browser",
+                "file-rdpgw": "RDP"
             },
             "remove": "Remove",
             "notification": {
