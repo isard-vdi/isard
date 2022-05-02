@@ -9,19 +9,3 @@ services:
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.16
-
-  isard-rdpgw:
-    container_name: isard-rdpgw
-    image: ${DOCKER_IMAGE_PREFIX}rdpgw:${DOCKER_IMAGE_TAG-latest}
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "100m"
-        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
-    env_file:
-      - .env
-    volumes:
-      - /opt/isard/certs/default:/portal-certs:ro
-    networks:
-      isard-network:
-        ipv4_address: ${DOCKER_NET:-172.31.255}.22

@@ -119,8 +119,8 @@ docker-image:
           - db
           - engine
           - grafana
-          - rdpgw
           - guac
+          - rdpgw
           - hypervisor
           - influxdb
           - portal
@@ -129,9 +129,12 @@ docker-image:
           # - stats
           - stats-glances
           - stats-go
-          - vpn
           - webapp
           - websockify
+      - DOCKER_COMPOSE: build
+        IMAGE_DEPENDENCY: isard-rdpgw
+        IMAGE:
+          - vpn
       - DOCKER_COMPOSE: video-standalone.build
         IMAGE: video
       - DOCKER_COMPOSE: monitor.build
@@ -142,7 +145,7 @@ docker-image:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
     - apk add git docker-compose
     - git submodule update --init --recursive --remote
-    - docker-compose -f docker-compose.$DOCKER_COMPOSE.yml build isard-$IMAGE
+    - docker-compose -f docker-compose.$DOCKER_COMPOSE.yml build $IMAGE_DEPENDENCY isard-$IMAGE
     - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
     - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
 
@@ -197,7 +200,6 @@ docker-tag:
           - db
           - engine
           - grafana
-          - rdpgw
           - guac
           - hypervisor
           - influxdb
