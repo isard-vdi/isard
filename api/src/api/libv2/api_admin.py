@@ -171,11 +171,11 @@ class ApiAdmin:
                                     "graphics": True,
                                     "videos": True,
                                     "boot_order": True,
-                                    "forced_hyp": True,
                                 },
                                 "origin": True,
                             }
                         },
+                        "forced_hyp",
                     )
                     .run(db.conn)
                 )
