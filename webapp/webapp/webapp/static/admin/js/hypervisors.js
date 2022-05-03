@@ -98,6 +98,14 @@ $(document).ready(function() {
     //   function timestamp() { return (new Date).getTime() / 1000; }
     //   chart={}
 
+    renderBoolean = (enabled) => {
+        if (enabled) {
+            return '<i class="fa fa-circle" aria-hidden="true" style="color:green"></i>'
+        } else {
+            return '<i class="fa fa-circle" aria-hidden="true" style="color:darkgray"></i>'
+        }
+    }
+
     table = $('#hypervisors').DataTable( {
         "ajax": {
             "url": "/admin/table/hypervisors",
@@ -134,6 +142,7 @@ $(document).ready(function() {
             { "data": "info.virtualization_capabilities" , "width": "10px", "defaultContent": 'NaN' },            
             { "data": "capabilities.disk_operations" , "width": "10px" },
             { "data": "capabilities.hypervisor" , "width": "10px" },
+            { "data": "only_forced" , "width": "10px" },
             { "data": "status_time" , "width": "10px" }],
             
           /*   { "data": "started_domains", "width": "10px", "defaultContent": 0}, */
@@ -152,13 +161,8 @@ $(document).ready(function() {
                             }},
                             {
                             "targets": 5,
-                            "render": function ( data, type, full, meta ) {
-                                if (data) {
-                                    return '<i class="fa fa-circle" aria-hidden="true" style="color:green"></i>'
-                                } else {
-                                    return '<i class="fa fa-circle" aria-hidden="true" style="color:darkgray"></i>'
-                                }
-                            }},
+                            "render": renderBoolean
+                            },
                             {
                             "targets": 7,
                             "render": function ( data, type, full, meta ) {
@@ -178,24 +182,18 @@ $(document).ready(function() {
                             }},
                             {
                             "targets": 14,
-                            "render": function ( data, type, full, meta ) {
-                                if (data) {
-                                    return '<i class="fa fa-circle" aria-hidden="true" style="color:green"></i>'
-                                } else {
-                                    return '<i class="fa fa-circle" aria-hidden="true" style="color:darkgray"></i>'
-                                }
-                            }},
+                            "render": renderBoolean
+                            },
                             {
                             "targets": 15,
-                            "render": function ( data, type, full, meta ) {
-                                if (data) {
-                                    return '<i class="fa fa-circle" aria-hidden="true" style="color:green"></i>'
-                                } else {
-                                    return '<i class="fa fa-circle" aria-hidden="true" style="color:darkgray"></i>'
-                                }
-                            }},
+                            "render": renderBoolean
+                            },
                             {
                             "targets": 16,
+                            "render": renderBoolean
+                            },
+                            {
+                            "targets": 17,
                             "render": function ( data, type, full, meta ) {
                               return moment.unix(full.status_time).fromNow();
                             }}
