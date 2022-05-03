@@ -100,7 +100,7 @@ class ApiHypervisors:
             ):
 
                 raise Error("not_found", "Unable to ssh-keyscan")
-            log.info("Hypervisor " + hyper_id + "added to database")
+            log.info("Hypervisor " + hyper_id + " added to database")
         else:
             result = self.add_hyper(
                 hyper_id,
