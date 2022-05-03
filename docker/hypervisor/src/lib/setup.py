@@ -54,6 +54,7 @@ def SetupHypervisor():
         "isard_video_url": video_domain,
         "isard_proxy_hyper_url": proxy_hyper_url,
         "isard_hyper_vpn_host": isard_hyper_vpn_host,
+        "only_forced": json.loads(os.environ.get("ONLY_FORCED_HYP", "false").lower()),
     }
 
     ## Adding hyper. Received dict with certs and number
