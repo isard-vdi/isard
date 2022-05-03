@@ -72,6 +72,7 @@ class ApiHypervisors:
         isard_proxy_hyper_url="isard-hypervisor",
         isard_hyper_vpn_host="isard-vpn",
         user="root",
+        only_forced=False,
     ):
         data = {}
 
@@ -95,6 +96,7 @@ class ApiHypervisors:
                     isard_hyper_vpn_host=isard_hyper_vpn_host,
                     description="Added via api",
                     user=user,
+                    only_forced=only_forced,
                 ),
                 "inserted",
             ):
@@ -117,6 +119,7 @@ class ApiHypervisors:
                 isard_hyper_vpn_host=isard_hyper_vpn_host,
                 description="Added via api",
                 user=user,
+                only_forced=only_forced,
             )
             # {'deleted': 0, 'errors': 0, 'inserted': 0, 'replaced': 1, 'skipped': 0, 'unchanged': 0}
             if not result:
@@ -161,6 +164,7 @@ class ApiHypervisors:
         isard_proxy_hyper_url="isard-hypervisor",
         isard_hyper_vpn_host="isard-vpn",
         user="root",
+        only_forced=False,
     ):
         # If we can't connect why we should add it? Just return False!
         if not self.update_fingerprint(hostname, port):
@@ -188,6 +192,7 @@ class ApiHypervisors:
                 "proxy_hyper_host": isard_proxy_hyper_url,  # Viewed from isard-video
             },
             "info": {},
+            "only_forced": only_forced,
         }
 
         with app.app_context():
