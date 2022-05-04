@@ -43,7 +43,6 @@ export default {
     loginSuccess (context, token) {
       context.dispatch('setSession', token)
       localStorage.token = token
-      store.dispatch('loginAdmin')
       store.dispatch('removeAuthorizationCookie')
       router.push({ name: 'desktops' })
     },
@@ -54,6 +53,8 @@ export default {
         } else {
           console.log(e)
         }
+      }).then(() => {
+        window.location = `${apiAdminSegment}/desktops`
       })
     },
     saveNavigation (context, payload) {
