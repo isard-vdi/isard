@@ -6,8 +6,8 @@ import Maintenance from '@/views/Maintenance.vue'
 import NotFound from '@/views/NotFound.vue'
 import Register from '@/views/Register.vue'
 import Rdp from '@/views/Rdp.vue'
-import Deployments from '@/views/Deployments.vue'
-import Deployment from '@/views/Deployment.vue'
+import Deployments from '@/pages/Deployments.vue'
+import Deployment from '@/pages/Deployment.vue'
 import DirectViewer from '@/views/DirectViewer.vue'
 import Vue from 'vue'
 import VueRouter from 'vue-router'
@@ -66,17 +66,27 @@ const router = new VueRouter({
       }
     },
     {
-      path: '/deployments',
+      path: '/',
       name: 'Deployments',
-      component: Deployments,
-      meta: {
-        requiresAuth: true
-      }
-    },
-    {
-      path: '/deployment/:id',
-      name: 'Deployment',
-      component: Deployment,
+      component: MainLayout,
+      children: [
+        {
+          path: 'deployments',
+          name: 'deployments',
+          component: Deployments,
+          meta: {
+            title: 'Deployments'
+          }
+        },
+        {
+          path: '/deployment/:id',
+          name: 'deployment',
+          component: Deployment,
+          meta: {
+            title: 'Deployment'
+          }
+        }
+      ],
       meta: {
         requiresAuth: true
       }
