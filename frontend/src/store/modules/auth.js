@@ -57,7 +57,7 @@ export default {
       })
     },
     saveNavigation (context, payload) {
-      const tokens = payload.url.path.toString().split('/')
+      const tokens = payload.url.name
       context.commit('setUrlTokens', tokens)
     },
     removeAuthorizationCookie (context) {

@@ -1,10 +1,10 @@
 <template>
   <div id="main-layout">
-        <div class="header-wrapper">
-          <NewNavBar/>
-           <component v-bind:is="currentStatusBarComponent"></component>
-        </div>
-        <router-view></router-view>
+    <div class="header-wrapper">
+      <NewNavBar/>
+      <component v-bind:is="currentStatusBarComponent"></component>
+    </div>
+    <router-view></router-view>
   </div>
 </template>
 
@@ -22,8 +22,7 @@ export default {
     const urlTokens = computed(() => $store.getters.getUrlTokens)
 
     const section = computed(() => {
-      const section = urlTokens.value.join('')
-      return sectionConfig[section] !== undefined ? urlTokens.value.join('') : 'default'
+      return sectionConfig[urlTokens.value] !== undefined ? urlTokens.value : 'default'
     })
 
     const currentStatusBarComponent = computed(() => {

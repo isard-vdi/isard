@@ -38,7 +38,7 @@ const router = new VueRouter({
         },
         {
           path: 'desktops/new',
-          name: 'NewDesktop',
+          name: 'desktopsnew',
           component: DesktopNew,
           meta: {
             title: 'New Desktop'
@@ -46,7 +46,7 @@ const router = new VueRouter({
         },
         {
           path: 'images',
-          name: 'Images',
+          name: 'images',
           component: ImagesList,
           meta: {
             title: 'Images'
