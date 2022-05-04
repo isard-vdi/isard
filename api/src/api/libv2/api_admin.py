@@ -176,6 +176,7 @@ class ApiAdmin:
                             }
                         },
                         "forced_hyp",
+                        "os",
                     )
                     .run(db.conn)
                 )
