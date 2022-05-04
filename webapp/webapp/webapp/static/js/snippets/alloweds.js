@@ -58,7 +58,11 @@
 	
 
 	function setAlloweds_add(parentid){
-		ids=['a-roles','a-categories','a-groups','a-users']
+        if ('{{ current_user.role }}' == 'admin') {
+            ids=['a-roles','a-categories','a-groups','a-users']
+        } else {
+            ids=['a-groups','a-users']
+        }
 		$.each(ids,function(idx,id){
 			// https://github.com/dargullin/icheck/issues/159
 			$(parentid+' #'+id+'-cb').iCheck('uncheck').iCheck('update');
