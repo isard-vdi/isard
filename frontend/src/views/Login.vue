@@ -185,7 +185,7 @@ export default {
     }
   },
   beforeMount: async function () {
-    if (localStorage.token) {
+    if (sessionStorage.token) {
       this.$router.push({ name: 'desktops' })
     }
     this.$store.dispatch('removeAuthorizationCookie')

@@ -124,7 +124,7 @@
     <script src="/isard-admin/static/vendor/fancytree/src/jquery.fancytree.table.js"></script>
     <!-- Set user jwt header in ajax requests -->
     <script type="text/javascript">
-      user_token = localStorage.getItem("token")
+      user_token = sessionStorage.getItem("token")
       $.ajaxSetup({
         headers: {
           "Authorization": "Bearer " + user_token
@@ -149,9 +149,9 @@
         console.log(message)
       };
 
-      // If the user token is deleted from the localStorage perform a logout
+      // If the user token is deleted from the sessionStorage perform a logout
       window.addEventListener('storage', (e) => {
-        if (localStorage.token === undefined) {
+        if (sessionStorage.token === undefined) {
           window.location = '/isard-admin/logout';
         } else if (e.key === 'token' && (e.newValue === null || e.newValue == ''))  {
           window.location = '/isard-admin/logout';
