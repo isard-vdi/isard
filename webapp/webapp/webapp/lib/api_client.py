@@ -13,7 +13,7 @@ from jose import jwt
 class ApiClient:
     def __init__(self):
         api_domain = os.environ.get("API_DOMAIN", False)
-        if api_domain:
+        if api_domain and api_domain != "isard-api":
             self.base_url = "https://" + api_domain + "/api/v3/"
         else:
             self.base_url = "http://isard-api:5000/api/v3/"
