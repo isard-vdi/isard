@@ -32,6 +32,13 @@ net:
         kind:
           - personal
       check_with: validate_vlan_range
+    - dependencies:
+        id:
+          - wireguard
+        kind:
+          - ovs
+      allowed:
+        - "4095"
 model:
   required: true
   type: string
