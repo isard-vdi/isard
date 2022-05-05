@@ -58,11 +58,7 @@
 	
 
 	function setAlloweds_add(parentid){
-        if ('{{ current_user.role }}' == 'admin') {
-            ids=['a-roles','a-categories','a-groups','a-users']
-        } else {
-            ids=['a-groups','a-users']
-        }
+        ids=['a-roles','a-categories','a-groups','a-users']
 		$.each(ids,function(idx,id){
 			// https://github.com/dargullin/icheck/issues/159
 			$(parentid+' #'+id+'-cb').iCheck('uncheck').iCheck('update');
@@ -79,7 +75,7 @@
                 placeholder = 'Type at least 2 letters to search.'
             }
             if( id.replace('a-','') == 'groups'){
-                $(parentid+" #"+id).select2({
+                $(parentid+" #"+id+"[type!=hidden]").select2({
                     placeholder,
                     minimumInputLength: 2,
                     multiple: true,
@@ -108,7 +104,7 @@
                     },
                 });
             } else if (id.replace('a-','') == 'users') {
-                $(parentid+" #"+id).select2({
+                $(parentid+" #"+id+"[type!=hidden]").select2({
                     placeholder,
                     minimumInputLength: 2,
                     multiple: true,
@@ -137,7 +133,7 @@
                     },
                 });	
             } else{
-                $(parentid+" #"+id).select2({
+                $(parentid+" #"+id+"[type!=hidden]").select2({
                     placeholder,
                     minimumInputLength: 2,
                     multiple: true,
