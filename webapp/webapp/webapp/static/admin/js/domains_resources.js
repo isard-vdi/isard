@@ -480,7 +480,9 @@ $(document).ready(function() {
         }
         if($('#kind').val() == 'ovs'){
             $('#ifname_label').html('Input vlan ID number')
-            $('#ifname').attr('type', 'number').attr('min', 1).attr('max', '4094')
+            if ($('#modalInterfacesForm #id').val() !== "wireguard"){
+                $('#ifname').attr('type', 'number').attr('min', 1).attr('max', '4094')
+            }
         }
         if($('#kind').val() == 'personal'){
             $('#ifname_label').html('Input vlan range (2000-3000)')
@@ -537,6 +539,13 @@ $(document).ready(function() {
                 }).modal('show');
                 $('#modalInterfaces #modalInterfacesForm').parsley();
                 api.ajax('/isard-admin/admin/load/interfaces/post','POST',{'id':data.id}).done(function(interface) {
+                    if (interface.id === "wireguard"){
+                        $('#kind').attr('style', 'pointer-events: none;')
+                        $('#ifname').prop('readonly', true)
+                    }else{
+                        $('#kind').removeAttr('style')
+                        $('#ifname').prop('readonly', false)
+                    }
                     if('qos_id' in data){
                         if(data['qos_id'] == false){
                             qos_id='unlimited'
