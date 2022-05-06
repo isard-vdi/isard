@@ -162,6 +162,9 @@ def api_v3_hypervisor(hyper_id=False):
             description = request.form.get(
                 "description", default="Added via api", type=str
             )
+            only_forced = json.loads(
+                request.form.get("only_forced", default="false", type=str).lower()
+            )
 
         except Exception as e:
             error = traceback.format_exc()
@@ -191,6 +194,7 @@ def api_v3_hypervisor(hyper_id=False):
             isard_hyper_vpn_host=isard_hyper_vpn_host,
             description=description,
             user=user,
+            only_forced=only_forced,
         )
         if not data["status"]:
             raise Error("internal_server", "Failed hypervisor: " + data["msg"])
