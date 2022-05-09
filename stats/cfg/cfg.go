@@ -9,6 +9,7 @@ import (
 type Cfg struct {
 	Log        cfg.Log
 	Domain     string
+	Flavour    string
 	HTTP       cfg.HTTP
 	LibvirtURI string `mapstructure:"libvirt_uri"`
 	SSH        SSH
@@ -56,8 +57,10 @@ func setDefaults() {
 	cfg.SetHTTPDefaults()
 
 	viper.BindEnv("domain", "DOMAIN")
+	viper.BindEnv("flavour", "FLAVOUR")
 
 	viper.SetDefault("domain", "")
+	viper.SetDefault("flavour", "all-in-one")
 
 	viper.SetDefault("http", map[string]interface{}{
 		"port": "9091",

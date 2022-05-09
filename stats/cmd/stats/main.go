@@ -13,12 +13,11 @@ import (
 	"gitlab.com/isard/isardvdi/stats/collector"
 	"gitlab.com/isard/isardvdi/stats/transport/http"
 
+	"github.com/rs/zerolog"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
 	"libvirt.org/go/libvirt"
 )
-
-// TODO: Improve logging
 
 func main() {
 	cfg := cfg.New()
@@ -28,9 +27,61 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 
+	collectors, libvirtConn, sshConn := startCollectors(cfg, log)
+
+	enabledCollectors := []string{}
+	for _, c := range collectors {
+		enabledCollectors = append(enabledCollectors, c.String())
+	}
+
+	http := &http.StatsServer{
+		Addr:       cfg.HTTP.Addr(),
+		Log:        log,
+		WG:         &wg,
+		Collectors: collectors,
+	}
+
+	go http.Serve(ctx, log)
+	wg.Add(1)
+
+	log.Info().Strs("collectors", enabledCollectors).Msg("service started")
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt)
+
+	<-stop
+	fmt.Println("")
+	log.Info().Msg("stopping service")
+
+	cancel()
+
+	if libvirtConn != nil {
+		libvirtConn.Close()
+	}
+
+	if sshConn != nil {
+		sshConn.Close()
+	}
+}
+
+func hasHypervisor(flavour string) bool {
+	switch flavour {
+	case "all-in-one", "hypervisor", "hypervisor-standalone":
+		return true
+	default:
+		return false
+	}
+}
+
+func startCollectors(cfg cfg.Cfg, log *zerolog.Logger) ([]collector.Collector, *libvirt.Connect, *ssh.Client) {
+	domain := hasHypervisor(cfg.Flavour) && cfg.Collectors.Domain.Enable
+	hypervisor := hasHypervisor(cfg.Flavour) && cfg.Collectors.Hypervisor.Enable
+	socket := hasHypervisor(cfg.Flavour) && cfg.Collectors.Socket.Enable
+	system := cfg.Collectors.System.Enable
+
 	var sshConn *ssh.Client
 	var sshMux sync.Mutex
-	if cfg.Collectors.Socket.Enable || cfg.Collectors.Domain.Enable {
+	if domain || socket {
 		kHosts, err := knownhosts.New(filepath.Join(os.Getenv("HOME"), ".ssh", "known_hosts"))
 		if err != nil {
 			log.Fatal().Err(err).Str("domain", cfg.Domain).Msg("read known hosts")
@@ -62,7 +113,7 @@ func main() {
 
 	var libvirtConn *libvirt.Connect
 	var libvirtMux sync.Mutex
-	if cfg.Collectors.Hypervisor.Enable || cfg.Collectors.Domain.Enable {
+	if hypervisor || domain {
 		// TODO: We should add a libvirt timeout
 		var err error
 		libvirtConn, err = libvirt.NewConnectReadOnly(cfg.LibvirtURI)
@@ -78,57 +129,25 @@ func main() {
 
 	collectors := []collector.Collector{}
 
-	if cfg.Collectors.Hypervisor.Enable {
-		h := collector.NewHypervisor(&libvirtMux, cfg, log, libvirtConn)
-		collectors = append(collectors, h)
-	}
-
-	if cfg.Collectors.Domain.Enable {
-		d := collector.NewDomain(&libvirtMux, &sshMux, cfg, log, libvirtConn, sshConn)
-		collectors = append(collectors, d)
-	}
-
-	if cfg.Collectors.System.Enable {
+	if system {
 		s := collector.NewSystem(cfg, log)
 		collectors = append(collectors, s)
 	}
 
-	if cfg.Collectors.Socket.Enable {
+	if hypervisor {
+		h := collector.NewHypervisor(&libvirtMux, cfg, log, libvirtConn)
+		collectors = append(collectors, h)
+	}
+
+	if domain {
+		d := collector.NewDomain(&libvirtMux, &sshMux, cfg, log, libvirtConn, sshConn)
+		collectors = append(collectors, d)
+	}
+
+	if socket {
 		s := collector.NewSocket(&sshMux, cfg, log, sshConn)
 		collectors = append(collectors, s)
 	}
 
-	enabledCollectors := []string{}
-	for _, c := range collectors {
-		enabledCollectors = append(enabledCollectors, c.String())
-	}
-
-	http := &http.StatsServer{
-		Addr:       cfg.HTTP.Addr(),
-		Log:        log,
-		WG:         &wg,
-		Collectors: collectors,
-	}
-
-	go http.Serve(ctx)
-	wg.Add(1)
-
-	log.Info().Strs("collectors", enabledCollectors).Msg("service started")
-
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt)
-
-	<-stop
-	fmt.Println("")
-	log.Info().Msg("stopping service")
-
-	cancel()
-
-	if libvirtConn != nil {
-		libvirtConn.Close()
-	}
-
-	if sshConn != nil {
-		sshConn.Close()
-	}
+	return collectors, libvirtConn, sshConn
 }

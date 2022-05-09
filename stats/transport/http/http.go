@@ -22,7 +22,7 @@ type StatsServer struct {
 	WG  *sync.WaitGroup
 }
 
-func (s *StatsServer) Serve(ctx context.Context) {
+func (s *StatsServer) Serve(ctx context.Context, log *zerolog.Logger) {
 	r := prometheus.NewRegistry()
 	r.MustRegister(version.NewCollector("isardvdi_stats"))
 	for _, c := range s.Collectors {
@@ -30,10 +30,16 @@ func (s *StatsServer) Serve(ctx context.Context) {
 	}
 
 	m := http.NewServeMux()
-	m.Handle("/metrics", promhttp.HandlerFor(prometheus.Gatherers{r}, promhttp.HandlerOpts{
-		ErrorHandling:       promhttp.ContinueOnError,
-		MaxRequestsInFlight: 40,
-	}))
+	m.HandleFunc("/metrics", func(w http.ResponseWriter, rq *http.Request) {
+		start := time.Now()
+
+		promhttp.HandlerFor(prometheus.Gatherers{r}, promhttp.HandlerOpts{
+			ErrorHandling:       promhttp.ContinueOnError,
+			MaxRequestsInFlight: 40,
+		}).ServeHTTP(w, rq)
+
+		log.Info().Dur("duration", time.Since(start)).Msg("stats served")
+	})
 
 	srv := http.Server{
 		Addr:    s.Addr,

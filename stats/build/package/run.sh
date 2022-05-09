@@ -15,11 +15,11 @@ if [ "$FLAVOUR" == "all-in-one" ] || [ "$FLAVOUR" == "hypervisor" ] || [ "$FLAVO
 
     ssh-keyscan -p 2022 -t rsa -T 3 isard-hypervisor > /root/.ssh/known_hosts
     sshpass -p $API_HYPERVISORS_SECRET ssh-copy-id -p 2022 root@isard-hypervisor
-fi
 
-until $(ssh -p 2022 root@isard-hypervisor "test -e /var/run/libvirt/libvirt-sock-ro"); do
-    echo "Waiting for libvirt service to be started"
-    sleep 2
-done
+    until $(ssh -p 2022 root@isard-hypervisor "test -e /var/run/libvirt/libvirt-sock-ro"); do
+        echo "Waiting for libvirt service to be started"
+        sleep 2
+    done
+fi
 
 /stats
