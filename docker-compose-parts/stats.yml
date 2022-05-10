@@ -46,6 +46,10 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /opt/isard:/opt/isard:ro
+      - /opt/isard/templates:/opt/isard/templates:ro
+      - /opt/isard/groups:/opt/isard/groups:ro
+      - /opt/isard/media:/opt/isard/media:ro
+      - /:/disk:ro
     env_file:
       - .env
 
