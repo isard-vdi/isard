@@ -99,7 +99,7 @@ class isardViewer:
                     )
             except ReqlNonExistenceError:
                 raise DesktopNotFound
-        if not domain["status"] == "Started":
+        if not domain["status"] in ["Started", "Shutting-down"]:
             raise DesktopNotStarted
 
         if (
