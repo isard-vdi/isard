@@ -1,0 +1,24 @@
+template_id:
+  required: true
+  type: string
+  empty: false
+  default_setter: gendomainid
+name:
+  required: true
+  type: string
+  empty: false
+desktop_id: 
+  required: true
+  type: string
+description: 
+  required: false
+  type: string
+  default: ""
+enabled:
+  type: boolean
+  default: false
+allowed:
+  type: dict
+  schema: allowed
+user_id:
+  type: string

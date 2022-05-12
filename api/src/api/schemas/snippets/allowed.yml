@@ -1,0 +1,20 @@
+roles:
+  type: 
+    - list
+    - boolean
+  default: false
+categories:
+  type: 
+    - list
+    - boolean
+  default: false
+groups:
+  type: 
+    - list
+    - boolean
+  default: false
+users:
+  type: 
+    - list
+    - boolean
+  default: false

@@ -13,13 +13,14 @@ from rethinkdb import RethinkDB
 
 from api import app
 
-from .api_exceptions import Error
+from .api_cards import ApiCards
 
 r = RethinkDB()
 import logging as log
 
 from rethinkdb.errors import ReqlTimeoutError
 
+from .api_exceptions import Error
 from .flask_rethink import RDB
 
 db = RDB(app)
@@ -39,24 +40,16 @@ class ApiTemplates:
 
     def New(
         self,
-        template_name,
+        user_id,
+        template_id,
+        name,
         desktop_id,
-        allowed_roles=False,
-        allowed_categories=False,
-        allowed_groups=False,
-        allowed_users=False,
+        allowed={"roles": False, "categories": False, "groups": False, "users": False},
+        description="",
+        enabled=False,
     ):
 
-        allowed = {
-            "roles": allowed_roles,
-            "categories": allowed_categories,
-            "groups": allowed_groups,
-            "users": allowed_users,
-        }
-
-        parsed_name = _parse_string(template_name)
-        user_id = desktop_id.split("_")[1]
-        template_id = "_" + user_id + "-" + parsed_name
+        parsed_name = _parse_string(name)
 
         with app.app_context():
             try:
@@ -86,8 +79,8 @@ class ApiTemplates:
 
         template_dict = {
             "id": template_id,
-            "name": template_name,
-            "description": "Api created",
+            "name": name,
+            "description": description,
             "kind": "template",
             "user": user["id"],
             "username": user["username"],
@@ -97,6 +90,7 @@ class ApiTemplates:
             "group": user["group"],
             "xml": desktop["xml"],  #### In desktop creation is
             "icon": desktop["icon"],
+            "image": ApiCards().get_domain_stock_card(template_id),
             "server": desktop["server"],
             "os": desktop["os"],
             "guest_properties": desktop["guest_properties"],
@@ -104,11 +98,11 @@ class ApiTemplates:
             "hypervisors_pools": ["default"],
             "parents": desktop["parents"] if "parents" in desktop.keys() else [],
             "allowed": allowed,
+            "enabled": enabled,
         }
 
         with app.app_context():
-            if r.table("domains").get(template_dict["id"]).run(db.conn) == None:
-
+            if r.table("domains").get(template_id).run(db.conn) == None:
                 if (
                     _check(
                         r.table("domains")
@@ -124,11 +118,16 @@ class ApiTemplates:
                     )
                     == False
                 ):
-                    raise NewTemplateNotInserted
+                    raise Error(
+                        "internal_server",
+                        "Unable to update at new template into database.",
+                    )
                 else:
-                    return template_dict["id"]
+                    return template_id
             else:
-                raise TemplateExists
+                raise Error(
+                    "conflict", "Template id already exists: " + str(template_id)
+                )
 
     def Get(self, template_id):
         with app.app_context():
@@ -159,7 +158,8 @@ class ApiTemplates:
         if template and template["kind"] == "template":
             with app.app_context():
                 r.table("domains").get(template_id).update(data).run(db.conn)
-            return
+            template = r.table("domains").get(template_id).run(db.conn)
+            return template
         raise Error(
             "conflict",
             "Unable to update enable in a non template kind domain",

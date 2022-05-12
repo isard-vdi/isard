@@ -45,10 +45,10 @@ class Quotas:
         self.DesktopCreate(user_id)
         self.DesktopStart(user_id)
 
-    def TemplateCreate(sefl, user_id):
-        return
+    def TemplateCreate(self, payload):
+        qp.check("NewTemplate", payload["user_id"])
 
-    def IsoCreate(sefl, user_id):
+    def IsoCreate(self, user_id):
         return
 
     def deployment_create(self, user_id):
