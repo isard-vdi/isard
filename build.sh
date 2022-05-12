@@ -104,7 +104,7 @@ MONITOR_STANDALONE_PARTS="
 "
 
 docker_compose_version(){
-	docker-compose --version | sed 's/^docker-compose version \([^,]\+\),.*$/\1/'
+	docker-compose --version --short | sed 's/^docker-compose version \([^,]\+\),.*$/\1/'
 }
 
 check_docker_compose_version(){
@@ -181,6 +181,8 @@ parts_files(){
 	done
 }
 merge(){
+	local version_args="$1"
+	shift || return 0
 	local config_name="$1"
 	shift || return 0
 	local args="$(parts_files $@)"
@@ -192,7 +194,7 @@ merge(){
 		else
 			local delimiter="."
 		fi
-		docker-compose $args config > "docker-compose$delimiter$config_name.yml"
+		docker-compose $version_args $args config > "docker-compose$delimiter$config_name.yml"
 	fi
 }
 parts_variant(){
@@ -214,21 +216,24 @@ variants(){
 	if check_docker_compose_version
 	then
 		local version="current"
+		# docker-compose config v2 hide not specified profiles
+		local version_args="--profile test"
 	else
 		local version="legacy"
+		local version_args=""
 	fi
 	case $USAGE in
 		production)
-			merge "$config_name" $(parts_variant $version $(parts_variant $FLAVOUR $@))
+			merge "$extra_args" "$config_name" $(parts_variant $version $(parts_variant $FLAVOUR $@))
 			;;
 		test)
-			merge "$config_name" $(parts_variant $version $(parts_variant $FLAVOUR $@) $(parts_variant test $@))
+			merge "$extra_args" "$config_name" $(parts_variant $version $(parts_variant $FLAVOUR $@) $(parts_variant test $@))
 			;;
 		build)
-			merge "$config_name" $(parts_variant $version $(parts_variant $FLAVOUR $@) $(parts_variant test $@) $(parts_variant build $@))
+			merge "$extra_args" "$config_name" $(parts_variant $version $(parts_variant $FLAVOUR $@) $(parts_variant test $@) $(parts_variant build $@))
 			;;
 		devel)
-			merge "$config_name" $(parts_variant $version $(parts_variant $FLAVOUR $@) $(parts_variant test $@) $(parts_variant build $@) $(parts_variant devel $@))
+			merge "$extra_args" "$config_name" $(parts_variant $version $(parts_variant $FLAVOUR $@) $(parts_variant test $@) $(parts_variant build $@) $(parts_variant devel $@))
 			;;
 		*)
 			echo "Error: unknow usage $USAGE"
