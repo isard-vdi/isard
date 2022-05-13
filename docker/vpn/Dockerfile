@@ -1,7 +1,8 @@
 # Hack to be able to use an arg as a COPY --from
 # https://stackoverflow.com/a/63472135
+ARG DOCKER_IMAGE_PREFIX=registry.gitlab.com/isard/isardvdi/
 ARG DOCKER_IMAGE_TAG
-FROM registry.gitlab.com/isard/isardvdi/rdpgw:$DOCKER_IMAGE_TAG as rdpgw
+FROM ${DOCKER_IMAGE_PREFIX}rdpgw:$DOCKER_IMAGE_TAG as rdpgw
 
 FROM alpine:3.14.0 as production
 MAINTAINER isard <info@isardvdi.com>
