@@ -224,16 +224,16 @@ variants(){
 	fi
 	case $USAGE in
 		production)
-			merge "$extra_args" "$config_name" $(parts_variant $version $(parts_variant $FLAVOUR $@))
+			merge "$version_args" "$config_name" $(parts_variant $version $(parts_variant $FLAVOUR $@))
 			;;
 		test)
-			merge "$extra_args" "$config_name" $(parts_variant $version $(parts_variant $FLAVOUR $@) $(parts_variant test $@))
+			merge "$version_args" "$config_name" $(parts_variant $version $(parts_variant $FLAVOUR $@) $(parts_variant test $@))
 			;;
 		build)
-			merge "$extra_args" "$config_name" $(parts_variant $version $(parts_variant $FLAVOUR $@) $(parts_variant test $@) $(parts_variant build $@))
+			merge "$version_args" "$config_name" $(parts_variant $version $(parts_variant $FLAVOUR $@) $(parts_variant test $@) $(parts_variant build $@))
 			;;
 		devel)
-			merge "$extra_args" "$config_name" $(parts_variant $version $(parts_variant $FLAVOUR $@) $(parts_variant test $@) $(parts_variant build $@) $(parts_variant devel $@))
+			merge "$version_args" "$config_name" $(parts_variant $version $(parts_variant $FLAVOUR $@) $(parts_variant test $@) $(parts_variant build $@) $(parts_variant devel $@))
 			;;
 		*)
 			echo "Error: unknow usage $USAGE"
