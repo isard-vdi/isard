@@ -233,8 +233,9 @@
             "viewer-name": {
                 "browser-vnc": "Nabigatzailea",
                 "file-spice": "SPICE",
-                "file-rdpvpn": "RDP",
-                "browser-rdp": "RDP nabigatzaile"
+                "file-rdpvpn": "RDP VPN",
+                "browser-rdp": "RDP nabigatzaile",
+                "file-rdpgw": "RDP"
             },
             "viewer": "{name} bisorea",
             "viewers": "Bisoreak",

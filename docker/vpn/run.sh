@@ -2,6 +2,10 @@
 echo "$(date): INFO: Starting guacd server"
 guacd -b 0.0.0.0 -L info -f >> /var/log/guacd 2>&1 &
 
+# Start RDPGW
+echo "$(date): INFO: Starting RDPGW server"
+/rdpgw &
+
 # Start wireguard
 cd /certs
 if [ ! -f /certs/server_private.key ]

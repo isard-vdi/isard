@@ -1,3 +1,8 @@
+# Hack to be able to use an arg as a COPY --from
+# https://stackoverflow.com/a/63472135
+ARG DOCKER_IMAGE_TAG
+FROM registry.gitlab.com/isard/isardvdi/rdpgw:$DOCKER_IMAGE_TAG as rdpgw
+
 FROM alpine:3.14.0 as production
 MAINTAINER isard <info@isardvdi.com>
 
@@ -52,6 +57,8 @@ COPY docker/vpn/dnsmasq-hook /dnsmasq-hook
 COPY docker/vpn/src /src
 COPY docker/vpn/run.sh /
 # COPY docker/vpn/networking.py /
+
+COPY --from=rdpgw /rdpgw /rdpgw
 
 CMD [ "sh", "run.sh"]
 

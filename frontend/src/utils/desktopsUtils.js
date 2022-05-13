@@ -81,6 +81,6 @@ export class DesktopUtils {
   }
 
   static viewerNeedsIp (viewer) {
-    return ['file-rdpvpn', 'browser-rdp'].includes(viewer)
+    return ['file-rdpgw', 'file-rdpvpn', 'browser-rdp'].includes(viewer)
   }
 }

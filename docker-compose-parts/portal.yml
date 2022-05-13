@@ -20,6 +20,9 @@ services:
       - published: 443
         target: 443
         mode: host
+      - published: 9999
+        target: 9999
+        mode: host
     volumes:
       - /opt/isard/certs/letsencrypt:/etc/letsencrypt:rw
       - /opt/isard/certs/default:/certs:rw

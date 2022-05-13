@@ -28,7 +28,43 @@ db.init_app(app)
 
 # from netaddr import IPNetwork, IPAddress
 
+from datetime import datetime, timedelta
+
+from jose import jwt
+
 from ..libv2.apiv2_exc import *
+
+
+def user_jwt(user_id, minutes=240):
+    # user_id = provider_id+'-'+category_id+'-'+id+'-'+id
+    try:
+        with app.app_context():
+            user = (
+                r.table("users")
+                .get(user_id)
+                .pluck("id", "username", "photo", "email", "role", "category", "group")
+                .run(db.conn)
+            )
+            user = {
+                "user_id": user["id"],
+                "role_id": user["role"],
+                "category_id": user["category"],
+                "group_id": user["group"],
+                "username": user["username"],
+                "email": user["email"],
+                "photo": user["photo"],
+            }
+    except:
+        raise Error("not_found", "Not found user_id " + user_id, traceback.format_exc())
+    return jwt.encode(
+        {
+            "exp": datetime.utcnow() + timedelta(minutes=minutes),
+            "kid": "isardvdi",
+            "data": user,
+        },
+        app.ram["secrets"]["isardvdi"]["secret"],
+        algorithm="HS256",
+    )
 
 
 class isardViewer:
@@ -44,12 +80,12 @@ class isardViewer:
     def viewer_data(
         self,
         id,
-        get_viewer="browser-vnc",
-        current_user=False,
+        protocol="browser-vnc",
         default_viewer=False,
         get_cookie=True,
         get_dict=False,
         domain=False,
+        user_id=False,
     ):
         if not domain:
             try:
@@ -57,7 +93,7 @@ class isardViewer:
                     domain = (
                         r.table("domains")
                         .get(id)
-                        .pluck("id", "name", "status", "viewer", "options")
+                        .pluck("id", "name", "status", "viewer", "options", "user")
                         .run(db.conn)
                     )
             except ReqlNonExistenceError:
@@ -65,9 +101,6 @@ class isardViewer:
         if not domain["status"] == "Started":
             raise DesktopNotStarted
 
-        if current_user is not False:
-            if not id.startswith("_" + current_user.id + "-"):
-                raise NotAllowed
         if (
             "preferred" not in domain["options"]["viewers"].keys()
             or not domain["options"]["viewers"]["preferred"] == default_viewer
@@ -78,7 +111,7 @@ class isardViewer:
                 ).run(db.conn)
 
         ### File viewers
-        if get_viewer == "file-spice":
+        if protocol == "file-spice":
             port = domain["viewer"]["base_port"] + self.spice_tls
             vmPort = domain["viewer"].get("spice_ext_port", "80")
             consola = self.get_spice_file(domain, vmPort, port)
@@ -91,10 +124,10 @@ class isardViewer:
                 "content": consola[2],
             }
 
-        if get_viewer == "file-vnc":
+        if protocol == "file-vnc":
             raise ViewerProtocolNotImplemented
 
-        if get_viewer == "file-rdpvpn":
+        if protocol == "file-rdpvpn":
             return {
                 "kind": "file",
                 "protocol": "rdpvpn",
@@ -104,8 +137,22 @@ class isardViewer:
                 "content": self.get_rdp_file(domain["viewer"]["guest_ip"]),
             }
 
+        if protocol == "file-rdpgw":
+            return {
+                "kind": "file",
+                "protocol": "rdpgw",
+                "name": "isard-rdp-gw",
+                "ext": "rdp",
+                "mime": "application/x-rdp",
+                "content": self.get_rdp_gw_file(
+                    domain["viewer"]["guest_ip"],
+                    domain["viewer"]["proxy_video"],
+                    user_jwt(domain["user"] if not user_id else user_id, minutes=30),
+                ),
+            }
+
         ## Browser viewers
-        if get_viewer == "browser-spice":
+        if protocol == "browser-spice":
             data = {
                 "vmName": domain["name"],
                 "vmHost": domain["viewer"]["proxy_hyper_host"],
@@ -141,7 +188,7 @@ class isardViewer:
                 "values": data,
             }
 
-        if get_viewer == "browser-vnc":
+        if protocol == "browser-vnc":
             data = {
                 "vmName": domain["name"],
                 "vmHost": domain["viewer"]["proxy_hyper_host"],
@@ -179,7 +226,7 @@ class isardViewer:
                 "values": data,
             }
 
-        if get_viewer == "browser-rdp":
+        if protocol == "browser-rdp":
             data = {
                 "vmName": domain["name"],
                 "vmHost": domain["viewer"]["guest_ip"],
@@ -206,7 +253,7 @@ class isardViewer:
                 "values": data,
             }
 
-        if get_viewer == "vnc-client-macos":
+        if protocol == "vnc-client-macos":
             raise ViewerProtocolNotImplemented
 
         return ViewerProtocolNotFound
@@ -253,6 +300,25 @@ class isardViewer:
         return """full address:s:%s
 """ % (
             ip
+        )
+
+    def get_rdp_gw_file(self, ip, proxy_video, jwt_token):
+        return """full address:s:%s
+gatewayhostname:s:%s:9999
+gatewaycredentialssource:i:5
+gatewayusagemethod:i:1
+gatewayprofileusagemethod:i:1
+gatewayaccesstoken:s:%s
+networkautodetect:i:1
+bandwidthautodetect:i:1
+connection type:i:6
+username:s:
+domain:s:
+bitmapcachesize:i:32000
+smart sizing:i:1""" % (
+            ip,
+            proxy_video,
+            jwt_token,
         )
 
     def get_spice_file(self, domain, port, vmPort):

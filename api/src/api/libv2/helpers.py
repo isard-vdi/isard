@@ -27,61 +27,48 @@ import string
 
 import bcrypt
 
-from ..libv2.isardViewer import isardViewer
 from .apiv2_exc import *
+from .isardViewer import isardViewer as iV
 
-isardviewer = isardViewer()
+isardviewer = iV()
 
 import traceback
 
 from ..libv2.api_exceptions import Error
 
 
-class InternalUsers(object):
-    def __init__(self):
-        self.users = {}
-
-    def get(self, user_id):
-        data = self.users.get(user_id, False)
-        if not data:
-            with app.app_context():
-                try:
-                    user = (
-                        r.table("users")
-                        .get(user_id)
-                        .pluck("name", "category", "group", "photo")
-                        .run(db.conn)
-                    )
-                    category_name = (
-                        r.table("categories")
-                        .get(user["category"])
-                        .pluck("name")
-                        .run(db.conn)["name"]
-                    )
-                    group_name = (
-                        r.table("groups")
-                        .get(user["group"])
-                        .pluck("name")
-                        .run(db.conn)["name"]
-                    )
-                    self.users[user_id] = {
-                        "userName": user["name"],
-                        "userPhoto": user["photo"],
-                        "categoryName": category_name,
-                        "groupName": group_name,
-                    }
-                except:
-                    print(traceback.format_exc())
-                    return {
-                        "userName": "Unknown",
-                        "userPhoto": "Unknown",
-                        "categoryName": "Unknown",
-                        "groupName": "Unknown",
-                    }
-        return self.users[user_id]
-
-    def list(self):
-        return self.users
+def get_user_item_names(user_id):
+    try:
+        with app.app_context():
+            user = (
+                r.table("users")
+                .get(user_id)
+                .pluck("name", "category", "group", "photo")
+                .run(db.conn)
+            )
+            category_name = (
+                r.table("categories")
+                .get(user["category"])
+                .pluck("name")
+                .run(db.conn)["name"]
+            )
+            group_name = (
+                r.table("groups").get(user["group"]).pluck("name").run(db.conn)["name"]
+            )
+        return {
+            "userName": user["name"],
+            "userPhoto": user["photo"],
+            "categoryName": category_name,
+            "groupName": group_name,
+        }
+    except:
+        print(traceback.format_exc())
+        return {
+            "userName": "Unknown",
+            "userPhoto": "Unknown",
+            "categoryName": "Unknown",
+            "groupName": "Unknown",
+        }
 
 
 def _parse_string(txt):
@@ -175,7 +162,7 @@ def _parse_desktop(desktop):
             if not desktop["ip"]:
                 desktop["status"] = "WaitingIP"
             if desktop["os"].startswith("win"):
-                desktop["viewers"].extend(["file-rdpvpn", "browser-rdp"])
+                desktop["viewers"].extend(["file-rdpgw", "file-rdpvpn", "browser-rdp"])
 
     if desktop["status"] == "Downloading":
         progress = {
@@ -203,21 +190,22 @@ def _parse_desktop(desktop):
     }
 
 
-def _parse_deployment_desktop(desktop):
+def _parse_deployment_desktop(desktop, user_id):
     user = desktop["user"]
     if desktop["status"] == "Started" and desktop.get("viewer", {}).get("static"):
         viewer = isardviewer.viewer_data(
             desktop["id"],
-            "browser-vnc",
+            protocol="browser-vnc",
             get_cookie=False,
             get_dict=True,
             domain=desktop,
+            user_id=user_id,
         )
     else:
         viewer = False
     desktop = _parse_desktop(desktop)
     desktop["viewer"] = viewer
-    desktop = {**desktop, **app.internal_users.get(user)}
+    desktop = {**desktop, **get_user_item_names(user)}
     desktop["user"] = user
     desktop.pop("type")
     desktop.pop("template")

@@ -109,7 +109,7 @@
             "viewer-name": {
                 "file-spice": "SPICE",
                 "browser-vnc": "Browser",
-                "file-rdpvpn": "RDP",
+                "file-rdpvpn": "RDP VPN",
                 "browser-rdp": "RDP-Browser"
             },
             "viewer": "{name}-Bildbetrachter",

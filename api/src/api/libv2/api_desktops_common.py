@@ -49,7 +49,7 @@ class ApiDesktopsCommon:
 
         try:
             viewer_txt = isardviewer.viewer_data(
-                desktop_id, protocol, get_cookie=get_cookie
+                desktop_id, protocol=protocol, get_cookie=get_cookie
             )
         except DesktopNotFound:
             raise

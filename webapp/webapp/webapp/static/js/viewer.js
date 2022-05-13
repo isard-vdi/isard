@@ -60,6 +60,12 @@ function setViewerButtons(data,socket,offer){
         data.create_dict.hardware.interfaces.includes("wireguard")
     ) {
         offer.push(
+	    {
+                'type': 'rdpgw',
+                'client': 'app',
+                'secure': true,
+                'preferred': false
+            },
             {
                 'type': 'rdpvpn',
                 'client': 'app',
