@@ -30,6 +30,14 @@ check_dependencies() {
     done
 }
 
+get_dependencies_versions() {
+    export ISARDVDI_CLI_VERSION=$(isardvdi-cli --version | awk '{ print $3 }')
+    export WIREGUARD_VERSION=$(wg --version | awk '{ print $2 }')
+    export REMMINA_VERSION=$(remmina --version | tail -n 1 | awk '{ print $3 }')
+    export REMOTE_VIEWER_VERSION=$(remote-viewer --version | awk '{ print $3 }')
+    export ISARDVDI_VERSION=$(curl --silent "$HOST/api/v3" | jq -r '.isardvdi_version' | awk '{print $1 }')
+}
+
 test_failed() {
     # Ensure the wireguard interface is stopped
     wg-quick down ./isard.conf &> /dev/null || true
@@ -63,7 +71,7 @@ stop_desktop() {
 
 check_desktop_state() {
     state=""
-    for i in {0..30}; do
+    for i in {0..60}; do
         if isardvdi-cli --json desktop get --id="$DESKTOP_ID" | jq -e "select(.state==\"$1\")" > /dev/null; then
             return
         fi
@@ -133,7 +141,7 @@ test_rdp() {
     export G_MESSAGES_PREFIXED=all
     export G_MESSAGES_DEBUG=all
 
-    test_viewer "remmina ./console.rdp" "(remmina_rdp_OnChannelConnectedEventHandler) - Channel drdynvc has been opened" || return 1
+    test_viewer "remmina ./console.rdp" "freerdp.channels.drdynvc.client] - Loading Dynamic Virtual Channel disp" || return 1
 }
 
 list_hypervisors() {
@@ -144,8 +152,31 @@ force_hypervisor() {
     isardvdi-cli desktop update --id $DESKTOP_ID --forced-hyp $1
 }
 
-echo "Running tests..."
 check_dependencies
+get_dependencies_versions
+
+echo "   __        __   __        __       ___  ___  __  ___  ___  __  
+| /__\`  /\  |__) |  \ \  / |  \ |     |  |__  /__\`  |  |__  |__) 
+| .__/ /~~\ |  \ |__/  \/  |__/ |     |  |___ .__/  |  |___ |  \ "
+echo -e "\n\n"
+
+echo "IsardVDI CLI: $ISARDVDI_CLI_VERSION
+
+Remmina: $REMMINA_VERSION
+
+Remote Viewer: $REMOTE_VIEWER_VERSION
+
+Wireguard: $WIREGUARD_VERSION
+
+------
+
+Host: $HOST
+
+IsardVDI Version: $ISARDVDI_VERSION
+
+Data: $(date --rfc-3339 seconds)" | /usr/games/cowsay -W 80 -f /isard.cow
+
+echo -e "\n\nRunning tests..."
 
 cd $TMP_WD
 
@@ -155,7 +186,7 @@ login || test_failed
 echo "[2/2] Check if the desktop is downloaded..."
 check_desktop || test_failed
 
-for hyper in "$(list_hypervisors)"; do
+for hyper in $(list_hypervisors); do
     echo -e "\nRunning tests in hypervisor '$hyper'..."
 
     force_hypervisor $hyper 1> /dev/null || test_failed
