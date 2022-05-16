@@ -181,6 +181,10 @@
                 "subtitle": "If you think this is an error, please contact the administrator"
             },
             "no-desktops": {
+                "title": "There are no desktops for this user",
+                "subtitle": "If you think this is an error, please contact the administrator"
+            },
+            "no-desktops-filtered": {
                 "title": "There are no desktops to display with current filters",
                 "subtitle": "You may create a new desktop with the top right button"
             },

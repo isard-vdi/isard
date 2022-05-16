@@ -114,7 +114,7 @@
             },
             "viewer": "{name}-Bildbetrachter",
             "viewers": "Bildbetrachter",
-            "no-desktops": {
+            "no-desktops-filtered": {
                 "subtitle": "Sie können eine neue Arbeitoberfläche mit der Schaltfläche oben rechts erstellen",
                 "title": "Es gibt keine Arbeitoberfläche, die mit den aktuellen Filtern angezeigt werden können"
             }

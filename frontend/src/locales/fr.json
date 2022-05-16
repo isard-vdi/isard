@@ -155,7 +155,7 @@
             "persistent": "Bureaux permanents",
             "persistent-compact": "Permanents",
             "template": "Modèle",
-            "no-desktops": {
+            "no-desktops-filtered": {
                 "title": "Il n'y a pas de bureaux à afficher avec les filtres actuels",
                 "subtitle": "Vous pouvez créer un nouveau bureau en cliquant sur le bouton en haut à droite"
             }

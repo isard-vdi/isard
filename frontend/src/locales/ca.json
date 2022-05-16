@@ -148,6 +148,10 @@
                 "subtitle": "Si creus que es tracta d'un error, contacta a l'administrador"
             },
             "no-desktops": {
+                "title": "No hi ha cap escriptori per a aquest usuari",
+                "subtitle": "Si creus que es tracta d'un error, contacta a l'administrador"
+            },
+            "no-desktops-filtered": {
                 "title": "No hi ha escriptoris per mostrar amb els filtres actuals",
                 "subtitle": "Podeu crear un escriptori nou amb el botó superior dret"
             },
