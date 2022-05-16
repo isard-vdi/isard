@@ -165,9 +165,27 @@ export default {
       'goToImagesList'
     ]),
     chooseDesktop (template) {
-      const data = new FormData()
-      data.append('template', template)
-      this.createDesktop(data)
+      this.$snotify.clear()
+
+      const yesAction = () => {
+        const data = new FormData()
+        data.append('template', template)
+        this.createDesktop(data)
+        this.$snotify.clear()
+      }
+
+      const noAction = (toast) => {
+        this.$snotify.clear()
+      }
+
+      this.$snotify.prompt(`${i18n.t('messages.confirmation.create-nonpersistent')}`, {
+        position: 'centerTop',
+        buttons: [
+          { text: `${i18n.t('messages.yes')}`, action: yesAction, bold: true },
+          { text: `${i18n.t('messages.no')}`, action: noAction }
+        ],
+        placeholder: ''
+      })
     },
     isWaiting (viewer) {
       return this.getDefaultViewer && (this.waitingIp && DesktopUtils.viewerNeedsIp(viewer))

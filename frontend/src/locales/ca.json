@@ -379,7 +379,8 @@
         },
         "confirmation": {
             "delete-desktop": "'{name}' s'esborrarà, continuar?",
-            "change-image": "Seleccionar la nova imatge per a l'escriptori?"
+            "change-image": "Seleccionar la nova imatge per a l'escriptori?",
+            "create-nonpersistent": "ATENCIÓ! Aquest escriptori és temporal. Al parar-ho totes les dades seràn esborrades. Crear escriptori?"
         },
         "yes": "Si",
         "no": "No",
