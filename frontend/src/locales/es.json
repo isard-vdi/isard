@@ -181,6 +181,10 @@
                 "subtitle": "Si crees que se trata de un error, contacta con el administrador"
             },
             "no-desktops": {
+                "title": "No hay ningún escritorio para éste usuario",
+                "subtitle": "Si crees que se trata de un error, contacta con el administrador"
+            },
+            "no-desktops-filtered": {
                 "title": "No hay escritorios para mostrar con los filtros actuales",
                 "subtitle": "Podéis crear un escritorio nuevo con el botón superior derecho"
             },
