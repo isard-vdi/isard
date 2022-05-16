@@ -124,7 +124,7 @@ func (s *Socket) collectViewers() (map[int]*viewer, error) {
 	defer sess.Close()
 
 	// TODO: 5700 for websocket ports?
-	b, err := sess.CombinedOutput(`ss -t state established -o state established -t -n -p -i "( sport > 5900 )"`)
+	b, err := sess.CombinedOutput(`ss -t state established -o state established -t -n -p -i "( sport > 5900 )" -O`)
 	if err != nil {
 		return nil, fmt.Errorf("collect viewers: %w", err)
 	}
@@ -146,14 +146,21 @@ func (s *Socket) collectViewers() (map[int]*viewer, error) {
 				return map[int]*viewer{}, fmt.Errorf("parse destination port: %w", err)
 			}
 
-			sent, err := strconv.Atoi(strings.Split(strings.Split(lines[i+1], "bytes_acked:")[1], " ")[0])
-			if err != nil {
-				return map[int]*viewer{}, fmt.Errorf("parse bytes sent: %w", err)
-			}
+			var (
+				sent, recv int
+			)
 
-			recv, err := strconv.Atoi(strings.Split(strings.Split(lines[i+1], "bytes_received:")[1], " ")[0])
-			if err != nil {
-				return map[int]*viewer{}, fmt.Errorf("parse bytes received: %w", err)
+			bAcked := strings.Split(lines[i], "bytes_acked:")
+			if len(bAcked) > 1 {
+				sent, err = strconv.Atoi(strings.Split(bAcked[1], " ")[0])
+				if err != nil {
+					return map[int]*viewer{}, fmt.Errorf("parse bytes sent: %w", err)
+				}
+
+				recv, err = strconv.Atoi(strings.Split(strings.Split(lines[i], "bytes_received:")[1], " ")[0])
+				if err != nil {
+					return map[int]*viewer{}, fmt.Errorf("parse bytes received: %w", err)
+				}
 			}
 
 			pid, err := strconv.Atoi(strings.Split(strings.Split(line, "pid=")[1], ",")[0])

@@ -8,4 +8,4 @@ export STATS_GLANCES_HISTORY_SIZE=$(printf %.0f "$((3600 / $STATS_GLANCES_REFRES
 
 eval "echo \"$(cat /glances/conf/glances.conf.template)\" > /glances/conf/glances.conf"
 
-python -m glances -C /glances/conf/glances.conf --export prometheus -q --disable-process
+python -m glances -C /glances/conf/glances.conf --export prometheus -q --disable-process --disable-plugin smart
