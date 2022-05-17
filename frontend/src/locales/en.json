@@ -313,7 +313,8 @@
             "local-client-help": "Local client installation instructions",
             "title": "Direct Viewer",
             "button": {
-                "browser": "Browser"
+                "browser": "Browser",
+                "browser-rdp": "RDP Browser"
             }
         }
     },

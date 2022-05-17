@@ -32,11 +32,17 @@ common = ApiDesktopsCommon()
 def api_v3_viewer(token):
     maintenance()
     viewers = common.DesktopViewerFromToken(token)
+    if not viewers:
+        return
+    vmState = viewers.pop("vmState", None)
     return (
         json.dumps(
             {
-                "vmName": viewers["vmName"],
-                "vmDescription": viewers["vmDescription"],
+                "desktopId": viewers.pop("desktopId", None),
+                "jwt": viewers.pop("jwt", None),
+                "vmName": viewers.pop("vmName", None),
+                "vmDescription": viewers.pop("vmDescription", None),
+                "vmState": vmState,
                 "viewers": viewers,
             }
         ),

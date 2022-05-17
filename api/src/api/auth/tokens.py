@@ -77,17 +77,25 @@ def get_token_auth_header():
 def get_token_payload(token):
     try:
         claims = jwt.get_unverified_claims(token)
-        secret_data = app.ram["secrets"][claims["kid"]]
-        # Check if the token has the correct category
-        if (
-            secret_data["role_id"] == "manager"
-            and secret_data["category_id"] != claims["data"]["category_id"]
-        ):
-            raise Error(
-                "unauthorized",
-                "Not authorized category token.",
-                traceback.format_stack(),
-            )
+        if claims["kid"] == "isardvdi-viewer":
+            secret_data = {"secret": app.ram["secrets"]["isardvdi"]}
+            if not claims["data"].get("desktop_id"):
+                raise Error(
+                    "unauthorized",
+                    "Not authorized viewer token",
+                    traceback.format_stack(),
+                )
+        else:
+            secret_data = app.ram["secrets"][claims["kid"]]
+            # Check if the token has the correct category
+            if secret_data.get("role_id") == "manager" and secret_data.get(
+                "category_id"
+            ) != claims["data"].get("category_id"):
+                raise Error(
+                    "unauthorized",
+                    "Not authorized category token.",
+                    traceback.format_stack(),
+                )
 
     except KeyError:
         log.warning(

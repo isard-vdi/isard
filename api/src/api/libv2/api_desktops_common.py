@@ -6,6 +6,7 @@
 # License: AGPLv3
 import pprint
 import time
+import traceback
 from datetime import datetime, timedelta
 
 from rethinkdb import RethinkDB
@@ -22,7 +23,8 @@ from .flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
-from ..libv2.isardViewer import isardViewer
+from ..libv2.api_exceptions import Error
+from ..libv2.isardViewer import isardViewer, viewer_jwt
 
 isardviewer = isardViewer()
 
@@ -33,8 +35,13 @@ ds = DS()
 
 import secrets
 
-from .api_exceptions import Error
-from .helpers import _check, _disk_path, _parse_media_info, _parse_string
+from .helpers import (
+    _check,
+    _disk_path,
+    _parse_desktop,
+    _parse_media_info,
+    _parse_string,
+)
 
 
 class ApiDesktopsCommon:
@@ -48,71 +55,70 @@ class ApiDesktopsCommon:
         else:
             direct_protocol = False
 
-        try:
-            viewer_txt = isardviewer.viewer_data(
-                desktop_id, protocol=protocol, get_cookie=get_cookie
-            )
-        except DesktopNotFound:
-            raise
-        except DesktopNotStarted:
-            raise
-        except NotAllowed:
-            raise
-        except ViewerProtocolNotFound:
-            raise
-        except ViewerProtocolNotImplemented:
-            raise
+        viewer_txt = isardviewer.viewer_data(
+            desktop_id, protocol=protocol, get_cookie=get_cookie
+        )
 
         if not direct_protocol:
             return viewer_txt
         else:
             return self.DesktopDirectViewer(desktop_id, viewer_txt, direct_protocol)
 
-    def DesktopViewerFromToken(self, token):
+    def DesktopViewerFromToken(self, token, start_desktop=True):
         with app.app_context():
-            all_domains = list(
-                r.table("domains").filter({"jumperurl": token}).run(db.conn)
+            domains = list(
+                r.table("domains").get_all(token, index="jumperurl").run(db.conn)
             )
-        domains = [d for d in all_domains if d.get("tag_visible", True)]
+        domains = [d for d in domains if d.get("tag_visible", True)]
         if len(domains) == 0:
-            if len(all_domains):
-                raise Error("forbidden", "Deployment owner has the deployment hidden")
-            else:
-                raise Error("not_found", "Jumperurl token not found")
+            raise Error("not_found", "Desktop not found")
         if len(domains) == 1:
             try:
-                if domains[0]["status"] in ["Started", "Failed", "Shutting-down"]:
-                    viewers = {
-                        "vmName": domains[0]["name"],
-                        "vmDescription": domains[0]["description"],
-                        "file-spice": self.DesktopViewer(
-                            domains[0]["id"], "file-spice", get_cookie=True
-                        ),
-                        "browser-vnc": self.DesktopViewer(
-                            domains[0]["id"], "browser-vnc", get_cookie=True
-                        ),
-                    }
-                    return viewers
-                elif domains[0]["status"] == "Stopped":
+                if start_desktop and domains[0]["status"] == "Stopped":
                     ds.WaitStatus(domains[0]["id"], "Stopped", "Starting", "Started")
-                    viewers = {
-                        "vmName": domains[0]["name"],
-                        "vmDescription": domains[0]["description"],
-                        "file-spice": self.DesktopViewer(
-                            domains[0]["id"], "file-spice", get_cookie=True
-                        ),
-                        "browser-vnc": self.DesktopViewer(
-                            domains[0]["id"], "browser-vnc", get_cookie=True
-                        ),
-                    }
-                    return viewers
+                viewers = {
+                    "desktopId": domains[0]["id"],
+                    "jwt": viewer_jwt(domains[0]["id"], minutes=30),
+                    "vmName": domains[0]["name"],
+                    "vmDescription": domains[0]["description"],
+                    "vmState": "Started",
+                    "file-spice": self.DesktopViewer(
+                        domains[0]["id"], protocol="file-spice", get_cookie=True
+                    ),
+                    "browser-vnc": self.DesktopViewer(
+                        domains[0]["id"], protocol="browser-vnc", get_cookie=True
+                    ),
+                }
+
+                # Needs RDP
+                if "wireguard" in domains[0]["create_dict"]["hardware"]["interfaces"]:
+                    if domains[0]["os"].startswith("win"):
+                        if not domains[0].get("viewer", {}).get("guest_ip"):
+                            wireguard_viewers = {
+                                "vmState": "WaitingIP",
+                                "browser-rdp": {"kind": "browser", "protocol": "rdp"},
+                                "file-rdpgw": {"kind": "file", "protocol": "rdpgw"},
+                            }
+                        else:
+                            wireguard_viewers = {
+                                "browser-rdp": self.DesktopViewer(
+                                    domains[0]["id"],
+                                    protocol="browser-rdp",
+                                    get_cookie=True,
+                                ),
+                                "file-rdpgw": self.DesktopViewer(
+                                    domains[0]["id"],
+                                    protocol="file-rdpgw",
+                                    get_cookie=True,
+                                ),
+                            }
+                        viewers = {**viewers, **wireguard_viewers}
+                return viewers
             except:
-                raise Error(
-                    "internal_server",
-                    "Unable to start domain at jumperurl",
-                    traceback.format_exc(),
-                )
-        raise Error("conflict", "Two domains share the same jumperurl token!")
+                raise Error("internal_server", "", traceback.format_exc())
+        raise Error(
+            "internal_server", "Jumperviewer token duplicated", traceback.format_stack()
+        )
 
     def DesktopDirectViewer(self, desktop_id, viewer_txt, protocol):
         log.error(viewer_txt)
@@ -144,7 +150,7 @@ class ApiDesktopsCommon:
             code = secrets.token_urlsafe(length)
             with app.app_context():
                 found = list(
-                    r.table("domains").filter({"jumperurl": code}).run(db.conn)
+                    r.table("domains").get_all(code, index="jumperurl").run(db.conn)
                 )
             if len(found) == 0:
                 with app.app_context():

@@ -475,6 +475,12 @@
   overflow-x: hidden;
 }
 
+.scrollable-div {
+  height: calc(100vh - 200px);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
 .new-desktop-templates-list {
   height: calc(100vh - 120px);
   overflow-y: auto;

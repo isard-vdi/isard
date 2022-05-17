@@ -541,7 +541,9 @@ class ApiUsers:
             ]
         ):
             return True
-        raise Error("forbidden", "Internal server error", traceback.format_stack())
+        raise Error(
+            "forbidden", "Forbidden access to desktop viewer", traceback.format_stack()
+        )
 
     def CodeSearch(self, code):
         with app.app_context():

@@ -95,6 +95,13 @@ export default {
       state.directViewer.name = payload.name
       state.directViewer.description = payload.description
       state.directViewer.viewers = payload.viewers
+      state.directViewer.state = payload.state
+      state.directViewer.jwt = payload.jwt
+      state.directViewer.desktopId = payload.desktopId
+    },
+    update_direct_viewer: (state, desktop) => {
+      const item = state.desktops.find(d => d.id === desktop.id)
+      Object.assign(item, desktop)
     },
     setDirectViewerErrorState: (state) => {
       state.directViewer.state = 'error'
@@ -111,6 +118,15 @@ export default {
     }
   },
   actions: {
+    socket_directviewerUpdate (context, data) {
+      data = JSON.parse(data)
+      const name = data.vmName
+      const description = data.vmDescription
+      const state = data.vmState
+      const viewers = data.viewers
+
+      context.commit('saveDirectViewer', { name, description, viewers, state })
+    },
     socket_desktopAdd (context, data) {
       const desktop = DesktopUtils.parseDesktop(JSON.parse(data))
       context.commit('add_desktop', desktop)
@@ -221,12 +237,15 @@ export default {
       router.push({ name: path })
     },
     getDirectViewers (context, payload) {
-      axios.get(`/api/v3/direct/${payload.token}`).then(response => {
-        const name = get(response, 'data.viewers.vmName')
-        const description = get(response, 'data.viewers.vmDescription')
-        const viewers = Object.values(get(response, 'data.viewers')).filter(e => typeof e !== 'string')
+      return axios.get(`/api/v3/direct/${payload.token}`).then(response => {
+        const name = get(response, 'data.vmName')
+        const description = get(response, 'data.vmDescription')
+        const state = get(response, 'data.vmState')
+        const jwt = get(response, 'data.jwt')
+        const desktopId = get(response, 'data.desktopId')
+        const viewers = get(response, 'data.viewers')
 
-        context.commit('saveDirectViewer', { name, description, viewers })
+        context.commit('saveDirectViewer', { name, description, viewers, state, jwt, desktopId })
       }).catch(e => {
         context.commit('setDirectViewerErrorState')
         ErrorUtils.handleErrors(e, this._vm.$snotify)

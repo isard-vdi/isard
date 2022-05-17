@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 27
+release_version = 28
+# release 28: Added jumperurl token index in domains table
 # release 27: Fix interface qos_id value from false to "unlimited"
 # release 26: Added a parents index to domains
 # release 25: Replaced user_template/public_template/base to template
@@ -848,6 +849,9 @@ class Upgrade(object):
             except Exception as e:
                 print(e)
                 None
+
+        if version == 28:
+            self.index_create(table, ["jumperurl"])
 
         return True
 
