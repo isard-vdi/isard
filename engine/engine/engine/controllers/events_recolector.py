@@ -485,12 +485,12 @@ def myDomainEventCallbackRethink(conn, dom, event, detail, opaque):
                         logs.status.info(
                             f"DOMAIN STARTED - event received: {detail_event} - {dom_id} in {hyp_id}"
                         )
-                        update_domain_status(
-                            id_domain=dom_id,
-                            status=status_to_update,
-                            hyp_id=hyp_id,
-                            detail="Event received: " + detail_event,
-                        )
+                    update_domain_status(
+                        id_domain=dom_id,
+                        status=status_to_update,
+                        hyp_id=hyp_id,
+                        detail="Event received: " + detail_event,
+                    )
                 except Exception as e:
                     logs.exception_id.debug("0005")
                     logs.status.error(
