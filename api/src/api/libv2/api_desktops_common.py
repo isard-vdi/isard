@@ -33,6 +33,7 @@ ds = DS()
 
 import secrets
 
+from .api_exceptions import Error
 from .helpers import _check, _disk_path, _parse_media_info, _parse_string
 
 
@@ -69,10 +70,15 @@ class ApiDesktopsCommon:
 
     def DesktopViewerFromToken(self, token):
         with app.app_context():
-            domains = list(r.table("domains").filter({"jumperurl": token}).run(db.conn))
-        domains = [d for d in domains if d.get("tag_visible", True)]
+            all_domains = list(
+                r.table("domains").filter({"jumperurl": token}).run(db.conn)
+            )
+        domains = [d for d in all_domains if d.get("tag_visible", True)]
         if len(domains) == 0:
-            raise DesktopNotFound
+            if len(all_domains):
+                raise Error("forbidden", "Deployment owner has the deployment hidden")
+            else:
+                raise Error("not_found", "Jumperurl token not found")
         if len(domains) == 1:
             try:
                 if domains[0]["status"] in ["Started", "Failed"]:
@@ -101,8 +107,12 @@ class ApiDesktopsCommon:
                     }
                     return viewers
             except:
-                raise
-        raise
+                raise Error(
+                    "internal_server",
+                    "Unable to start domain at jumperurl",
+                    traceback.format_exc(),
+                )
+        raise Error("conflict", "Two domains share the same jumperurl token!")
 
     def DesktopDirectViewer(self, desktop_id, viewer_txt, protocol):
         log.error(viewer_txt)
