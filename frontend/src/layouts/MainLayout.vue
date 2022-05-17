@@ -1,10 +1,10 @@
 <template>
   <div id="main-layout">
-        <div class="header-wrapper">
-          <NewNavBar/>
-           <component v-bind:is="currentStatusBarComponent"></component>
-        </div>
-        <router-view></router-view>
+    <div class="header-wrapper">
+      <NewNavBar/>
+      <component v-bind:is="currentStatusBarComponent"></component>
+    </div>
+    <router-view></router-view>
   </div>
 </template>
 
@@ -14,6 +14,8 @@ import { sectionConfig } from '@/utils/section-config.js'
 import NewNavBar from '@/components/NewNavBar.vue'
 import StatusBar from '@/components/StatusBar.vue'
 import ImagesStatusBar from '@/components/images/ImagesStatusBar.vue'
+import DeploymentsStatusBar from '@/components/deployments/DeploymentsStatusBar.vue'
+import DeploymentStatusBar from '@/components/deployments/DeploymentStatusBar.vue'
 
 export default {
   setup (_, context) {
@@ -22,8 +24,7 @@ export default {
     const urlTokens = computed(() => $store.getters.getUrlTokens)
 
     const section = computed(() => {
-      const section = urlTokens.value.join('')
-      return sectionConfig[section] !== undefined ? urlTokens.value.join('') : 'default'
+      return sectionConfig[urlTokens.value] !== undefined ? urlTokens.value : 'default'
     })
 
     const currentStatusBarComponent = computed(() => {
@@ -38,7 +39,9 @@ export default {
   components: {
     StatusBar,
     NewNavBar,
-    ImagesStatusBar
+    ImagesStatusBar,
+    DeploymentsStatusBar,
+    DeploymentStatusBar
   }
 }
 </script>

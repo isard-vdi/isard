@@ -55,7 +55,7 @@ export default {
   },
   methods: {
     redirectDeployment (item) {
-      this.$router.push({ name: 'Deployment', params: { id: item.id } })
+      this.$router.push({ name: 'deployment', params: { id: item.id } })
     }
   },
   data () {

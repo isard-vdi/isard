@@ -5,6 +5,12 @@ export const sectionConfig = {
   desktopsnew: {
     statusBar: 'StatusBar'
   },
+  deployment: {
+    statusBar: 'DeploymentStatusBar'
+  },
+  deployments: {
+    statusBar: 'DeploymentsStatusBar'
+  },
   images: {
     statusBar: 'ImagesStatusBar'
   },

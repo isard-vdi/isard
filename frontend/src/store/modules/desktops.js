@@ -263,7 +263,7 @@ export default {
     },
     goToImagesList (context, payload) {
       context.commit('setImagesListItemId', payload)
-      context.dispatch('navigate', 'Images')
+      context.dispatch('navigate', 'images')
     },
     async changeImage (context, payload) {
       const itemId = context.getters.getImagesListItemId
