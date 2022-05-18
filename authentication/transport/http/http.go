@@ -116,6 +116,13 @@ func (a *AuthenticationServer) login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Authorization", "Bearer "+tkn)
+	c := &http.Cookie{
+		Name:    "authorization",
+		Path:    "/",
+		Value:   tkn,
+		Expires: time.Now().Add(5 * time.Minute),
+	}
+	http.SetCookie(w, c)
 
 	if redirect != "" {
 		http.Redirect(w, r, redirect, http.StatusFound)

@@ -2,6 +2,7 @@ package authentication
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -139,7 +140,7 @@ func (a *Authentication) signToken(u *model.User) (string, error) {
 		"isardvdi",
 		LoginClaimsData{
 			u.Provider,
-			u.ID(),
+			u.ID,
 			string(u.Role),
 			u.Category,
 			u.Group,
@@ -230,6 +231,10 @@ func (a *Authentication) signRegister(u *model.User) (string, error) {
 	return ss, nil
 }
 
+type apiRegisterUserRsp struct {
+	ID string `json:"id"`
+}
+
 func (a *Authentication) registerUser(u *model.User) error {
 	tkn, err := a.signRegister(u)
 	if err != nil {
@@ -258,6 +263,14 @@ func (a *Authentication) registerUser(u *model.User) error {
 		return fmt.Errorf("http code not 200: %d", rsp.StatusCode)
 	}
 
+	r := &apiRegisterUserRsp{}
+	defer rsp.Body.Close()
+	if err := json.NewDecoder(rsp.Body).Decode(r); err != nil {
+		return fmt.Errorf("parse auto register JSON response: %w", err)
+	}
+	u.ID = r.ID
+	u.Active = true
+
 	return nil
 }
 
@@ -281,9 +294,8 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 					Provider: register.Provider,
 					Category: register.CategoryID,
 					UID:      register.UserID,
-					Username: register.Username,
 				}
-				if err := u.Load(ctx, a.DB); err != nil {
+				if err := u.LoadWithoutID(ctx, a.DB); err != nil {
 					if errors.Is(err, model.ErrNotFound) {
 						return "", "", errors.New("user not registered")
 					}
@@ -296,7 +308,7 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 					return "", "", err
 				}
 
-				a.Log.Info().Str("usr", u.ID()).Str("tkn", ss).Msg("register succeeded")
+				a.Log.Info().Str("usr", u.ID).Str("tkn", ss).Msg("register succeeded")
 
 				return ss, redirect, nil
 			}
@@ -326,7 +338,7 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 			// If the user has logged in correctly, but doesn't exist in the DB, they have to register first!
 			ss, err := a.signRegister(u)
 
-			a.Log.Info().Err(err).Str("usr", u.ID()).Str("tkn", ss).Msg("register token signed")
+			a.Log.Info().Err(err).Str("usr", u.UID).Str("tkn", ss).Msg("register token signed")
 
 			return ss, "", err
 		}
@@ -344,7 +356,7 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 
 	u.Accessed = float64(time.Now().Unix())
 
-	u2 := model.UserFromID(u.ID())
+	u2 := &model.User{ID: u.ID}
 	if err := u2.Load(ctx, a.DB); err != nil {
 		return "", "", fmt.Errorf("load user from DB: %w", err)
 	}
@@ -359,7 +371,7 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 		return "", "", err
 	}
 
-	a.Log.Info().Str("usr", u.ID()).Str("tkn", ss).Msg("login succeeded")
+	a.Log.Info().Str("usr", u.ID).Str("tkn", ss).Msg("login succeeded")
 
 	return ss, redirect, nil
 }
@@ -400,7 +412,7 @@ func (a *Authentication) Callback(ctx context.Context, args map[string]string) (
 
 		u.Accessed = float64(time.Now().Unix())
 
-		u2 := model.UserFromID(u.ID())
+		u2 := &model.User{ID: u.ID}
 		if err := u2.Load(ctx, a.DB); err != nil {
 			return "", "", fmt.Errorf("load user from DB: %w", err)
 		}

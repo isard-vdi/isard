@@ -105,7 +105,13 @@ export default new Vuex.Store({
     login ({ commit }, data) {
       return new Promise((resolve, reject) => {
         axios.create().post(`${authenticationSegment}/login`, data, { timeout: 25000 }).then(response => {
-          store.dispatch('loginSuccess', response.data)
+          const jwt = JSON.parse(atob(response.data.split('.')[1]))
+          if (jwt.type === 'register') {
+            router.push({ name: 'Register' })
+          } else {
+            store.dispatch('loginSuccess', response.data)
+          }
+
           resolve()
         }).catch(e => {
           store.dispatch('handleLoginError', e)
