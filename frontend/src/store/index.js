@@ -137,7 +137,7 @@ export default new Vuex.Store({
     },
     logout (context) {
       axios.get(`${apiAdminSegment}/logout/remote`).then(() => {
-        localStorage.token = ''
+        sessionStorage.token = ''
         context.commit('resetStore')
         if (!store.getters.getUrlTokens.includes('login')) {
           router.push({ name: 'Login' })
@@ -146,7 +146,7 @@ export default new Vuex.Store({
     },
     watchToken (context) {
       window.addEventListener('storage', (e) => {
-        if (localStorage.token === undefined) {
+        if (sessionStorage.token === undefined) {
           store.dispatch('logout')
         } else if (e.key === 'token' && e.newValue === null) {
           store.dispatch('logout')

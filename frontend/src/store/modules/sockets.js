@@ -4,7 +4,7 @@ export default {
   actions: {
     openSocket (context, { room, deploymentId }) {
       socket.io.opts.query = {
-        jwt: localStorage.token,
+        jwt: sessionStorage.token,
         room,
         deploymentId
       }
