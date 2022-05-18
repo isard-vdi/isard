@@ -52,20 +52,31 @@ services:
       - /:/disk:ro
     env_file:
       - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
-  isard-promtail:
-    container_name: isard-promtail
-    image: grafana/promtail:2.4.1
+  isard-grafana-agent:
+    container_name: isard-grafana-agent
+    image: grafana/agent:v0.24.2
     volumes:
-      - ${BUILD_ROOT_PATH}/docker/promtail/config.yml:/etc/promtail/config.yml
+      - ${BUILD_ROOT_PATH}/docker/grafana-agent/config.yml:/etc/agent/config.yml
+      - /opt/isard-local/stats/grafana-agent:/tmp/agent/data
       - /var/log:/var/log
       - /var/lib/docker/containers:/var/lib/docker/containers
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.69
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
     restart: "no"
-    command: -config.file=/etc/promtail/config.yml -config.expand-env=true
+    command: -config.file=/etc/agent/config.yml -config.expand-env=true --metrics.wal-directory=/tmp/agent/data
     env_file:
       - .env
     environment:
+      - PROMETHEUS_ADDRESS=${PROMETHEUS_ADDRESS:-http://isard-prometheus:9090}
       - LOKI_ADDRESS=${LOKI_ADDRESS:-http://isard-loki:3100}

@@ -9,17 +9,11 @@ import (
 type Cfg struct {
 	Log        cfg.Log
 	Domain     string
-	InfluxDB   InfluxDB
+	Flavour    string
+	HTTP       cfg.HTTP
 	LibvirtURI string `mapstructure:"libvirt_uri"`
 	SSH        SSH
 	Collectors Collectors
-}
-
-type InfluxDB struct {
-	Address string
-	Token   string
-	Org     string
-	Bucket  string
 }
 
 type SSH struct {
@@ -60,17 +54,16 @@ func New() Cfg {
 }
 
 func setDefaults() {
+	cfg.SetHTTPDefaults()
+
 	viper.BindEnv("domain", "DOMAIN")
-	viper.BindEnv("influxdb.address", "INFLUXDB_ADDRESS")
-	viper.BindEnv("influxdb.token", "INFLUXDB_ADMIN_TOKEN_SECRET")
+	viper.BindEnv("flavour", "FLAVOUR")
 
 	viper.SetDefault("domain", "")
+	viper.SetDefault("flavour", "all-in-one")
 
-	viper.SetDefault("influxdb", map[string]interface{}{
-		"address": "http://isard-influxdb:8086",
-		"token":   "",
-		"org":     "isardvdi",
-		"bucket":  "isardvdi-go",
+	viper.SetDefault("http", map[string]interface{}{
+		"port": "9091",
 	})
 
 	viper.SetDefault("libvirt_uri", "qemu+ssh://root@isard-hypervisor:2022/system")

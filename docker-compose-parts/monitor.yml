@@ -15,28 +15,8 @@ services:
     env_file:
       - .env
     environment:
-      - INFLUXDB_ADDRESS=${INFLUXDB_ADDRESS:-http://isard-influxdb:8086}
+      - PROMETHEUS_ADDRESS=${PROMETHEUS_ADDRESS:-http://isard-prometheus:9090}
       - LOKI_ADDRESS=${LOKI_ADDRESS:-http://isard-loki:3100}
-
-  isard-influxdb:
-    image: ${DOCKER_IMAGE_PREFIX}influxdb:${DOCKER_IMAGE_TAG-latest}
-    container_name: isard-influxdb
-    volumes:
-      - ${STATS_DIRECTORY:-/opt/isard/stats}/influxdb/data:/var/lib/influxdb2:rw
-      - ${STATS_DIRECTORY:-/opt/isard/stats}/influxdb/config:/etc/influxdb2:rw
-    environment:
-      - DOCKER_INFLUXDB_INIT_MODE=setup
-      - DOCKER_INFLUXDB_INIT_USERNAME=admin
-      - DOCKER_INFLUXDB_INIT_PASSWORD=${WEBAPP_ADMIN_PWD}
-      - DOCKER_INFLUXDB_INIT_ORG=isardvdi
-      - DOCKER_INFLUXDB_INIT_BUCKET=isardvdi
-      - DOCKER_INFLUXDB_INIT_RETENTION=54w
-      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_ADMIN_TOKEN_SECRET}
-      - STATS_GLANCES_DATA_RETENTION=${STATS_GLANCES_DATA_RETENTION:-2w}
-    networks:
-      isard-network:
-        ipv4_address: ${DOCKER_NET:-172.31.255}.12
-    restart: unless-stopped
 
   isard-loki:
     container_name: isard-loki
@@ -56,3 +36,13 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+
+  # TODO: Since we're using Grafana Agent and remote_write, should we use Prometheus? Or maybe Mimir?
+  isard-prometheus:
+    container_name: isard-prometheus
+    image: prom/prometheus
+    networks:
+      isard-network:
+        ipv4_address: ${DOCKER_NET:-172.31.255}.68
+    restart: unless-stopped
+    command: --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus --web.console.libraries=/usr/share/prometheus/console_libraries --web.console.templates=/usr/share/prometheus/consoles --web.enable-remote-write-receiver

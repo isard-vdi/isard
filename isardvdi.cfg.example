@@ -367,8 +367,8 @@ WG_GUESTS_RESERVED_HOSTS=20
 # ------ Grafana ------------------------------------------------------
 #GRAFANA_HOST=isard-grafana
 
-# ------ InfluxDB -----------------------------------------------------
-#INFLUXDB_ADDRESS=http://isard-influxdb:8086
+# ------ Prometheus -----------------------------------------------------
+#PROMETHEUS_ADDRESS=http://isard-prometheus:9090
 
 # ------ Stats -----------------------------------------------------
 #STATS_DIRECTORY=/opt/isard/stats

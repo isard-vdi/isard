@@ -4,6 +4,6 @@ services:
     ports:
       - "3000:3000"
 
-  isard-influxdb:
+  isard-prometheus:
     ports:
-      - "8086:8086"
+      - "9090:9090"

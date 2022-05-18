@@ -3,7 +3,10 @@
     "list": [
       {
         "builtIn": 1,
-        "datasource": "-- Grafana --",
+        "datasource": {
+          "type": "datasource",
+          "uid": "grafana"
+        },
         "enable": true,
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
@@ -21,16 +24,17 @@
   "description": "Physical servers status based on glances data",
   "editable": true,
   "fiscalYearStartMonth": 0,
-  "gnetId": null,
   "graphTooltip": 0,
-  "id": 1,
-  "iteration": 1648467010889,
+  "id": 2,
+  "iteration": 1652078507315,
   "links": [],
   "liveNow": false,
   "panels": [
     {
-      "cacheTimeout": null,
-      "datasource": "Glances",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -71,7 +75,6 @@
         "y": 0
       },
       "id": 5,
-      "interval": null,
       "links": [],
       "maxDataPoints": 100,
       "options": {
@@ -89,11 +92,13 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.2.5",
+      "pluginVersion": "8.5.2",
       "targets": [
         {
           "column": "cpucore",
           "dsType": "influxdb",
+          "exemplar": true,
+          "expr": "glances_cpu_cpucore{}",
           "function": "mean",
           "groupBy": [
             {
@@ -103,6 +108,8 @@
               "type": "time"
             }
           ],
+          "interval": "",
+          "legendFormat": "",
           "measurement": "load",
           "orderByTime": "ASC",
           "policy": "default",
@@ -137,7 +144,10 @@
       "type": "stat"
     },
     {
-      "datasource": "Glances",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -254,7 +264,8 @@
           "placement": "bottom"
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "pluginVersion": "8.2.5",
@@ -263,6 +274,8 @@
           "alias": "1min",
           "column": "min1",
           "dsType": "influxdb",
+          "exemplar": true,
+          "expr": "glances_load_min1{}",
           "function": "mean",
           "groupBy": [
             {
@@ -278,6 +291,8 @@
               "type": "fill"
             }
           ],
+          "interval": "",
+          "legendFormat": "1min",
           "measurement": "load",
           "orderByTime": "ASC",
           "policy": "default",
@@ -312,6 +327,8 @@
           "alias": "5mins",
           "column": "min5",
           "dsType": "influxdb",
+          "exemplar": true,
+          "expr": "glances_load_min5{}",
           "function": "mean",
           "groupBy": [
             {
@@ -327,6 +344,8 @@
               "type": "fill"
             }
           ],
+          "interval": "",
+          "legendFormat": "5mins",
           "measurement": "load",
           "orderByTime": "ASC",
           "policy": "default",
@@ -361,6 +380,8 @@
           "alias": "15mins",
           "column": "min15",
           "dsType": "influxdb",
+          "exemplar": true,
+          "expr": "glances_load_min15{}",
           "function": "mean",
           "groupBy": [
             {
@@ -376,6 +397,8 @@
               "type": "fill"
             }
           ],
+          "interval": "",
+          "legendFormat": "15mins",
           "measurement": "load",
           "orderByTime": "ASC",
           "policy": "default",
@@ -407,14 +430,14 @@
           "target": ""
         }
       ],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Load",
       "type": "timeseries"
     },
     {
-      "cacheTimeout": null,
-      "datasource": "Glances",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -456,12 +479,11 @@
         "y": 0
       },
       "id": 18,
-      "interval": null,
       "links": [],
       "maxDataPoints": 100,
       "options": {
         "colorMode": "none",
-        "graphMode": "area",
+        "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "horizontal",
         "reduceOptions": {
@@ -474,11 +496,13 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.2.5",
+      "pluginVersion": "8.5.2",
       "targets": [
         {
           "column": "total",
           "dsType": "influxdb",
+          "exemplar": true,
+          "expr": "glances_processcount_total{}",
           "function": "mean",
           "groupBy": [
             {
@@ -488,6 +512,8 @@
               "type": "time"
             }
           ],
+          "interval": "",
+          "legendFormat": "",
           "measurement": "processcount",
           "orderByTime": "ASC",
           "policy": "default",
@@ -522,55 +548,89 @@
       "type": "stat"
     },
     {
-      "aliasColors": {},
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
-      "datasource": "Glances",
-      "editable": true,
-      "error": false,
-      "fill": 0,
-      "fillGradient": 0,
-      "grid": {},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "left",
+            "axisSoftMax": 100,
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
       "gridPos": {
         "h": 7,
         "w": 12,
         "x": 0,
         "y": 7
       },
-      "hiddenSeries": false,
       "id": 6,
-      "legend": {
-        "avg": true,
-        "current": false,
-        "max": true,
-        "min": true,
-        "rightSide": false,
-        "show": true,
-        "total": false,
-        "values": false
-      },
-      "lines": true,
-      "linewidth": 1,
       "links": [],
-      "nullPointMode": "null",
       "options": {
-        "alertThreshold": true
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
       },
-      "percentage": false,
       "pluginVersion": "8.2.5",
-      "pointradius": 5,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
       "targets": [
         {
           "alias": "User",
           "column": "user",
           "dsType": "influxdb",
+          "exemplar": true,
+          "expr": "glances_cpu_user{}",
           "function": "mean",
           "groupBy": [
             {
@@ -586,6 +646,8 @@
               "type": "fill"
             }
           ],
+          "interval": "",
+          "legendFormat": "User",
           "measurement": "cpu",
           "orderByTime": "ASC",
           "policy": "default",
@@ -619,6 +681,8 @@
           "alias": "System",
           "column": "system",
           "dsType": "influxdb",
+          "exemplar": true,
+          "expr": "glances_cpu_system{}",
           "function": "mean",
           "groupBy": [
             {
@@ -634,6 +698,8 @@
               "type": "fill"
             }
           ],
+          "interval": "",
+          "legendFormat": "System",
           "measurement": "cpu",
           "orderByTime": "ASC",
           "policy": "default",
@@ -668,6 +734,8 @@
           "alias": "IoWait",
           "column": "iowait",
           "dsType": "influxdb",
+          "exemplar": true,
+          "expr": "glances_cpu_iowait{}",
           "function": "mean",
           "groupBy": [
             {
@@ -683,6 +751,8 @@
               "type": "fill"
             }
           ],
+          "interval": "",
+          "legendFormat": "IoWait",
           "measurement": "cpu",
           "orderByTime": "ASC",
           "policy": "default",
@@ -714,44 +784,8 @@
           "target": ""
         }
       ],
-      "thresholds": [],
-      "timeFrom": null,
-      "timeRegions": [],
-      "timeShift": null,
       "title": "CPU (%)",
-      "tooltip": {
-        "shared": false,
-        "sort": 0,
-        "value_type": "cumulative"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "format": "percent",
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        },
-        {
-          "format": "short",
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
+      "type": "timeseries"
     },
     {
       "aliasColors": {
@@ -760,7 +794,10 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "Glances",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -791,7 +828,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.2.5",
+      "pluginVersion": "8.5.2",
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -804,6 +841,8 @@
           "alias": "Used",
           "column": "used",
           "dsType": "influxdb",
+          "exemplar": true,
+          "expr": "glances_mem_used{}",
           "function": "mean",
           "groupBy": [
             {
@@ -819,6 +858,8 @@
               "type": "fill"
             }
           ],
+          "interval": "",
+          "legendFormat": "Used",
           "measurement": "mem",
           "orderByTime": "ASC",
           "policy": "default",
@@ -853,6 +894,8 @@
           "alias": "Max",
           "column": "total",
           "dsType": "influxdb",
+          "exemplar": true,
+          "expr": "glances_mem_total{}",
           "function": "mean",
           "groupBy": [
             {
@@ -868,6 +911,8 @@
               "type": "fill"
             }
           ],
+          "interval": "",
+          "legendFormat": "Max",
           "measurement": "mem",
           "orderByTime": "ASC",
           "policy": "default",
@@ -901,9 +946,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "MEM",
       "tooltip": {
         "shared": false,
@@ -912,9 +955,7 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -923,7 +964,6 @@
           "$$hashKey": "object:2371",
           "format": "bytes",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
@@ -931,70 +971,101 @@
           "$$hashKey": "object:2372",
           "format": "short",
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
-      "aliasColors": {},
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
-      "datasource": "Glances",
-      "editable": true,
-      "error": false,
-      "fill": 3,
-      "fillGradient": 0,
-      "grid": {},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "left",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 30,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "max": 100000000,
+          "min": -100000000,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "bps"
+        },
+        "overrides": []
+      },
       "gridPos": {
         "h": 7,
         "w": 12,
         "x": 0,
         "y": 14
       },
-      "hiddenSeries": false,
       "id": 9,
-      "legend": {
-        "avg": true,
-        "current": false,
-        "max": true,
-        "min": true,
-        "show": true,
-        "total": false,
-        "values": true
-      },
-      "lines": true,
-      "linewidth": 1,
       "links": [],
-      "nullPointMode": "null",
       "options": {
-        "alertThreshold": true
-      },
-      "percentage": false,
-      "pluginVersion": "8.2.5",
-      "pointradius": 5,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [
-        {
-          "alias": "Tx",
-          "yaxis": 1
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
         }
-      ],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
+      },
+      "pluginVersion": "8.2.5",
       "targets": [
         {
           "alias": "In",
           "column": "enp0s25.rx",
           "dsType": "influxdb",
+          "exemplar": true,
+          "expr": "glances_network_enp1s0_rx{}",
           "function": "mean",
           "groupBy": [
             {
@@ -1011,6 +1082,7 @@
             }
           ],
           "interval": "",
+          "legendFormat": "In",
           "measurement": "$host.network",
           "orderByTime": "ASC",
           "policy": "default",
@@ -1039,6 +1111,8 @@
           "alias": "Out",
           "column": "eth0.tx*-1",
           "dsType": "influxdb",
+          "exemplar": true,
+          "expr": "glances_network_enp1s0_tx{}",
           "function": "mean",
           "groupBy": [
             {
@@ -1054,6 +1128,8 @@
               "type": "fill"
             }
           ],
+          "interval": "",
+          "legendFormat": "Out",
           "measurement": "$host.network",
           "orderByTime": "ASC",
           "policy": "default",
@@ -1080,46 +1156,8 @@
           "target": ""
         }
       ],
-      "thresholds": [],
-      "timeFrom": null,
-      "timeRegions": [],
-      "timeShift": null,
       "title": "$interface network interface",
-      "tooltip": {
-        "shared": false,
-        "sort": 0,
-        "value_type": "cumulative"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "$$hashKey": "object:2467",
-          "format": "bps",
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        },
-        {
-          "$$hashKey": "object:2468",
-          "format": "short",
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
+      "type": "timeseries"
     },
     {
       "aliasColors": {
@@ -1128,7 +1166,10 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "Glances",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -1159,7 +1200,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.2.5",
+      "pluginVersion": "8.5.2",
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -1286,9 +1327,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "/ Size",
       "tooltip": {
         "shared": false,
@@ -1297,9 +1336,7 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -1308,7 +1345,6 @@
           "$$hashKey": "object:2891",
           "format": "bytes",
           "logBase": 1,
-          "max": null,
           "min": 0,
           "show": true
         },
@@ -1316,19 +1352,18 @@
           "$$hashKey": "object:2892",
           "format": "short",
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
-      "cacheTimeout": null,
-      "datasource": "Glances",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1373,7 +1408,6 @@
         "y": 14
       },
       "id": 16,
-      "interval": null,
       "links": [],
       "maxDataPoints": 100,
       "options": {
@@ -1391,7 +1425,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.2.5",
+      "pluginVersion": "8.5.2",
       "targets": [
         {
           "column": "\"/.percent\"",
@@ -1445,8 +1479,10 @@
       "type": "stat"
     },
     {
-      "cacheTimeout": null,
-      "datasource": "Glances",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1491,7 +1527,6 @@
         "y": 14
       },
       "id": 17,
-      "interval": null,
       "links": [],
       "maxDataPoints": 100,
       "options": {
@@ -1509,7 +1544,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.2.5",
+      "pluginVersion": "8.5.2",
       "targets": [
         {
           "column": "\"/home.percent\"",
@@ -1562,7 +1597,10 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "Glances",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -1578,9 +1616,9 @@
       "id": 10,
       "legend": {
         "avg": true,
-        "current": false,
+        "current": true,
         "max": true,
-        "min": true,
+        "min": false,
         "show": true,
         "total": false,
         "values": true
@@ -1593,14 +1631,15 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.2.5",
+      "pluginVersion": "8.5.2",
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
       "seriesOverrides": [
         {
+          "$$hashKey": "object:246",
           "alias": "Write",
-          "yaxis": 2
+          "yaxis": 1
         }
       ],
       "spaceLength": 10,
@@ -1611,6 +1650,8 @@
           "alias": "Read",
           "column": "sda2.read_bytes",
           "dsType": "influxdb",
+          "exemplar": true,
+          "expr": "glances_diskio_vda_read_bytes{}",
           "function": "mean",
           "groupBy": [
             {
@@ -1626,6 +1667,8 @@
               "type": "fill"
             }
           ],
+          "interval": "",
+          "legendFormat": "Read",
           "measurement": "$host.diskio",
           "orderByTime": "ASC",
           "policy": "default",
@@ -1654,6 +1697,8 @@
           "alias": "Write",
           "column": "sda2.write_bytes",
           "dsType": "influxdb",
+          "exemplar": true,
+          "expr": "glances_diskio_vda_write_bytes{}",
           "function": "mean",
           "groupBy": [
             {
@@ -1669,6 +1714,8 @@
               "type": "fill"
             }
           ],
+          "interval": "",
+          "legendFormat": "Write",
           "measurement": "$host.diskio",
           "orderByTime": "ASC",
           "policy": "default",
@@ -1696,10 +1743,8 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
-      "title": "$disk disk IO",
+      "title": "$disk Database (vda) disk IO",
       "tooltip": {
         "shared": false,
         "sort": 0,
@@ -1707,9 +1752,7 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -1718,26 +1761,25 @@
           "$$hashKey": "object:2782",
           "format": "bytes",
           "logBase": 1,
-          "max": null,
-          "min": null,
+          "max": "10000000",
           "show": true
         },
         {
           "$$hashKey": "object:2783",
           "format": "bytes",
           "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
+          "show": false
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
-      "datasource": null,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
       "editable": true,
       "error": false,
       "gridPos": {
@@ -1752,7 +1794,7 @@
         "content": "",
         "mode": "markdown"
       },
-      "pluginVersion": "8.2.5",
+      "pluginVersion": "8.5.2",
       "style": {},
       "title": "Containers",
       "type": "text"
@@ -1766,7 +1808,10 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "Glances",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
       "fieldConfig": {
         "defaults": {},
         "overrides": [
@@ -1812,7 +1857,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.2.5",
+      "pluginVersion": "8.5.2",
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -1839,6 +1884,12 @@
       "targets": [
         {
           "alias": "CPU%",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "exemplar": true,
+          "expr": "glances_docker_${container}_cpu_percent{}",
           "groupBy": [
             {
               "params": [
@@ -1854,6 +1905,8 @@
             }
           ],
           "hide": false,
+          "interval": "",
+          "legendFormat": "CPU%",
           "measurement": "docker",
           "orderByTime": "ASC",
           "policy": "default",
@@ -1891,6 +1944,12 @@
         },
         {
           "alias": "MEM",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "exemplar": true,
+          "expr": "glances_docker_${container}_memory_usage{}",
           "groupBy": [
             {
               "params": [
@@ -1906,6 +1965,8 @@
             }
           ],
           "hide": false,
+          "interval": "",
+          "legendFormat": "MEM",
           "measurement": "docker",
           "orderByTime": "ASC",
           "policy": "default",
@@ -1943,9 +2004,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "$container container",
       "tooltip": {
         "shared": true,
@@ -1954,9 +2013,7 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -1964,7 +2021,6 @@
         {
           "$$hashKey": "object:3541",
           "format": "percent",
-          "label": null,
           "logBase": 1,
           "max": "100",
           "min": "0",
@@ -1973,43 +2029,42 @@
         {
           "$$hashKey": "object:3542",
           "format": "decbytes",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     }
   ],
   "refresh": "5s",
-  "schemaVersion": 32,
+  "schemaVersion": 36,
   "style": "dark",
   "tags": [],
   "templating": {
     "list": [
       {
-        "allValue": null,
         "current": {
-          "selected": false,
-          "text": "isard-labs-jhony",
-          "value": "isard-labs-jhony"
+          "selected": true,
+          "text": "localhost",
+          "value": "localhost"
         },
-        "datasource": "Glances",
-        "definition": "show tag values with key=\"hostname\"",
-        "description": null,
-        "error": null,
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PBFA97CFB590B2093"
+        },
+        "definition": "label_values(domain)",
         "hide": 0,
         "includeAll": false,
-        "label": null,
         "multi": false,
         "name": "host",
         "options": [],
-        "query": "show tag values with key=\"hostname\"",
+        "query": {
+          "query": "label_values(domain)",
+          "refId": "StandardVariableQuery"
+        },
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -2020,9 +2075,8 @@
         "useTags": false
       },
       {
-        "allValue": null,
         "current": {
-          "selected": false,
+          "selected": true,
           "text": [
             "All"
           ],
@@ -2030,19 +2084,22 @@
             "$__all"
           ]
         },
-        "datasource": "Glances",
-        "definition": "show tag values with key=\"name\"",
-        "description": null,
-        "error": null,
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PBFA97CFB590B2093"
+        },
+        "definition": "query_result({__name__=~\"glances_docker_(.*)_history_size\"})",
         "hide": 0,
         "includeAll": true,
-        "label": null,
         "multi": true,
         "name": "container",
         "options": [],
-        "query": "show tag values with key=\"name\"",
+        "query": {
+          "query": "query_result({__name__=~\"glances_docker_(.*)_history_size\"})",
+          "refId": "StandardVariableQuery"
+        },
         "refresh": 1,
-        "regex": "/^isard-*/",
+        "regex": "/glances_docker_(.*)_history_size/",
         "skipUrlSync": false,
         "sort": 1,
         "tagValuesQuery": "",
@@ -2051,25 +2108,27 @@
         "useTags": false
       },
       {
-        "allValue": null,
         "current": {
-          "selected": false,
+          "selected": true,
           "text": "enp1s0",
           "value": "enp1s0"
         },
-        "datasource": "Glances",
-        "definition": "show tag values with key=\"interface_name\"",
-        "description": null,
-        "error": null,
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PBFA97CFB590B2093"
+        },
+        "definition": "query_result({__name__=~\"glances_network_(.*)_history_size\"})",
         "hide": 0,
         "includeAll": false,
-        "label": null,
         "multi": false,
         "name": "interface",
         "options": [],
-        "query": "show tag values with key=\"interface_name\"",
+        "query": {
+          "query": "query_result({__name__=~\"glances_network_(.*)_history_size\"})",
+          "refId": "StandardVariableQuery"
+        },
         "refresh": 1,
-        "regex": "",
+        "regex": "/glances_network_(.*)_history_size/",
         "skipUrlSync": false,
         "sort": 1,
         "tagValuesQuery": "",
@@ -2078,25 +2137,27 @@
         "useTags": false
       },
       {
-        "allValue": null,
         "current": {
-          "selected": false,
-          "text": "vda1",
-          "value": "vda1"
+          "selected": true,
+          "text": "loop0",
+          "value": "loop0"
         },
-        "datasource": "Glances",
-        "definition": "show tag values with key=\"disk_name\"",
-        "description": null,
-        "error": null,
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PBFA97CFB590B2093"
+        },
+        "definition": "query_result({__name__=~\"glances_diskio_(.*)_history_size\"})",
         "hide": 0,
         "includeAll": false,
-        "label": null,
         "multi": false,
         "name": "disk",
         "options": [],
-        "query": "show tag values with key=\"disk_name\"",
+        "query": {
+          "query": "query_result({__name__=~\"glances_diskio_(.*)_history_size\"})",
+          "refId": "StandardVariableQuery"
+        },
         "refresh": 1,
-        "regex": "",
+        "regex": "/glances_diskio_(.*)_history_size/",
         "skipUrlSync": false,
         "sort": 1,
         "tagValuesQuery": "",
@@ -2107,7 +2168,7 @@
     ]
   },
   "time": {
-    "from": "now-5m",
+    "from": "now-1h",
     "to": "now"
   },
   "timepicker": {
@@ -2144,5 +2205,6 @@
   "timezone": "browser",
   "title": "Servers Status",
   "uid": "000000002",
-  "version": 1
+  "version": 1,
+  "weekStart": ""
 }
