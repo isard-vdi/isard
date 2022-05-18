@@ -704,13 +704,91 @@ class ApiUsers:
     def GroupsGet(self):
         return list(r.table("groups").order_by("name").run(db.conn))
 
+    def group_delete_checks(self, group_id):
+        with app.app_context():
+            try:
+                group = r.table("groups").get(group_id).pluck("id", "name").run(db.conn)
+            except:
+                return []
+            else:
+                group.update({"kind": "group", "user": group["id"]})
+                groups = [group]
+            users = list(
+                r.table("users")
+                .get_all(group_id, index="group")
+                .pluck("id", "name")
+                .run(db.conn)
+            )
+            for u in users:
+                u.update({"kind": "user", "user": u["id"]})
+
+            deployment_desktops = list(
+                r.table("domains")
+                .get_all(group_id, index="group")
+                .filter({"kind": "desktop"})
+                .pluck("id", "name", "kind", "user", "status", "parents")
+                .run(db.conn)
+            )
+            group_templates = list(
+                r.table("domains")
+                .get_all("template", index="kind")
+                .filter({"group": group_id})
+                .pluck("id", "name", "kind", "user", "status", "parents")
+                .run(db.conn)
+            )
+            derivated = []
+            for gt in group_templates:
+                id = gt["id"]
+                derivated = derivated + list(
+                    r.table("domains")
+                    .pluck("id", "name", "kind", "user", "status", "parents")
+                    .filter(lambda derivates: derivates["parents"].contains(id))
+                    .run(db.conn)
+                )
+                # templates = [t for t in derivated if t['kind'] != "desktop"]
+                # desktops = [d for d in derivated if d['kind'] == "desktop"]
+        domains = groups + users + deployment_desktops + group_templates + derivated
+        return [i for n, i in enumerate(domains) if i not in domains[n + 1 :]]
+
     def GroupDelete(self, group_id):
-        #### TODO: Delete all desktops, templates and users in category
+
         self.GroupGet(group_id)
 
         with app.app_context():
-            r.table("users").get_all(group_id, index="group").delete().run(db.conn)
-            return r.table("groups").get(group_id).delete().run(db.conn)
+            category = (
+                r.table("groups")
+                .get(group_id)
+                .default({"parent_category": None})
+                .run(db.conn)["parent_category"]
+            )
+        if not category:
+            raise Error("not_found", "Group id " + str(group_id) + " not found")
+
+        desktops = (
+            r.table("domains")
+            .filter({"category": category})
+            .pluck("id", "status")
+            .run(db.conn)
+        )
+
+        for desktop in desktops:
+            ds.delete_desktop(desktop["id"], desktop["status"])
+
+        with app.app_context():
+            try:
+                for d in self.group_delete_checks(group_id):
+                    if d["kind"] == "user":
+                        r.table("users").get(d["id"]).delete().run(db.conn)
+                    elif d["kind"] == "group":
+                        r.table("groups").get(d["id"]).delete().run(db.conn)
+                    else:
+                        ds.delete_desktop(d["id"], d["status"])
+            except Exception as e:
+                raise Error(
+                    "not_found",
+                    "Error deleting group and related items. " + group_id,
+                    traceback.format_exc(),
+                )
 
     def Secret(self, kid, description, role_id, category_id, domain):
         with app.app_context():

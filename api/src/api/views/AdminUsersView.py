@@ -351,9 +351,10 @@ def api_v3_admin_groups(payload):
 @app.route("/api/v3/admin/group/<group_id>", methods=["DELETE"])
 @is_admin_or_manager
 def api_v3_admin_group_delete(group_id, payload):
-    ownsCategoryId(payload, g["parent_category"])
+    ownsCategoryId(payload, users.GroupGet(group_id)["parent_category"])
+    users.GroupDelete(group_id)
     return (
-        json.dumps(users.GroupDelete(group_id)),
+        json.dumps({}),
         200,
         {"Content-Type": "application/json"},
     )
