@@ -29,3 +29,4 @@ services:
       WG_GUESTS_DHCP_MASK:
       VPN_MTU:
       USAGE:
+      VIEWER_RDPGW:

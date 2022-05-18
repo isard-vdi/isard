@@ -20,7 +20,7 @@ services:
       - published: 443
         target: 443
         mode: host
-      - published: 9999
+      - published: ${VIEWER_RDPGW:-9999}
         target: 9999
         mode: host
     volumes:
