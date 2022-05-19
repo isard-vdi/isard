@@ -288,6 +288,7 @@ LOG_LEVEL=INFO
 ## their guests started in this hypervisor? (outside NAT ports)
 #VIEWER_SPICE=80
 #VIEWER_BROWSER=443
+#VIEWER_RDPGW=9999
 
 # ------ Video proxy ACL -----------------------------------------------------
 ## Is this host hosting the isard-video for other hypervisor-standalone

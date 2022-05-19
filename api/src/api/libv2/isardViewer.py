@@ -75,6 +75,7 @@ class isardViewer:
         self.vnc = 2
         self.vnc_tls = 3
         self.vnc_ws = -198  # 5900-200????
+        self.rdpgw_port = os.environ.get("VIEWER_RDPGW", 9999)
         pass
 
     def viewer_data(
@@ -147,6 +148,7 @@ class isardViewer:
                 "content": self.get_rdp_gw_file(
                     domain["viewer"]["guest_ip"],
                     domain["viewer"]["proxy_video"],
+                    self.rdpgw_port,
                     user_jwt(domain["user"] if not user_id else user_id, minutes=30),
                 ),
             }
@@ -302,9 +304,9 @@ class isardViewer:
             ip
         )
 
-    def get_rdp_gw_file(self, ip, proxy_video, jwt_token):
+    def get_rdp_gw_file(self, ip, proxy_video, proxy_port, jwt_token):
         return """full address:s:%s
-gatewayhostname:s:%s:9999
+gatewayhostname:s:%s:%s
 gatewaycredentialssource:i:5
 gatewayusagemethod:i:1
 gatewayprofileusagemethod:i:1
@@ -318,6 +320,7 @@ bitmapcachesize:i:32000
 smart sizing:i:1""" % (
             ip,
             proxy_video,
+            proxy_port,
             jwt_token,
         )
 
