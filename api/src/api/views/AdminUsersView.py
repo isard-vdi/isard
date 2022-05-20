@@ -245,6 +245,58 @@ def api_v3_admin_edit_category(payload, category_id):
     return json.dumps(data), 200, {"Content-Type": "application/json"}
 
 
+@app.route("/api/v3/admin/quota", methods=["PUT"])
+@is_admin_or_manager
+def api_v3_admin_quota(payload):
+    quota = request.get_json()
+
+    if "limits" in quota.keys():
+        toUpdate = quota["limits"]
+        kind = "limits"
+    if "quota" in quota.keys():
+        toUpdate = quota["quota"]
+        kind = "quota"
+
+    ownsCategoryId(payload, quota["id"])
+
+    if "propagate" in quota.keys():
+        propagate = quota["propagate"]
+    else:
+        propagate = False
+
+    try:
+        if quota["table"] == "groups" and "limits" in quota.keys():
+            group = users.GroupGet(quota["id"])
+            category = users.CategoryGet(group["parent_category"], True)
+
+            if category["limits"] != False:
+                for k, v in category["limits"].items():
+                    if v < quota["limits"][k]:
+                        quota["limits"][k] = v
+        users.UpdateQuota(quota["id"], toUpdate, quota["table"], kind)
+
+    except:
+        raise Error("bad_request")
+
+    if propagate:
+        if quota["table"] == "categories":
+
+            for group in users.GroupsGet():
+                if group["parent_category"] == quota["id"]:
+                    users.UpdateQuota(group["id"], toUpdate, "groups", "quota")
+
+                    for user in users.List():  ## NO FUNCIONA???
+                        if user["group"] == group["id"]:
+                            users.Update(user["id"], quota=toUpdate)
+
+        if quota["table"] == "groups":
+            for user in users.List():
+                if user["group"] == quota["id"]:
+                    users.Update(user["id"], quota=toUpdate)
+
+    return json.dumps(quota), 200, {"Content-Type": "application/json"}
+
+
 # Add category
 @app.route("/api/v3/admin/category", methods=["POST"])
 @is_admin

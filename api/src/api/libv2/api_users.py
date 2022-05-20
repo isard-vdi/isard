@@ -250,7 +250,16 @@ class ApiUsers:
                 )
         return user_id
 
-    def Update(self, user_id, name=None, email=None, photo=None, password=None):
+    def Update(
+        self,
+        user_id,
+        name=None,
+        email=None,
+        photo=None,
+        password=None,
+        role=None,
+        quota=None,
+    ):
         self.Get(user_id)
         update_values = {}
         if name:
@@ -577,7 +586,7 @@ class ApiUsers:
             "not_found", "Code not found code:" + code, traceback.format_stack()
         )
 
-    def CategoryGet(self, category_id):
+    def CategoryGet(self, category_id, all=False):
         with app.app_context():
             category = r.table("categories").get(category_id).run(db.conn)
         if not category:
@@ -586,7 +595,10 @@ class ApiUsers:
                 "Category not found category_id:" + category_id,
                 traceback.format_stack(),
             )
-        return {"name": category["name"]}
+        if not all:
+            return {"name": category["name"]}
+        else:
+            return category
 
     ### USER Schema
 
@@ -871,6 +883,10 @@ class ApiUsers:
                     "group": found[0]["id"],
                 }
         return False
+
+    def UpdateQuota(self, id, quota, table, kind):
+        with app.app_context():
+            r.table(table).get(id).update({kind: quota}).run(db.conn)
 
 
 """
