@@ -81,7 +81,7 @@ class ApiDesktopsCommon:
                 raise Error("not_found", "Jumperurl token not found")
         if len(domains) == 1:
             try:
-                if domains[0]["status"] in ["Started", "Failed"]:
+                if domains[0]["status"] in ["Started", "Failed", "Shutting-down"]:
                     viewers = {
                         "vmName": domains[0]["name"],
                         "vmDescription": domains[0]["description"],
