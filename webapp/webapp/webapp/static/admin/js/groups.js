@@ -296,11 +296,7 @@ function actionsGroupDetail(){
         api.ajax('/isard-admin/admin/group/delete','POST',{'pk':pk}).done(function(domains) {
             $('#table_modal_group_delete tbody').empty()
             $.each(domains, function(key, value) {
-                $('#table_modal_group_delete tbody').append('<tr>\
-                            <th>'+value['kind']+'</th>\
-                            <th>'+value['user']+'</th>\
-                            <th>'+value['name']+'</th>\
-                            </tr>');
+                infoDomains(value, $('#table_modal_group_delete tbody'));
             });  
         });
     });

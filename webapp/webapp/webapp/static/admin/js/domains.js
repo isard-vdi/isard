@@ -278,16 +278,11 @@ $(document).ready(function() {
         } );
     } );
 
-    domains_table.on( 'click', 'tr', function () {
+    domains_table.on( 'click', 'tr', function (e) { 
         if (kind =='desktop') {
-            $(this).toggleClass('active');
-            if ($(this).hasClass('active')) {
-                $(this).find('input').prop('checked', true);
-            } else {
-                $(this).find('input').prop('checked', false);
-            }
+            toggleRow(this, e);
         }
-    } );
+     });
 
     $('#mactions').on('change', function () {
         action=$(this).val();

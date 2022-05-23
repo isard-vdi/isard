@@ -26,6 +26,40 @@ $(document).ready(function() {
         setModalUser();
 	});
 
+    $('.btn-bulkdelete').on('click', function () {
+        let usersToDelete = [];
+            $.each(users_table.rows('.active').data(),function(key, value){
+                usersToDelete.push(value);
+            });        
+
+        if (!(usersToDelete.length == 0)) {
+            $("#modalDeleteUserForm")[0].reset();
+            $('#modalDeleteUserForm #id').val(JSON.stringify(usersToDelete));
+            $('#modalDeleteUser').modal({
+                backdrop: 'static',
+                keyboard: false
+            }).modal('show');
+            $.ajax({
+                type: "POST",
+                url: "/api/v3/admin/user/check",
+                data: JSON.stringify(usersToDelete),
+                contentType: "application/json"
+            }).done(function (domains) {
+                $('#table_modal_delete tbody').empty()
+                $.each(domains, function (key, value) {
+                    infoDomains(value, $('#table_modal_delete tbody'));
+                });
+            });
+        } else {
+            new PNotify({
+                text: "Please select the users you want to delete",
+                hide: true,
+                opacity: 1,
+                delay: 1000
+            });
+        }
+    });
+
 	$('#btn-download-bulkusers').on('click', function () {
         var viewerFile = new Blob(["username,name,email,password\njdoe,John Doe,jdoe@isardvdi.com,sup3rs3cr3t\nauser,Another User,auser@domain.com,a1sera1ser"], {type: "text/csv"});
         var a = document.createElement('a');
@@ -129,21 +163,50 @@ $(document).ready(function() {
             //~ socket.emit('user_delete',data)
         //~ }
     }); 
-            
-    $("#modalDeleteUser #send").on('click', function(e){
-        id=$('#modalDeleteUserForm #id').val();
+
+    $('#modalDeleteUser #send').on('click', function(e) {
+        user = $('#modalDeleteUserForm #id').val()
+
+        var notice = new PNotify({
+            text: 'Deleting user(s)...',
+            hide: false,
+            opacity: 1,
+            icon: 'fa fa-spinner fa-pulse'
+        })
 
         $.ajax({
-            type: "DELETE",
-            url:"/api/v3/admin/user/"+id,
-            contentType: "application/json",
-            success: function(data)
-            {
-                $('form').each(function() { this.reset() });
-                $('.modal').modal('hide');
+            type: 'DELETE',
+            url: '/api/v3/admin/user',
+            data: user,
+            contentType: 'application/json',
+            error: function(data) {
+                new PNotify({
+                    title: 'ERROR',
+                    text: 'Something went wrong',
+                    type: 'error',
+                    hide: true,
+                    icon: 'fa fa-warning',
+                    delay: 5000,
+                    opacity: 1
+                })
+            },
+            success: function(data) {
+                $('form').each(function() {
+                    this.reset()
+                })
+                $('.modal').modal('hide')
+                notice.update({
+                    title: data.title,
+                    text: 'User(s) deleted successfully',
+                    hide: true,
+                    delay: 2000,
+                    icon: 'fa fa-' + data.icon,
+                    opacity: 1,
+                    type: 'success'
+                })
             }
-        });
-     }); 
+        })
+    });  
 
        document.getElementById('csv').addEventListener('change', readFile, false);
        var filecontents=''
@@ -303,7 +366,15 @@ $(document).ready(function() {
             //~ },
             { "data": "accessed"},
             { "data": "templates", "width": "10px"},
-            { "data": "desktops", "width": "10px"}],
+            { "data": "desktops", "width": "10px"},
+            {
+                "className": 'select-checkbox',
+                "data": null,
+                "orderable": false,
+                "width": "10px",
+                "defaultContent": '<input type="checkbox" class="form-check-input"></input>'
+            },],
+
 			 "columnDefs": [
 							{
 							"targets": 1,
@@ -334,6 +405,10 @@ $(document).ready(function() {
              ]
         });
     //~ });
+
+    users_table.on( 'click', 'tr', function (e) { 
+        toggleRow(this, e);
+     });
 
     $('#users').find('tbody').on('click', 'td.details-control', function () {
         var tr = $(this).closest('tr');
@@ -481,8 +556,10 @@ function actionsUserDetail(){
     
 	$('.btn-delete').on('click', function () {
             var pk=$(this).closest("div").attr("data-pk");
+            data = {};
+            data['id']=pk;
             $("#modalDeleteUserForm")[0].reset();
-            $('#modalDeleteUserForm #id').val(pk);
+            $('#modalDeleteUserForm #id').val(JSON.stringify([data]));
 			$('#modalDeleteUser').modal({
 				backdrop: 'static',
 				keyboard: false
@@ -490,11 +567,7 @@ function actionsUserDetail(){
             api.ajax('/isard-admin/admin/user/delete','POST',{'pk':pk}).done(function(domains) {
                 $('#table_modal_delete tbody').empty()
                 $.each(domains, function(key, value) {
-                    $('#table_modal_delete tbody').append('<tr>\
-                                <th>'+value['kind']+'</th>\
-                                <th>'+value['user']+'</th>\
-                                <th>'+value['name']+'</th>\
-								</tr>');
+                    infoDomains(value, $('#table_modal_delete tbody'));
                 });  
             });
 	});
