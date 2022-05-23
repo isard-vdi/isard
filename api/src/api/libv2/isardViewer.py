@@ -131,7 +131,7 @@ class isardViewer:
                 "mime": "application/x-rdp",
                 "content": self.get_rdp_gw_file(
                     domain["viewer"]["guest_ip"],
-                    domain["viewer"]["proxy_video"],
+                    domain["viewer"]["static"],
                     self.rdpgw_port,
                     viewer_jwt(domain["id"], minutes=30),
                 ),
