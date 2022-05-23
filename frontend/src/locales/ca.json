@@ -279,7 +279,8 @@
         "direct-viewer": {
             "local-client-help": "Instruccions d'instal·lació del client local",
             "button": {
-                "browser": "Navegador"
+                "browser": "Navegador",
+                "browser-rdp": "RDP al navegador"
             },
             "title": "Visor directe"
         }

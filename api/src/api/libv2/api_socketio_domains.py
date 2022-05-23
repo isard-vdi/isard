@@ -19,11 +19,13 @@ import traceback
 
 from rethinkdb.errors import ReqlDriverError, ReqlTimeoutError
 
+from ..libv2.api_desktops_common import ApiDesktopsCommon
 from .flask_rethink import RDB
 from .log import log
 
 db = RDB(app)
 db.init_app(app)
+common = ApiDesktopsCommon()
 
 import threading
 
@@ -49,6 +51,7 @@ threads = {}
 from flask import Flask, _request_ctx_stack, jsonify, request
 
 from ..auth.tokens import Error, get_token_payload
+from .api_exceptions import Error
 from .helpers import _parse_deployment_desktop, _parse_desktop
 
 # from flask_cors import cross_origin
@@ -86,6 +89,7 @@ class DomainsThread(threading.Thread):
                                 "kind",
                                 "tag",
                                 "progress",
+                                "jumperurl",
                             ]
                         )
                         .changes(include_initial=False)
@@ -150,7 +154,32 @@ class DomainsThread(threading.Thread):
                             namespace="/userspace",
                             room=item + "s_" + data["user"],
                         )
-
+                        if (
+                            event == "update"
+                            and item == "desktop"
+                            and data.get("jumperurl")
+                            and c.get("new_val", {}).get("status") == "Started"
+                            and c.get("new_val", {}).get("viewer", {}).get("tls", {})
+                        ):
+                            viewers = common.DesktopViewerFromToken(
+                                data.get("jumperurl"),
+                                start_desktop=False,
+                            )
+                            if viewers is not None:
+                                viewer_data = {
+                                    "desktopId": viewers.pop("desktopId"),
+                                    "jwt": viewers.pop("jwt", None),
+                                    "vmName": viewers.pop("vmName", None),
+                                    "vmDescription": viewers.pop("vmDescription", None),
+                                    "vmState": viewers.pop("vmState"),
+                                    "viewers": viewers,
+                                }
+                                socketio.emit(
+                                    "directviewer_update",
+                                    json.dumps(viewer_data),
+                                    namespace="/userspace",
+                                    room=data["id"],
+                                )
                         # Event delete for users when tag becomes hidden
                         if not data.get("tag_visible", True):
                             if c["old_val"] is None or c["old_val"].get("tag_visible"):
@@ -244,22 +273,37 @@ def socketio_users_connect():
     try:
         payload = get_token_payload(request.args.get("jwt"))
 
-        room = request.args.get("room")
-        ## Rooms: desktop, deployment, deploymentdesktop
-        if room == "deploymentdesktops":
-            with app.app_context():
-                if (
-                    r.table("deployments")
-                    .get(request.args.get("deploymentId"))
-                    .run(db.conn)["user"]
-                    != payload["user_id"]
-                ):
-                    raise
-            deployment_id = request.args.get("deploymentId")
-            join_room("deploymentdesktops_" + deployment_id)
+        if payload.get("desktop_id"):
+            try:
+                with app.app_context():
+                    list(
+                        r.table("domains").get(payload.get("desktop_id")).run(db.conn)
+                    )[0]
+            except:
+                raise Error(
+                    "not_found", "WS jumperurl token not found", traceback.format_exc()
+                )
+            join_room(payload.get("desktop_id"))
+            log.debug(
+                "Websocket direct viewer joined room: " + payload.get("desktop_id")
+            )
         else:
-            join_room(room + "_" + payload["user_id"])
-        log.debug("User " + payload["user_id"] + " joined room: " + room)
+            room = request.args.get("room")
+            ## Rooms: desktop, deployment, deploymentdesktop
+            if room == "deploymentdesktops":
+                with app.app_context():
+                    if (
+                        r.table("deployments")
+                        .get(request.args.get("deploymentId"))
+                        .run(db.conn)["user"]
+                        != payload["user_id"]
+                    ):
+                        raise
+                deployment_id = request.args.get("deploymentId")
+                join_room("deploymentdesktops_" + deployment_id)
+            else:
+                join_room(room + "_" + payload["user_id"])
+            log.debug("User " + payload["user_id"] + " joined room: " + room)
     except:
         log.debug("Failed attempt to connect so socketio: " + traceback.format_exc())
 
@@ -268,7 +312,10 @@ def socketio_users_connect():
 def socketio_domains_disconnect():
     try:
         payload = get_token_payload(request.args.get("jwt"))
-        for room in ["desktops", "deployments", "deployment_deskstop"]:
-            leave_room(room + "_" + payload["user_id"])
+        if payload.get("desktop_id"):
+            leave_room(payload.get("desktop_id"))
+        else:
+            for room in ["desktops", "deployments", "deployment_deskstop"]:
+                leave_room(room + "_" + payload["user_id"])
     except:
-        pass
+        log.debug(traceback.format_exc())

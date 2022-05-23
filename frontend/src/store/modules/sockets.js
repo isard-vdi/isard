@@ -2,9 +2,9 @@ import { socket } from '@/utils/socket-instance'
 
 export default {
   actions: {
-    openSocket (context, { room, deploymentId }) {
+    openSocket (context, { room, deploymentId, jwt }) {
       socket.io.opts.query = {
-        jwt: sessionStorage.token,
+        jwt: jwt || sessionStorage.token,
         room,
         deploymentId
       }

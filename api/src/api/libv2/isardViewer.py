@@ -22,6 +22,7 @@ import urllib
 from rethinkdb.errors import ReqlNonExistenceError
 
 from ..libv2.flask_rethink import RDB
+from .api_exceptions import Error
 
 db = RDB(app)
 db.init_app(app)
@@ -35,32 +36,13 @@ from jose import jwt
 from ..libv2.apiv2_exc import *
 
 
-def user_jwt(user_id, minutes=240):
+def viewer_jwt(desktop_id, minutes=240):
     # user_id = provider_id+'-'+category_id+'-'+id+'-'+id
-    try:
-        with app.app_context():
-            user = (
-                r.table("users")
-                .get(user_id)
-                .pluck("id", "username", "photo", "email", "role", "category", "group")
-                .run(db.conn)
-            )
-            user = {
-                "user_id": user["id"],
-                "role_id": user["role"],
-                "category_id": user["category"],
-                "group_id": user["group"],
-                "username": user["username"],
-                "email": user["email"],
-                "photo": user["photo"],
-            }
-    except:
-        raise Error("not_found", "Not found user_id " + user_id, traceback.format_exc())
     return jwt.encode(
         {
             "exp": datetime.utcnow() + timedelta(minutes=minutes),
-            "kid": "isardvdi",
-            "data": user,
+            "kid": "isardvdi-viewer",
+            "data": {"desktop_id": desktop_id},
         },
         app.ram["secrets"]["isardvdi"]["secret"],
         algorithm="HS256",
@@ -98,9 +80,11 @@ class isardViewer:
                         .run(db.conn)
                     )
             except ReqlNonExistenceError:
-                raise DesktopNotFound
-        if not domain["status"] in ["Started", "Shutting-down"]:
-            raise DesktopNotStarted
+                raise Error("not_found", "Unable to get viewer for inexistent desktop")
+        if not domain["status"] == "Started":
+            raise Error(
+                "precondition_required", "Unable to get viewer for non started desktop"
+            )
 
         if (
             "preferred" not in domain["options"]["viewers"].keys()
@@ -126,7 +110,7 @@ class isardViewer:
             }
 
         if protocol == "file-vnc":
-            raise ViewerProtocolNotImplemented
+            raise Error("not_found", "Viewer protocol not implemented")
 
         if protocol == "file-rdpvpn":
             return {
@@ -149,7 +133,7 @@ class isardViewer:
                     domain["viewer"]["guest_ip"],
                     domain["viewer"]["proxy_video"],
                     self.rdpgw_port,
-                    user_jwt(domain["user"] if not user_id else user_id, minutes=30),
+                    viewer_jwt(domain["id"], minutes=30),
                 ),
             }
 
@@ -256,7 +240,7 @@ class isardViewer:
             }
 
         if protocol == "vnc-client-macos":
-            raise ViewerProtocolNotImplemented
+            raise Error("not_found", "Viewer protocol not implemented")
 
         return ViewerProtocolNotFound
 

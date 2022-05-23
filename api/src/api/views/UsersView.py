@@ -270,34 +270,18 @@ def api_v3_user_register(payload):
 @app.route("/api/v3/user/owns_desktop", methods=["GET"])
 @has_token
 def api_v3_user_owns_desktop(payload):
-    try:
-        ip = request.form.get("ip", False)
-    except Exception as e:
-        return (
-            json.dumps(
-                {
-                    "error": "undefined_error",
-                    "msg": "Incorrect access. exception: " + str(e),
-                }
-            ),
-            401,
-            {"Content-Type": "application/json"},
-        )
+    if payload.get("desktop_id"):
+        return json.dumps({}), 200, {"Content-Type": "application/json"}
+    else:
+        try:
+            ip = request.form.get("ip", False)
+        except:
+            raise Error("bad_request", "Missing parameters.")
 
-    if ip == False:
-        log.error("Incorrect access parameters. Check your query.")
-        return (
-            json.dumps(
-                {
-                    "error": "undefined_error",
-                    "msg": "Incorrect access parameters. Check your query. At least one parameter should be specified.",
-                }
-            ),
-            401,
-            {"Content-Type": "application/json"},
-        )
-    users.OwnsDesktop(payload["user_id"], ip)
-    return json.dumps({}), 200, {"Content-Type": "application/json"}
+        if ip == False:
+            raise Error("bad_request", "Incorrect access parameters")
+        users.OwnsDesktop(payload["user_id"], ip)
+        return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
 # Update user name

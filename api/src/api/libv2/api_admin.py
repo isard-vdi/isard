@@ -420,7 +420,10 @@ class ApiAdmin:
         code = False
         while code == False:
             code = secrets.token_urlsafe(length)
-            found = list(r.table("domains").filter({"jumperurl": code}).run(db.conn))
+            with app.app_context():
+                found = list(
+                    r.table("domains").get_all(code, index="jumperurl").run(db.conn)
+                )
             if len(found) == 0:
                 return code
         return False
