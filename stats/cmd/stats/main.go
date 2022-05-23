@@ -14,6 +14,8 @@ import (
 	"gitlab.com/isard/isardvdi/stats/transport/http"
 
 	"github.com/rs/zerolog"
+	cliCfg "gitlab.com/isard/isardvdi-cli/cfg"
+	"gitlab.com/isard/isardvdi-cli/pkg/client"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
 	"libvirt.org/go/libvirt"
@@ -78,6 +80,7 @@ func startCollectors(cfg cfg.Cfg, log *zerolog.Logger) ([]collector.Collector, *
 	hypervisor := hasHypervisor(cfg.Flavour) && cfg.Collectors.Hypervisor.Enable
 	socket := hasHypervisor(cfg.Flavour) && cfg.Collectors.Socket.Enable
 	system := cfg.Collectors.System.Enable
+	isardvdiAPI := cfg.Collectors.IsardVDIAPI.Enable
 
 	var sshConn *ssh.Client
 	var sshMux sync.Mutex
@@ -147,6 +150,18 @@ func startCollectors(cfg cfg.Cfg, log *zerolog.Logger) ([]collector.Collector, *
 	if socket {
 		s := collector.NewSocket(&sshMux, cfg, log, sshConn)
 		collectors = append(collectors, s)
+	}
+
+	if isardvdiAPI {
+		cli, err := client.NewClient(&cliCfg.Cfg{
+			Host:        cfg.Collectors.IsardVDIAPI.Addr,
+			IgnoreCerts: true,
+		})
+		if err != nil {
+			log.Fatal().Err(err).Str("domain", cfg.Domain).Msg("create API client")
+		}
+		a := collector.NewIsardVDIAPI(log, cli, cfg.Collectors.IsardVDIAPI.Secret)
+		collectors = append(collectors, a)
 	}
 
 	return collectors, libvirtConn, sshConn
