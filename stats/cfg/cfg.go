@@ -23,11 +23,12 @@ type SSH struct {
 }
 
 type Collectors struct {
-	Hypervisor  Hypervisor
-	Domain      Domain
-	System      System
-	Socket      Socket
-	IsardVDIAPI IsardVDIAPI `mapstructure:"isardvdi_api"`
+	Hypervisor             Hypervisor
+	Domain                 Domain
+	System                 System
+	Socket                 Socket
+	IsardVDIAPI            IsardVDIAPI            `mapstructure:"isardvdi_api"`
+	IsardVDIAuthentication IsardvdiAuthentication `mapstructure:"isardvdi_authentication"`
 }
 
 type Hypervisor struct {
@@ -52,6 +53,11 @@ type IsardVDIAPI struct {
 	Secret string
 }
 
+type IsardvdiAuthentication struct {
+	Enable      bool
+	LokiAddress string `mapstructure:"loki_address"`
+}
+
 func New() Cfg {
 	config := &Cfg{}
 
@@ -66,6 +72,7 @@ func setDefaults() {
 	viper.BindEnv("domain", "DOMAIN")
 	viper.BindEnv("flavour", "FLAVOUR")
 	viper.BindEnv("collectors.isardvdi_api.secret", "API_ISARDVDI_SECRET")
+	viper.BindEnv("collectors.isardvdi_authentication.loki_address", "LOKI_ADDRESS")
 
 	viper.SetDefault("domain", "")
 	viper.SetDefault("flavour", "all-in-one")
@@ -99,6 +106,10 @@ func setDefaults() {
 			"enable": true,
 			"addr":   "http://isard-api:5000",
 			"secret": "",
+		},
+		"isardvdi_authentication": map[string]interface{}{
+			"enable":       true,
+			"loki_address": "http://isard-loki:3100",
 		},
 	})
 }

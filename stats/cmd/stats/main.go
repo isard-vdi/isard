@@ -13,6 +13,7 @@ import (
 	"gitlab.com/isard/isardvdi/stats/collector"
 	"gitlab.com/isard/isardvdi/stats/transport/http"
 
+	lokiCli "github.com/grafana/loki/pkg/logcli/client"
 	"github.com/rs/zerolog"
 	cliCfg "gitlab.com/isard/isardvdi-cli/cfg"
 	"gitlab.com/isard/isardvdi-cli/pkg/client"
@@ -75,12 +76,22 @@ func hasHypervisor(flavour string) bool {
 	}
 }
 
+func hasWeb(flavour string) bool {
+	switch flavour {
+	case "all-in-one", "web":
+		return true
+	default:
+		return false
+	}
+}
+
 func startCollectors(cfg cfg.Cfg, log *zerolog.Logger) ([]collector.Collector, *libvirt.Connect, *ssh.Client) {
 	domain := hasHypervisor(cfg.Flavour) && cfg.Collectors.Domain.Enable
 	hypervisor := hasHypervisor(cfg.Flavour) && cfg.Collectors.Hypervisor.Enable
 	socket := hasHypervisor(cfg.Flavour) && cfg.Collectors.Socket.Enable
 	system := cfg.Collectors.System.Enable
-	isardvdiAPI := cfg.Collectors.IsardVDIAPI.Enable
+	isardvdiAPI := hasWeb(cfg.Flavour) && cfg.Collectors.IsardVDIAPI.Enable
+	isardvdiAuthentication := hasWeb(cfg.Flavour) && cfg.Collectors.IsardVDIAuthentication.Enable
 
 	var sshConn *ssh.Client
 	var sshMux sync.Mutex
@@ -161,6 +172,12 @@ func startCollectors(cfg cfg.Cfg, log *zerolog.Logger) ([]collector.Collector, *
 			log.Fatal().Err(err).Str("domain", cfg.Domain).Msg("create API client")
 		}
 		a := collector.NewIsardVDIAPI(log, cli, cfg.Collectors.IsardVDIAPI.Secret)
+		collectors = append(collectors, a)
+	}
+
+	if isardvdiAuthentication {
+		cli := &lokiCli.DefaultClient{Address: cfg.Collectors.IsardVDIAuthentication.LokiAddress}
+		a := collector.NewIsardVDIAuthentication(log, cli)
 		collectors = append(collectors, a)
 	}
 
