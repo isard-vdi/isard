@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 28
+release_version = 29
+# release 29: Add volatile path to hypervisors_pools
 # release 28: Added jumperurl token index in domains table
 # release 27: Fix interface qos_id value from false to "unlimited"
 # release 26: Added a parents index to domains
@@ -556,6 +557,20 @@ class Upgrade(object):
     HYPERVISORS_POOLS TABLE UPGRADES
     """
 
+    def _hypervisors_with_disk_operations_in_pool(self, hypervisor_pool):
+        hypervisors = [
+            hypervisor
+            for hypervisor in r.table("hypervisors")
+            .pluck("id", "hypervisors_pools", {"capabilities": "disk_operations"})
+            .run(self.conn)
+            if hypervisor["capabilities"]["disk_operations"]
+        ]
+        return [
+            hypervisor["id"]
+            for hypervisor in hypervisors
+            if hypervisor_pool["id"] in hypervisor["hypervisors_pools"]
+        ]
+
     def hypervisors_pools(self, version):
         table = "hypervisors_pools"
         data = list(r.table(table).run(self.conn))
@@ -627,25 +642,10 @@ class Upgrade(object):
                     exit(1)
 
         if version == 19:
-            hypervisors = [
-                h
-                for h in list(
-                    r.table("hypervisors")
-                    .pluck(
-                        "id", "hypervisors_pools", {"capabilities": "disk_operations"}
-                    )
-                    .run(self.conn)
-                )
-                if h["capabilities"]["disk_operations"]
-            ]
             pools = list(r.table("hypervisors_pools").run(self.conn))
 
             for hp in pools:
-                hypervisors_in_pool = [
-                    hypervisor["id"]
-                    for hypervisor in hypervisors
-                    if hp["id"] in hypervisor["hypervisors_pools"]
-                ]
+                hypervisors_in_pool = self._hypervisors_with_disk_operations_in_pool(hp)
                 paths = hp["paths"]
                 for p in paths:
                     for i, item in enumerate(paths[p]):
@@ -654,6 +654,24 @@ class Upgrade(object):
                     {"paths": paths, "enabled": False}
                 ).run(self.conn)
 
+        if version == 29:
+            for hypervisor_pool in r.table("hypervisors_pools").run(self.conn):
+                hypervisors_in_pool = self._hypervisors_with_disk_operations_in_pool(
+                    hypervisor_pool
+                )
+                r.table("hypervisors_pools").get(hypervisor_pool["id"]).update(
+                    {
+                        "paths": {
+                            "volatile": [
+                                {
+                                    "path": "/isard/volatile",
+                                    "disk_operations": hypervisors_in_pool,
+                                    "weight": 100,
+                                }
+                            ]
+                        }
+                    }
+                ).run(self.conn)
         return True
 
     """
