@@ -850,12 +850,10 @@ def backing_chain(path_disk, disk_operations_hostname, json_format=True):
 def get_path_to_disk(relative_path, pool="default", type_path="groups"):
     pool_paths = get_pool(pool)["paths"]
     paths_for_type = pool_paths[type_path]
-    list_paths_with_weights = [
-        {"w": v["weight"], "k": v["path"]} for v in paths_for_type
-    ]
-    weights = [v["w"] for v in list_paths_with_weights]
-    index_list_path_selected = weighted_choice(weights)
-    path_selected = list_paths_with_weights[index_list_path_selected]["k"]
+    path_selected = choices(
+        [path["path"] for path in paths_for_type],
+        weights=[path["weight"] for path in paths_for_type],
+    )[0]
     path_absolute = path_selected + "/" + relative_path
     return path_absolute, path_selected
 
