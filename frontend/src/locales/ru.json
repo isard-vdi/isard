@@ -295,7 +295,8 @@
                 "user": "Пользователь",
                 "selected": "Выбрано",
                 "name": "Имя",
-                "description": "Описание"
+                "description": "Описание",
+                "image": "Изображение"
             },
             "name": "Имя",
             "description": "Описание",
