@@ -95,6 +95,7 @@ WEB_PARTS="
 	authentication
 	vpn
 	stats
+	guac
 "
 MONITOR_STANDALONE_KEY="monitor"
 MONITOR_STANDALONE_PARTS="
