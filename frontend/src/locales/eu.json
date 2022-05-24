@@ -81,7 +81,10 @@
             "desktops-started": "Idazmahaiak hasi dira",
             "new-desktop": "Mahaigain berria",
             "checkbox-text": "Abiatuak soilik",
-            "checkbox-text-short": "Hasita"
+            "checkbox-text-short": "Hasita",
+            "cancel": "Ezeztatu",
+            "select": "Aukeratu",
+            "upload-file": "Fitxategia igo"
         }
     },
     "views": {
@@ -112,7 +115,8 @@
             "powered-by": "Egilea {isardvdi}",
             "errors": {
                 "500": "Zerbitzariaren errorea",
-                "401": "Erabiltzailea edo pasahitza ez dira zuzenak"
+                "401": "Erabiltzailea edo pasahitza ez dira zuzenak",
+                "generic": "Akats bat gertatu da"
             }
         },
         "maintenance": {
@@ -247,6 +251,10 @@
             "no-desktops-filtered": {
                 "subtitle": "Mahaigain berri bat sor dezakezu goiko eskuineko botoiarekin",
                 "title": "Ez dago erakusteko mahaigainik oraingo iragazkiekin"
+            },
+            "no-desktops": {
+                "subtitle": "Mahaigain berri bat sor dezakezu goiko eskuineko botoiarekin",
+                "title": "Erakusteko mahaigainik ez dago oraingo iragazkiekin"
             }
         },
         "welcome": {
@@ -284,7 +292,8 @@
                 "name": "Izena",
                 "description": "Deskribapena",
                 "category": "Kategoria",
-                "user": "Erabiltzailea"
+                "user": "Erabiltzailea",
+                "image": "Irudia"
             },
             "title": "Mahaigain berria sortu:",
             "section-title-template": "Txantilloi bat aukeratu:",
@@ -299,7 +308,10 @@
         "clear": "Garbitu",
         "cancel": "Baliogabetu",
         "submit": "Bidali",
-        "create": "Sortu"
+        "create": "Sortu",
+        "registration": {
+            "code": "Erregistro kodea"
+        }
     },
     "validations": {
         "required": "{property} derrigorrezkoa da.",
@@ -309,7 +321,8 @@
     },
     "messages": {
         "confirmation": {
-            "delete-desktop": "'{name}' ezabatu egingo da, jarraituko duzu?"
+            "delete-desktop": "'{name}' ezabatu egingo da, jarraituko duzu?",
+            "change-image": "Mahaigainerako irudi berria hautatu nahi duzu?"
         },
         "title": {
             "delete": "Ezabatu"
@@ -325,14 +338,14 @@
         "loading": "Kargatzen"
     },
     "errors": {
-        "generic_error": "Errorea gertatu da",
+        "generic_error": "Errore bat gertatu da",
         "create_desktop_user_quota": "Mahaigaina sortzeko erabiltzaileen kuota gainditu da",
         "create_desktop_group_quota": "Mahaigainak sortzeko taldearen kuota gainditu da",
         "create_desktop_category_quota": "Mahaigaina sortzeko kategoriako kuota gainditu da",
         "desktop_start_category_vcpu_quota_exceeded": "Kategoria honentzako vCPU muga gainditua",
         "desktop_start_category_memory_quota_exceeded": "Kategoria honentzako memoria muga gainditua",
         "user_new_group_cuota_exceeded": "Talde honentzako erabiltzaile sorrera muga gainditua",
-        "template_new_group_quota_exceeded": "Taldearen txantilioi sorrera muga gainditua",
+        "template_new_group_quota_exceeded": "Taldearen txantiloi sorrera muga gainditua",
         "template_new_user_quota_exceeded": "Erabiltzailearen txantilioi sorrera muga gainditua",
         "desktop_start_memory_quota_exceeded": "Erabiltzaile honentzako memoria muga gainditua",
         "desktop_start_group_vcpu_quota_exceeded": "Talde honentzako vCPU muga gainditua",
@@ -341,6 +354,40 @@
         "desktop_start_group_quota_exceeded": "Taldearentzako hasieratutako mahaigain muga gainditua",
         "desktop_start_category_quota_exceeded": "Kategoria honentzako hasieratutako mahaigain kopurua gainditua",
         "user_new_category_cuota_exceeded": "Kategoria honentzako erabiltzaile sorrera muga gainditua",
-        "desktop_start_user_quota_exceeded": "Erabiltzaile honentzako hasieratutako mahaigain muga gainditua"
+        "desktop_start_user_quota_exceeded": "Erabiltzaile honentzako hasieratutako mahaigain muga gainditua",
+        "desktop_new_user_quota_exceeded": "Mahaigaina sortzerakoan erabiltzaile-kuota gainditu da",
+        "desktop_new_group_quota_exceeded": "Mahaigaina sortzerakoan talde-kuota gaindituta",
+        "desktop_new_category_quota_exceeded": "Mahaigaina sortzerakoan kategoria-kuota gaindituta",
+        "registration_code_not_found": "Erregistro-kodea ez da aurkitu",
+        "user_disabled": "Erabiltzailea desgaituta dago",
+        "viewer_protocol_not_found": "Ez da ikuslearen protokoloa aurkitu",
+        "category_generic_exception": "Kategoria berreskuratzerakoan errore bat gertatu da",
+        "username_exists": "Jada badago erabiltzaile izen hori",
+        "login_failed": "Saioan sartzean akatsa",
+        "template_new_category_quota_exceeded": "Kategoriako txantiloi sorrera-muga gaindituta",
+        "desktop_new_template_forbidden": "Baimen inguruko akats bat mahaigaina sortzerakoan",
+        "desktop_new_desktop_name_exists_foruser": "Izen bera duen mahaigain bat jada badago erabiltzaile honentzat",
+        "group_not_found": "Taldea ez da aurkitu",
+        "template_not_found": "Errore bat gertatu da txantiloia berreskuratzean",
+        "viewer_not_found": "Ez da ikuslea aurkitu",
+        "update_generic_exception": "Eguneratzerakoan errore bat gertatu da",
+        "desktop_action_failed": "Mahaigaineko ekintza gauzatzerakoan errore bat gertatu da",
+        "template_new_not_created": "Txantiloia sortzean errore bat gertatu da",
+        "get_generic_exception": "Datuak berreskuratzean errore bat gertatu da",
+        "user_new_generic_exception": "Erabiltzailea sortzean errore bat gertatu da",
+        "user_delete_generic_exception": "Erabiltzailea ezabatzerakoan errore bat gertatu da",
+        "templates_get_error": "Txantiloiak berreskuratzean errore bat gertatu da",
+        "quota_general_exception": "Erabiltzaile-kuotei lotutako akats bat gertatu da",
+        "category_not_found": "Kategoria ez da aurkitu",
+        "bad_request": "Eskaerako parametroak okerra dira",
+        "bad_request_title": "Errorea eskaeran",
+        "undefined_error": "Errore bat gertatu da",
+        "desktops_get_error": "Mahaigainak berreskuratzean errore bat gertatu da",
+        "user_not_found": "Erabiltzailea ez da aurkitu",
+        "desktop_stop_timeout": "Mahaigaina gelditzerakoan denbora-muga igaro da",
+        "viewer_not_started": "Ikuslea ez dago abiarazita",
+        "forbidden": "Baliabideen baimenen inguruan errore bat gertatu da",
+        "role_not_found": "Ez da rola aurkitu",
+        "register_generic_exception": "Erregistro-prozesuan errore bat gertatu da"
     }
 }

@@ -117,6 +117,10 @@
             "no-desktops-filtered": {
                 "subtitle": "Sie können eine neue Arbeitoberfläche mit der Schaltfläche oben rechts erstellen",
                 "title": "Es gibt keine Arbeitoberfläche, die mit den aktuellen Filtern angezeigt werden können"
+            },
+            "no-desktops": {
+                "title": "Es gibt keine Arbeitoberfläche, die mit den aktuellen Filtern angezeigt werden können",
+                "subtitle": "Sie können eine neue Arbeitoberfläche mit der Schaltfläche oben rechts erstellen"
             }
         },
         "error": {
@@ -309,7 +313,7 @@
         "create_desktop_user_quota": "Benutzerquote für die Erstellung von Arbeitoberflächen überschritten",
         "create_desktop_group_quota": "Quote für Arbeitoberfläche-Erstellungsgruppe überschritten",
         "create_desktop_category_quota": "Quote für Arbeitoberfläche-Erstellungskategorie überschritten",
-        "generic_error": "Es ist ein Fehler aufgetreten"
+        "generic_error": "Ein Fehler ist aufgetreten"
     },
     "validations": {
         "maxLengthValue": "Das Feld {property} hat {model} Zeichen, darf aber maximal {max} lang sein.",
@@ -324,7 +328,8 @@
             "delete": "Löschen"
         },
         "confirmation": {
-            "delete-desktop": "'{name}' wird gelöscht werden, fortfahren?"
+            "delete-desktop": "'{name}' wird gelöscht werden, fortfahren?",
+            "change-image": "Das neue Bild als Bild für den Desktop auswählen?"
         }
     }
 }

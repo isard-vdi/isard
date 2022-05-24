@@ -158,6 +158,10 @@
             "no-desktops-filtered": {
                 "title": "Il n'y a pas de bureaux à afficher avec les filtres actuels",
                 "subtitle": "Vous pouvez créer un nouveau bureau en cliquant sur le bouton en haut à droite"
+            },
+            "no-desktops": {
+                "subtitle": "Vous pouvez créer un nouveau bureau en cliquant sur le bouton en haut à droite",
+                "title": "Il n'y a pas de bureaux à afficher avec les filtres actuels"
             }
         },
         "not-found": {
@@ -324,12 +328,12 @@
         "desktop_start_user_quota_exceeded": "Le quota de bureaux démarrés pour cet utilisateur est dépassé",
         "desktop_start_group_quota_exceeded": "La limite de postes de travail démarrés pour le groupe est dépassée",
         "desktop_start_category_quota_exceeded": "La limite de postes de travail démarrés pour la catégorie est dépassée",
-        "desktop_start_vcpu_quota_exceeded": "le quota de vCPU pour cet utilisateur  est épuisé",
+        "desktop_start_vcpu_quota_exceeded": "le quota de vCPU pour cet utilisateur est épuisé",
         "desktop_start_group_vcpu_quota_exceeded": "limite de vCPU pour le groupe dépassée",
         "desktop_start_group_memory_quota_exceeded": "La limite de mémoire pour ce groupe a été dépassée",
-        "desktop_start_category_memory_quota_exceeded": "La limite de mémoire pour cette catégorie a été dépassée.",
+        "desktop_start_category_memory_quota_exceeded": "La limite de mémoire pour cette catégorie a été dépassée",
         "category_generic_exception": "Échec lors de la récupération de la catégorie",
-        "desktop_start_category_vcpu_quota_exceeded": "La limite de vCPU pour cette catégorie a été dépassée.",
+        "desktop_start_category_vcpu_quota_exceeded": "La limite de vCPU pour cette catégorie a été dépassée",
         "desktop_start_memory_quota_exceeded": "Le quota de mémoire pour cet utilisateur a été dépassé",
         "desktop_new_desktop_name_exists_foruser": "Un bureau avec le même nom existe déjà pour cet utilisateur",
         "registration_code_not_found": "Code d'enregistrement inconnu",
