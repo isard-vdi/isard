@@ -1,0 +1,36 @@
+id:
+  required: true
+  type: string
+  empty: false
+server:
+  type: boolean
+  required: false
+forced_hyp:
+  type:
+    - boolean
+    - list
+  required: false
+  default: false
+image:
+  type: dict
+  required: false
+  schema:
+    type:
+      type: string
+      required: true
+      allowed:
+        - user
+        - stock
+    id:
+      type: string
+      required: false
+    file:
+      type: dict
+      required: false
+      schema:
+        data:
+          type: string
+          required: true
+        filename:
+          type: string
+          required: true
