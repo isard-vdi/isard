@@ -117,6 +117,10 @@
             "no-desktops-filtered": {
                 "subtitle": "Sie können eine neue Arbeitoberfläche mit der Schaltfläche oben rechts erstellen",
                 "title": "Es gibt keine Arbeitoberfläche, die mit den aktuellen Filtern angezeigt werden können"
+            },
+            "no-desktops": {
+                "title": "Es gibt keine Arbeitoberfläche, die mit den aktuellen Filtern angezeigt werden können",
+                "subtitle": "Sie können eine neue Arbeitoberfläche mit der Schaltfläche oben rechts erstellen"
             }
         },
         "error": {
@@ -324,7 +328,8 @@
             "delete": "Löschen"
         },
         "confirmation": {
-            "delete-desktop": "'{name}' wird gelöscht werden, fortfahren?"
+            "delete-desktop": "'{name}' wird gelöscht werden, fortfahren?",
+            "change-image": "Das neue Bild als Bild für den Desktop auswählen?"
         }
     }
 }
