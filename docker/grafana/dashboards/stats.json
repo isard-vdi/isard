@@ -25,8 +25,8 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 2,
-  "iteration": 1652263430965,
+  "id": 1,
+  "iteration": 1653391562092,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -117,6 +117,11 @@
       "pluginVersion": "8.5.2",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "isardvdi_isardvdi_api_desktop_number",
           "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"isardvdi-api\")\n  |> filter(fn: (r) => r[\"_field\"] == \"desktops\")\n  |> yield()",
           "refId": "A"
         }
@@ -337,7 +342,16 @@
       "pluginVersion": "8.5.2",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "count(count_over_time(isardvdi_domain_vcpu_current[10s]))",
+          "instant": true,
           "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\"\n  )\n  |> keep(columns: [\"_time\", \"id\"])\n  |> group()\n  |> unique(column: \"id\")\n  |> count(column: \"id\")\n  |> yield()",
+          "range": false,
           "refId": "A"
         }
       ],
@@ -547,6 +561,11 @@
       "pluginVersion": "8.5.2",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "count(count by(id) (count_over_time(isardvdi_isardvdi_authentication_login_success[10y]))) or vector(0)",
           "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: -100000000000000s)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"isardvdi-authentication\")\n  |> filter(fn: (r) => r[\"_field\"] == \"login\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> count(column: \"_value\")\n  |> unique(column: \"id\")\n  |> keep(columns: [\"_value\"])\n  |> count(column: \"_value\")\n  |> yield()",
           "refId": "A"
         }
@@ -609,7 +628,14 @@
       "pluginVersion": "8.5.2",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "",
           "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"visors_started\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
+          "range": true,
           "refId": "A"
         }
       ],
@@ -640,12 +666,78 @@
       },
       "targets": [
         {
-          "expr": "{job=\"containerlogs\"} |= \"error\" !=\"query\"",
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          },
+          "expr": "{job=\"containerlogs\"} |= \"error\" !=\"query\" != \"Domain not found\"",
           "refId": "A"
         }
       ],
       "title": "IsardVDI Error Logs",
       "type": "logs"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 2,
+        "x": 20,
+        "y": 6
+      },
+      "id": 184,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.5.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "isardvdi_domain_scrape_duration_seconds{}",
+          "refId": "A"
+        }
+      ],
+      "title": "Scrape Time",
+      "type": "stat"
     },
     {
       "datasource": {
@@ -702,6 +794,11 @@
       "pluginVersion": "8.5.2",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "count(count by(id) (count_over_time(isardvdi_isardvdi_authentication_login_success[5m]))) or vector(0)",
           "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"isardvdi-authentication\")\n  |> filter(fn: (r) => r[\"_field\"] == \"login\")\n  |> aggregateWindow(every: 30s, fn: last, createEmpty: false)\n  |> unique(column: \"id\")\n  |> count(column: \"_value\")\n  |> keep(columns: [\"_value\"])\n  |> count(column: \"_value\")\n  |> yield()",
           "refId": "A"
         }
@@ -765,6 +862,11 @@
       "pluginVersion": "8.5.2",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "isardvdi_isardvdi_api_template_number",
           "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"isardvdi-api\")\n  |> filter(fn: (r) => r[\"_field\"] == \"templates\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield()",
           "refId": "A"
         }
@@ -785,8 +887,8 @@
       },
       "id": 6,
       "panels": [],
-      "repeat": "hypers",
-      "title": "$hypers",
+      "repeat": "domain",
+      "title": "$domain",
       "type": "row"
     },
     {
@@ -844,7 +946,16 @@
       "pluginVersion": "8.5.2",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "count(count_over_time(isardvdi_domain_vcpu_current{hypervisor=\"$domain\"}[1m]))",
+          "instant": true,
           "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\" and\n    r[\"hypervisor\"] == \"${hypers}\"\n  )\n  |> keep(columns: [\"_time\", \"id\"])\n  |> group()\n  |> unique(column: \"id\")\n  |> count(column: \"id\")\n  |> yield()",
+          "range": false,
           "refId": "A"
         }
       ],
@@ -915,7 +1026,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "glances_fs__opt_isard_percent{}",
+          "expr": "glances_fs__opt_isard_percent{domain=\"$domain\"}",
           "groupBy": [
             {
               "params": [
@@ -1030,7 +1141,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "glances_fs__opt_isard_groups_percent{}",
+          "expr": "glances_fs__opt_isard_groups_percent{domain=\"$domain\"}",
           "groupBy": [
             {
               "params": [
@@ -1145,7 +1256,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "glances_fs__opt_isard_templates_percent{}",
+          "expr": "glances_fs__opt_isard_templates_percent{domain=\"$domain\"}",
           "groupBy": [
             {
               "params": [
@@ -1299,7 +1410,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "exemplar": true,
-          "expr": "glances_cpu_total{}",
+          "expr": "glances_cpu_total{domain=\"$domain\"}",
           "hide": false,
           "interval": "",
           "legendFormat": "",
@@ -1365,6 +1476,11 @@
       "pluginVersion": "8.5.2",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "",
           "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"visors_started\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
           "refId": "A"
         }
@@ -1457,7 +1573,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "glances_fs__opt_isard_media_percent{}",
+          "expr": "glances_fs__opt_isard_media_percent{domain=\"$domain\"}",
           "groupBy": [
             {
               "params": [
@@ -1572,7 +1688,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "glances_fs__disk_percent{}",
+          "expr": "glances_fs__disk_percent{domain=\"$domain\"}",
           "groupBy": [
             {
               "params": [
@@ -1721,8 +1837,12 @@
       "repeatDirection": "h",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
           "exemplar": true,
-          "expr": "glances_mem_percent{}",
+          "expr": "glances_mem_percent{domain=\"$domain\"}",
           "hide": false,
           "interval": "",
           "legendFormat": "",
@@ -1803,7 +1923,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "exemplar": true,
-          "expr": "isardvdi_system_cpu_cores",
+          "expr": "isardvdi_system_cpu_cores{domain=\"$domain\"}",
           "hide": false,
           "interval": "",
           "legendFormat": "",
@@ -1884,7 +2004,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "exemplar": true,
-          "expr": "isardvdi_system_cpu_threads",
+          "expr": "isardvdi_system_cpu_threads{domain=\"$domain\"}",
           "hide": false,
           "interval": "",
           "legendFormat": "",
@@ -1961,7 +2081,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "isardvdi_system_cpu_freq * 1000.0 * 1000.0",
+          "expr": "isardvdi_system_cpu_freq{domain=\"$domain\"} * 1000.0 * 1000.0",
           "hide": false,
           "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => \n    r[\"_measurement\"] == \"system\" and\n    r[\"hypervisor\"] == \"${hypers}\" and\n    r[\"_field\"] == \"cpu_frequency\"\n  )\n  |> last()\n  |> map(fn: (r) => ({\n      r with\n      _value: r._value * 1000.0 * 1000.0\n    })\n  )\n  |> yield()\n",
           "refId": "A"
@@ -2032,8 +2152,12 @@
       "pluginVersion": "8.5.2",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
           "exemplar": true,
-          "expr": "glances_mem_total{}",
+          "expr": "glances_mem_total{domain=\"$domain\"}",
           "hide": false,
           "interval": "",
           "legendFormat": "",
@@ -2100,7 +2224,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "editorMode": "builder",
+          "editorMode": "code",
           "exemplar": false,
           "expr": "sum(isardvdi_domain_vcpu_current)",
           "hide": false,
@@ -2186,7 +2310,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(isardvdi_domain_mem_total)",
+          "expr": "sum(isardvdi_domain_mem_total{hypervisor=\"$domain\"})",
           "instant": true,
           "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) => \n    r[\"_measurement\"] == \"domain\" and\n    r[\"hypervisor\"] == \"${hypers}\" and\n    r[\"_field\"] == \"mem_total\"\n  )\n   |> group(columns: [\"id\"])\n  |> sort(columns: [\"_time\"])\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> sum()",
           "range": false,
@@ -2276,7 +2400,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "glances_cpu_total",
+          "expr": "glances_cpu_total{domain=\"$domain\"}",
           "hide": false,
           "instant": true,
           "legendFormat": "__auto",
@@ -2367,7 +2491,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "(glances_mem_free{} + glances_mem_cached{}) / glances_mem_total * 100.0 - 100.0",
+          "expr": "(glances_mem_free{domain=\"$domain\"} + glances_mem_cached{domain=\"$domain\"}) / glances_mem_total{domain=\"$domain\"} * 100.0 - 100.0 ",
           "instant": true,
           "legendFormat": "__auto",
           "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] =~ /mem_(total|free|cached)/)\n  |> filter(fn: (r) =>  r[\"hypervisor\"] == \"${hypers}\" )\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> map(fn: (r) => ({\n    _time: r[\"_time\"],\n    _value: 100.0 - (float(v: r[\"mem_free\"] + r[\"mem_cached\"]) / float(v: r[\"mem_total\"]) * 100.0)\n  }))\n  |> last()\n  |> yield()",
@@ -2495,8 +2619,18 @@
       "pluginVersion": "8.2.5",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "count(count by (desktop)(isardvdi_domain_vcpu_current)) or vector(0)",
           "hide": false,
+          "instant": false,
+          "legendFormat": "Desktops",
           "query": " Desktops = from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\" \n  )\n  |> keep(columns: [\"_time\", \"id\"])\n  |> group()\n  |> aggregateWindow(every: 30s, column: \"id\", fn:(column, tables=<-) => tables \n    |> unique(column: column)\n    |> count(column:column),)\n  |> rename(columns: {id: \"_value\"})\n  |> map(fn: (r) => ({ Desktops:r._value, _time:r._time }))\n  |> yield()\nVisors = from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"visors_started\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n    |> map(fn: (r) => ({ Visors:r._value, _time:r._time  }))\n  |> yield(name: \"mean\")\n\n",
+          "range": true,
           "refId": "A"
         }
       ],
@@ -2930,9 +3064,13 @@
     "list": [
       {
         "current": {
-          "selected": false,
-          "text": "All",
-          "value": "$__all"
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
         },
         "datasource": {
           "type": "prometheus",
@@ -2947,6 +3085,32 @@
         "options": [],
         "query": {
           "query": "label_values(hypervisor)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "server",
+          "value": "server"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PBFA97CFB590B2093"
+        },
+        "definition": "label_values(domain)",
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "domain",
+        "options": [],
+        "query": {
+          "query": "label_values(domain)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 1,
