@@ -94,7 +94,7 @@ export default {
     ]),
     startedDesktops () {
       const startedDesktops = this.getDesktops.filter((item) => {
-        return item && item.state.toLowerCase() === desktopStates.started
+        return item && [desktopStates.started, desktopStates.waitingip].includes(item.state.toLowerCase())
       })
       return startedDesktops.length
     },
