@@ -177,9 +177,8 @@ function populate_tree_template(id){
 			// (index #2 is rendered by fancytree)
 			$tdList.eq(3).text(node.data.user);
 			$tdList.eq(4).text(node.data.kind);
-			$tdList.eq(5).text(node.data.kind);
-			$tdList.eq(6).text(node.data.category);
-			$tdList.eq(7).text(node.data.group);
+			$tdList.eq(5).text(node.data.category);
+			$tdList.eq(6).text(node.data.group);
 		}
 	});
   
