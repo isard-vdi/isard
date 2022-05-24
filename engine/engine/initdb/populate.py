@@ -993,6 +993,13 @@ class Populate(object):
                                         "weight": 100,
                                     }
                                 ],
+                                "volatile": [
+                                    {
+                                        "path": "/isard/volatile",
+                                        "disk_operations": [],
+                                        "weight": 100,
+                                    }
+                                ],
                             },
                             "viewer": viewer,
                             "interfaces": [],

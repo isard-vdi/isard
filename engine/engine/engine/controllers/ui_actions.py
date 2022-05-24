@@ -873,6 +873,10 @@ class UiActions(object):
     def creating_disks_from_template(self, id_new):
         dict_domain = get_domain(id_new)
         persistent = dict_domain.get("persistent", True)
+        if persistent:
+            path_type = "groups"
+        else:
+            path_type = "volatile"
         if "create_dict" in dict_domain.keys():
             dict_to_create = dict_domain["create_dict"]
 
@@ -888,7 +892,9 @@ class UiActions(object):
 
         for index_disk in range(len(dict_to_create["hardware"]["disks"])):
             relative_path = dict_to_create["hardware"]["disks"][index_disk]["file"]
-            new_file, path_selected = get_path_to_disk(relative_path, pool=pool_id)
+            new_file, path_selected = get_path_to_disk(
+                relative_path, pool=pool_id, type_path=path_type
+            )
             # UPDATE PATH IN DOMAIN
             dict_to_create["hardware"]["disks"][index_disk]["file"] = new_file
             dict_to_create["hardware"]["disks"][index_disk][
@@ -910,7 +916,7 @@ class UiActions(object):
                 "path_selected"
             ]
             hyp_to_disk_create = get_host_disk_operations_from_path(
-                path_selected, pool=pool_id, type_path="groups"
+                path_selected, pool=pool_id, type_path=path_type
             )
             if persistent is False:
                 print(f"desktop not persistent, forced hyp: {hyp_to_disk_create}")
