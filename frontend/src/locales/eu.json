@@ -385,6 +385,7 @@
         "desktops_get_error": "Mahaigainak berreskuratzean errore bat gertatu da",
         "user_not_found": "Erabiltzailea ez da aurkitu",
         "desktop_stop_timeout": "Mahaigaina gelditzerakoan denbora-muga igaro da",
-        "viewer_not_started": "Ikuslea ez dago abiarazita"
+        "viewer_not_started": "Ikuslea ez dago abiarazita",
+        "forbidden": "Baliabideen  baimenen inguruan errore bat gertatu da"
     }
 }
