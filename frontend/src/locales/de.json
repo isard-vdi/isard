@@ -313,7 +313,7 @@
         "create_desktop_user_quota": "Benutzerquote für die Erstellung von Arbeitoberflächen überschritten",
         "create_desktop_group_quota": "Quote für Arbeitoberfläche-Erstellungsgruppe überschritten",
         "create_desktop_category_quota": "Quote für Arbeitoberfläche-Erstellungskategorie überschritten",
-        "generic_error": "Es ist ein Fehler aufgetreten"
+        "generic_error": "Ein Fehler ist aufgetreten"
     },
     "validations": {
         "maxLengthValue": "Das Feld {property} hat {model} Zeichen, darf aber maximal {max} lang sein.",
