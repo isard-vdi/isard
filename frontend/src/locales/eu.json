@@ -338,7 +338,7 @@
         "loading": "Kargatzen"
     },
     "errors": {
-        "generic_error": "Errorea gertatu da",
+        "generic_error": "Errore bat gertatu da",
         "create_desktop_user_quota": "Mahaigaina sortzeko erabiltzaileen kuota gainditu da",
         "create_desktop_group_quota": "Mahaigainak sortzeko taldearen kuota gainditu da",
         "create_desktop_category_quota": "Mahaigaina sortzeko kategoriako kuota gainditu da",
@@ -387,6 +387,7 @@
         "desktop_stop_timeout": "Mahaigaina gelditzerakoan denbora-muga igaro da",
         "viewer_not_started": "Ikuslea ez dago abiarazita",
         "forbidden": "Baliabideen baimenen inguruan errore bat gertatu da",
-        "role_not_found": "Ez da  rola aurkitu"
+        "role_not_found": "Ez da  rola aurkitu",
+        "register_generic_exception": "Erregistro-prozesuan errore bat gertatu da"
     }
 }
