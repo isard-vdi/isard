@@ -31,6 +31,18 @@ def media_get():
     return json.dumps(data), 200, {"Content-Type": "application/json"}
 
 
+@app.route("/isard-admin/media/get/shared")
+@login_required
+@maintenance
+def media_get_shared():
+    data = app.isardapi.get_all_alloweds_table(
+        "media", current_user.id, pluck=False, skipOwner=True
+    )
+    data = [d for d in data if d["status"] in ["Stopped", "Downloaded"]]
+
+    return json.dumps(data), 200, {"Content-Type": "application/json"}
+
+
 @app.route("/isard-admin/domain/media", methods=["POST"])
 @login_required
 @maintenance

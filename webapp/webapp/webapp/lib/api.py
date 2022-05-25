@@ -1100,7 +1100,7 @@ class isard:
                         continue
         return alloweds
 
-    def get_all_alloweds_table(self, table, userid, pluck="default"):
+    def get_all_alloweds_table(self, table, userid, pluck="default", skipOwner=False):
         if pluck == "default":
             pluck = ["id", "name", "allowed", "kind", "icon", "description"]
         if pluck != False:
@@ -1164,8 +1164,11 @@ class isard:
                     d["username"] = "X " + d["user"]
                 # Who belongs this resource (table)
                 if userid == d["user"]:
-                    allowed_data.append(d)
-                    continue
+                    if skipOwner:
+                        continue
+                    else:
+                        allowed_data.append(d)
+                        continue
 
                 # False doesn't check, [] means all allowed
                 # Role is the master and user the least. If allowed in roles,

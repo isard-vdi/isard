@@ -94,6 +94,7 @@ def admin_load_post(table):
             result = app.isardapi.get_all_alloweds_table(
                 "media", current_user.id, pluck=False
             )
+            result = [r for r in result if r["category"] == current_user.category]
         else:
             result = app.adminapi.get_admin_table(
                 table,

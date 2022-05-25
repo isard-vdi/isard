@@ -35,7 +35,36 @@
       {% include 'pages/media_modals.html' %}
       {% include '/snippets/alloweds_form.html' %}
     </div>
+
+  <div class="col-md-12 col-sm-12 col-xs-12">
+    <div class="x_panel">
+      <div class="x_title">
+        <h3><i class="fa fa-circle-o"></i> Media shared with you <small></small></h3>
+        <ul class="nav navbar-right panel_toolbox">
+        </ul>
+        <div class="clearfix"></div>
+      </div>
+      <div class="x_content">
+        <table id="media_share" class="table" width="100%">
+          <thead>
+              <tr>
+                <th></th>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Owner</th>
+                <th>Category</th>
+                <th>Group</th>
+                <th>Progress/Size</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
+</div>
 </div>
 {% endblock %}
 {% block pagescript %}
