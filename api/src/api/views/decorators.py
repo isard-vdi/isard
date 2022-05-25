@@ -28,7 +28,6 @@ db = RDB(app)
 db.init_app(app)
 
 from ..auth.tokens import Error, get_auto_register_jwt_payload, get_header_jwt_payload
-from ..libv2.apiv2_exc import DesktopNotFound, TemplateNotFound
 from ..libv2.maintenance import Maintenance
 
 

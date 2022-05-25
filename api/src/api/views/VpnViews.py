@@ -11,7 +11,7 @@ from flask import request
 
 from api import app
 
-from ..libv2.apiv2_exc import *
+from ..libv2.api_exceptions import Error
 from ..libv2.quotas import Quotas
 
 quotas = Quotas()
@@ -38,110 +38,39 @@ def api_v3_vpn_connection(payload, kind, client_ip=None):
         try:
             remote_ip = request.form.get("remote_ip", type=str)
             remote_port = request.form.get("remote_port", type=int)
-        except Exception as e:
-            error = traceback.format_exc()
-            return (
-                json.dumps(
-                    {
-                        "error": "bad_request",
-                        "msg": "Incorrect access. Exception: " + error,
-                    }
-                ),
-                400,
-                {"Content-Type": "application/json"},
-            )
-        if remote_ip == None or remote_port == None:
-            log.error("Incorrect access parameters. Check your query.")
-            return (
-                json.dumps(
-                    {
-                        "error": "bad_request",
-                        "msg": "Incorrect access parameters. Check your query.",
-                    }
-                ),
-                400,
-                {"Content-Type": "application/json"},
-            )
-
-        try:
-            if api_vpn.active_client(kind, client_ip, remote_ip, remote_port, True):
-                log.debug(kind + "-" + client_ip + "-true")
-                return (
-                    json.dumps({}),
-                    200,
-                    {"Content-Type": "application/json"},
-                )
-            else:
-                log.debug(kind + "-" + client_ip + "-false")
-                return (
-                    json.dumps({}),
-                    400,
-                    {"Content-Type": "application/json"},
-                )
-        except Exception as e:
-            return (
-                json.dumps(
-                    {
-                        "error": "generic_error",
-                        "msg": "Exception: " + traceback.format_exc(),
-                    }
-                ),
-                500,
-                {"Content-Type": "application/json"},
-            )
-
-    if request.method == "DELETE":
-        try:
-            if client_ip:
-                try:
-                    return (
-                        json.dumps(api_vpn.active_client(kind, client_ip)),
-                        200,
-                        {"Content-Type": "application/json"},
-                    )
-                except:
-                    log.error(traceback.format_exc())
-                    return (
-                        json.dumps(
-                            {
-                                "error": "generic_error",
-                                "msg": "Exception: " + traceback.format_exc(),
-                            }
-                        ),
-                        500,
-                        {"Content-Type": "application/json"},
-                    )
-            elif kind == "all":
-                try:
-                    if reset_connection_status(kind):
-                        return json.dumps({}), 200, {"Content-Type": "application/json"}
-                    else:
-                        log.debug(kind + "-" + client_ip + "-false")
-                        return (
-                            json.dumps({}),
-                            401,
-                            {"Content-Type": "application/json"},
-                        )
-                except:
-                    log.error(traceback.format_exc())
-                    return (
-                        json.dumps(
-                            {
-                                "error": "generic_error",
-                                "msg": "Exception: " + traceback.format_exc(),
-                            }
-                        ),
-                        500,
-                        {"Content-Type": "application/json"},
-                    )
         except:
+            raise Error(
+                "bad_request", "Vpn connection bad body data", traceback.format_stack()
+            )
+
+        if remote_ip == None or remote_port == None:
+            raise Error(
+                "bad_request",
+                "Vpn connection incorrect body data",
+                traceback.format_stack(),
+            )
+
+        if api_vpn.active_client(kind, client_ip, remote_ip, remote_port, True):
+            log.debug(kind + "-" + client_ip + "-true")
             return (
-                json.dumps(
-                    {
-                        "error": "generic_error",
-                        "msg": "Incorrect access. exception: " + traceback.format_exc(),
-                    }
-                ),
-                500,
+                json.dumps({}),
+                200,
                 {"Content-Type": "application/json"},
             )
+        raise Error(
+            "internal_server", "Update vpn connection failed", traceback.format_stack()
+        )
+    if request.method == "DELETE":
+        if client_ip:
+            return (
+                json.dumps(api_vpn.active_client(kind, client_ip)),
+                200,
+                {"Content-Type": "application/json"},
+            )
+        elif kind == "all":
+            if reset_connection_status(kind):
+                return json.dumps({}), 200, {"Content-Type": "application/json"}
+        raise Error(
+            "internal_server", "Update vpn connection failed", traceback.format_stack()
+        )
+    raise Error("bad_request", "Incorrect access method", traceback.format_stack())

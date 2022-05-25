@@ -18,14 +18,15 @@ from api import app
 
 r = RethinkDB()
 import logging as log
+import traceback
 
-from .apiv2_exc import *
+from .api_exceptions import Error
 from .flask_rethink import RDB
 
 db = RDB(app)
 db.init_app(app)
 
-from .apiv2_exc import *
+
 from .ds import DS
 from .helpers import _check, _disk_path, _parse_media_info, _parse_string
 
@@ -104,8 +105,12 @@ class ApiMedia:
                             alloweds.append(media)
                             continue
             return alloweds
-        except Exception as e:
-            raise UserMediaError
+        except:
+            raise Error(
+                "internal_server",
+                "Unable to get user media shared",
+                traceback.format_stack(),
+            )
 
     def GetMediaList(self, id):
         with app.app_context():

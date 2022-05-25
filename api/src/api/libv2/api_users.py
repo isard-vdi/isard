@@ -28,7 +28,6 @@ db = RDB(app)
 db.init_app(app)
 
 
-from .apiv2_exc import *
 from .ds import DS
 from .helpers import (
     _check,
@@ -54,11 +53,16 @@ def check_category_domain(category_id, domain):
         allowed_domain = (
             r.table("categories")
             .get(category_id)
+            .filter({"allowed_domain": domain})
             .pluck("allowed_domain")
             .run(db.conn)
-            .get("allowed_domain")
         )
-    return not allowed_domain or domain == allowed_domain
+    if not allowed_domain:
+        raise Error(
+            "forbidden",
+            "Register domain does not match category allowed domain",
+            traceback.format_stack(),
+        )
 
 
 class ApiUsers:
@@ -85,7 +89,7 @@ class ApiUsers:
                 }
         except:
             raise Error(
-                "not_found", "Not found user_id " + user_id, traceback.format_exc()
+                "not_found", "Not found user_id " + user_id, traceback.format_stack()
             )
         return {
             "jwt": jwt.encode(
@@ -379,7 +383,7 @@ class ApiUsers:
             return alloweds
         except Exception:
             raise Error(
-                "internal_server", "Internal server error", traceback.format_exc()
+                "internal_server", "Internal server error", traceback.format_stack()
             )
 
     def Desktops(self, user_id):
@@ -416,9 +420,9 @@ class ApiUsers:
                 for desktop in desktops
                 if desktop.get("tag_visible", True)
             ]
-        except Exception:
+        except:
             raise Error(
-                "internal_server", "Internal server error", traceback.format_exc()
+                "internal_server", "Internal server error", traceback.format_stack()
             )
 
     def Desktop(self, desktop_id, user_id):
@@ -451,7 +455,7 @@ class ApiUsers:
             raise Error(
                 "not_found",
                 "Not found desktop_id " + desktop_id + " for user_id " + user_id,
-                traceback.format_exc(),
+                traceback.format_stack(),
             )
 
         try:
@@ -483,7 +487,7 @@ class ApiUsers:
             raise Error(
                 "internal_server",
                 "Get desktop failed for user_id " + user_id,
-                traceback.format_exc(),
+                traceback.format_stack(),
             )
 
     def Delete(self, user_id):
@@ -628,8 +632,12 @@ class ApiUsers:
             category = (
                 r.table("categories").get(category_id).pluck("id", "name").run(db.conn)
             )
-            if category == None:
-                return []
+            if not category:
+                raise Error(
+                    "not_found",
+                    "Category to delete not found.",
+                    traceback.format_stack(),
+                )
             else:
                 category.update({"kind": "category", "user": category["id"]})
                 categories = [category]
@@ -687,31 +695,22 @@ class ApiUsers:
 
     def CategoryDelete(self, category_id):
         with app.app_context():
-            try:
-                for d in self.category_delete_checks(category_id):
-                    if d["kind"] == "user":
-                        r.table("users").get(d["id"]).delete().run(db.conn)
-                    elif d["kind"] == "group":
-                        r.table("groups").get(d["id"]).delete().run(db.conn)
-                    elif d["kind"] == "category":
-                        r.table("categories").get(d["id"]).delete().run(db.conn)
-                    else:
-                        ds.delete_desktop(d["id"], d["status"])
-
-            except Exception as e:
-                print(traceback.format_exc())
-                raise Error(
-                    "not_found",
-                    "Error deleting category " + category_id + "and related items. \n",
-                    traceback.format_stack(),
-                )
+            for d in self.category_delete_checks(category_id):
+                if d["kind"] == "user":
+                    r.table("users").get(d["id"]).delete().run(db.conn)
+                elif d["kind"] == "group":
+                    r.table("groups").get(d["id"]).delete().run(db.conn)
+                elif d["kind"] == "category":
+                    r.table("categories").get(d["id"]).delete().run(db.conn)
+                else:
+                    ds.delete_desktop(d["id"], d["status"])
 
     def GroupGet(self, group_id):
         with app.app_context():
             group = r.table("groups").get(group_id).run(db.conn)
         if not group:
             raise Error(
-                "not_found", "Not found group_id " + group_id, traceback.format_exc()
+                "not_found", "Not found group_id " + group_id, traceback.format_stack()
             )
         return group
 
@@ -720,10 +719,11 @@ class ApiUsers:
 
     def group_delete_checks(self, group_id):
         with app.app_context():
-            try:
-                group = r.table("groups").get(group_id).pluck("id", "name").run(db.conn)
-            except:
-                return []
+            group = r.table("groups").get(group_id).pluck("id", "name").run(db.conn)
+            if not group:
+                raise Error(
+                    "not_found", "Group to delete not found", traceback.format_stack()
+                )
             else:
                 group.update({"kind": "group", "user": group["id"]})
                 groups = [group]
@@ -736,7 +736,7 @@ class ApiUsers:
             for u in users:
                 u.update({"kind": "user", "user": u["id"]})
 
-            deployment_desktops = list(
+            desktops = list(
                 r.table("domains")
                 .get_all(group_id, index="group")
                 .filter({"kind": "desktop"})
@@ -761,7 +761,7 @@ class ApiUsers:
                 )
                 # templates = [t for t in derivated if t['kind'] != "desktop"]
                 # desktops = [d for d in derivated if d['kind'] == "desktop"]
-        domains = groups + users + deployment_desktops + group_templates + derivated
+        domains = groups + users + desktops + group_templates + derivated
         return [i for n, i in enumerate(domains) if i not in domains[n + 1 :]]
 
     def GroupDelete(self, group_id):
@@ -789,20 +789,13 @@ class ApiUsers:
             ds.delete_desktop(desktop["id"], desktop["status"])
 
         with app.app_context():
-            try:
-                for d in self.group_delete_checks(group_id):
-                    if d["kind"] == "user":
-                        r.table("users").get(d["id"]).delete().run(db.conn)
-                    elif d["kind"] == "group":
-                        r.table("groups").get(d["id"]).delete().run(db.conn)
-                    else:
-                        ds.delete_desktop(d["id"], d["status"])
-            except Exception as e:
-                raise Error(
-                    "not_found",
-                    "Error deleting group and related items. " + group_id,
-                    traceback.format_exc(),
-                )
+            for d in self.group_delete_checks(group_id):
+                if d["kind"] == "user":
+                    r.table("users").get(d["id"]).delete().run(db.conn)
+                elif d["kind"] == "group":
+                    r.table("groups").get(d["id"]).delete().run(db.conn)
+                else:
+                    ds.delete_desktop(d["id"], d["status"])
 
     def Secret(self, kid, description, role_id, category_id, domain):
         with app.app_context():
@@ -845,7 +838,11 @@ class ApiUsers:
                         {"enrollment": {data["role"]: code}}
                     ).run(db.conn)
                 return code
-        return False
+        raise Error(
+            "internal_server",
+            "Unable to generate enrollment code",
+            traceback.format_stack(),
+        )
 
     def enrollment_code_check(self, code):
         with app.app_context():

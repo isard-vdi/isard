@@ -11,7 +11,9 @@ from api import app
 
 r = RethinkDB()
 
+import traceback
 
+from .api_exceptions import Error
 from .flask_rethink import RDB
 
 db = RDB(app)
@@ -21,7 +23,6 @@ from ..libv2.isardViewer import isardViewer
 
 isardviewer = isardViewer()
 
-from .apiv2_exc import XmlNotFound
 from .ds import DS
 
 ds = DS()
@@ -35,5 +36,7 @@ class ApiXml:
         with app.app_context():
             virt_install = r.table("virt_install").get(id).run(db.conn)
         if virt_install is None:
-            raise XmlNotFound
+            raise Error(
+                "not_found", "Virt install xml not found", traceback.format_stack()
+            )
         return virt_install

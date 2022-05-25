@@ -29,7 +29,6 @@ db.init_app(app)
 
 import concurrent.futures
 
-from .apiv2_exc import *
 from .helpers import _check
 
 
@@ -44,13 +43,7 @@ class DS:
             try:
                 self.WaitStatus(desktop_id, status, transition_status, final_status)
                 status = "Stopped"
-            except ReqlTimeoutError:
-                with app.app_context():
-                    r.table("domains").get(desktop_id).update({"status": "Failed"}).run(
-                        db.conn
-                    )
-                    status = "Failed"
-            except DesktopWaitFailed:
+            except:
                 with app.app_context():
                     r.table("domains").get(desktop_id).update({"status": "Failed"}).run(
                         db.conn
@@ -62,13 +55,9 @@ class DS:
             final_status = "Deleted"
             try:
                 self.WaitStatus(desktop_id, status, transition_status, final_status)
-            except ReqlTimeoutError:
+            except:
                 with app.app_context():
                     r.table("domains").get(desktop_id).delete().run(db.conn)
-            except DesktopWaitFailed:
-                with app.app_context():
-                    r.table("domains").get(desktop_id).delete().run(db.conn)
-            return
 
         with app.app_context():
             r.table("domains").get(desktop_id).update({"status": "Failed"}).run(db.conn)
@@ -77,10 +66,7 @@ class DS:
 
         try:
             self.WaitStatus(desktop_id, "Failed", transition_status, final_status)
-        except ReqlTimeoutError:
-            with app.app_context():
-                r.table("domains").get(desktop_id).delete().run(db.conn)
-        except DesktopWaitFailed:
+        except:
             with app.app_context():
                 r.table("domains").get(desktop_id).delete().run(db.conn)
 
@@ -126,37 +112,7 @@ class DS:
                     wait_seconds,
                 ],
             )
-        try:
-            result = future.result()
-        except ReqlTimeoutError:
-            raise Error(
-                "gateway_timeout",
-                "Transition "
-                + original_status
-                + "->"
-                + transition_status
-                + "->"
-                + final_status
-                + " timed out ("
-                + str(wait_seconds)
-                + "s) for desktop_id "
-                + desktop_id,
-                traceback.format_stack(),
-            )
-        except DesktopWaitFailed:
-            raise Error(
-                "internal_server",
-                "Transition "
-                + original_status
-                + "->"
-                + transition_status
-                + "->"
-                + final_status
-                + " failed for desktop_id "
-                + desktop_id,
-                traceback.format_stack(),
-            )
-        return True
+        result = future.result()
 
     def _wait_for_domain_status(
         self, desktop_id, original_status, transition_status, final_status, wait_seconds
@@ -201,16 +157,28 @@ class DS:
                 )
 
                 if _check(status, "replaced") == False:
-                    raise DesktopPreconditionFailed
+                    raise Error(
+                        "precondition_required",
+                        "Desktop transition initial status incorrect",
+                        traceback.format_stack(),
+                    )
 
             # Get change
             try:
                 doc = changestatus.next(wait=wait_seconds)
             except ReqlTimeoutError:
-                raise
+                raise Error(
+                    "gateway_timeout",
+                    "Unable to change desktop status.",
+                    traceback.format_stack(),
+                )
             if final_status != "Deleted":
                 if doc["new_val"]["status"] != final_status:
-                    raise DesktopWaitFailed
+                    raise Error(
+                        "gateway_timeout",
+                        "Unable to change desktop status.",
+                        traceback.format_stack(),
+                    )
 
     def WaitHyperStatus(
         self, hyper_id, original_status, transition_status, final_status
@@ -220,35 +188,7 @@ class DS:
                 lambda p: self._wait_for_hyper_status(*p),
                 [hyper_id, original_status, transition_status, final_status],
             )
-        try:
-            result = future.result()
-        except ReqlTimeoutError:
-            raise Error(
-                "gateway_timeout",
-                "Transition "
-                + original_status
-                + "->"
-                + transition_status
-                + "->"
-                + final_status
-                + " timed out for hyper_id "
-                + hyper_id,
-                traceback.format_stack(),
-            )
-        except DesktopWaitFailed:
-            raise Error(
-                "internal_server",
-                "Transition "
-                + original_status
-                + "->"
-                + transition_status
-                + "->"
-                + final_status
-                + " failed for hyper_id "
-                + hyper_id,
-                traceback.format_stack(),
-            )
-        return True
+        result = future.result()
 
     def _wait_for_hyper_status(
         self, hyper_id, original_status, transition_status, final_status
@@ -293,16 +233,28 @@ class DS:
                 )
 
                 if _check(status, "replaced") == False:
-                    raise DesktopPreconditionFailed
+                    raise Error(
+                        "precondition_required",
+                        "Hypervisor transition initial status incorrect",
+                        traceback.format_stack(),
+                    )
 
             # Get change
             try:
                 doc = changestatus.next(wait=5)
             except ReqlTimeoutError:
-                raise
+                raise Error(
+                    "gateway_timeout",
+                    "Unable to change hypervisor status.",
+                    traceback.format_stack(),
+                )
             if final_status != "Deleted":
                 if doc["new_val"]["status"] != final_status:
-                    raise DesktopWaitFailed
+                    raise Error(
+                        "gateway_timeout",
+                        "Unable to change hypervisor status.",
+                        traceback.format_stack(),
+                    )
 
     def _check(self, dict, action):
         """

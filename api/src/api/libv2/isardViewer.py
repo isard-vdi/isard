@@ -9,6 +9,7 @@ import base64
 import json
 import os
 import sys
+import traceback
 
 from rethinkdb import RethinkDB
 
@@ -32,8 +33,6 @@ db.init_app(app)
 from datetime import datetime, timedelta
 
 from jose import jwt
-
-from ..libv2.apiv2_exc import *
 
 
 def viewer_jwt(desktop_id, minutes=240):
@@ -87,7 +86,9 @@ class isardViewer:
             "Shutting-down",
         ]:
             raise Error(
-                "precondition_required", "Unable to get viewer for non started desktop"
+                "precondition_required",
+                "Unable to get viewer for non started desktop",
+                traceback.format_stack(),
             )
 
         if (
@@ -114,7 +115,9 @@ class isardViewer:
             }
 
         if protocol == "file-vnc":
-            raise Error("not_found", "Viewer protocol not implemented")
+            raise Error(
+                "not_found", "Viewer protocol not implemented", traceback.format_stack()
+            )
 
         if protocol == "file-rdpvpn":
             return {
@@ -246,7 +249,7 @@ class isardViewer:
         if protocol == "vnc-client-macos":
             raise Error("not_found", "Viewer protocol not implemented")
 
-        return ViewerProtocolNotFound
+        raise Error("not_found", "Viewer protocol not found", traceback.format_stack())
 
     def get_rdp_file(self, ip):
         ## This are the default values dumped from a windows rdp client connection to IsardVDI
@@ -385,12 +388,12 @@ smart sizing:i:1""" % (
                 "cookie": cookie,
             }
 
-        except Exception as e:
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            log.error(exc_type, fname, exc_tb.tb_lineno)
-            log.error("Viewer for domain " + domain["name"] + " exception:" + str(e))
-            return False
+        except:
+            raise Error(
+                "internal_server",
+                "Get vnc viewer data internal error.",
+                traceback.format_stack(),
+            )
 
     # ~ def get_domain_vnc_data(self, domain, hostnames, viewer, port, tlsport, selfsigned, remote_addr=False):
     # ~ try:

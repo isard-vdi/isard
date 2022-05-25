@@ -6,12 +6,15 @@
 # License: AGPLv3
 import pprint
 import time
+import traceback
 from datetime import datetime, timedelta
 
 from mergedeep import merge
 from rethinkdb import RethinkDB
 
 from api import app
+
+from .api_exceptions import Error
 
 r = RethinkDB()
 import logging as log
@@ -31,7 +34,7 @@ from ..libv2.api_cards import ApiCards
 
 api_cards = ApiCards()
 
-from .apiv2_exc import *
+
 from .ds import DS
 
 ds = DS()
@@ -47,7 +50,7 @@ class ApiDesktopsPersistent:
         with app.app_context():
             desktop = r.table("domains").get(desktop_id).run(db.conn)
         if desktop == None:
-            raise DesktopNotFound
+            raise Error("not_found", "Desktop not found", traceback.format_stack())
         ds.delete_desktop(desktop_id, desktop["status"])
 
     def NewFromTemplate(
@@ -62,7 +65,7 @@ class ApiDesktopsPersistent:
         with app.app_context():
             template = r.table("domains").get(template_id).run(db.conn)
         if template == None:
-            raise TemplateNotFound
+            raise Error("not_found", "Template not found", traceback.format_stack())
 
         parsed_name = _parse_string(desktop_name)
 
@@ -177,7 +180,7 @@ class ApiDesktopsPersistent:
         with app.app_context():
             user = r.table("users").get(user_id).run(db.conn)
         if user == None:
-            raise UserNotFound
+            raise Error("not_found", "User not found", traceback.format_stack())
 
         json_user = {
             "user": user["id"],
@@ -208,7 +211,9 @@ class ApiDesktopsPersistent:
             with app.app_context():
                 vi = r.table("virt_install").get(virt_install_id).run(db.conn)
             if vi == None:
-                raise VirtInstallNotFound
+                raise Error(
+                    "not_found", "Virt install id not found", traceback.format_stack()
+                )
             domain["create_dict"]["create_from_virt_install_xml"] = virt_install_id
             json_xml = {
                 "create_dict": {"create_from_virt_install_xml": virt_install_id},
@@ -260,7 +265,7 @@ class ApiDesktopsPersistent:
             with app.app_context():
                 dbiso = r.table("media").get(iso).run(db.conn)
             if dbiso == None:
-                raise MediaNotFound
+                raise Error("not_found", "Media not found", traceback.format_stack())
             list_isos.append({"id": iso})
         json_isos = {"create_dict": {"hardware": {"isos": list_isos}}}
 
@@ -270,7 +275,7 @@ class ApiDesktopsPersistent:
             with app.app_context():
                 dbgraphic = r.table("graphics").get(graphic).run(db.conn)
             if dbgraphic == None:
-                raise GraphicNotFound
+                raise Error("not_found", "Graphic not found", traceback.format_stack())
             list_graphics.append(graphic)
         json_graphics = {"create_dict": {"hardware": {"graphics": list_graphics}}}
 
@@ -279,7 +284,7 @@ class ApiDesktopsPersistent:
             with app.app_context():
                 dbvideo = r.table("videos").get(video).run(db.conn)
             if dbvideo == None:
-                raise VideoNotFound
+                raise Error("not_found", "Video not found", traceback.format_stack())
             list_videos.append(video)
         json_videos = {"create_dict": {"hardware": {"videos": list_videos}}}
 
@@ -288,7 +293,9 @@ class ApiDesktopsPersistent:
             with app.app_context():
                 dbinterface = r.table("interfaces").get(interface).run(db.conn)
             if dbinterface == None:
-                raise InterfaceNotFound
+                raise Error(
+                    "not_found", "Interface not found", traceback.format_stack()
+                )
             list_interfaces.append(interface)
         json_interfaces = {"create_dict": {"hardware": {"interfaces": list_interfaces}}}
 
@@ -346,7 +353,7 @@ class ApiDesktopsPersistent:
                     .run(db.conn)["user"]
                 )
         except:
-            raise DesktopNotFound
+            raise Error("not_found", "Desktop not found", traceback.format_stack())
 
     def Start(self, desktop_id):
         with app.app_context():
@@ -356,7 +363,7 @@ class ApiDesktopsPersistent:
             if desktop["status"] not in ["Stopped", "Failed"]:
                 raise DesktopActionFailed
         if desktop == None:
-            raise DesktopNotFound
+            raise Error("not_found", "Desktop not found", traceback.format_stack())
         # Start the domain
         ds.WaitStatus(desktop_id, "Any", "Starting", "Started")
         return desktop_id
@@ -369,16 +376,13 @@ class ApiDesktopsPersistent:
             if desktop["status"] != "Started":
                 raise DesktopActionFailed
         if desktop == None:
-            raise DesktopNotFound
+            raise Error("not_found", "Desktop not found", traceback.format_stack())
         # Stop the domain
         try:
             # ds.WaitStatus(desktop_id, 'Any', 'Shutting-down', 'Stopped', wait_seconds=30)
             ds.WaitStatus(desktop_id, "Any", "Stopping", "Stopped", wait_seconds=10)
-        except DesktopActionTimeout:
-            try:
-                ds.WaitStatus(desktop_id, "Any", "Stopping", "Stopped")
-            except DesktopActionTimeout:
-                raise DesktopActionTimeout
+        except:
+            ds.WaitStatus(desktop_id, "Any", "Stopping", "Stopped")
         return desktop_id
 
     def Update(self, desktop_id, desktop_data):

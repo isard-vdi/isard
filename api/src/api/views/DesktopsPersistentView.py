@@ -19,7 +19,7 @@ from schema import And, Optional, Schema, SchemaError, Use
 
 from api import app
 
-from ..libv2.apiv2_exc import *
+from ..libv2.api_exceptions import Error
 from ..libv2.quotas import Quotas
 
 quotas = Quotas()
@@ -77,170 +77,30 @@ def validate_desktop_schema(desktop_data, validate=True):
 
 @app.route("/api/v3/desktop/start/<desktop_id>", methods=["GET"])
 @has_token
-def api_v3_desktop_start(payload, desktop_id=False):
-    if desktop_id == False:
-        log.error("Incorrect access parameters. Check your query.")
-        return (
-            json.dumps(
-                {
-                    "error": "bad_request",
-                    "msg": "Incorrect parameters starting desktop. Check your query.",
-                }
-            ),
-            400,
-            {"Content-Type": "application/json"},
-        )
-
+def api_v3_desktop_start(payload, desktop_id):
     ownsDomainId(payload, desktop_id)
-    try:
-        user_id = desktops.UserDesktop(desktop_id)
-    except UserNotFound:
-        log.error("Desktop user not found")
-        return (
-            json.dumps(
-                {
-                    "error": "user_not_found",
-                    "msg": "DesktopStart user not found",
-                }
-            ),
-            404,
-            {"Content-Type": "application/json"},
-        )
-    except Exception as e:
-        error = traceback.format_exc()
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "DesktopStart exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
-
+    user_id = desktops.UserDesktop(desktop_id)
     quotas.DesktopStart(user_id)
-    # So now we have checked if desktop exists and if we can create and/or start it
 
-    try:
-        now = time.time()
-        desktop_id = desktops.Start(desktop_id)
-        return json.dumps({"id": desktop_id}), 200, {"Content-Type": "application/json"}
-    except DesktopActionTimeout:
-        log.error("Desktop " + desktop_id + " for user " + user_id + " start timeout.")
-        return (
-            json.dumps(
-                {"error": "desktop_start_timeout", "msg": "DesktopStart start timeout"}
-            ),
-            504,
-            {"Content-Type": "application/json"},
-        )
-    except DesktopActionFailed:
-        log.error("Desktop " + desktop_id + " for user " + user_id + " start failed.")
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "DesktopStart start failed",
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
-    except Exception as e:
-        error = traceback.format_exc()
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "DesktopStart general exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
+    # So now we have checked if desktop exists and if we can create and/or start it
+    return (
+        json.dumps({"id": desktops.Start(desktop_id)}),
+        200,
+        {"Content-Type": "application/json"},
+    )
 
 
 @app.route("/api/v3/desktop/stop/<desktop_id>", methods=["GET"])
 @has_token
-def api_v3_desktop_stop(payload, desktop_id=False):
-    if desktop_id == False:
-        log.error("Incorrect access parameters. Check your query.")
-        return (
-            json.dumps(
-                {
-                    "error": "bad_request",
-                    "msg": "Incorrect access parameters. Check your query.",
-                }
-            ),
-            400,
-            {"Content-Type": "application/json"},
-        )
-
+def api_v3_desktop_stop(payload, desktop_id):
     ownsDomainId(payload, desktop_id)
-    try:
-        user_id = desktops.UserDesktop(desktop_id)
-    except UserNotFound:
-        log.error("Desktop stop user not found")
-        return (
-            json.dumps(
-                {
-                    "error": "user_not_found",
-                    "msg": "DesktopStop user not found",
-                }
-            ),
-            404,
-            {"Content-Type": "application/json"},
-        )
-    except Exception as e:
-        error = traceback.format_exc()
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "DesktopStop general exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
+    user_id = desktops.UserDesktop(desktop_id)
 
-    try:
-        desktop_id = desktops.Stop(desktop_id)
-        return json.dumps({"id": desktop_id}), 200, {"Content-Type": "application/json"}
-    except DesktopActionTimeout:
-        log.error("Desktop " + desktop_id + " for user " + user_id + " stop timeout.")
-        return (
-            json.dumps(
-                {"error": "desktop_stop_timeout", "msg": "DesktopStop stop timeout"}
-            ),
-            504,
-            {"Content-Type": "application/json"},
-        )
-    except DesktopActionFailed:
-        log.error("Desktop " + desktop_id + " for user " + user_id + " start failed.")
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "DesktopStop stop failed",
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
-    except Exception as e:
-        error = traceback.format_exc()
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "DesktopStop general exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
+    return (
+        json.dumps({"id": desktops.Stop(desktop_id)}),
+        200,
+        {"Content-Type": "application/json"},
+    )
 
 
 @app.route("/api/v3/persistent_desktop", methods=["POST"])
@@ -252,148 +112,31 @@ def api_v3_persistent_desktop_new(payload):
         template_id = request.form.get("template_id", False)
         forced_hyp = request.form.get("forced_hyp", False)
         user_id = payload["user_id"]
-    except Exception as e:
-        return (
-            json.dumps(
-                {
-                    "error": "bad_request",
-                    "msg": "Incorrect access. exception: " + e,
-                }
-            ),
-            400,
-            {"Content-Type": "application/json"},
+    except:
+        raise Error(
+            "bad_request",
+            "New persistent desktop bad body data",
+            traceback.format_stack(),
         )
 
     if desktop_name == None or not template_id:
-        log.error("Incorrect access parameters. Check your query.")
-        return (
-            json.dumps(
-                {
-                    "error": "bad_request",
-                    "msg": "Incorrect access parameters. Check your query.",
-                }
-            ),
-            400,
-            {"Content-Type": "application/json"},
+        raise Error(
+            "bad_request",
+            "New persistent desktop incorrect body data",
+            traceback.format_stack(),
         )
 
-    if not allowedTemplateId(payload, template_id):
-        return (
-            json.dumps(
-                {
-                    "error": "desktop_new_template_forbidden",
-                    "msg": "DesktopNew, template forbidden",
-                }
-            ),
-            403,
-            {"Content-Type": "application/json"},
-        )
-
+    allowedTemplateId(payload, template_id)
     quotas.DesktopCreate(user_id)
 
-    try:
-        now = time.time()
-        # desktop_id = app.lib.DesktopNewPersistent(name, user_id,memory,vcpus,xml_id=xml_id, disk_size=disk_size)
-
-        desktop_id = desktops.NewFromTemplate(
-            desktop_name=desktop_name,
-            desktop_description=desktop_description,
-            template_id=template_id,
-            payload=payload,
-            forced_hyp=forced_hyp,
-        )
-        return json.dumps({"id": desktop_id}), 200, {"Content-Type": "application/json"}
-    except UserNotFound:
-        log.error(
-            "Desktop for user "
-            + user_id
-            + " from template "
-            + template_id
-            + ", user not found"
-        )
-        return (
-            json.dumps(
-                {
-                    "error": "user_not_found",
-                    "msg": "PersistentDesktopNew user not found",
-                }
-            ),
-            404,
-            {"Content-Type": "application/json"},
-        )
-    except TemplateNotFound:
-        log.error(
-            "Desktop for user "
-            + user_id
-            + " from template "
-            + template_id
-            + " template not found."
-        )
-        return (
-            json.dumps(
-                {
-                    "error": "template_not_found",
-                    "msg": "PersistentDesktopNew template not found",
-                }
-            ),
-            404,
-            {"Content-Type": "application/json"},
-        )
-    except DesktopExists:
-        log.error(
-            "Desktop " + desktop_name + " for user " + user_id + " already exists"
-        )
-        return (
-            json.dumps(
-                {
-                    "error": "desktop_new_desktop_name_exists_foruser",
-                    "msg": "PersistentDesktopNew desktop already exists",
-                }
-            ),
-            409,
-            {"Content-Type": "application/json"},
-        )
-    except DesktopNotCreated:
-        log.error(
-            "Desktop for user "
-            + user_id
-            + " from template "
-            + template_id
-            + " creation failed."
-        )
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "PersistentDesktopNew not created",
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
-    ### Needs more!
-    except Exception as e:
-        error = traceback.format_exc()
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "PersistentDesktopNew general exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
-
-    # except DesktopActionTimeout:
-    #    log.error("Desktop delete "+desktop_id+", desktop stop timeout")
-    #    return json.dumps({"error": "undefined_error","msg":"Desktop delete stopping timeout"}), 404, {'Content-Type': 'application/json'}
-    # except DesktopActionFailed:
-    #    log.error("Desktop delete "+desktop_id+", desktop stop failed")
-    #    return json.dumps({"error": "undefined_error","msg":"Desktop delete stopping failed"}), 404, {'Content-Type': 'application/json'}
-    # except DesktopDeleteTimeout:
-    #    log.error("Desktop delete "+desktop_id+", desktop delete timeout")
-    #    return json.dumps({"error": "undefined_error","msg":"Desktop delete deleting timeout"}), 404, {'Content-Type': 'application/json'}
+    desktop_id = desktops.NewFromTemplate(
+        desktop_name=desktop_name,
+        desktop_description=desktop_description,
+        template_id=template_id,
+        payload=payload,
+        forced_hyp=forced_hyp,
+    )
+    return json.dumps({"id": desktop_id}), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/api/v3/desktop/from/scratch", methods=["POST"])
@@ -433,226 +176,104 @@ def api_v3_desktop_from_scratch(payload):
         virt_install_id = request.form.get("virt_install_id", False)
         xml = request.form.get("xml", False)
 
-    except Exception as e:
-        return (
-            json.dumps(
-                {"error": "bad_request", "msg": "Incorrect access. exception: " + e}
-            ),
-            400,
-            {"Content-Type": "application/json"},
+    except:
+        raise Error(
+            "bad_request",
+            "New desktop from scratch bad body data",
+            traceback.format_stack(),
         )
 
     if name == None:
-        log.error("Incorrect access parameters. Check your query.")
-        return (
-            json.dumps(
-                {
-                    "error": "bad_request",
-                    "msg": "Incorrect access parameters. At least desktop name parameter is required.",
-                }
-            ),
-            400,
-            {"Content-Type": "application/json"},
+        raise Error(
+            "bad_request",
+            "New desktop from scratch bad body data",
+            traceback.format_stack(),
         )
 
     if not virt_install_id and not xml:
-        return (
-            json.dumps(
-                {
-                    "error": "bad_request",
-                    "msg": "Incorrect access parameters. We need virt_install_id or xml.",
-                }
-            ),
-            400,
-            {"Content-Type": "application/json"},
+        raise Error(
+            "bad_request",
+            "New desktop from scratch missing virt_install_id or xml in body data",
+            traceback.format_stack(),
         )
+
     if not disk_user and not disk_path and not disks:
-        return (
-            json.dumps(
-                {
-                    "error": "bad_request",
-                    "msg": "Incorrect access parameters. We need disk_user or disk_path or disks.",
-                }
-            ),
-            400,
-            {"Content-Type": "application/json"},
+        raise Error(
+            "bad_request",
+            "New desktop from scratch missing disk_user or disk_path or disks in body data",
+            traceback.format_stack(),
         )
+
     if not boot_order not in ["disk", "iso", "pxe"]:
-        return (
-            json.dumps(
-                {
-                    "error": "bad_request",
-                    "msg": "Incorrect access parameters. Boot order items should be disk, iso or pxe.",
-                }
-            ),
-            400,
-            {"Content-Type": "application/json"},
+        raise Error(
+            "bad_request",
+            "New desktop from scratch incorrect boot order in body data",
+            traceback.format_stack(),
         )
 
-    # try:
-    #     quotas.DesktopCreate(user_id)
-    # except QuotaUserNewDesktopExceeded:
-    #     log.error("Quota for user "+user_id+" for creating another desktop is exceeded")
-    #     return json.dumps({"error": "undefined_error","msg":"PersistentDesktopNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
-    # except QuotaGroupNewDesktopExceeded:
-    #     log.error("Quota for user "+user_id+" group for creating another desktop is exceeded")
-    #     return json.dumps({"error": "undefined_error","msg":"PersistentDesktopNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
-    # except QuotaCategoryNewDesktopExceeded:
-    #     log.error("Quota for user "+user_id+" category for creating another desktop is exceeded")
-    #     return json.dumps({"error": "undefined_error","msg":"PersistentDesktopNew user category quota CREATE exceeded"}), 507, {'Content-Type': 'application/json'}
-    # except Exception as e:
-    #     error = traceback.format_exc()
-    #     return json.dumps({"error": "undefined_error","msg":"PersistentDesktopNew quota check general exception: " + error }), 401, {'Content-Type': 'application/json'}
+    quotas.DesktopCreate(user_id)
 
-    try:
-        desktop_id = desktops.NewFromScratch(
-            name=name,
-            user_id=user_id,
-            description=description,
-            disk_user=disk_user,
-            disk_path=disk_path,
-            disk_path_selected=disk_path_selected,
-            disk_bus=disk_bus,
-            disk_size=disk_size,
-            disks=disks,
-            isos=isos,  # ['_local-default-admin-admin-systemrescue-8.04-amd64.iso']
-            boot_order=boot_order,
-            vcpus=vcpus,
-            memory=memory,
-            graphics=graphics,
-            videos=videos,
-            interfaces=interfaces,
-            opsystem=opsystem,
-            icon=icon,
-            image=image,
-            forced_hyp=forced_hyp,
-            hypervisors_pools=hypervisors_pools,
-            server=server,
-            virt_install_id=virt_install_id,
-            xml=xml,
-        )
-        return json.dumps({"id": desktop_id}), 200, {"Content-Type": "application/json"}
-    ## TODO: Control all exceptions and return correct code
-    except Exception as e:
-        error = traceback.format_exc()
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "PersistentDesktopNew general exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
+    desktop_id = desktops.NewFromScratch(
+        name=name,
+        user_id=user_id,
+        description=description,
+        disk_user=disk_user,
+        disk_path=disk_path,
+        disk_path_selected=disk_path_selected,
+        disk_bus=disk_bus,
+        disk_size=disk_size,
+        disks=disks,
+        isos=isos,  # ['_local-default-admin-admin-systemrescue-8.04-amd64.iso']
+        boot_order=boot_order,
+        vcpus=vcpus,
+        memory=memory,
+        graphics=graphics,
+        videos=videos,
+        interfaces=interfaces,
+        opsystem=opsystem,
+        icon=icon,
+        image=image,
+        forced_hyp=forced_hyp,
+        hypervisors_pools=hypervisors_pools,
+        server=server,
+        virt_install_id=virt_install_id,
+        xml=xml,
+    )
+    return json.dumps({"id": desktop_id}), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/api/v3/desktop/<desktop_id>", methods=["PUT"])
 @has_token
 def api_v3_desktop_edit(payload, desktop_id):
-
-    ownsDomainId(payload, desktop_id)
     try:
-        user_id = desktops.UserDesktop(desktop_id)
-    except UserNotFound:
-        log.error("Desktop user not found")
-        return (
-            json.dumps(
-                {
-                    "error": "user_not_found",
-                    "msg": "DesktopStart user not found",
-                }
-            ),
-            404,
-            {"Content-Type": "application/json"},
-        )
-    except Exception as e:
-        error = traceback.format_exc()
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "DesktopStart exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
-
-    try:
-        data = request.json
+        data = request.get_json(force=True)
     except:
-        return (
-            json.dumps(
-                {
-                    "error": "bad_request",
-                    "msg": "Incorrect access. exception: " + traceback.format_exc(),
-                }
-            ),
-            400,
-            {"Content-Type": "application/json"},
+        Error(
+            "bad_request", "Desktop edit incorrect body data", traceback.format_stack()
         )
 
     if not validate_desktop_schema(data):
-        log.error("Incorrect access parameters. Check your query.")
-        return (
-            json.dumps(
-                {
-                    "error": "bad_request",
-                    "msg": "Incorrect parameters updating desktop. Check your query to match parameters: %s"
-                    % (validate_desktop_schema(data, validate=False)),
-                }
-            ),
-            400,
-            {"Content-Type": "application/json"},
+        raise Error(
+            "bad_request",
+            validate_desktop_schema(data, validate=False),
+            traceback.format_stack(),
         )
+
+    ownsDomainId(payload, desktop_id)
+    user_id = desktops.UserDesktop(desktop_id)
 
     ## Pop image from data if exists and process
     if data.get("image"):
         image_data = data.pop("image")
 
         if not image_data.get("file"):
-            try:
-                img_uuid = api_cards.update(
-                    desktop_id, image_data["id"], image_data["type"]
-                )
-                card = api_cards.get_card(img_uuid, image_data["type"])
-                return json.dumps(card), 200, {"Content-Type": "application/json"}
-            except:
-                return (
-                    json.dumps(
-                        {
-                            "error": "generic_error",
-                            "msg": "DesktopStart exception: " + traceback.format_exc(),
-                        }
-                    ),
-                    500,
-                    {"Content-Type": "application/json"},
-                )
+            img_uuid = api_cards.update(
+                desktop_id, image_data["id"], image_data["type"]
+            )
+            card = api_cards.get_card(img_uuid, image_data["type"])
+            return json.dumps(card), 200, {"Content-Type": "application/json"}
         else:
-            try:
-                img_uuid = api_cards.upload(desktop_id, image_data)
-                card = api_cards.get_card(img_uuid, image_data["type"])
-                return json.dumps(card), 200, {"Content-Type": "application/json"}
-            except:
-                return (
-                    json.dumps(
-                        {
-                            "error": "generic_error",
-                            "msg": "DesktopStart exception: " + traceback.format_exc(),
-                        }
-                    ),
-                    500,
-                    {"Content-Type": "application/json"},
-                )
-
-    return (
-        json.dumps(
-            {
-                "error": "bad_request",
-                "msg": "Incorrect access. exception: " + e,
-            }
-        ),
-        400,
-        {"Content-Type": "application/json"},
-    )
+            img_uuid = api_cards.upload(desktop_id, image_data)
+            card = api_cards.get_card(img_uuid, image_data["type"])
+            return json.dumps(card), 200, {"Content-Type": "application/json"}
+    raise Error("not_found", "Update method not found.", traceback.format_stack())

@@ -36,94 +36,46 @@ def api_v3_images_desktops(payload, image_type=None):
     try:
         domain_id = request.args.get("desktop_id")
     except:
-        return (
-            json.dumps(
-                {
-                    "error": "bad_request",
-                    "msg": "Incorrect access. exception: " + traceback.format_exc(),
-                }
-            ),
-            400,
-            {"Content-Type": "application/json"},
+        raise Error(
+            "bad_request", "Desktop images bad request", traceback.format_stack()
         )
 
-    try:
-        if not image_type:
-            images = api_cards.get_stock_cards() + api_cards.get_user_cards(
-                payload["user_id"],
-                domain_id,
-            )
-        elif image_type == "stock":
-            images = api_cards.get_stock_cards()
-        elif image_type == "user":
-            images = api_cards.get_user_cards(payload["user_id"], domain_id)
-        else:
-            raise
-        return (
-            json.dumps(images),
-            200,
-            {"Content-Type": "application/json"},
+    if not image_type:
+        images = api_cards.get_stock_cards() + api_cards.get_user_cards(
+            payload["user_id"],
+            domain_id,
         )
-    except:
-        log.error(traceback.format_exc())
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "Get cards general exception: " + traceback.format_exc(),
-                }
-            ),
-            401,
-            {"Content-Type": "application/json"},
-        )
+    elif image_type == "stock":
+        images = api_cards.get_stock_cards()
+    elif image_type == "user":
+        images = api_cards.get_user_cards(payload["user_id"], domain_id)
+    else:
+        raise
+    return (
+        json.dumps(images),
+        200,
+        {"Content-Type": "application/json"},
+    )
 
 
 @app.route("/api/v3/images/desktops/stock/default/<domain_id>", methods=["GET"])
 @has_token
 def api_v3_images_desktops_stock_default(payload, domain_id):
-    try:
-        return (
-            json.dumps(api_cards.get_domain_stock_card(domain_id)),
-            200,
-            {"Content-Type": "application/json"},
-        )
-    except:
-        log.error(traceback.format_exc())
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "Get domain card general exception: "
-                    + traceback.format_exc(),
-                }
-            ),
-            401,
-            {"Content-Type": "application/json"},
-        )
+    return (
+        json.dumps(api_cards.get_domain_stock_card(domain_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )
 
 
 @app.route("/api/v3/images/desktops/user/default/<domain_id>", methods=["GET"])
 @has_token
 def api_v3_images_desktops_user_default(payload, domain_id):
-    try:
-        return (
-            json.dumps(api_cards.get_domain_user_card(domain_id)),
-            200,
-            {"Content-Type": "application/json"},
-        )
-    except:
-        log.error(traceback.format_exc())
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "Get domain card general exception: "
-                    + traceback.format_exc(),
-                }
-            ),
-            401,
-            {"Content-Type": "application/json"},
-        )
+    return (
+        json.dumps(api_cards.get_domain_user_card(domain_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )
 
 
 @app.route("/api/v3/images/desktops/generate", methods=["POST"])
@@ -133,34 +85,14 @@ def api_v3_images_desktops_generate(payload):
         domain_id = request.form.get("desktop_id", type=str)
         domain_name = request.form.get("desktop_name", type=str)
     except:
-        error = traceback.format_exc()
-        log.error("Generate new desktop image addr incorrect access" + error)
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "Incorrect access. exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
+        Error(
+            "bad_request",
+            "Generate desktops images bad body data",
+            traceback.format_stack(),
         )
-    try:
-        return (
-            json.dumps(api_cards.generate_default_card(domain_id, domain_name)),
-            200,
-            {"Content-Type": "application/json"},
-        )
-    except:
-        log.error(traceback.format_exc())
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "Get domain card general exception: "
-                    + traceback.format_exc(),
-                }
-            ),
-            401,
-            {"Content-Type": "application/json"},
-        )
+
+    return (
+        json.dumps(api_cards.generate_default_card(domain_id, domain_name)),
+        200,
+        {"Content-Type": "application/json"},
+    )

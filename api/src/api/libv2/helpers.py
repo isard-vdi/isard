@@ -28,13 +28,12 @@ import string
 import bcrypt
 
 from ..libv2.isardViewer import isardViewer
-from .apiv2_exc import *
 
 isardviewer = isardViewer()
 
 import traceback
 
-from ..libv2.api_exceptions import Error
+from .api_exceptions import Error
 
 
 class InternalUsers(object):
@@ -93,7 +92,9 @@ def _parse_string(txt):
     # locale.setlocale(locale.LC_ALL, 'ca_ES')
     prog = re.compile("[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$")
     if not prog.match(txt):
-        return False
+        raise Error(
+            "internal_server", "Unable to parse string", traceback.format_stack()
+        )
     else:
         # ~ Replace accents
         txt = "".join(
@@ -281,8 +282,11 @@ def generate_db_media(path_downloaded, filesize):
         icon = "fa-hdd-o"
         kind = path_downloaded.split(".")[-1]
     if not icon:
-        log.warning("Skipping uploaded file as has unknown extension: " + parts[-1])
-        return False
+        raise Error(
+            "precondition_required",
+            "Skipping uploaded file as has unknown extension",
+            traceback.format_stack(),
+        )
     return {
         "accessed": time.time(),
         "allowed": {

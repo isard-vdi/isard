@@ -25,19 +25,10 @@ vpn = isardVpn()
 @is_admin
 def api_v3_remote_vpn(payload, vpn_id, kind="config", os=False):
     if not os and kind != "config":
-        return (
-            json.dumps({"error": "bad_request", "msg": "RemoteVpn: no OS supplied"}),
-            400,
-            {"Content-Type": "application/json"},
-        )
+        raise Error("bad_request", "RemoteVpn: no OS supplied")
 
-    vpn_data = vpn.vpn_data("remotevpn", kind, os, vpn_id)
-
-    if vpn_data:
-        return json.dumps(vpn_data), 200, {"Content-Type": "application/json"}
-    else:
-        return (
-            json.dumps({"error": "vpn_not_found", "msg": "RemoteVpn no VPN data"}),
-            404,
-            {"Content-Type": "application/json"},
-        )
+    return (
+        json.dumps(vpn.vpn_data("remotevpn", kind, os, vpn_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )

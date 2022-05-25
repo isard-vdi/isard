@@ -15,6 +15,8 @@ from rethinkdb import RethinkDB
 
 from api import app
 
+from .api_exceptions import Error
+
 r = RethinkDB()
 import logging as log
 
@@ -95,12 +97,10 @@ class ApiCards:
             img = Image.open(BytesIO(base64.b64decode(img_data)))
             extension = mimetypes.guess_extension(img.get_format_mimetype())
             if extension not in [".jpg", ".png", ".gif"]:
-                return CardError(
-                    {
-                        "error": "not_saved",
-                        "msg": "Uploaded file with unknown format to guess extension",
-                    },
-                    304,
+                raise Error(
+                    "precondition_required",
+                    "Uploaded file with unknown format to guess extension",
+                    traceback.format_stack(),
                 )
             filename = str(uuid.uuid4()) + extension
             img_resized = ImageOps.fit(
@@ -116,7 +116,9 @@ class ApiCards:
 
             return filename
         except:
-            raise CardError({"error": "not_saved", "msg": "Card file not saved"}, 304)
+            raise Error(
+                "internal_server", "Card file not saved", traceback.format_stack()
+            )
 
     def update(self, domain_id, card_id, type):
         with app.app_context():
@@ -126,7 +128,9 @@ class ApiCards:
                 .update({"image": self.get_card(card_id, type)})
                 .run(db.conn)["skipped"]
             ):
-                raise CardError({"error": "not_found", "msg": "Domain not found"}, 404)
+                raise Error(
+                    "not_found", "Domain for card not found", traceback.format_stack()
+                )
         return card_id
 
     def get_card(self, card_id, type):
@@ -171,8 +175,7 @@ class ApiCards:
             img = Path(app.USERS_CARDS + "/" + card_id)
             img.unlink()
         except:
-            print(traceback.format_exc())
-            raise CardError({"error": "not_found", "msg": "Card file not found"}, 304)
+            raise Error("not_found", "Card file not found", traceback.format_stack())
 
     def delete_domain_card(self, domain_id, update_domain=True):
         with app.app_context():
@@ -212,22 +215,8 @@ class ApiCards:
 
         for f in files:
             if f not in db_files:
-                print("Deleting card: " + f)
+                log.info("Deleting card: " + f)
                 try:
                     self.delete_card(f)
                 except:
-                    print(traceback.format_exc())
-
-
-# Error handler
-class CardError(Exception):
-    def __init__(self, error, status_code):
-        self.error = error
-        self.status_code = status_code
-
-
-@app.errorhandler(CardError)
-def handle_auth_error(ex):
-    response = jsonify(ex.error)
-    response.status_code = ex.status_code
-    return response
+                    log.error(traceback.format_stack())

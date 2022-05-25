@@ -12,7 +12,6 @@ from api import app
 
 from ..libv2.api_admin import admin_table_insert
 from ..libv2.api_exceptions import Error
-from ..libv2.apiv2_exc import *
 from ..libv2.validators import _validate_item
 from .decorators import is_admin_or_manager
 
@@ -23,8 +22,10 @@ from .decorators import is_admin_or_manager
 def api_v3_admin_media_insert(payload):
     try:
         data = request.get_json()
-    except Exception as e:
-        raise Error("bad_request", "Unable to parse body data.", traceback.format_exc())
+    except:
+        raise Error(
+            "bad_request", "Unable to parse body data.", traceback.format_stack()
+        )
     log.error(payload)
 
     data["user"] = payload["user_id"]

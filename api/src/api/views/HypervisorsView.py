@@ -19,7 +19,6 @@ from api import app
 
 from ..libv2 import api_hypervisors
 from ..libv2.api_exceptions import Error
-from ..libv2.apiv2_exc import *
 from ..libv2.quotas import Quotas
 
 quotas = Quotas()
@@ -36,15 +35,8 @@ from .decorators import is_admin, is_hyper
 @is_admin
 def api_v3_hypervisors(payload, status=None):
     if status and status not in ["Online", "Offline", "Error"]:
-        return (
-            json.dumps(
-                {
-                    "error": "bad_request",
-                    "msg": "Incorrect access parameters. Check your query.",
-                }
-            ),
-            400,
-            {"Content-Type": "application/json"},
+        raise Error(
+            "bad_request", "Hypervisor status incorrect", traceback.format_stack()
         )
     return (
         json.dumps(get_hypervisors(status)),
@@ -60,64 +52,23 @@ def api_v3_guest_addr():
         ip = request.form.get("ip", type=str)
         mac = request.form.get("mac", type=str)
     except:
-        error = traceback.format_exc()
-        log.error("Guest addr incorrect access" + error)
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "Incorrect access. exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
+        raise Error(
+            "bad_request", "Hypervisor wg_addr bad bad data", traceback.format_stack()
         )
 
     if mac == None or ip == None:
-        log.warning("Incorrect access parameters. Check your query.")
-        return (
-            json.dumps(
-                {
-                    "error": "undefined_error",
-                    "msg": "Incorrect access parameters. Check your query.",
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
+        raise Error(
+            "bad_request",
+            "Hypervisor wg_addr invalid body data",
+            traceback.format_stack(),
         )
 
-    try:
-        domain_id = api_hypervisors.update_wg_address(mac, {"viewer": {"guest_ip": ip}})
-        if domain_id:
-            return (
-                json.dumps({"domain_id": domain_id}),
-                200,
-                {"Content-Type": "application/json"},
-            )
-        else:
-            log.error(
-                "Update guest addr for mac " + mac + " with IP " + ip + ", failed!"
-            )
-            return (
-                json.dumps(
-                    {"error": "undefined_error", "msg": "UpdateWgAddr update failed"}
-                ),
-                301,
-                {"Content-Type": "application/json"},
-            )
-    except Exception as e:
-        error = traceback.format_exc()
-        log.error("Update guest addr general exception" + error)
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "Update guest addr general exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
+    domain_id = api_hypervisors.update_wg_address(mac, {"viewer": {"guest_ip": ip}})
+    return (
+        json.dumps({"domain_id": domain_id}),
+        200,
+        {"Content-Type": "application/json"},
+    )
 
 
 # Not directly used anymore
@@ -127,7 +78,7 @@ def api_v3_guest_addr():
 #         certs=api_hypervisors.get_hypervisors_certs()
 #         return json.dumps(certs), 200, {'Content-Type': 'application/json'}
 #     except Exception as e:
-#         error = traceback.format_exc()
+#         error = traceback.format_stack()
 #         log.error("ViewerCerts general exception" + error)
 #         return json.dumps({"error": "undefined_error","msg":"ViewerCerts general exception: " + error }), 500, {'Content-Type': 'application/json'}
 
@@ -166,17 +117,9 @@ def api_v3_hypervisor(hyper_id=False):
                 request.form.get("only_forced", default="false", type=str).lower()
             )
 
-        except Exception as e:
-            error = traceback.format_exc()
-            return (
-                json.dumps(
-                    {
-                        "error": "generic_error",
-                        "msg": "Incorrect access. exception: " + error,
-                    }
-                ),
-                500,
-                {"Content-Type": "application/json"},
+        except:
+            raise Error(
+                "bad_request", "Hypervisor add bad data", traceback.format_stack()
             )
 
         data = api_hypervisors.hyper(
@@ -201,64 +144,23 @@ def api_v3_hypervisor(hyper_id=False):
         return json.dumps(data["data"]), 200, {"Content-Type": "application/json"}
 
     if request.method == "DELETE":
-        try:
-            data = api_hypervisors.remove_hyper(hyper_id)
-            if not data["status"]:
-                log.warning(data)
-                return (
-                    json.dumps(
-                        {
-                            "error": "undefined_error",
-                            "msg": "Failed removing hypervisor: " + data["msg"],
-                        }
-                    ),
-                    301,
-                    {"Content-Type": "application/json"},
-                )
-            return json.dumps(data["data"]), 200, {"Content-Type": "application/json"}
-        except Exception as e:
-            error = traceback.format_exc()
-            log.error("Hypervisor general exception" + error)
-            return (
-                json.dumps(
-                    {
-                        "error": "generic_error",
-                        "msg": "Hypervisor general exception: " + error,
-                    }
-                ),
-                500,
-                {"Content-Type": "application/json"},
+        data = api_hypervisors.remove_hyper(hyper_id)
+        if not data["status"]:
+            raise Error(
+                "bad_request",
+                "Hypervisor delete add bad data",
+                traceback.format_stack(),
             )
+        return json.dumps(data["data"]), 200, {"Content-Type": "application/json"}
+
     if request.method == "PUT":
-        try:
-            log.warning("Enabling hypervisor: " + hyper_id)
-            data = api_hypervisors.enable_hyper(hyper_id)
-            if not data["status"]:
-                log.warning(data)
-                return (
-                    json.dumps(
-                        {
-                            "error": "undefined_error",
-                            "msg": "Failed updating hypervisor: " + data["msg"],
-                        }
-                    ),
-                    301,
-                    {"Content-Type": "application/json"},
-                )
-            return json.dumps(data["data"]), 200, {"Content-Type": "application/json"}
-        except Exception as e:
-            error = traceback.format_exc()
-            log.error("Hypervisor general exception" + error)
-            return (
-                json.dumps(
-                    {
-                        "error": "generic_error",
-                        "msg": "Hypervisor general exception: " + error,
-                    }
-                ),
-                500,
-                {"Content-Type": "application/json"},
+        log.warning("Enabling hypervisor: " + hyper_id)
+        data = api_hypervisors.enable_hyper(hyper_id)
+        if not data["status"]:
+            raise Error(
+                "bad_request", "Hypervisor update bad data", traceback.format_stack()
             )
+        return json.dumps(data["data"]), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/api/v3/hypervisor/stop/<hyper_id>", methods=["PUT"])
@@ -271,85 +173,29 @@ def api_v3_hypervisor_domains_stop(hyper_id):
 @app.route("/api/v3/hypervisor_vpn/<hyper_id>", methods=["GET"])
 @is_hyper
 def api_v3_hypervisor_vpn(hyper_id):
-    try:
-        vpn = api_hypervisors.get_hypervisor_vpn(hyper_id)
-        return json.dumps(vpn), 200, {"Content-Type": "application/json"}
-    except Exception as e:
-        error = traceback.format_exc()
-        log.error("HypervisorVpn general exception" + error)
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "HypervisorVpn general exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
+    vpn = api_hypervisors.get_hypervisor_vpn(hyper_id)
+    return json.dumps(vpn), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/api/v3/hypervisor/media_found", methods=["POST"])
 @is_hyper
 def api_v3_hypervisor_media_found():
-    try:
-        api_hypervisors.update_media_found(request.get_json(force=True))
-        return json.dumps(True), 200, {"Content-Type": "application/json"}
-    except:
-        error = traceback.format_exc()
-        log.error("HypervisorMediaFound general exception" + error)
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "HypervisorMediaFound general exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
+    api_hypervisors.update_media_found(request.get_json(force=True))
+    return json.dumps(True), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/api/v3/hypervisor/disks_found", methods=["POST"])
 @is_hyper
 def api_v3_hypervisor_disks_found():
-    try:
-        api_hypervisors.update_disks_found(request.get_json(force=True))
-        return json.dumps(True), 200, {"Content-Type": "application/json"}
-    except:
-        error = traceback.format_exc()
-        log.error("HypervisorDisksFound general exception" + error)
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "HypervisorDisksFound general exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
+    api_hypervisors.update_disks_found(request.get_json(force=True))
+    return json.dumps(True), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/api/v3/hypervisor/media_delete", methods=["POST"])
 @is_hyper
 def api_v3_hypervisor_media_delete():
-    try:
-        api_hypervisors.delete_media(request.get_json(force=True))
-        return json.dumps(True), 200, {"Content-Type": "application/json"}
-    except:
-        error = traceback.format_exc()
-        log.error("HypervisorMediaFound general exception" + error)
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "HypervisorMediaFound general exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
+    api_hypervisors.delete_media(request.get_json(force=True))
+    return json.dumps(True), 200, {"Content-Type": "application/json"}
 
 
 # @app.route('/api/v3/hypervisor/groups_found', methods=['POST'])
@@ -359,7 +205,7 @@ def api_v3_hypervisor_media_delete():
 #         api_hypervisors.update_disks_found('groups',request.get_json(force=True))
 #         return json.dumps(True), 200, {'Content-Type': 'application/json'}
 #     except Exception as e:
-#         error = traceback.format_exc()
+#         error = traceback.format_stack()
 #         log.error("HypervisorMediaFound general exception" + error)
 #         return json.dumps({"error": "undefined_error","msg":"HypervisorMediaFound general exception: " + error }), 500, {'Content-Type': 'application/json'}
 
@@ -371,14 +217,14 @@ def api_v3_hypervisor_media_delete():
 #         try:
 #             vlans = request.get_json(force=True)
 #         except Exception as e:
-#             error = traceback.format_exc()
+#             error = traceback.format_stack()
 #             return json.dumps({"error": "undefined_error","msg":"Incorrect access. exception: " + error }), 500, {'Content-Type': 'application/json'}
 
 #         try:
 #             api_hypervisors.add_vlans(vlans)
 #             return json.dumps({}), 200, {'Content-Type': 'application/json'}
 #         except Exception as e:
-#             error = traceback.format_exc()
+#             error = traceback.format_stack()
 #             log.error("Vlans add general exception" + error)
 #             return json.dumps({"error": "undefined_error","msg":"Vlans add general exception: " + error }), 500, {'Content-Type': 'application/json'}
 
@@ -387,7 +233,7 @@ def api_v3_hypervisor_media_delete():
 #             vlans=api_hypervisors.get_vlans()
 #             return json.dumps(vlans), 200, {'Content-Type': 'application/json'}
 #         except Exception as e:
-#             error = traceback.format_exc()
+#             error = traceback.format_stack()
 #             log.error("Vlans general exception" + error)
 #             return json.dumps({"error": "undefined_error","msg":"Vlans general exception: " + error }), 500, {'Content-Type': 'application/json'}
 

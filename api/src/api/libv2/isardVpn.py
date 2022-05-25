@@ -10,12 +10,14 @@ import os
 #!/usr/bin/env python
 # coding=utf-8
 import sys
+import traceback
 
 from rethinkdb import RethinkDB
 
 from api import app
 
 from ..libv2.log import *
+from .api_exceptions import Error
 
 r = RethinkDB()
 import urllib
@@ -35,7 +37,9 @@ class isardVpn:
     def vpn_data(self, vpn, kind, op_sys, itemid=False):
         if vpn == "users":
             if itemid == False:
-                return False
+                raise Error(
+                    "bad_request", "Vpn missing itemid", traceback.format_stack()
+                )
             with app.app_context():
                 wgdata = r.table("users").get(itemid).pluck("id", "vpn").run(db.conn)
             port = "443"
@@ -60,7 +64,9 @@ class isardVpn:
             endpoint = hyper.get("isard_hyper_vpn_host", "isard-vpn")
         elif vpn == "remotevpn":
             if not itemid:
-                return False
+                raise Error(
+                    "bad_request", "Vpn missing itemid", traceback.format_stack()
+                )
             with app.app_context():
                 wgdata = (
                     r.table("remotevpn").get(itemid).pluck("id", "vpn").run(db.conn)
@@ -72,10 +78,12 @@ class isardVpn:
             postup = ":"
             endpoint = os.environ["DOMAIN"]
         else:
-            return False
+            raise Error("not_found", "Vpn kind not exists", traceback.format_stack())
 
         if wgdata == None or "vpn" not in wgdata.keys():
-            return False
+            raise Error(
+                "not_found", "Vpn data not found for user", traceback.format_stack()
+            )
 
         ## First up time the wireguard config keys are missing till isard-vpn populates it.
         if not getattr(app, "wireguard_server_keys", False):
@@ -88,10 +96,11 @@ class isardVpn:
                 sysconfig.get(vpn_kind_keys, {}).get("wireguard", {}).get("keys", False)
             )
         if not wireguard_server_keys:
-            log.error(
-                "There are no wireguard keys in webapp config yet. Try again in a few seconds..."
+            raise Error(
+                "precondition_required",
+                "There are no wireguard keys in webapp config yet. Try again in a few seconds...",
+                traceback.format_stack(),
             )
-            return False
 
         wireguard_data = [endpoint, wgdata, port, mtu, postup, wireguard_server_keys]
         if kind == "config":
@@ -112,7 +121,9 @@ class isardVpn:
                 "content": self.get_wireguard_install_script(wireguard_data),
             }
 
-        return False
+        raise Error(
+            "internal_server", "Unable to process vpn file", traceback.format_stack()
+        )
 
     def get_wireguard_file(
         self, endpoint, peer, port, mtu, postup, wireguard_server_keys

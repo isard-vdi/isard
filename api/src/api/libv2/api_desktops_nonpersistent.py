@@ -14,9 +14,9 @@ from api import app
 
 r = RethinkDB()
 import logging as log
+import traceback
 
-from rethinkdb.errors import ReqlTimeoutError
-
+from .api_exceptions import Error
 from .flask_rethink import RDB
 
 db = RDB(app)
@@ -26,7 +26,7 @@ from ..libv2.isardViewer import isardViewer
 
 isardviewer = isardViewer()
 
-from .apiv2_exc import *
+
 from .ds import DS
 
 ds = DS()
@@ -41,7 +41,7 @@ class ApiDesktopsNonPersistent:
     def New(self, user_id, template_id):
         with app.app_context():
             if r.table("users").get(user_id).run(db.conn) is None:
-                raise UserNotFound
+                raise Error("not_found", "User not found", traceback.format_stack())
         # Has a desktop with this template? Then return it (start it if stopped)
         with app.app_context():
             desktops = list(
@@ -68,7 +68,7 @@ class ApiDesktopsNonPersistent:
         with app.app_context():
             desktop = r.table("domains").get(desktop_id).run(db.conn)
         if desktop == None:
-            raise DesktopNotFound
+            raise Error("not_found", "Desktop not found", traceback.format_stack())
         ds.delete_desktop(desktop_id, desktop["status"])
 
     def DeleteOthers(self, user_id, template_id):
@@ -80,7 +80,7 @@ class ApiDesktopsNonPersistent:
         """
         with app.app_context():
             if r.table("users").get(user_id).run(db.conn) is None:
-                raise UserNotFound
+                raise Error("not_found", "User not found", traceback.format_stack())
 
         ####### Get how many desktops are from this template and leave only one
         with app.app_context():
@@ -105,24 +105,15 @@ class ApiDesktopsNonPersistent:
                 ## We delete all and return the first as the order is descendant (first is the newer desktop)
                 ds.delete_desktop(desktops[i]["id"])
 
-        # No desktop already in system
-        if len(desktops) == 0:
-            raise DesktopNotFound
-        # Desktop, but stopped
-        if desktops[0]["status"] == "Stopped":
-            raise DesktopNotStarted
-
     def _nonpersistent_desktop_create_and_start(self, user_id, template_id):
         with app.app_context():
             user = r.table("users").get(user_id).run(db.conn)
         if user == None:
-            raise UserNotFound
+            raise Error("not_found", "User not found", traceback.format_stack())
         # Create the domain from that template
         desktop_id = self._nonpersistent_desktop_from_tmpl(
             user_id, user["category"], user["group"], template_id
         )
-        if desktop_id is False:
-            raise DesktopNotCreated
 
         ds.WaitStatus(desktop_id, "Any", "Any", "Started")
         return desktop_id
@@ -131,7 +122,7 @@ class ApiDesktopsNonPersistent:
         with app.app_context():
             template = r.table("domains").get(template_id).run(db.conn)
         if template == None:
-            raise TemplateNotFound
+            raise Error("not_found", "Template not found", traceback.format_stack())
         timestamp = time.strftime("%Y%m%d%H%M%S")
         parsed_name = (timestamp + "-" + _parse_string(template["name"]))[:40]
 
@@ -184,7 +175,11 @@ class ApiDesktopsNonPersistent:
         with app.app_context():
             if _check(r.table("domains").insert(new_desktop).run(db.conn), "inserted"):
                 return new_desktop["id"]
-        return False
+        raise Error(
+            "internal_server",
+            "Unable to create non persistent desktop",
+            traceback.format_stack(),
+        )
 
     def DesktopStart(self, desktop_id):
         ds.WaitStatus(desktop_id, "Any", "Any", "Started")

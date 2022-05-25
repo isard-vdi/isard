@@ -17,7 +17,7 @@ from flask import Response, redirect, request, url_for
 # coding=utf-8
 from api import app
 
-from ..libv2.apiv2_exc import *
+from ..libv2.api_exceptions import Error
 from ..libv2.quotas import Quotas
 from .decorators import maintenance
 
