@@ -243,15 +243,53 @@ function actionsGroupDetail(){
                 data['propagate']=true;
             }            
             data['table']='groups'
-            socket.emit('quota_update',data)  
+            var notice = new PNotify({
+                text: 'Updating quota...',
+                hide: false,
+                opacity: 1,
+                icon: 'fa fa-spinner fa-pulse'
+            })
+    
+            $.ajax({
+                type: "PUT",
+                url:"/api/v3/admin/quota" ,
+                data: JSON.stringify(data),
+                contentType: "application/json",
+                success: function(data)
+                {
+                    $('form').each(function() { this.reset() });
+                    $('.modal').modal('hide');
+                    notice.update({
+                        title: data.title,
+                        text: 'Quota updated successfully',
+                        hide: true,
+                        delay: 1000,
+                        icon: 'fa fa-' + data.icon,
+                        opacity: 1,
+                        type: 'success'
+                    })
+                },
+                error: function(data) {
+                    notice.update({
+                        title: 'ERROR',
+                        text: 'Something went wrong',
+                        type: 'error',
+                        hide: true,
+                        icon: 'fa fa-warning',
+                        delay: 2000,
+                        opacity: 1
+                    })
+                },
+    
+            });
         }
     });
 
     $('.btn-edit-limits').unbind().on('click', function () {
         var pk=$(this).closest("div").attr("data-pk");
-
         $("#modalEditLimitsForm")[0].reset();
         $('#modalEditLimitsForm #id').val(pk);
+        $("#modalEditLimitsForm #propagate").removeAttr('checked').iCheck('update')
         $('#modalEditLimits').modal({
             backdrop: 'static',
             keyboard: false
@@ -262,6 +300,7 @@ function actionsGroupDetail(){
     $("#modalEditLimits #send").unbind().on('click', function(e){
         form = $('#modalEditLimitsForm')
         pk=$('#modalEditLimitsForm #id').val();
+
         form.parsley().validate();
         formdata=form.serializeObject()        
         if (form.parsley().isValid() || 'unlimited' in formdata){
@@ -278,7 +317,43 @@ function actionsGroupDetail(){
                 data['propagate']=true;
             }            
             data['table']='groups'
-            socket.emit('quota_update',data)  
+            var notice = new PNotify({
+                text: 'Updating limits...',
+                hide: false,
+                opacity: 1,
+                icon: 'fa fa-spinner fa-pulse'
+            })
+            $.ajax({
+                type: "PUT",
+                url:"/api/v3/admin/quota" ,
+                data: JSON.stringify(data),
+                contentType: "application/json",
+                success: function(data)
+                {
+                    $('form').each(function() { this.reset() });
+                    $('.modal').modal('hide');
+                    notice.update({
+                        title: data.title,
+                        text: 'Limits updated successfully',
+                        hide: true,
+                        delay: 1000,
+                        icon: 'fa fa-' + data.icon,
+                        opacity: 1,
+                        type: 'success'
+                    })
+                },
+                error: function(data) {
+                    notice.update({
+                        title: 'ERROR',
+                        text: 'Something went wrong',
+                        type: 'error',
+                        hide: true,
+                        icon: 'fa fa-warning',
+                        delay: 2000,
+                        opacity: 1
+                    })
+                },
+            });  
         }
     });
 
