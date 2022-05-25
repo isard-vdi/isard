@@ -1247,7 +1247,14 @@ def clean_intermediate_status(reason="engine is restarting", only_domain_id=None
         "CreatingDiskFromScratch",
         "CreatingFromBuilder",
     ]
-    status_to_failed = ["Updating", "Deleting", "DiskDeleted"]
+    status_to_failed = [
+        "Updating",
+        "Deleting",
+        "DiskDeleted",
+        "CreatingDomain",
+        "DeletingDomainDisk",
+        "StartingDomainDisposable",
+    ]
     status_to_stopped = ["Starting"]
     status_to_started = ["Stopping", "Shutting-down"]
 
