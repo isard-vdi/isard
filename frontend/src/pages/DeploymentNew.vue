@@ -3,12 +3,44 @@
     <b-form @submit.prevent="submitForm">
       <!-- Title -->
       <b-row clas="mt-2">
-        <h4 class="p-1 mb-4 mt-2 mt-xl-4 ml-2"><strong>{{ $t('forms.new-desktop.title') }}</strong></h4>
+        <h4 class="p-1 mb-4 mt-2 mt-xl-4 ml-2"><strong>{{ $t('forms.new-deployment.title') }}</strong></h4>
       </b-row>
 
       <!-- Name -->
       <b-row>
-        <b-col cols="4" xl="2"><label for="desktopNameField">{{ $t('forms.new-desktop.name') }}</label></b-col>
+        <b-col cols="4" xl="2"><label for="deploymentNameField">{{ $t('forms.new-deployment.name') }}</label></b-col>
+        <b-col cols="6" xl="4" class="mb-4">
+          <b-form-input
+            id="deploymentNameField"
+            type="text"
+            v-model="deploymentName"
+            size="sm"
+            @blur="v$.deploymentName.$touch"/>
+            <div class="isard-form-error" v-if="v$.deploymentName.$error">{{ $t(`validations.${v$.deploymentName.$errors[0].$validator}`, { property: $t('forms.new-deployment.name'), model: deploymentName.length,  min: 4, max: 40 }) }}</div>
+        </b-col>
+      </b-row>
+
+      <b-row>
+        <b-col cols="12">
+          <div class="d-flex">
+            <label for="switch_1" class="mr-2"><b-icon icon="eye-slash-fill" class="mr-2" variant="danger"></b-icon>{{ $t('forms.new-deployment.not-visible') }}</label>
+            <b-form-checkbox
+              id="checkbox-1"
+              v-model="visible"
+              switch
+            >
+            <b-icon class="mr-2" icon="eye-fill" variant="success"></b-icon>{{ $t('forms.new-deployment.visible') }}
+          </b-form-checkbox>
+          </div>
+        </b-col>
+      </b-row>
+
+      <b-row clas="mt-2">
+        <h4 class="p-1 mb-4 mt-2 mt-xl-4 ml-2"><strong>{{ $t('forms.new-deployment.desktop.title') }}</strong></h4>
+      </b-row>
+
+      <b-row>
+        <b-col cols="4" xl="2"><label for="desktopNameField">{{ $t('forms.new-deployment.desktop.name') }}</label></b-col>
         <b-col cols="6" xl="4">
           <b-form-input
             id="desktopNameField"
@@ -16,13 +48,13 @@
             v-model="desktopName"
             size="sm"
             @blur="v$.desktopName.$touch"/>
-            <div class="isard-form-error" v-if="v$.desktopName.$error">{{ $t(`validations.${v$.desktopName.$errors[0].$validator}`, { property: $t('forms.new-desktop.name'), model: desktopName.length,  min: 4, max: 40 }) }}</div>
+            <div class="isard-form-error" v-if="v$.desktopName.$error">{{ $t(`validations.${v$.desktopName.$errors[0].$validator}`, { property: $t('forms.new-deployment.desktop.name'), model: desktopName.length,  min: 4, max: 40 }) }}</div>
         </b-col>
       </b-row>
 
       <!-- Description -->
       <b-row class="mt-4">
-        <b-col cols="4" xl="2"><label for="desktopDescriptionField">{{ $t('forms.new-desktop.description') }}</label></b-col>
+        <b-col cols="4" xl="2"><label for="desktopDescriptionField">{{ $t('forms.new-deployment.desktop.description') }}</label></b-col>
         <b-col cols="6" xl="4">
           <b-form-input
             id="desktopDescriptionField"
@@ -120,9 +152,12 @@
         </b-col>
       </b-row>
 
+      <!-- Allowed -->
+      <AllowedForm />
+
       <!-- Buttons -->
       <b-row align-h="end">
-        <b-button size="md" class="btn-red rounded-pill mt-4 mr-2" @click="navigate('desktops')">{{ $t('forms.cancel') }}</b-button>
+        <b-button size="md" class="btn-red rounded-pill mt-4 mr-2" @click="navigate('deployments')">{{ $t('forms.cancel') }}</b-button>
         <b-button type="submit" size="md" class="btn-green rounded-pill mt-4 ml-2 mr-5">{{ $t('forms.create') }}</b-button>
       </b-row>
   </b-form>
@@ -131,10 +166,11 @@
 
 <script>
 import i18n from '@/i18n'
-import { reactive, ref, computed } from '@vue/composition-api'
+import { reactive, ref, computed, onUnmounted } from '@vue/composition-api'
 import { mapActions } from 'vuex'
 import useVuelidate from '@vuelidate/core'
 import { required, maxLength, minLength } from '@vuelidate/validators'
+import AllowedForm from '@/components/AllowedForm.vue'
 
 // const inputFormat = helpers.regex('inputFormat', /^1(3|4|5|7|8)\d{9}$/) // /^\D*7(\D*\d){12}\D*$'
 const inputFormat = value => /^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$/.test(value)
@@ -144,8 +180,10 @@ export default {
     const $store = context.root.$store
     $store.dispatch('fetchTemplates')
 
+    const deploymentName = ref('')
     const desktopName = ref('')
     const description = ref('')
+    const visible = ref(false)
     const perPage = ref(5)
     const currentPage = ref(1)
     const filter = ref('')
@@ -154,6 +192,8 @@ export default {
     const selectedTemplateId = computed(() => selected.value[0] ? selected.value[0].id : '')
 
     const items = computed(() => $store.getters.getTemplates)
+    const users = computed(() => $store.getters.getSelectedUsers)
+    const groups = computed(() => $store.getters.getSelectedGroups)
 
     const fields = reactive([
       {
@@ -204,9 +244,17 @@ export default {
       }
     ])
 
+    onUnmounted(() => {
+      $store.dispatch('resetAllowedState')
+    })
+
     return {
+      deploymentName,
+      visible,
       desktopName,
       description,
+      groups,
+      users,
       items,
       fields,
       perPage,
@@ -220,6 +268,12 @@ export default {
   },
   validations () {
     return {
+      deploymentName: {
+        required,
+        maxLengthValue: maxLength(40),
+        minLengthValue: minLength(4),
+        inputFormat
+      },
       desktopName: {
         required,
         maxLengthValue: maxLength(40),
@@ -239,7 +293,7 @@ export default {
   },
   methods: {
     ...mapActions([
-      'createNewDesktop',
+      'createNewDeployment',
       'navigate'
     ]),
     onFiltered (filteredItems) {
@@ -254,9 +308,24 @@ export default {
       const isFormCorrect = await this.v$.$validate()
 
       if (isFormCorrect) {
-        this.createNewDesktop({ id: this.selected[0].id, name: this.desktopName, description: this.description })
+        this.createNewDeployment(
+          {
+            visible: this.visible,
+            template_id: this.selected[0].id,
+            name: this.deploymentName,
+            desktop_name: this.desktopName,
+            description: this.description,
+            allowed: {
+              users: this.users,
+              groups: this.groups
+            }
+          }
+        )
       }
     }
+  },
+  components: {
+    AllowedForm
   }
 }
 </script>

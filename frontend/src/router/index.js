@@ -7,7 +7,9 @@ import NotFound from '@/views/NotFound.vue'
 import Register from '@/views/Register.vue'
 import Rdp from '@/views/Rdp.vue'
 import Deployments from '@/pages/Deployments.vue'
+import DeploymentVideowall from '@/pages/DeploymentVideowall.vue'
 import Deployment from '@/pages/Deployment.vue'
+import DeploymentNew from '@/pages/DeploymentNew.vue'
 import DirectViewer from '@/views/DirectViewer.vue'
 import Vue from 'vue'
 import VueRouter from 'vue-router'
@@ -79,8 +81,24 @@ const router = new VueRouter({
           }
         },
         {
+          path: 'deployments/new',
+          name: 'deploymentsnew',
+          component: DeploymentNew,
+          meta: {
+            title: 'New Deployment'
+          }
+        },
+        {
+          path: '/deployment/videowall/:id',
+          name: 'deployment_videowall',
+          component: DeploymentVideowall,
+          meta: {
+            title: 'Deployment videowall'
+          }
+        },
+        {
           path: '/deployment/:id',
-          name: 'deployment',
+          name: 'deployment_desktops',
           component: Deployment,
           meta: {
             title: 'Deployment'

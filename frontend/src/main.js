@@ -1,6 +1,7 @@
 // Bootstrap dependencies
 import 'bootstrap/dist/css/bootstrap.css'
 import 'bootstrap-vue/dist/bootstrap-vue.css'
+import 'vue-select/dist/vue-select.css'
 // Custom css
 import '@/assets/global.css'
 import 'vue-snotify/styles/simple.css'
@@ -36,6 +37,11 @@ import { socket } from './utils/socket-instance'
 
 // FloatingButton component
 import VueFab from 'vue-float-action-button'
+
+// Vue Select plugin
+import vSelect from 'vue-select'
+
+Vue.component('v-select', vSelect)
 
 console.log(i18n.locale)
 

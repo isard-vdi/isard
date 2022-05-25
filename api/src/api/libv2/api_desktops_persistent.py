@@ -51,7 +51,13 @@ class ApiDesktopsPersistent:
         ds.delete_desktop(desktop_id, desktop["status"])
 
     def NewFromTemplate(
-        self, desktop_name, desktop_description, template_id, payload, forced_hyp=False
+        self,
+        desktop_name,
+        desktop_description,
+        template_id,
+        payload,
+        deployment=False,
+        forced_hyp=False,
     ):
         with app.app_context():
             template = r.table("domains").get(template_id).run(db.conn)
@@ -113,6 +119,8 @@ class ApiDesktopsPersistent:
             "forced_hyp": forced_hyp,
             "from_template": template["id"],
         }
+        if deployment:
+            new_desktop = {**new_desktop, **deployment}
 
         with app.app_context():
             if r.table("domains").get(new_desktop["id"]).run(db.conn) == None:

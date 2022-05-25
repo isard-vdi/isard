@@ -84,9 +84,27 @@ class DeploymentsThread(threading.Thread):
                                 .count()
                                 .run(db.conn),
                                 "startedDesktops": 0,
+                                "visible": c["new_val"]["create_dict"]["tag_visible"],
                             }
                         else:
-                            continue
+                            event = "update"
+                            user = c["new_val"]["user"]
+                            deployment = {
+                                "id": c["new_val"]["id"],
+                                "name": c["new_val"]["name"],
+                                "user": user,
+                                "totalDesktops": r.table("domains")
+                                .get_all(c["new_val"]["id"], index="tag")
+                                .count()
+                                .run(db.conn),
+                                "startedDesktops": r.table("domains")
+                                .get_all(c["new_val"]["id"], index="tag")
+                                .filter({"status": "Started"})
+                                .count()
+                                .run(db.conn),
+                                "visible": c["new_val"]["create_dict"]["tag_visible"],
+                            }
+
                         socketio.emit(
                             "deployment_" + event,
                             json.dumps(deployment),

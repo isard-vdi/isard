@@ -243,11 +243,7 @@
                 "download": "RPV"
             },
             "help": "Aide",
-            "deployments": {
-                "manage": "Gérer",
-                "view": "Voir",
-                "text": "Déploiements"
-            },
+            "deployments": "Déploiements",
             "home": "Accueil"
         },
         "not-found": {

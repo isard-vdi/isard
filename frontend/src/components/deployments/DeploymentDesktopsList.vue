@@ -1,0 +1,290 @@
+<template>
+  <div class='table-list px-5'>
+    <b-container fluid class='px-0'>
+      <b-skeleton-wrapper :loading="loading" class='pb-1 pt-4 justify-content-start'>
+        <template #loading>
+          <b-col>
+            <list-item-skeleton class="mb-2"></list-item-skeleton>
+            <list-item-skeleton class="mb-2"></list-item-skeleton>
+            <list-item-skeleton class="mb-2"></list-item-skeleton>
+          </b-col>
+        </template>
+      <b-row class="scrollable-div">
+        <b-col
+          cols='12'
+          class='d-flex flex-row flex-wrap justify-content-start'
+        >
+          <b-table :items='desktops' :fields='fields'>
+            <template #cell(image)='data'>
+              <!-- INFO -->
+              <b-icon
+                icon='info-circle-fill'
+                class='info-icon position-absolute cursor-pointer'
+                v-b-tooltip="{ title: `${data.item.description ? data.item.description : $t(`components.desktop-cards.no-info-default`)}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
+              ></b-icon>
+              <!-- IMAGE -->
+              <div
+                class='rounded-circle bg-red'
+                :style="{'background-image': `url('..${data.item.image.url}')`}"
+              ></div>
+            </template>
+            <template #cell(user)='data'>
+              <p class='m-0 font-weight-bold'>
+                {{ data.item.userName }}
+              </p>
+            </template>
+            <template #cell(group)='data'>
+              <p class='text-dark-gray m-0'>
+                {{ data.item.groupName }}
+              </p>
+            </template>
+            <template #cell(ip)='data'>
+              <p class='text-dark-gray m-0'>
+                {{ data.item.ip }}
+              </p>
+            </template>
+            <template #cell(state)='data'>
+              <div class='d-flex justify-content-center align-items-center'>
+                <!-- STATE DOT -->
+                  <div v-if="![desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down']].includes(getItemState(data.item))" :class="'state-dot mr-2 ' + stateCssClass(getItemState(data.item))"></div>
+                  <!-- SPINNER -->
+                  <b-spinner
+                        v-if="[desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down']].includes(getItemState(data.item))"
+                        small
+                        class='align-self-center mr-2 spinner-loading'
+                      ></b-spinner>
+                      <!-- TITLE -->
+                  <p class='mb-0 text-medium-gray flex-grow'>
+                    {{ $t(`views.select-template.status.${getItemState(data.item)}.text`)}}
+                  </p>
+              </div>
+            </template>
+            <template #cell(viewers)="data">
+              <div class=''>
+                <DesktopButton
+                    v-if="!hideViewers && data.item.viewers !== undefined && data.item.viewers.length === 1"
+                    :active="getItemState(data.item) === desktopStates.started"
+                    :buttColor = "buttViewerCssColor"
+                    :buttText="data.item.viewers[0]"
+                    variant="primary"
+                    :spinnerActive="waitingIp"
+                    @buttonClicked="openDesktop({desktopId: data.item.id, viewer: data.item.viewers && data.item.viewers[0]})">
+                  </DesktopButton>
+                  <isard-dropdown
+                    v-else
+                    :ddDisabled="!showDropDown(data.item)"
+                    :class="{ 'dropdown-inactive': !showDropDown(data.item) }"
+                    cssClass='viewers-dropdown flex-grow-1'
+                    variant='light'
+                    :viewers="data.item.viewers && data.item.viewers.filter(item => item !== getDefaultViewer(data.item))"
+                    :desktop="data.item"
+                    :viewerText="getViewerText(data.item).substring(0, 40)"
+                    fullViewerText=''
+                    :defaultViewer="getDefaultViewer(data.item)"
+                    :waitingIp="data.item.state && data.item.state.toLowerCase() === desktopStates.waitingip"
+                    @dropdownClicked="openDesktop">
+                  </isard-dropdown>
+              </div>
+            </template>
+            <template #cell(action)='data'>
+                <!-- Main action button persistent-->
+                <DesktopButton v-if="![desktopStates.working, desktopStates['shutting-down']].includes(getItemState(data.item))"
+                    class="table-action-button"
+                    :active="true"
+                    @buttonClicked="changeDesktopStatus({ action: status[getItemState(data.item) || 'stopped'].action, desktopId: data.item.id })"
+                    :buttColor = "buttCssColor(getItemState(data.item))"
+                    :spinnerActive ="false"
+                    :buttText = "$t(`views.select-template.status.${getItemState(data.item)}.action`)"
+                    :iconName = "data.item.buttonIconName">
+                </DesktopButton>
+            </template>
+            <template #cell(delete)='data'>
+              <b-button class="rounded-circle btn-red px-2 mr-2" @click="onClickDeleteDesktop(data.item)" :title="$t('components.deployment-desktop-list.actions.delete')">
+                <b-icon icon="trash-fill" scale="0.75"></b-icon>
+              </b-button>
+            </template>
+          </b-table>
+          </b-col>
+      </b-row>
+      </b-skeleton-wrapper>
+    </b-container>
+  </div>
+</template>
+
+<script>
+import i18n from '@/i18n'
+import { desktopStates, status } from '@/shared/constants'
+import { DesktopUtils } from '@/utils/desktopsUtils'
+import IsardDropdown from '@/components/shared/IsardDropdown.vue'
+import DesktopButton from '@/components/desktops/Button.vue'
+import { mapActions, mapGetters } from 'vuex'
+import ListItemSkeleton from '@/components/ListItemSkeleton.vue'
+
+export default {
+  components: { DesktopButton, IsardDropdown, ListItemSkeleton },
+  setup () {},
+  props: {
+    listTitle: String,
+    desktops: {
+      required: true,
+      type: Array
+    },
+    loading: {
+      required: true,
+      type: Boolean
+    }
+  },
+  computed: {
+    ...mapGetters(['getViewers']),
+    stateBarCssClass () {
+      const states = {
+        stopped: 'state-off',
+        started: 'state-on',
+        waitingip: 'state-loading',
+        error: 'state-error',
+        failed: 'state-failed'
+      }
+      return states[this.desktopState]
+    }
+  },
+  methods: {
+    ...mapActions([
+      'deleteDesktop',
+      'openDesktop',
+      'changeDesktopStatus',
+      'createDesktop'
+    ]),
+    imageId (desktop, template) {
+      return desktop.id && DesktopUtils.hash(desktop.id)
+    },
+    hideViewers (desktop) {
+      return desktop.state && desktop.type === 'nonpersistent' && this.getItemState(desktop) === desktopStates.stopped
+    },
+    showDropDown (desktop) {
+      return [desktopStates.started, desktopStates.waitingip].includes(this.getItemState(desktop))
+    },
+    getItemState (desktop) {
+      return desktop.state ? desktop.state.toLowerCase() : desktopStates.stopped
+    },
+    buttCssColor (state) {
+      const stateColors = {
+        stopped: 'btn-green',
+        started: 'btn-red',
+        waitingip: 'btn-red',
+        error: 'btn-red',
+        failed: 'btn-red'
+      }
+      return stateColors[state]
+    },
+    stateCssClass (state) {
+      const stateColors = {
+        stopped: 'state-off',
+        started: 'state-on',
+        waitingip: 'state-loading',
+        failed: 'state-error',
+        working: 'state-loading',
+        'shutting-down': 'state-loading'
+      }
+      return stateColors[state]
+    },
+    getViewerText (desktop) {
+      const name = this.getDefaultViewer(desktop) !== '' ? i18n.t(`views.select-template.viewer-name.${this.getDefaultViewer(desktop)}`) : i18n.t('views.select-template.viewers')
+      return this.getDefaultViewer(desktop) !== '' ? i18n.t('views.select-template.viewer', i18n.locale, { name: name }) : name
+    },
+    getDefaultViewer (desktop) {
+      if (desktop.viewers !== undefined) {
+        if (this.getViewers[desktop.id] !== undefined && desktop.viewers.includes(this.getViewers[desktop.id])) {
+          return this.getViewers[desktop.id]
+        } else if (desktop.viewers.length > 0) {
+          return desktop.viewers.includes('browser-vnc') ? 'browser-vnc' : desktop.viewers[0]
+        }
+      }
+      return ''
+    },
+    onClickDeleteDesktop (desktop) {
+      this.$snotify.clear()
+
+      const yesAction = () => {
+        this.$snotify.remove()
+        this.deleteDesktop(desktop.id)
+      }
+
+      const noAction = () => {
+        this.$snotify.remove() // default
+      }
+
+      this.$snotify.prompt(`${i18n.t('messages.confirmation.delete-deployment-desktop', { name: desktop.userName })}`, {
+        position: 'centerTop',
+        buttons: [
+          { text: 'Yes', action: yesAction, bold: true },
+          { text: 'No', action: noAction }
+        ],
+        placeholder: ''
+      })
+    }
+  },
+  data () {
+    return {
+      desktopStates,
+      status,
+      fields: [
+        {
+          key: 'image',
+          sortable: false,
+          label: '',
+          thStyle: { width: '5%' },
+          tdClass: 'image position-relative'
+        },
+        {
+          key: 'user',
+          sortable: true,
+          label: `${i18n.t('components.deployment-desktop-list.table-header.user')}`,
+          thStyle: { width: '20%' },
+          tdClass: 'name'
+        },
+        {
+          key: 'group',
+          sortable: true,
+          label: `${i18n.t('components.deployment-desktop-list.table-header.group')}`,
+          thStyle: { width: '30%' },
+          tdClass: 'description'
+        },
+        {
+          key: 'ip',
+          sortable: true,
+          label: 'IP',
+          thStyle: { width: '10%' },
+          tdClass: 'ip'
+        },
+        {
+          key: 'state',
+          sortable: true,
+          label: `${i18n.t('components.deployment-desktop-list.table-header.state')}`,
+          thStyle: { width: '10%' },
+          tdClass: 'state'
+        },
+        {
+          key: 'viewers',
+          thStyle: { width: '15%' },
+          label: `${i18n.t('components.deployment-desktop-list.table-header.viewers')}`,
+          tdClass: 'viewers'
+        },
+        {
+          key: 'action',
+          label: `${i18n.t('components.deployment-desktop-list.table-header.action')}`,
+          thStyle: { width: '10%' },
+          tdClass: 'px-4 action'
+        },
+        {
+          key: 'delete',
+          label: '',
+          thStyle: { width: '5%' }
+        }
+      ]
+    }
+  },
+  destroyed () {
+    this.$snotify.clear()
+  }
+}
+</script>

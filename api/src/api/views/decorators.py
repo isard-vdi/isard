@@ -117,6 +117,22 @@ def is_admin_or_manager(f):
     return decorated
 
 
+def is_not_user(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        payload = get_header_jwt_payload()
+        if payload["role_id"] != "user":
+            kwargs["payload"] = payload
+            return f(*args, **kwargs)
+        raise Error(
+            "forbidden",
+            "Not enough rights.",
+            traceback.format_stack(),
+        )
+
+    return decorated
+
+
 def is_hyper(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -193,7 +209,32 @@ def ownsDomainId(payload, desktop_id):
 
     raise Error(
         "forbidden",
-        "Not enough access rights this desktop_id " + str(desktop_id),
+        "Not enough access rights to access this desktop_id " + str(desktop_id),
+        traceback.format_stack(),
+    )
+
+
+def ownsTagId(payload, deployment_id):
+    if payload["role_id"] == "admin":
+        return True
+    with app.app_context():
+        deployment = r.table("deployments").get(deployment_id).run(db.conn)
+    if deployment and deployment["user"] == payload["user_id"]:
+        return True
+    if payload["role_id"] == "manager":
+        with app.app_context():
+            deployment_category = (
+                r.table("users")
+                .get(deployment["user"])
+                .pluck("category")
+                .run(db.conn)["category"]
+            )
+        if deployment_category == payload["category_id"]:
+            return True
+
+    raise Error(
+        "forbidden",
+        "Not enough access rights to access this deployment_id " + str(deployment_id),
         traceback.format_stack(),
     )
 

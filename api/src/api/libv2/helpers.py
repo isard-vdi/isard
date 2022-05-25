@@ -27,48 +27,60 @@ import string
 
 import bcrypt
 
+from ..libv2.isardViewer import isardViewer
 from .apiv2_exc import *
-from .isardViewer import isardViewer as iV
 
-isardviewer = iV()
+isardviewer = isardViewer()
 
 import traceback
 
 from ..libv2.api_exceptions import Error
 
 
-def get_user_item_names(user_id):
-    try:
-        with app.app_context():
-            user = (
-                r.table("users")
-                .get(user_id)
-                .pluck("name", "category", "group", "photo")
-                .run(db.conn)
-            )
-            category_name = (
-                r.table("categories")
-                .get(user["category"])
-                .pluck("name")
-                .run(db.conn)["name"]
-            )
-            group_name = (
-                r.table("groups").get(user["group"]).pluck("name").run(db.conn)["name"]
-            )
-        return {
-            "userName": user["name"],
-            "userPhoto": user["photo"],
-            "categoryName": category_name,
-            "groupName": group_name,
-        }
-    except:
-        print(traceback.format_exc())
-        return {
-            "userName": "Unknown",
-            "userPhoto": "Unknown",
-            "categoryName": "Unknown",
-            "groupName": "Unknown",
-        }
+class InternalUsers(object):
+    def __init__(self):
+        self.users = {}
+
+    def get(self, user_id):
+        data = self.users.get(user_id, False)
+        if not data:
+            with app.app_context():
+                try:
+                    user = (
+                        r.table("users")
+                        .get(user_id)
+                        .pluck("name", "category", "group")
+                        .run(db.conn)
+                    )
+                    category_name = (
+                        r.table("categories")
+                        .get(user["category"])
+                        .pluck("name")
+                        .run(db.conn)["name"]
+                    )
+                    group_name = (
+                        r.table("groups")
+                        .get(user["group"])
+                        .pluck("name")
+                        .run(db.conn)["name"]
+                    )
+                    self.users[user_id] = {
+                        "userName": user["name"],
+                        "categoryName": category_name,
+                        "groupName": group_name,
+                    }
+                except:
+                    print(traceback.format_exc())
+                    return {
+                        "userName": "Unknown",
+                        "userPhoto": "Unknown",
+                        "categoryName": "Unknown",
+                        "groupName": "Unknown",
+                    }
+        return self.users[user_id]
+
+    def list(self):
+        return self.users
 
 
 def _parse_string(txt):
@@ -148,7 +160,33 @@ def _parse_media_info(create_dict):
     return create_dict
 
 
+def _is_frontend_desktop_status(status):
+    frontend_desktop_status = [
+        "Creating",
+        "CreatingAndStarting",
+        "Shutting-down",
+        "Stopping",
+        "Stopped",
+        "Starting",
+        "Started",
+        "Failed",
+        "Downloading",
+        "DownloadStarting",
+    ]
+    return True if status in frontend_desktop_status else False
+
+
+def parse_frontend_desktop_status(desktop):
+    if (
+        desktop["status"].startswith("Creating")
+        and desktop["status"] != "CreatingAndStarting"
+    ):
+        desktop["status"] = "Creating"
+    return desktop
+
+
 def _parse_desktop(desktop):
+    desktop = parse_frontend_desktop_status(desktop)
     desktop["image"] = desktop.get("image", None)
     desktop["from_template"] = desktop.get("parents", [None])[-1]
     if desktop.get("persistent", True):
@@ -190,12 +228,15 @@ def _parse_desktop(desktop):
     }
 
 
-def _parse_deployment_desktop(desktop, user_id):
+def _parse_deployment_desktop(desktop, user_id=False):
+    visible = desktop.get("tag_visible", False)
     user = desktop["user"]
-    if desktop["status"] == "Started" and desktop.get("viewer", {}).get("static"):
+    if desktop["status"] in ["Started", "WaitingIP"] and desktop.get("viewer", {}).get(
+        "static"
+    ):
         viewer = isardviewer.viewer_data(
             desktop["id"],
-            protocol="browser-vnc",
+            "browser-vnc",
             get_cookie=False,
             get_dict=True,
             domain=desktop,
@@ -205,7 +246,7 @@ def _parse_deployment_desktop(desktop, user_id):
         viewer = False
     desktop = _parse_desktop(desktop)
     desktop["viewer"] = viewer
-    desktop = {**desktop, **get_user_item_names(user)}
+    desktop = {**desktop, **app.internal_users.get(user), **{"visible": visible}}
     desktop["user"] = user
     desktop.pop("type")
     desktop.pop("template")

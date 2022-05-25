@@ -58,6 +58,10 @@ app.config["MAX_CONTENT_LENGTH"] = 1 * 1000 * 1000  # 1 MB
 # Stores data for external apps poolling in ram
 app.ram = {"secrets": {}}
 
+from api.libv2.helpers import InternalUsers
+
+app.internal_users = InternalUsers()
+
 print("Starting isard api...")
 
 from api.libv2.load_config import loadConfig
@@ -98,7 +102,6 @@ from .views import (
     AllowedsView,
     CardsView,
     CommonView,
-    DeploymentsView,
     DesktopsNonPersistentView,
     DesktopsPersistentView,
     DownloadsView,
@@ -111,3 +114,4 @@ from .views import (
     VpnViews,
     maintenance,
 )
+from .views.deployments import DeploymentsView

@@ -54,6 +54,9 @@ class IsardValidator(Validator):
             + document["username"]
         )
 
+    def _normalize_default_setter_gendeploymentid(self, document):
+        return _parse_string(document["uid"] + "=" + document["name"])
+
     def _normalize_default_setter_mediaicon(self, document):
         if document["kind"] == "iso":
             return _parse_string("fa-circle-o")

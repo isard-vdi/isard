@@ -37,6 +37,7 @@
 
           <!-- Right aligned nav items-->
           <div class="pt-1"><b-button v-if="locationDesktops && !creationMode" :pill="true" class="mr-0 mr-md-4" variant="outline-primary" size="sm" @click="navigate('desktopsnew')">{{`${$t("components.statusbar.new-desktop")}`}}</b-button></div>
+          <div class="pt-1"><b-button v-if="locationDeployments && !creationMode" :pill="true" class="mr-0 mr-md-4" variant="outline-primary" size="sm" @click="navigate('deploymentsnew')">{{`${$t("components.statusbar.new-deployment")}`}}</b-button></div>
           <b-navbar-nav v-if="locationDesktops && !creationMode" class="ml-auto flex-row d-none d-xl-flex">
             <b-nav-item href="#" @click="setViewType('grid')" :class="{selectedView: getViewType === 'grid'}">
               <b-icon
@@ -100,7 +101,15 @@ export default {
     },
     locationDesktops () {
       const tokens = this.getUrlTokens
-      return tokens.includes('desktops')
+      return tokens === 'desktops'
+    },
+    locationDeployments () {
+      const tokens = this.getUrlTokens
+      return tokens === 'deployments'
+    },
+    locationDeployment () {
+      const tokens = this.getUrlTokens
+      return tokens === 'deployment_desktops'
     },
     creationMode () {
       return this.getUrlTokens.includes('new')
