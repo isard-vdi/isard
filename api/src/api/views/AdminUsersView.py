@@ -16,7 +16,7 @@ from flask import jsonify, request
 # coding=utf-8
 from api import app
 
-from ..libv2.api_admin import admin_table_insert, admin_table_update
+from ..libv2.api_admin import admin_table_delete, admin_table_insert, admin_table_update
 from ..libv2.api_exceptions import Error
 from ..libv2.api_users import ApiUsers, Password, check_category_domain
 from ..libv2.apiv2_exc import *
@@ -39,6 +39,7 @@ from .decorators import (
     is_admin_or_manager,
     itemExists,
     ownsCategoryId,
+    ownsDomainId,
     ownsUserId,
 )
 
@@ -145,11 +146,16 @@ def api_v3_admin_user_insert(payload):
     )
 
 
-@app.route("/api/v3/admin/user/<user_id>", methods=["DELETE"])
+@app.route("/api/v3/admin/user", methods=["DELETE"])
 @has_token
-def api_v3_admin_user_delete(payload, user_id):
-    ownsUserId(payload, user_id)
-    users.Delete(user_id)
+def api_v3_admin_user_delete(payload):
+
+    data = request.get_json()
+
+    for user in data:
+        ownsUserId(payload, user["id"])
+        users.Delete(user["id"])
+
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
@@ -213,6 +219,26 @@ def api_v3_admin_user_desktops(payload, user_id=None):
     ownsUserId(payload, user_id)
     return (
         json.dumps(users.Desktops(user_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/user/check", methods=["POST"])
+@is_admin_or_manager
+def api_v3_admin_user_check(payload):
+
+    data = request.get_json()
+    log.error(data)
+
+    desktops = []
+    for user in data:
+        for desktop in users._user_delete_checks(user["id"]):
+            ownsDomainId(payload, desktop["id"])
+            desktops.append(desktop)
+
+    return (
+        json.dumps(desktops),
         200,
         {"Content-Type": "application/json"},
     )

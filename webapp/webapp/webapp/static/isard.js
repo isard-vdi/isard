@@ -372,6 +372,27 @@ function dtUpdateOnly(table, data){
     table.draw(false);
 }
 
+function toggleRow(table_row, e) {
+    if (e.target.className==='' || e.target.className=='sorting_1' || e.target.className=='form-check-input') {
+        $(table_row).toggleClass('active');
+        if ($(table_row).hasClass('active')) {
+            $(table_row).find('input').prop('checked', true);
+        } else {
+            $(table_row).find('input').prop('checked', false);
+        }
+    }
+}
+
+function infoDomains(value, tbody) {
+    return tbody.append(
+        `<tr>
+        <th>${value['kind']}</th>
+        <th>${value['user']}</th>
+        <th>${value['name']}</th>
+        </tr>`
+    );
+}
+
 // Panel toolbox
 $(document).ready(function() {
     $('.collapse-link').on('click', function() {
