@@ -261,15 +261,24 @@ class ApiAdmin:
         with app.app_context():
             user_id = r.table("users").get(user_id).run(db.conn)
             d = (
-                r.db("isard")
-                .table("domains")
+                r.table("domains")
                 .get(template_id)
+                .merge(
+                    lambda d: {
+                        "category_name": r.table("categories").get(d["category"])[
+                            "name"
+                        ],
+                        "group_name": r.table("groups").get(d["group"])["name"],
+                    }
+                )
                 .pluck(
                     "id",
                     "name",
                     "kind",
                     "category",
+                    "category_name",
                     "group",
+                    "group_name",
                     "user",
                     "username",
                     "status",
@@ -290,8 +299,8 @@ class ApiAdmin:
                 if "parents" in d.keys() and len(d["parents"]) > 0
                 else "",
                 "user": d["username"],
-                "category": d["category"],
-                "group": d["group"].split(d["category"] + "-")[1],
+                "category": d["category_name"],
+                "group": d["group_name"],
                 "kind": d["kind"] if d["kind"] == "desktop" else "template",
                 "status": d["status"],
                 "icon": "fa fa-desktop" if d["kind"] == "desktop" else "fa fa-cube",
@@ -316,15 +325,24 @@ class ApiAdmin:
         with app.app_context():
             user_id = r.table("users").get(user_id).run(db.conn)
             template = (
-                r.db("isard")
-                .table("domains")
+                r.table("domains")
                 .get(template_id)
+                .merge(
+                    lambda d: {
+                        "category_name": r.table("categories").get(d["category"])[
+                            "name"
+                        ],
+                        "group_name": r.table("groups").get(d["group"])["name"],
+                    }
+                )
                 .pluck(
                     "id",
                     "name",
                     "kind",
                     "category",
+                    "category_name",
                     "group",
+                    "group_name",
                     "user",
                     "username",
                     "status",
@@ -347,6 +365,14 @@ class ApiAdmin:
                     "parents",
                 )
                 .filter(lambda derivates: derivates["parents"].contains(template_id))
+                .merge(
+                    lambda d: {
+                        "category_name": r.table("categories").get(d["category"])[
+                            "name"
+                        ],
+                        "group_name": r.table("groups").get(d["group"])["name"],
+                    }
+                )
                 .run(db.conn)
             )
         if user_id["role"] == "manager":
@@ -365,8 +391,8 @@ class ApiAdmin:
                         "selected": True if user_id["id"] == d["user"] else False,
                         "parent": d["parents"][-1],
                         "user": d["username"],
-                        "category": d["category"],
-                        "group": d["group"].split(d["category"] + "-")[1],
+                        "category": d["category_name"],
+                        "group": d["group_name"],
                         "kind": d["kind"] if d["kind"] == "desktop" else "template",
                         "status": d["status"],
                         "icon": "fa fa-desktop"
@@ -385,8 +411,8 @@ class ApiAdmin:
                         "selected": True if user_id["id"] == d["user"] else False,
                         "parent": d["parents"][-1],
                         "user": d["username"],
-                        "category": d["category"],
-                        "group": d["group"].split(d["category"] + "-")[1],
+                        "category": d["category_name"],
+                        "group": d["group_name"],
                         "kind": d["kind"] if d["kind"] == "desktop" else "template",
                         "status": d["status"],
                         "icon": "fa fa-desktop"
