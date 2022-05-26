@@ -21,11 +21,12 @@ from ..libv2.log import log
 
 users = ApiUsers()
 
+with open("/version", "r") as file:
+    version = file.read()
+
 
 @app.route("/api/v3", methods=["GET"])
 def api_v3_test():
-    with open("/version", "r") as file:
-        version = file.read()
     return (
         json.dumps(
             {"name": "IsardVDI", "api_version": 3.1, "isardvdi_version": version}
