@@ -112,13 +112,13 @@ API_HYPERVISORS_SECRET=B5/bUEUzIC+AjNQRmFh3vxR3VeIKirwdeL/xuHPVO+E=
 ### regex match tries to extract the first group, but if there's no group it will extract the whole match
 #AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_CATEGORY=
 #AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_CATEGORY=.*
-#AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_GROUP=
-#AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_GROUP=.*
 ### The base search for listing all the groups of a user
 #AUTHENTICATION_AUTHENTICATION_LDAP_GROUPS_SEARCH=
 ### Filter is the actual filter used to search all the groups of a user. The '%s' represents the user that is sent through the form
 ### More information: https://confluence.atlassian.com/kb/how-to-write-ldap-search-filters-792496933.html
 #AUTHENTICATION_AUTHENTICATION_LDAP_GROUPS_FILTER="(&(objectClass=posixGroup)(memberUid=%s))"
+# If this field is set to true, use the full DN instead of the user that is sent through the form to search for the user groups
+#AUTHENTICATION_AUTHENTICATION_LDAP_GROUPS_SEARCH_USE_DN=false
 ### The field that contains the group in the AUTHENTICATION_AUTHENTICATION_LDAP_GROUPS_FILTER search
 #AUTHENTICATION_AUTHENTICATION_LDAP_GROUPS_SEARCH_FIELD=
 #AUTHENTICATION_AUTHENTICATION_LDAP_GROUPS_SEARCH_REGEX=.*

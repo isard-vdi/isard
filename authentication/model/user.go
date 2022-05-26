@@ -4,17 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
-
-const idsFieldSeparator = "-"
 
 var ErrNotFound = errors.New("not found")
 
 // User is an user of IsardVDI
 type User struct {
+	ID       string `rethinkdb:"id"`
 	UID      string `rethinkdb:"uid"`
 	Username string `rethinkdb:"username"`
 	Password string `rethinkdb:"password"`
@@ -33,7 +31,29 @@ type User struct {
 }
 
 func (u *User) Load(ctx context.Context, sess r.QueryExecutor) error {
-	res, err := r.Table("users").Get(u.ID()).Run(sess)
+	res, err := r.Table("users").Get(u.ID).Run(sess)
+	if err != nil {
+		return err
+	}
+	defer res.Close()
+
+	if err := res.One(u); err != nil {
+		if errors.Is(err, r.ErrEmptyResult) {
+			return ErrNotFound
+		}
+
+		return fmt.Errorf("read db response: %w", err)
+	}
+
+	return nil
+}
+
+func (u *User) LoadWithoutID(ctx context.Context, sess r.QueryExecutor) error {
+	res, err := r.Table("users").Filter(r.And(
+		r.Eq(r.Row.Field("uid"), u.UID),
+		r.Eq(r.Row.Field("provider"), u.Provider),
+		r.Eq(r.Row.Field("category"), u.Category),
+	), r.FilterOpts{}).Run(sess)
 	if err != nil {
 		return err
 	}
@@ -51,27 +71,16 @@ func (u *User) Load(ctx context.Context, sess r.QueryExecutor) error {
 }
 
 func (u *User) Update(ctx context.Context, sess r.QueryExecutor) error {
-	_, err := r.Table("users").Get(u.ID()).Update(u).Run(sess)
+	_, err := r.Table("users").Get(u.ID).Update(u).Run(sess)
 	return err
 }
 
-func (u *User) ID() string {
-	return strings.Join([]string{u.Provider, u.Category, u.UID, u.Username}, idsFieldSeparator)
-}
-
-func UserFromID(id string) *User {
-	parts := strings.Split(id, idsFieldSeparator)
-
-	return &User{
-		Provider: parts[0],
-		Category: parts[1],
-		UID:      parts[2],
-		Username: parts[3],
-	}
-}
-
 func (u *User) Exists(ctx context.Context, sess r.QueryExecutor) (bool, error) {
-	res, err := r.Table("users").Get(u.ID()).Run(sess)
+	res, err := r.Table("users").Filter(r.And(
+		r.Eq(r.Row.Field("uid"), u.UID),
+		r.Eq(r.Row.Field("provider"), u.Provider),
+		r.Eq(r.Row.Field("category"), u.Category),
+	), r.FilterOpts{}).Run(sess)
 	if err != nil {
 		return false, err
 	}

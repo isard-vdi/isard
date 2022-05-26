@@ -2,6 +2,8 @@ package model
 
 import "strings"
 
+const idsFieldSeparator = "-"
+
 type Group struct {
 	Name     string
 	Category string

@@ -69,7 +69,7 @@ func (l *Local) Login(ctx context.Context, categoryID string, args map[string]st
 		Provider: LocalString,
 		Category: categoryID,
 	}
-	if err := u.Load(ctx, l.db); err != nil {
+	if err := u.LoadWithoutID(ctx, l.db); err != nil {
 		if errors.Is(err, model.ErrNotFound) {
 			return nil, "", ErrInvalidCredentials
 		}

@@ -20,7 +20,6 @@ type LDAP struct {
 
 	ReUID          *regexp.Regexp
 	ReCategory     *regexp.Regexp
-	ReGroup        *regexp.Regexp
 	ReUsername     *regexp.Regexp
 	ReName         *regexp.Regexp
 	ReEmail        *regexp.Regexp
@@ -67,12 +66,6 @@ func InitLDAP(cfg cfg.AuthenticationLDAP) *LDAP {
 			log.Fatalf("invalid category regex: %v", err)
 		}
 		l.ReCategory = re
-
-		re, err = regexp.Compile(cfg.RegexGroup)
-		if err != nil {
-			log.Fatalf("invalid group regex: %v", err)
-		}
-		l.ReGroup = re
 
 		re, err = regexp.Compile(cfg.GroupsSearchRegex)
 		if err != nil {
@@ -184,9 +177,6 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]str
 	defer conn.Close()
 
 	attributes := []string{"dn", l.cfg.FieldUID, l.cfg.FieldUsername, l.cfg.FieldName, l.cfg.FieldEmail, l.cfg.FieldPhoto}
-	if l.AutoRegister() {
-		attributes = append(attributes, l.cfg.FieldCategory, l.cfg.FieldGroup)
-	}
 
 	req := ldap.NewSearchRequest(
 		l.cfg.BaseSearch,
@@ -241,16 +231,17 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]str
 			return nil, "", ErrInvalidCredentials
 		}
 
-		grp := &model.Group{
-			Name:     matchRegex(l.ReGroup, entry.GetAttributeValue(l.cfg.FieldGroup)),
-			Category: u.Category,
+		gSearchID := usr
+		if l.cfg.GroupsSearchUseDN {
+			gSearchID = entry.DN
 		}
-		u.Group = grp.ID()
 
-		allUsrGrps, err := l.listAllGroups(usr)
+		allUsrGrps, err := l.listAllGroups(gSearchID)
 		if err != nil {
 			return nil, "", err
 		}
+
+		grp := &model.Group{Category: u.Category}
 
 		roles := []model.Role{model.RoleAdmin, model.RoleManager, model.RoleAdvanced, model.RoleUser}
 		for i, groups := range [][]string{l.cfg.RoleAdminGroups, l.cfg.RoleManagerGroups, l.cfg.RoleAdvancedGroups, l.cfg.RoleUserGroups} {
@@ -258,6 +249,7 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]str
 				for _, uGrp := range allUsrGrps {
 					if uGrp == g {
 						if roles[i].HasMorePrivileges(u.Role) {
+							grp.Name = g
 							u.Role = roles[i]
 						}
 					}
@@ -265,8 +257,11 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]str
 			}
 		}
 		if u.Role == "" {
+			grp.Name = allUsrGrps[0]
 			u.Role = l.cfg.RoleDefault
 		}
+
+		u.Group = grp.ID()
 	}
 
 	return u, "", nil
