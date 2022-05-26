@@ -15,8 +15,8 @@ services:
         ipv4_address: ${DOCKER_NET:-172.31.255}.24
     environment:
       LOG_LEVEL:
-      RETHINKDB_HOST:
-      RETHINKDB_PORT:
-      RETHINKDB_DB:
+      RETHINKDB_HOST: ${RETHINKDB_HOST-isard-db}
+      RETHINKDB_PORT: ${RETHINKDB_PORT-28015}
+      RETHINKDB_DB: ${RETHINKDB_DB-isard}
       API_ISARDVDI_SECRET:
       USAGE:
