@@ -244,7 +244,7 @@ class DomainsThread(threading.Thread):
                                     room="deployments_" + deployment["user"],
                                 )
                             except:
-                                log.debug(traceback.format_exc())
+                                log.debug(traceback.format_stack())
 
             except ReqlDriverError:
                 print("DomainsThread: Rethink db connection lost!")
@@ -253,7 +253,7 @@ class DomainsThread(threading.Thread):
             except Exception:
                 print("DomainsThread internal error: restarting")
                 log.error("DomainsThread internal error: restarting")
-                log.error(traceback.format_exc())
+                log.error(traceback.format_stack())
                 time.sleep(2)
 
         print("DomainsThread ENDED!!!!!!!")
@@ -285,7 +285,9 @@ def socketio_users_connect():
                     )[0]
             except:
                 raise Error(
-                    "not_found", "WS jumperurl token not found", traceback.format_exc()
+                    "not_found",
+                    "WS jumperurl token not found",
+                    traceback.format_stack(),
                 )
             join_room(payload.get("desktop_id"))
             log.debug(
@@ -309,7 +311,7 @@ def socketio_users_connect():
                 join_room(room + "_" + payload["user_id"])
             log.debug("User " + payload["user_id"] + " joined room: " + room)
     except:
-        log.debug("Failed attempt to connect so socketio: " + traceback.format_exc())
+        log.debug("Failed attempt to connect so socketio: " + traceback.format_stack())
 
 
 @socketio.on("disconnect", namespace="/userspace")
@@ -322,4 +324,4 @@ def socketio_domains_disconnect():
             for room in ["desktops", "deployments", "deployment_deskstop"]:
                 leave_room(room + "_" + payload["user_id"])
     except:
-        log.debug(traceback.format_exc())
+        log.debug(traceback.format_stack())

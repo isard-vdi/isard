@@ -16,8 +16,8 @@ from flask import jsonify, request
 from api import app
 
 from ..libv2.api_downloads import Downloads
+from ..libv2.api_exceptions import Error
 from ..libv2.api_users import ApiUsers, check_category_domain
-from ..libv2.apiv2_exc import *
 from ..libv2.log import log
 from ..libv2.quotas import Quotas
 from .decorators import is_admin

@@ -15,9 +15,6 @@ from api import app
 
 r = RethinkDB()
 import logging
-import traceback
-
-from rethinkdb.errors import ReqlTimeoutError
 
 from .flask_rethink import RDB
 

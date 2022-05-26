@@ -6,11 +6,14 @@
 # License: AGPLv3
 import pprint
 import time
+import traceback
 from datetime import datetime, timedelta
 
 from rethinkdb import RethinkDB
 
 from api import app
+
+from .api_exceptions import Error
 
 r = RethinkDB()
 import logging as log
@@ -22,7 +25,7 @@ from .flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
-from .apiv2_exc import *
+
 from .ds import DS
 
 ds = DS()
@@ -64,10 +67,10 @@ class ApiTemplates:
                     .run(db.conn)
                 )
             except:
-                raise UserNotFound
+                raise Error("not_found", "User not found", traceback.format_stack())
             desktop = r.table("domains").get(desktop_id).run(db.conn)
             if desktop == None:
-                raise DesktopNotFound
+                raise Error("not_found", "Desktop not found", traceback.format_stack())
 
         parent_disk = desktop["hardware"]["disks"][0]["file"]
 
@@ -147,8 +150,18 @@ class ApiTemplates:
     def UpdateTemplate(self, template_id, data):
         with app.app_context():
             template = r.table("domains").get(template_id).run(db.conn)
+        if not template:
+            raise Error(
+                "not_found",
+                "Unable to update inexistent template",
+                traceback.format_stack(),
+            )
         if template and template["kind"] == "template":
             with app.app_context():
                 r.table("domains").get(template_id).update(data).run(db.conn)
-            return True
-        return False
+            return
+        raise Error(
+            "conflict",
+            "Unable to update enable in a non template kind domain",
+            traceback.format_stack(),
+        )

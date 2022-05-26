@@ -2,7 +2,6 @@ import inspect
 import json
 import logging as log
 import os
-import traceback
 
 from flask import jsonify, request
 
@@ -77,8 +76,18 @@ ex = {
 
 
 class Error(Exception):
-    def __init__(self, error="bad_request", description="", debug="", data=None):
+    def __init__(
+        self,
+        error="bad_request",
+        description="",
+        debug="",
+        description_code=None,
+        data=None,
+    ):
+        # NOTE: Description codes are defined at https://gitlab.com/isard/isardvdi/-/blob/main/frontend/src/locales/en.json#L340
         self.error = ex[error]["error"].copy()
+        if description_code:
+            self.error["error"] = description_code
         self.error["function"] = (
             inspect.stack()[1][1].split(os.sep)[-1]
             + ":"

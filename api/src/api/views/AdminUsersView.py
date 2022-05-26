@@ -19,7 +19,6 @@ from api import app
 from ..libv2.api_admin import admin_table_delete, admin_table_insert, admin_table_update
 from ..libv2.api_exceptions import Error
 from ..libv2.api_users import ApiUsers, Password, check_category_domain
-from ..libv2.apiv2_exc import *
 from ..libv2.helpers import _check
 from ..libv2.quotas import Quotas
 from ..libv2.validators import _validate_item
@@ -97,9 +96,10 @@ def api_v3_admin_user_update(payload, id=False):
 
     try:
         data = request.get_json()
-    except Exception as e:
-
-        raise Error("bad_request", "Unable to parse body data.", traceback.format_exc())
+    except:
+        raise Error(
+            "bad_request", "Unable to parse body data.", traceback.format_stack()
+        )
 
     ownsUserId(payload, id)
     ownsCategoryId(payload, data["category"])
@@ -121,9 +121,10 @@ def api_v3_admin_user_insert(payload):
         # Required
 
         data = request.get_json()
-    except Exception as e:
-
-        raise Error("bad_request", "Unable to parse body data.", traceback.format_exc())
+    except:
+        raise Error(
+            "bad_request", "Unable to parse body data.", traceback.format_stack()
+        )
 
     p = Password()
     data["password"] = p.encrypt(data["password"])
@@ -262,8 +263,10 @@ def api_v3_admin_edit_category(payload, category_id):
 
     try:
         data = request.get_json()
-    except Exception as e:
-        raise Error("bad_request", "Unable to parse body data.", traceback.format_exc())
+    except:
+        raise Error(
+            "bad_request", "Unable to parse body data.", traceback.format_stack()
+        )
 
     data = _validate_item("category", data)
 
@@ -330,7 +333,9 @@ def api_v3_admin_category_insert(payload):
     try:
         data = request.get_json()
     except:
-        raise Error("bad_request", "Unable to parse body data.", traceback.format_exc())
+        raise Error(
+            "bad_request", "Unable to parse body data.", traceback.format_stack()
+        )
 
     category = _validate_item("category", data)
 
@@ -359,8 +364,10 @@ def api_v3_admin_category_insert(payload):
 def api_v3_admin_group_insert(payload):
     try:
         data = request.get_json()
-    except Exception as e:
-        raise Error("bad_request", "Unable to parse body data.", traceback.format_exc())
+    except:
+        raise Error(
+            "bad_request", "Unable to parse body data.", traceback.format_stack()
+        )
 
     if payload["role_id"] == "manager":
         data["parent_category"] = payload["category_id"]
@@ -472,31 +479,14 @@ def api_v3_admin_secret(payload):
         role_id = request.form.get("role_id", type=str)
         category_id = request.form.get("category_id", type=str)
         domain = request.form.get("domain", type=str)
-
-    except Exception as e:
-        error = traceback.format_exc()
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "Incorrect access. exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
+    except:
+        raise Error(
+            "bad_request", "Admin secret invalid body data", traceback.format_stack()
         )
 
     if role_id == None or domain == None or kid == None or category_id == None:
-        log.error("Incorrect access parameters. Check your query.")
-        return (
-            json.dumps(
-                {
-                    "error": "undefined_error",
-                    "msg": "Incorrect access parameters. Check your query.",
-                }
-            ),
-            401,
-            {"Content-Type": "application/json"},
+        raise Error(
+            "bad_request", "Admin secret missing body data", traceback.format_stack()
         )
 
     secret = users.Secret(kid, description, role_id, category_id, domain)

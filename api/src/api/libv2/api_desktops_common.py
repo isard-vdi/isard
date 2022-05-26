@@ -23,12 +23,12 @@ from .flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
-from ..libv2.api_exceptions import Error
-from ..libv2.isardViewer import isardViewer, viewer_jwt
+from .api_exceptions import Error
+from .isardViewer import isardViewer, viewer_jwt
 
 isardviewer = isardViewer()
 
-from .apiv2_exc import *
+
 from .ds import DS
 
 ds = DS()
@@ -71,71 +71,68 @@ class ApiDesktopsCommon:
             )
         domains = [d for d in domains if d.get("tag_visible", True)]
         if len(domains) == 0:
-            raise Error("not_found", "Desktop not found")
+            raise Error(
+                "not_found",
+                "Desktop not found",
+                traceback.format_stack(),
+            )
         if len(domains) == 1:
-            try:
-                if start_desktop and domains[0]["status"] == "Stopped":
-                    ds.WaitStatus(domains[0]["id"], "Stopped", "Starting", "Started")
-                viewers = {
-                    "desktopId": domains[0]["id"],
-                    "jwt": viewer_jwt(domains[0]["id"], minutes=30),
-                    "vmName": domains[0]["name"],
-                    "vmDescription": domains[0]["description"],
-                    "vmState": "Started",
-                    "file-spice": self.DesktopViewer(
-                        domains[0]["id"], protocol="file-spice", get_cookie=True
-                    ),
-                    "browser-vnc": self.DesktopViewer(
-                        domains[0]["id"], protocol="browser-vnc", get_cookie=True
-                    ),
-                }
+            if start_desktop and domains[0]["status"] == "Stopped":
+                ds.WaitStatus(domains[0]["id"], "Stopped", "Starting", "Started")
+            viewers = {
+                "desktopId": domains[0]["id"],
+                "jwt": viewer_jwt(domains[0]["id"], minutes=30),
+                "vmName": domains[0]["name"],
+                "vmDescription": domains[0]["description"],
+                "vmState": "Started",
+                "file-spice": self.DesktopViewer(
+                    domains[0]["id"], protocol="file-spice", get_cookie=True
+                ),
+                "browser-vnc": self.DesktopViewer(
+                    domains[0]["id"], protocol="browser-vnc", get_cookie=True
+                ),
+            }
 
-                # Needs RDP
-                if "wireguard" in domains[0]["create_dict"]["hardware"]["interfaces"]:
-                    if domains[0]["os"].startswith("win"):
-                        if not domains[0].get("viewer", {}).get("guest_ip"):
-                            wireguard_viewers = {
-                                "vmState": "WaitingIP",
-                                "browser-rdp": {"kind": "browser", "protocol": "rdp"},
-                                "file-rdpgw": {"kind": "file", "protocol": "rdpgw"},
-                            }
-                        else:
-                            wireguard_viewers = {
-                                "browser-rdp": self.DesktopViewer(
-                                    domains[0]["id"],
-                                    protocol="browser-rdp",
-                                    get_cookie=True,
-                                ),
-                                "file-rdpgw": self.DesktopViewer(
-                                    domains[0]["id"],
-                                    protocol="file-rdpgw",
-                                    get_cookie=True,
-                                ),
-                            }
-                        viewers = {**viewers, **wireguard_viewers}
-                return viewers
-            except:
-                raise Error("internal_server", "", traceback.format_exc())
+            # Needs RDP
+            if "wireguard" in domains[0]["create_dict"]["hardware"]["interfaces"]:
+                if domains[0]["os"].startswith("win"):
+                    if not domains[0].get("viewer", {}).get("guest_ip"):
+                        wireguard_viewers = {
+                            "vmState": "WaitingIP",
+                            "browser-rdp": {"kind": "browser", "protocol": "rdp"},
+                            "file-rdpgw": {"kind": "file", "protocol": "rdpgw"},
+                        }
+                    else:
+                        wireguard_viewers = {
+                            "browser-rdp": self.DesktopViewer(
+                                domains[0]["id"],
+                                protocol="browser-rdp",
+                                get_cookie=True,
+                            ),
+                            "file-rdpgw": self.DesktopViewer(
+                                domains[0]["id"],
+                                protocol="file-rdpgw",
+                                get_cookie=True,
+                            ),
+                        }
+                    viewers = {**viewers, **wireguard_viewers}
+            return viewers
         raise Error(
             "internal_server", "Jumperviewer token duplicated", traceback.format_stack()
         )
 
     def DesktopDirectViewer(self, desktop_id, viewer_txt, protocol):
-        log.error(viewer_txt)
         viewer_uri = viewer_txt["viewer"][0].split("/viewer/")[0] + "/vw/"
 
         jumpertoken = False
         with app.app_context():
-            try:
-                jumpertoken = (
-                    r.table("domains")
-                    .get(desktop_id)
-                    .pluck("jumperurl")
-                    .run(db.conn)["jumperurl"]
-                )
-            except:
-                pass
-        if jumpertoken == False:
+            jumpertoken = (
+                r.table("domains")
+                .get(desktop_id)
+                .pluck("jumperurl")
+                .run(db.conn)["jumperurl"]
+            )
+        if not jumpertoken:
             jumpertoken = self.gen_jumpertoken(desktop_id)
 
         return {
@@ -158,4 +155,8 @@ class ApiDesktopsCommon:
                         db.conn
                     )
                 return code
-        return False
+        raise Error(
+            "internal_server",
+            "Unable to generate jumpertoken",
+            traceback.format_stack(),
+        )

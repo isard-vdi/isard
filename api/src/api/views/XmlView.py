@@ -14,7 +14,7 @@ from flask import request
 
 from api import app
 
-from ..libv2.apiv2_exc import *
+from ..libv2.api_exceptions import Error
 from ..libv2.quotas import Quotas
 
 quotas = Quotas()
@@ -26,30 +26,5 @@ xml = ApiXml()
 
 @app.route("/api/v3/xml/virt_install/<id>", methods=["GET"])
 def api_v3_xml_virt_install(id):
-    try:
-        data = xml.VirtInstallGet(id)
-        return json.dumps(data), 200, {"Content-Type": "application/json"}
-    except XmlNotFound:
-        return (
-            json.dumps(
-                {
-                    "error": "undefined_error",
-                    "msg": "VirtInstall " + id + " not exists in database",
-                }
-            ),
-            404,
-            {"Content-Type": "application/json"},
-        )
-
-    except Exception:
-        error = traceback.format_exc()
-        return (
-            json.dumps(
-                {
-                    "error": "generic_error",
-                    "msg": "VirtInstallGet general exception: " + error,
-                }
-            ),
-            500,
-            {"Content-Type": "application/json"},
-        )
+    data = xml.VirtInstallGet(id)
+    return json.dumps(data), 200, {"Content-Type": "application/json"}

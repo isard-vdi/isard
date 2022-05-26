@@ -84,7 +84,7 @@ def admin_table_insert(table, data):
                 raise Error(
                     "internal_server",
                     "Internal server error ",
-                    traceback.format_exc(),
+                    traceback.format_stack(),
                 )
         else:
             raise Error(
@@ -105,7 +105,7 @@ def admin_table_update(table, data):
                 raise Error(
                     "internal_server",
                     "Internal server error",
-                    traceback.format_exc(),
+                    traceback.format_stack(),
                 )
 
 
@@ -129,7 +129,7 @@ def admin_table_delete(table, data):
                 raise Error(
                     "internal_server",
                     "Internal server error",
-                    traceback.format_exc(),
+                    traceback.format_stack(),
                 )
 
 
@@ -138,7 +138,9 @@ class ApiAdmin:
         with app.app_context():
             if r.table("users").get(user_id).run(db.conn) == None:
                 raise Error(
-                    "not_found", "Not found user_id " + user_id, traceback.format_exc()
+                    "not_found",
+                    "Not found user_id " + user_id,
+                    traceback.format_stack(),
                 )
         try:
             with app.app_context():
@@ -185,14 +187,16 @@ class ApiAdmin:
             raise Error(
                 "internal_server",
                 "Internal server error " + user_id,
-                traceback.format_exc(),
+                traceback.format_stack(),
             )
 
     def ListTemplates(self, user_id):
         with app.app_context():
             if r.table("users").get(user_id).run(db.conn) == None:
                 raise Error(
-                    "not_found", "Not found user_id " + user_id, traceback.format_exc()
+                    "not_found",
+                    "Not found user_id " + user_id,
+                    traceback.format_stack(),
                 )
 
         try:
@@ -249,7 +253,7 @@ class ApiAdmin:
             raise Error(
                 "internal_server",
                 "Internal server error " + user_id,
-                traceback.format_exc(),
+                traceback.format_stack(),
             )
 
     def GetTemplateTreeList(self, template_id, user_id):

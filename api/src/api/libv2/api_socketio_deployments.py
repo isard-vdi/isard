@@ -119,7 +119,7 @@ class DeploymentsThread(threading.Thread):
             except Exception:
                 print("DeploymentsThread internal error: restarting")
                 log.error("DeploymentsThread internal error: restarting")
-                log.error(traceback.format_exc())
+                log.error(traceback.format_stack())
                 time.sleep(2)
 
         print("DeploymentsThread ENDED!!!!!!!")
@@ -146,7 +146,7 @@ def start_deployments_thread():
 #             join_room(payload['user_id'])
 #             log.debug('User '+payload['user_id']+' joined deployments ws')
 #     except:
-#         log.debug('Failed attempt to connect so socketio: '+traceback.format_exc())
+#         log.debug('Failed attempt to connect so socketio: '+traceback.format_stack())
 
 # @socketio.on('disconnect', namespace='/deployments')
 # def socketio_deployments_disconnect():

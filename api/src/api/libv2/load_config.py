@@ -133,7 +133,7 @@ class loadConfig:
                 app.system_tables = r.table_list().run(conn)
                 ready = True
             except Exception as e:
-                # print(traceback.format_exc())
+                # print(traceback.format_stack())
                 print(
                     "Database server "
                     + app.config["RETHINKDB_HOST"]
@@ -204,10 +204,8 @@ class loadConfig:
             app.config.setdefault("LOG_FILE", "isard-api.log")
             app.debug = True if os.environ["LOG_LEVEL"] == "DEBUG" else False
 
-        except Exception as e:
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            log.error(exc_type, fname, exc_tb.tb_lineno)
+        except:
+            log.error(traceback.format_stack())
             log.error("Missing parameters!")
             print("Missing parameters!")
             return False

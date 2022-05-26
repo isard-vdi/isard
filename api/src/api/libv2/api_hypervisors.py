@@ -23,9 +23,8 @@ from .flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
-from ..libv2.api_exceptions import Error
 from ..libv2.isardVpn import isardVpn
-from .apiv2_exc import *
+from .api_exceptions import Error
 
 isardVpn = isardVpn()
 
@@ -345,7 +344,11 @@ class ApiHypervisors:
             if not _check(
                 r.table("domains").get(domain_id).update(data).run(db.conn), "replaced"
             ):
-                raise UpdateFailed
+                raise Error(
+                    "internal_server",
+                    "Unable to update guest_addr",
+                    traceback.format_stack(),
+                )
 
     def update_wg_address(self, mac, data):
         with app.app_context():
@@ -356,7 +359,7 @@ class ApiHypervisors:
                 r.table("domains").get(domain_id).update(data).run(db.conn)
                 return domain_id
             except:
-                # print(traceback.format_exc())
+                # print(traceback.format_stack())
                 return False
 
     def get_hypervisor_vpn(self, hyper_id):

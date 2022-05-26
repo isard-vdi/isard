@@ -5,9 +5,13 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
+import traceback
+
 from rethinkdb import RethinkDB
 
 from api import app
+
+from .api_exceptions import Error
 
 r = RethinkDB()
 import logging as log
@@ -30,7 +34,7 @@ class ApiVpn:
         # NOTE: Kind will be users/hypers as this are the only two wireguard
         #       interfaces. Remotevpn are handled in users wg interface.
         if kind not in ["users", "hypers"]:
-            return False
+            raise Error("not_found", "Vpn kind not found", traceback.format_stack())
 
         connection_data = {
             "connected": status,
@@ -70,7 +74,7 @@ def reset_connection_status(
     kind,
 ):
     if kind not in ["users", "hypers", "all"]:
-        return False
+        raise Error("not_found", "Vpn kind not found", traceback.format_stack())
     connection_data = {"connected": False, "remote_ip": None, "remote_port": None}
 
     # Find ip

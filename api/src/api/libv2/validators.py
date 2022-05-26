@@ -28,7 +28,7 @@ def _validate_item(item, data, normalize=True):
             + item
             + " failed: "
             + str(app.validators[item].errors),
-            traceback.format_exc(),
+            traceback.format_stack(),
         )
     if normalize:
         return app.validators[item].normalized(data)
