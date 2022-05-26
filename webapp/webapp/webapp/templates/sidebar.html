@@ -18,7 +18,7 @@
       <li><a href="/isard-admin/templates"><i class="fa fa-cubes"></i> Templates</a></li>
       <li><a href="/isard-admin/media"><i class="fa fa-circle-o"></i> Media</a></li>
       {% endif %}
-        {% if current_user.role == 'advanced' %}
+        <!-- {% if current_user.role == 'advanced' %}
             <li><a href="/isard-admin/desktops/tags"><i class="fa fa-copy"></i> Deployments</a></li>
             {% if tags is defined %}
             <ul class="nav child_menu">
@@ -27,7 +27,7 @@
                 {% endfor %}
             </ul>
             {% endif %}
-        {% endif %}
+        {% endif %} -->
     </ul>
 
     {% if current_user.role == 'manager' %}
