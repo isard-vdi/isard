@@ -1,4 +1,4 @@
-# Isard main config v2.0.0
+# Isard main config v2.1.0
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -193,14 +193,6 @@ DOCKER_IMAGE_TAG=main
 
 # ------ Logs ----------------------------------------------------------------
 LOG_LEVEL=INFO
-
-# ------ alerts --------------------------------------------------------------
-## Telegram
-### TOKEN: https://core.telegram.org/bots#6-botfather
-#TELEGRAM_BOT_TOKEN=
-### CHAT_ID: Add your bot to a group and get the chat_id from 
-### https://api.telegram.org/bot<YourBOTToken>/getUpdates response
-#TELEGRAM_BOT_CHAT_ID=
 
 # ------ QCOW2 images --------------------------------------------------------
 ## Cluster size used when creating qcow2 disk images
