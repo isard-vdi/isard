@@ -81,31 +81,27 @@ class ApiHypervisors:
         with app.app_context():
             hypervisor = r.table("hypervisors").get(hyper_id).run(db.conn)
         if not hypervisor:
-            if not self.check(
-                self.add_hyper(
-                    hyper_id,
-                    hostname,
-                    port=port,
-                    cap_disk=cap_disk,
-                    cap_hyper=cap_hyper,
-                    enabled=False,
-                    browser_port=str(browser_port),
-                    spice_port=str(spice_port),
-                    isard_static_url=isard_static_url,
-                    isard_video_url=isard_video_url,
-                    isard_proxy_hyper_url=isard_proxy_hyper_url,
-                    isard_hyper_vpn_host=isard_hyper_vpn_host,
-                    nvidia_enabled=nvidia_enabled,
-                    force_get_hyp_info=force_get_hyp_info,
-                    description="Added via api",
-                    user=user,
-                    only_forced=only_forced,
-                ),
-                "inserted",
-            ):
-
+            result = self.add_hyper(
+                hyper_id,
+                hostname,
+                port=port,
+                cap_disk=cap_disk,
+                cap_hyper=cap_hyper,
+                enabled=False,
+                browser_port=str(browser_port),
+                spice_port=str(spice_port),
+                isard_static_url=isard_static_url,
+                isard_video_url=isard_video_url,
+                isard_proxy_hyper_url=isard_proxy_hyper_url,
+                isard_hyper_vpn_host=isard_hyper_vpn_host,
+                description="Added via api",
+                user=user,
+                only_forced=only_forced,
+            )
+            if not result:
                 raise Error("not_found", "Unable to ssh-keyscan")
-            log.info("Hypervisor " + hyper_id + " added to database")
+            elif not self.check(result, "inserted"):
+                raise Error("not_found", "Unable to add hypervisor")
         else:
             result = self.add_hyper(
                 hyper_id,
@@ -213,7 +209,7 @@ class ApiHypervisors:
         if cap_disk and self.check(result, "inserted"):
             self.update_hypervisors_pools()
             return result
-        return False
+        return result
 
     def enable_hyper(self, hyper_id):
         with app.app_context():

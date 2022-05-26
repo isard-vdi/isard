@@ -97,8 +97,12 @@ def api_v3_hypervisor(hyper_id=False):
             hostname = request.form.get("hostname", type=str)
             user = request.form.get("user", default="root", type=str)
             port = request.form.get("port", default="2022", type=str)
-            cap_hyper = request.form.get("cap_hyper", default=True, type=bool)
-            cap_disk = request.form.get("cap_disk", default=True, type=bool)
+            cap_disk = json.loads(
+                request.form.get("cap_disk", default="true", type=str).lower()
+            )
+            cap_hyper = json.loads(
+                request.form.get("cap_hyper", default="true", type=str).lower()
+            )
             enabled = request.form.get("enabled", default=False, type=bool)
             browser_port = request.form.get("browser_port", default="443", type=str)
             spice_port = request.form.get("spice_port", default="80", type=str)
