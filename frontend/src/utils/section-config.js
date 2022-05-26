@@ -6,10 +6,13 @@ export const sectionConfig = {
     statusBar: 'StatusBar'
   },
   deployment: {
-    statusBar: 'DeploymentStatusBar'
+    statusBar: 'StatusBar'
+  },
+  deployment_videowall: {
+    statusBar: 'DeploymentVideowallStatusBar'
   },
   deployments: {
-    statusBar: 'DeploymentsStatusBar'
+    statusBar: 'StatusBar'
   },
   images: {
     statusBar: 'ImagesStatusBar'

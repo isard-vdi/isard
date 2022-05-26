@@ -10,6 +10,7 @@ import templates from './modules/templates'
 import sockets from './modules/sockets'
 import deployments from './modules/deployments'
 import vpn from './modules/vpn'
+import allowed from './modules/allowed'
 import store from '@/store/index.js'
 import { authenticationSegment, apiV3Segment, apiAdminSegment } from '@/shared/constants'
 import { getCookie } from 'tiny-cookie'
@@ -184,6 +185,7 @@ export default new Vuex.Store({
     deployments,
     config,
     vpn,
-    sockets
+    sockets,
+    allowed
   }
 })

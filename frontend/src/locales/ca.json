@@ -15,17 +15,14 @@
                 }
             },
             "admin": "Administració",
-            "deployments": {
-                "text": "Desplegaments",
-                "view": "Veure",
-                "manage": "Gestionar"
-            }
+            "deployments": "Desplegaments"
         },
         "statusbar": {
             "desktops-started": "Desktops arrencats",
             "checkbox-text": "Només arrencats",
             "checkbox-text-short": "Arrencats",
             "new-desktop": "Escriptori nou",
+            "new-deployment": "Nou desplegament",
             "upload-file": "Pujar Fitxer",
             "cancel": "Cancel·lar",
             "select": "Seleccionar"
@@ -43,6 +40,20 @@
             "actions": {
                 "delete": "Esborrar"
             },
+            "filter-label": "Filtre"
+        },
+        "deployment-desktop-list": {
+            "actions": {
+                "delete": "Esborrar"
+            },
+            "table-header": {
+                "user": "Usuari",
+                "state": "Estat",
+                "group": "Grup",
+                "action": "Acció",
+                "viewers": "Visors"
+            },
+            "open-with": "Obrir amb",
             "filter-label": "Filtre"
         },
         "help": {
@@ -226,6 +237,10 @@
                 "notCreated": {
                     "action": "Crear"
                 },
+                "creating": {
+                    "text": "Creant",
+                    "action": "Creant"
+                },
                 "failed": {
                     "text": "Fallat",
                     "action": "Reiniciar"
@@ -234,9 +249,17 @@
                     "text": "Iniciat",
                     "action": "Atura"
                 },
+                "starting": {
+                    "text": "Iniciant",
+                    "action": "Iniciant"
+                },
                 "stopped": {
                     "text": "Aturat",
                     "action": "Iniciar"
+                },
+                "stopping": {
+                    "text": "Aturant",
+                    "action": "Aturant"
                 },
                 "waitingip": {
                     "text": "Esperant IP",
@@ -266,6 +289,32 @@
             "no-deployments": {
                 "title": "No hi ha cap deployment de l'usuari actual",
                 "subtitle": "Si creus que es tracta d'un error, contacta a l'administrador"
+            },
+            "buttons": {
+                "videowall": {
+                    "title": "Anar a videowall"
+                },
+                "make-visible": {
+                    "title": "Fer visible"
+                },
+                "make-not-visible": {
+                    "title": "Fer invisible"
+                },
+                "recreate": {
+                    "title": "Recrear"
+                },
+                "download-direct-viewer": {
+                    "title": "Descargar fichero de visores directos"
+                },
+                "delete": {
+                    "title": "Esborrar"
+                }
+            },
+            "table-header": {
+                "name": "Nom",
+                "visible": "Visible",
+                "started-desktops": "Escriptoris arrencats / Total",
+                "actions": "Accions"
             }
         },
         "deployment": {
@@ -292,6 +341,11 @@
         "inputFormat": "Els caràcters vàlids són lletres, digits, coma, punt, - i _"
     },
     "forms": {
+        "allowed": {
+            "groups": "Grups:",
+            "users": "Usuaris:",
+            "placeholder": "Escriu almenys 2 caràcters per cercar."
+        },
         "registration": {
             "code": "Codi de registre"
         },
@@ -302,6 +356,30 @@
             "description": "Descripció",
             "desktop-template": "Plantilla",
             "filter": "Filtrar",
+            "filter-placeholder": "Escriu per cercar",
+            "template-table-column-headers": {
+                "selected": "Seleccionat",
+                "image": "Imatge",
+                "name": "Nom",
+                "description": "Descripció",
+                "category": "Categoria",
+                "group": "Grup",
+                "user": "Usuari"
+            }
+        },
+        "new-deployment": {
+            "title": "Crear nou desplegament:",
+            "name": "Nom del desplegament",
+            "visible": "Visible pels usuaris",
+            "not-visible": "No visible pels usuaris",
+            "section-title-template": "Seleccionar una plantilla:",
+            "desktop": {
+                "title": "Dades del nou escriptori:",
+                "name": "Nom de l'escriptori",
+                "description": "Descripció de l'escriptori",
+                "template": "Plantilla"
+            },
+            "filter": "Filtre",
             "filter-placeholder": "Escriu per cercar",
             "template-table-column-headers": {
                 "selected": "Seleccionat",
@@ -380,7 +458,12 @@
         "confirmation": {
             "delete-desktop": "'{name}' s'esborrarà, continuar?",
             "change-image": "Seleccionar la nova imatge per a l'escriptori?",
-            "create-nonpersistent": "ATENCIÓ! Aquest escriptori és temporal. Al parar-ho totes les dades seràn esborrades. Crear escriptori?"
+            "create-nonpersistent": "ATENCIÓ! Aquest escriptori és temporal. Al parar-ho totes les dades seràn esborrades. Crear escriptori?",
+            "visible-deployment": "'{name}' serà visible pels seus usuaris, continuar?",
+            "not-visible-deployment": "'{name}' serà invisible pels seus usuaris, continuar?",
+            "recreate-deployment": "Els escriptoris esborrats de '{name}' es crearàn de nou, continuar?",
+            "delete-deployment": "'{name}' s'esborrarà, continuar?",
+            "delete-deployment-desktop": "L'escriptori de '{name}' se borrará, continuar?"
         },
         "yes": "Si",
         "no": "No",
@@ -388,7 +471,10 @@
             "deleting-desktop": "Esborrant escriptori",
             "opening-desktop": "Obrint Escriptori",
             "creating-desktop": "Creant Escriptori",
-            "file-downloaded": "Fitxer descarregat"
+            "file-downloaded": "Fitxer descarregat",
+            "creating-deployment": "Creant desplegament",
+            "recreating-deployment": "Recreant desplegament",
+            "deleting-deployment": "Esborrant desplegament"
         },
         "loading": "Carregant"
     }

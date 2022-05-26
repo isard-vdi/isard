@@ -6,6 +6,11 @@
         "inputFormat": "Valid characters are letters, numbers, comma, dot, -, _"
     },
     "forms": {
+        "allowed": {
+            "groups": "Groups:",
+            "users": "Users:",
+            "placeholder": "Type at least 2 letters to search."
+        },
         "registration": {
             "code": "Registration code"
         },
@@ -27,12 +32,39 @@
                 "user": "User"
             }
         },
+        "new-deployment": {
+            "title": "Create new deployment:",
+            "name": "Deployment name",
+            "visible": "Visible to users",
+            "not-visible": "Not visible to users",
+            "section-title-template": "Select a template:",
+            "desktop": {
+                "title": "New desktop data:",
+                "name": "Desktop name",
+                "description": "Desktop description",
+                "template": "Template"
+            },
+            "filter": "Filter",
+            "filter-placeholder": "Type to search",
+            "template-table-column-headers": {
+                "selected": "Selected",
+                "image": "Image",
+                "name": "Name",
+                "description": "Description",
+                "category": "Category",
+                "group": "Group",
+                "user": "User"
+            }
+        },
         "clear": "Clear",
         "cancel": "Cancel",
         "submit": "Submit",
         "create": "Create"
     },
     "components": {
+        "select-search": {
+            "empty": "No options available"
+        },
         "navbar": {
             "home": "Home",
             "help": "Help",
@@ -48,17 +80,14 @@
                 }
             },
             "admin": "Administration",
-            "deployments": {
-                "text": "Deployments",
-                "view": "View",
-                "manage": "Manage"
-            }
+            "deployments": "Deployments"
         },
         "statusbar": {
             "desktops-started": "Desktops started",
             "checkbox-text": "Only started",
             "checkbox-text-short": "Started",
             "new-desktop": "New Desktop",
+            "new-deployment": "New Deployment",
             "upload-file": "Upload File",
             "cancel": "Cancel",
             "select": "Select"
@@ -75,6 +104,20 @@
                 "viewers": "Viewers"
             },
             "no-info-default": "No description available",
+            "open-with": "Open with",
+            "filter-label": "Filter"
+        },
+        "deployment-desktop-list": {
+            "actions": {
+                "delete": "Delete"
+            },
+            "table-header": {
+                "user": "User",
+                "state": "State",
+                "group": "Group",
+                "action": "Action",
+                "viewers": "Viewers"
+            },
             "open-with": "Open with",
             "filter-label": "Filter"
         },
@@ -259,6 +302,10 @@
                 "notCreated": {
                     "action": "Create"
                 },
+                "creating": {
+                    "text": "Creando",
+                    "action": "Creando"
+                },
                 "failed": {
                     "text": "Failed",
                     "action": "Restart"
@@ -267,9 +314,17 @@
                     "text": "Started",
                     "action": "Stop"
                 },
+                "starting": {
+                    "text": "Starting",
+                    "action": "Starting"
+                },
                 "stopped": {
                     "text": "Stopped",
                     "action": "Start"
+                },
+                "stopping": {
+                    "text": "Stopping",
+                    "action": "Stopping"
                 },
                 "waitingip": {
                     "text": "Waiting IP",
@@ -299,6 +354,32 @@
             "no-deployments": {
                 "title": "There are no deployments from this user",
                 "subtitle": "If you think this is an error, please contact the administrator"
+            },
+            "buttons": {
+                "videowall": {
+                    "title": "Go to videowall"
+                },
+                "make-visible": {
+                    "title": "Make visible"
+                },
+                "make-not-visible": {
+                    "title": "Make not visible"
+                },
+                "recreate": {
+                    "title": "Recreate"
+                },
+                "download-direct-viewer": {
+                    "title": "Download direct viewer file"
+                },
+                "delete": {
+                    "title": "Delete"
+                }
+            },
+            "table-header": {
+                "name": "Name",
+                "visible": "Visible",
+                "started-desktops": "Started desktops / Total",
+                "actions": "Actions"
             }
         },
         "deployment": {
@@ -325,7 +406,12 @@
         "confirmation": {
             "delete-desktop": "'{name}' will be deleted, continue?",
             "change-image": "Select the new image for the desktop?",
-            "create-nonpersistent": "WARNING! This desktop is temporal. When stopping it all data will be deleted. Create desktop?"
+            "create-nonpersistent": "WARNING! This desktop is temporal. When stopping it all data will be deleted. Create desktop?",
+            "visible-deployment": "'{name}' will be visible for its users, continue?",
+            "not-visible-deployment": "'{name}' will be invisible for its users, continue?",
+            "recreate-deployment": "'{name}' deleted desktops will be recreated, continue?",
+            "delete-deployment": "'{name}' will be deleted, continue?",
+            "delete-deployment-desktop": "'{name}' desktop will be deleted, continue?"
         },
         "yes": "Yes",
         "no": "No",
@@ -333,7 +419,10 @@
             "deleting-desktop": "Deleting desktop",
             "opening-desktop": "Opening Desktop",
             "creating-desktop": "Creating Desktop",
-            "file-downloaded": "File downloaded"
+            "file-downloaded": "File downloaded",
+            "creating-deployment": "Creating Deployment",
+            "recreating-deployment": "Recreating Deployment",
+            "deleting-deployment": "Deleting deployment"
         },
         "loading": "Loading"
     },

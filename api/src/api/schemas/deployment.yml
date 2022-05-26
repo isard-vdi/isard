@@ -1,0 +1,29 @@
+id:
+  type: string
+  empty: false
+  default_setter: gendeploymentid
+name:
+  required: true
+  type: string
+  empty: false
+description:
+  required: false
+  type: string
+  default: ""
+template_id:
+  required: true
+  type: string
+  empty: false
+visible:
+  required: false
+  type: boolean
+  default: false
+desktop_name:
+  required: false
+  type: string
+  empty: false
+  default: setdeploymentname
+allowed:
+  required: true
+  type: dict
+  empty: false

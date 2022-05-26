@@ -50,3 +50,6 @@ class Quotas:
 
     def IsoCreate(sefl, user_id):
         return
+
+    def deployment_create(self, user_id):
+        qp.check("NewDesktop", user_id)

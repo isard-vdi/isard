@@ -6,12 +6,13 @@ export class DeploymentsUtils {
   }
 
   static parseDeploymentsItem (deployment) {
-    const { id, name, startedDesktops, totalDesktops } = deployment
+    const { id, name, startedDesktops, totalDesktops, visible } = deployment
     return {
       id,
       name,
       startedDesktops,
-      totalDesktops
+      totalDesktops,
+      visible
     }
   }
 
@@ -25,14 +26,16 @@ export class DeploymentsUtils {
   }
 
   static parseDeploymentDesktop (desktop) {
-    const { id, user, userName, userPhoto, categoryName, groupName, state, viewer, viewers } = desktop
+    const { id, ip, user, userName, userPhoto, categoryName, groupName, state, viewer, viewers, image } = desktop
     return {
       id,
+      ip,
       user,
       userName,
       userPhoto,
       categoryName,
       groupName,
+      image,
       state,
       viewer,
       viewers

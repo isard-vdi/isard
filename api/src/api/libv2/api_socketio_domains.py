@@ -52,7 +52,11 @@ from flask import Flask, _request_ctx_stack, jsonify, request
 
 from ..auth.tokens import Error, get_token_payload
 from .api_exceptions import Error
-from .helpers import _parse_deployment_desktop, _parse_desktop
+from .helpers import (
+    _is_frontend_desktop_status,
+    _parse_deployment_desktop,
+    _parse_desktop,
+)
 
 # from flask_cors import cross_origin
 
@@ -119,18 +123,7 @@ class DomainsThread(threading.Thread):
                         else:
                             if not c["new_val"]["id"].startswith("_"):
                                 continue
-                            if c["new_val"]["status"] not in [
-                                "Creating",
-                                "CreatingAndStarting",
-                                "Shutting-down",
-                                "Stopping",
-                                "Stopped",
-                                "Starting",
-                                "Started",
-                                "Failed",
-                                "Downloading",
-                                "DownloadStarting",
-                            ]:
+                            if not _is_frontend_desktop_status(c["new_val"]["status"]):
                                 continue
 
                             if c["new_val"]["kind"] != "desktop":
@@ -142,8 +135,13 @@ class DomainsThread(threading.Thread):
                                 # New
                                 event = "add"
                             else:
-                                # Update
-                                event = "update"
+                                if not c["old_val"].get("tag_visible") and c[
+                                    "new_val"
+                                ].get("tag_visible"):
+                                    event = "add"
+                                else:
+                                    # Update
+                                    event = "update"
                             data = c["new_val"]
 
                         socketio.emit(
@@ -201,7 +199,12 @@ class DomainsThread(threading.Thread):
                                 deployment = (
                                     r.table("deployments")
                                     .get(deployment_id)
-                                    .pluck("id", "name", "user")
+                                    .pluck(
+                                        "id",
+                                        "name",
+                                        "user",
+                                        {"create_dict": {"tag_visible"}},
+                                    )
                                     .merge(
                                         lambda d: {
                                             "totalDesktops": r.table("domains")
@@ -211,6 +214,7 @@ class DomainsThread(threading.Thread):
                                             .get_all(d["id"], index="tag")
                                             .filter({"status": "Started"})
                                             .count(),
+                                            "visible": d["create_dict"]["tag_visible"],
                                         }
                                     )
                                     .run(db.conn)

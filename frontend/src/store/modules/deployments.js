@@ -1,6 +1,10 @@
 import axios from 'axios'
 import { apiV3Segment } from '../../shared/constants'
 import { DeploymentsUtils } from '../../utils/deploymentsUtils'
+import { DesktopUtils } from '@/utils/desktopsUtils'
+import { ErrorUtils } from '../../utils/errorUtils'
+import i18n from '@/i18n'
+import router from '@/router'
 
 export default {
   state: {
@@ -108,6 +112,7 @@ export default {
     fetchDeployment (context, data) {
       axios.get(`${apiV3Segment}/deployment/${data.id}`).then(response => {
         context.commit('setDeployment', DeploymentsUtils.parseDeployment(response.data))
+        context.commit('setDesktops', DesktopUtils.parseDesktops(response.data.desktops))
       })
     },
     setSelectedDesktop (context, selectedDesktop) {
@@ -115,6 +120,57 @@ export default {
     },
     toggleDeploymentsShowStarted (context) {
       context.commit('toggleDeploymentsShowStarted')
+    },
+    createNewDeployment (_, payload) {
+      ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.creating-deployment'), '', true, 1000)
+      axios.post(`${apiV3Segment}/deployments`, payload).then(response => {
+        // this._vm.$snotify.clear()
+        router.push({ name: 'deployment_desktops', params: { id: response.data.id } })
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    toggleVisible (_, payload) {
+      ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deleting-deployment'), '', true, 1000)
+      axios.put(`${apiV3Segment}/deployments/visible/${payload.id}`).then(response => {
+        this._vm.$snotify.clear()
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    deleteDeployment (_, payload) {
+      ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deleting-deployment'), '', true, 1000)
+      axios.delete(`${apiV3Segment}/deployments/${payload.id}`).then(response => {
+        this._vm.$snotify.clear()
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    recreateDeployment (_, payload) {
+      ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.recreating-deployment'), '', true, 1000)
+      axios.put(`${apiV3Segment}/deployments/${payload.id}`).then(response => {
+        this._vm.$snotify.clear()
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    downloadDirectViewerCSV (_, payload) {
+      axios.get(`${apiV3Segment}/deployments/directviewer_csv/${payload.id}`).then(response => {
+        this._vm.$snotify.clear()
+        const el = document.createElement('a')
+        el.setAttribute(
+          'href',
+            `data: text/csv;charset=utf-8,${encodeURIComponent(response.data)}`
+        )
+        el.setAttribute('download', `${payload.id}_direct_viewer.csv`)
+        el.style.display = 'none'
+        document.body.appendChild(el)
+        el.click()
+        document.body.removeChild(el)
+        ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.file-downloaded'), '', false, 1000)
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
     }
   }
 }

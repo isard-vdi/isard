@@ -6,6 +6,11 @@
         "inputFormat": "Los caracteres validos son letras, numeros, coma, punto, -, _"
     },
     "forms": {
+        "allowed": {
+            "groups": "Grupos:",
+            "users": "Usuarios:",
+            "placeholder": "Escribe almenos 2 carácteres para buscar."
+        },
         "registration": {
             "code": "Código de registro"
         },
@@ -16,6 +21,30 @@
             "description": "Descripción",
             "desktop-template": "Plantilla",
             "filter": "Filtrar",
+            "filter-placeholder": "Escribe para buscar",
+            "template-table-column-headers": {
+                "selected": "Seleccionado",
+                "image": "Imagen",
+                "name": "Nombre",
+                "description": "Descripción",
+                "category": "Categoría",
+                "group": "Grupo",
+                "user": "Usuario"
+            }
+        },
+        "new-deployment": {
+            "title": "Crear nuevo despliegue:",
+            "name": "Nombre del despliegue",
+            "visible": "Visible para los usuarios",
+            "not-visible": "No visible para los usuarios",
+            "section-title-template": "Seleccionar una plantilla:",
+            "desktop": {
+                "title": "Datos del nuevo escritorio:",
+                "name": "Nombre del escritorio",
+                "description": "Descripción del escritorio",
+                "template": "Plantilla"
+            },
+            "filter": "Filtro",
             "filter-placeholder": "Escribe para buscar",
             "template-table-column-headers": {
                 "selected": "Seleccionado",
@@ -48,17 +77,14 @@
                 }
             },
             "admin": "Administración",
-            "deployments": {
-                "text": "Despliegues",
-                "view": "Ver",
-                "manage": "Gestionar"
-            }
+            "deployments": "Despliegues"
         },
         "statusbar": {
             "desktops-started": "Escritorios arrancados",
             "checkbox-text": "Solo arrancados",
             "checkbox-text-short": "Arrancados",
             "new-desktop": "Nuevo Escritorio",
+            "new-deployment": "Nuevo despliegue",
             "upload-file": "Subir Fichero",
             "cancel": "Cancelar",
             "select": "Selecciona"
@@ -77,6 +103,20 @@
             "no-info-default": "No hay descripción disponible",
             "open-with": "Accede con",
             "filter-label": "Filtrar"
+        },
+        "deployment-desktop-list": {
+            "actions": {
+                "delete": "Borrar"
+            },
+            "table-header": {
+                "user": "Usuario",
+                "state": "Estado",
+                "group": "Grupo",
+                "action": "Acción",
+                "viewers": "Visores"
+            },
+            "open-with": "Abrir con",
+            "filter-label": "Filtro"
         },
         "help": {
             "close-guide": "Cerrar la guía",
@@ -259,6 +299,10 @@
                 "notCreated": {
                     "action": "Crear"
                 },
+                "creating": {
+                    "text": "Creando",
+                    "action": "Creando"
+                },
                 "failed": {
                     "text": "Fallido",
                     "action": "Restart"
@@ -267,9 +311,17 @@
                     "text": "Iniciado",
                     "action": "Parar"
                 },
+                "starting": {
+                    "text": "Iniciando",
+                    "action": "Iniciando"
+                },
                 "stopped": {
                     "text": "Parado",
                     "action": "Iniciar"
+                },
+                "stopping": {
+                    "text": "Parando",
+                    "action": "Parando"
                 },
                 "waitingip": {
                     "text": "Esperando IP",
@@ -299,6 +351,32 @@
             "no-deployments": {
                 "title": "No existen deployments de este usuario",
                 "subtitle": "Si crees que se trata de un error, contacta con el administrador"
+            },
+            "buttons": {
+                "videowall": {
+                    "title": "Ir a videowall"
+                },
+                "make-visible": {
+                    "title": "Hacer visible"
+                },
+                "make-not-visible": {
+                    "title": "Hacer invisible"
+                },
+                "recreate": {
+                    "title": "Recrear"
+                },
+                "download-direct-viewer": {
+                    "title": "Descargar fichero de visores directos"
+                },
+                "delete": {
+                    "title": "Eliminar"
+                }
+            },
+            "table-header": {
+                "name": "Nombre",
+                "visible": "Visible",
+                "started-desktops": "Escritorios arrancados / Total",
+                "actions": "Acciones"
             }
         },
         "deployment": {
@@ -308,6 +386,20 @@
             "desktop": {
                 "not-available": "Escritorio no disponible"
             }
+        },
+        "deployment-desktop-list": {
+            "actions": {
+                "delete": "Eliminar"
+            },
+            "table-header": {
+                "user": "Usuario",
+                "state": "Estado",
+                "group": "Grupo",
+                "action": "Acción",
+                "viewers": "Visores"
+            },
+            "open-with": "Abrir con",
+            "filter-label": "Filtro"
         },
         "direct-viewer": {
             "local-client-help": "Instrucciones de instalación del cliente local",
@@ -325,7 +417,12 @@
         "confirmation": {
             "delete-desktop": "'{name}' se borrará, continuar?",
             "change-image": "Seleccionar la nueva imagen para el escritorio?",
-            "create-nonpersistent": "ATENCIÓN! Este escritorio es temporal. Al pararlo se eliminarán todos sus datos. Crear escritorio?"
+            "create-nonpersistent": "ATENCIÓN! Este escritorio es temporal. Al pararlo se eliminarán todos sus datos. Crear escritorio?",
+            "visible-deployment": "'{name}' será visible para sus usuarios, continuar?",
+            "not-visible-deployment": "'{name}' será invisible para sus usuarios, continuar?",
+            "recreate-deployment": "Los escritorios eliminados de '{name}' se recrearán, continuar?",
+            "delete-deployment": "'{name}' se borrará, continuar?",
+            "delete-deployment-desktop": "El escritorio de '{name}' se borrará, continuar?"
         },
         "yes": "Si",
         "no": "No",
@@ -333,7 +430,10 @@
             "deleting-desktop": "Borrando escritorio",
             "opening-desktop": "Abriendo escritorio",
             "creating-desktop": "Creando escritorio",
-            "file-downloaded": "Fichero descargado"
+            "file-downloaded": "Fichero descargado",
+            "creating-deployment": "Creando despliegue",
+            "recreating-deployment": "Recreando despliegue",
+            "deleting-deployment": "Eliminando despliegue"
         },
         "loading": "Cargando"
     },

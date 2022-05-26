@@ -11484,7 +11484,6 @@ vue-jest@^3.0.5:
     vue-template-es2015-compiler "^1.6.0"
 
 "vue-loader-v16@npm:vue-loader@^16.1.0":
-  name vue-loader
   version "16.1.1"
   resolved "https://registry.yarnpkg.com/vue-loader/-/vue-loader-16.1.1.tgz#f5b286d60ac6886684c63a17a184391cc9e0199a"
   integrity sha512-wz/+HFg/3SBayHWAlZXARcnDTl3VOChrfW9YnxvAweiuyKX/7IGx1ad/4yJHmwhgWlOVYMAbTiI7GV8G33PfGQ==
@@ -11508,6 +11507,11 @@ vue-router@^3.1.5:
   version "3.4.9"
   resolved "https://registry.yarnpkg.com/vue-router/-/vue-router-3.4.9.tgz#c016f42030ae2932f14e4748b39a1d9a0e250e66"
   integrity sha512-CGAKWN44RqXW06oC+u4mPgHLQQi2t6vLD/JbGRDAXm0YpMv0bgpKuU5bBd7AvMgfTz9kXVRIWKHqRwGEb8xFkA==
+
+vue-select@^3.18.3:
+  version "3.18.3"
+  resolved "https://registry.yarnpkg.com/vue-select/-/vue-select-3.18.3.tgz#31f188d7181a4a86d07b937303c457efe863c4bc"
+  integrity sha512-nKmwxEDO4RRoZ6lWkkVE2bpgne7IJSRzSh1pIawLI7dJLZbtJuSgA0xGaLrT0pUp+JYHBDul242PwOBDHi28vg==
 
 vue-snotify@^3.2.1:
   version "3.2.1"

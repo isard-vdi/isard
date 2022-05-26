@@ -14,8 +14,7 @@ import { sectionConfig } from '@/utils/section-config.js'
 import NewNavBar from '@/components/NewNavBar.vue'
 import StatusBar from '@/components/StatusBar.vue'
 import ImagesStatusBar from '@/components/images/ImagesStatusBar.vue'
-import DeploymentsStatusBar from '@/components/deployments/DeploymentsStatusBar.vue'
-import DeploymentStatusBar from '@/components/deployments/DeploymentStatusBar.vue'
+import DeploymentVideowallStatusBar from '@/components/deployments/DeploymentVideowallStatusBar.vue'
 
 export default {
   setup (_, context) {
@@ -40,8 +39,7 @@ export default {
     StatusBar,
     NewNavBar,
     ImagesStatusBar,
-    DeploymentsStatusBar,
-    DeploymentStatusBar
+    DeploymentVideowallStatusBar
   }
 }
 </script>

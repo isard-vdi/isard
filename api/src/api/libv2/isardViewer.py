@@ -81,7 +81,11 @@ class isardViewer:
                     )
             except ReqlNonExistenceError:
                 raise Error("not_found", "Unable to get viewer for inexistent desktop")
-        if not domain["status"] == "Started":
+
+        if not protocol in ["file-spice", "browser-vnc"] and not domain["status"] in [
+            "Started",
+            "Shutting-down",
+        ]:
             raise Error(
                 "precondition_required", "Unable to get viewer for non started desktop"
             )

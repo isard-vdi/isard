@@ -1,5 +1,5 @@
 <template>
-  <b-container fluid class="desktop-container px-3 pl-xl-5 pr-xl-5 pt-3">
+  <b-container fluid class="main-container px-3 pl-xl-5 pr-xl-5 pt-3">
     <b-row align-h="center">
       <b-col cols="auto" v-for="image in items" :key="image.id" class="m-2 p-2">
         <IsardImage

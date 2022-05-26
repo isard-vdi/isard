@@ -15,11 +15,7 @@
                     "description": "Ezin izan genuen VPN konfigurazio fitxategia deskargatu akats baten ondorioz"
                 }
             },
-            "deployments": {
-                "manage": "Kudeatu",
-                "text": "Hedapenak",
-                "view": "Ikuspegia"
-            }
+            "deployments": "Hedapenak"
         },
         "help": {
             "close-guide": "Gida itxi",

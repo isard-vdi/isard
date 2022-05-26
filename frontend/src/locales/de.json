@@ -206,11 +206,7 @@
                 "download": "VPN"
             },
             "help": "Hilfe",
-            "deployments": {
-                "manage": "Verwalten",
-                "view": "Ansehen",
-                "text": "Verteilungen"
-            },
+            "deployments": "Verteilungen",
             "home": "Startseite"
         },
         "not-found": {

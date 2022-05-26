@@ -291,6 +291,14 @@
   border-bottom-left-radius: 20px;
 }
 
+/* DEPLOYMENTS */
+
+.visibleHighlight {
+  background-color: #EAF5E1;
+  border-bottom-right-radius: 20px;
+  border-bottom-left-radius: 20px;
+}
+
 /* BUTTONS */
 
 .btn-green {
@@ -368,6 +376,56 @@
   color: #fff;
   background-color: #eead47 !important;
   border-color: #eead47 !important;
+}
+
+.btn-blue {
+  color: #fff;
+  background-color: #47b1ee !important;
+  border: none !important;
+}
+
+.btn-blue:focus {
+  color: #fff;
+  background-color: #47b1ee !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.btn-blue:hover {
+  color: #fff;
+  background-color: #47b1ee !important;
+  border-color: #47b1ee !important;
+}
+
+.btn-blue:active {
+  color: #fff;
+  background-color: #47b1ee !important;
+  border-color: #47b1ee !important;
+}
+
+.btn-purple {
+  color: #fff;
+  background-color: #b279e1 !important;
+  border: none !important;
+}
+
+.btn-purple:focus {
+  color: #fff;
+  background-color: #b279e1 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.btn-purple:hover {
+  color: #fff;
+  background-color: #b279e1 !important;
+  border-color: #b279e1 !important;
+}
+
+.btn-purple:active {
+  color: #fff;
+  background-color: #b279e1 !important;
+  border-color: #b279e1 !important;
 }
 
 .isard-tooltip .tooltip-inner {
@@ -453,7 +511,7 @@
 }
 
 /* Form new desktop */
-.desktop-container {
+.main-container {
   margin-top: 7rem !important;
   height: calc(100vh - 120px);
   overflow-y: auto;
@@ -469,7 +527,7 @@
   overflow-y: auto;
 }
 
-.deployments-viewers-grid {
+.scrollable-div {
   height: calc(100vh - 200px);
   overflow-y: auto;
   overflow-x: hidden;
@@ -481,7 +539,7 @@
   overflow-x: hidden;
 }
 
-.new-desktop-templates-list {
+.new-templates-list {
   height: calc(100vh - 120px);
   overflow-y: auto;
   overflow-x: hidden;
