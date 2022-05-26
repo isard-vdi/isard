@@ -12,6 +12,7 @@ import traceback
 from uuid import uuid4
 
 from flask import jsonify, request
+from rethinkdb import RethinkDB
 
 #!flask/bin/python
 # coding=utf-8
@@ -21,6 +22,11 @@ from ..libv2.api_exceptions import Error
 from ..libv2.quotas import Quotas
 
 quotas = Quotas()
+from ..libv2.flask_rethink import RDB
+
+r = RethinkDB()
+db = RDB(app)
+db.init_app(app)
 
 from ..libv2.api_users import ApiUsers, check_category_domain
 
@@ -157,13 +163,17 @@ def api_v3_user_delete(payload):
 @app.route("/api/v3/user/templates", methods=["GET"])
 @has_token
 def api_v3_user_templates(payload):
+    with app.app_context():
+        group = r.table("groups").get(payload["group_id"])["uid"].run(db.conn)
+    if group == None:
+        raise Error("not_found", "Group not found", traceback.format_stack())
     templates = users.Templates(payload)
     dropdown_templates = [
         {
             "id": t["id"],
             "name": t["name"],
             "category": t["category"],
-            "group": t["group"].split("-")[1],
+            "group": group,
             "user_id": t["user"],
             "user_name": t["username"],
             "icon": t["icon"],

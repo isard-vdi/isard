@@ -64,38 +64,57 @@ class ApiDesktopsPersistent:
     ):
         with app.app_context():
             template = r.table("domains").get(template_id).run(db.conn)
-        if template == None:
-            raise Error("not_found", "Template not found", traceback.format_stack())
+            if not template:
+                raise Error("not_found", "Template not found", traceback.format_stack())
+            user = r.table("users").get(payload["user_id"]).run(db.conn)
+            if not user:
+                raise Error("not_found", "NewFromTemplate: user id not found.")
+            group = r.table("groups").get(user["group"]).run(db.conn)
+            if not group:
+                raise Error("not_found", "NewFromTemplate: group id not found.")
 
         parsed_name = _parse_string(desktop_name)
+        new_desktop_id = "_" + payload["user_id"] + "-" + parsed_name
+        with app.app_context():
+            if r.table("domains").get(new_desktop_id).run(db.conn):
+                raise Error(
+                    "conflict",
+                    "NewFromTemplate: user already has a desktop with the same id.",
+                )
 
         parent_disk = template["hardware"]["disks"][0]["file"]
         dir_disk = "/".join(
             (
                 payload["category_id"],
-                payload["group_id"].replace(f"{payload['category_id']}-", ""),
-                payload["user_id"].split("-", 1)[0],
-                "-".join(payload["user_id"].rsplit("-", 2)[-2:]),
+                group["uid"],
+                user["provider"],
+                user["username"],
             )
         )
+
         disk_filename = parsed_name + ".qcow2"
 
         create_dict = template["create_dict"]
         create_dict["hardware"]["disks"] = [
             {"file": dir_disk + "/" + disk_filename, "parent": parent_disk}
         ]
-        create_dict = _parse_media_info(create_dict)
+        try:
+            create_dict = _parse_media_info(create_dict)
+        except:
+            raise Error(
+                "internal_server", "NewFromTemplate: unable to parse media info."
+            )
 
         if "interfaces_mac" in create_dict["hardware"].keys():
             create_dict["hardware"].pop("interfaces_mac")
 
         new_desktop = {
-            "id": "_" + payload["user_id"] + "-" + parsed_name,
+            "id": new_desktop_id,
             "name": desktop_name,
             "description": desktop_description,
             "kind": "desktop",
             "user": payload["user_id"],
-            "username": payload["user_id"].split("-")[-1],
+            "username": user["username"],
             "status": "Creating",
             "detail": None,
             "category": payload["category_id"],
@@ -126,18 +145,16 @@ class ApiDesktopsPersistent:
             new_desktop = {**new_desktop, **deployment}
 
         with app.app_context():
-            if r.table("domains").get(new_desktop["id"]).run(db.conn) == None:
-                if (
-                    _check(
-                        r.table("domains").insert(new_desktop).run(db.conn), "inserted"
-                    )
-                    == False
-                ):
-                    raise NewDesktopNotInserted
-                else:
-                    return new_desktop["id"]
+            if (
+                _check(r.table("domains").insert(new_desktop).run(db.conn), "inserted")
+                == False
+            ):
+                raise Error(
+                    "internal_server",
+                    "NewFromTemplate: unable to insert new desktop in database",
+                )
             else:
-                raise DesktopExists
+                return new_desktop_id
 
     def NewFromScratch(
         self,
