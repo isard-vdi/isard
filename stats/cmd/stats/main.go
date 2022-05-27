@@ -14,6 +14,8 @@ import (
 	"gitlab.com/isard/isardvdi/stats/transport/http"
 
 	lokiCli "github.com/grafana/loki/pkg/logcli/client"
+	"github.com/oracle/oci-go-sdk/v65/common"
+	"github.com/oracle/oci-go-sdk/v65/usageapi"
 	"github.com/rs/zerolog"
 	cliCfg "gitlab.com/isard/isardvdi-cli/cfg"
 	"gitlab.com/isard/isardvdi-cli/pkg/client"
@@ -92,6 +94,7 @@ func startCollectors(cfg cfg.Cfg, log *zerolog.Logger) ([]collector.Collector, *
 	system := cfg.Collectors.System.Enable
 	isardvdiAPI := hasWeb(cfg.Flavour) && cfg.Collectors.IsardVDIAPI.Enable
 	isardvdiAuthentication := hasWeb(cfg.Flavour) && cfg.Collectors.IsardVDIAuthentication.Enable
+	oci := hasWeb(cfg.Flavour) && cfg.Collectors.OCI.Enable
 
 	var sshConn *ssh.Client
 	var sshMux sync.Mutex
@@ -179,6 +182,22 @@ func startCollectors(cfg cfg.Cfg, log *zerolog.Logger) ([]collector.Collector, *
 		cli := &lokiCli.DefaultClient{Address: cfg.Collectors.IsardVDIAuthentication.LokiAddress}
 		a := collector.NewIsardVDIAuthentication(log, cli)
 		collectors = append(collectors, a)
+	}
+
+	if oci {
+		cli, err := usageapi.NewUsageapiClientWithConfigurationProvider(common.DefaultConfigProvider())
+		if err != nil {
+			log.Fatal().Err(err).Str("domain", cfg.Domain).Msg("create OCI usage client")
+		}
+
+		cliCfg := *cli.ConfigurationProvider()
+		tenancy, err := cliCfg.TenancyOCID()
+		if err != nil {
+			log.Fatal().Err(err).Str("domain", cfg.Domain).Msg("get OCI client tenancy")
+		}
+
+		o := collector.NewOCI(log, cli, tenancy)
+		collectors = append(collectors, o)
 	}
 
 	return collectors, libvirtConn, sshConn
