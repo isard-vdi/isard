@@ -15,7 +15,7 @@ import (
 
 	lokiCli "github.com/grafana/loki/pkg/logcli/client"
 	"github.com/rs/zerolog"
-	cliCfg "gitlab.com/isard/isardvdi-cli/cfg"
+	cliCfg "gitlab.com/isard/isardvdi-cli/pkg/cfg"
 	"gitlab.com/isard/isardvdi-cli/pkg/client"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
