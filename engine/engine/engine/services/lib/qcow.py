@@ -27,7 +27,6 @@ from engine.services.lib.functions import (
     execute_commands,
     get_threads_names_running,
     size_format,
-    weighted_choice,
 )
 from engine.services.log import *
 
@@ -956,42 +955,6 @@ def get_host_disk_operations_from_path(
     #     #print(h)
     #     if 'disk_op_' + h in l_threads:
     #         return h
-
-
-def get_host_and_path_diskoperations_to_write_in_path(
-    type_path, relative_path, pool="default"
-):
-    if type_path not in ["bases", "groups", "templates"]:
-        log.error("type disk operations must be bases, groups or templates")
-        return False
-    pool_paths = get_pool(pool)["paths"]
-    paths_for_type = pool_paths[type_path]
-    list_paths_with_weights = [
-        {"w": v["weight"], "k": k} for k, v in paths_for_type.items()
-    ]
-    weights = [v["w"] for v in list_paths_with_weights]
-    index_list_path_selected = weighted_choice(weights)
-    path_selected = list_paths_with_weights[index_list_path_selected]["k"]
-    host_disk_operations_selected = False
-    for h in paths_for_type[path_selected]["disk_operations"]:
-        if ("disk_op_" + h) in get_threads_names_running():
-            host_disk_operations_selected = h
-            log.debug(
-                "host {} selected in pool {}, type_path: {}, path: {}".format(
-                    host_disk_operations_selected, pool, type_path, path_selected
-                )
-            )
-            break
-    if host_disk_operations_selected is False:
-        log.error(
-            "no host with thread for disk_operations in pool {}, type_path: {}, path: {}".format(
-                pool, type_path, path_selected
-            )
-        )
-        return False
-    else:
-        path_absolute = path_selected + "/" + relative_path
-        return host_disk_operations_selected, path_absolute
 
 
 def test_hypers_disk_operations(hyps_disk_operations):
