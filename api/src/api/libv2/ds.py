@@ -165,6 +165,16 @@ class DS:
 
             # Get change
             try:
+                with app.app_context():
+                    real_final_status = (
+                        r.table("domains")
+                        .get(desktop_id)
+                        .pluck("status")
+                        .default(None)
+                        .run(db.conn)
+                    )
+                if not real_final_status or real_final_status == final_status:
+                    return
                 doc = changestatus.next(wait=wait_seconds)
             except ReqlTimeoutError:
                 raise Error(
