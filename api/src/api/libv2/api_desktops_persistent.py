@@ -375,12 +375,16 @@ class ApiDesktopsPersistent:
     def Start(self, desktop_id):
         with app.app_context():
             desktop = r.table("domains").get(desktop_id).run(db.conn)
-            if desktop["status"] == "Started":
-                return desktop_id
-            if desktop["status"] not in ["Stopped", "Failed"]:
-                raise DesktopActionFailed
-        if desktop == None:
+        if not desktop:
             raise Error("not_found", "Desktop not found", traceback.format_stack())
+        if desktop["status"] == "Started":
+            return desktop_id
+        if desktop["status"] not in ["Stopped", "Failed"]:
+            raise Error(
+                "precondition_required",
+                "Desktop can't be started from " + str(desktop["status"]),
+                traceback.format_stack(),
+            )
         # Start the domain
         ds.WaitStatus(desktop_id, "Any", "Starting", "Started")
         return desktop_id
@@ -388,15 +392,18 @@ class ApiDesktopsPersistent:
     def Stop(self, desktop_id):
         with app.app_context():
             desktop = r.table("domains").get(desktop_id).run(db.conn)
-            if desktop["status"] == "Stopped":
-                return desktop_id
-            if desktop["status"] != "Started":
-                raise DesktopActionFailed
-        if desktop == None:
+        if not desktop:
             raise Error("not_found", "Desktop not found", traceback.format_stack())
+        if desktop["status"] == "Stopped":
+            return desktop_id
+        if desktop["status"] not in ["Started", "Shutting-down"]:
+            raise Error(
+                "precondition_required",
+                "Desktop can't be stopped from " + str(desktop["status"]),
+                traceback.format_stack(),
+            )
         # Stop the domain
         try:
-            # ds.WaitStatus(desktop_id, 'Any', 'Shutting-down', 'Stopped', wait_seconds=30)
             ds.WaitStatus(desktop_id, "Any", "Stopping", "Stopped", wait_seconds=10)
         except:
             ds.WaitStatus(desktop_id, "Any", "Stopping", "Stopped")
