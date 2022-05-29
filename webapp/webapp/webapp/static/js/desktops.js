@@ -441,7 +441,7 @@ function actionsDesktopDetail(){
         }).modal('show');
         // setModalUser()
         // setQuotaTableDefaults('#edit-users-quota','users',pk) 
-        api.ajax('/isard-admin/desktops/jumperurl/'+pk,'GET',{}).done(function(data) {
+        api.ajax('/api/v3/admin/domains/jumperurl/'+pk,'GET',{}).done(function(data) {
             if(data.jumperurl != false){
                 $('#jumperurl').show();
                 $('.btn-copy-jumperurl').show();
@@ -463,10 +463,15 @@ function actionsDesktopDetail(){
         $('#jumperurl-check').unbind('ifChecked').on('ifChecked', function(event){
             if($('#jumperurl').val()==''){
                 pk=$('#modalJumperurlForm #id').val();
-                
-                api.ajax('/isard-admin/desktops/jumperurl_reset/'+pk,'GET',{}).done(function(data) {
-                    $('#jumperurl').val(location.protocol + '//' + location.host+'/vw/'+data);
-                });         
+                $.ajax({
+                    url: '/api/v3/admin/domains/jumperurl_reset/' + pk, 
+                    type: 'PUT',
+                    contentType: "application/json",
+                    data: JSON.stringify({"disabled" : false}),
+                    success: function(data) {
+                        $('#jumperurl').val(location.protocol + '//' + location.host+'/vw/'+data);
+                    }
+                })         
                 $('#jumperurl').show();
                 $('.btn-copy-jumperurl').show();
             }
@@ -491,9 +496,15 @@ function actionsDesktopDetail(){
                     addclass: 'pnotify-center'
                 }).get().on('pnotify.confirm', function() {
                     pk=$('#modalJumperurlForm #id').val();
-                    api.ajax('/isard-admin/desktops/jumperurl_disable/'+pk,'GET',{}).done(function(data) {
-                        $('#jumperurl').val('');
-                    }); 
+                    $.ajax({
+                        url: '/api/v3/admin/domains/jumperurl_reset/' + pk, 
+                        type: 'PUT',
+                        contentType: "application/json",
+                        data: JSON.stringify({"disabled" : true}),
+                        success: function(data) {
+                            $('#jumperurl').val('');
+                        }
+                    }) 
                     $('#jumperurl').hide();
                     $('.btn-copy-jumperurl').hide();
                 }).on('pnotify.cancel', function() {
