@@ -113,7 +113,7 @@ def logout():
             <html>
                 <body>
                     <script>
-                        sessionStorage.removeItem('token');
+                        localStorage.removeItem('token');
                         window.location = '{login_path}';
                     </script>
                 </body>

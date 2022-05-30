@@ -9,8 +9,8 @@
 
 export default {
   beforeMount () {
-    if (sessionStorage.token) {
-      this.$store.dispatch('setSession', sessionStorage.token)
+    if (localStorage.token) {
+      this.$store.dispatch('setSession', localStorage.token)
     }
     this.$store.dispatch('watchToken')
   }
