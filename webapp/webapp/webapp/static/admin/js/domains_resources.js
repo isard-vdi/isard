@@ -788,53 +788,6 @@ $(document).ready(function() {
             case 'btn-alloweds':        
                 modalAllowedsFormShow('videos',data)
             break;
-            case 'btn-bookable': 
-                if( data['bookable'] ){    
-                    new PNotify({
-                        title: 'Confirmation Needed',
-                            text: "Are you sure you want to remove "+data['name']+" as a bookable resource? All bookings done will be removed!",
-                            hide: false,
-                            opacity: 0.9,
-                            confirm: {
-                                confirm: true
-                            },
-                            buttons: {
-                                closer: false,
-                                sticker: false
-                            },
-                            history: {
-                                history: false
-                            },
-                            addclass: 'pnotify-center'
-                        }).get().on('pnotify.confirm', function() {
-                            data['table']='videos'
-                            socket.emit('bookable_add',data)
-                        }).on('pnotify.cancel', function() {
-                    });
-                }else{
-                    new PNotify({
-                        title: 'Confirmation Needed',
-                            text: "Are you sure you want to add "+data['name']+" as a bookable resource?",
-                            hide: false,
-                            opacity: 0.9,
-                            confirm: {
-                                confirm: true
-                            },
-                            buttons: {
-                                closer: false,
-                                sticker: false
-                            },
-                            history: {
-                                history: false
-                            },
-                            addclass: 'pnotify-center'
-                        }).get().on('pnotify.confirm', function() {
-                            data['table']='videos'
-                            socket.emit('bookable_delete',data)
-                        }).on('pnotify.cancel', function() {
-                    });
-                }
-            break;
         }
     });
     
