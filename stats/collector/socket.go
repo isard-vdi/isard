@@ -157,9 +157,12 @@ func (s *Socket) collectViewers() (map[int]*viewer, error) {
 					return map[int]*viewer{}, fmt.Errorf("parse bytes sent: %w", err)
 				}
 
-				recv, err = strconv.Atoi(strings.Split(strings.Split(lines[i], "bytes_received:")[1], " ")[0])
-				if err != nil {
-					return map[int]*viewer{}, fmt.Errorf("parse bytes received: %w", err)
+				bRecv := strings.Split(lines[i], "bytes_received:")
+				if len(bRecv) > 1 {
+					recv, err = strconv.Atoi(strings.Split(bRecv[1], " ")[0])
+					if err != nil {
+						return map[int]*viewer{}, fmt.Errorf("parse bytes received: %w", err)
+					}
 				}
 			}
 
