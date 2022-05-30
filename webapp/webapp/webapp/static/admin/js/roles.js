@@ -45,28 +45,7 @@ $(document).ready(function() {
             //~ editRole();
             tr.addClass('shown');
         }
-    });
-
-	$('.btn-new-role').on('click', function () {
-        setQuotaMax('#roles-quota');
-			$('#modalAddRole').modal({
-				backdrop: 'static',
-				keyboard: false
-			}).modal('show');
-            $('#modalAddRoleForm')[0].reset();
-            //~ setModalAddUser();
-	});    
-
-    $("#modalAddRole #send").on('click', function(e){
-            var form = $('#modalAddRoleForm');
-            form.parsley().validate();
-            if (form.parsley().isValid()){
-                data=$('#modalAddRoleForm').serializeObject();
-                data['table']='roles';
-                socket.emit('role_category_group_add',data)  
-            }
-        }); 
-            
+    });          
 });
 
 function formatRoles ( d ) {
