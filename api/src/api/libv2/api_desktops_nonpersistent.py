@@ -111,9 +111,7 @@ class ApiDesktopsNonPersistent:
         if user == None:
             raise Error("not_found", "User not found", traceback.format_stack())
         # Create the domain from that template
-        desktop_id = self._nonpersistent_desktop_from_tmpl(
-            user_id, user["category"], user["group"], template_id
-        )
+        desktop_id = self._nonpersistent_desktop_from_tmpl(user_id, template_id)
 
         ds.WaitStatus(desktop_id, "Any", "Any", "Started")
         return desktop_id
