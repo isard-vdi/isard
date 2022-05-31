@@ -847,9 +847,13 @@ def backing_chain(path_disk, disk_operations_hostname, json_format=True):
         )
 
 
-def get_path_to_disk(relative_path=None, pool="default", type_path="groups"):
+def get_path_to_disk(
+    relative_path=None, pool="default", type_path="groups", extension=None
+):
     if not relative_path:
         relative_path = str(uuid4())
+    if extension:
+        relative_path += f".{extension}"
     pool_paths = get_pool(pool)["paths"]
     paths_for_type = pool_paths[type_path]
     path_selected = choices(
