@@ -110,6 +110,7 @@ class Populate(object):
             "gpus",
             "reservables_vgpus",
             "vgpus",
+            "storage",
             # config should be the last table to be created
             # api waits for config table to start
             "config",
@@ -1109,6 +1110,9 @@ class Populate(object):
                     )
                     .run(self.conn)
                 )
+
+    def storage(self):
+        self.create_table("storage")
 
     def index_create(self, table, indexes):
 

@@ -63,6 +63,7 @@ from engine.services.lib.qcow import (
     get_host_long_operations_from_path,
     get_path_to_disk,
 )
+from engine.services.lib.storage import create_storage
 from engine.services.log import *
 
 DEFAULT_HOST_MODE = "host-passthrough"
@@ -345,7 +346,6 @@ class UiActions(object):
                 if len(dict_domain["hardware"]["disks"]) > 0:
                     index_disk = 0
                     for d in dict_domain["hardware"]["disks"]:
-
                         disk_path = d["file"]
                         pool_id = dict_domain["hypervisors_pools"][0]
                         if pool_id not in self.manager.pools.keys():
@@ -394,6 +394,7 @@ class UiActions(object):
                         action["domain"] = id_domain
                         action["ssh_commands"] = cmds
                         action["index_disk"] = index_disk
+                        action["storage_id"] = d.get("storage_id")
 
                         try:
 
@@ -510,6 +511,8 @@ class UiActions(object):
                     "path_selected"
                 ] = path_selected
 
+                disk = dict_new_template["create_dict"]["hardware"]["disks"][i]
+                create_storage(disk, dict_domain.get("user"))
                 update_table_field("domains", id_domain, "create_dict", create_dict)
 
                 action = {}
@@ -518,6 +521,7 @@ class UiActions(object):
                 action["path_template_disk"] = path_absolute_template_disk
                 action["path_domain_disk"] = path_domain_disk
                 action["disk_index"] = disk_index_in_bus
+                action["storage_id"] = disk.get("storage_id")
 
                 hyp_to_disk_create = get_host_disk_operations_from_path(
                     path_selected, pool=pool_id, type_path=type_path_selected
@@ -566,9 +570,9 @@ class UiActions(object):
         if insert_domain(template_dict)["inserted"] == 1:
             hw_dict = domain_dict["hardware"].copy()
             for i in range(len(hw_dict["disks"])):
-                hw_dict["disks"][i]["file"] = template_dict["create_dict"]["hardware"][
-                    "disks"
-                ][i]["file"]
+                hw_dict["disks"][i] = template_dict["create_dict"]["hardware"]["disks"][
+                    i
+                ]
             update_table_field(
                 "domains", template_id, "hardware", hw_dict, merge_dict=False
             )
