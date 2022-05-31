@@ -26,7 +26,7 @@ from .ds import DS
 
 ds = DS()
 
-from .helpers import _check, _disk_path, _parse_media_info, _parse_string
+from .helpers import _check, _parse_media_info, _parse_string
 
 
 class ApiTemplates:
@@ -63,11 +63,7 @@ class ApiTemplates:
         parent_disk = desktop["hardware"]["disks"][0]["file"]
 
         hardware = desktop["create_dict"]["hardware"]
-
-        dir_disk, disk_filename = _disk_path(user, parsed_name)
-        hardware["disks"] = [
-            {"file": dir_disk + "/" + disk_filename, "parent": parent_disk}
-        ]
+        hardware["disks"] = [{"extension": "qcow2", "parent": parent_disk}]
 
         create_dict = _parse_media_info({"hardware": hardware})
         create_dict["origin"] = desktop_id
