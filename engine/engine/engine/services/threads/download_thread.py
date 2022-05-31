@@ -367,7 +367,11 @@ class DownloadChangesThread(threading.Thread):
         if table == "domains":
             type_path_selected = "groups"
             pool_id = dict_changes["create_dict"]["hypervisors_pools"][0]
-            relative_path = dict_changes["create_dict"]["hardware"]["disks"][0]["file"]
+            disk = dict_changes["create_dict"]["hardware"]["disks"][0]
+            relative_path = None
+            extension = disk.get(
+                "extension", disk.get("file", "qcow2").rsplit(".", 1)[-1]
+            )
 
         else:
             if "hypervisors_pools" in dict_changes.keys():
@@ -379,10 +383,14 @@ class DownloadChangesThread(threading.Thread):
                 pool_id = "default"
 
             type_path_selected = "media"
-            relative_path = dict_changes["path"]
+            relative_path = dict_changes["id"]
+            extension = dict_changes["kind"]
 
         new_file_path, path_selected = get_path_to_disk(
-            relative_path, pool=pool_id, type_path=type_path_selected
+            relative_path=relative_path,
+            pool=pool_id,
+            type_path=type_path_selected,
+            extension=extension,
         )
         return new_file_path, path_selected, type_path_selected, pool_id
 
@@ -604,7 +612,7 @@ class DownloadChangesThread(threading.Thread):
                     ),
                     index="status",
                 )
-                .pluck("id", "path", "url-isard", "url-web", "status")
+                .pluck("id", "kind", "url-isard", "url-web", "status")
                 .merge({"table": "media"})
                 .changes(include_initial=True)
                 .union(
