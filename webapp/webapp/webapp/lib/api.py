@@ -1607,10 +1607,9 @@ class isard:
 
         qos_id = create_dict.pop("qos_id") if "qos_id" in create_dict.keys() else False
         parsed_name = self.parse_string(create_dict["name"])
-        dir_disk, disk_filename = self.get_disk_path(userObj, parsed_name)
         create_dict["hardware"]["disks"] = [
             {
-                "file": dir_disk + "/" + disk_filename,
+                "extension": "qcow2",
                 "parent": parent_disk,
                 "qos_id": qos_id,
             }
