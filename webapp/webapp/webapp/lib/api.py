@@ -1605,11 +1605,33 @@ class isard:
             }
         ]
 
-        # In new desktop modal we don't have media, so just copy the media from original
-        create_dict["hardware"]["isos"] = dom["create_dict"]["hardware"].get("isos", [])
-        create_dict["hardware"]["floppies"] = dom["create_dict"]["hardware"].get(
-            "floppies", []
-        )
+        if len(create_dict["create_dict"]["hardware"].get("isos", [])):
+            create_dict["hardware"]["isos"] = [
+                dict(iso)
+                for iso in {
+                    tuple(isos.items())
+                    for isos in create_dict["create_dict"]["hardware"]["isos"]
+                    + dom["create_dict"]["hardware"].get("isos", [])
+                }
+            ]
+        else:
+            create_dict["hardware"]["isos"] = dom["create_dict"]["hardware"].get(
+                "isos", []
+            )
+
+        if len(create_dict["create_dict"]["hardware"].get("floppies", [])):
+            create_dict["hardware"]["floppies"] = [
+                dict(floppy)
+                for floppy in {
+                    tuple(floppies.items())
+                    for floppies in create_dict["create_dict"]["hardware"]["floppies"]
+                    + dom["create_dict"]["hardware"].get("floppies", [])
+                }
+            ]
+        else:
+            create_dict["hardware"]["floppies"] = dom["create_dict"]["hardware"].get(
+                "floppies", []
+            )
 
         create_dict["hardware"]["not_change_cpu_section"] = (
             dom.get("create_dict", {})
