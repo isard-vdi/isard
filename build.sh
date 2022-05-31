@@ -63,6 +63,7 @@ HYPERVISOR_STANDALONE_PARTS="
 	hypervisor
 	hypervisor-standalone
 	stats
+	toolbox
 "
 VIDEO_STANDALONE_KEY="video-standalone"
 VIDEO_STANDALONE_PARTS="
