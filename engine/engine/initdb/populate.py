@@ -138,15 +138,19 @@ class Populate(object):
                     return False
         return True
 
+    def create_table(self, table_name):
+        exists = r.table_list().contains(table_name).run(self.conn)
+        if not exists:
+            log.info(f"Table {table_name} not found, creating...")
+            r.table_create(table_name, primary_key="id").run(self.conn)
+        return exists
+
     """
     CONFIG
     """
 
     def config(self):
-
-        if not r.table_list().contains("config").run(self.conn):
-            log.warning("Table config not found, creating new one.")
-            r.table_create("config", primary_key="id").run(self.conn)
+        if not self.create_table("config"):
             self.result(
                 r.table("config")
                 .insert(
@@ -222,10 +226,7 @@ class Populate(object):
     """
 
     def backups(self):
-
-        if not r.table_list().contains("backups").run(self.conn):
-            log.info("Table backups not found, creating and populating defaults...")
-            r.table_create("backups", primary_key="id").run(self.conn)
+        self.create_table("backups")
         return True
 
     """
@@ -234,10 +235,7 @@ class Populate(object):
     """
 
     def users(self):
-        if not r.table_list().contains("users").run(self.conn):
-            log.info("Table users not found, creating...")
-            r.table_create("users", primary_key="id").run(self.conn)
-
+        if not self.create_table("users"):
             if r.table("users").get("admin").run(self.conn) is None:
                 usr = [
                     {
@@ -272,10 +270,7 @@ class Populate(object):
     """
 
     def vouchers(self):
-
-        if not r.table_list().contains("vouchers").run(self.conn):
-            log.info("Table vouchers not found, creating...")
-            r.table_create("vouchers", primary_key="id").run(self.conn)
+        self.create_table("vouchers")
         return True
 
     """
@@ -283,10 +278,7 @@ class Populate(object):
     """
 
     def roles(self):
-
-        if not r.table_list().contains("roles").run(self.conn):
-            log.info("Table roles not found, creating and populating...")
-            r.table_create("roles", primary_key="id").run(self.conn)
+        if not self.create_table("roles"):
             self.result(
                 r.table("roles")
                 .insert(
@@ -322,11 +314,7 @@ class Populate(object):
     """
 
     def categories(self):
-
-        if not r.table_list().contains("categories").run(self.conn):
-            log.info("Table categories not found, creating...")
-            r.table_create("categories", primary_key="id").run(self.conn)
-
+        if not self.create_table("categories"):
             if r.table("categories").get("admin").run(self.conn) is None:
                 self.result(
                     r.table("categories")
@@ -351,11 +339,7 @@ class Populate(object):
     """
 
     def groups(self):
-
-        if not r.table_list().contains("groups").run(self.conn):
-            log.info("Table groups not found, creating...")
-            r.table_create("groups", primary_key="id").run(self.conn)
-
+        if not self.create_table("groups"):
             if r.table("groups").get("default").run(self.conn) is None:
                 self.result(
                     r.table("groups")
@@ -386,9 +370,7 @@ class Populate(object):
     """
 
     def remotevpn(self):
-        if not r.table_list().contains("remotevpn").run(self.conn):
-            log.info("Table remotevpn not found, creating...")
-            r.table_create("remotevpn", primary_key="id").run(self.conn)
+        self.create_table("remotevpn")
         return True
 
     """
@@ -396,9 +378,7 @@ class Populate(object):
     """
 
     def deployments(self):
-        if not r.table_list().contains("deployments").run(self.conn):
-            log.info("Table deployments not found, creating...")
-            r.table_create("deployments", primary_key="id").run(self.conn)
+        if not self.create_table("deployments"):
             self.index_create("deployments", ["user"])
         return True
 
@@ -407,10 +387,7 @@ class Populate(object):
     """
 
     def secrets(self):
-        if not r.table_list().contains("secrets").run(self.conn):
-            log.info("Table secrets not found, creating...")
-            r.table_create("secrets", primary_key="id").run(self.conn)
-            # self.index_create('deployments',['user'])
+        self.create_table("secrets")
         return True
 
     # {'allowed': {'groups': [], 'users': False},
@@ -434,11 +411,7 @@ class Populate(object):
     """
 
     def qos_net(self):
-        if not r.table_list().contains("qos_net").run(self.conn):
-            log.info(
-                "Table qos_net not found, creating and populating default network..."
-            )
-            r.table_create("qos_net", primary_key="id").run(self.conn)
+        if not self.create_table("qos_net"):
             self.result(
                 r.table("qos_net")
                 .insert(
@@ -505,11 +478,7 @@ class Populate(object):
     """
 
     def qos_disk(self):
-        if not r.table_list().contains("qos_disk").run(self.conn):
-            log.info(
-                "Table qos_disk not found, creating and populating default network..."
-            )
-            r.table_create("qos_disk", primary_key="id").run(self.conn)
+        if not self.create_table("qos_disk"):
             self.result(
                 r.table("qos_disk")
                 .insert(
@@ -598,12 +567,7 @@ class Populate(object):
     """
 
     def interfaces(self):
-
-        if not r.table_list().contains("interfaces").run(self.conn):
-            log.info(
-                "Table interfaces not found, creating and populating default network..."
-            )
-            r.table_create("interfaces", primary_key="id").run(self.conn)
+        if not self.create_table("interfaces"):
             self.result(
                 r.table("interfaces")
                 .insert(
@@ -710,12 +674,7 @@ class Populate(object):
     """
 
     def graphics(self):
-
-        if not r.table_list().contains("graphics").run(self.conn):
-            log.info(
-                "Table graphics not found, creating and populating default network..."
-            )
-            r.table_create("graphics", primary_key="id").run(self.conn)
+        if not self.create_table("graphics"):
             self.result(
                 r.table("graphics")
                 .insert(
@@ -754,12 +713,7 @@ class Populate(object):
     """
 
     def videos(self):
-
-        if not r.table_list().contains("videos").run(self.conn):
-            log.info(
-                "Table videos not found, creating and populating default network..."
-            )
-            r.table_create("videos", primary_key="id").run(self.conn)
+        if not self.create_table("videos"):
             self.result(
                 r.table("videos")
                 .insert(
@@ -820,12 +774,7 @@ class Populate(object):
     """
 
     def boots(self):
-
-        if not r.table_list().contains("boots").run(self.conn):
-            log.info(
-                "Table boots not found, creating and populating default network..."
-            )
-            r.table_create("boots", primary_key="id").run(self.conn)
+        if not self.create_table("boots"):
             self.result(
                 r.table("boots")
                 .insert(
@@ -885,10 +834,7 @@ class Populate(object):
     """
 
     def media(self):
-
-        if not r.table_list().contains("media").run(self.conn):
-            log.info("Table media not found, creating...")
-            r.table_create("media", primary_key="id").run(self.conn)
+        self.create_table("media")
         self.index_create("media", ["status", "user", "kind"])
         return True
 
@@ -897,10 +843,7 @@ class Populate(object):
     """
 
     def scheduler_jobs(self):
-
-        if not r.table_list().contains("scheduler_jobs").run(self.conn):
-            log.info("Table scheduler_jobs not found, creating...")
-            r.table_create("scheduler_jobs", primary_key="id").run(self.conn)
+        self.create_table("scheduler_jobs")
         return True
 
     """
@@ -911,11 +854,7 @@ class Populate(object):
         """
         Read RethinkDB configuration from file
         """
-        if not r.table_list().contains("hypervisors").run(self.conn):
-            log.info(
-                "Table hypervisors not found, creating and populating with localhost"
-            )
-            r.table_create("hypervisors", primary_key="id").run(self.conn)
+        self.create_table("hypervisors")
         return True
         # old configuration when hypers not auto-register in databsae
         # rhyper = r.table('hypervisors')
@@ -946,11 +885,7 @@ class Populate(object):
     """
 
     def hypervisors_pools(self, disk_operations=["isard-hypervisor"]):
-
-        if not r.table_list().contains("hypervisors_pools").run(self.conn):
-            log.info("Table hypervisors_pools not found, creating...")
-            r.table_create("hypervisors_pools", primary_key="id").run(self.conn)
-
+        if not self.create_table("hypervisors_pools"):
             rpools = r.table("hypervisors_pools")
 
             # self.result(rpools.delete().run(self.conn))
@@ -1022,10 +957,7 @@ class Populate(object):
     """
 
     def domains(self):
-
-        if not r.table_list().contains("domains").run(self.conn):
-            log.info("Table domains not found, creating...")
-            r.table_create("domains", primary_key="id").run(self.conn)
+        self.create_table("domains")
         self.index_create(
             "domains", ["status", "hyp_started", "user", "group", "category", "kind"]
         )
@@ -1036,10 +968,7 @@ class Populate(object):
     """
 
     def disk_operations(self):
-
-        if not r.table_list().contains("disk_operations").run(self.conn):
-            log.info("Table disk_operations not found, creating...")
-            r.table_create("disk_operations", primary_key="id").run(self.conn)
+        self.create_table("disk_operations")
         return True
 
     """
@@ -1088,9 +1017,7 @@ class Populate(object):
     """
 
     def virt_install(self):
-        if not r.table_list().contains("virt_install").run(self.conn):
-            log.info("Table virt_install not found, creating...")
-            r.table_create("virt_install", primary_key="id").run(self.conn)
+        if not self.create_table("virt_install"):
             self.result(
                 r.table("virt_install")
                 .insert(self.update_virtinstalls())
@@ -1156,11 +1083,7 @@ class Populate(object):
     """
 
     def engine(self):
-
-        if not r.table_list().contains("engine").run(self.conn):
-            log.info("Table engine not found, creating...")
-            r.table_create("engine", primary_key="id").run(self.conn)
-
+        if not self.create_table("engine"):
             if r.table("engine").get("admin").run(self.conn) is None:
                 self.result(
                     r.table("engine")
