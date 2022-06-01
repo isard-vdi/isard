@@ -1,0 +1,24 @@
+id:
+  type: string
+name:
+  type: string
+  empty: false
+email:
+  type: string
+role:
+  type: string
+  allowed:
+    - manager
+    - user
+    - admin
+    - advanced
+quota:
+  type: 
+    - dict
+    - boolean
+  schema: quotas
+password:
+  type: string
+  empty: false
+active:
+  type: boolean
