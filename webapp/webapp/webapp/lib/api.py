@@ -1605,12 +1605,12 @@ class isard:
             }
         ]
 
-        if len(create_dict["create_dict"]["hardware"].get("isos", [])):
+        if len(create_dict["hardware"].get("isos", [])):
             create_dict["hardware"]["isos"] = [
                 dict(iso)
                 for iso in {
                     tuple(isos.items())
-                    for isos in create_dict["create_dict"]["hardware"]["isos"]
+                    for isos in create_dict["hardware"]["isos"]
                     + dom["create_dict"]["hardware"].get("isos", [])
                 }
             ]
@@ -1619,12 +1619,12 @@ class isard:
                 "isos", []
             )
 
-        if len(create_dict["create_dict"]["hardware"].get("floppies", [])):
+        if len(create_dict["hardware"].get("floppies", [])):
             create_dict["hardware"]["floppies"] = [
                 dict(floppy)
                 for floppy in {
                     tuple(floppies.items())
-                    for floppies in create_dict["create_dict"]["hardware"]["floppies"]
+                    for floppies in create_dict["hardware"]["floppies"]
                     + dom["create_dict"]["hardware"].get("floppies", [])
                 }
             ]
