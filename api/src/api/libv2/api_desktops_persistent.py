@@ -5,6 +5,7 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 import pprint
+import secrets
 import time
 import traceback
 from datetime import datetime, timedelta
@@ -40,6 +41,21 @@ from .ds import DS
 ds = DS()
 
 from .helpers import _check, _disk_path, _parse_media_info, _parse_string
+
+
+def api_jumperurl_gencode(length=32):
+    code = False
+    while code == False:
+        code = secrets.token_urlsafe(length)
+        with app.app_context():
+            found = list(
+                r.table("domains").get_all(code, index="jumperurl").run(db.conn)
+            )
+        if len(found) == 0:
+            return code
+    raise Error(
+        "internal_server", "Unable to create jumperurl code", traceback.format_stack()
+    )
 
 
 class ApiDesktopsPersistent:
@@ -415,3 +431,33 @@ class ApiDesktopsPersistent:
                 r.table("domains").get(desktop_id).update(desktop_data).run(db.conn),
                 "replaced",
             )
+
+    def JumperUrl(self, id):
+        with app.app_context():
+            domain = r.table("domains").get(id).run(db.conn)
+        if domain == None:
+            raise Error(
+                "not_found",
+                "Could not get domain jumperurl as domain not exists",
+                traceback.format_stack(),
+            )
+        if "jumperurl" not in domain.keys():
+            return {"jumperurl": False}
+        return {"jumperurl": domain["jumperurl"]}
+
+    def JumperUrlReset(self, id, disabled=False, length=32):
+        if disabled == True:
+            with app.app_context():
+                try:
+                    r.table("domains").get(id).update({"jumperurl": False}).run(db.conn)
+                except:
+                    raise Error(
+                        "not_found",
+                        "Unable to reset jumperurl as domain not exists",
+                        traceback.format_stack(),
+                    )
+
+        code = api_jumperurl_gencode()
+        with app.app_context():
+            r.table("domains").get(id).update({"jumperurl": code}).run(db.conn)
+        return code

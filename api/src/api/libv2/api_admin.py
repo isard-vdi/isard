@@ -18,7 +18,6 @@ r = RethinkDB()
 import csv
 import io
 import logging as log
-import secrets
 import traceback
 
 from .flask_rethink import RDB
@@ -425,38 +424,6 @@ class ApiAdmin:
                     }
                 )
         return fancyd
-
-    def api_get_jumperurl(self, id):
-        with app.app_context():
-            domain = r.table("domains").get(id).run(db.conn)
-        if domain == None:
-            return {}
-        if "jumperurl" not in domain.keys():
-            return {"jumperurl": False}
-        return {"jumperurl": domain["jumperurl"]}
-
-    def api_jumperurl_reset(self, id, disabled=False, length=32):
-        if disabled == True:
-            with app.app_context():
-                r.table("domains").get(id).update({"jumperurl": False}).run(db.conn)
-            return True
-
-        code = self.api_jumperurl_gencode()
-        with app.app_context():
-            r.table("domains").get(id).update({"jumperurl": code}).run(db.conn)
-        return code
-
-    def api_jumperurl_gencode(self, length=32):
-        code = False
-        while code == False:
-            code = secrets.token_urlsafe(length)
-            with app.app_context():
-                found = list(
-                    r.table("domains").get_all(code, index="jumperurl").run(db.conn)
-                )
-            if len(found) == 0:
-                return code
-        return False
 
     def MultipleActions(self, table, action, ids):
         with app.app_context():

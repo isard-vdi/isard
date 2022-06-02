@@ -277,3 +277,31 @@ def api_v3_desktop_edit(payload, desktop_id):
             card = api_cards.get_card(img_uuid, image_data["type"])
             return json.dumps(card), 200, {"Content-Type": "application/json"}
     raise Error("not_found", "Update method not found.", traceback.format_stack())
+
+
+@app.route("/api/v3/desktop/jumperurl/<desktop_id>", methods=["GET"])
+@has_token
+def api_v3_admin_viewer(payload, desktop_id):
+    ownsDomainId(payload, desktop_id)
+    data = desktops.JumperUrl(desktop_id)
+    return (
+        json.dumps(data),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/desktop/jumperurl_reset/<desktop_id>", methods=["PUT"])
+@has_token
+def admin_jumperurl_reset(payload, desktop_id):
+    ownsDomainId(payload, desktop_id)
+    try:
+        data = request.get_json()
+    except:
+        raise Error("bad_request", "Bad body data", traceback.format_stack())
+    response = desktops.JumperUrlReset(desktop_id, disabled=data.get("disabled"))
+    return (
+        json.dumps(response),
+        200,
+        {"Content-Type": "application/json"},
+    )
