@@ -662,7 +662,7 @@ function actionsDomainDetail(){
         }).modal('show');
         // setModalUser()
         // setQuotaTableDefaults('#edit-users-quota','users',pk) 
-        api.ajax('/isard-admin/admin/domains/jumperurl/'+pk,'GET',{}).done(function(data) {
+        api.ajax('/isard-admin/desktop/jumperurl/'+pk,'GET',{}).done(function(data) {
             if(data.jumperurl != false){
                 $('#jumperurl').show();
                 $('.btn-copy-jumperurl').show();
@@ -684,7 +684,7 @@ function actionsDomainDetail(){
     $('#jumperurl-check').unbind('ifChecked').on('ifChecked', function(event){
         if($('#jumperurl').val()==''){
             pk=$('#modalJumperurlForm #id').val();
-            api.ajax('/isard-admin/admin/domains/jumperurl_reset/'+pk,'GET',{}).done(function(data) {
+            api.ajax('/isard-admin/desktop/jumperurl_reset/'+pk,'GET',{}).done(function(data) {
                 $('#jumperurl').val(location.protocol + '//' + location.host+'/vw/'+data);
             });         
             $('#jumperurl').show();
@@ -711,7 +711,7 @@ function actionsDomainDetail(){
                 addclass: 'pnotify-center'
             }).get().on('pnotify.confirm', function() {
                 pk=$('#modalJumperurlForm #id').val();
-                api.ajax('/isard-admin/admin/domains/jumperurl_disable/'+pk,'GET',{}).done(function(data) {
+                api.ajax('/isard-admin/desktop/jumperurl_disable/'+pk,'GET',{}).done(function(data) {
                     $('#jumperurl').val('');
                 }); 
                 $('#jumperurl').hide();

@@ -441,7 +441,7 @@ function actionsDesktopDetail(){
         }).modal('show');
         // setModalUser()
         // setQuotaTableDefaults('#edit-users-quota','users',pk) 
-        api.ajax('/api/v3/admin/domains/jumperurl/'+pk,'GET',{}).done(function(data) {
+        api.ajax('/api/v3/desktop/jumperurl/'+pk,'GET',{}).done(function(data) {
             if(data.jumperurl != false){
                 $('#jumperurl').show();
                 $('.btn-copy-jumperurl').show();
@@ -464,7 +464,7 @@ function actionsDesktopDetail(){
             if($('#jumperurl').val()==''){
                 pk=$('#modalJumperurlForm #id').val();
                 $.ajax({
-                    url: '/api/v3/admin/domains/jumperurl_reset/' + pk, 
+                    url: '/api/v3/desktop/jumperurl_reset/' + pk, 
                     type: 'PUT',
                     contentType: "application/json",
                     data: JSON.stringify({"disabled" : false}),
@@ -497,7 +497,7 @@ function actionsDesktopDetail(){
                 }).get().on('pnotify.confirm', function() {
                     pk=$('#modalJumperurlForm #id').val();
                     $.ajax({
-                        url: '/api/v3/admin/domains/jumperurl_reset/' + pk, 
+                        url: '/api/v3/desktop/jumperurl_reset/' + pk, 
                         type: 'PUT',
                         contentType: "application/json",
                         data: JSON.stringify({"disabled" : true}),

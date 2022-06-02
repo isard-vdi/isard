@@ -83,30 +83,6 @@ def api_v3_admin_desktops_tree_list(payload, id):
     )
 
 
-@app.route("/api/v3/admin/domains/jumperurl/<id>", methods=["GET"])
-@is_admin_or_manager
-def api_v3_admin_viewer(payload, id):
-    data = admins.api_get_jumperurl(id)
-    return (
-        json.dumps(data),
-        200,
-        {"Content-Type": "application/json"},
-    )
-
-
-@app.route("/api/v3/admin/domains/jumperurl_reset/<id>", methods=["PUT"])
-@is_admin_or_manager
-def admin_jumperurl_reset(payload, id):
-    data = request.get_json()
-    disabled = data.get("disabled")
-    response = admins.api_jumperurl_reset(id, disabled=disabled)
-    return (
-        json.dumps(response),
-        200,
-        {"Content-Type": "application/json"},
-    )
-
-
 @app.route("/api/v3/admin/multiple_actions", methods=["POST"])
 @is_admin_or_manager
 def admin_multiple_actions_domains(payload):
