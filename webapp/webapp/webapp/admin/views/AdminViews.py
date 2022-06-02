@@ -75,39 +75,6 @@ def admin_table_get(table):
     return json.dumps(result), 200, {"Content-Type": "application/json"}
 
 
-# Used in quota.js for admin users
-@app.route("/isard-admin/admin/load/<table>/post", methods=["POST"])
-@login_required
-@isAdminManager
-def admin_load_post(table):
-    if request.method == "POST":
-        data = request.get_json(force=True)
-        if "id" not in data.keys():
-            data["id"] = False
-        if "pluck" not in data.keys():
-            data["pluck"] = False
-        if "order" not in data.keys():
-            data["order"] = False
-        if "flatten" not in data.keys():
-            data["flatten"] = True
-        if table == "media" and current_user.role == "manager":
-            result = app.isardapi.get_all_alloweds_table(
-                "media", current_user.id, pluck=False
-            )
-            result = [r for r in result if r["category"] == current_user.category]
-        else:
-            result = app.adminapi.get_admin_table(
-                table,
-                id=data["id"],
-                pluck=data["pluck"],
-                order=data["order"],
-                flatten=data["flatten"],
-            )
-
-        return json.dumps(result), 200, {"Content-Type": "application/json"}
-    return json.dumps("Could not delete."), 500, {"Content-Type": "application/json"}
-
-
 @app.route("/isard-admin/admin/table/<table>/post", methods=["POST"])
 @login_required
 @isAdminManager

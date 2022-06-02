@@ -522,7 +522,7 @@ function actionsUserDetail(){
 				keyboard: false
             }).modal('show');
             setModalUser()
-            api.ajax('/isard-admin/admin/load/users/post','POST',{'id':pk}).done(function(user) {
+            api.ajax('/api/v3/admin/table/users','POST',{'id':pk}).done(function(user) {
                 $('#modalEditUserForm #name').val(user.name);
                 $('#modalEditUserForm #id').val(user.id);
                 $('#modalEditUserForm #uid').val(user.uid);

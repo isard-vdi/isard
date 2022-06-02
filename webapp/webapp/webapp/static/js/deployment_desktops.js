@@ -738,7 +738,7 @@ function actionsDomainDetail(){
             backdrop: 'static',
             keyboard: false
         }).modal('show');
-        api.ajax('/isard-admin/admin/load/domains/post','POST',{'id':pk,'pluck':['id','forced_hyp']}).done(function(data) {        
+        api.ajax('/api/v3/admin/table/domains','POST',{'id':pk,'pluck':['id','forced_hyp']}).done(function(data) {        
             if('forced_hyp' in data && data.forced_hyp != false && data.forced_hyp != []){
                 HypervisorsDropdown(data.forced_hyp[0]);
                 $('#modalForcedhypForm #forced_hyp').show();
@@ -757,7 +757,7 @@ function actionsDomainDetail(){
     $('#forcedhyp-check').unbind('ifChecked').on('ifChecked', function(event){
         if($('#forced_hyp').val()==''){
             pk=$('#modalForcedhypForm #id').val();  
-            api.ajax('/isard-admin/admin/load/domains/post','POST',{'id':pk,'pluck':['id','forced_hyp']}).done(function(data) {        
+            api.ajax('/api/v3/admin/table/domains','POST',{'id':pk,'pluck':['id','forced_hyp']}).done(function(data) {        
                 
                 if('forced_hyp' in data && data.forced_hyp != false && data.forced_hyp != []){
                     HypervisorsDropdown(data.forced_hyp[0]);

@@ -294,7 +294,7 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
 
 	//~ Used in users.js
 	function setQuotaTableDefaults(div_id,table,id){
-			api.ajax('/isard-admin/admin/load/'+table+'/post','POST',{'id':id}).done(function(domain) {
+			api.ajax('/api/v3/admin/table/'+table,'POST',{'id':id}).done(function(domain) {
 				$(div_id+" #quota-desktops").data("ionRangeSlider").update({
 						  from: domain['quota-desktops']
                 });

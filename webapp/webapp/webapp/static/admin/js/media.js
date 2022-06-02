@@ -72,7 +72,7 @@ $(document).ready(function() {
         "ajax": {
                 //~ "url": "/isard-admin/admin/table/isard-admin/media/get",
                 //~ "dataSrc": ""
-				"url": "/isard-admin/admin/load/media/post/",
+				"url": "/api/v3/admin/table/media",
                 "contentType": "application/json",
                 "type": 'POST',
                 "data": function(d){return JSON.stringify({'flatten':false})}            

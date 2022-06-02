@@ -89,7 +89,7 @@ $(document).ready(function() {
                     keyboard: false
                 }).modal('show');
                 $('#modalRemotevpn #modalRemotevpnForm').parsley();
-                api.ajax('/isard-admin/admin/load/remotevpn/post','POST',{'id':data.id}).done(function(remotevpn) {
+                api.ajax('/api/v3/admin/table/remotevpn','POST',{'id':data.id}).done(function(remotevpn) {
                     $('#modalRemotevpnForm #name').val(remotevpn.name).attr("disabled",true);
                     $('#modalRemotevpnForm #id').val(remotevpn.id);
                     $('#modalRemotevpnForm #description').val(remotevpn.description);
@@ -240,7 +240,7 @@ $(document).ready(function() {
                     keyboard: false
                 }).modal('show');
                 $('#modalQosNet #modalQosNetForm').parsley();
-                api.ajax('/isard-admin/admin/load/qos_net/post','POST',{'id':data.id}).done(function(qos) {
+                api.ajax('/api/v3/admin/table/qos_net','POST',{'id':data.id}).done(function(qos) {
                     (qos)
                     $('#modalQosNetForm #name').val(qos.name).attr("disabled",true);
                     $('#modalQosNetForm #id').val(qos.id);
@@ -381,7 +381,7 @@ $(document).ready(function() {
                     keyboard: false
                 }).modal('show');
                 $('#modalQosDisk #modalQosDiskForm').parsley();
-                api.ajax('/isard-admin/admin/load/qos_disk/post','POST',{'id':data.id}).done(function(qos) {
+                api.ajax('/api/v3/admin/table/qos_disk','POST',{'id':data.id}).done(function(qos) {
                     $('#modalQosDiskForm #name').val(qos.name).attr("disabled",true);
                     $('#modalQosDiskForm #id').val(qos.id);
                     $('#modalQosDiskForm #description').val(qos.description);
@@ -527,7 +527,7 @@ $(document).ready(function() {
                     keyboard: false
                 }).modal('show');
                 $('#modalInterfaces #modalInterfacesForm').parsley();
-                api.ajax('/isard-admin/admin/load/interfaces/post','POST',{'id':data.id}).done(function(interface) {
+                api.ajax('/api/v3/admin/table/interfaces','POST',{'id':data.id}).done(function(interface) {
                     if (interface.id === "wireguard"){
                         $('#kind').attr('style', 'pointer-events: none;')
                         $('#ifname').prop('readonly', true)
@@ -1049,7 +1049,7 @@ function QosNetParse(data){
 function populateDropdown(table, dropdown_id, selected_id, custom){
     $(dropdown_id).find('option').remove().end();
     pluck=['id','name','description']
-    api.ajax('/isard-admin/admin/load/'+table+'/post','POST',{'pluck':pluck}).done(function(data) {
+    api.ajax('/api/v3/admin/table/'+table,'POST',{'pluck':pluck}).done(function(data) {
         if(!(custom == false)){
             $(dropdown_id).append('<option value=' + custom.id + '>' + custom.name + '</option>');
         }
