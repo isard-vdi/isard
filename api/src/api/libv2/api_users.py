@@ -53,11 +53,12 @@ def check_category_domain(category_id, domain):
         allowed_domain = (
             r.table("categories")
             .get(category_id)
-            .filter({"allowed_domain": domain})
             .pluck("allowed_domain")
             .run(db.conn)
+            .get("allowed_domain")
         )
-    if not allowed_domain:
+    allowed = not allowed_domain or domain == allowed_domain
+    if not allowed:
         raise Error(
             "forbidden",
             "Register domain does not match category allowed domain",
