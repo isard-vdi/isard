@@ -780,7 +780,7 @@ class ApiUsers:
 
         desktops = (
             r.table("domains")
-            .filter({"category": category})
+            .filter({"group": group_id})
             .pluck("id", "status")
             .run(db.conn)
         )
