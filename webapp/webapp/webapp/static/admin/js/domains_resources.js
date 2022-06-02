@@ -444,18 +444,7 @@ $(document).ready(function() {
                             $('.modal').modal('hide');
                         }
                     });
-                }                 
-            $.ajax({
-                type: "POST",
-                url:"/admin/table/add/qos_disk",
-                data: JSON.stringify(data),
-                contentType: "application/json",
-                success: function(data)
-                {
-                    $('form').each(function() { this.reset() });
-                    $('.modal').modal('hide');
                 }
-            });
         }
             
     });
