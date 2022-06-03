@@ -68,4 +68,4 @@ def api_v3_admin_media_insert(payload):
 
     admin_table_insert("media", data)
 
-    return json.dumps(data), 200, {"Content-Type": "application/json"}
+    return json.dumps({}), 200, {"Content-Type": "application/json"}
