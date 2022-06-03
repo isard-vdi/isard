@@ -110,7 +110,8 @@ $(document).ready(function() {
                             {
                             "targets": 5,
                             "render": function ( data, type, full, meta ) {
-                                if('preferred' in full['options']['viewers'] && full['options']['viewers']['preferred']){return full['options']['viewers']['preferred'].replace('-','/').toUpperCase();}
+                                if(full["guest_properties"]["viewers"]["preferred"])
+                                {return full["guest_properties"]["viewers"]["preferred"].replace('-','/');}
                               return '';
                             }},
                             {
@@ -781,10 +782,10 @@ function modal_edit_desktop_datatables(id){
             $('#modalEditDesktop #name').val(data.name);
             $('#modalEditDesktop #description').val(data.description);
             $('#modalEditDesktop #id').val(data.id);
+            $('#modalEditDesktop #guest_properties-credentials-username').val(data["guest_properties-credentials-username"]);
+            $('#modalEditDesktop #guest_properties-credentials-password').val(data["guest_properties-credentials-password"]);
             setHardwareDomainDefaults('#modalEditDesktop', id);
-            if(data['options-viewers-spice-fullscreen']){
-                $('#modalEditDesktop #options-viewers-spice-fullscreen').iCheck('check');
-            }
+            setViewers('#modalEditDesktop',data)
         }
     });
 }
@@ -794,7 +795,20 @@ $("#modalEditDesktop #send").on('click', function(e){
         form.parsley().validate();
         if (form.parsley().isValid()){
                 data=$('#modalEdit').serializeObject();
+                if( ("viewers-file_rdpgw" in data || "viewers-file_rdpvpn" in data || "viewers-browser_rdp" in data) && ! data["hardware-interfaces"].includes("wireguard") ){
+                    new PNotify({
+                        title: "Incompatible options",
+                            text: "RDP viewers need the wireguard network. Please add wireguard network to this desktop or remove RDP viewers.",
+                            hide: true,
+                            delay: 6000,
+                            icon: 'fa fa-alert-sign',
+                            opacity: 1,
+                            type: 'error'
+                        });
+                    return
+                }
                 data=replaceMedia_arrays('#modalEditDesktop',data);
+                data=parseViewersOptions(data)
                 socket.emit('domain_edit',data)
         }
     });

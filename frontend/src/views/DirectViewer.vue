@@ -37,7 +37,7 @@
                   <b-col sm="10">
                     <b-row class="justify-content-center text-center">
                       <!-- Browser viewers -->
-                      <b-col xl="6">
+                      <b-col xl="6" v-if="browserViewers.length">
                         <h6 class="font-weight-bold text-medium-gray">{{ $t('views.direct-viewer.browser.title') }}</h6>
                         <div class="column-header d-flex align-items-center justify-content-center">
                           <p>{{ $t('views.direct-viewer.browser.subtitle') }}</p>
@@ -47,7 +47,7 @@
                       <!-- Client viewers -->
                       <DirectViewerHelpSpice />
                       <DirectViewerHelpRDP />
-                      <b-col xl="6">
+                      <b-col xl="6" v-if="fileViewers.length">
                         <h6 class="font-weight-bold text-medium-gray">{{ $t('views.direct-viewer.file.title') }}</h6>
                         <div class="column-header d-flex align-items-center justify-content-center">
                           <p>{{ $t('views.direct-viewer.file.subtitle') }}</p>

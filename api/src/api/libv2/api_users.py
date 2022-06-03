@@ -408,6 +408,7 @@ class ApiUsers:
                             "parents",
                             "persistent",
                             "os",
+                            "guest_properties",
                             "tag_visible",
                             {"viewer": "guest_ip"},
                             {"create_dict": {"hardware": ["interfaces", "videos"]}},
@@ -443,6 +444,7 @@ class ApiUsers:
                         "description",
                         "parents",
                         "persistent",
+                        "guest_properties",
                         "os",
                         "tag_visible",
                         {"viewer": "guest_ip"},
@@ -462,26 +464,7 @@ class ApiUsers:
         try:
             # Modify desktop data to be returned
             if desktop.get("tag_visible", True):
-
-                # if desktop["status"] not in ["Started", "Failed","Stopped"]:
-                #     desktop["status"] = "Working"
-                desktop["image"] = desktop.get("image", None)
-                desktop["from_template"] = desktop.get("parents", [None])[-1]
-                if desktop.get("persistent", True):
-                    desktop["type"] = "persistent"
-                else:
-                    desktop["type"] = "nonpersistent"
-                desktop["viewers"] = ["file-spice", "browser-vnc"]
-                if desktop["status"] == "Started":
-                    if "wireguard" in desktop["create_dict"]["hardware"]["interfaces"]:
-                        desktop["ip"] = desktop.get("viewer", {}).get("guest_ip")
-                        if not desktop["ip"]:
-                            desktop["status"] = "WaitingIP"
-                        if desktop["os"].startswith("win"):
-                            desktop["viewers"].extend(
-                                ["file-rdpgw", "file-rdpvpn", "browser-rdp"]
-                            )
-                return desktop
+                return _parse_desktop(desktop)
             else:
                 return None
         except Exception:

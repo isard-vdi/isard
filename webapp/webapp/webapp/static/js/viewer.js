@@ -35,50 +35,47 @@ function startClientVpnSocket(socket){
 
 function setViewerButtons(data,socket,offer){
     offer=[]
-    if (
-        ["default", "vga"].some(
-            (item) => data.create_dict.hardware.videos.includes(item)
-        )
-    ) {
-        offer.push(
-            {
-                'type': 'spice',
-                'client': 'app',
-                'secure': true,
-                'preferred': true
-            },{
-                'type': 'vnc',
-                'client': 'websocket',
-                'secure': true,
-                'preferred': false
-            }
-        )
+    if ("file_spice" in data["guest_properties"]["viewers"]){
+        offer.push({
+            'type': 'spice',
+            'client': 'app',
+            'secure': true,
+            'preferred': true
+        })
     }
-    if (
-        data.os.startsWith("win")
-        &&
-        data.create_dict.hardware.interfaces.includes("wireguard")
-    ) {
-        offer.push(
-	    {
-                'type': 'rdpgw',
-                'client': 'app',
-                'secure': true,
-                'preferred': false
-            },
-            {
-                'type': 'rdpvpn',
-                'client': 'app',
-                'secure': true,
-                'preferred': false
-            },{
-                'type': 'rdp',
-                'client': 'websocket',
-                'secure': true,
-                'preferred': false
-            }
-        )
+    if ("browser_vnc" in data["guest_properties"]["viewers"]){
+        offer.push({
+            'type': 'vnc',
+            'client': 'websocket',
+            'secure': true,
+            'preferred': false
+        })
     }
+    if ("file_rdpgw" in data["guest_properties"]["viewers"]){
+        offer.push({
+            'type': 'rdpgw',
+            'client': 'app',
+            'secure': true,
+            'preferred': false
+        })
+    }
+    if ("file_rdpvpn" in data["guest_properties"]["viewers"]){
+        offer.push({
+            'type': 'rdpvpn',
+            'client': 'app',
+            'secure': true,
+            'preferred': false
+        })
+    }
+    if ("browser_rdp" in data["guest_properties"]["viewers"]){
+        offer.push({
+            'type': 'rdp',
+            'client': 'websocket',
+            'secure': true,
+            'preferred': false
+        })
+    }
+
     html=""
     $.each(offer, function(idx,disp){
             prehtml='<div class="row"><div class="col-12 text-center">'
@@ -168,7 +165,70 @@ function setCookie(name,value,days) {
     document.cookie = name + "=" + (value || "")  + expires + "; path=/";
 }
 
+function setViewers(div,data){
+    if(data['guest_properties-fullscreen']){
+        $(div+' #guest_properties-fullscreen').iCheck('check');
+    }else{
+        $(div+' #guest_properties-fullscreen').iCheck('update')[0].unchecked;
+    }
+    if("guest_properties-viewers-file_spice-options" in data){
+        console.log("spice")
+        $(div+' #viewers-file_spice').iCheck('check');
+    }else{
+        $(div+' #viewers-file_spice').iCheck('update')[0].unchecked;
+    }
+    if("guest_properties-viewers-file_rdpgw-options" in data){
+        $(div+' #viewers-file_rdpgw').iCheck('check');
+    }else{
+        $(div+' #viewers-file_rdpgw').iCheck('update')[0].unchecked;
+    }
+    if("guest_properties-viewers-file_rdpvpn-options" in data){
+        $(div+' #viewers-file_rdpvpn').iCheck('check');
+    }else{
+        $(div+' #viewers-file_rdpvpn').iCheck('update')[0].unchecked;
+    }
+    if("guest_properties-viewers-browser_vnc-options" in data){
+        $(div+' #viewers-browser_vnc').iCheck('check');
+    }else{
+        $(div+' #viewers-browser_vnc').iCheck('update')[0].unchecked;
+    }
+    if("guest_properties-viewers-browser_rdp-options" in data){
+        $(div+' #viewers-browser_rdp').iCheck('check');
+    }else{
+        $(div+' #viewers-browser_rdp').iCheck('update')[0].unchecked;
+    }
+}
 
+function parseViewersOptions(data){
+    if(data['guest_properties-fullscreen']){
+        data["guest_properties-fullscreen"]=true
+    }else{
+        data["guest_properties-fullscreen"]=false
+    }
+
+    if(data['viewers-file_spice']){
+        delete data["viewers-file_spice"]
+        data["guest_properties-viewers-file_spice-options"]=null
+    }
+    if(data['viewers-browser_vnc']){
+        delete data["viewers-browser_vnc"]
+        data["guest_properties-viewers-browser_vnc-options"]=null
+    }
+    if(data['viewers-browser_rdp']){
+        delete data["viewers-browser_rdp"]
+        data["guest_properties-viewers-browser_rdp-options"]=null
+    }
+    if(data['viewers-file_rdpgw']){
+        delete data["viewers-file_rdpgw"]
+        data["guest_properties-viewers-file_rdpgw-options"]=null
+    }
+    if(data['viewers-file_rdpvpn']){
+        delete data["viewers-file_rdpvpn"]
+        data["guest_properties-viewers-file_rdpvpn-options"]=null
+    }
+    delete data["options"]
+    return data
+}
 function setViewerHelp(){
     $(".howto-"+getOS()).css("display", "block");
 }

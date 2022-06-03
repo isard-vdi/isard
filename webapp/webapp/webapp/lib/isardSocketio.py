@@ -1875,11 +1875,6 @@ def socketio_domain_edit(form_data):
         **create_dict["create_dict"]["hardware"],
     }
     create_dict.pop("hardware", None)
-    if "options" not in create_dict:
-        create_dict["options"] = {"viewers": {"spice": {"fullscreen": False}}}
-    else:
-        if "fullscreen" in create_dict["options"]["viewers"]["spice"]:
-            create_dict["options"]["viewers"]["spice"]["fullscreen"] = True
 
     res = app.isardapi.update_domain(create_dict.copy())
     if res is True:
@@ -2159,11 +2154,6 @@ def socketio_admins_domain_edit(form_data):
         **create_dict["create_dict"]["hardware"],
     }
     create_dict.pop("hardware", None)
-    if "options" not in create_dict:
-        create_dict["options"] = {"viewers": {"spice": {"fullscreen": False}}}
-    else:
-        if "fullscreen" in create_dict["options"]["viewers"]["spice"]:
-            create_dict["options"]["viewers"]["spice"]["fullscreen"] = True
 
     res = app.isardapi.update_domain(create_dict.copy())
     if res is True:

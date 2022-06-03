@@ -186,6 +186,23 @@ def parse_frontend_desktop_status(desktop):
     return desktop
 
 
+def default_guest_properties():
+    return {
+        "credentials": {
+            "username": "isard",
+            "password": "pirineus",
+        },
+        "fullscreen": False,
+        "viewers": {
+            "file_spice": {"options": None},
+            "browser_vnc": {"options": None},
+            "file_rdpgw": {"options": None},
+            "file_rdpvpn": {"options": None},
+            "browser_rdp": {"options": None},
+        },
+    }
+
+
 def _parse_desktop(desktop):
     desktop = parse_frontend_desktop_status(desktop)
     desktop["image"] = desktop.get("image", None)
@@ -194,14 +211,28 @@ def _parse_desktop(desktop):
         desktop["type"] = "persistent"
     else:
         desktop["type"] = "nonpersistent"
-    desktop["viewers"] = ["file-spice", "browser-vnc"]
+
+    desktop["viewers"] = [
+        v.replace("_", "-") for v in list(desktop["guest_properties"]["viewers"].keys())
+    ]
+
+    # desktop["viewers"] = ["file-spice", "browser-vnc"]
     if desktop["status"] == "Started":
-        if "wireguard" in desktop["create_dict"]["hardware"]["interfaces"]:
-            desktop["ip"] = desktop.get("viewer", {}).get("guest_ip")
-            if not desktop["ip"]:
-                desktop["status"] = "WaitingIP"
-            if desktop["os"].startswith("win"):
-                desktop["viewers"].extend(["file-rdpgw", "file-rdpvpn", "browser-rdp"])
+        if (
+            "file-rdpgw" in desktop["viewers"]
+            or "file-rdpvpn" in desktop["viewers"]
+            or "browser-rdp" in desktop["viewers"]
+        ):
+            if "wireguard" in desktop["create_dict"]["hardware"]["interfaces"]:
+                desktop["ip"] = desktop.get("viewer", {}).get("guest_ip")
+                if not desktop["ip"]:
+                    desktop["status"] = "WaitingIP"
+            else:
+                desktop["viewers"] = [
+                    v
+                    for v in desktop["viewers"]
+                    if v not in ["file-rdpgw", "file-rdpvpn", "browser-rdp"]
+                ]
 
     if desktop["status"] == "Downloading":
         progress = {

@@ -13,6 +13,7 @@ from .log import *
 db = RethinkDB(app)
 db.init_app(app)
 
+from .isardViewer import default_guest_properties
 from .load_config import load_config
 
 cfg = load_config()
@@ -279,6 +280,9 @@ class Updates(object):
             d["image"] = get_domain_stock_card(d["id"])
             d["accessed"] = time.time()
             d["hypervisors_pools"] = d["create_dict"]["hypervisors_pools"]
+            d["guest_properties"] = default_guest_properties()
+            if d.get("options"):
+                d.pop("options")
             d.update(self.get_user_data(current_user))
             for disk in d["create_dict"]["hardware"]["disks"]:
                 if not disk["file"].startswith(current_user.path):

@@ -75,7 +75,9 @@ class isardViewer:
                     domain = (
                         r.table("domains")
                         .get(id)
-                        .pluck("id", "name", "status", "viewer", "options", "user")
+                        .pluck(
+                            "id", "name", "status", "viewer", "guest_properties", "user"
+                        )
                         .run(db.conn)
                     )
             except ReqlNonExistenceError:
@@ -90,15 +92,6 @@ class isardViewer:
                 "Unable to get viewer for non started desktop",
                 traceback.format_stack(),
             )
-
-        if (
-            "preferred" not in domain["options"]["viewers"].keys()
-            or not domain["options"]["viewers"]["preferred"] == default_viewer
-        ):
-            with app.app_context():
-                r.table("domains").get(id).update(
-                    {"options": {"viewers": {"preferred": default_viewer}}}
-                ).run(db.conn)
 
         ### File viewers
         if protocol == "file-spice":
@@ -141,6 +134,8 @@ class isardViewer:
                     domain["viewer"]["static"],
                     self.rdpgw_port,
                     viewer_jwt(domain["id"], minutes=30),
+                    domain["guest_properties"]["credentials"]["username"],
+                    domain["guest_properties"]["credentials"]["password"],
                 ),
             }
 
@@ -230,12 +225,8 @@ class isardViewer:
             data = {
                 "vmName": domain["name"],
                 "vmHost": domain["viewer"]["guest_ip"],
-                "vmUsername": domain["options"]["credentials"]["username"]
-                if "credentials" in domain["options"]
-                else "",
-                "vmPassword": domain["options"]["credentials"]["password"]
-                if "credentials" in domain["options"]
-                else "",
+                "vmUsername": domain["guest_properties"]["credentials"]["username"],
+                "vmPassword": domain["guest_properties"]["credentials"]["password"],
                 "host": domain["viewer"]["static"],
                 "port": domain["viewer"].get("html5_ext_port", "443"),
             }
@@ -302,7 +293,9 @@ class isardViewer:
             ip
         )
 
-    def get_rdp_gw_file(self, ip, proxy_video, proxy_port, jwt_token):
+    def get_rdp_gw_file(
+        self, ip, proxy_video, proxy_port, jwt_token, username, password
+    ):
         return """full address:s:%s
 gatewayhostname:s:%s:%s
 gatewaycredentialssource:i:5
@@ -312,7 +305,8 @@ gatewayaccesstoken:s:%s
 networkautodetect:i:1
 bandwidthautodetect:i:1
 connection type:i:6
-username:s:
+username:s:%s
+password:s:%s
 domain:s:
 bitmapcachesize:i:32000
 smart sizing:i:1""" % (
@@ -320,13 +314,14 @@ smart sizing:i:1""" % (
             proxy_video,
             proxy_port,
             jwt_token,
+            username,
+            password,
         )
 
     def get_spice_file(self, domain, port, vmPort):
         op_fscr = int(
-            domain.get("options", {})
+            domain.get("guest_properties", {})
             .get("viewers", {})
-            .get("spice", {})
             .get("fullscreen", False)
         )
         c = "%"

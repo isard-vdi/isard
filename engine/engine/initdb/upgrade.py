@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 29
+release_version = 30
+# release 30: Moved domain options to guest_properties
 # release 29: Add volatile path to hypervisors_pools
 # release 28: Added jumperurl token index in domains table
 # release 27: Fix interface qos_id value from false to "unlimited"
@@ -870,6 +871,54 @@ class Upgrade(object):
 
         if version == 28:
             self.index_create(table, ["jumperurl"])
+
+        if version == 30:
+            r.table(table).filter(
+                lambda domain: domain["create_dict"]["hardware"]["interfaces"].contains(
+                    "wireguard"
+                )
+            ).update(
+                {
+                    "guest_properties": {
+                        "credentials": {
+                            "username": "isard",
+                            "password": "pirineus",
+                        },
+                        "fullscreen": r.row["options"]["viewers"]["spice"][
+                            "fullscreen"
+                        ],
+                        "viewers": {
+                            "file_spice": {"options": None},
+                            "browser_vnc": {"options": None},
+                            "file_rdpgw": {"options": None},
+                            "file_rdpvpn": {"options": None},
+                            "browser_rdp": {"options": None},
+                        },
+                    }
+                }
+            ).run(
+                self.conn
+            )
+            r.table(table).filter(~r.row.has_fields("guest_properties")).update(
+                {
+                    "guest_properties": {
+                        "credentials": {
+                            "username": "isard",
+                            "password": "pirineus",
+                        },
+                        "fullscreen": r.row["options"]["viewers"]["spice"][
+                            "fullscreen"
+                        ],
+                        "viewers": {
+                            "file_spice": {"options": None},
+                            "browser_vnc": {"options": None},
+                        },
+                    }
+                }
+            ).run(self.conn)
+            r.db("isard").table("domains").replace(r.row.without("options")).run(
+                self.conn
+            )
 
         return True
 
