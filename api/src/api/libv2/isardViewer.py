@@ -145,6 +145,14 @@ class isardViewer:
             }
 
         ## Browser viewers
+        viewer_url = (
+            "https://" + domain["viewer"]["static"]
+            if not domain["viewer"].get("html5_ext_port", False)
+            else "https://"
+            + domain["viewer"]["static"]
+            + ":"
+            + domain["viewer"].get("html5_ext_port")
+        )
         if protocol == "browser-spice":
             data = {
                 "vmName": domain["name"],
@@ -157,10 +165,10 @@ class isardViewer:
             cookie = base64.b64encode(
                 json.dumps({"web_viewer": data}).encode("utf-8")
             ).decode("utf-8")
-            uri = "https://" + domain["viewer"]["static"] + "/viewer/spice-web-client/"
+
+            uri = viewer_url + "/viewer/spice-web-client/"
             urlp = (
-                "https://"
-                + domain["viewer"]["static"]
+                viewer_url
                 + "/viewer/spice-web-client/?vmName="
                 + urllib.parse.quote_plus(domain["name"])
                 + "&vmHost="
@@ -193,10 +201,9 @@ class isardViewer:
             cookie = base64.b64encode(
                 json.dumps({"web_viewer": data}).encode("utf-8")
             ).decode("utf-8")
-            uri = "https://" + domain["viewer"]["static"] + "/viewer/noVNC/"
+            uri = viewer_url + "/viewer/noVNC/"
             urlp = (
-                "https://"
-                + domain["viewer"]["static"]
+                viewer_url
                 + "/viewer/noVNC/?vmName="
                 + urllib.parse.quote_plus(domain["name"])
                 + "&vmHost="
@@ -235,7 +242,7 @@ class isardViewer:
             cookie = base64.b64encode(
                 json.dumps({"web_viewer": data}).encode("utf-8")
             ).decode("utf-8")
-            uri = (f"https://{domain['viewer']['static']}/Rdp",)
+            uri = viewer_url + "/Rdp"
             urlp = "Not implemented"
             return {
                 "kind": "browser",
