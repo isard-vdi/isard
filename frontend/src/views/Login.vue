@@ -221,7 +221,7 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 #login {
   text-align: center;
 }

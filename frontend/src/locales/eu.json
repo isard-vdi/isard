@@ -273,8 +273,6 @@
             }
         },
         "direct-viewer": {
-            "local-client-help": "Bezero lokala insatalatzeko argibideak",
-            "title": "Ikuskatzaile Zuzena",
             "button": {
                 "browser": "Nabigatzailea"
             }

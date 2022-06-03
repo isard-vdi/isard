@@ -188,7 +188,6 @@
         },
         "cancel": "Abbrechen",
         "direct-viewer": {
-            "local-client-help": "Installationsanleitung für lokale Clients"
         }
     },
     "components": {

@@ -391,11 +391,53 @@
             }
         },
         "direct-viewer": {
-            "local-client-help": "Local client installation instructions",
-            "title": "Direct Viewer",
+            "title": "Desktop viewers access:",
+            "file": {
+                "title": "Access through application",
+                "subtitle": "It is necessary to have specific software installed (better performance)"
+            },
+            "browser": {
+                "title": "Access through this browser",
+                "subtitle": "Does not require any installation"
+            },
             "button": {
                 "browser": "Browser",
                 "browser-rdp": "RDP Browser"
+            },
+            "waitingip": "Waiting for the desktop to be started",
+            "description": {
+                "vnc": "Access to the desktop in this browser",
+                "rdp": "Access to the desktop in this browser (requires the windows desktop user and password)",
+                "spice": "Access to the desktop through a file that must be opened with the program remote-viewer",
+                "rdpgw": "Windows includes the software required for its use"
+            },
+            "help": {
+                "spice" : {
+                    "spice-help": "SPICE installation instructions",
+                    "close-guide": "Close guide",
+                    "local-client": "Use the local client (recommended)",
+                    "best-performance": "It's the option with the best performance",
+                    "install": "Install",
+                    "other-windows-versions": "other Windows versions",
+                    "once-installed": "Once installed, click the 'SPICE' button, that will download the virtual desktop file.",
+                    "spice-client-required": "but an external application is required.",
+                    "text": {
+                        "macos": "macOS is an unsupported platform. You need to use the browser option",
+                        "ios": "On the operative system iOS, you need to install the following application:",
+                        "windows": "On the operative system Windows, you need to download and install one of the following executable:",
+                        "android": "On the operative system Android, you need to instal the following application:",
+                        "linux": "On the operative system Linux, you need to run the following commands:"
+                    }
+                },
+                "rdp": {
+                    "rdp-help": "RDP installation instructions",
+                    "local-client": "Use RDP client (recommended)",
+                    "close-guide": "Close guide",
+                    "included": "Windows includes the required software for its use,",
+                    "require-update": "but it may be required an update (specially in windows 7 and windows 8 versions). It's recommended using the latest available version ",
+                    "here": "here.",
+                    "once-installed": "Once installed, click the 'RDP' button, that will download the virtual desktop file."
+                }
             }
         }
     },
