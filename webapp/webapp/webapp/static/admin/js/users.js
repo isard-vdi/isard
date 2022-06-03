@@ -41,7 +41,7 @@ $(document).ready(function() {
             }).modal('show');
             $.ajax({
                 type: "POST",
-                url: "/api/v3/admin/user/check",
+                url: "/api/v3/admin/users/delete/check",
                 data: JSON.stringify(usersToDelete),
                 contentType: "application/json"
             }).done(function (domains) {
@@ -161,18 +161,7 @@ $(document).ready(function() {
                 }
             }); 
         }
-    }); 
-
-    $("#modalDeleteUserTree #send").on('click', function(e){
-        //~ var form = $('#modalDeleteUserForm');
-        //~ data=$('#modalDeleteUserForm').serializeObject();
-        //~ form.parsley().validate();
-        //~ if (form.parsley().isValid()){
-            
-            //~ data=quota2dict($('#modalDeleteUserForm').serializeObject());
-            //~ socket.emit('user_delete',data)
-        //~ }
-    }); 
+    });
 
     $('#modalDeleteUser #send').on('click', function(e) {
         user = $('#modalDeleteUserForm #id').val()
@@ -183,14 +172,17 @@ $(document).ready(function() {
             opacity: 1,
             icon: 'fa fa-spinner fa-pulse'
         })
-
+        $('form').each(function() {
+            this.reset()
+        })
+        $('.modal').modal('hide')
         $.ajax({
             type: 'DELETE',
             url: '/api/v3/admin/user',
             data: user,
             contentType: 'application/json',
             error: function(data) {
-                new PNotify({
+                notice.update({
                     title: 'ERROR',
                     text: 'Something went wrong',
                     type: 'error',
@@ -201,16 +193,11 @@ $(document).ready(function() {
                 })
             },
             success: function(data) {
-                $('form').each(function() {
-                    this.reset()
-                })
-                $('.modal').modal('hide')
                 notice.update({
-                    title: data.title,
                     text: 'User(s) deleted successfully',
                     hide: true,
                     delay: 2000,
-                    icon: 'fa fa-' + data.icon,
+                    icon: '',
                     opacity: 1,
                     type: 'success'
                 })
@@ -555,15 +542,23 @@ function actionsUserDetail(){
     
 	$('.btn-delete').on('click', function () {
             var pk=$(this).closest("div").attr("data-pk");
-            data = {};
-            data['id']=pk;
+            var data = {
+                'id': pk,
+                'table': 'user'
+            }
+
             $("#modalDeleteUserForm")[0].reset();
             $('#modalDeleteUserForm #id').val(JSON.stringify([data]));
 			$('#modalDeleteUser').modal({
 				backdrop: 'static',
 				keyboard: false
 			}).modal('show');
-            api.ajax('/isard-admin/admin/user/delete','POST',{'pk':pk}).done(function(domains) {
+            $.ajax({
+                type: "POST",
+                url: "/api/v3/admin/delete/check",
+                data: JSON.stringify(data),
+                contentType: "application/json"
+            }).done(function(domains) {
                 $('#table_modal_delete tbody').empty()
                 $.each(domains, function(key, value) {
                     infoDomains(value, $('#table_modal_delete tbody'));

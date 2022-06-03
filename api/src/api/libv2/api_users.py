@@ -570,7 +570,7 @@ class ApiUsers:
 
     def Delete(self, user_id):
         self.Get(user_id)
-        todelete = self._user_delete_checks(user_id)
+        todelete = self._delete_checks(user_id, "user")
         for desktop in todelete:
             ds.delete_desktop(desktop["id"], desktop["status"])
 
@@ -585,34 +585,48 @@ class ApiUsers:
                     traceback.format_exc(),
                 )
 
-    def _user_delete_checks(self, user_id):
+    def _delete_checks(self, item_id, table):
         with app.app_context():
-            user_desktops = list(
+            desktops = list(
                 r.table("domains")
-                .get_all(user_id, index="user")
+                .get_all(item_id, index=table)
                 .filter({"kind": "desktop"})
                 .pluck("id", "name", "kind", "user", "status", "parents")
                 .run(db.conn)
             )
-            user_templates = list(
+            templates = list(
                 r.table("domains")
                 .get_all("template", index="kind")
-                .filter({"user": user_id})
+                .filter({table: item_id})
                 .pluck("id", "name", "kind", "user", "status", "parents")
                 .run(db.conn)
             )
+
+            users = []
+            if table == "category" or table == "group":
+                users = list(
+                    r.table("users")
+                    .get_all(item_id, index=table)
+                    .pluck("id", "name")
+                    .run(db.conn)
+                )
+
+            for u in users:
+                u.update({"kind": "user", "user": u["id"]})
+
             derivated = []
-            for ut in user_templates:
-                id = ut["id"]
+            for ut in templates:
+                template_id = ut["id"]
                 derivated = derivated + list(
                     r.table("domains")
                     .pluck("id", "name", "kind", "user", "status", "parents")
-                    .filter(lambda derivates: derivates["parents"].contains(id))
+                    .filter(
+                        lambda derivates: derivates["parents"].contains(template_id)
+                    )
                     .run(db.conn)
                 )
-                # templates = [t for t in derivated if t['kind'] != "desktop"]
-                # desktops = [d for d in derivated if desktop['kind'] == "desktop"]
-        domains = user_desktops + user_templates + derivated
+
+        domains = desktops + templates + derivated + users
         return [i for n, i in enumerate(domains) if i not in domains[n + 1 :]]
 
     def OwnsDesktop(self, user_id, guess_ip):

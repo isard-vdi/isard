@@ -90,14 +90,40 @@ $(document).ready(function() {
 
     $("#modalDeleteCategory #send").on('click', function(e){
         id=$('#modalDeleteCategoryForm #id').val();
+
+        var notice = new PNotify({
+            text: 'Deleting category...',
+            hide: false,
+            opacity: 1,
+            icon: 'fa fa-spinner fa-pulse'
+        })
+        $('form').each(function() { this.reset() });
+        $('.modal').modal('hide');
         $.ajax({
             type: "DELETE",
             url:"/api/v3/admin/category/"+id ,
             contentType: "application/json",
+            error: function(data) {
+                notice.update({
+                    title: 'ERROR',
+                    text: 'Something went wrong',
+                    type: 'error',
+                    hide: true,
+                    icon: 'fa fa-warning',
+                    delay: 5000,
+                    opacity: 1
+                })
+            },
             success: function(data)
             {
-                $('form').each(function() { this.reset() });
-                $('.modal').modal('hide');
+                notice.update({
+                    text: 'Category deleted successfully',
+                    hide: true,
+                    delay: 2000,
+                    icon: '',
+                    opacity: 1,
+                    type: 'success'
+                })
             }
         });
         }); 
@@ -524,6 +550,10 @@ function actionsCategoryDetail(){
 
 	$('.btn-delete').unbind().on('click', function () {
             var pk=$(this).closest("div").attr("data-pk");
+            var data = {
+                'id': pk,
+                'table': 'category'
+            }
 
             $("#modalDeleteCategoryForm")[0].reset();
             $('#modalDeleteCategoryForm #id').val(pk);
@@ -531,16 +561,16 @@ function actionsCategoryDetail(){
                 backdrop: 'static',
                 keyboard: false
             }).modal('show');
-            api.ajax('/isard-admin/admin/category/delete','POST',{'pk':pk}).done(function(domains) {
+            $.ajax({
+                type: "POST",
+                url: "/api/v3/admin/delete/check",
+                data: JSON.stringify(data),
+                contentType: "application/json"
+            }).done(function(domains) {
                 $('#table_modal_category_delete tbody').empty()
                 $.each(domains, function(key, value) {
                     infoDomains(value, $('#table_modal_category_delete tbody'));
-                });  
-           
+                });
             });
-	    });
-
-
-
-        
+	    });   
 }
