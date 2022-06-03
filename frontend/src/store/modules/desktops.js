@@ -263,7 +263,6 @@ export default {
       } else if (payload.kind === 'browser') {
         cookies.setCookie('browser_viewer', payload.cookie)
         el.setAttribute('href', payload.viewer)
-        el.setAttribute('target', '_blank')
       }
 
       el.style.display = 'none'
