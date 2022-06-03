@@ -26,7 +26,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 2,
-  "iteration": 1654170720362,
+  "iteration": 1654250746360,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -1111,7 +1111,7 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true,
         "text": {
-          "valueSize": 35
+          "valueSize": 22
         }
       },
       "pluginVersion": "8.5.2",
@@ -1228,7 +1228,7 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true,
         "text": {
-          "valueSize": 35
+          "valueSize": 22
         }
       },
       "pluginVersion": "8.5.2",
@@ -1345,7 +1345,7 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true,
         "text": {
-          "valueSize": 35
+          "valueSize": 22
         }
       },
       "pluginVersion": "8.5.2",
@@ -1660,7 +1660,7 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true,
         "text": {
-          "valueSize": 35
+          "valueSize": 22
         }
       },
       "pluginVersion": "8.5.2",
@@ -1777,7 +1777,7 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true,
         "text": {
-          "valueSize": 35
+          "valueSize": 22
         }
       },
       "pluginVersion": "8.5.2",
@@ -2489,7 +2489,7 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true,
         "text": {
-          "valueSize": 35
+          "valueSize": 22
         }
       },
       "pluginVersion": "8.5.2",
@@ -2580,7 +2580,7 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true,
         "text": {
-          "valueSize": 35
+          "valueSize": 22
         }
       },
       "pluginVersion": "8.5.2",
