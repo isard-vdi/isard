@@ -276,7 +276,12 @@ def api_v3_desktop_edit(payload, desktop_id):
             img_uuid = api_cards.upload(desktop_id, image_data)
             card = api_cards.get_card(img_uuid, image_data["type"])
             return json.dumps(card), 200, {"Content-Type": "application/json"}
-    raise Error("not_found", "Update method not found.", traceback.format_stack())
+    desktops.Update(desktop_id, data)
+    return (
+        json.dumps(data),
+        200,
+        {"Content-Type": "application/json"},
+    )
 
 
 @app.route("/api/v3/desktop/jumperurl/<desktop_id>", methods=["GET"])

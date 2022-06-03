@@ -427,10 +427,15 @@ class ApiDesktopsPersistent:
 
     def Update(self, desktop_id, desktop_data):
         with app.app_context():
-            return _check(
+            if not _check(
                 r.table("domains").get(desktop_id).update(desktop_data).run(db.conn),
                 "replaced",
-            )
+            ):
+                raise Error(
+                    "internal_server",
+                    "Unable to update desktop in database",
+                    traceback.format_stack(),
+                )
 
     def JumperUrl(self, id):
         with app.app_context():
