@@ -28,10 +28,12 @@ func init() {
 		guacdAddr = "isard-vpn:4822"
 	}
 
-	apiAddr = os.Getenv("GUACD_API_HOST")
-	if apiAddr == "" {
+	apiAddr = os.Getenv("API_DOMAIN")
+	if apiAddr == "" || apiAddr == "isard-api" {
 		apiAddr = "isard-api:5000"
-	}
+	} else {
+                apiAddr = "https://" + apiAddr
+        }
 }
 
 func isAuthenticated(handler http.Handler) http.HandlerFunc {
