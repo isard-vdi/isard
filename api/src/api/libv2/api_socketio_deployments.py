@@ -109,7 +109,7 @@ class DeploymentsThread(threading.Thread):
                             "deployments_" + event,
                             json.dumps(deployment),
                             namespace="/userspace",
-                            room="deployments_" + user,
+                            room=user,
                         )
 
             except ReqlDriverError:
