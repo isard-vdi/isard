@@ -236,7 +236,7 @@ class isardViewer:
                 "vmPassword": domain["options"]["credentials"]["password"]
                 if "credentials" in domain["options"]
                 else "",
-                "host": domain["viewer"]["proxy_video"],
+                "host": domain["viewer"]["static"],
                 "port": domain["viewer"].get("html5_ext_port", "443"),
             }
             cookie = base64.b64encode(

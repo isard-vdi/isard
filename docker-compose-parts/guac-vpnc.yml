@@ -1,5 +1,0 @@
-version: '3.5'
-services:
-  isard-guac:
-    environment:
-      GUACD_ADDR: isard-vpnc:4822

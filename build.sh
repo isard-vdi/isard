@@ -54,8 +54,6 @@ HYPERVISOR_PARTS="
 	websockify
 	squid
 	stats
-	guac
-	guac-vpnc
 "
 HYPERVISOR_STANDALONE_KEY="hypervisor-standalone"
 HYPERVISOR_STANDALONE_PARTS="
@@ -71,7 +69,6 @@ VIDEO_STANDALONE_PARTS="
 	video
 	websockify
 	squid
-	guac
 	stats
 "
 TOOLBOX_KEY="toolbox"
