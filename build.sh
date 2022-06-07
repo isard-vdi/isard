@@ -8,11 +8,19 @@ if [ ! $(which docker) ]; then
 	exit 1
 fi
 
-if [ ! $(which docker-compose) ]; then
-	echo "REQUIREMENT: docker-compose not found in system."
-	echo "             Follow guide at https://docs.docker.com/compose/install/"
-	echo "             or use scripts in sysadmin folder."
-	exit 1
+if [ ! "$(docker compose version 2> /dev/null)" ]; then
+
+	if [ ! $(which docker-compose) ]; then
+		echo "REQUIREMENT: docker-compose not found in system."
+		echo "             Follow guide at https://docs.docker.com/compose/install/"
+		echo "             or use scripts in sysadmin folder."
+		exit 1
+
+	else
+		export DOCKER_COMPOSE="docker-compose"
+	fi
+else
+	export DOCKER_COMPOSE="docker compose"
 fi
 
 # We need docker-compose >= 1.28 to use service profiles
@@ -105,7 +113,7 @@ MONITOR_STANDALONE_PARTS="
 "
 
 docker_compose_version(){
-	docker-compose --version --short | sed 's/^docker-compose version \([^,]\+\),.*$/\1/'
+	$DOCKER_COMPOSE version --short | sed 's/^docker-compose version \([^,]\+\),.*$/\1/'
 }
 
 check_docker_compose_version(){
@@ -195,7 +203,7 @@ merge(){
 		else
 			local delimiter="."
 		fi
-		docker-compose $version_args $args config > "docker-compose$delimiter$config_name.yml"
+		$DOCKER_COMPOSE $version_args $args config > "docker-compose$delimiter$config_name.yml"
 	fi
 }
 parts_variant(){
@@ -264,7 +272,7 @@ flavour(){
                         echo "WARNING: Will take host interface $HYPERVISOR_HOST_TRUNK_INTERFACE and put it inside hypervisor container"
                         echo "         So interface WILL DISSAPPEAR from host"
                         echo "         With this configuration, when you restart container the interface could be missing,"
-                        echo "         so, better do 'docker-compose  -f docker-compose.hypervisor.yml down' and wait a minute"
+                        echo "         so, better do '$DOCKER_COMPOSE  -f docker-compose.hypervisor.yml down' and wait a minute"
                         echo "         till the interface $HYPERVISOR_HOST_TRUNK_INTERFACE is visible in the host again!"
                         echo ""
 		fi
@@ -361,6 +369,6 @@ sed -i "s|$(pwd)|.|g" docker-compose*.yml
 
 echo "You have the docker-compose files. Have fun!"
 echo "You can download the prebuild images and bring it up:"
-echo "   docker-compose pull && docker-compose up -d"
+echo "   $DOCKER_COMPOSE pull && $DOCKER_COMPOSE up -d"
 echo "Or build it yourself:"
-echo "   docker-compose build && docker-compose up -d"
+echo "   $DOCKER_COMPOSE build && $DOCKER_COMPOSE up -d"
