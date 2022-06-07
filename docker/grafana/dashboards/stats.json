@@ -26,7 +26,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 2,
-  "iteration": 1653637770299,
+  "iteration": 1654250746360,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -660,7 +660,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "semi-dark-green",
                 "value": null
               }
             ]
@@ -701,6 +701,77 @@
         }
       ],
       "title": "Scrape Time",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 2,
+          "mappings": [],
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#69aaea",
+                "value": null
+              }
+            ]
+          },
+          "unit": "currencyEUR"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 2,
+        "x": 22,
+        "y": 6
+      },
+      "id": 185,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 12,
+          "valueSize": 30
+        },
+        "textMode": "value"
+      },
+      "pluginVersion": "8.5.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "sum by(time) (sum_over_time(isardvdi_oci_daily_cost[24h]))",
+          "format": "time_series",
+          "instant": false,
+          "query": "",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Daily Cost (€)",
       "type": "stat"
     },
     {
@@ -828,6 +899,78 @@
         }
       ],
       "title": "Templates Created",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 2,
+          "mappings": [],
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#ea67bd",
+                "value": null
+              }
+            ]
+          },
+          "unit": "currencyEUR"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 2,
+        "x": 22,
+        "y": 9
+      },
+      "id": 186,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "vertical",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "titleSize": 12,
+          "valueSize": 30
+        },
+        "textMode": "value"
+      },
+      "pluginVersion": "8.5.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "sum by(time) (sum_over_time(isardvdi_oci_monthly_cost[30d]))",
+          "format": "table",
+          "instant": false,
+          "interval": "",
+          "query": "",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Monthly Cost (€)",
       "type": "stat"
     },
     {
@@ -967,7 +1110,9 @@
         },
         "showThresholdLabels": false,
         "showThresholdMarkers": true,
-        "text": {}
+        "text": {
+          "valueSize": 22
+        }
       },
       "pluginVersion": "8.5.2",
       "targets": [
@@ -1082,7 +1227,9 @@
         },
         "showThresholdLabels": false,
         "showThresholdMarkers": true,
-        "text": {}
+        "text": {
+          "valueSize": 22
+        }
       },
       "pluginVersion": "8.5.2",
       "targets": [
@@ -1197,7 +1344,9 @@
         },
         "showThresholdLabels": false,
         "showThresholdMarkers": true,
-        "text": {}
+        "text": {
+          "valueSize": 22
+        }
       },
       "pluginVersion": "8.5.2",
       "targets": [
@@ -1510,7 +1659,9 @@
         },
         "showThresholdLabels": false,
         "showThresholdMarkers": true,
-        "text": {}
+        "text": {
+          "valueSize": 22
+        }
       },
       "pluginVersion": "8.5.2",
       "targets": [
@@ -1625,7 +1776,9 @@
         },
         "showThresholdLabels": false,
         "showThresholdMarkers": true,
-        "text": {}
+        "text": {
+          "valueSize": 22
+        }
       },
       "pluginVersion": "8.5.2",
       "targets": [

@@ -29,6 +29,7 @@ type Collectors struct {
 	Socket                 Socket
 	IsardVDIAPI            IsardVDIAPI            `mapstructure:"isardvdi_api"`
 	IsardVDIAuthentication IsardvdiAuthentication `mapstructure:"isardvdi_authentication"`
+	OCI                    OCI
 }
 
 type Hypervisor struct {
@@ -56,6 +57,10 @@ type IsardVDIAPI struct {
 type IsardvdiAuthentication struct {
 	Enable      bool
 	LokiAddress string `mapstructure:"loki_address"`
+}
+
+type OCI struct {
+	Enable bool
 }
 
 func New() Cfg {
@@ -110,6 +115,9 @@ func setDefaults() {
 		"isardvdi_authentication": map[string]interface{}{
 			"enable":       true,
 			"loki_address": "http://isard-loki:3100",
+		},
+		"oci": map[string]interface{}{
+			"enable": false,
 		},
 	})
 }

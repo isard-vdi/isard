@@ -22,4 +22,9 @@ if [ "$FLAVOUR" == "all-in-one" ] || [ "$FLAVOUR" == "hypervisor" ] || [ "$FLAVO
     done
 fi
 
+if [ -n "$TF_VAR_private_key" ]; then
+    export TF_VAR_private_key_path=/oci-private.key
+    echo "$TF_VAR_private_key" > $TF_VAR_private_key_path
+fi
+
 /stats

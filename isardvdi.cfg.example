@@ -370,3 +370,12 @@ WG_GUESTS_RESERVED_HOSTS=20
 
 # ------ Loki -----------------------------------------------------
 #LOKI_ADDRESS=http://isard-loki:3100
+
+
+# ------ OCI Collector -----------------------------------------------------
+#STATS_COLLECTORS_OCI_ENABLE=false
+#TF_VAR_tenancy_ocid=
+#TF_VAR_user_ocid=
+#TF_VAR_fingerprint=
+#TF_VAR_region=
+#TF_VAR_private_key=
