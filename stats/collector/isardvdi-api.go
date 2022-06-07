@@ -17,7 +17,9 @@ type IsardVDIAPI struct {
 
 	descScrapeDuration *prometheus.Desc
 	descScrapeSuccess  *prometheus.Desc
+	descUserInfo       *prometheus.Desc
 	descDesktopNumber  *prometheus.Desc
+	descDesktopInfo    *prometheus.Desc
 	descTemplateNumber *prometheus.Desc
 }
 
@@ -40,10 +42,22 @@ func NewIsardVDIAPI(log *zerolog.Logger, cli *client.Client, secret string) *Isa
 		[]string{},
 		prometheus.Labels{},
 	)
+	a.descUserInfo = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, a.String(), "user_info"),
+		"Information of the user (such as the category and the group)",
+		[]string{"id", "category", "group"},
+		prometheus.Labels{},
+	)
 	a.descDesktopNumber = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, a.String(), "desktop_number"),
 		"The number of desktops",
 		[]string{},
+		prometheus.Labels{},
+	)
+	a.descDesktopInfo = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, a.String(), "desktop_info"),
+		"Information of the desktop (such as the user)",
+		[]string{"id", "user"},
 		prometheus.Labels{},
 	)
 	a.descTemplateNumber = prometheus.NewDesc(
@@ -63,7 +77,9 @@ func (a *IsardVDIAPI) String() string {
 func (a *IsardVDIAPI) Describe(ch chan<- *prometheus.Desc) {
 	ch <- a.descScrapeDuration
 	ch <- a.descScrapeSuccess
+	ch <- a.descUserInfo
 	ch <- a.descDesktopNumber
+	ch <- a.descDesktopInfo
 	ch <- a.descTemplateNumber
 }
 
@@ -89,12 +105,26 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 
 	a.cli.Token = ss
 
+	usr, err := a.cli.AdminUserList(context.Background())
+	if err != nil {
+		a.Log.Info().Str("collector", a.String()).Err(err).Msg("list users")
+		success = 0
+	}
+
+	for _, u := range usr {
+		ch <- prometheus.MustNewConstMetric(a.descUserInfo, prometheus.GaugeValue, 1, client.GetString(u.ID), client.GetString(u.Category), client.GetString(u.Group))
+	}
+
 	dsk, err := a.cli.AdminDesktopList(context.Background())
 	if err != nil {
 		a.Log.Info().Str("collector", a.String()).Err(err).Msg("list desktops")
 		success = 0
 	}
+
 	ch <- prometheus.MustNewConstMetric(a.descDesktopNumber, prometheus.GaugeValue, float64(len(dsk)))
+	for _, d := range dsk {
+		ch <- prometheus.MustNewConstMetric(a.descDesktopInfo, prometheus.GaugeValue, 1, client.GetString(d.ID), client.GetString(d.User))
+	}
 
 	tmpl, err := a.cli.AdminTemplateList(context.Background())
 	if err != nil {

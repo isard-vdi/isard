@@ -157,6 +157,7 @@ class ApiAdmin:
                         "kind",
                         "description",
                         "status",
+                        "user",
                         "username",
                         "category",
                         "group",
