@@ -74,10 +74,10 @@
             "button-refresh": "Eguneratu"
         },
         "statusbar": {
-            "desktops-started": "Idazmahaiak hasi dira",
+            "desktops-started": "Abiarazitako idazmahaiak",
             "new-desktop": "Mahaigain berria",
             "checkbox-text": "Abiatuak soilik",
-            "checkbox-text-short": "Hasita",
+            "checkbox-text-short": "Abiarazita",
             "cancel": "Ezeztatu",
             "select": "Aukeratu",
             "upload-file": "Fitxategia igo"
@@ -384,6 +384,8 @@
         "viewer_not_started": "Ikuslea ez dago abiarazita",
         "forbidden": "Baliabideen baimenen inguruan errore bat gertatu da",
         "role_not_found": "Ez da rola aurkitu",
-        "register_generic_exception": "Erregistro-prozesuan errore bat gertatu da"
+        "register_generic_exception": "Erregistro-prozesuan errore bat gertatu da",
+        "desktop_start_timeout": "Mahaigaina abiarazterakoan denbora-muga igaro da",
+        "desktop_not_found": "Mahaigaina ez da aurkitu"
     }
 }
