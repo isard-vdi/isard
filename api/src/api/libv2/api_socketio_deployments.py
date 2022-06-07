@@ -106,7 +106,7 @@ class DeploymentsThread(threading.Thread):
                             }
 
                         socketio.emit(
-                            "deployment_" + event,
+                            "deployments_" + event,
                             json.dumps(deployment),
                             namespace="/userspace",
                             room="deployments_" + user,

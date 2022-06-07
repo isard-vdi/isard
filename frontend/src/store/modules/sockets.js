@@ -2,13 +2,14 @@ import { socket } from '@/utils/socket-instance'
 
 export default {
   actions: {
-    openSocket (context, { room, deploymentId, jwt }) {
-      socket.io.opts.query = {
-        jwt: jwt || localStorage.token,
-        room,
-        deploymentId
+    openSocket (context, { jwt, room }) {
+      if (!socket.connected) {
+        socket.io.opts.query = {
+          jwt: jwt || localStorage.token,
+          room
+        }
+        socket.open()
       }
-      socket.open()
     },
     closeSocket (context) {
       if (socket.connected) {

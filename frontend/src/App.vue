@@ -11,8 +11,12 @@ export default {
   beforeMount () {
     if (localStorage.token) {
       this.$store.dispatch('setSession', localStorage.token)
+      this.$store.dispatch('openSocket', {})
     }
     this.$store.dispatch('watchToken')
+  },
+  beforeUnmount () {
+    this.$store.dispatch('closeSocket')
   }
 }
 

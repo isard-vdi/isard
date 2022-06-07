@@ -43,6 +43,7 @@ export default {
     loginSuccess (context, token) {
       context.dispatch('setSession', token)
       localStorage.token = token
+      context.dispatch('openSocket', {})
       store.dispatch('removeAuthorizationCookie')
       router.push({ name: 'desktops' })
     },

@@ -54,7 +54,9 @@ export default {
     },
     update_deployment: (state, deployment) => {
       const item = state.deployments.find(d => d.id === deployment.id)
-      Object.assign(item, deployment)
+      if (item) {
+        Object.assign(item, deployment)
+      }
     },
     remove_deployment: (state, deployment) => {
       const deploymentIndex = state.deployments.findIndex(d => d.id === deployment.id)
@@ -67,7 +69,9 @@ export default {
     },
     update_deploymentdesktop: (state, deploymentdesktop) => {
       const item = state.deployment.desktops.find(d => d.id === deploymentdesktop.id)
-      Object.assign(item, deploymentdesktop)
+      if (item) {
+        Object.assign(item, deploymentdesktop)
+      }
     },
     remove_deploymentdesktop: (state, deploymentdesktop) => {
       const deploymentIndex = state.deployment.desktops.findIndex(d => d.id === deploymentdesktop.id)
