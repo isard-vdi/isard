@@ -102,7 +102,7 @@ export default {
       const token = context.root.$route.params.pathMatch
       $store.dispatch('getDirectViewers', { token }).then(() => {
         $store.dispatch('openSocket', { jwt: directViewer.value.jwt, room: directViewer.value.desktopId })
-        sessionStorage.token = directViewer.value.jwt
+        localStorage.token = directViewer.value.jwt
       })
     })
 
