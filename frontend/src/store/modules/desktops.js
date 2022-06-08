@@ -94,7 +94,9 @@ export default {
     saveDirectViewer: (state, payload) => {
       state.directViewer.name = payload.name
       state.directViewer.description = payload.description
-      state.directViewer.viewers = payload.viewers
+      state.directViewer.viewers = Object.keys(payload.viewers).map((viewer) => {
+        return payload.viewers[viewer]
+      })
       state.directViewer.state = payload.state
       state.directViewer.jwt = payload.jwt
       state.directViewer.desktopId = payload.desktopId
