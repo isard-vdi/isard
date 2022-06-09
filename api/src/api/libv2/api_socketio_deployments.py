@@ -13,14 +13,16 @@ from rethinkdb import RethinkDB
 
 from api import app
 
+from .api_exceptions import Error
+
 r = RethinkDB()
 import json
+import logging as log
 import traceback
 
 from rethinkdb.errors import ReqlDriverError, ReqlTimeoutError
 
 from .flask_rethink import RDB
-from .log import log
 
 db = RDB(app)
 db.init_app(app)
@@ -106,7 +108,7 @@ class DeploymentsThread(threading.Thread):
                             }
 
                         socketio.emit(
-                            "deployments_" + event,
+                            "deployment_" + event,
                             json.dumps(deployment),
                             namespace="/userspace",
                             room=user,
@@ -117,10 +119,12 @@ class DeploymentsThread(threading.Thread):
                 log.error("DeploymentsThread: Rethink db connection lost!")
                 time.sleep(0.5)
             except Exception:
-                print("DeploymentsThread internal error: restarting")
-                log.error("DeploymentsThread internal error: restarting")
-                log.error(traceback.format_stack())
-                time.sleep(2)
+                raise Error(
+                    "internal_server",
+                    "Deployments websocket restart",
+                    traceback.format_stack(),
+                )
+                time.sleep(0.1)
 
         print("DeploymentsThread ENDED!!!!!!!")
         log.error("DeploymentsThread ENDED!!!!!!!")
@@ -135,23 +139,3 @@ def start_deployments_thread():
         threads["deployments"].daemon = True
         threads["deployments"].start()
         log.info("DeploymentsThread Started")
-
-
-# # deployments namespace
-# @socketio.on('connect', namespace='/deployments')
-# def socketio_deployments_connect():
-#     try:
-#         payload = get_token_payload(request.args.get('jwt'))
-#         if payload['role_id'] == 'advanced':
-#             join_room(payload['user_id'])
-#             log.debug('User '+payload['user_id']+' joined deployments ws')
-#     except:
-#         log.debug('Failed attempt to connect so socketio: '+traceback.format_stack())
-
-# @socketio.on('disconnect', namespace='/deployments')
-# def socketio_deployments_disconnect():
-#     try:
-#         payload = get_token_payload(request.args.get('jwt'))
-#         leave_room(payload['user_id'])
-#     except:
-#         pass

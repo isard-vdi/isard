@@ -15,13 +15,13 @@ from api import app
 
 r = RethinkDB()
 import json
+import logging as log
 import traceback
 
 from rethinkdb.errors import ReqlDriverError, ReqlTimeoutError
 
 from ..libv2.api_desktops_common import ApiDesktopsCommon
 from .flask_rethink import RDB
-from .log import log
 
 db = RDB(app)
 db.init_app(app)
@@ -192,59 +192,79 @@ class DomainsThread(threading.Thread):
                                     room=data["user"],
                                 )
 
-                        ## Tagged desktops to advanced users
-                        if data["kind"] == "desktop" and data.get("tag", False):
+                        ## Tagged desktops update/add new data
+                        if data.get("tag", False):
                             deployment_id = data.get("tag")
-                            try:
-                                deployment = (
-                                    r.table("deployments")
-                                    .get(deployment_id)
-                                    .pluck(
-                                        "id",
-                                        "name",
-                                        "user",
-                                        {"create_dict": {"tag_visible"}},
-                                    )
-                                    .merge(
-                                        lambda d: {
-                                            "totalDesktops": r.table("domains")
-                                            .get_all(d["id"], index="tag")
-                                            .count(),
-                                            "startedDesktops": r.table("domains")
-                                            .get_all(d["id"], index="tag")
-                                            .filter({"status": "Started"})
-                                            .count(),
-                                            "visible": d["create_dict"]["tag_visible"],
-                                        }
-                                    )
-                                    .run(db.conn)
-                                )
-
-                                data = _parse_deployment_desktop(
-                                    data, deployment["user"]
-                                )
-                                data.pop("name")
-                                data.pop("description")
+                            if event == "delete":
                                 socketio.emit(
-                                    "deploymentdesktop_" + event,
+                                    "deploymentdesktop_delete",
                                     json.dumps(data),
                                     namespace="/userspace",
-                                    room=deployment["user"],
+                                    room="deploymentdesktops_" + deployment_id,
+                                )
+                            deployment_user = (
+                                r.table("deployments")
+                                .get(deployment_id)
+                                .pluck("user")
+                                .run(db.conn)["user"]
+                            )
+
+                            if event == "add" and not c.get("old_val"):
+                                socketio.emit(
+                                    "deploymentdesktop_add",
+                                    json.dumps(
+                                        _parse_deployment_desktop(data, deployment_user)
+                                    ),
+                                    namespace="/userspace",
+                                    room=deployment_user,
                                 )
 
-                                ## And then update deployments to user owner (if the deployment still exists)
-                                if last_deployment == deployment:
-                                    continue
-                                else:
-                                    last_deployment = deployment
+                            if event == "update":
                                 socketio.emit(
-                                    "deployment_update",
-                                    json.dumps(deployment),
+                                    "deploymentdesktop_update",
+                                    json.dumps(
+                                        _parse_deployment_desktop(data, deployment_user)
+                                    ),
                                     namespace="/userspace",
-                                    room=deployment["user"],
+                                    room=deployment_user,
                                 )
-                            except:
-                                log.debug(traceback.format_stack())
+
+                            deployment = (
+                                r.table("deployments")
+                                .get(deployment_id)
+                                .pluck(
+                                    "id",
+                                    "name",
+                                    "user",
+                                    {"create_dict": {"tag_visible"}},
+                                )
+                                .merge(
+                                    lambda d: {
+                                        "totalDesktops": r.table("domains")
+                                        .get_all(d["id"], index="tag")
+                                        .count(),
+                                        "startedDesktops": r.table("domains")
+                                        .get_all(d["id"], index="tag")
+                                        .filter({"status": "Started"})
+                                        .count(),
+                                        "visible": d["create_dict"]["tag_visible"],
+                                    }
+                                )
+                                .run(db.conn)
+                            )
+                            # And then update deployments to user owner (if the deployment still exists)
+                            if last_deployment == deployment:
+                                continue
+                            else:
+                                last_deployment = deployment
+
+                            # Event to deployment view (list of desktops)
+                            socketio.emit(
+                                "deployments_update",
+                                json.dumps(deployment),
+                                namespace="/userspace",
+                                room=deployment_user,
+                            )
 
             except ReqlDriverError:
                 print("DomainsThread: Rethink db connection lost!")
@@ -253,7 +273,7 @@ class DomainsThread(threading.Thread):
             except Exception:
                 print("DomainsThread internal error: restarting")
                 log.error("DomainsThread internal error: restarting")
-                log.error(traceback.format_stack())
+                log.error(traceback.format_exc())
                 time.sleep(2)
 
         print("DomainsThread ENDED!!!!!!!")
