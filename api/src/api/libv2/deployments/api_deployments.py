@@ -21,7 +21,7 @@ from ..flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
-from ..api_admin import ApiAdmin
+from ..api_desktops_common import ApiDesktopsCommon
 from ..api_desktops_persistent import ApiDesktopsPersistent
 from ..ds import DS
 from ..helpers import _parse_deployment_desktop, _parse_string
@@ -364,7 +364,7 @@ def direct_viewer_csv(deployment_id):
             if not d.get("jumperurl")
         ]
         for domain_id in domains_wo_token_ids:
-            ApiAdmin().api_jumperurl_reset(domain_id)
+            ApiDesktopsCommon().gen_jumpertoken(domain_id)
 
         ## Get data to generate csv
         domains = list(
