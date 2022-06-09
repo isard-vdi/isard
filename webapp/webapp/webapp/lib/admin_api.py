@@ -2154,7 +2154,7 @@ class isardAdmin:
             return {"jumperurl": False}
         return {"jumperurl": domain["jumperurl"]}
 
-    def jumperurl_reset(self, id, disabled=False, length=128):
+    def jumperurl_reset(self, id, disabled=False, length=32):
         if disabled == True:
             with app.app_context():
                 r.table("domains").get(id).update({"jumperurl": False}).run(db.conn)
@@ -2165,7 +2165,7 @@ class isardAdmin:
             r.table("domains").get(id).update({"jumperurl": code}).run(db.conn)
         return code
 
-    def jumperurl_gencode(self, length=128):
+    def jumperurl_gencode(self, length=32):
         code = False
         while code == False:
             code = secrets.token_urlsafe(length)

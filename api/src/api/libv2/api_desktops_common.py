@@ -141,7 +141,7 @@ class ApiDesktopsCommon:
             "cookie": False,
         }
 
-    def gen_jumpertoken(self, desktop_id, length=128):
+    def gen_jumpertoken(self, desktop_id, length=32):
         code = False
         while code == False:
             code = secrets.token_urlsafe(length)
