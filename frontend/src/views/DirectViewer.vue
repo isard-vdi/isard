@@ -1,7 +1,7 @@
 <template>
 <b-container fluid class="h-100 w-100 pt-4 scrollable-div" style="background: #a7a5a7;">
   <b-row class="h-100 justify-content-center ml-2 mr-2 mr-md-5">
-    <b-col class="pb-4" cols="12" md="10" lg="8">
+    <b-col class="pb-4" cols="12" md="10" lg="10">
       <b-row class="justify-content-center align-content-center h-100">
         <!-- HEADER -->
         <b-col sm="12" class="justify-content-center align-content-center d-flex right-separator-border rounded-top-30" style="background: #3a4445; height:100px;">
@@ -34,7 +34,7 @@
                       <DirectViewerSkeleton></DirectViewerSkeleton>
                       <DirectViewerSkeleton></DirectViewerSkeleton>
                   </template>
-                  <b-col sm="8">
+                  <b-col sm="10">
                     <b-row class="justify-content-center text-center">
                       <!-- Browser viewers -->
                       <b-col xl="6">
