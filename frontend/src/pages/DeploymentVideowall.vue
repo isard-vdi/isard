@@ -54,12 +54,6 @@ export default {
     visibleDesktops () {
       return this.sortedDesktops.filter(desktop => this.getDeploymentsShowStarted === true ? desktop.state.toLowerCase() === 'started' : true)
     }
-  },
-  mounted () {
-    this.$store.dispatch('openSocket', { room: 'deploymentdesktops', deploymentId: this.$route.params.id })
-  },
-  destroyed () {
-    this.$store.dispatch('closeSocket')
   }
 }
 </script>

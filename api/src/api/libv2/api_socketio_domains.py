@@ -150,7 +150,7 @@ class DomainsThread(threading.Thread):
                                 data if item != "desktop" else _parse_desktop(data)
                             ),
                             namespace="/userspace",
-                            room=item + "s_" + data["user"],
+                            room=data["user"],
                         )
                         if (
                             event == "update"
@@ -189,7 +189,7 @@ class DomainsThread(threading.Thread):
                                         else _parse_desktop(data)
                                     ),
                                     namespace="/userspace",
-                                    room=item + "s_" + data["user"],
+                                    room=data["user"],
                                 )
 
                         ## Tagged desktops to advanced users
@@ -229,7 +229,7 @@ class DomainsThread(threading.Thread):
                                     "deploymentdesktop_" + event,
                                     json.dumps(data),
                                     namespace="/userspace",
-                                    room="deploymentdesktops_" + deployment_id,
+                                    room=deployment["user"],
                                 )
 
                                 ## And then update deployments to user owner (if the deployment still exists)
@@ -241,7 +241,7 @@ class DomainsThread(threading.Thread):
                                     "deployment_update",
                                     json.dumps(deployment),
                                     namespace="/userspace",
-                                    room="deployments_" + deployment["user"],
+                                    room=deployment["user"],
                                 )
                             except:
                                 log.debug(traceback.format_stack())
@@ -294,22 +294,8 @@ def socketio_users_connect():
                 "Websocket direct viewer joined room: " + payload.get("desktop_id")
             )
         else:
-            room = request.args.get("room")
-            ## Rooms: desktop, deployment, deploymentdesktop
-            if room == "deploymentdesktops":
-                with app.app_context():
-                    if (
-                        r.table("deployments")
-                        .get(request.args.get("deploymentId"))
-                        .run(db.conn)["user"]
-                        != payload["user_id"]
-                    ):
-                        raise
-                deployment_id = request.args.get("deploymentId")
-                join_room("deploymentdesktops_" + deployment_id)
-            else:
-                join_room(room + "_" + payload["user_id"])
-            log.debug("User " + payload["user_id"] + " joined room: " + room)
+            join_room(payload["user_id"])
+            log.debug("User " + payload["user_id"] + " joined")
     except:
         log.debug("Failed attempt to connect so socketio: " + traceback.format_stack())
 
@@ -321,7 +307,6 @@ def socketio_domains_disconnect():
         if payload.get("desktop_id"):
             leave_room(payload.get("desktop_id"))
         else:
-            for room in ["desktops", "deployments", "deployment_deskstop"]:
-                leave_room(room + "_" + payload["user_id"])
+            leave_room(payload["user_id"])
     except:
         log.debug(traceback.format_stack())

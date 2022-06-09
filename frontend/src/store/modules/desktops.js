@@ -80,7 +80,9 @@ export default {
     },
     update_desktop: (state, desktop) => {
       const item = state.desktops.find(d => d.id === desktop.id)
-      Object.assign(item, desktop)
+      if (item) {
+        Object.assign(item, desktop)
+      }
     },
     remove_desktop: (state, desktop) => {
       const desktopIndex = state.desktops.findIndex(d => d.id === desktop.id)
@@ -103,7 +105,9 @@ export default {
     },
     update_direct_viewer: (state, desktop) => {
       const item = state.desktops.find(d => d.id === desktop.id)
-      Object.assign(item, desktop)
+      if (item) {
+        Object.assign(item, desktop)
+      }
     },
     setDirectViewerErrorState: (state) => {
       state.directViewer.state = 'error'

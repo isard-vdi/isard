@@ -28,12 +28,6 @@ export default {
         return d.viewer ? -1 : 1
       })
     }
-  },
-  mounted () {
-    this.$store.dispatch('openSocket', { room: 'deploymentdesktops', deploymentId: this.$route.params.id })
-  },
-  destroyed () {
-    this.$store.dispatch('closeSocket')
   }
 }
 </script>

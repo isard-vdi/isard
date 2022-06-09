@@ -32,12 +32,6 @@ export default {
     deployments_loaded () {
       return this.$store.getters.getDeploymentsLoaded
     }
-  },
-  mounted () {
-    this.$store.dispatch('openSocket', { room: 'deployments' })
-  },
-  destroyed () {
-    this.$store.dispatch('closeSocket')
   }
 }
 </script>

@@ -119,12 +119,6 @@ export default {
       'getDesktopsLoaded',
       'getViewType'
     ])
-  },
-  mounted () {
-    this.$store.dispatch('openSocket', { room: 'desktops' })
-  },
-  destroyed () {
-    this.$store.dispatch('closeSocket')
   }
 }
 </script>
