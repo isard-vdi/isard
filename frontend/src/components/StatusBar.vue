@@ -6,6 +6,17 @@
         <div class="d-flex flex-grow">
            <!-- Left aligned nav items-->
           <b-navbar-nav id="statusbar-content" class="flex-grow flex-row">
+            <!-- Back -->
+            <b-nav-item v-if="locationDeployment" href="#" @click="goToDeployments">
+              <div>
+                <b-icon
+                  icon="arrow-left"
+                  aria-hidden="true"
+                  class="text-medium-gray mr-2 mr-lg-2">
+                </b-icon>
+                {{$t("components.statusbar.deployment.back")}}
+              </div>
+            </b-nav-item>
             <!-- filter -->
             <DesktopsFilter v-if="locationDesktops && !creationMode" class="d-none d-lg-flex"></DesktopsFilter>
             <!-- Only started checkbox -->
@@ -38,6 +49,32 @@
           <!-- Right aligned nav items-->
           <div class="pt-1"><b-button v-if="locationDesktops && !creationMode" :pill="true" class="mr-0 mr-md-4" variant="outline-primary" size="sm" @click="navigate('desktopsnew')">{{`${$t("components.statusbar.new-desktop")}`}}</b-button></div>
           <div class="pt-1"><b-button v-if="locationDeployments && !creationMode" :pill="true" class="mr-0 mr-md-4" variant="outline-primary" size="sm" @click="navigate('deploymentsnew')">{{`${$t("components.statusbar.new-deployment")}`}}</b-button></div>
+          <div class="pt-1" v-if="locationDeployment">
+            <b-button class="rounded-circle px-2 mr-2 btn-green" @click="startDesktops()" :title="$t('components.statusbar.deployment.buttons.start.title')">
+              <b-icon icon="play" scale="0.75"></b-icon>
+            </b-button>
+            <b-button class="rounded-circle px-2 mr-2 btn-red" @click="stopDesktops()" :title="$t('components.statusbar.deployment.buttons.stop.title')">
+              <b-icon icon="stop" scale="0.75"></b-icon>
+            </b-button>
+            <b-button class="rounded-circle px-2 mr-2" :class="visibleClass()"
+              @click="toggleVisible()"
+              :title="deployment.visible ? $t('components.statusbar.deployment.buttons.make-not-visible.title') : $t('components.statusbar.deployment.buttons.make-visible.title')"
+            >
+              <b-icon :icon="toggleVisibleIcon()" scale="0.75"></b-icon>
+            </b-button>
+            <b-button class="rounded-circle px-2 mr-2 btn-dark-blue" @click="goToVideowall()" :title="$t('components.statusbar.deployment.buttons.videowall.title')">
+              <b-icon icon="grid-fill" scale="0.75"></b-icon>
+            </b-button>
+            <b-button class="rounded-circle btn-purple px-2 mr-2" @click="downloadDirectViewerCSV()" :title="$t('components.statusbar.deployment.buttons.download-direct-viewer.title')">
+              <b-icon icon="download" scale="0.75"></b-icon>
+            </b-button>
+            <b-button class="rounded-circle px-2 mr-2 btn-orange" @click="recreateDeployment()" :title="$t('components.statusbar.deployment.buttons.recreate.title')">
+              <b-icon icon="arrow-clockwise" scale="0.75"></b-icon>
+            </b-button>
+            <b-button class="rounded-circle btn-red px-2 mr-2" @click="deleteDeployment()" :title="$t('components.statusbar.deployment.buttons.delete.title')">
+              <b-icon icon="trash-fill" scale="0.75"></b-icon>
+            </b-button>
+          </div>
           <b-navbar-nav v-if="locationDesktops && !creationMode" class="ml-auto flex-row d-none d-xl-flex">
             <b-nav-item href="#" @click="setViewType('grid')" :class="{selectedView: getViewType === 'grid'}">
               <b-icon
@@ -65,8 +102,167 @@
 import { desktopStates } from '@/shared/constants'
 import { mapActions, mapGetters } from 'vuex'
 import DesktopsFilter from '@/components/desktops/DesktopsFilter.vue'
+import { computed } from '@vue/composition-api'
+import i18n from '@/i18n'
 
 export default {
+  setup (props, context) {
+    const $store = context.root.$store
+
+    const deployment = computed(() => $store.getters.getDeployment)
+
+    const goToDeployments = () => {
+      context.root.$router.push({ name: 'deployments' })
+    }
+
+    // Deployment buttons
+    const startDesktops = () => {
+      context.root.$snotify.clear()
+
+      const yesAction = () => {
+        context.root.$snotify.clear()
+        $store.dispatch('startDeploymentDesktops', { id: deployment.value.id })
+      }
+
+      const noAction = (toast) => {
+        context.root.$snotify.clear()
+      }
+
+      context.root.$snotify.prompt(`${i18n.t('messages.confirmation.start-deployment-desktops', { name: deployment.value.name })}`, {
+        position: 'centerTop',
+        buttons: [
+          { text: `${i18n.t('messages.yes')}`, action: yesAction, bold: true },
+          { text: `${i18n.t('messages.no')}`, action: noAction }
+        ],
+        placeholder: ''
+      })
+    }
+
+    const stopDesktops = () => {
+      context.root.$snotify.clear()
+
+      const yesAction = () => {
+        context.root.$snotify.clear()
+        $store.dispatch('stopDeploymentDesktops', { id: deployment.value.id })
+      }
+
+      const noAction = (toast) => {
+        context.root.$snotify.clear()
+      }
+
+      context.root.$snotify.prompt(`${i18n.t('messages.confirmation.stop-deployment-desktops', { name: deployment.value.name })}`, {
+        position: 'centerTop',
+        buttons: [
+          { text: `${i18n.t('messages.yes')}`, action: yesAction, bold: true },
+          { text: `${i18n.t('messages.no')}`, action: noAction }
+        ],
+        placeholder: ''
+      })
+    }
+
+    const redirectDeployment = () => {
+      context.root.$router.push({ name: 'deployment_desktops', params: { id: deployment.value.id } })
+    }
+
+    const visibleClass = () => {
+      return deployment.value.visible ? 'btn-grey' : 'btn-blue'
+    }
+
+    const toggleVisibleIcon = () => {
+      return deployment.value.visible ? 'eye-slash-fill' : 'eye-fill'
+    }
+
+    const goToVideowall = () => {
+      context.root.$router.push({ name: 'deployment_videowall', params: { id: deployment.value.id } })
+    }
+
+    const toggleVisible = () => {
+      context.root.$snotify.clear()
+
+      const yesAction = () => {
+        context.root.$snotify.clear()
+        $store.dispatch('toggleVisible', { id: deployment.value.id, visible: deployment.value.visible })
+      }
+
+      const noAction = (toast) => {
+        context.root.$snotify.clear()
+      }
+
+      context.root.$snotify.prompt(`${i18n.t(deployment.value.visible ? 'messages.confirmation.not-visible-deployment' : 'messages.confirmation.visible-deployment', { name: deployment.value.name })}`, {
+        position: 'centerTop',
+        buttons: [
+          { text: `${i18n.t('messages.yes')}`, action: yesAction, bold: true },
+          { text: `${i18n.t('messages.no')}`, action: noAction }
+        ],
+        placeholder: ''
+      })
+    }
+
+    const downloadDirectViewerCSV = () => {
+      $store.dispatch('downloadDirectViewerCSV', { id: deployment.value.id })
+    }
+
+    const deleteDeployment = () => {
+      context.root.$snotify.clear()
+
+      const yesAction = () => {
+        context.root.$snotify.clear()
+        $store.dispatch('deleteDeployment', { id: deployment.value.id }).then(() => {
+          context.root.$router.push({ name: 'deployments' })
+        })
+      }
+
+      const noAction = (toast) => {
+        context.root.$snotify.clear()
+      }
+
+      context.root.$snotify.prompt(`${i18n.t('messages.confirmation.delete-deployment', { name: deployment.value.name })}`, {
+        position: 'centerTop',
+        buttons: [
+          { text: `${i18n.t('messages.yes')}`, action: yesAction, bold: true },
+          { text: `${i18n.t('messages.no')}`, action: noAction }
+        ],
+        placeholder: ''
+      })
+    }
+
+    const recreateDeployment = () => {
+      context.root.$snotify.clear()
+
+      const yesAction = () => {
+        context.root.$snotify.clear()
+        $store.dispatch('recreateDeployment', { id: deployment.value.id })
+      }
+
+      const noAction = (toast) => {
+        context.root.$snotify.clear()
+      }
+
+      context.root.$snotify.prompt(`${i18n.t('messages.confirmation.recreate-deployment', { name: deployment.value.name })}`, {
+        position: 'centerTop',
+        buttons: [
+          { text: `${i18n.t('messages.yes')}`, action: yesAction, bold: true },
+          { text: `${i18n.t('messages.no')}`, action: noAction }
+        ],
+        placeholder: ''
+      })
+    }
+
+    return {
+      goToDeployments,
+      startDesktops,
+      stopDesktops,
+      deployment,
+      visibleClass,
+      toggleVisibleIcon,
+      redirectDeployment,
+      goToVideowall,
+      toggleVisible,
+      downloadDirectViewerCSV,
+      deleteDeployment,
+      recreateDeployment
+    }
+  },
   components: {
     DesktopsFilter
   },

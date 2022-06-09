@@ -195,19 +195,20 @@ class DomainsThread(threading.Thread):
                         ## Tagged desktops update/add new data
                         if data.get("tag", False):
                             deployment_id = data.get("tag")
-                            if event == "delete":
-                                socketio.emit(
-                                    "deploymentdesktop_delete",
-                                    json.dumps(data),
-                                    namespace="/userspace",
-                                    room="deploymentdesktops_" + deployment_id,
-                                )
                             deployment_user = (
                                 r.table("deployments")
                                 .get(deployment_id)
                                 .pluck("user")
                                 .run(db.conn)["user"]
                             )
+
+                            if event == "delete":
+                                socketio.emit(
+                                    "deploymentdesktop_delete",
+                                    json.dumps(data),
+                                    namespace="/userspace",
+                                    room=deployment_user,
+                                )
 
                             if event == "add" and not c.get("old_val"):
                                 socketio.emit(
@@ -258,7 +259,12 @@ class DomainsThread(threading.Thread):
                             else:
                                 last_deployment = deployment
 
-                            # Event to deployment view (list of desktops)
+                            socketio.emit(
+                                "deployment_update",
+                                json.dumps(deployment),
+                                namespace="/userspace",
+                                room=deployment_user,
+                            )
                             socketio.emit(
                                 "deployments_update",
                                 json.dumps(deployment),
