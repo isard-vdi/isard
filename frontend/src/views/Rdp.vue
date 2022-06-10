@@ -61,7 +61,7 @@ export default {
       this.host = params.host
       this.desktopIp = params.vmHost
 
-      const query = `scheme=rdp&hostname=${this.desktopIp}&ignore-cert=true&resize-method=display-update&session=${this.getToken}&server-layout=es-es-qwerty`
+      const query = `scheme=rdp&hostname=${this.desktopIp}&ignore-cert=true&resize-method=display-update&session=${localStorage.viewerToken}&server-layout=es-es-qwerty`
       this.connected = true
 
       this.connect(query)
