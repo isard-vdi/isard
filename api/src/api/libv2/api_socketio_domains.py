@@ -176,7 +176,7 @@ class DomainsThread(threading.Thread):
                                     "directviewer_update",
                                     json.dumps(viewer_data),
                                     namespace="/userspace",
-                                    room=data["user"],
+                                    room=data["id"],
                                 )
                         # Event delete for users when tag becomes hidden
                         if not data.get("tag_visible", True):

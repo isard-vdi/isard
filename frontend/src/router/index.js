@@ -13,7 +13,7 @@ import DeploymentNew from '@/pages/DeploymentNew.vue'
 import DirectViewer from '@/views/DirectViewer.vue'
 import Vue from 'vue'
 import VueRouter from 'vue-router'
-import { auth } from './auth'
+import { auth, checkRdpToken } from './auth'
 import MainLayout from '@/layouts/MainLayout.vue'
 import Desktops from '@/pages/Desktops.vue'
 import DesktopNew from '@/pages/DesktopNew.vue'
@@ -64,7 +64,7 @@ const router = new VueRouter({
       name: 'Rdp',
       component: Rdp,
       meta: {
-        requiresAuth: true
+        requiresRdpToken: true
       }
     },
     {
@@ -153,6 +153,8 @@ router.beforeEach((to, from, next) => {
 
   if (to.matched.some(record => record.meta.requiresAuth)) {
     auth(to, from, next)
+  } else if (to.matched.some(record => record.meta.requiresRdpToken)) {
+    checkRdpToken(to, from, next)
   } else {
     store.dispatch('saveNavigation', { url: to })
     next()

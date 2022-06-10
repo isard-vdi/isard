@@ -9,7 +9,7 @@
 
 export default {
   beforeMount () {
-    if (localStorage.token) {
+    if (localStorage.token && this.$route.name !== 'DirectViewer') {
       this.$store.dispatch('setSession', localStorage.token)
       this.$store.dispatch('openSocket', {})
     }
