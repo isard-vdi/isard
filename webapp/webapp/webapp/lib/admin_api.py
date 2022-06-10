@@ -32,6 +32,7 @@ db = RethinkDB(app)
 db.init_app(app)
 
 from .api_client import ApiClient
+from .isardViewer import default_guest_properties
 
 apic = ApiClient()
 
@@ -1971,7 +1972,7 @@ class isardAdmin:
             "icon": icon,
             "server": False,
             "os": create_dict["builder"]["id"],  #### Or name
-            "options": {"viewers": {"spice": {"fullscreen": True}}},
+            "guest_properties": default_guest_properties(),
             "create_dict": create_dict,
             "hypervisors_pools": hyper_pools,
             "allowed": {
@@ -2057,7 +2058,7 @@ class isardAdmin:
             },
             "server": False,
             "os": create_dict["create_from_virt_install_xml"],  #### Or name
-            "options": {"viewers": {"spice": {"fullscreen": False}}},
+            "guest_properties": default_guest_properties(),
             "create_dict": create_dict,
             "hypervisors_pools": hyper_pools,
             "allowed": {
@@ -2114,7 +2115,7 @@ class isardAdmin:
             },
             "server": False,
             "os": create_dict["create_from_virt_install_xml"],  #### Or name
-            "options": {"viewers": {"spice": {"fullscreen": False}}},
+            "guest_properties": default_guest_properties(),
             "create_dict": create_dict,
             "hypervisors_pools": hyper_pools,
             "allowed": {

@@ -1,0 +1,49 @@
+credentials:
+  type: dict
+  default:
+    schema:
+  schema:
+    username:
+      type: string
+      default: ""
+    password:
+      type: string
+      default: ""
+viewers:
+  type: dict
+  default:
+    schema:
+  schema:
+    preferred:
+      type:
+        - string
+        - boolean
+      default: None
+    kinds:
+      type: list
+      schema:
+        type: dict
+        # schema:
+        #   file-spice:
+        #     type: dict
+        #     required: false
+        #     schema:
+        #       kind:
+        #         type: string
+        #         required: false
+        #         default: "file"
+        #         allowed: "file"
+        #       protocol:
+        #         type: string
+        #         required: false
+        #         default: "spice"
+        #         allowed: "spice"
+        #       options:
+        #         type: dict
+        #         required: false
+        #         default: {}
+        #         schema:
+        #           fullscreen:
+        #             type: boolean
+        #             required: false
+        #             default: true

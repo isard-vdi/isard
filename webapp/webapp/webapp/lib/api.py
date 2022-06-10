@@ -1406,7 +1406,7 @@ class isard:
             "image": desktop["image"],
             "server": desktop["server"],
             "os": desktop["os"],
-            "options": desktop["options"],
+            "guest_properties": desktop["guest_properties"],
             "create_dict": {"hardware": hardware, "origin": from_id},
             "hypervisors_pools": form_data["hypervisors_pools"],
             "parents": desktop["parents"] if "parents" in desktop.keys() else [],
@@ -1661,7 +1661,7 @@ class isard:
             "image": dom["image"],
             "server": dom["server"],
             "os": dom["os"],
-            "options": {"viewers": {"spice": {"fullscreen": True}}},
+            "guest_properties": dom["guest_properties"],
             "create_dict": {
                 "hardware": create_dict["hardware"],
                 "origin": create_dict["template"],
@@ -1713,6 +1713,14 @@ class isard:
         create_dict["create_dict"] = self.parse_media_info(create_dict["create_dict"])
 
         create_dict["status"] = "Updating"
+
+        r.table("domains").get(id).update(
+            {
+                "guest_properties": {
+                    "viewers": r.literal(create_dict["guest_properties"]["viewers"])
+                }
+            }
+        ).run(db.conn)
         return self.check(
             r.table("domains").get(id).update(create_dict).run(db.conn), "replaced"
         )

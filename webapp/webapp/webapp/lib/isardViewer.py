@@ -25,7 +25,23 @@ import urllib
 from http.cookies import SimpleCookie
 
 from ..lib.viewer_exc import *
-from .admin_api import flatten
+
+
+def default_guest_properties():
+    return {
+        "credentials": {
+            "username": "isard",
+            "password": "pirineus",
+        },
+        "fullscreen": False,
+        "viewers": {
+            "file_spice": {"options": None},
+            "browser_vnc": {"options": None},
+            "file_rdpgw": {"options": None},
+            "file_rdpvpn": {"options": None},
+            "browser_rdp": {"options": None},
+        },
+    }
 
 
 class isardViewer:

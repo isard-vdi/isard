@@ -85,37 +85,36 @@ class ApiDesktopsCommon:
                 "vmName": domains[0]["name"],
                 "vmDescription": domains[0]["description"],
                 "vmState": "Started",
-                "file-spice": self.DesktopViewer(
-                    domains[0]["id"], protocol="file-spice", get_cookie=True
-                ),
-                "browser-vnc": self.DesktopViewer(
-                    domains[0]["id"], protocol="browser-vnc", get_cookie=True
-                ),
             }
-
-            # Needs RDP
-            if "wireguard" in domains[0]["create_dict"]["hardware"]["interfaces"]:
-                if domains[0]["os"].startswith("win"):
-                    if not domains[0].get("viewer", {}).get("guest_ip"):
-                        wireguard_viewers = {
-                            "vmState": "WaitingIP",
-                            "browser-rdp": {"kind": "browser", "protocol": "rdp"},
-                            "file-rdpgw": {"kind": "file", "protocol": "rdpgw"},
-                        }
-                    else:
-                        wireguard_viewers = {
-                            "browser-rdp": self.DesktopViewer(
-                                domains[0]["id"],
-                                protocol="browser-rdp",
-                                get_cookie=True,
-                            ),
-                            "file-rdpgw": self.DesktopViewer(
-                                domains[0]["id"],
-                                protocol="file-rdpgw",
-                                get_cookie=True,
-                            ),
-                        }
-                    viewers = {**viewers, **wireguard_viewers}
+            desktop_viewers = list(domains[0]["guest_properties"]["viewers"].keys())
+            if "file_spice" in desktop_viewers:
+                viewers["file-spice"] = self.DesktopViewer(
+                    domains[0]["id"], protocol="file-spice", get_cookie=True
+                )
+            if "browser_vnc" in desktop_viewers:
+                viewers["browser-vnc"] = self.DesktopViewer(
+                    domains[0]["id"], protocol="browser-vnc", get_cookie=True
+                )
+            if "browser_rdp" in desktop_viewers:
+                if not domains[0].get("viewer", {}).get("guest_ip"):
+                    viewers["browser_rdp"] = {"kind": "browser", "protocol": "rdp"}
+                    viewers["vmState"] = "WaitingIP"
+                else:
+                    viewers["browser-rdp"] = self.DesktopViewer(
+                        domains[0]["id"],
+                        protocol="browser-rdp",
+                        get_cookie=True,
+                    )
+            if "file_rdpgw" in desktop_viewers:
+                if not domains[0].get("viewer", {}).get("guest_ip"):
+                    viewers["file-rdpgw"] = {"kind": "file", "protocol": "rdpgw"}
+                    viewers["vmState"] = "WaitingIP"
+                else:
+                    viewers["file-rdpgw"] = self.DesktopViewer(
+                        domains[0]["id"],
+                        protocol="file-rdpgw",
+                        get_cookie=True,
+                    )
             return viewers
         raise Error(
             "internal_server", "Jumperviewer token duplicated", traceback.format_stack()

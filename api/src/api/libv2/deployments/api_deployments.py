@@ -71,7 +71,7 @@ def get(deployment_id):
                 "parents",
                 "create_dict",
                 "viewer",
-                "options",
+                "guest_properties",
             )
             .run(db.conn)
         )

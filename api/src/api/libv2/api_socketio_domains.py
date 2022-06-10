@@ -88,7 +88,7 @@ class DomainsThread(threading.Thread):
                                 "os",
                                 "tag_visible",
                                 "viewer",
-                                "options",
+                                "guest_properties",
                                 {"create_dict": {"hardware": ["interfaces", "videos"]}},
                                 "kind",
                                 "tag",

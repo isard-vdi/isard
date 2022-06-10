@@ -40,7 +40,13 @@ from .ds import DS
 
 ds = DS()
 
-from .helpers import _check, _disk_path, _parse_media_info, _parse_string
+from .helpers import (
+    _check,
+    _disk_path,
+    _parse_media_info,
+    _parse_string,
+    default_guest_properties,
+)
 
 
 def api_jumperurl_gencode(length=32):
@@ -140,7 +146,7 @@ class ApiDesktopsPersistent:
             "image": template["image"],
             "server": template["server"],
             "os": template["os"],
-            "options": {"viewers": {"spice": {"fullscreen": True}}},
+            "guest_properties": template["guest_properties"],
             "create_dict": {
                 "hardware": create_dict["hardware"],
                 "origin": template["id"],
@@ -357,7 +363,7 @@ class ApiDesktopsPersistent:
             },
             "hyp_started": "",
             "hypervisors_pools": hypervisors_pools,
-            "options": {"viewers": {"spice": {"fullscreen": False}}},
+            "guest_properties": default_guest_properties(),
         }
 
         result = merge(

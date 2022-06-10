@@ -170,7 +170,7 @@ class ApiDesktopsNonPersistent:
             "image": template["image"],
             "server": template["server"],
             "os": template["os"],
-            "options": {"viewers": {"spice": {"fullscreen": True}}},
+            "guest_properties": template["guest_properties"],
             "create_dict": {
                 "hardware": create_dict["hardware"],
                 "origin": template["id"],

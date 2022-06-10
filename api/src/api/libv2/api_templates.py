@@ -99,7 +99,7 @@ class ApiTemplates:
             "icon": desktop["icon"],
             "server": desktop["server"],
             "os": desktop["os"],
-            "options": desktop["options"],
+            "guest_properties": desktop["guest_properties"],
             "create_dict": create_dict,
             "hypervisors_pools": ["default"],
             "parents": desktop["parents"] if "parents" in desktop.keys() else [],
