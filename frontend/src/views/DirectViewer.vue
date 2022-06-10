@@ -76,7 +76,7 @@
 
 <script>
 import Logo from '@/components/Logo.vue'
-import { computed, onMounted } from '@vue/composition-api'
+import { computed, onMounted, onUnmounted } from '@vue/composition-api'
 import DirectViewerSkeleton from '@/components/directViewer/DirectViewerSkeleton.vue'
 import DirectViewerButton from '@/components/directViewer/DirectViewerButton.vue'
 import PoweredBy from '@/components/shared/PoweredBy.vue'
@@ -104,6 +104,10 @@ export default {
         $store.dispatch('openSocket', { jwt: directViewer.value.jwt, room: directViewer.value.desktopId })
         localStorage.rdpToken = directViewer.value.jwt
       })
+    })
+
+    onUnmounted(() => {
+      $store.dispatch('closeSocket')
     })
 
     return {
