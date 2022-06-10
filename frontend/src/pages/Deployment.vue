@@ -4,7 +4,8 @@
     <hr class="mb-0"/>
     <DeploymentDesktopsList
       :desktops="sortedDesktops"
-      :loading="!getDeploymentLoaded">
+      :loading="!getDeploymentLoaded"
+      :visible="getDeployment.visible">
     </DeploymentDesktopsList>
   </b-container>
 </template>
@@ -12,6 +13,7 @@
 // @ is an alias to /src
 import DeploymentDesktopsList from '@/components/deployments/DeploymentDesktopsList.vue'
 import { mapGetters } from 'vuex'
+import { desktopStates } from '@/shared/constants'
 
 export default {
   components: {
@@ -23,9 +25,10 @@ export default {
   computed: {
     ...mapGetters(['getDeployment', 'getDeploymentLoaded']),
     sortedDesktops () {
+      console.log(this.getDeployment)
       return this.getDeployment.desktops.slice().sort(d => {
         // return started desktops first
-        return d.viewer ? -1 : 1
+        return [desktopStates.started, desktopStates.waitingip].includes(d.state.toLowerCase()) ? -1 : 1
       })
     }
   }

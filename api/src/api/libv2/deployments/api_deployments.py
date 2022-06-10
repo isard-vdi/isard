@@ -91,6 +91,7 @@ def get(deployment_id):
         "desktop_name": desktop_name,
         "description": desktop_description,
         "desktops": parsed_desktops,
+        "visible": deployment["create_dict"]["tag_visible"],
     }
 
 
@@ -294,6 +295,46 @@ def useradd(payload, deployment_id, user_id):
         deployment["create_dict"]["tag_visible"],
         skip_existing_desktops=True,
     )
+
+
+def start(deployment_id):
+    try:
+        with app.app_context():
+            domains_ids = [
+                d["id"]
+                for d in r.table("domains")
+                .get_all(deployment_id, index="tag")
+                .pluck("id")
+                .run(db.conn)
+            ]
+    except:
+        raise Error("not_found", "Deployment id not found: " + str(deployment_id))
+
+    for domain_id in domains_ids:
+        try:
+            ApiDesktopsPersistent().Start(domain_id)
+        except:
+            None
+
+
+def stop(deployment_id):
+    try:
+        with app.app_context():
+            domains_ids = [
+                d["id"]
+                for d in r.table("domains")
+                .get_all(deployment_id, index="tag")
+                .pluck("id")
+                .run(db.conn)
+            ]
+    except:
+        raise Error("not_found", "Deployment id not found: " + str(deployment_id))
+
+    for domain_id in domains_ids:
+        try:
+            ApiDesktopsPersistent().Stop(domain_id)
+        except:
+            None
 
 
 def visible(deployment_id, stop_started_domains=True):

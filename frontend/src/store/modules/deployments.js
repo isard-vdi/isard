@@ -1,7 +1,6 @@
 import axios from 'axios'
 import { apiV3Segment } from '../../shared/constants'
 import { DeploymentsUtils } from '../../utils/deploymentsUtils'
-import { DesktopUtils } from '@/utils/desktopsUtils'
 import { ErrorUtils } from '../../utils/errorUtils'
 import i18n from '@/i18n'
 import router from '@/router'
@@ -49,20 +48,25 @@ export default {
     setSelectedDesktop: (state, selectedDesktop) => {
       state.selectedDesktop = selectedDesktop
     },
-    add_deployment: (state, deployment) => {
+    add_deployments: (state, deployment) => {
       state.deployments = [...state.deployments, deployment]
     },
-    update_deployment: (state, deployment) => {
+    update_deployments: (state, deployment) => {
       const item = state.deployments.find(d => d.id === deployment.id)
       if (item) {
         Object.assign(item, deployment)
       }
     },
-    remove_deployment: (state, deployment) => {
+    remove_deployments: (state, deployment) => {
       const deploymentIndex = state.deployments.findIndex(d => d.id === deployment.id)
       if (deploymentIndex !== -1) {
         state.deployments.splice(deploymentIndex, 1)
       }
+    },
+    update_deployment: (state, deployment) => {
+      const item = state.deployment
+      deployment.desktops = item.desktops // Don't update its desktops
+      Object.assign(item, deployment)
     },
     add_deploymentdesktop: (state, deploymentdesktop) => {
       state.deployment.desktops = [...state.deployment.desktops, deploymentdesktop]
@@ -84,17 +88,21 @@ export default {
     }
   },
   actions: {
-    socket_deploymentAdd (context, data) {
+    socket_deploymentsAdd (context, data) {
       const deployment = DeploymentsUtils.parseDeploymentsItem(JSON.parse(data))
-      context.commit('add_deployment', deployment)
+      context.commit('add_deployments', deployment)
+    },
+    socket_deploymentsUpdate (context, data) {
+      const deployments = DeploymentsUtils.parseDeploymentsItem(JSON.parse(data))
+      context.commit('update_deployments', deployments)
+    },
+    socket_deploymentsDelete (context, data) {
+      const deployment = JSON.parse(data)
+      context.commit('remove_deployments', deployment)
     },
     socket_deploymentUpdate (context, data) {
-      const deployment = DeploymentsUtils.parseDeploymentsItem(JSON.parse(data))
+      const deployment = DeploymentsUtils.parseDeployment(JSON.parse(data))
       context.commit('update_deployment', deployment)
-    },
-    socket_deploymentDelete (context, data) {
-      const deployment = JSON.parse(data)
-      context.commit('remove_deployment', deployment)
     },
     socket_deploymentdesktopAdd (context, data) {
       const deploymentdesktop = DeploymentsUtils.parseDeploymentDesktop(JSON.parse(data))
@@ -105,7 +113,7 @@ export default {
       context.commit('update_deploymentdesktop', deploymentdesktop)
     },
     socket_deploymentdesktopDelete (context, data) {
-      const deploymentdesktop = JSON.parse(data)
+      const deploymentdesktop = DeploymentsUtils.parseDeploymentDesktop(JSON.parse(data))
       context.commit('remove_deploymentdesktop', deploymentdesktop)
     },
     fetchDeployments (context) {
@@ -116,7 +124,6 @@ export default {
     fetchDeployment (context, data) {
       axios.get(`${apiV3Segment}/deployment/${data.id}`).then(response => {
         context.commit('setDeployment', DeploymentsUtils.parseDeployment(response.data))
-        context.commit('setDesktops', DesktopUtils.parseDesktops(response.data.desktops))
       })
     },
     setSelectedDesktop (context, selectedDesktop) {
@@ -135,7 +142,7 @@ export default {
       })
     },
     toggleVisible (_, payload) {
-      ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deleting-deployment'), '', true, 1000)
+      ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t(payload.visible ? 'messages.info.making-invisible-deployment' : 'messages.info.making-visible-deployment'), '', true, 1000)
       axios.put(`${apiV3Segment}/deployments/visible/${payload.id}`).then(response => {
         this._vm.$snotify.clear()
       }).catch(e => {
@@ -172,6 +179,22 @@ export default {
         el.click()
         document.body.removeChild(el)
         ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.file-downloaded'), '', false, 1000)
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    startDeploymentDesktops (_, payload) {
+      ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.starting-desktops'), '', true, 1000)
+      axios.put(`${apiV3Segment}/deployments/start/${payload.id}`).then(response => {
+        this._vm.$snotify.clear()
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    stopDeploymentDesktops (_, payload) {
+      ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.stopping-desktops'), '', true, 1000)
+      axios.put(`${apiV3Segment}/deployments/stop/${payload.id}`).then(response => {
+        this._vm.$snotify.clear()
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })

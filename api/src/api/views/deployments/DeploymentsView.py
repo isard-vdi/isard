@@ -81,6 +81,22 @@ def api_v3_deployments_useradd(payload, deployment_id, user_id):
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
+@app.route("/api/v3/deployments/start/<deployment_id>", methods=["PUT"])
+@is_not_user
+def api_v3_deployments_start(payload, deployment_id):
+    ownsTagId(payload, deployment_id)
+    api_deployments.start(deployment_id)
+    return json.dumps({}), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/deployments/stop/<deployment_id>", methods=["PUT"])
+@is_not_user
+def api_v3_deployments_stop(payload, deployment_id):
+    ownsTagId(payload, deployment_id)
+    api_deployments.stop(deployment_id)
+    return json.dumps({}), 200, {"Content-Type": "application/json"}
+
+
 @app.route("/api/v3/deployments/visible/<deployment_id>", methods=["PUT"])
 @is_not_user
 def api_v3_deployments_viewer(payload, deployment_id):

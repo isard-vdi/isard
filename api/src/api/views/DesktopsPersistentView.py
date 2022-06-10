@@ -90,6 +90,32 @@ def api_v3_desktop_start(payload, desktop_id):
     )
 
 
+@app.route("/api/v3/desktops/start", methods=["PUT"])
+@has_token
+def api_v3_desktops_start(payload):
+    try:
+        data = request.get_json(force=True)
+        desktops_ids = data["desktops_ids"]
+    except:
+        Error(
+            "bad_request",
+            "DesktopS start incorrect body data",
+            traceback.format_stack(),
+        )
+
+    for desktop_id in desktops_ids:
+        ownsDomainId(payload, desktop_id)
+        user_id = desktops.UserDesktop(desktop_id)
+        quotas.DesktopStart(user_id)
+
+    # So now we have checked if desktop exists and if we can create and/or start it
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
 @app.route("/api/v3/desktop/stop/<desktop_id>", methods=["GET"])
 @has_token
 def api_v3_desktop_stop(payload, desktop_id):
@@ -98,6 +124,29 @@ def api_v3_desktop_stop(payload, desktop_id):
 
     return (
         json.dumps({"id": desktops.Stop(desktop_id)}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/desktops/stop", methods=["PUT"])
+@has_token
+def api_v3_desktops_stop(payload, desktop_id):
+    try:
+        data = request.get_json(force=True)
+        desktops_ids = data["desktops_ids"]
+    except:
+        Error(
+            "bad_request",
+            "DesktopS start incorrect body data",
+            traceback.format_stack(),
+        )
+    for desktop_id in desktops_ids:
+        ownsDomainId(payload, desktop_id)
+        user_id = desktops.UserDesktop(desktop_id)
+
+    return (
+        json.dumps({}),
         200,
         {"Content-Type": "application/json"},
     )

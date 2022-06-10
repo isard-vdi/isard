@@ -87,7 +87,36 @@
             "new-deployment": "Nuevo despliegue",
             "upload-file": "Subir Fichero",
             "cancel": "Cancelar",
-            "select": "Selecciona"
+            "select": "Selecciona",
+            "deployment": {
+                "back": "Volver a despliegues",
+                "buttons": {
+                    "start": {
+                        "title": "Iniciar todos los escritorios del despliegue"
+                    },
+                    "stop": {
+                        "title": "Parar todos los escritorios del despliegue"
+                    },
+                    "videowall": {
+                        "title": "Ir a videowall"
+                    },
+                    "make-visible": {
+                        "title": "Hacer visible"
+                    },
+                    "make-not-visible": {
+                        "title": "Hacer invisible"
+                    },
+                    "recreate": {
+                        "title": "Recrear despliegue"
+                    },
+                    "download-direct-viewer": {
+                        "title": "Descargar fichero de visores directos"
+                    },
+                    "delete": {
+                        "title": "Eliminar despliegue"
+                    }
+                }
+            }
         },
         "desktop-cards": {
             "actions": {
@@ -352,26 +381,6 @@
                 "title": "No existen deployments de este usuario",
                 "subtitle": "Si crees que se trata de un error, contacta con el administrador"
             },
-            "buttons": {
-                "videowall": {
-                    "title": "Ir a videowall"
-                },
-                "make-visible": {
-                    "title": "Hacer visible"
-                },
-                "make-not-visible": {
-                    "title": "Hacer invisible"
-                },
-                "recreate": {
-                    "title": "Recrear"
-                },
-                "download-direct-viewer": {
-                    "title": "Descargar fichero de visores directos"
-                },
-                "delete": {
-                    "title": "Eliminar"
-                }
-            },
             "table-header": {
                 "name": "Nombre",
                 "visible": "Visible",
@@ -464,7 +473,9 @@
             "not-visible-deployment": "'{name}' será invisible para sus usuarios, continuar?",
             "recreate-deployment": "Los escritorios eliminados de '{name}' se recrearán, continuar?",
             "delete-deployment": "'{name}' se borrará, continuar?",
-            "delete-deployment-desktop": "El escritorio de '{name}' se borrará, continuar?"
+            "delete-deployment-desktop": "El escritorio de '{name}' se borrará, continuar?",
+            "start-deployment-desktops": "Los escritorios de '{name}' se iniciarán, continuar?",
+            "stop-deployment-desktops": "Los escritorios de '{name}' se pararán, continuar?"
         },
         "yes": "Si",
         "no": "No",
@@ -475,7 +486,11 @@
             "file-downloaded": "Fichero descargado",
             "creating-deployment": "Creando despliegue",
             "recreating-deployment": "Recreando despliegue",
-            "deleting-deployment": "Eliminando despliegue"
+            "deleting-deployment": "Eliminando despliegue",
+            "making-visible-deployment": "Haciendo el despliegue visible",
+            "making-invisible-deployment": "Haciendo el despliegue invisible",
+            "starting-desktops": "Iniciando los escritorios del despliegue",
+            "stopping-desktops": "Parando los escritorios del despliegue"
         },
         "loading": "Cargando"
     },

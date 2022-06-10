@@ -17,12 +17,11 @@ export class DeploymentsUtils {
   }
 
   static parseDeployment (deployment) {
-    const { id, name, description } = deployment
-    const desktops = deployment.desktops.map((desktop) => {
+    const { id, name, desktop_name: desktopName, description, visible } = deployment
+    const desktops = deployment.desktops ? deployment.desktops.map((desktop) => {
       return DeploymentsUtils.parseDeploymentDesktop(desktop)
-    })
-    const desktopName = deployment.desktop_name
-    return { id, name, desktops, description, desktopName }
+    }) : []
+    return { id, name, desktops, description, desktopName, visible }
   }
 
   static parseDeploymentDesktop (desktop) {

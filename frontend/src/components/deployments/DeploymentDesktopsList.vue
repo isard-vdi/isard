@@ -14,7 +14,7 @@
           cols='12'
           class='d-flex flex-row flex-wrap justify-content-start'
         >
-          <b-table :items='desktops' :fields='fields'>
+          <b-table :items='desktops' :fields='fields' :tbody-tr-class="visible ? 'visibleHighlight' : ''" :responsive="true">
             <template #cell(image)='data'>
               <!-- INFO -->
               <b-icon
@@ -125,6 +125,11 @@ export default {
   setup () {},
   props: {
     listTitle: String,
+    visible: {
+      required: true,
+      type: Boolean,
+      default: false
+    },
     desktops: {
       required: true,
       type: Array

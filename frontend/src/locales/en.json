@@ -90,7 +90,36 @@
             "new-deployment": "New Deployment",
             "upload-file": "Upload File",
             "cancel": "Cancel",
-            "select": "Select"
+            "select": "Select",
+            "deployment": {
+                "back": "Back to deployments",
+                "buttons": {
+                    "start": {
+                        "title": "Start all the deployment desktops"
+                    },
+                    "stop": {
+                        "title": "Stop all the deployment desktops"
+                    },
+                    "videowall": {
+                        "title": "Go to videowall"
+                    },
+                    "make-visible": {
+                        "title": "Make visible"
+                    },
+                    "make-not-visible": {
+                        "title": "Make not visible"
+                    },
+                    "recreate": {
+                        "title": "Recreate deployment"
+                    },
+                    "download-direct-viewer": {
+                        "title": "Download direct viewer file"
+                    },
+                    "delete": {
+                        "title": "Delete deployment"
+                    }
+                }
+            }
         },
         "desktop-cards": {
             "actions": {
@@ -355,26 +384,6 @@
                 "title": "There are no deployments from this user",
                 "subtitle": "If you think this is an error, please contact the administrator"
             },
-            "buttons": {
-                "videowall": {
-                    "title": "Go to videowall"
-                },
-                "make-visible": {
-                    "title": "Make visible"
-                },
-                "make-not-visible": {
-                    "title": "Make not visible"
-                },
-                "recreate": {
-                    "title": "Recreate"
-                },
-                "download-direct-viewer": {
-                    "title": "Download direct viewer file"
-                },
-                "delete": {
-                    "title": "Delete"
-                }
-            },
             "table-header": {
                 "name": "Name",
                 "visible": "Visible",
@@ -453,7 +462,9 @@
             "not-visible-deployment": "'{name}' will be invisible for its users, continue?",
             "recreate-deployment": "'{name}' deleted desktops will be recreated, continue?",
             "delete-deployment": "'{name}' will be deleted, continue?",
-            "delete-deployment-desktop": "'{name}' desktop will be deleted, continue?"
+            "delete-deployment-desktop": "'{name}' desktop will be deleted, continue?",
+            "start-deployment-desktops": "'{name}' desktops will be started, continue?",
+            "stop-deployment-desktops": "'{name}' desktops will be stopped, continue?"
         },
         "yes": "Yes",
         "no": "No",
@@ -464,7 +475,11 @@
             "file-downloaded": "File downloaded",
             "creating-deployment": "Creating Deployment",
             "recreating-deployment": "Recreating Deployment",
-            "deleting-deployment": "Deleting deployment"
+            "deleting-deployment": "Deleting deployment",
+            "making-visible-deployment": "Making the deployment visible",
+            "making-invisible-deployment": "Making the deployment invisible",
+            "starting-desktops": "Starting deployment desktops",
+            "stopping-desktops": "Stopping deployment desktops"
         },
         "loading": "Loading"
     },
