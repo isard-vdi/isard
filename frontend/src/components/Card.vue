@@ -107,7 +107,7 @@
                     v-if="!hideViewers && desktop.viewers && desktop.viewers.length === 1"
                     :active="desktopState === desktopStates.started || (desktopState === desktopStates.waitingip && !singleViewerNeedsIp)"
                     :buttColor = "buttViewerCssColor"
-                    :buttText="desktop.viewers[0]"
+                    :buttText="getViewerText"
                     variant="primary"
                     :spinnerActive="waitingIp"
                     @buttonClicked="openDesktop({desktopId: desktop.id, viewer: desktop.viewers[0]})">
