@@ -96,7 +96,10 @@ class ApiDesktopsCommon:
                     domains[0]["id"], protocol="browser-vnc", get_cookie=True
                 )
             if "browser_rdp" in desktop_viewers:
-                if not domains[0].get("viewer", {}).get("guest_ip"):
+                if domains[0].get("viewer", True) == False:
+                    viewers["browser_rdp"] = {"kind": "browser", "protocol": "rdp"}
+                    viewers["vmState"] = "WaitingIP"
+                elif not domains[0].get("viewer", {}).get("guest_ip"):
                     viewers["browser_rdp"] = {"kind": "browser", "protocol": "rdp"}
                     viewers["vmState"] = "WaitingIP"
                 else:
@@ -106,7 +109,10 @@ class ApiDesktopsCommon:
                         get_cookie=True,
                     )
             if "file_rdpgw" in desktop_viewers:
-                if not domains[0].get("viewer", {}).get("guest_ip"):
+                if domains[0].get("viewer", True) == False:
+                    viewers["file-rdpgw"] = {"kind": "file", "protocol": "rdpgw"}
+                    viewers["vmState"] = "WaitingIP"
+                elif not domains[0].get("viewer", {}).get("guest_ip"):
                     viewers["file-rdpgw"] = {"kind": "file", "protocol": "rdpgw"}
                     viewers["vmState"] = "WaitingIP"
                 else:
