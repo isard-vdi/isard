@@ -200,9 +200,9 @@ def api_v3_user_desktop(payload, desktop_id):
     desktop_dict = {
         "id": desktop["id"],
         "name": desktop["name"],
-        "state": desktop["status"],
+        "state": desktop["state"],
         "type": desktop["type"],
-        "template": desktop["from_template"],
+        "template": desktop["template"],
         "viewers": desktop["viewers"],
         "icon": desktop["icon"],
         "image": desktop["image"],
