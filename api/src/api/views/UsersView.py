@@ -79,7 +79,6 @@ def api_v3_user_auto_register(payload):
 def api_v3_user_register(payload):
     try:
         code = request.form.get("code", type=str)
-        # domain = request.form.get("email").split("@")[-1]
     except:
         raise Error(
             "bad_request", "New register code bad body data", traceback.format_stack()
@@ -93,7 +92,7 @@ def api_v3_user_register(payload):
             traceback.format_stack(),
         )
 
-    check_category_domain(data.get("category"), payload["category_id"])
+    check_category_domain(data.get("category"), payload["email"].split("@")[-1])
 
     user_id = users.Create(
         payload["provider"],
