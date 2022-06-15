@@ -29,3 +29,15 @@ class ApiAlloweds:
                 .pluck(pluck)
                 .run(db.conn)
             )
+
+    def get_allowed(self, allowed):
+        for k, v in allowed.items():
+            if v != False and len(v):
+                with app.app_context():
+                    allowed[k] = list(
+                        r.table(k)
+                        .get_all(r.args(v), index="id")
+                        .pluck("id", "name", "uid", "parent_category")
+                        .run(db.conn)
+                    )
+        return allowed
