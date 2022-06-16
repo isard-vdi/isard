@@ -140,14 +140,7 @@ class isardViewer:
             }
 
         ## Browser viewers
-        viewer_url = (
-            "https://" + domain["viewer"]["static"]
-            if not domain["viewer"].get("html5_ext_port", False)
-            else "https://"
-            + domain["viewer"]["static"]
-            + ":"
-            + domain["viewer"].get("html5_ext_port")
-        )
+        viewer_url = "https://" + domain["viewer"]["static"]
         if protocol == "browser-spice":
             data = {
                 "vmName": domain["name"],
