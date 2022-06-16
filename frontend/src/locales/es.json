@@ -1,6 +1,7 @@
 {
     "validations": {
         "required": "El campo {property} es obligatorio.",
+        "sameAs": "El campo {property} ha de tener el mismo valor que {property2}.",
         "minLengthValue": "El campo {property} es de {model} caracteres, el minimo es {min}.",
         "maxLengthValue": "El campo {property} es de {model} caracteres, el máximo es {max}.",
         "inputFormat": "Los caracteres validos son letras, numeros, coma, punto, -, _"
@@ -18,6 +19,22 @@
                 }
             },
             "empty": "Marcado y vacío lo compartirá con todos."
+        },
+        "password": {
+            "modal": {
+                "title": "Cambiar la contraseña",
+                "password": {
+                    "label": "Contraseña",
+                    "placeholder": "Contraseña"
+                },
+                "confirmation-password": {
+                    "label": "Confirmación de la contraseña",
+                    "placeholder": "Confirma la contraseña"
+                },
+                "buttons": {
+                    "update": "Actualizar"
+                }
+            }
         },
         "registration": {
             "code": "Código de registro"
@@ -102,7 +119,8 @@
                 "summary": "Resumen",
                 "planning": "Planificación"
             },
-            "logout": "Cerrar sesión"
+            "logout": "Cerrar sesión",
+            "profile": "Perfil"
         },
         "statusbar": {
             "desktops-started": "Escritorios arrancados",
@@ -262,6 +280,25 @@
                         "button": "Eliminar"
                     }
                 }
+            }
+        },
+        "profile": {
+            "change-password": "Cambiar la contraseña",
+            "info": {
+                "name": "Nombre",
+                "email": "Email",
+                "authentication": "Autenticación",
+                "role": "Rol",
+                "category": "Categoría",
+                "group": "Grupo"
+            },
+            "quota": {
+                "d": "Escritorios creados / Total de escritorios",
+                "i": "Isos creadas / Total de isos",
+                "m": "Memoria utilizada / Total de memoria (GB)",
+                "r": "Escritorios arrancados / Total de escritorios arrancados",
+                "t": "Plantillas creadas / Total de plantillas",
+                "v": "Vcpus utilitzadas / Total de vcpus"
             }
         }
     },

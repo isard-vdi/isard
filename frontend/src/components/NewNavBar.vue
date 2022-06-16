@@ -32,6 +32,10 @@
                 <b-avatar class="mr-2" size="1.5rem"></b-avatar>
                 <span>{{ getUser.name }} [{{ getUser.role_id }}]</span>
               </template>
+              <b-dropdown-item href="#" @click="navigate('profile')">
+                <b-icon icon="person-fill" class="mr-2" scale="0.75"></b-icon>
+                {{ $t("components.navbar.profile") }}
+              </b-dropdown-item>
               <b-dropdown-item :href="getConfig['documentation_url']" target="_blank">
                 <b-icon icon="journal-text" class="mr-2" scale="0.75"></b-icon>
                 {{ $t("components.navbar.help") }}
@@ -75,7 +79,8 @@ export default {
       'fetchVpn',
       'fetchConfig',
       'loginAdmin',
-      'goToBookingSummary'
+      'goToBookingSummary',
+      'navigate'
     ]),
     menuGoToBookingSummary () {
       this.goToBookingSummary()
