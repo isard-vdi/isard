@@ -12,7 +12,6 @@
             <b-nav-item :to="{ name: 'desktops' }">{{ $t("components.navbar.home") }}</b-nav-item>
             <b-nav-item v-if="getUser.role_id !== 'user'"  :to="{ name: 'templates' }">{{ $t("components.navbar.templates") }}</b-nav-item>
             <b-nav-item v-if="getUser.role_id === 'advanced'" :to="{ name: 'deployments' }">{{ $t("components.navbar.deployments") }}</b-nav-item>
-            <b-nav-item href="#" v-b-modal.help_modal>{{ $t("components.navbar.help") }}</b-nav-item>
             <b-nav-item href="#" @click="fetchVpn()">{{ $t("components.navbar.vpn.download") }}</b-nav-item>
             <b-nav-item-dropdown v-if="getConfig['show_bookings_button']" :text="$t('components.navbar.bookings.text')">
               <b-dropdown-item @click="menuGoToBookingSummary()">{{ $t("components.navbar.bookings.summary") }}</b-dropdown-item>
@@ -40,19 +39,16 @@
           </b-navbar-nav>
         </b-collapse>
       </b-navbar>
-      <Help />
     </b-container>
   </div>
 </template>
 
 <script>
-import Help from '@/components/Help.vue'
 import { mapActions, mapGetters } from 'vuex'
 import Logo from '@/components/Logo.vue'
 
 export default {
   components: {
-    Help,
     Logo
   },
   beforeMount: async function () {
