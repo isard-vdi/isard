@@ -79,7 +79,7 @@
             "empty": "No hay opciones disponibles"
         },
         "navbar": {
-            "home": "Inicio",
+            "desktops": "Escritorios",
             "help": "Ayuda",
             "vpn": {
                 "download": "VPN",
@@ -99,7 +99,8 @@
                 "text": "Reservas",
                 "summary": "Resumen",
                 "planning": "Planificación"
-            }
+            },
+            "logout": "Cerrar sesión"
         },
         "statusbar": {
             "desktops-started": "Escritorios arrancados",

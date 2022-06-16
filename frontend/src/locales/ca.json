@@ -4,7 +4,7 @@
             "empty": "No hi han opcions disponibles"
         },
         "navbar": {
-            "home": "Inici",
+            "desktops": "Escriptoris",
             "help": "Ajuda",
             "vpn": {
                 "download": "VPN",
@@ -24,7 +24,8 @@
                 "text": "Reserves",
                 "summary": "Resum",
                 "planning": "Planificació"
-            }
+            },
+            "logout": "Tancar la sessió"
         },
         "statusbar": {
             "desktops-started": "Desktops arrencats",

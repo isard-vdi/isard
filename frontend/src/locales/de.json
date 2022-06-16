@@ -205,8 +205,7 @@
                 "download": "VPN"
             },
             "help": "Hilfe",
-            "deployments": "Verteilungen",
-            "home": "Startseite"
+            "deployments": "Verteilungen"
         },
         "not-found": {
             "title": "Die angeforderte Adresse wurde nicht gefunden",
