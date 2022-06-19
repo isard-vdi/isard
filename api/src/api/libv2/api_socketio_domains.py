@@ -300,30 +300,34 @@ def start_domains_thread():
 # Domains namespace
 @socketio.on("connect", namespace="/userspace")
 def socketio_users_connect():
-    try:
-        payload = get_token_payload(request.args.get("jwt"))
-
-        if payload.get("desktop_id"):
-            try:
-                with app.app_context():
-                    list(
-                        r.table("domains").get(payload.get("desktop_id")).run(db.conn)
-                    )[0]
-            except:
-                raise Error(
-                    "not_found",
-                    "WS jumperurl token not found",
-                    traceback.format_stack(),
-                )
-            join_room(payload.get("desktop_id"))
-            log.debug(
-                "Websocket direct viewer joined room: " + payload.get("desktop_id")
+    payload = get_token_payload(request.args.get("jwt"))
+    if payload.get("desktop_id"):
+        try:
+            with app.app_context():
+                list(r.table("domains").get(payload.get("desktop_id")).run(db.conn))[0]
+        except:
+            raise Error(
+                "not_found",
+                "Websocket direct viewer desktop_id "
+                + str(payload.get("desktop_id"))
+                + " not found",
+                traceback.format_stack(),
             )
-        else:
-            join_room(payload["user_id"])
-            log.debug("User " + payload["user_id"] + " joined")
-    except:
-        log.debug("Failed attempt to connect so socketio: " + traceback.format_stack())
+        join_room(payload.get("desktop_id"))
+        log.debug(
+            "Websocket direct viewer for desktop_id "
+            + str(payload.get("desktop_id"))
+            + " joined"
+        )
+    elif payload.get("user_id"):
+        join_room(payload["user_id"])
+        log.debug("Websocket user_id " + payload["user_id"] + " joined")
+    else:
+        raise Error(
+            "not_found",
+            "Websocket connection incorrect data",
+            traceback.format_stack(),
+        )
 
 
 @socketio.on("disconnect", namespace="/userspace")
