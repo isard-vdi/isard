@@ -30,17 +30,21 @@ def api_v3_admin_media_insert(payload):
         data = request.get_json()
     except:
         raise Error(
-            "bad_request", "Unable to parse body data.", traceback.format_stack()
+            "bad_request",
+            "Unable to parse body data.",
+            traceback.traceback.format_exc(),
         )
 
     with app.app_context():
         username = r.table("users").get(payload["user_id"])["username"].run(db.conn)
         uid = r.table("users").get(payload["user_id"])["uid"]
         if username == None:
-            raise Error("not_found", "User not found", traceback.format_stack())
+            raise Error("not_found", "User not found", traceback.traceback.format_exc())
         group = r.table("groups").get(payload["group_id"])["uid"].run(db.conn)
         if group == None:
-            raise Error("not_found", "Group not found", traceback.format_stack())
+            raise Error(
+                "not_found", "Group not found", traceback.traceback.format_exc()
+            )
 
     data["user"] = payload["user_id"]
     data["username"] = username

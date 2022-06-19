@@ -83,7 +83,7 @@ def admin_table_insert(table, data):
                 raise Error(
                     "internal_server",
                     "Internal server error ",
-                    traceback.format_stack(),
+                    traceback.traceback.traceback.traceback.traceback.traceback.traceback.traceback.traceback.traceback.traceback.traceback.traceback.traceback.format_exc(),
                 )
         else:
             raise Error(
@@ -104,7 +104,7 @@ def admin_table_update(table, data):
                 raise Error(
                     "internal_server",
                     "Internal server error",
-                    traceback.format_stack(),
+                    traceback.traceback.format_exc(),
                 )
 
 
@@ -128,7 +128,7 @@ def admin_table_delete(table, data):
                 raise Error(
                     "internal_server",
                     "Internal server error",
-                    traceback.format_stack(),
+                    traceback.traceback.format_exc(),
                 )
 
 
@@ -139,7 +139,7 @@ class ApiAdmin:
                 raise Error(
                     "not_found",
                     "Not found user_id " + user_id,
-                    traceback.format_stack(),
+                    traceback.traceback.format_exc(),
                 )
         try:
             with app.app_context():
@@ -187,7 +187,7 @@ class ApiAdmin:
             raise Error(
                 "internal_server",
                 "Internal server error " + user_id,
-                traceback.format_stack(),
+                traceback.traceback.format_exc(),
             )
 
     def ListTemplates(self, user_id):
@@ -196,7 +196,7 @@ class ApiAdmin:
                 raise Error(
                     "not_found",
                     "Not found user_id " + user_id,
-                    traceback.format_stack(),
+                    traceback.traceback.format_exc(),
                 )
 
         try:
@@ -253,7 +253,7 @@ class ApiAdmin:
             raise Error(
                 "internal_server",
                 "Internal server error " + user_id,
-                traceback.format_stack(),
+                traceback.traceback.format_exc(),
             )
 
     def GetTemplateTreeList(self, template_id, user_id):

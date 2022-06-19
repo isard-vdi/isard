@@ -60,7 +60,9 @@ def api_jumperurl_gencode(length=32):
         if len(found) == 0:
             return code
     raise Error(
-        "internal_server", "Unable to create jumperurl code", traceback.format_stack()
+        "internal_server",
+        "Unable to create jumperurl code",
+        traceback.traceback.format_exc(),
     )
 
 
@@ -72,7 +74,9 @@ class ApiDesktopsPersistent:
         with app.app_context():
             desktop = r.table("domains").get(desktop_id).run(db.conn)
         if desktop == None:
-            raise Error("not_found", "Desktop not found", traceback.format_stack())
+            raise Error(
+                "not_found", "Desktop not found", traceback.traceback.format_exc()
+            )
         ds.delete_desktop(desktop_id, desktop["status"])
 
     def NewFromTemplate(
@@ -87,7 +91,9 @@ class ApiDesktopsPersistent:
         with app.app_context():
             template = r.table("domains").get(template_id).run(db.conn)
             if not template:
-                raise Error("not_found", "Template not found", traceback.format_stack())
+                raise Error(
+                    "not_found", "Template not found", traceback.traceback.format_exc()
+                )
             user = r.table("users").get(payload["user_id"]).run(db.conn)
             if not user:
                 raise Error("not_found", "NewFromTemplate: user id not found.")
@@ -219,7 +225,7 @@ class ApiDesktopsPersistent:
         with app.app_context():
             user = r.table("users").get(user_id).run(db.conn)
         if user == None:
-            raise Error("not_found", "User not found", traceback.format_stack())
+            raise Error("not_found", "User not found", traceback.traceback.format_exc())
 
         json_user = {
             "user": user["id"],
@@ -251,7 +257,9 @@ class ApiDesktopsPersistent:
                 vi = r.table("virt_install").get(virt_install_id).run(db.conn)
             if vi == None:
                 raise Error(
-                    "not_found", "Virt install id not found", traceback.format_stack()
+                    "not_found",
+                    "Virt install id not found",
+                    traceback.traceback.format_exc(),
                 )
             domain["create_dict"]["create_from_virt_install_xml"] = virt_install_id
             json_xml = {
@@ -304,7 +312,9 @@ class ApiDesktopsPersistent:
             with app.app_context():
                 dbiso = r.table("media").get(iso).run(db.conn)
             if dbiso == None:
-                raise Error("not_found", "Media not found", traceback.format_stack())
+                raise Error(
+                    "not_found", "Media not found", traceback.traceback.format_exc()
+                )
             list_isos.append({"id": iso})
         json_isos = {"create_dict": {"hardware": {"isos": list_isos}}}
 
@@ -314,7 +324,9 @@ class ApiDesktopsPersistent:
             with app.app_context():
                 dbgraphic = r.table("graphics").get(graphic).run(db.conn)
             if dbgraphic == None:
-                raise Error("not_found", "Graphic not found", traceback.format_stack())
+                raise Error(
+                    "not_found", "Graphic not found", traceback.traceback.format_exc()
+                )
             list_graphics.append(graphic)
         json_graphics = {"create_dict": {"hardware": {"graphics": list_graphics}}}
 
@@ -323,7 +335,9 @@ class ApiDesktopsPersistent:
             with app.app_context():
                 dbvideo = r.table("videos").get(video).run(db.conn)
             if dbvideo == None:
-                raise Error("not_found", "Video not found", traceback.format_stack())
+                raise Error(
+                    "not_found", "Video not found", traceback.traceback.format_exc()
+                )
             list_videos.append(video)
         json_videos = {"create_dict": {"hardware": {"videos": list_videos}}}
 
@@ -333,7 +347,7 @@ class ApiDesktopsPersistent:
                 dbinterface = r.table("interfaces").get(interface).run(db.conn)
             if dbinterface == None:
                 raise Error(
-                    "not_found", "Interface not found", traceback.format_stack()
+                    "not_found", "Interface not found", traceback.traceback.format_exc()
                 )
             list_interfaces.append(interface)
         json_interfaces = {"create_dict": {"hardware": {"interfaces": list_interfaces}}}
@@ -392,20 +406,24 @@ class ApiDesktopsPersistent:
                     .run(db.conn)["user"]
                 )
         except:
-            raise Error("not_found", "Desktop not found", traceback.format_stack())
+            raise Error(
+                "not_found", "Desktop not found", traceback.traceback.format_exc()
+            )
 
     def Start(self, desktop_id):
         with app.app_context():
             desktop = r.table("domains").get(desktop_id).run(db.conn)
         if not desktop:
-            raise Error("not_found", "Desktop not found", traceback.format_stack())
+            raise Error(
+                "not_found", "Desktop not found", traceback.traceback.format_exc()
+            )
         if desktop["status"] == "Started":
             return desktop_id
         if desktop["status"] not in ["Stopped", "Failed"]:
             raise Error(
                 "precondition_required",
                 "Desktop can't be started from " + str(desktop["status"]),
-                traceback.format_stack(),
+                traceback.traceback.format_exc(),
             )
         # Start the domain
         ds.WaitStatus(desktop_id, "Any", "Starting", "Started")
@@ -415,14 +433,16 @@ class ApiDesktopsPersistent:
         with app.app_context():
             desktop = r.table("domains").get(desktop_id).run(db.conn)
         if not desktop:
-            raise Error("not_found", "Desktop not found", traceback.format_stack())
+            raise Error(
+                "not_found", "Desktop not found", traceback.traceback.format_exc()
+            )
         if desktop["status"] == "Stopped":
             return desktop_id
         if desktop["status"] not in ["Started", "Shutting-down"]:
             raise Error(
                 "precondition_required",
                 "Desktop can't be stopped from " + str(desktop["status"]),
-                traceback.format_stack(),
+                traceback.traceback.format_exc(),
             )
         # Stop the domain
         try:
@@ -440,7 +460,7 @@ class ApiDesktopsPersistent:
                 raise Error(
                     "internal_server",
                     "Unable to update desktop in database",
-                    traceback.format_stack(),
+                    traceback.traceback.format_exc(),
                 )
 
     def JumperUrl(self, id):
@@ -450,7 +470,7 @@ class ApiDesktopsPersistent:
             raise Error(
                 "not_found",
                 "Could not get domain jumperurl as domain not exists",
-                traceback.format_stack(),
+                traceback.traceback.format_exc(),
             )
         if "jumperurl" not in domain.keys():
             return {"jumperurl": False}
@@ -465,7 +485,7 @@ class ApiDesktopsPersistent:
                     raise Error(
                         "not_found",
                         "Unable to reset jumperurl as domain not exists",
-                        traceback.format_stack(),
+                        traceback.traceback.format_exc(),
                     )
 
         code = api_jumperurl_gencode()

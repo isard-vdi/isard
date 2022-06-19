@@ -53,7 +53,9 @@ def api_v3_template_new(payload):
     # if user_id == None or
     if template_name == None or desktop_id == None:
         raise Error(
-            "bad_request", "New template bad body data", traceback.format_stack()
+            "bad_request",
+            "New template bad body data",
+            traceback.traceback.format_exc(),
         )
 
     ownsDomainId(payload, desktop_id)

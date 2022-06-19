@@ -59,7 +59,7 @@ def is_register(f):
         raise Error(
             "forbidden",
             "Invalid register type token",
-            traceback.format_stack(),
+            traceback.traceback.format_exc(),
         )
 
     return decorated
@@ -76,7 +76,7 @@ def is_auto_register(f):
         raise Error(
             "forbidden",
             "Invalid auto register type token",
-            traceback.format_stack(),
+            traceback.traceback.format_exc(),
         )
 
     return decorated
@@ -92,7 +92,7 @@ def is_admin(f):
         raise Error(
             "forbidden",
             "Not enough rights.",
-            traceback.format_stack(),
+            traceback.traceback.format_exc(),
         )
 
     return decorated
@@ -110,7 +110,7 @@ def is_admin_or_manager(f):
         raise Error(
             "forbidden",
             "Not enough rights.",
-            traceback.format_stack(),
+            traceback.traceback.format_exc(),
         )
 
     return decorated
@@ -126,7 +126,7 @@ def is_not_user(f):
         raise Error(
             "forbidden",
             "Not enough rights.",
-            traceback.format_stack(),
+            traceback.traceback.format_exc(),
         )
 
     return decorated
@@ -160,7 +160,7 @@ def ownsUserId(payload, user_id):
     raise Error(
         "forbidden",
         "Not enough access rights for this user_id " + str(user_id),
-        traceback.format_stack(),
+        traceback.traceback.format_exc(),
     )
 
 
@@ -172,7 +172,7 @@ def ownsCategoryId(payload, category_id):
     raise Error(
         "forbidden",
         "Not enough access rights for this category_id " + str(category_id),
-        traceback.format_stack(),
+        traceback.traceback.format_exc(),
     )
 
 
@@ -209,7 +209,7 @@ def ownsDomainId(payload, desktop_id):
     raise Error(
         "forbidden",
         "Not enough access rights to access this desktop_id " + str(desktop_id),
-        traceback.format_stack(),
+        traceback.traceback.format_exc(),
     )
 
 
@@ -234,7 +234,7 @@ def ownsTagId(payload, deployment_id):
     raise Error(
         "forbidden",
         "Not enough access rights to access this deployment_id " + str(deployment_id),
-        traceback.format_stack(),
+        traceback.traceback.format_exc(),
     )
 
 
@@ -244,7 +244,7 @@ def itemExists(item_table, item_id):
         raise Error(
             "not_found",
             item_table + " not found id: " + item_id,
-            traceback.format_stack(),
+            traceback.traceback.format_exc(),
         )
 
 
@@ -261,7 +261,7 @@ def allowedTemplateId(payload, template_id):
         raise Error(
             "not_found",
             "Not found template_id " + str(template_id),
-            traceback.format_stack(),
+            traceback.traceback.format_exc(),
         )
     if payload["user_id"] == template["user"]:
         return True
@@ -296,5 +296,5 @@ def allowedTemplateId(payload, template_id):
     raise Error(
         "forbidden",
         "Not enough access rights for this template_id " + str(template_id),
-        traceback.format_stack(),
+        traceback.traceback.format_exc(),
     )

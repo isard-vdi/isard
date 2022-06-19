@@ -37,7 +37,9 @@ def api_v3_images_desktops(payload, image_type=None):
         domain_id = request.args.get("desktop_id")
     except:
         raise Error(
-            "bad_request", "Desktop images bad request", traceback.format_stack()
+            "bad_request",
+            "Desktop images bad request",
+            traceback.traceback.format_exc(),
         )
 
     if not image_type:
@@ -88,7 +90,7 @@ def api_v3_images_desktops_generate(payload):
         Error(
             "bad_request",
             "Generate desktops images bad body data",
-            traceback.format_stack(),
+            traceback.traceback.format_exc(),
         )
 
     return (

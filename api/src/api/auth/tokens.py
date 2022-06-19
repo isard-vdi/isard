@@ -15,8 +15,6 @@ from api import app
 from ..libv2.api_exceptions import Error
 
 r = RethinkDB()
-import traceback
-
 from jose import jwt
 from rethinkdb.errors import ReqlTimeoutError
 
@@ -48,7 +46,6 @@ def get_token_header(header):
         raise Error(
             "unauthorized",
             "Authorization header is expected",
-            traceback.format_stack(),
         )
 
     parts = auth.split()
@@ -56,7 +53,6 @@ def get_token_header(header):
         raise Error(
             "unauthorized",
             "Authorization header must start with Bearer",
-            traceback.format_stack(),
         )
     elif len(parts) == 1:
         raise Error("bad_request", "Token not found")
@@ -64,7 +60,6 @@ def get_token_header(header):
         raise Error(
             "unauthorized",
             "Authorization header must be Bearer token",
-            traceback.format_stack(),
         )
 
     return parts[1]  # Token
@@ -83,7 +78,6 @@ def get_token_payload(token):
                 raise Error(
                     "unauthorized",
                     "Not authorized viewer token",
-                    traceback.format_stack(),
                 )
         else:
             secret_data = app.ram["secrets"][claims["kid"]]
@@ -94,7 +88,6 @@ def get_token_payload(token):
                 raise Error(
                     "unauthorized",
                     "Not authorized category token.",
-                    traceback.format_stack(),
                 )
 
     except KeyError:
@@ -108,7 +101,6 @@ def get_token_payload(token):
         raise Error(
             "unauthorized",
             "Unable to parse authentication parameters token.",
-            traceback.format_stack(),
         )
 
     try:
@@ -120,18 +112,16 @@ def get_token_payload(token):
         )
     except jwt.ExpiredSignatureError:
         log.info("Token expired")
-        raise Error("unauthorized", "Token is expired", traceback.format_stack())
+        raise Error("unauthorized", "Token is expired")
     except jwt.JWTClaimsError:
         raise Error(
             "unauthorized",
             "Incorrect claims, please check the audience and issuer",
-            traceback.format_stack(),
         )
     except Exception:
         raise Error(
             "unauthorized",
             "Unable to parse authentication token.",
-            traceback.format_stack(),
         )
     if payload.get("data", False):
         return payload["data"]

@@ -62,7 +62,7 @@ def check_category_domain(category_id, domain):
         raise Error(
             "forbidden",
             "Register domain does not match category allowed domain",
-            traceback.format_stack(),
+            traceback.traceback.format_exc(),
         )
 
 
@@ -90,7 +90,9 @@ class ApiUsers:
                 }
         except:
             raise Error(
-                "not_found", "Not found user_id " + user_id, traceback.format_stack()
+                "not_found",
+                "Not found user_id " + user_id,
+                traceback.traceback.format_exc(),
             )
         return {
             "jwt": jwt.encode(
@@ -108,12 +110,12 @@ class ApiUsers:
         with app.app_context():
             user = r.table("users").get(user_id).run(db.conn)
         if user is None:
-            raise Error("unauthorized", "", traceback.format_stack())
+            raise Error("unauthorized", "", traceback.traceback.format_exc())
         if not user.get("active", False):
             raise Error(
                 "unauthorized",
                 "User " + user_id + " is disabled",
-                traceback.format_stack(),
+                traceback.traceback.format_exc(),
             )
 
         pw = Password()
@@ -139,7 +141,7 @@ class ApiUsers:
         raise Error(
             "unauthorized",
             "Invalid login credentials for user_id " + user_id,
-            traceback.format_stack(),
+            traceback.traceback.format_exc(),
         )
 
     def Get(self, user_id):
@@ -147,7 +149,9 @@ class ApiUsers:
             user = r.table("users").get(user_id).run(db.conn)
         if not user:
             raise Error(
-                "not_found", "Not found user_id " + user_id, traceback.format_stack()
+                "not_found",
+                "Not found user_id " + user_id,
+                traceback.traceback.format_exc(),
             )
         return user
 
@@ -196,21 +200,21 @@ class ApiUsers:
                 raise Error(
                     "conflict",
                     "Already exists user_id " + user_id,
-                    traceback.format_stack(),
+                    traceback.traceback.format_exc(),
                 )
 
             if r.table("roles").get(role_id).run(db.conn) is None:
                 raise Error(
                     "not_found",
                     "Not found role_id " + role_id + " for user_id " + user_id,
-                    traceback.format_stack(),
+                    traceback.traceback.format_exc(),
                 )
 
             if r.table("categories").get(category_id).run(db.conn) is None:
                 raise Error(
                     "not_found",
                     "Not found category_id " + category_id + " for user_id " + user_id,
-                    traceback.format_stack(),
+                    traceback.traceback.format_exc(),
                 )
 
             group = r.table("groups").get(group_id).run(db.conn)
@@ -218,7 +222,7 @@ class ApiUsers:
                 raise Error(
                     "not_found",
                     "Not found group_id " + group_id + " for user_id " + user_id,
-                    traceback.format_stack(),
+                    traceback.traceback.format_exc(),
                 )
 
             if password == False:
@@ -251,7 +255,7 @@ class ApiUsers:
                 raise Error(
                     "internal_server",
                     "Unable to insert in database user_id " + user_id,
-                    traceback.format_stack(),
+                    traceback.traceback.format_exc(),
                 )
         return user_id
 
@@ -290,7 +294,7 @@ class ApiUsers:
                     raise Error(
                         "internal_server",
                         "Unable to update in database user_id " + user_id,
-                        traceback.format_stack(),
+                        traceback.traceback.format_exc(),
                     )
 
     def Templates(self, payload):
@@ -384,7 +388,9 @@ class ApiUsers:
             return alloweds
         except Exception:
             raise Error(
-                "internal_server", "Internal server error", traceback.format_stack()
+                "internal_server",
+                "Internal server error",
+                traceback.traceback.format_exc(),
             )
 
     def Desktops(self, user_id):
@@ -424,7 +430,9 @@ class ApiUsers:
             ]
         except:
             raise Error(
-                "internal_server", "Internal server error", traceback.format_stack()
+                "internal_server",
+                "Internal server error",
+                traceback.traceback.format_exc(),
             )
 
     def Desktop(self, desktop_id, user_id):
@@ -458,7 +466,7 @@ class ApiUsers:
             raise Error(
                 "not_found",
                 "Not found desktop_id " + desktop_id + " for user_id " + user_id,
-                traceback.format_stack(),
+                traceback.traceback.format_exc(),
             )
 
         try:
@@ -471,7 +479,7 @@ class ApiUsers:
             raise Error(
                 "internal_server",
                 "Get desktop failed for user_id " + user_id,
-                traceback.format_stack(),
+                traceback.traceback.format_exc(),
             )
 
     def Delete(self, user_id):
@@ -488,7 +496,7 @@ class ApiUsers:
                 raise Error(
                     "internal_server",
                     "Unable to delete user_id " + user_id,
-                    traceback.format_stack(),
+                    traceback.traceback.format_exc(),
                 )
 
     def _user_delete_checks(self, user_id):
@@ -539,7 +547,9 @@ class ApiUsers:
         ):
             return True
         raise Error(
-            "forbidden", "Forbidden access to desktop viewer", traceback.format_stack()
+            "forbidden",
+            "Forbidden access to desktop viewer",
+            traceback.traceback.format_exc(),
         )
 
     def CodeSearch(self, code):
@@ -573,7 +583,7 @@ class ApiUsers:
                 category = found[0]["parent_category"]  # found[0]['id'].split('_')[0]
                 return {"role": "user", "category": category, "group": found[0]["id"]}
         raise Error(
-            "not_found", "Code not found code:" + code, traceback.format_stack()
+            "not_found", "Code not found code:" + code, traceback.traceback.format_exc()
         )
 
     def CategoryGet(self, category_id, all=False):
@@ -583,7 +593,7 @@ class ApiUsers:
             raise Error(
                 "not_found",
                 "Category not found category_id:" + category_id,
-                traceback.format_stack(),
+                traceback.traceback.format_exc(),
             )
         if not all:
             return {"name": category["name"]}
@@ -620,7 +630,7 @@ class ApiUsers:
                 raise Error(
                     "not_found",
                     "Category to delete not found.",
-                    traceback.format_stack(),
+                    traceback.traceback.format_exc(),
                 )
             else:
                 category.update({"kind": "category", "user": category["id"]})
@@ -694,7 +704,9 @@ class ApiUsers:
             group = r.table("groups").get(group_id).run(db.conn)
         if not group:
             raise Error(
-                "not_found", "Not found group_id " + group_id, traceback.format_stack()
+                "not_found",
+                "Not found group_id " + group_id,
+                traceback.traceback.format_exc(),
             )
         return group
 
@@ -706,7 +718,9 @@ class ApiUsers:
             group = r.table("groups").get(group_id).pluck("id", "name").run(db.conn)
             if not group:
                 raise Error(
-                    "not_found", "Group to delete not found", traceback.format_stack()
+                    "not_found",
+                    "Group to delete not found",
+                    traceback.traceback.format_exc(),
                 )
             else:
                 group.update({"kind": "group", "user": group["id"]})
@@ -825,7 +839,7 @@ class ApiUsers:
         raise Error(
             "internal_server",
             "Unable to generate enrollment code",
-            traceback.format_stack(),
+            traceback.traceback.format_exc(),
         )
 
     def enrollment_code_check(self, code):

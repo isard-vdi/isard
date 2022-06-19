@@ -109,7 +109,7 @@ class ApiMedia:
             raise Error(
                 "internal_server",
                 "Unable to get user media shared",
-                traceback.format_stack(),
+                traceback.traceback.format_exc(),
             )
 
     def GetMediaList(self, id):
