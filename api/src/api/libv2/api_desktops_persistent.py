@@ -83,8 +83,7 @@ class ApiDesktopsPersistent:
         desktop_description,
         template_id,
         payload,
-        deployment=False,
-        forced_hyp=False,
+        deployment_tag_dict=False,
     ):
         with app.app_context():
             template = r.table("domains").get(template_id).run(db.conn)
@@ -162,11 +161,11 @@ class ApiDesktopsPersistent:
             },
             "accessed": time.time(),
             "persistent": True,
-            "forced_hyp": forced_hyp,
+            "forced_hyp": False,
             "from_template": template["id"],
         }
-        if deployment:
-            new_desktop = {**new_desktop, **deployment}
+        if deployment_tag_dict:
+            new_desktop = {**new_desktop, **deployment_tag_dict}
 
         with app.app_context():
             if (

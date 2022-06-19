@@ -1,0 +1,10 @@
+name:
+  required: true
+  type: string
+  minlength: 4
+description: 
+  type: string
+  required: false
+template_id:
+  type: string
+  required: true
