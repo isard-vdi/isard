@@ -40,14 +40,16 @@ def api_v3_vpn_connection(payload, kind, client_ip=None):
             remote_port = request.form.get("remote_port", type=int)
         except:
             raise Error(
-                "bad_request", "Vpn connection bad body data", traceback.format_stack()
+                "bad_request",
+                "Vpn connection bad body data",
+                traceback.traceback.format_exc(),
             )
 
         if remote_ip == None or remote_port == None:
             raise Error(
                 "bad_request",
                 "Vpn connection incorrect body data",
-                traceback.format_stack(),
+                traceback.traceback.format_exc(),
             )
 
         if api_vpn.active_client(kind, client_ip, remote_ip, remote_port, True):
@@ -58,7 +60,9 @@ def api_v3_vpn_connection(payload, kind, client_ip=None):
                 {"Content-Type": "application/json"},
             )
         raise Error(
-            "internal_server", "Update vpn connection failed", traceback.format_stack()
+            "internal_server",
+            "Update vpn connection failed",
+            traceback.traceback.format_exc(),
         )
     if request.method == "DELETE":
         if client_ip:
@@ -71,6 +75,10 @@ def api_v3_vpn_connection(payload, kind, client_ip=None):
             if reset_connection_status(kind):
                 return json.dumps({}), 200, {"Content-Type": "application/json"}
         raise Error(
-            "internal_server", "Update vpn connection failed", traceback.format_stack()
+            "internal_server",
+            "Update vpn connection failed",
+            traceback.traceback.format_exc(),
         )
-    raise Error("bad_request", "Incorrect access method", traceback.format_stack())
+    raise Error(
+        "bad_request", "Incorrect access method", traceback.traceback.format_exc()
+    )

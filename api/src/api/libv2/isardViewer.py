@@ -90,7 +90,7 @@ class isardViewer:
             raise Error(
                 "precondition_required",
                 "Unable to get viewer for non started desktop",
-                traceback.format_stack(),
+                traceback.traceback.format_exc(),
             )
 
         ### File viewers
@@ -109,7 +109,9 @@ class isardViewer:
 
         if protocol == "file-vnc":
             raise Error(
-                "not_found", "Viewer protocol not implemented", traceback.format_stack()
+                "not_found",
+                "Viewer protocol not implemented",
+                traceback.traceback.format_exc(),
             )
 
         if protocol == "file-rdpvpn":
@@ -240,7 +242,9 @@ class isardViewer:
         if protocol == "vnc-client-macos":
             raise Error("not_found", "Viewer protocol not implemented")
 
-        raise Error("not_found", "Viewer protocol not found", traceback.format_stack())
+        raise Error(
+            "not_found", "Viewer protocol not found", traceback.traceback.format_exc()
+        )
 
     def get_rdp_file(self, ip):
         ## This are the default values dumped from a windows rdp client connection to IsardVDI
@@ -387,7 +391,7 @@ smart sizing:i:1""" % (
             raise Error(
                 "internal_server",
                 "Get vnc viewer data internal error.",
-                traceback.format_stack(),
+                traceback.traceback.format_exc(),
             )
 
     # ~ def get_domain_vnc_data(self, domain, hostnames, viewer, port, tlsport, selfsigned, remote_addr=False):

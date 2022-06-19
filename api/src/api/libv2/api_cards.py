@@ -100,7 +100,7 @@ class ApiCards:
                 raise Error(
                     "precondition_required",
                     "Uploaded file with unknown format to guess extension",
-                    traceback.format_stack(),
+                    traceback.traceback.format_exc(),
                 )
             filename = str(uuid.uuid4()) + extension
             img_resized = ImageOps.fit(
@@ -117,7 +117,9 @@ class ApiCards:
             return filename
         except:
             raise Error(
-                "internal_server", "Card file not saved", traceback.format_stack()
+                "internal_server",
+                "Card file not saved",
+                traceback.traceback.format_exc(),
             )
 
     def update(self, domain_id, card_id, type):
@@ -129,7 +131,9 @@ class ApiCards:
                 .run(db.conn)["skipped"]
             ):
                 raise Error(
-                    "not_found", "Domain for card not found", traceback.format_stack()
+                    "not_found",
+                    "Domain for card not found",
+                    traceback.traceback.format_exc(),
                 )
         return card_id
 
@@ -175,7 +179,9 @@ class ApiCards:
             img = Path(app.USERS_CARDS + "/" + card_id)
             img.unlink()
         except:
-            raise Error("not_found", "Card file not found", traceback.format_stack())
+            raise Error(
+                "not_found", "Card file not found", traceback.traceback.format_exc()
+            )
 
     def delete_domain_card(self, domain_id, update_domain=True):
         with app.app_context():
@@ -219,4 +225,4 @@ class ApiCards:
                 try:
                     self.delete_card(f)
                 except:
-                    log.error(traceback.format_stack())
+                    log.error(traceback.traceback.format_exc())

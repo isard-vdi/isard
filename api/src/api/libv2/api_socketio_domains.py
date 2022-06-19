@@ -279,7 +279,7 @@ class DomainsThread(threading.Thread):
             except Exception:
                 print("DomainsThread internal error: restarting")
                 log.error("DomainsThread internal error: restarting")
-                log.error(traceback.format_exc())
+                log.error(traceback.traceback.format_exc())
                 time.sleep(2)
 
         print("DomainsThread ENDED!!!!!!!")
@@ -311,7 +311,7 @@ def socketio_users_connect():
                 "Websocket direct viewer desktop_id "
                 + str(payload.get("desktop_id"))
                 + " not found",
-                traceback.format_stack(),
+                traceback.traceback.format_exc(),
             )
         join_room(payload.get("desktop_id"))
         log.debug(
@@ -326,7 +326,7 @@ def socketio_users_connect():
         raise Error(
             "not_found",
             "Websocket connection incorrect data",
-            traceback.format_stack(),
+            traceback.traceback.format_exc(),
         )
 
 
@@ -339,4 +339,4 @@ def socketio_domains_disconnect():
         else:
             leave_room(payload["user_id"])
     except:
-        log.debug(traceback.format_stack())
+        log.debug(traceback.traceback.format_exc())

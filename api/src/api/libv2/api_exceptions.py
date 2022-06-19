@@ -80,7 +80,7 @@ class Error(Exception):
         self,
         error="bad_request",
         description="",
-        debug="",
+        debug=False,
         description_code=None,
         data=None,
     ):
@@ -103,10 +103,14 @@ class Error(Exception):
             + inspect.stack()[2][3]
         )
         self.error["description"] = str(description)
-        self.error["debug"] = "{}\n\r{}{}".format(
-            "----------- DEBUG START -------------",
-            debug,
-            "----------- DEBUG STOP  -------------",
+        self.error["debug"] = (
+            "{}\n\r{}{}".format(
+                "----------- DEBUG START -------------",
+                debug,
+                "----------- DEBUG STOP  -------------",
+            )
+            if debug
+            else ""
         )
         self.error["request"] = (
             "{}\n{}\r\n{}\r\n\r\n{}{}".format(

@@ -37,6 +37,8 @@ class ApiXml:
             virt_install = r.table("virt_install").get(id).run(db.conn)
         if virt_install is None:
             raise Error(
-                "not_found", "Virt install xml not found", traceback.format_stack()
+                "not_found",
+                "Virt install xml not found",
+                traceback.traceback.format_exc(),
             )
         return virt_install
