@@ -31,7 +31,7 @@ export function auth (to, from, next) {
 
 export function checkRdpToken (to, from, next) {
   if (StringUtils.isNullOrUndefinedOrEmpty(localStorage.rdpToken)) {
-    from()
+    next({ name: 'desktops' })
   } else {
     next()
   }
