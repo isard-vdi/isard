@@ -1,15 +1,94 @@
 #!/bin/sh
 
+if [ "$BACKUP_NFS_ENABLED" = "true" ]
+then
+    mount -t $BACKUP_NFS_VERS -o $BACKUP_NFS_OPTS $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER /backup
+    if grep -qs '/backup ' /proc/mounts; then
+        echo "BACKUP NFS FOLDER MOUNTED: $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER /backup"
+    else
+        echo "ERROR!!! UNABLE TO MOUNT $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER /backup!!!"
+        exit 1
+    fi
+fi
 mkdir -p /backup/db
 borg init -e none /backup/db > /dev/null 2>&1
 mkdir -p /backup/disks
 borg init -e none /backup/disks > /dev/null 2>&1
 mkdir -p /backup/extract
+if [ "$BACKUP_NFS_ENABLED" = "true" ]
+then
+    umount -f -l /backup
+    umount -f -l /backup
+    if grep -qs '/backup ' /proc/mounts; then
+        df -h
+        echo "ERROR!!! UNABLE TO UnMOUNT /backup"
+        exit 1
+    else
+        echo "BACKUP NFS UnMOUNTED"
+    fi
+fi
 
 sed -i '/^logfile =/d' /usr/local/etc/backupninja.conf
 echo "logfile = /backup/backupninja.log" >> /usr/local/etc/backupninja.conf
 
 rm -f /usr/local/etc/backup.d/*
+
+# BACKUP NFS MOUNT / UMOUNT
+if [ "$BACKUP_NFS_ENABLED" = "true" ]
+then
+    echo "SETTING NFS MOUNT: mount -t $BACKUP_NFS_VERS $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER /backup"
+    echo "                   Logs can be found at $BACKUP_DIR/backupninja.log"
+
+    cat <<EOT >> /usr/local/etc/backup.d/15.nfs-db-mount.sh
+when = $BACKUP_DB_WHEN
+
+mount -t $BACKUP_NFS_VERS $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER /backup
+if grep -qs '/backup ' /proc/mounts; then
+    echo "BACKUP NFS FOLDER MOUNTED: $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER"
+else
+    echo "ERROR!!! UNABLE TO MOUNT $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER !!!"
+    exit 1
+fi
+EOT
+
+    cat <<EOT >> /usr/local/etc/backup.d/35.nfs-db-unmount.sh
+when = $BACKUP_DB_WHEN
+
+umount -f -l /backup
+umount -f -l /backup
+if grep -qs '/backup ' /proc/mounts; then
+    echo "ERROR!!! UNABLE TO UNMOUNT /backup"
+    exit 1
+else
+    echo "BACKUP NFS UnMOUNTED"
+fi
+EOT
+
+    cat <<EOT >> /usr/local/etc/backup.d/36.nfs-disks-mount.sh
+when = $BACKUP_DISKS_WHEN
+
+mount -t $BACKUP_NFS_VERS $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER /backup
+if grep -qs '/backup ' /proc/mounts; then
+    echo "BACKUP NFS FOLDER MOUNTED: $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER"
+else
+    echo "ERROR!!! UNABLE TO MOUNT $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER !!!"
+    exit 1
+fi
+EOT
+
+    cat <<EOT >> /usr/local/etc/backup.d/95.nfs-disks-unmount.sh
+when = $BACKUP_DISKS_WHEN
+
+umount -f -l /backup
+umount -f -l /backup
+if grep -qs '/backup ' /proc/mounts; then
+    echo "ERROR!!! UNABLE TO UNMOUNT /backup"
+    exit 1
+else
+    echo "BACKUP NFS UnMOUNTED"
+fi
+EOT
+fi
 
 # BACKUP DB SCRIPT
 if [ "$BACKUP_DB_ENABLED" = "true" ]

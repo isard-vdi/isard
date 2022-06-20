@@ -165,6 +165,12 @@ API_HYPERVISORS_SECRET=B5/bUEUzIC+AjNQRmFh3vxR3VeIKirwdeL/xuHPVO+E=
 ## Automated backups (https://0xacab.org/liberate/backupninja)
 #BACKUP_DIR=/opt/isard-local/backup
 
+#BACKUP_NFS_ENABLED=false
+#BACKUP_NFS_VERS=nfs4
+#BACKUP_NFS_OPTS-defaults,rw,auto,noatime,nodiratime
+#BACKUP_NFS_SERVER=172.16.0.10
+#BACKUP_NFS_FOLDER=/backupfolder
+
 #BACKUP_DB_ENABLED=false
 #BACKUP_DB_WHEN="everyday at 01"
 #BACKUP_DB_PRUNE="--keep-weekly=8 --keep-monthly=12 --keep-within=14d --save-space"
