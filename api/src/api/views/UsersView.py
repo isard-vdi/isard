@@ -142,11 +142,12 @@ def api_v3_user_owns_desktop(payload):
 @app.route("/api/v3/user", methods=["PUT"])
 @has_token
 def api_v3_user_update(payload):
+    data = request.get_json(force=True)
     try:
-        name = request.form.get("name", None)
-        email = request.form.get("email", None)
-        photo = request.form.get("photo", None)
-        password = request.form.get("password", None)
+        name = data.get("name", None)
+        email = data.get("email", None)
+        photo = data.get("photo", None)
+        password = data.get("password", None)
     except:
         raise Error("bad_request", "Update user bad body data", traceback.format_exc())
     if not name and not email and not photo and not password:

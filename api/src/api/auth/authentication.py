@@ -47,7 +47,6 @@ class User(UserMixin):
         self.uid = dict["uid"]
         self.username = dict["username"]
         self.name = dict["name"]
-        self.password = dict["password"]
         self.role = dict["role"]
         self.group = dict["group"]
         self.path = (
