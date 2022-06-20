@@ -331,7 +331,7 @@ def socketio_users_connect():
 
 
 @socketio.on("disconnect", namespace="/userspace")
-def socketio_domains_disconnect():
+def socketio_domains_disconnect(data=False):
     try:
         payload = get_token_payload(request.args.get("jwt"))
         if payload.get("desktop_id"):
