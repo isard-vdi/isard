@@ -146,6 +146,7 @@ export default new Vuex.Store({
       axios.get(`${apiAdminSegment}/logout/remote`).then(() => {
         localStorage.token = ''
         context.commit('resetStore')
+        context.dispatch('closeSocket')
         if (!store.getters.getUrlTokens.includes('login')) {
           router.push({ name: 'Login' })
         }
