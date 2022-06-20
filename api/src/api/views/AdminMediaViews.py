@@ -42,9 +42,7 @@ def api_v3_admin_media_insert(payload):
             raise Error("not_found", "User not found", traceback.format_exc())
         group = r.table("groups").get(payload["group_id"])["uid"].run(db.conn)
         if group == None:
-            raise Error(
-                "not_found", "Group not found", traceback.format_exc()
-            )
+            raise Error("not_found", "Group not found", traceback.format_exc())
 
     data["user"] = payload["user_id"]
     data["username"] = username

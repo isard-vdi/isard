@@ -120,9 +120,7 @@ def api_v3_user_owns_desktop(payload):
         try:
             ip = request.form.get("ip", False)
         except:
-            raise Error(
-                "bad_request", "Missing parameters.", traceback.format_exc()
-            )
+            raise Error("bad_request", "Missing parameters.", traceback.format_exc())
 
         if ip == False:
             raise Error(
@@ -144,9 +142,7 @@ def api_v3_user_update(payload):
         photo = request.form.get("photo", None)
         password = request.form.get("password", None)
     except:
-        raise Error(
-            "bad_request", "Update user bad body data", traceback.format_exc()
-        )
+        raise Error("bad_request", "Update user bad body data", traceback.format_exc())
     if not name and not email and not photo and not password:
         raise Error(
             "bad_request",
@@ -226,9 +222,7 @@ def api_v3_user_desktop(payload, desktop_id):
 @has_token
 def api_v3_user_vpn(payload, kind, os=False):
     if not os and kind != "config":
-        raise Error(
-            "bad_request", "User Vpn incorrect data", traceback.format_exc()
-        )
+        raise Error("bad_request", "User Vpn incorrect data", traceback.format_exc())
 
     vpn_data = vpn.vpn_data("users", kind, os, payload["user_id"])
     return json.dumps(vpn_data), 200, {"Content-Type": "application/json"}

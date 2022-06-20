@@ -79,6 +79,4 @@ def api_v3_vpn_connection(payload, kind, client_ip=None):
             "Update vpn connection failed",
             traceback.format_exc(),
         )
-    raise Error(
-        "bad_request", "Incorrect access method", traceback.format_exc()
-    )
+    raise Error("bad_request", "Incorrect access method", traceback.format_exc())

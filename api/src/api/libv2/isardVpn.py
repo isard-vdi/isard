@@ -82,9 +82,7 @@ class isardVpn:
             postup = ":"
             endpoint = os.environ["DOMAIN"]
         else:
-            raise Error(
-                "not_found", "Vpn kind not exists", traceback.format_exc()
-            )
+            raise Error("not_found", "Vpn kind not exists", traceback.format_exc())
 
         if wgdata == None or "vpn" not in wgdata.keys():
             raise Error(
