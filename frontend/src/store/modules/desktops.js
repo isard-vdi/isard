@@ -194,6 +194,9 @@ export default {
           el.setAttribute('download', `${response.data.name}.${response.data.ext}`)
           ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.file-downloaded'), '', false, 1000)
         } else if (response.data.kind === 'browser') {
+          if (response.data.protocol === 'rdp') {
+            localStorage.rdpToken = localStorage.token
+          }
           cookies.setCookie('browser_viewer', response.data.cookie)
           el.setAttribute('href', response.data.viewer)
           el.setAttribute('target', '_blank')

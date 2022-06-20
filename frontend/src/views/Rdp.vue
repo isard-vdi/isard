@@ -294,7 +294,10 @@ export default {
       }
 
       this.client.connect(query)
-      window.onunload = () => this.client.disconnect()
+      window.onunload = () => {
+        this.client.disconnect()
+        localStorage.rdpToken = ''
+      }
 
       this.mouse = new Guacamole.Mouse(displayElm)
 
