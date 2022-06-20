@@ -254,7 +254,7 @@ export default {
       const isFormCorrect = await this.v$.$validate()
 
       if (isFormCorrect) {
-        this.createNewDesktop({ id: this.selected[0].id, name: this.desktopName, description: this.description })
+        this.createNewDesktop({ template_id: this.selected[0].id, name: this.desktopName, description: this.description })
       }
     }
   }

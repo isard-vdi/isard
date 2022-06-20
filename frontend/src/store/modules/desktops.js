@@ -206,15 +206,10 @@ export default {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
-    createNewDesktop (_, payload) {
+    createNewDesktop (_, data) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.creating-desktop'), '', true, 1000)
 
-      const formData = new FormData()
-      formData.append('desktop_name', payload.name)
-      formData.append('desktop_description', payload.description)
-      formData.append('template_id', payload.id)
-
-      axios.post(`${apiV3Segment}/persistent_desktop`, formData).then(response => {
+      axios.post(`${apiV3Segment}/persistent_desktop`, data).then(response => {
         // this._vm.$snotify.clear()
         router.push({ name: 'desktops' })
       }).catch(e => {

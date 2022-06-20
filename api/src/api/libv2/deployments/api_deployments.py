@@ -230,8 +230,7 @@ def new(
             description,
             template_id,
             payload,
-            deployment=deployment_tag,
-            forced_hyp=False,
+            deployment_tag_dict=deployment_tag,
         )
     return deployment["id"]
 

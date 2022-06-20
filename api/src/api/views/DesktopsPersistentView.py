@@ -33,6 +33,7 @@ from ..libv2.api_cards import ApiCards
 
 api_cards = ApiCards()
 
+from ..libv2.validators import _validate_item
 from .decorators import allowedTemplateId, has_token, is_admin, ownsDomainId
 
 
@@ -156,34 +157,23 @@ def api_v3_desktops_stop(payload, desktop_id):
 @has_token
 def api_v3_persistent_desktop_new(payload):
     try:
-        desktop_name = request.form.get("desktop_name", type=str)
-        desktop_description = request.form.get("desktop_description", type=str)
-        template_id = request.form.get("template_id", False)
-        forced_hyp = request.form.get("forced_hyp", False)
-        user_id = payload["user_id"]
+        data = request.get_json(force=True)
     except:
-        raise Error(
+        Error(
             "bad_request",
-            "New persistent desktop bad body data",
+            "Desktop persistent add incorrect body data",
             traceback.format_exc(),
         )
 
-    if desktop_name == None or not template_id:
-        raise Error(
-            "bad_request",
-            "New persistent desktop incorrect body data",
-            traceback.format_exc(),
-        )
-
-    allowedTemplateId(payload, template_id)
-    quotas.DesktopCreate(user_id)
+    data = _validate_item("desktop_from_template", data)
+    allowedTemplateId(payload, data["template_id"])
+    quotas.DesktopCreate(payload["user_id"])
 
     desktop_id = desktops.NewFromTemplate(
-        desktop_name=desktop_name,
-        desktop_description=desktop_description,
-        template_id=template_id,
+        desktop_name=data["name"],
+        desktop_description=data["description"],
+        template_id=data["template_id"],
         payload=payload,
-        forced_hyp=forced_hyp,
     )
     return json.dumps({"id": desktop_id}), 200, {"Content-Type": "application/json"}
 
