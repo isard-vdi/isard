@@ -109,6 +109,11 @@ MONITOR_STANDALONE_PARTS="
 	monitor
 	monitor-proxy
 "
+BACKUPNINJA_STANDALONE_KEY="backupninja"
+BACKUPNINJA_STANDALONE_PARTS="
+	network
+	backupninja
+"
 
 docker_compose_version(){
 	$DOCKER_COMPOSE version --short | sed 's/^docker-compose version \([^,]\+\),.*$/\1/'
@@ -328,6 +333,9 @@ create_docker_compose_file(){
 		$MONITOR_STANDALONE_KEY)
 			parts=$MONITOR_STANDALONE_PARTS
 			;;
+		$BACKUPNINJA_STANDALONE_KEY)
+			parts=$BACKUPNINJA_STANDALONE_PARTS
+			;;
 		*)
 			echo "Error: Flavour $FLAVOUR of $config_file not found"
 			exit 1
@@ -340,9 +348,29 @@ create_docker_compose_file(){
 	fi
 	if [ "$BACKUP_DB_ENABLED" = "false" ] && [ "$BACKUP_DISKS_ENABLED" = "false" ]
 	then
+		if [ "$FLAVOUR" = "backupninja" ]
+		then
+			echo "ERROR: flavour backupninja needs at least BACKUP_DB_ENABLED or BACKUP_DISKS_ENABLED in cfg"
+			exit 1
+		fi
 		parts="$(echo $parts | sed 's/backupninja//')"
 	fi
 	flavour "$config_name" $parts
+
+	if [ "$BACKUP_NFS_ENABLED" = "true" ]
+	then
+		if [ -z "$BACKUP_NFS_SERVER" ] || [ -z "$BACKUP_NFS_FOLDER" ]
+		then
+			echo "ERROR: backupninja with nfs enabled needs setting BACKUP_NFS_SERVER and BACKUP_NFS_FOLDER in cfg"
+			exit 1
+		fi
+		if [ ! -z "$BACKUP_DIR" ]
+		then
+			echo "ERROR: backupninja with nfs enabled needs BACKUP_DIR to be commented/removed as conflicts"
+			exit 1
+		fi
+		sed -i '/\/backup:\/backup/d' docker-compose*.yml
+	fi
 }
 
 if !(${SKIP_CHECK_DOCKER_COMPOSE_VERSION-false} || check_docker_compose_version)

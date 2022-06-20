@@ -2,11 +2,12 @@
 
 if [ "$BACKUP_NFS_ENABLED" = "true" ]
 then
-    mount -t $BACKUP_NFS_VERS -o $BACKUP_NFS_OPTS $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER /backup
+    echo "TESTING THAT NFS FOLDER CAN BE MOUNTED AND UNMOUNTED..."
+    mount -t nfs4 $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER /backup
     if grep -qs '/backup ' /proc/mounts; then
-        echo "BACKUP NFS FOLDER MOUNTED: $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER /backup"
+        echo "  - OK: BACKUP NFS FOLDER MOUNTED: $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER /backup"
     else
-        echo "ERROR!!! UNABLE TO MOUNT $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER /backup!!!"
+        echo "  - ERROR!!! UNABLE TO MOUNT $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER /backup!!!. Exitting!"
         exit 1
     fi
 fi
@@ -15,34 +16,38 @@ borg init -e none /backup/db > /dev/null 2>&1
 mkdir -p /backup/disks
 borg init -e none /backup/disks > /dev/null 2>&1
 mkdir -p /backup/extract
+
+# Unmount if nfs as it will be mounted at backup cron time
 if [ "$BACKUP_NFS_ENABLED" = "true" ]
 then
     umount -f -l /backup
-    umount -f -l /backup
     if grep -qs '/backup ' /proc/mounts; then
         df -h
-        echo "ERROR!!! UNABLE TO UnMOUNT /backup"
+        echo -e "  - ERROR!!! UNABLE TO UnMOUNT /backup. Exitting!\n"
         exit 1
     else
-        echo "BACKUP NFS UnMOUNTED"
+        echo -e "  - OK: BACKUP NFS UnMOUNTED\n"
     fi
 fi
 
+LOG_FILE="/var/log/backupninja.log"
+touch $LOG_FILE
+
 sed -i '/^logfile =/d' /usr/local/etc/backupninja.conf
-echo "logfile = /backup/backupninja.log" >> /usr/local/etc/backupninja.conf
+echo "logfile = $LOG_FILE" >> /usr/local/etc/backupninja.conf
 
 rm -f /usr/local/etc/backup.d/*
 
 # BACKUP NFS MOUNT / UMOUNT
 if [ "$BACKUP_NFS_ENABLED" = "true" ]
 then
-    echo "SETTING NFS MOUNT: mount -t $BACKUP_NFS_VERS $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER /backup"
-    echo "                   Logs can be found at $BACKUP_DIR/backupninja.log"
+    echo "SETTING NFS MOUNT: mount -t nfs4 $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER /backup"
+    echo "                   Logs can be found at $LOG_FILE folder"
 
     cat <<EOT >> /usr/local/etc/backup.d/15.nfs-db-mount.sh
 when = $BACKUP_DB_WHEN
 
-mount -t $BACKUP_NFS_VERS $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER /backup
+mount -t nfs4 $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER /backup
 if grep -qs '/backup ' /proc/mounts; then
     echo "BACKUP NFS FOLDER MOUNTED: $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER"
 else
@@ -55,7 +60,6 @@ EOT
 when = $BACKUP_DB_WHEN
 
 umount -f -l /backup
-umount -f -l /backup
 if grep -qs '/backup ' /proc/mounts; then
     echo "ERROR!!! UNABLE TO UNMOUNT /backup"
     exit 1
@@ -67,7 +71,7 @@ EOT
     cat <<EOT >> /usr/local/etc/backup.d/36.nfs-disks-mount.sh
 when = $BACKUP_DISKS_WHEN
 
-mount -t $BACKUP_NFS_VERS $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER /backup
+mount -t nfs4 $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER /backup
 if grep -qs '/backup ' /proc/mounts; then
     echo "BACKUP NFS FOLDER MOUNTED: $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER"
 else
@@ -79,7 +83,6 @@ EOT
     cat <<EOT >> /usr/local/etc/backup.d/95.nfs-disks-unmount.sh
 when = $BACKUP_DISKS_WHEN
 
-umount -f -l /backup
 umount -f -l /backup
 if grep -qs '/backup ' /proc/mounts; then
     echo "ERROR!!! UNABLE TO UNMOUNT /backup"
@@ -94,7 +97,7 @@ fi
 if [ "$BACKUP_DB_ENABLED" = "true" ]
 then
     echo "DATABASE ENABLED: Enabled database backup $BACKUP_DB_WHEN with $BACKUP_DB_PRUNE prune policy"
-    echo "                  Logs can be found at $BACKUP_DIR/backupninja.log"
+    echo "                  Logs can be found at $LOG_FILE folder"
 
     cat <<EOT >> /usr/local/etc/backup.d/10.info.sh
 when = $BACKUP_DB_WHEN
@@ -102,7 +105,7 @@ when = $BACKUP_DB_WHEN
 EOT
 
     cat <<'EOT' >> /usr/local/etc/backup.d/10.info.sh
-echo "----------- NEW DATABASE BACKUP: $(date +%Y-%m-%d_%H:%M:%S) -----------" >> /backup/backupninja.log
+echo "----------- NEW DATABASE BACKUP: $(date +%Y-%m-%d_%H:%M:%S) -----------" >> $LOG_FILE
 EOT
 
     cat <<EOT >> /usr/local/etc/backup.d/20.dbdump.sh
@@ -161,14 +164,14 @@ then
     echo "               - TEMPLATES: $BACKUP_DISKS_TEMPLATES_ENABLED"
     echo "               -    GROUPS: $BACKUP_DISKS_GROUPS_ENABLED"
     echo "               -     MEDIA: $BACKUP_DISKS_MEDIA_ENABLED"
-    echo "               Logs can be found at $BACKUP_DIR/backupninja.log"
+    echo "               Logs can be found at $LOG_FILE folder"
 
     cat <<EOT >> /usr/local/etc/backup.d/40.info.sh
 when = $BACKUP_DISKS_WHEN
 
 EOT
     cat <<'EOT' >> /usr/local/etc/backup.d/40.info.sh
-echo "----------- NEW DISKS BACKUP: $(date +%Y-%m-%d_%H:%M:%S) -----------" >> /backup/backupninja.log
+echo "----------- NEW DISKS BACKUP: $(date +%Y-%m-%d_%H:%M:%S) -----------" >> $LOG_FILE
 EOT
 
     cat <<EOT >> /usr/local/etc/backup.d/50.disksborg.borg
@@ -198,5 +201,4 @@ fi
 
 chmod 600 /usr/local/etc/backup.d/* > /dev/null 2>&1
 crond
-touch /backup/backupninja.log
-tail -f /backup/backupninja.log
+tail -f $LOG_FILE

@@ -4,7 +4,7 @@ export BORG_UNKNOWN_UNENCRYPTED_REPO_ACCESS_IS_OK=yes
 mount_nfs(){
     if [ "$BACKUP_NFS_ENABLED" = "true" ]
     then
-        mount -t $BACKUP_NFS_VERS -o $BACKUP_NFS_OPTS $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER /backup
+        mount -t nfs4 $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER /backup
         if grep -qs '/backup ' /proc/mounts; then
             echo "BACKUP NFS FOLDER MOUNTED: $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER"
         else
@@ -17,7 +17,6 @@ umount_nfs(){
     if [ "$BACKUP_NFS_ENABLED" = "true" ]
     then
         if grep -qs '/backup ' /proc/mounts; then
-            umount -f -l /backup
             umount -f -l /backup
             echo "BACKUP NFS FOLDER UNMOUNTED"
         else
@@ -100,7 +99,7 @@ elif [ "$1" == "execute-now" ]; then
 elif [ "$1" == "check-nfs-mount" ]; then
     if [ "$BACKUP_NFS_ENABLED" = "true" ]
     then
-        mount -t $BACKUP_NFS_VERS -o $BACKUP_NFS_OPTS $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER /backup
+        mount -t nfs4 $BACKUP_NFS_SERVER:$BACKUP_NFS_FOLDER /backup
         if grep -qs '/backup ' /proc/mounts; then
             echo "BACKUP NFS FOLDER MOUNTED:"
             cat /proc/mounts | grep "/backup"
@@ -109,9 +108,6 @@ elif [ "$1" == "check-nfs-mount" ]; then
             exit 1
         fi
         umount -f -l /backup
-        if grep -qs '/backup ' /proc/mounts; then
-                umount -f -l /backup
-        fi
         if grep -qs '/backup ' /proc/mounts; then
             df -h
             echo "ERROR!!! UNABLE TO UnMOUNT /backup"

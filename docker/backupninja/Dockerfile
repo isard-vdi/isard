@@ -27,7 +27,6 @@ RUN mkdir -p /usr/local/var/log
 RUN mkdir /backup
 RUN mkdir /dbdump
 WORKDIR /
-CMD [ "run.sh" ]
 COPY docker/backupninja/run.sh /usr/local/bin/
 COPY docker/backupninja/backup.sh /usr/local/bin/
 RUN apk add --no-cache \
@@ -40,3 +39,4 @@ RUN apk add --no-cache \
 #cryptsetup duplicity flashrom gzip hwinfo rdiff-backup restic rsync sfdisk
 RUN pip3 install --no-cache-dir \
     rethinkdb
+CMD [ "run.sh" ]
