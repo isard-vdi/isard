@@ -160,7 +160,7 @@ class DS:
                     raise Error(
                         "precondition_required",
                         "Desktop transition initial status incorrect",
-                        traceback.traceback.format_exc(),
+                        traceback.format_exc(),
                     )
 
             # Get change
@@ -180,14 +180,14 @@ class DS:
                 raise Error(
                     "gateway_timeout",
                     "Unable to change desktop status.",
-                    traceback.traceback.format_exc(),
+                    traceback.format_exc(),
                 )
             if final_status != "Deleted":
                 if doc["new_val"]["status"] != final_status:
                     raise Error(
                         "gateway_timeout",
                         "Unable to change desktop status.",
-                        traceback.traceback.format_exc(),
+                        traceback.format_exc(),
                     )
 
     def WaitHyperStatus(
@@ -246,7 +246,7 @@ class DS:
                     raise Error(
                         "precondition_required",
                         "Hypervisor transition initial status incorrect",
-                        traceback.traceback.format_exc(),
+                        traceback.format_exc(),
                     )
 
             # Get change
@@ -256,14 +256,14 @@ class DS:
                 raise Error(
                     "gateway_timeout",
                     "Unable to change hypervisor status.",
-                    traceback.traceback.format_exc(),
+                    traceback.format_exc(),
                 )
             if final_status != "Deleted":
                 if doc["new_val"]["status"] != final_status:
                     raise Error(
                         "gateway_timeout",
                         "Unable to change hypervisor status.",
-                        traceback.traceback.format_exc(),
+                        traceback.format_exc(),
                     )
 
     def _check(self, dict, action):

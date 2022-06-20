@@ -37,14 +37,14 @@ def api_v3_desktop_new(payload):
         template_id = request.form.get("template", type=str)
     except:
         raise Error(
-            "bad_request", "New desktop bad body data", traceback.traceback.format_exc()
+            "bad_request", "New desktop bad body data", traceback.format_exc()
         )
 
     if user_id == None or template_id == None:
         raise Error(
             "bad_request",
             "New desktop missing body data",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
 
     allowedTemplateId(payload, template_id)

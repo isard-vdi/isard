@@ -39,6 +39,6 @@ class ApiXml:
             raise Error(
                 "not_found",
                 "Virt install xml not found",
-                traceback.traceback.format_exc(),
+                traceback.format_exc(),
             )
         return virt_install

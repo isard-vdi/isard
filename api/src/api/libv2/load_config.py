@@ -133,7 +133,7 @@ class loadConfig:
                 app.system_tables = r.table_list().run(conn)
                 ready = True
             except Exception as e:
-                # print(traceback.traceback.format_exc())
+                # print(traceback.format_exc())
                 print(
                     "Database server "
                     + app.config["RETHINKDB_HOST"]
@@ -205,7 +205,7 @@ class loadConfig:
             app.debug = True if os.environ["LOG_LEVEL"] == "DEBUG" else False
 
         except:
-            log.error(traceback.traceback.format_exc())
+            log.error(traceback.format_exc())
             log.error("Missing parameters!")
             print("Missing parameters!")
             return False

@@ -40,7 +40,7 @@ class isardVpn:
                 raise Error(
                     "bad_request",
                     "Vpn missing itemid",
-                    traceback.traceback.format_exc(),
+                    traceback.format_exc(),
                 )
             with app.app_context():
                 wgdata = r.table("users").get(itemid).pluck("id", "vpn").run(db.conn)
@@ -69,7 +69,7 @@ class isardVpn:
                 raise Error(
                     "bad_request",
                     "Vpn missing itemid",
-                    traceback.traceback.format_exc(),
+                    traceback.format_exc(),
                 )
             with app.app_context():
                 wgdata = (
@@ -83,14 +83,14 @@ class isardVpn:
             endpoint = os.environ["DOMAIN"]
         else:
             raise Error(
-                "not_found", "Vpn kind not exists", traceback.traceback.format_exc()
+                "not_found", "Vpn kind not exists", traceback.format_exc()
             )
 
         if wgdata == None or "vpn" not in wgdata.keys():
             raise Error(
                 "not_found",
                 "Vpn data not found for user",
-                traceback.traceback.format_exc(),
+                traceback.format_exc(),
             )
 
         ## First up time the wireguard config keys are missing till isard-vpn populates it.
@@ -107,7 +107,7 @@ class isardVpn:
             raise Error(
                 "precondition_required",
                 "There are no wireguard keys in webapp config yet. Try again in a few seconds...",
-                traceback.traceback.format_exc(),
+                traceback.format_exc(),
             )
 
         wireguard_data = [endpoint, wgdata, port, mtu, postup, wireguard_server_keys]
@@ -132,7 +132,7 @@ class isardVpn:
         raise Error(
             "internal_server",
             "Unable to process vpn file",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
 
     def get_wireguard_file(

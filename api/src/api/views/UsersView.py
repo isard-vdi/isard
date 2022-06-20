@@ -83,7 +83,7 @@ def api_v3_user_register(payload):
         raise Error(
             "bad_request",
             "New register code bad body data",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
 
     data = users.CodeSearch(code)
@@ -91,7 +91,7 @@ def api_v3_user_register(payload):
         raise Error(
             "bad_request",
             "Requested register code not in the category selected",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
 
     check_category_domain(data.get("category"), payload["email"].split("@")[-1])
@@ -121,14 +121,14 @@ def api_v3_user_owns_desktop(payload):
             ip = request.form.get("ip", False)
         except:
             raise Error(
-                "bad_request", "Missing parameters.", traceback.traceback.format_exc()
+                "bad_request", "Missing parameters.", traceback.format_exc()
             )
 
         if ip == False:
             raise Error(
                 "bad_request",
                 "Incorrect access parameters",
-                traceback.traceback.format_exc(),
+                traceback.format_exc(),
             )
         users.OwnsDesktop(payload["user_id"], ip)
         return json.dumps({}), 200, {"Content-Type": "application/json"}
@@ -145,13 +145,13 @@ def api_v3_user_update(payload):
         password = request.form.get("password", None)
     except:
         raise Error(
-            "bad_request", "Update user bad body data", traceback.traceback.format_exc()
+            "bad_request", "Update user bad body data", traceback.format_exc()
         )
     if not name and not email and not photo and not password:
         raise Error(
             "bad_request",
             "Update user incorrect body data",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
 
     users.Update(
@@ -173,7 +173,7 @@ def api_v3_user_templates(payload):
     with app.app_context():
         group = r.table("groups").get(payload["group_id"])["uid"].run(db.conn)
     if group == None:
-        raise Error("not_found", "Group not found", traceback.traceback.format_exc())
+        raise Error("not_found", "Group not found", traceback.format_exc())
     templates = users.Templates(payload)
     dropdown_templates = [
         {
@@ -227,7 +227,7 @@ def api_v3_user_desktop(payload, desktop_id):
 def api_v3_user_vpn(payload, kind, os=False):
     if not os and kind != "config":
         raise Error(
-            "bad_request", "User Vpn incorrect data", traceback.traceback.format_exc()
+            "bad_request", "User Vpn incorrect data", traceback.format_exc()
         )
 
     vpn_data = vpn.vpn_data("users", kind, os, payload["user_id"])

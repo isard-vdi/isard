@@ -100,7 +100,7 @@ def api_v3_desktops_start(payload):
         Error(
             "bad_request",
             "DesktopS start incorrect body data",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
 
     for desktop_id in desktops_ids:
@@ -139,7 +139,7 @@ def api_v3_desktops_stop(payload, desktop_id):
         Error(
             "bad_request",
             "DesktopS start incorrect body data",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
     for desktop_id in desktops_ids:
         ownsDomainId(payload, desktop_id)
@@ -165,14 +165,14 @@ def api_v3_persistent_desktop_new(payload):
         raise Error(
             "bad_request",
             "New persistent desktop bad body data",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
 
     if desktop_name == None or not template_id:
         raise Error(
             "bad_request",
             "New persistent desktop incorrect body data",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
 
     allowedTemplateId(payload, template_id)
@@ -229,35 +229,35 @@ def api_v3_desktop_from_scratch(payload):
         raise Error(
             "bad_request",
             "New desktop from scratch bad body data",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
 
     if name == None:
         raise Error(
             "bad_request",
             "New desktop from scratch bad body data",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
 
     if not virt_install_id and not xml:
         raise Error(
             "bad_request",
             "New desktop from scratch missing virt_install_id or xml in body data",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
 
     if not disk_user and not disk_path and not disks:
         raise Error(
             "bad_request",
             "New desktop from scratch missing disk_user or disk_path or disks in body data",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
 
     if not boot_order not in ["disk", "iso", "pxe"]:
         raise Error(
             "bad_request",
             "New desktop from scratch incorrect boot order in body data",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
 
     quotas.DesktopCreate(user_id)
@@ -300,14 +300,14 @@ def api_v3_desktop_edit(payload, desktop_id):
         Error(
             "bad_request",
             "Desktop edit incorrect body data",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
 
     if not validate_desktop_schema(data):
         raise Error(
             "bad_request",
             validate_desktop_schema(data, validate=False),
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
 
     ownsDomainId(payload, desktop_id)
@@ -354,7 +354,7 @@ def admin_jumperurl_reset(payload, desktop_id):
     try:
         data = request.get_json()
     except:
-        raise Error("bad_request", "Bad body data", traceback.traceback.format_exc())
+        raise Error("bad_request", "Bad body data", traceback.format_exc())
     response = desktops.JumperUrlReset(desktop_id, disabled=data.get("disabled"))
     return (
         json.dumps(response),

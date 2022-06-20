@@ -38,7 +38,7 @@ def api_v3_hypervisors(payload, status=None):
         raise Error(
             "bad_request",
             "Hypervisor status incorrect",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
     return (
         json.dumps(get_hypervisors(status)),
@@ -57,14 +57,14 @@ def api_v3_guest_addr():
         raise Error(
             "bad_request",
             "Hypervisor wg_addr bad bad data",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
 
     if mac == None or ip == None:
         raise Error(
             "bad_request",
             "Hypervisor wg_addr invalid body data",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
 
     domain_id = api_hypervisors.update_wg_address(mac, {"viewer": {"guest_ip": ip}})
@@ -82,7 +82,7 @@ def api_v3_guest_addr():
 #         certs=api_hypervisors.get_hypervisors_certs()
 #         return json.dumps(certs), 200, {'Content-Type': 'application/json'}
 #     except Exception as e:
-#         error = traceback.traceback.format_exc()
+#         error = traceback.format_exc()
 #         log.error("ViewerCerts general exception" + error)
 #         return json.dumps({"error": "undefined_error","msg":"ViewerCerts general exception: " + error }), 500, {'Content-Type': 'application/json'}
 
@@ -125,7 +125,7 @@ def api_v3_hypervisor(hyper_id=False):
             raise Error(
                 "bad_request",
                 "Hypervisor add bad data",
-                traceback.traceback.format_exc(),
+                traceback.format_exc(),
             )
 
         data = api_hypervisors.hyper(
@@ -155,7 +155,7 @@ def api_v3_hypervisor(hyper_id=False):
             raise Error(
                 "bad_request",
                 "Hypervisor delete add bad data",
-                traceback.traceback.format_exc(),
+                traceback.format_exc(),
             )
         return json.dumps(data["data"]), 200, {"Content-Type": "application/json"}
 
@@ -166,7 +166,7 @@ def api_v3_hypervisor(hyper_id=False):
             raise Error(
                 "bad_request",
                 "Hypervisor update bad data",
-                traceback.traceback.format_exc(),
+                traceback.format_exc(),
             )
         return json.dumps(data["data"]), 200, {"Content-Type": "application/json"}
 
@@ -213,7 +213,7 @@ def api_v3_hypervisor_media_delete():
 #         api_hypervisors.update_disks_found('groups',request.get_json(force=True))
 #         return json.dumps(True), 200, {'Content-Type': 'application/json'}
 #     except Exception as e:
-#         error = traceback.traceback.format_exc()
+#         error = traceback.format_exc()
 #         log.error("HypervisorMediaFound general exception" + error)
 #         return json.dumps({"error": "undefined_error","msg":"HypervisorMediaFound general exception: " + error }), 500, {'Content-Type': 'application/json'}
 
@@ -225,14 +225,14 @@ def api_v3_hypervisor_media_delete():
 #         try:
 #             vlans = request.get_json(force=True)
 #         except Exception as e:
-#             error = traceback.traceback.format_exc()
+#             error = traceback.format_exc()
 #             return json.dumps({"error": "undefined_error","msg":"Incorrect access. exception: " + error }), 500, {'Content-Type': 'application/json'}
 
 #         try:
 #             api_hypervisors.add_vlans(vlans)
 #             return json.dumps({}), 200, {'Content-Type': 'application/json'}
 #         except Exception as e:
-#             error = traceback.traceback.format_exc()
+#             error = traceback.format_exc()
 #             log.error("Vlans add general exception" + error)
 #             return json.dumps({"error": "undefined_error","msg":"Vlans add general exception: " + error }), 500, {'Content-Type': 'application/json'}
 
@@ -241,7 +241,7 @@ def api_v3_hypervisor_media_delete():
 #             vlans=api_hypervisors.get_vlans()
 #             return json.dumps(vlans), 200, {'Content-Type': 'application/json'}
 #         except Exception as e:
-#             error = traceback.traceback.format_exc()
+#             error = traceback.format_exc()
 #             log.error("Vlans general exception" + error)
 #             return json.dumps({"error": "undefined_error","msg":"Vlans general exception: " + error }), 500, {'Content-Type': 'application/json'}
 

@@ -347,7 +347,7 @@ class ApiHypervisors:
                 raise Error(
                     "internal_server",
                     "Unable to update guest_addr",
-                    traceback.traceback.format_exc(),
+                    traceback.format_exc(),
                 )
 
     def update_wg_address(self, mac, data):
@@ -359,7 +359,7 @@ class ApiHypervisors:
                 r.table("domains").get(domain_id).update(data).run(db.conn)
                 return domain_id
             except:
-                # print(traceback.traceback.format_exc())
+                # print(traceback.format_exc())
                 return False
 
     def get_hypervisor_vpn(self, hyper_id):

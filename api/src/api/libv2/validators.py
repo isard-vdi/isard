@@ -28,7 +28,7 @@ def _validate_item(item, data, normalize=True):
             + item
             + " failed: "
             + str(app.validators[item].errors),
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
     if normalize:
         return app.validators[item].normalized(data)
@@ -40,7 +40,7 @@ def _validate_table(table):
         raise Error(
             "not_found",
             "Table " + table + " does not exist.",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
 
 
