@@ -100,7 +100,7 @@ def api_v3_admin_user_update(payload, id=False):
         raise Error(
             "bad_request",
             "Unable to parse body data.",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
 
     ownsUserId(payload, id)
@@ -127,7 +127,7 @@ def api_v3_admin_user_insert(payload):
         raise Error(
             "bad_request",
             "Unable to parse body data.",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
 
     p = Password()
@@ -271,7 +271,7 @@ def api_v3_admin_edit_category(payload, category_id):
         raise Error(
             "bad_request",
             "Unable to parse body data.",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
 
     data = _validate_item("category", data)
@@ -342,7 +342,7 @@ def api_v3_admin_category_insert(payload):
         raise Error(
             "bad_request",
             "Unable to parse body data.",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
 
     category = _validate_item("category", data)
@@ -376,7 +376,7 @@ def api_v3_admin_group_insert(payload):
         raise Error(
             "bad_request",
             "Unable to parse body data.",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
 
     if payload["role_id"] == "manager":
@@ -493,14 +493,14 @@ def api_v3_admin_secret(payload):
         raise Error(
             "bad_request",
             "Admin secret invalid body data",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
 
     if role_id == None or domain == None or kid == None or category_id == None:
         raise Error(
             "bad_request",
             "Admin secret missing body data",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
 
     secret = users.Secret(kid, description, role_id, category_id, domain)

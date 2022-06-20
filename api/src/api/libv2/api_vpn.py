@@ -35,7 +35,7 @@ class ApiVpn:
         #       interfaces. Remotevpn are handled in users wg interface.
         if kind not in ["users", "hypers"]:
             raise Error(
-                "not_found", "Vpn kind not found", traceback.traceback.format_exc()
+                "not_found", "Vpn kind not found", traceback.format_exc()
             )
 
         connection_data = {
@@ -76,7 +76,7 @@ def reset_connection_status(
     kind,
 ):
     if kind not in ["users", "hypers", "all"]:
-        raise Error("not_found", "Vpn kind not found", traceback.traceback.format_exc())
+        raise Error("not_found", "Vpn kind not found", traceback.format_exc())
     connection_data = {"connected": False, "remote_ip": None, "remote_port": None}
 
     # Find ip

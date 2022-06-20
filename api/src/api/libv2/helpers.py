@@ -69,7 +69,7 @@ class InternalUsers(object):
                         "groupName": group_name,
                     }
                 except:
-                    print(traceback.traceback.format_exc())
+                    print(traceback.format_exc())
                     return {
                         "userName": "Unknown",
                         "userPhoto": "Unknown",
@@ -95,7 +95,7 @@ def _parse_string(txt):
         raise Error(
             "internal_server",
             "Unable to parse string",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
     else:
         # ~ Replace accents
@@ -318,13 +318,13 @@ def generate_db_media(path_downloaded, filesize):
         raise Error(
             "precondition_required",
             "Skipping uploaded file as has unknown extension",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
 
     with app.app_context():
         username = r.table("users").get(parts[-2])["username"].run(db.conn)
     if username == None:
-        raise Error("not_found", "Username not found", traceback.traceback.format_exc())
+        raise Error("not_found", "Username not found", traceback.format_exc())
 
     return {
         "accessed": time.time(),

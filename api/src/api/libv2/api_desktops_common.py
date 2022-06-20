@@ -74,7 +74,7 @@ class ApiDesktopsCommon:
             raise Error(
                 "not_found",
                 "Desktop not found",
-                traceback.traceback.format_exc(),
+                traceback.format_exc(),
             )
         if len(domains) == 1:
             if start_desktop and domains[0]["status"] == "Stopped":
@@ -125,7 +125,7 @@ class ApiDesktopsCommon:
         raise Error(
             "internal_server",
             "Jumperviewer token duplicated",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
 
     def DesktopDirectViewer(self, desktop_id, viewer_txt, protocol):
@@ -165,5 +165,5 @@ class ApiDesktopsCommon:
         raise Error(
             "internal_server",
             "Unable to generate jumpertoken",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )

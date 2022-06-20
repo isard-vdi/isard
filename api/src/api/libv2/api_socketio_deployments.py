@@ -122,7 +122,7 @@ class DeploymentsThread(threading.Thread):
                 raise Error(
                     "internal_server",
                     "Deployments websocket restart",
-                    traceback.traceback.format_exc(),
+                    traceback.format_exc(),
                 )
                 time.sleep(0.1)
 

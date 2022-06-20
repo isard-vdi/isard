@@ -55,7 +55,7 @@ def api_v3_template_new(payload):
         raise Error(
             "bad_request",
             "New template bad body data",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
 
     ownsDomainId(payload, desktop_id)

@@ -39,7 +39,7 @@ def api_v3_images_desktops(payload, image_type=None):
         raise Error(
             "bad_request",
             "Desktop images bad request",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
 
     if not image_type:
@@ -90,7 +90,7 @@ def api_v3_images_desktops_generate(payload):
         Error(
             "bad_request",
             "Generate desktops images bad body data",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
 
     return (

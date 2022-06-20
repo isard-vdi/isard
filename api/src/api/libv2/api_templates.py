@@ -68,12 +68,12 @@ class ApiTemplates:
                 )
             except:
                 raise Error(
-                    "not_found", "User not found", traceback.traceback.format_exc()
+                    "not_found", "User not found", traceback.format_exc()
                 )
             desktop = r.table("domains").get(desktop_id).run(db.conn)
             if desktop == None:
                 raise Error(
-                    "not_found", "Desktop not found", traceback.traceback.format_exc()
+                    "not_found", "Desktop not found", traceback.format_exc()
                 )
 
         parent_disk = desktop["hardware"]["disks"][0]["file"]
@@ -158,7 +158,7 @@ class ApiTemplates:
             raise Error(
                 "not_found",
                 "Unable to update inexistent template",
-                traceback.traceback.format_exc(),
+                traceback.format_exc(),
             )
         if template and template["kind"] == "template":
             with app.app_context():
@@ -167,5 +167,5 @@ class ApiTemplates:
         raise Error(
             "conflict",
             "Unable to update enable in a non template kind domain",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )

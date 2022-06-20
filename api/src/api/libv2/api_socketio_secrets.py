@@ -68,7 +68,7 @@ class SecretsThread(threading.Thread):
             except Exception:
                 print("SecretsThread internal error: restarting")
                 log.error("SecretsThread internal error: restarting")
-                log.error(traceback.traceback.format_exc())
+                log.error(traceback.format_exc())
                 time.sleep(2)
 
         print("SecretsThread ENDED!!!!!!!")
@@ -94,7 +94,7 @@ def start_secrets_thread():
 #         join_room(payload['user_id'])
 #         log.debug('User '+payload['user_id']+' joined userspace ws')
 #     except:
-#         log.debug('Failed attempt to connect so socketio: '+traceback.traceback.format_exc())
+#         log.debug('Failed attempt to connect so socketio: '+traceback.format_exc())
 
 # @socketio.on('disconnect', namespace='/userspace')
 # def socketio_secrets_disconnect():

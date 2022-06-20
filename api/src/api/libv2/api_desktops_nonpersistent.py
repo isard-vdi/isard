@@ -42,7 +42,7 @@ class ApiDesktopsNonPersistent:
         with app.app_context():
             if r.table("users").get(user_id).run(db.conn) is None:
                 raise Error(
-                    "not_found", "User not found", traceback.traceback.format_exc()
+                    "not_found", "User not found", traceback.format_exc()
                 )
         # Has a desktop with this template? Then return it (start it if stopped)
         with app.app_context():
@@ -71,7 +71,7 @@ class ApiDesktopsNonPersistent:
             desktop = r.table("domains").get(desktop_id).run(db.conn)
         if desktop == None:
             raise Error(
-                "not_found", "Desktop not found", traceback.traceback.format_exc()
+                "not_found", "Desktop not found", traceback.format_exc()
             )
         ds.delete_desktop(desktop_id, desktop["status"])
 
@@ -85,7 +85,7 @@ class ApiDesktopsNonPersistent:
         with app.app_context():
             if r.table("users").get(user_id).run(db.conn) is None:
                 raise Error(
-                    "not_found", "User not found", traceback.traceback.format_exc()
+                    "not_found", "User not found", traceback.format_exc()
                 )
 
         ####### Get how many desktops are from this template and leave only one
@@ -115,7 +115,7 @@ class ApiDesktopsNonPersistent:
         with app.app_context():
             user = r.table("users").get(user_id).run(db.conn)
         if user == None:
-            raise Error("not_found", "User not found", traceback.traceback.format_exc())
+            raise Error("not_found", "User not found", traceback.format_exc())
         # Create the domain from that template
         desktop_id = self._nonpersistent_desktop_from_tmpl(user_id, template_id)
 
@@ -127,7 +127,7 @@ class ApiDesktopsNonPersistent:
             template = r.table("domains").get(template_id).run(db.conn)
             if not template:
                 raise Error(
-                    "not_found", "Template not found", traceback.traceback.format_exc()
+                    "not_found", "Template not found", traceback.format_exc()
                 )
             user = r.table("users").get(user_id).run(db.conn)
             if not user:
@@ -201,7 +201,7 @@ class ApiDesktopsNonPersistent:
         raise Error(
             "internal_server",
             "Unable to create non persistent desktop",
-            traceback.traceback.format_exc(),
+            traceback.format_exc(),
         )
 
     def DesktopStart(self, desktop_id):
