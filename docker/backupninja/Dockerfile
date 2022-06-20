@@ -14,6 +14,7 @@ RUN git clone https://0xacab.org/liberate/backupninja.git && \
 
 FROM alpine:3.14.0 as production
 MAINTAINER isard <info@isard.com>
+RUN apk add --no-cache nfs-utils
 COPY --from=build /usr/local/sbin/backupninja /usr/local/sbin/backupninja
 COPY --from=build /usr/local/sbin/ninjahelper /usr/local/sbin/ninjahelper
 COPY --from=build /usr/local/etc/backupninja.conf /usr/local/etc/backupninja.conf
