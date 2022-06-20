@@ -242,9 +242,7 @@ class isardViewer:
         if protocol == "vnc-client-macos":
             raise Error("not_found", "Viewer protocol not implemented")
 
-        raise Error(
-            "not_found", "Viewer protocol not found", traceback.format_exc()
-        )
+        raise Error("not_found", "Viewer protocol not found", traceback.format_exc())
 
     def get_rdp_file(self, ip):
         ## This are the default values dumped from a windows rdp client connection to IsardVDI

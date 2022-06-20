@@ -67,14 +67,10 @@ class ApiTemplates:
                     .run(db.conn)
                 )
             except:
-                raise Error(
-                    "not_found", "User not found", traceback.format_exc()
-                )
+                raise Error("not_found", "User not found", traceback.format_exc())
             desktop = r.table("domains").get(desktop_id).run(db.conn)
             if desktop == None:
-                raise Error(
-                    "not_found", "Desktop not found", traceback.format_exc()
-                )
+                raise Error("not_found", "Desktop not found", traceback.format_exc())
 
         parent_disk = desktop["hardware"]["disks"][0]["file"]
 

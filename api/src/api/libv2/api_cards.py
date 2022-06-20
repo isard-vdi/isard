@@ -179,9 +179,7 @@ class ApiCards:
             img = Path(app.USERS_CARDS + "/" + card_id)
             img.unlink()
         except:
-            raise Error(
-                "not_found", "Card file not found", traceback.format_exc()
-            )
+            raise Error("not_found", "Card file not found", traceback.format_exc())
 
     def delete_domain_card(self, domain_id, update_domain=True):
         with app.app_context():

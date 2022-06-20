@@ -74,9 +74,7 @@ class ApiDesktopsPersistent:
         with app.app_context():
             desktop = r.table("domains").get(desktop_id).run(db.conn)
         if desktop == None:
-            raise Error(
-                "not_found", "Desktop not found", traceback.format_exc()
-            )
+            raise Error("not_found", "Desktop not found", traceback.format_exc())
         ds.delete_desktop(desktop_id, desktop["status"])
 
     def NewFromTemplate(
@@ -91,9 +89,7 @@ class ApiDesktopsPersistent:
         with app.app_context():
             template = r.table("domains").get(template_id).run(db.conn)
             if not template:
-                raise Error(
-                    "not_found", "Template not found", traceback.format_exc()
-                )
+                raise Error("not_found", "Template not found", traceback.format_exc())
             user = r.table("users").get(payload["user_id"]).run(db.conn)
             if not user:
                 raise Error("not_found", "NewFromTemplate: user id not found.")
@@ -312,9 +308,7 @@ class ApiDesktopsPersistent:
             with app.app_context():
                 dbiso = r.table("media").get(iso).run(db.conn)
             if dbiso == None:
-                raise Error(
-                    "not_found", "Media not found", traceback.format_exc()
-                )
+                raise Error("not_found", "Media not found", traceback.format_exc())
             list_isos.append({"id": iso})
         json_isos = {"create_dict": {"hardware": {"isos": list_isos}}}
 
@@ -324,9 +318,7 @@ class ApiDesktopsPersistent:
             with app.app_context():
                 dbgraphic = r.table("graphics").get(graphic).run(db.conn)
             if dbgraphic == None:
-                raise Error(
-                    "not_found", "Graphic not found", traceback.format_exc()
-                )
+                raise Error("not_found", "Graphic not found", traceback.format_exc())
             list_graphics.append(graphic)
         json_graphics = {"create_dict": {"hardware": {"graphics": list_graphics}}}
 
@@ -335,9 +327,7 @@ class ApiDesktopsPersistent:
             with app.app_context():
                 dbvideo = r.table("videos").get(video).run(db.conn)
             if dbvideo == None:
-                raise Error(
-                    "not_found", "Video not found", traceback.format_exc()
-                )
+                raise Error("not_found", "Video not found", traceback.format_exc())
             list_videos.append(video)
         json_videos = {"create_dict": {"hardware": {"videos": list_videos}}}
 
@@ -346,9 +336,7 @@ class ApiDesktopsPersistent:
             with app.app_context():
                 dbinterface = r.table("interfaces").get(interface).run(db.conn)
             if dbinterface == None:
-                raise Error(
-                    "not_found", "Interface not found", traceback.format_exc()
-                )
+                raise Error("not_found", "Interface not found", traceback.format_exc())
             list_interfaces.append(interface)
         json_interfaces = {"create_dict": {"hardware": {"interfaces": list_interfaces}}}
 
@@ -406,17 +394,13 @@ class ApiDesktopsPersistent:
                     .run(db.conn)["user"]
                 )
         except:
-            raise Error(
-                "not_found", "Desktop not found", traceback.format_exc()
-            )
+            raise Error("not_found", "Desktop not found", traceback.format_exc())
 
     def Start(self, desktop_id):
         with app.app_context():
             desktop = r.table("domains").get(desktop_id).run(db.conn)
         if not desktop:
-            raise Error(
-                "not_found", "Desktop not found", traceback.format_exc()
-            )
+            raise Error("not_found", "Desktop not found", traceback.format_exc())
         if desktop["status"] == "Started":
             return desktop_id
         if desktop["status"] not in ["Stopped", "Failed"]:
@@ -433,9 +417,7 @@ class ApiDesktopsPersistent:
         with app.app_context():
             desktop = r.table("domains").get(desktop_id).run(db.conn)
         if not desktop:
-            raise Error(
-                "not_found", "Desktop not found", traceback.format_exc()
-            )
+            raise Error("not_found", "Desktop not found", traceback.format_exc())
         if desktop["status"] == "Stopped":
             return desktop_id
         if desktop["status"] not in ["Started", "Shutting-down"]:

@@ -582,9 +582,7 @@ class ApiUsers:
             if len(found) > 0:
                 category = found[0]["parent_category"]  # found[0]['id'].split('_')[0]
                 return {"role": "user", "category": category, "group": found[0]["id"]}
-        raise Error(
-            "not_found", "Code not found code:" + code, traceback.format_exc()
-        )
+        raise Error("not_found", "Code not found code:" + code, traceback.format_exc())
 
     def CategoryGet(self, category_id, all=False):
         with app.app_context():
