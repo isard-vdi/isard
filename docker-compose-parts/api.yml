@@ -30,3 +30,4 @@ services:
       VPN_MTU:
       USAGE:
       VIEWER_RDPGW:
+      FRONTEND_SHOW_ADMIN_BTN:

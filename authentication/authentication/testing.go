@@ -36,11 +36,6 @@ func (m *AuthenticationMock) Provider(prv string) provider.Provider {
 	return mArgs.Get(0).(provider.Provider)
 }
 
-func (m *AuthenticationMock) ShowAdminButton() bool {
-	mArgs := m.Called()
-	return mArgs.Bool(0)
-}
-
 func (m *AuthenticationMock) SAML() *samlsp.Middleware {
 	mArgs := m.Called()
 	return mArgs.Get(0).(*samlsp.Middleware)
