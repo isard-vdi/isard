@@ -14,7 +14,7 @@
             <b-nav-item href="#" v-b-modal.help_modal>{{ $t("components.navbar.help") }}</b-nav-item>
             <b-nav-item href="#" @click="fetchVpn()">{{ $t("components.navbar.vpn.download") }}</b-nav-item>
             <b-nav-item
-              v-if="getUser.role_id != 'user' || getConfig['show_admin_button']"
+              v-if="getConfig['show_admin_button']"
               @click="loginAdmin()"
             >
                 {{ $t("components.navbar.admin") }}

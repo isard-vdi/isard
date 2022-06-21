@@ -110,6 +110,12 @@ def api_v3_user_register(payload):
     return json.dumps({"id": user_id}), 200, {"Content-Type": "application/json"}
 
 
+@app.route("/api/v3/user/config", methods=["GET"])
+@has_token
+def api_v3_user_config(payload):
+    return json.dumps(users.Config(payload)), 200, {"Content-Type": "application/json"}
+
+
 # Check from isard-guac if the user owns the ip
 @app.route("/api/v3/user/owns_desktop", methods=["GET"])
 @has_token

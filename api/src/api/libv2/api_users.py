@@ -144,6 +144,20 @@ class ApiUsers:
             traceback.format_exc(),
         )
 
+    def Config(self, payload):
+        frontend_show_admin_btn = (
+            True
+            if os.environ.get("FRONTEND_SHOW_ADMIN_BTN") == None
+            else os.environ.get("FRONTEND_SHOW_ADMIN_BTN") == "True"
+        )
+        show_admin_button = (
+            True if payload["role_id"] != "user" else frontend_show_admin_btn
+        )
+        return {
+            "show_admin_button": show_admin_button,
+            "documentation_url": "https://isard.gitlab.io/isardvdi-docs/",
+        }
+
     def Get(self, user_id):
         with app.app_context():
             user = r.table("users").get(user_id).run(db.conn)

@@ -20,7 +20,6 @@ import (
 
 type Interface interface {
 	Providers() []string
-	ShowAdminButton() bool
 	Provider(provider string) provider.Provider
 	Login(ctx context.Context, provider string, categoryID string, args map[string]string) (tkn, redirect string, err error)
 	Callback(ctx context.Context, args map[string]string) (tkn, redirect string, err error)
@@ -35,7 +34,6 @@ type Authentication struct {
 	Secret          string
 	DB              r.QueryExecutor
 	providers       map[string]provider.Provider
-	showAdminButton bool
 	saml            *samlsp.Middleware
 }
 
@@ -44,7 +42,6 @@ func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor) *Authentication 
 		Log:             log,
 		Secret:          cfg.Authentication.Secret,
 		DB:              db,
-		showAdminButton: cfg.ShowAdminButton,
 	}
 
 	providers := map[string]provider.Provider{
@@ -79,10 +76,6 @@ func (a *Authentication) Providers() []string {
 	}
 
 	return providers
-}
-
-func (a *Authentication) ShowAdminButton() bool {
-	return a.showAdminButton
 }
 
 func (a *Authentication) Provider(p string) provider.Provider {

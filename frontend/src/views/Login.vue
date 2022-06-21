@@ -67,7 +67,7 @@
               <div class="d-flex flex-row flex-wrap justify-content-center align-items-center">
                 <p class="w-100 text-center">{{ $t('views.login.other-logins') }}</p>
                 <b-button
-                  v-for="provider in getConfig['providers']"
+                  v-for="provider in getProviders"
                   v-bind:key="provider"
                   @click="login(provider.toLowerCase())"
                   :class="'rounded-pill mt-0 btn-sm login-btn btn-' + provider.toLowerCase()"
@@ -122,7 +122,7 @@ export default {
   computed: {
     ...mapGetters([
       'getCategories',
-      'getConfig',
+      'getProviders',
       'getPageErrorMessage'
     ]),
     categories_select () {
@@ -152,7 +152,7 @@ export default {
       return this.getCategories.length || this.category_by_path
     },
     show_login_providers () {
-      return this.show_login_form && this.getConfig.providers.length
+      return this.show_login_form && this.getProviders.length
     },
     show_login_extras () {
       return this.show_login_form || this.show_login_providers
@@ -189,7 +189,7 @@ export default {
       this.$router.push({ name: 'desktops' })
     }
     this.$store.dispatch('removeAuthorizationCookie')
-    this.$store.dispatch('fetchConfig')
+    this.$store.dispatch('fetchProviders')
     this.$store.dispatch('fetchCategories').then(() => {
       let defaultCategory = ''
       if (this.getCategories.length === 1) {

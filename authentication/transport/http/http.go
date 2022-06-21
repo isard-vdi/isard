@@ -30,7 +30,7 @@ func (a *AuthenticationServer) Serve(ctx context.Context) {
 	m.HandleFunc("/login", a.login)
 	m.HandleFunc("/callback", a.callback)
 	m.HandleFunc("/check", a.check)
-	m.HandleFunc("/config", a.config)
+	m.HandleFunc("/providers", a.providers)
 
 	// SAML authentication
 	m.HandleFunc("/saml/metadata", a.Authentication.SAML().ServeMetadata)
@@ -193,13 +193,11 @@ func (a *AuthenticationServer) check(w http.ResponseWriter, r *http.Request) {
 
 type configJSON struct {
 	Providers       []string `json:"providers"`
-	ShowAdminButton bool     `json:"show_admin_button"`
 }
 
-func (a *AuthenticationServer) config(w http.ResponseWriter, r *http.Request) {
+func (a *AuthenticationServer) providers(w http.ResponseWriter, r *http.Request) {
 	cfg := &configJSON{
 		Providers:       a.Authentication.Providers(),
-		ShowAdminButton: a.Authentication.ShowAdminButton(),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
