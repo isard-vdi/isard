@@ -23,6 +23,15 @@
                                   customClass: 'isard-tooltip',
                                   trigger: 'hover' }">
                  </fab-item>
+                 <fab-item  :idx="2"
+                 v-if="getUser.role_id != 'user' && desktop.type === 'persistent'"
+                @clickItem="onClickGoToNewTemplate(desktop.id)"
+                  icon='content_copy' color='#97c277'
+                  v-b-tooltip="{  title: `${$t('components.desktop-cards.actions.template')}`,
+                                  placement: 'top',
+                                  customClass: 'isard-tooltip',
+                                  trigger: 'hover' }">
+                 </fab-item>
             </vue-fab>
 
             <div class='p-2 h-100 d-flex flex-wrap flex-column' :class="{'startedHighlight': desktopState === desktopStates.started}">
@@ -136,6 +145,7 @@
 <script>
 import i18n from '@/i18n'
 import { DesktopUtils } from '@/utils/desktopsUtils'
+import { ErrorUtils } from '@/utils/errorUtils'
 import { mapActions, mapGetters } from 'vuex'
 import IsardDropdown from '@/components/shared/IsardDropdown.vue'
 import DesktopButton from '@/components/desktops/Button.vue'
@@ -162,7 +172,8 @@ export default {
       'changeDesktopStatus',
       'createDesktop',
       'navigate',
-      'goToImagesList'
+      'goToImagesList',
+      'goToNewTemplate'
     ]),
     chooseDesktop (template) {
       this.$snotify.clear()
@@ -190,6 +201,13 @@ export default {
     isWaiting (viewer) {
       return this.getDefaultViewer && (this.waitingIp && DesktopUtils.viewerNeedsIp(viewer))
     },
+    onClickGoToNewTemplate (desktopId) {
+      if (this.desktopState === desktopStates.stopped) {
+        this.goToNewTemplate(desktopId)
+      } else {
+        ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.new-template-stop'), '', true, 2000)
+      }
+    },
     onClickDeleteDesktop (toast) {
       this.$snotify.clear()
 
@@ -214,7 +232,7 @@ export default {
     }
   },
   computed: {
-    ...mapGetters(['getViewers', 'getCurrentTab']),
+    ...mapGetters(['getViewers', 'getCurrentTab', 'getUser']),
     filterViewerFromList () {
       return DesktopUtils.filterViewerFromList(this.desktop.viewers, this.getDefaultViewer)
     },

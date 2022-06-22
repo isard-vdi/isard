@@ -1,15 +1,18 @@
 import axios from 'axios'
 import { apiV3Segment } from '../../shared/constants'
 import { AllowedUtils, tablesConfig } from '../../utils/allowedUtils'
+import { ErrorUtils } from '../../utils/errorUtils'
 
 const getDefaultState = () => {
   return {
-    groups: [],
-    selectedGroups: false,
+    id: '',
+    groups: [], // Available groups
+    selectedGroups: [],
     groupsChecked: false,
-    users: [],
-    selectedUsers: false,
-    usersChecked: false
+    users: [], // Available users
+    selectedUsers: [],
+    usersChecked: false,
+    modalShow: false
   }
 }
 
@@ -18,22 +21,37 @@ const state = getDefaultState()
 export default {
   state,
   getters: {
+    getId: state => {
+      return state.id
+    },
     getGroups: state => {
       return state.groups
     },
     getSelectedGroups: state => {
       return state.selectedGroups
     },
+    getGroupsChecked: state => {
+      return state.groupsChecked
+    },
     getUsers: state => {
       return state.users
     },
     getSelectedUsers: state => {
       return state.selectedUsers
+    },
+    getUsersChecked: state => {
+      return state.usersChecked
+    },
+    getShowAllowedModal: state => {
+      return state.modalShow
     }
   },
   mutations: {
     resetAllowedState: (state) => {
       Object.assign(state, getDefaultState())
+    },
+    setId: (state, id) => {
+      state.id = id
     },
     setGroups: (state, groups) => {
       state.groups = groups
@@ -41,11 +59,20 @@ export default {
     setSelectedGroups: (state, selectedGroups) => {
       state.selectedGroups = selectedGroups
     },
+    setGroupsChecked: (state, groupsChecked) => {
+      state.groupsChecked = groupsChecked
+    },
     setUsers: (state, users) => {
       state.users = users
     },
     setSelectedUsers: (state, selectedUsers) => {
       state.selectedUsers = selectedUsers
+    },
+    setUsersChecked: (state, usersChecked) => {
+      state.usersChecked = usersChecked
+    },
+    setShowAllowedModal: (state, modalShow) => {
+      state.modalShow = modalShow
     }
   },
   actions: {
@@ -53,12 +80,44 @@ export default {
       context.commit('resetAllowedState')
     },
     fetchAllowedTerm (context, data) {
-      axios.post(`${apiV3Segment}/admin/alloweds/term/${data.table}`, data).then(response => {
+      return axios.post(`${apiV3Segment}/admin/alloweds/term/${data.table}`, data).then(response => {
         context.commit(tablesConfig[data.table].mutations.set, AllowedUtils.parseAllowed(data.table, response.data))
       })
     },
+    fetchAllowed (context, data) {
+      return axios.post(`${apiV3Segment}/allowed/table/${data.table}`, data).then(response => {
+        context.commit('setId', data.id)
+        // Groups
+        if (response.data.groups !== false) {
+          context.dispatch('updateChecked', { table: 'groups', checked: true })
+        }
+        context.commit('setGroups', AllowedUtils.parseAllowed('groups', response.data.groups))
+        context.commit('setSelectedGroups', AllowedUtils.parseAllowed('groups', response.data.groups))
+        // Users
+        if (response.data.users !== false) {
+          context.dispatch('updateChecked', { table: 'users', checked: true })
+        }
+        context.commit('setUsers', AllowedUtils.parseAllowed('users', response.data.users))
+        context.commit('setSelectedUsers', AllowedUtils.parseAllowed('users', response.data.users))
+        context.dispatch('showAllowedModal', true)
+      })
+    },
+    updateAllowed (context, data) {
+      axios.post(`${apiV3Segment}/admin/alloweds/update/${data.table}`, data).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    updateChecked (context, data) {
+      context.commit(tablesConfig[data.table].mutations.setChecked, data.checked)
+    },
     updateSelected (context, data) {
       context.commit(tablesConfig[data.table].mutations.setSelected, data.selected)
+    },
+    updateOptions (context, data) {
+      context.commit(tablesConfig[data.table].mutations.set, data.selected)
+    },
+    showAllowedModal (context, show) {
+      context.commit('setShowAllowedModal', show)
     }
   }
 }

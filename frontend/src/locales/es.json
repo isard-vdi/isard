@@ -7,9 +7,17 @@
     },
     "forms": {
         "allowed": {
+            "title": "Permisos",
             "groups": "Grupos:",
             "users": "Usuarios:",
-            "placeholder": "Escribe almenos 2 carácteres para buscar."
+            "placeholder": "Escribe almenos 2 carácteres para buscar.",
+            "modal": {
+                "title": "Actualizar permisos",
+                "buttons": {
+                    "update": "Actualizar"
+                }
+            },
+            "empty": "Marcado y vacío lo compartirá con todos."
         },
         "registration": {
             "code": "Código de registro"
@@ -31,6 +39,11 @@
                 "group": "Grupo",
                 "user": "Usuario"
             }
+        },
+        "new-template": {
+            "title": "Crear nueva plantilla",
+            "name": "Nombre",
+            "description": "Descripción"
         },
         "new-deployment": {
             "title": "Crear nuevo despliegue:",
@@ -62,6 +75,9 @@
         "create": "Crea"
     },
     "components": {
+        "select-search": {
+            "empty": "No hay opciones disponibles"
+        },
         "navbar": {
             "home": "Inicio",
             "help": "Ayuda",
@@ -77,7 +93,8 @@
                 }
             },
             "admin": "Administración",
-            "deployments": "Despliegues"
+            "deployments": "Despliegues",
+            "templates": "Plantillas"
         },
         "statusbar": {
             "desktops-started": "Escritorios arrancados",
@@ -120,7 +137,8 @@
         },
         "desktop-cards": {
             "actions": {
-                "delete": "Borrar"
+                "delete": "Borrar",
+                "template": "Convertir en plantilla"
             },
             "table-header": {
                 "name": "Nombre",
@@ -459,6 +477,22 @@
                     "once-installed": "Una vez instalado, se tiene que clicar en el botón de «RDP», y se descargará el fichero del escritorio virtual."
                 }
             }
+        },
+        "templates": {
+            "no-templates": {
+                "title": "No hay plantillas para este usuario",
+                "subtitle": "Si crees que se trata de un error, contacta con el administrador"
+            },
+            "table-header": {
+                "name": "Nombre",
+                "description": "Descripción",
+                "actions": "Acciones"
+            },
+            "buttons": {
+                "allowed": {
+                    "title": "Cambiar permisos"
+                }
+            }
         }
     },
     "messages": {
@@ -490,7 +524,9 @@
             "making-visible-deployment": "Haciendo el despliegue visible",
             "making-invisible-deployment": "Haciendo el despliegue invisible",
             "starting-desktops": "Iniciando los escritorios del despliegue",
-            "stopping-desktops": "Parando los escritorios del despliegue"
+            "stopping-desktops": "Parando los escritorios del despliegue",
+            "creating-template": "Creando plantilla",
+            "new-template-stop": "Para crear una plantilla es necesario que el escritorio esté parado"
         },
         "loading": "Cargando"
     },

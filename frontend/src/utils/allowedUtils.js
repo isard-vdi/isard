@@ -4,9 +4,13 @@ export class AllowedUtils {
   }
 
   static parseGroups (items) {
-    return items.map((item) => {
-      return AllowedUtils.parseGroup(item)
-    }) || []
+    if (items) {
+      return items.map((item) => {
+        return AllowedUtils.parseGroup(item)
+      }) || []
+    } else {
+      return []
+    }
   }
 
   static parseGroup (group) {
@@ -20,9 +24,13 @@ export class AllowedUtils {
   }
 
   static parseUsers (items) {
-    return items.map((item) => {
-      return AllowedUtils.parseUser(item)
-    }) || []
+    if (items) {
+      return items.map((item) => {
+        return AllowedUtils.parseUser(item)
+      }) || []
+    } else {
+      return []
+    }
   }
 
   static parseUser (user) {
@@ -41,14 +49,16 @@ export const tablesConfig = {
     parser: AllowedUtils.parseGroups,
     mutations: {
       set: 'setGroups',
-      setSelected: 'setSelectedGroups'
+      setSelected: 'setSelectedGroups',
+      setChecked: 'setGroupsChecked'
     }
   },
   users: {
     parser: AllowedUtils.parseUsers,
     mutations: {
       set: 'setUsers',
-      setSelected: 'setSelectedUsers'
+      setSelected: 'setSelectedUsers',
+      setChecked: 'setUsersChecked'
     }
   }
 }

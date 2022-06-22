@@ -178,7 +178,7 @@ const inputFormat = value => /^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑ
 export default {
   setup (props, context) {
     const $store = context.root.$store
-    $store.dispatch('fetchTemplates')
+    $store.dispatch('fetchAllowedTemplates')
 
     const deploymentName = ref('')
     const desktopName = ref('')
@@ -222,14 +222,14 @@ export default {
         tdClass: 'col-3'
       },
       {
-        key: 'category',
+        key: 'categoryName',
         label: i18n.t('forms.new-desktop.template-table-column-headers.category'),
         sortable: true,
         thClass: 'col-2',
         tdClass: 'col-2'
       },
       {
-        key: 'group',
+        key: 'groupName',
         label: i18n.t('forms.new-desktop.template-table-column-headers.group'),
         sortable: false,
         thClass: 'col-2',

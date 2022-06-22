@@ -2,16 +2,17 @@
   <v-select
     multiple
     @search="fetch"
-    v-model="selected"
     :placeholder="placeholder"
     :options="options"
     :disabled="disabled"
     :closeOnSelect="closeOnSelect"
     :deselectFromDropdown="deselectFromDropdown"
     :loading="false"
+    :value="selectedValues"
+    @input="setSelected"
   >
     <template v-slot:option="option">
-      <input type="checkbox" :checked="selected && selected.includes(selected.find(el => el.id === option.id))" />
+      <input type="checkbox" :checked="selectedValues && selectedValues.includes(selectedValues.find(el => el.id === option.id))" />
       {{ option.label }}
     </template>
     <template #spinner="{ loading }">
@@ -24,13 +25,17 @@
   </v-select>
 </template>
 <script>
-import { ref, watch } from '@vue/composition-api'
 
 export default {
   props: {
+    selectedValues: {
+      type: Array,
+      required: false,
+      default: () => { return [] }
+    },
     options: {
       type: Array,
-      required: true,
+      required: false,
       default: () => { return [] }
     },
     closeOnSelect: {
@@ -52,32 +57,23 @@ export default {
       type: String,
       required: false,
       default: ''
-    },
-    reset: {
-      type: Boolean,
-      required: false,
-      default: false
     }
   },
   setup (props, { emit }) {
-    const selected = ref('')
-    function fetch (search, loading) {
+    const fetch = (search, loading) => {
       if (search.length >= 2) {
         loading(true)
         emit('search', { search, loading })
       }
     }
-    watch(selected, (currentValue, _) => {
-      emit('updateSelected', currentValue)
-    })
-    watch(() => props.reset, (currentValue, _) => {
-      emit('updateSelected', currentValue)
-      selected.value = []
-    })
+
+    const setSelected = (value) => {
+      emit('updateSelected', value)
+    }
 
     return {
       fetch,
-      selected
+      setSelected
     }
   }
 }

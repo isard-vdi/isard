@@ -168,16 +168,16 @@ def api_v3_admin_user_delete(payload):
 @is_admin_or_manager
 def api_v3_admin_templates(payload):
     return (
-        json.dumps(users.Templates(payload)),
+        json.dumps(users.TemplatesAllowed(payload)),
         200,
         {"Content-Type": "application/json"},
     )
 
 
-@app.route("/api/v3/admin/user/<id>/templates", methods=["GET"])
+@app.route("/api/v3/admin/user/<user_id>/templates", methods=["GET"])
 @is_admin_or_manager
-def api_v3_admin_user_templates(payload, id=False):
-    if id == False:
+def api_v3_admin_user_templates(payload, user_id=False):
+    if user_id == False:
         log.error("Incorrect access parameters. Check your query.")
         return (
             json.dumps(
@@ -190,8 +190,8 @@ def api_v3_admin_user_templates(payload, id=False):
             {"Content-Type": "application/json"},
         )
 
-    ownsUserId(payload, id)
-    templates = users.Templates(id)
+    ownsUserId(payload, user_id)
+    templates = users.TemplatesAllowed(user_id)
     dropdown_templates = [
         {
             "id": t["id"],

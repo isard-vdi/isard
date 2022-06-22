@@ -40,6 +40,11 @@ class IsardValidator(Validator):
             document["parent_category"] + "-" + document["uid"]
         ).lower()
 
+    def _normalize_default_setter_gendomainid(self, document):
+        return _parse_string(
+            "_" + document["user_id"] + "-" + _parse_string(document["name"])
+        )
+
     def _normalize_default_setter_genmediaid(self, document):
         return _parse_string("_" + document["user"] + "-" + document["name"])
 

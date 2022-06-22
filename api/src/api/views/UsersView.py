@@ -176,13 +176,36 @@ def api_v3_user_templates(payload):
         group = r.table("groups").get(payload["group_id"])["uid"].run(db.conn)
     if group == None:
         raise Error("not_found", "Group not found", traceback.format_exc())
-    templates = users.Templates(payload)
     dropdown_templates = [
         {
             "id": t["id"],
             "name": t["name"],
             "category": t["category"],
             "group": group,
+            "user_id": t["user"],
+            "icon": t["icon"],
+            "image": t["image"],
+            "allowed": t["allowed"],
+            "description": t["description"],
+            "enabled": t["enabled"],
+        }
+        for t in users.Templates(payload)
+    ]
+    return json.dumps(dropdown_templates), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/user/templates_allowed", methods=["GET"])
+@has_token
+def api_v3_user_templates_allowed(payload):
+    templates = users.TemplatesAllowed(payload)
+    dropdown_templates = [
+        {
+            "id": t["id"],
+            "name": t["name"],
+            "category": t["category"],
+            "category_name": t["category_name"],
+            "group": t["group"],
+            "group_name": t["group_name"],
             "user_id": t["user"],
             "user_name": t["username"],
             "icon": t["icon"],

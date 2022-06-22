@@ -19,6 +19,8 @@ import Desktops from '@/pages/Desktops.vue'
 import DesktopNew from '@/pages/DesktopNew.vue'
 import { appTitle } from '../shared/constants'
 import ImagesList from '@/views/ImagesList.vue'
+import TemplateNew from '@/pages/TemplateNew.vue'
+import Templates from '@/pages/Templates.vue'
 
 Vue.use(VueRouter)
 
@@ -52,6 +54,33 @@ const router = new VueRouter({
           component: ImagesList,
           meta: {
             title: 'Images'
+          }
+        }
+      ],
+      meta: {
+        requiresAuth: true
+      }
+    },
+    {
+      path: '/',
+      name: 'Templates',
+      redirect: '/templates',
+      component: MainLayout,
+      children: [
+        {
+          path: 'templates',
+          name: 'templates',
+          component: Templates,
+          meta: {
+            title: 'Templates'
+          }
+        },
+        {
+          path: 'template/new',
+          name: 'templatenew',
+          component: TemplateNew,
+          meta: {
+            title: 'New Template'
           }
         }
       ],

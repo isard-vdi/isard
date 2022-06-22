@@ -314,10 +314,48 @@ class ApiUsers:
     def Templates(self, payload):
         try:
             with app.app_context():
+                return list(
+                    r.table("domains")
+                    .get_all(payload["user_id"], index="user")
+                    .filter({"kind": "template"})
+                    .order_by("name")
+                    .pluck(
+                        {
+                            "id",
+                            "name",
+                            "allowed",
+                            "enabled",
+                            "kind",
+                            "category",
+                            "group",
+                            "icon",
+                            "image",
+                            "user",
+                            "description",
+                        }
+                    )
+                    .run(db.conn)
+                )
+        except Exception:
+            raise Error(
+                "internal_server", "Internal server error", traceback.format_exc()
+            )
+
+    def TemplatesAllowed(self, payload):
+        try:
+            with app.app_context():
                 templates = (
                     r.table("domains")
                     .get_all("template", index="kind")
                     .filter({"enabled": True})
+                    .merge(
+                        lambda d: {
+                            "category_name": r.table("categories").get(d["category"])[
+                                "name"
+                            ],
+                            "group_name": r.table("groups").get(d["group"])["name"],
+                        }
+                    )
                     .order_by("name")
                     .pluck(
                         {
@@ -326,7 +364,9 @@ class ApiUsers:
                             "allowed",
                             "kind",
                             "category",
+                            "category_name",
                             "group",
+                            "group_name",
                             "icon",
                             "image",
                             "user",
