@@ -177,6 +177,9 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]str
 	defer conn.Close()
 
 	attributes := []string{"dn", l.cfg.FieldUID, l.cfg.FieldUsername, l.cfg.FieldName, l.cfg.FieldEmail, l.cfg.FieldPhoto}
+	if l.cfg.GuessCategory {
+		attributes = append(attributes, l.cfg.FieldCategory)
+	}
 
 	req := ldap.NewSearchRequest(
 		l.cfg.BaseSearch,
