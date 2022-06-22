@@ -150,7 +150,7 @@ def owns_table_item_id(fn):
     def decorated_view(table, *args, **kwargs):
         payload = get_header_jwt_payload()
         if payload["role_id"] == "admin":
-            return fn(table, *args, **kwargs)
+            return fn(payload, table, *args, **kwargs)
         try:
             myargs = request.get_json(force=True)
         except:
@@ -164,14 +164,14 @@ def owns_table_item_id(fn):
                 id = myargs["id"]
 
         if table == "users":
-            ownsUserId(payload, data["id"])
+            ownsUserId(payload, id)
         if table == "domains":
-            ownsDomainId(payload, data["id"])
+            ownsDomainId(payload, id)
         if table == "categories":
-            ownsCategoryId(payload, data["id"])
+            ownsCategoryId(payload, id)
         if table == "deployments":
-            ownsDeploymentId(payload, data["id"])
-        return fn(table, *args, **kwargs)
+            ownsDeploymentId(payload, id)
+        return fn(payload, table, *args, **kwargs)
 
     return decorated_view
 
