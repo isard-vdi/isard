@@ -1,5 +1,8 @@
 {
     "components": {
+        "select-search": {
+            "empty": "No hi han opcions disponibles"
+        },
         "navbar": {
             "home": "Inici",
             "help": "Ajuda",
@@ -15,7 +18,8 @@
                 }
             },
             "admin": "Administració",
-            "deployments": "Desplegaments"
+            "deployments": "Desplegaments",
+            "templates": "Plantilles"
         },
         "statusbar": {
             "desktops-started": "Desktops arrencats",
@@ -67,7 +71,8 @@
             "no-info-default": "No hi ha cap descripció disponible",
             "open-with": "Accedeix amb",
             "actions": {
-                "delete": "Esborrar"
+                "delete": "Esborrar",
+                "template": "Convertir en plantilla"
             },
             "filter-label": "Filtre"
         },
@@ -383,6 +388,22 @@
                     "once-installed": "Un cop instal·lat, s'ha de clicar al botó de «RDP», i es descarregarà el fitxer per a fer servir l'escriptori virtual."
                 }
             }
+        },
+        "templates": {
+            "no-templates": {
+                "title": "No hi ha cap plantilla de l'usuari actual",
+                "subtitle": "Si creus que es tracta d'un error, contacta a l'administrador"
+            },
+            "table-header": {
+                "name": "Nom",
+                "description": "Descripció",
+                "actions": "Accions"
+            },
+            "buttons": {
+                "allowed": {
+                    "title": "Canviar permissos"
+                }
+            }
         }
     },
     "validations": {
@@ -393,9 +414,17 @@
     },
     "forms": {
         "allowed": {
+            "title": "Permissos",
             "groups": "Grups:",
             "users": "Usuaris:",
-            "placeholder": "Escriu almenys 2 caràcters per cercar."
+            "placeholder": "Escriu almenys 2 caràcters per cercar.",
+            "modal": {
+                "title": "Actualitzar permissos",
+                "buttons": {
+                    "update": "Actualitzar"
+                }
+            },
+            "empty": "Marcat i buit ho compartirà amb tothom."
         },
         "registration": {
             "code": "Codi de registre"
@@ -417,6 +446,11 @@
                 "group": "Grup",
                 "user": "Usuari"
             }
+        },
+        "new-template": {
+            "title": "Crear nova plantilla",
+            "name": "Nom",
+            "description": "Descripció"
         },
         "new-deployment": {
             "title": "Crear nou desplegament:",
@@ -531,7 +565,9 @@
             "making-visible-deployment": "Fent el desplegament visible",
             "making-invisible-deployment": "Fent el desplegament invisible",
             "starting-desktops": "Iniciant els escriptoris del desplegament",
-            "stopping-desktops": "Parant els escriptoris del desplegament"
+            "stopping-desktops": "Parant els escriptoris del desplegament",
+            "creating-template": "Creant plantilla",
+            "new-template-stop": "Per crear una template és necessari que el escriptori estigui parat"
         },
         "loading": "Carregant"
     }

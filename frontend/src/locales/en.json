@@ -7,9 +7,17 @@
     },
     "forms": {
         "allowed": {
+            "title": "Allowed",
             "groups": "Groups:",
             "users": "Users:",
-            "placeholder": "Type at least 2 letters to search."
+            "placeholder": "Type at least 2 letters to search.",
+            "modal": {
+                "title": "Update allowed",
+                "buttons": {
+                    "update": "Update"
+                }
+            },
+            "empty": "Checked and empty will share to all."
         },
         "registration": {
             "code": "Registration code"
@@ -31,6 +39,13 @@
                 "group": "Group",
                 "user": "User"
             }
+        },
+        "new-template": {
+            "title": "Create new template",
+            "name": "Name",
+            "description": "Description",
+            "enabled": "Enabled",
+            "disabled": "Disabled"
         },
         "new-deployment": {
             "title": "Create new deployment:",
@@ -80,7 +95,8 @@
                 }
             },
             "admin": "Administration",
-            "deployments": "Deployments"
+            "deployments": "Deployments",
+            "templates": "Templates"
         },
         "statusbar": {
             "desktops-started": "Desktops started",
@@ -123,7 +139,8 @@
         },
         "desktop-cards": {
             "actions": {
-                "delete": "Delete"
+                "delete": "Delete",
+                "template": "Template it"
             },
             "table-header": {
                 "name": "Name",
@@ -448,6 +465,28 @@
                     "once-installed": "Once installed, click the 'RDP' button, that will download the virtual desktop file."
                 }
             }
+        },
+        "templates": {
+            "no-templates": {
+                "title": "There are no templates from this user",
+                "subtitle": "If you think this is an error, please contact the administrator"
+            },
+            "table-header": {
+                "name": "Name",
+                "description": "Description",
+                "actions": "Actions"
+            },
+            "buttons": {
+                "allowed": {
+                    "title": "Change allowed"
+                },
+                "enable": {
+                    "title": "Enable"
+                },
+                "disable": {
+                    "title": "Disable"
+                }
+            }
         }
     },
     "messages": {
@@ -464,7 +503,9 @@
             "delete-deployment": "'{name}' will be deleted, continue?",
             "delete-deployment-desktop": "'{name}' desktop will be deleted, continue?",
             "start-deployment-desktops": "'{name}' desktops will be started, continue?",
-            "stop-deployment-desktops": "'{name}' desktops will be stopped, continue?"
+            "stop-deployment-desktops": "'{name}' desktops will be stopped, continue?",
+            "enable-template": "'{name}' will be visible for its users, continue?",
+            "disable-template": "'{name}' will be invisible for its users, continue?"
         },
         "yes": "Yes",
         "no": "No",
@@ -479,7 +520,11 @@
             "making-visible-deployment": "Making the deployment visible",
             "making-invisible-deployment": "Making the deployment invisible",
             "starting-desktops": "Starting deployment desktops",
-            "stopping-desktops": "Stopping deployment desktops"
+            "stopping-desktops": "Stopping deployment desktops",
+            "creating-template": "Creating template",
+            "new-template-stop": "To create a template the desktop must be stopped",
+            "enable-template": "Making the template visible",
+            "disable-template": "Making the template invisible"
         },
         "loading": "Loading"
     },

@@ -28,21 +28,29 @@ export class DesktopUtils {
 
   static parseTemplates (items) {
     return items.map((item) => {
-      const { description, icon, id, name, category, group, user_name: userName, image, editable } = item
-      return {
-        description,
-        icon: !icon || !(icon in cardIcons) ? ['fas', 'desktop'] : this.getIcon(icon),
-        id,
-        name,
-        type: 'nonpersistent',
-        buttonIconName: 'play',
-        category,
-        group,
-        userName,
-        image,
-        editable
-      }
+      return DesktopUtils.parseTemplate(item)
     }) || []
+  }
+
+  static parseTemplate (item) {
+    const { description, icon, id, name, category, category_name: categoryName, group, group_name: groupName, user_name: userName, image, editable, allowed, enabled } = item
+    return {
+      description,
+      icon: !icon || !(icon in cardIcons) ? ['fas', 'desktop'] : this.getIcon(icon),
+      id,
+      name,
+      type: 'nonpersistent',
+      buttonIconName: 'play',
+      category,
+      categoryName,
+      group,
+      groupName,
+      userName,
+      image,
+      editable,
+      allowed,
+      enabled
+    }
   }
 
   static getIcon (name) {

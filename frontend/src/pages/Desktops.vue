@@ -84,7 +84,7 @@ export default {
     const $store = context.root.$store
 
     $store.dispatch('fetchDesktops')
-    $store.dispatch('fetchTemplates')
+    $store.dispatch('fetchAllowedTemplates')
 
     const currentTab = computed(() => $store.getters.getCurrentTab)
     const showStarted = computed(() => $store.getters.getShowStarted)
