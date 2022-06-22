@@ -14,7 +14,7 @@ from api import app
 from ..libv2.api_admin import admin_table_get, admin_table_update
 from ..libv2.api_alloweds import ApiAlloweds
 from ..libv2.api_exceptions import Error
-from .decorators import has_token
+from .decorators import has_token, owns_table_item_id, ownsDomainId
 
 alloweds = ApiAlloweds()
 
@@ -66,7 +66,7 @@ def alloweds_table_term(payload, table):
 
 
 @app.route("/api/v3/admin/alloweds/update/<table>", methods=["POST"])
-@has_token
+@owns_table_item_id
 def admin_allowed_update(payload, table):
     data = request.get_json(force=True)
     admin_table_update(
@@ -74,3 +74,14 @@ def admin_allowed_update(payload, table):
         dict(admin_table_get(table, id=data["id"]), allowed=data["allowed"]),
     )
     return (json.dumps({}), 200, {"Content-Type": "application/json"})
+
+
+# Who has acces to a table item
+@app.route("/api/v3/allowed/table/<table>", methods=["POST"])
+@owns_table_item_id
+def allowed_table(payload, table):
+    data = request.get_json(force=True)
+    result = alloweds.get_allowed(
+        admin_table_get(table, id=data["id"], pluck=["allowed"])["allowed"]
+    )
+    return json.dumps(result), 200, {"Content-Type": "application/json"}

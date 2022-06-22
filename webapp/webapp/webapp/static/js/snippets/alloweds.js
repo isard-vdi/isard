@@ -1,5 +1,5 @@
 	function setAlloweds_viewer(div_id,id){
-			api.ajax('/isard-admin/alloweds/table/domains','POST',{'pk':id}).done(function(alloweds) {
+			api.ajax('/api/v3/allowed/table/domains','POST',{'id':id}).done(function(alloweds) {
                 var all=false;
                 $.each(alloweds,function(key, value) 
                 {
@@ -180,7 +180,7 @@
         }).modal('show');
         //~ $('#modalAllowedsForm').parsley();
         setAlloweds_add('#modalAlloweds #alloweds-add'); 
-        api.ajax('/isard-admin/alloweds/table/'+table,'POST',{'pk':data.id,'allowed':data.allowed}).done(function(alloweds) {
+        api.ajax('/api/v3/allowed/table/'+table,'POST',{'id':data.id}).done(function(alloweds) {
             $.each(alloweds,function(key, value) 
             {   
                 $("#modalAllowedsForm #alloweds-add #a-"+key).empty().trigger('change')
