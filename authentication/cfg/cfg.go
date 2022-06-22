@@ -10,10 +10,10 @@ import (
 )
 
 type Cfg struct {
-	Log             cfg.Log
-	DB              cfg.DB
-	HTTP            cfg.HTTP
-	Authentication  Authentication
+	Log            cfg.Log
+	DB             cfg.DB
+	HTTP           cfg.HTTP
+	Authentication Authentication
 }
 
 type Authentication struct {

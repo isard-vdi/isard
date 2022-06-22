@@ -30,18 +30,18 @@ type Interface interface {
 }
 
 type Authentication struct {
-	Log             *zerolog.Logger
-	Secret          string
-	DB              r.QueryExecutor
-	providers       map[string]provider.Provider
-	saml            *samlsp.Middleware
+	Log       *zerolog.Logger
+	Secret    string
+	DB        r.QueryExecutor
+	providers map[string]provider.Provider
+	saml      *samlsp.Middleware
 }
 
 func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor) *Authentication {
 	a := &Authentication{
-		Log:             log,
-		Secret:          cfg.Authentication.Secret,
-		DB:              db,
+		Log:    log,
+		Secret: cfg.Authentication.Secret,
+		DB:     db,
 	}
 
 	providers := map[string]provider.Provider{

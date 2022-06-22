@@ -192,12 +192,12 @@ func (a *AuthenticationServer) check(w http.ResponseWriter, r *http.Request) {
 }
 
 type configJSON struct {
-	Providers       []string `json:"providers"`
+	Providers []string `json:"providers"`
 }
 
 func (a *AuthenticationServer) providers(w http.ResponseWriter, r *http.Request) {
 	cfg := &configJSON{
-		Providers:       a.Authentication.Providers(),
+		Providers: a.Authentication.Providers(),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
