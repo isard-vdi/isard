@@ -16,13 +16,13 @@ quotas = Quotas()
 
 from api.libv2.deployments import api_deployments
 
-from ..decorators import has_token, is_not_user, ownsTagId
+from ..decorators import has_token, is_not_user, ownsDeploymentId
 
 
 @app.route("/api/v3/deployment/<deployment_id>", methods=["GET"])
 @is_not_user
 def api_v3_deployment(payload, deployment_id):
-    ownsTagId(payload, deployment_id)
+    ownsDeploymentId(payload, deployment_id)
     deployment = api_deployments.get(deployment_id)
     return json.dumps(deployment), 200, {"Content-Type": "application/json"}
 
@@ -60,7 +60,7 @@ def api_v3_deployments_new(payload):
 @app.route("/api/v3/deployments/<deployment_id>", methods=["DELETE"])
 @is_not_user
 def api_v3_deployments_delete(payload, deployment_id):
-    ownsTagId(payload, deployment_id)
+    ownsDeploymentId(payload, deployment_id)
     api_deployments.delete(deployment_id)
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
@@ -68,7 +68,7 @@ def api_v3_deployments_delete(payload, deployment_id):
 @app.route("/api/v3/deployments/<deployment_id>", methods=["PUT"])
 @is_not_user
 def api_v3_deployments_recreate(payload, deployment_id):
-    ownsTagId(payload, deployment_id)
+    ownsDeploymentId(payload, deployment_id)
     api_deployments.recreate(payload, deployment_id)
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
@@ -76,7 +76,7 @@ def api_v3_deployments_recreate(payload, deployment_id):
 @app.route("/api/v3/deployments/useradd/<deployment_id>/<user_id>", methods=["PUT"])
 @is_not_user
 def api_v3_deployments_useradd(payload, deployment_id, user_id):
-    ownsTagId(payload, deployment_id)
+    ownsDeploymentId(payload, deployment_id)
     api_deployments.useradd(payload, deployment_id, user_id)
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
@@ -84,7 +84,7 @@ def api_v3_deployments_useradd(payload, deployment_id, user_id):
 @app.route("/api/v3/deployments/start/<deployment_id>", methods=["PUT"])
 @is_not_user
 def api_v3_deployments_start(payload, deployment_id):
-    ownsTagId(payload, deployment_id)
+    ownsDeploymentId(payload, deployment_id)
     api_deployments.start(deployment_id)
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
@@ -92,7 +92,7 @@ def api_v3_deployments_start(payload, deployment_id):
 @app.route("/api/v3/deployments/stop/<deployment_id>", methods=["PUT"])
 @is_not_user
 def api_v3_deployments_stop(payload, deployment_id):
-    ownsTagId(payload, deployment_id)
+    ownsDeploymentId(payload, deployment_id)
     api_deployments.stop(deployment_id)
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
@@ -100,7 +100,7 @@ def api_v3_deployments_stop(payload, deployment_id):
 @app.route("/api/v3/deployments/visible/<deployment_id>", methods=["PUT"])
 @is_not_user
 def api_v3_deployments_viewer(payload, deployment_id):
-    ownsTagId(payload, deployment_id)
+    ownsDeploymentId(payload, deployment_id)
 
     api_deployments.visible(deployment_id)
 
@@ -110,7 +110,7 @@ def api_v3_deployments_viewer(payload, deployment_id):
 @app.route("/api/v3/deployments/directviewer_csv/<deployment_id>", methods=["GET"])
 @is_not_user
 def api_v3_deployments_directviewer_csv(payload, deployment_id):
-    ownsTagId(payload, deployment_id)
+    ownsDeploymentId(payload, deployment_id)
     return (
         json.dumps(api_deployments.direct_viewer_csv(deployment_id)),
         200,

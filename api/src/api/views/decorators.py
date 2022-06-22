@@ -145,6 +145,37 @@ def is_hyper(f):
     return decorated
 
 
+def owns_table_item_id(fn):
+    @wraps(fn)
+    def decorated_view(table, *args, **kwargs):
+        payload = get_header_jwt_payload()
+        if payload["role_id"] == "admin":
+            return fn(table, *args, **kwargs)
+        try:
+            myargs = request.get_json(force=True)
+        except:
+            myargs = request.form.to_dict()
+        try:
+            id = kwargs["id"]
+        except:
+            try:
+                id = myargs["pk"]
+            except:
+                id = myargs["id"]
+
+        if table == "users":
+            ownsUserId(payload, data["id"])
+        if table == "domains":
+            ownsDomainId(payload, data["id"])
+        if table == "categories":
+            ownsCategoryId(payload, data["id"])
+        if table == "deployments":
+            ownsDeploymentId(payload, data["id"])
+        return fn(table, *args, **kwargs)
+
+    return decorated_view
+
+
 ### Helpers
 def ownsUserId(payload, user_id):
     if payload["role_id"] == "admin":
@@ -177,7 +208,6 @@ def ownsCategoryId(payload, category_id):
 
 
 def ownsDomainId(payload, desktop_id):
-
     # User is owner
     if desktop_id.startswith("_" + payload["user_id"]):
         return True
@@ -213,7 +243,7 @@ def ownsDomainId(payload, desktop_id):
     )
 
 
-def ownsTagId(payload, deployment_id):
+def ownsDeploymentId(payload, deployment_id):
     if payload["role_id"] == "admin":
         return True
     with app.app_context():
