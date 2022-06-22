@@ -207,34 +207,36 @@ def ownsCategoryId(payload, category_id):
     )
 
 
-def ownsDomainId(payload, desktop_id):
+def ownsDomainId(payload, domain_id):
+    # User is admin
+    if payload.get("role_id", "") == "admin":
+        return True
+    with app.app_context():
+        domain = (
+            r.table("domains")
+            .get(domain_id)
+            .pluck("user", "category", "tag")
+            .run(db.conn)
+        )
     # User is owner
-    if desktop_id.startswith("_" + payload["user_id"]):
+    if domain["user"] == payload["user_id"]:
         return True
 
     # User is advanced and the desktop is from one of its deployments
-    if payload["role_id"] == "advanced":
+    if payload.get("role_id", "") == "advanced" and domain.get("tag", False):
         with app.app_context():
-            desktop_tag = (
-                r.table("domains")
-                .get(desktop_id)
-                .pluck("tag")
-                .run(db.conn)
-                .get("tag", False)
-            )
-            if str(desktop_tag).startswith("_" + payload["user_id"]) or str(
-                desktop_tag
-            ).startswith(payload["user_id"]):
+            if payload["user_id"] == r.table("deployments").get(domain["tag"]).pluck(
+                "user"
+            )["user"].run(db.conn):
                 return True
+
     # User is manager and the desktop is from its categories
     if payload["role_id"] == "manager":
         with app.app_context():
-            category = r.table("users").get(payload["user_id"])["category"].run(db.conn)
-        if category == payload["category_id"]:
-            return True
-    # User is admin
-    if payload["role_id"] == "admin":
-        return True
+            if payload.get("category_id", "") == r.table("users").get(
+                payload["user_id"]
+            )["category"].run(db.conn):
+                return True
 
     raise Error(
         "forbidden",
