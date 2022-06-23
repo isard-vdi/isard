@@ -146,7 +146,8 @@
                 "browser-vnc": "Navigateur",
                 "file-spice": "SPICE",
                 "file-rdpvpn": "RDP VPN",
-                "browser-rdp": "Navigateur RDP"
+                "browser-rdp": "Navigateur RDP",
+                "file-rdpgw": "RDP"
             },
             "viewer": "Visionneuse {name}",
             "viewers": "Visionneuses",
@@ -217,13 +218,32 @@
             "no-deployments": {
                 "title": "Il n’y a aucun déploiement de cet utilisateur",
                 "subtitle": "Si vous pensez que ceci est une erreur, veuillez contacter l’administrateur"
+            },
+            "buttons": {
+                "make-visible": {
+                    "title": "Rendre visible"
+                },
+                "recreate": {
+                    "title": "Recréer"
+                },
+                "delete": {
+                    "title": "Supprimer"
+                }
+            },
+            "table-header": {
+                "actions": "Actions",
+                "name": "Nom",
+                "visible": "Visible"
             }
         },
         "cancel": "Annuler",
         "direct-viewer": {
             "button": {
-                "browser": "Navigateur"
-            }
+                "browser": "Navigateur",
+                "browser-rdp": "Navigateur RDP"
+            },
+            "local-client-help": "Instructions d'installation pour le client local",
+            "title": "Visionneur direct"
         }
     },
     "components": {
@@ -309,6 +329,19 @@
             "select": "Sélectionner",
             "cancel": "Annuler",
             "upload-file": "Envoyer un fichier"
+        },
+        "deployment-desktop-list": {
+            "actions": {
+                "delete": "Supprimer"
+            },
+            "table-header": {
+                "user": "Utilisateur",
+                "state": "État",
+                "group": "Groupe",
+                "action": "Action"
+            },
+            "open-with": "Ouvrir avec",
+            "filter-label": "Filtre"
         }
     },
     "errors": {
@@ -397,6 +430,27 @@
         "create": "Créer",
         "registration": {
             "code": "Code d'enregistrement"
+        },
+        "allowed": {
+            "groups": "Groupes :",
+            "users": "Utilisateurs :"
+        },
+        "new-deployment": {
+            "desktop": {
+                "name": "Nom du bureau",
+                "description": "Description du bureau",
+                "template": "Modèle"
+            },
+            "filter": "Filtre",
+            "template-table-column-headers": {
+                "selected": "Sélectionné",
+                "image": "Image",
+                "name": "Nom",
+                "description": "Description",
+                "category": "Catégorie",
+                "user": "Utilisateur",
+                "group": "Groupe"
+            }
         }
     },
     "messages": {
