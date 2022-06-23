@@ -176,18 +176,18 @@ $(document).ready(function() {
                             type: 'error'
                         });
                 }else{
-                    socket.emit('domain_update',{'pk':data['id'],'name':'status','value':'Starting'}) 
+                    api.ajax('/api/v3/desktop/start/' + data["id"], 'GET',{'pk':data['id'],'name':'status','value':'Starting'}).done(function(data) {});
                 }          
                 break;
             case 'btn-stop':
                 if(data['status']=='Started'){
-                    socket.emit('domain_update',{'pk':data['id'],'name':'status','value':'Shutting-down'})
+                    api.ajax('/api/v3/desktop/stop/' + data["id"], 'GET',{'pk':data['id'],'name':'status','value':'Shutting-down'}).done(function(data) {});
                 }else{
                     new PNotify({
                         title: 'Unplug desktop warning!',
                             text: "It is NOT RECOMMENDED to continue and turn off desktop "+ name+".\n \
                                 Please, properly shut down desktop from inside viewer \n\n \
-                                Turn off desktop? "+ name+"?",
+                                Turn off desktop "+ name +"?",
                             hide: false,
                             opacity: 0.9,
                             confirm: {
@@ -202,7 +202,7 @@ $(document).ready(function() {
                             },
                             addclass: 'pnotify-center'
                         }).get().on('pnotify.confirm', function() {
-                            socket.emit('domain_update',{'pk':data['id'],'name':'status','value':'Stopping'})
+                            api.ajax('/api/v3/desktop/stop/' + data["id"], 'GET',{'pk':data['id'],'name':'status','value':'Stopping'}).done(function(data) {});
                         }).on('pnotify.cancel', function() {
                     });
                 }

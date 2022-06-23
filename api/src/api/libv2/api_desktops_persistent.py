@@ -408,6 +408,7 @@ class ApiDesktopsPersistent:
                 "Desktop can't be started from " + str(desktop["status"]),
                 traceback.format_exc(),
             )
+
         # Start the domain
         ds.WaitStatus(desktop_id, "Any", "Starting", "Started")
         return desktop_id
@@ -425,11 +426,16 @@ class ApiDesktopsPersistent:
                 "Desktop can't be stopped from " + str(desktop["status"]),
                 traceback.format_exc(),
             )
+
         # Stop the domain
-        try:
-            ds.WaitStatus(desktop_id, "Any", "Stopping", "Stopped", wait_seconds=10)
-        except:
-            ds.WaitStatus(desktop_id, "Any", "Stopping", "Stopped")
+        if desktop["status"] == "Started":
+            ds.WaitStatus(
+                desktop_id, desktop["status"], "Shutting-down", "Shutting-down"
+            )
+
+        if desktop["status"] == "Shutting-down":
+            ds.WaitStatus(desktop_id, desktop["status"], "Stopping", "Stopped")
+
         return desktop_id
 
     def Update(self, desktop_id, desktop_data):

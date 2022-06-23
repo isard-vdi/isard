@@ -422,16 +422,15 @@ $(document).ready(function() {
 							type: 'error'
 						});
 				}else{
-                    socket.emit('domain_update',{'pk':data['id'],'name':'status','value':'Starting'})
-					//~ api.ajax('/isard-admin/domains/update','POST',{'pk':data['id'],'name':'status','value':'Starting'}).done(function(data) {
-					//~ });  
+					api.ajax('/api/v3/desktop/start/' + data["id"], 'GET',{'pk':data['id'],'name':'status','value':'Starting'}).done(function(data) {});
 				}          
                 break;
             case 'btn-stop':
+                // When desktop is 'Shutting-down' and click on 'Force stop' button
                 if(data['status']=='Shutting-down'){
-                    socket.emit('domain_update',{'pk':data['id'],'name':'status','value':'Stopping'})
+                    api.ajax('/api/v3/desktop/stop/' + data["id"], 'GET',{'pk':data['id'],'name':'status','value':'Stopping'}).done(function(data) {});
                 }else{
-                    socket.emit('domain_update',{'pk':data['id'],'name':'status','value':'Shutting-down'})
+                    api.ajax('/api/v3/desktop/stop/' + data["id"], 'GET',{'pk':data['id'],'name':'status','value':'Shutting-down'}).done(function(data) {});
                 }
                 break;
             case 'btn-display':
