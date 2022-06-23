@@ -27,11 +27,7 @@ export default {
       return this.$store.getters.getTemplatesLoaded
     }
   },
-  mounted () {
-    this.$store.dispatch('openSocket', { room: 'templates' })
-  },
   destroyed () {
-    this.$store.dispatch('closeSocket')
     this.$store.dispatch('resetTemplatesState')
   }
 }
