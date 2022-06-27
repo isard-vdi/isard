@@ -116,22 +116,22 @@ class IsardSelenium:
             print("!!!!ERROR: The login page isn't available")
         try:
             # Select category
-            select_kind = Select(self.wd.find_element_by_xpath("//select"))
+            select_kind = Select(self.wd.find_element("xpath", "//select"))
             select_kind.select_by_value("default")
         except Exception as e:
             print("No category dropdown is available, skipping.")
         # Put username
         print("Introducing username.")
-        username = self.wd.find_element_by_xpath("//input[@placeholder='Username']")
+        username = self.wd.find_element("xpath", "//input[@placeholder='Username']")
         username.send_keys(self.username)
         # Put password
         print("Introducing password.")
-        passwd = self.wd.find_element_by_xpath("//input[@placeholder='Password']")
+        passwd = self.wd.find_element("xpath", "//input[@placeholder='Password']")
         passwd.send_keys(self.password)
         try:
             # Click login button
             print("Login in.")
-            self.wd.find_element_by_xpath("//button[contains(text(),'Login')]").click()
+            self.wd.find_element("xpath", "//button[contains(text(),'Login')]").click()
             return True
         except Exception as e:
             print("Error while loggin in.")
@@ -144,8 +144,9 @@ class IsardSelenium:
         except Exception as e:
             print("!!!!ERROR: The page isn't available")
         # Logout
-        self.wd.find_element_by_xpath(
-            "//*[local-name()='svg' and @class='bi-power text-white b-icon bi']"
+        self.wd.find_element(
+            "xpath",
+            "//*[local-name()='svg' and @class='bi-power text-white b-icon bi']",
         ).click()
         return True
 
@@ -160,17 +161,17 @@ class IsardSelenium:
             print("!!!!ERROR: The login page isn't available")
         # Put username
         print("Introducing username.")
-        username = self.wd.find_element_by_xpath("//input[@placeholder='Username']")
+        username = self.wd.find_element("xpath", "//input[@placeholder='Username']")
         username.send_keys(self.username)
         # Put password
         print("Introducing password.")
-        passwd = self.wd.find_element_by_xpath("//input[@placeholder='Password']")
+        passwd = self.wd.find_element("xpath", "//input[@placeholder='Password']")
         passwd.send_keys(self.password)
         try:
             # Click login button
             print("Login in.")
-            self.wd.find_element_by_xpath("//button[contains(text(),'Login')]").click()
-            self.wd.find_element_by_xpath("//a[@href='/isard-admin/desktops']").click()
+            self.wd.find_element("xpath", "//button[contains(text(),'Login')]").click()
+            self.wd.find_element("xpath", "//a[@href='/isard-admin/desktops']").click()
             return True
         except Exception as e:
             print("Error while loggin in.")
@@ -184,8 +185,8 @@ class IsardSelenium:
         except Exception as e:
             print("ERROR: The sidebar isn't available")
         # Logout
-        self.wd.find_element_by_xpath("//div[@class='nav_menu']//ul//li").click()
-        self.wd.find_element_by_xpath("//a[@href='/isard-admin/logout']").click()
+        self.wd.find_element("xpath", "//div[@class='nav_menu']//ul//li").click()
+        self.wd.find_element("xpath", "//a[@href='/isard-admin/logout']").click()
         return True
 
     def goToAdmin(self):
@@ -198,7 +199,7 @@ class IsardSelenium:
             print("!!!!ERROR: The navbar isn't available")
         # Administration page
         print("Redirecting to administration page.")
-        self.wd.find_element_by_xpath("//a[@href='/isard-admin/desktops']").click()
+        self.wd.find_element("xpath", "//a[@href='/isard-admin/desktops']").click()
         return True
 
     def goToDownloads(self):
@@ -210,15 +211,16 @@ class IsardSelenium:
         except Exception as e:
             print("ERROR: The sidebar isn't available")
         # Downloads page
-        self.wd.find_element_by_xpath("//a[@href='/isard-admin/admin/updates']").click()
+        self.wd.find_element("xpath", "//a[@href='/isard-admin/admin/updates']").click()
         return True
 
     def downloadDomains(self, domain_name):
         id_domain = self.user_id + "_" + domain_name
         try:
             print("Registering user.")
-            self.wd.find_element_by_xpath(
-                "//form[@action='/isard-admin/admin/updates_register']//button[@id='register']"
+            self.wd.find_element(
+                "xpath",
+                "//form[@action='/isard-admin/admin/updates_register']//button[@id='register']",
             ).click()
         except Exception as e:
             print(
@@ -233,8 +235,8 @@ class IsardSelenium:
             print("!!!!ERROR: The domains table isn't available")
         try:
             print("Downloading domain")
-            self.wd.find_element_by_xpath(
-                "//tr[@id='" + id_domain + "']//button[@id='btn-download']"
+            self.wd.find_element(
+                "xpath", "//tr[@id='" + id_domain + "']//button[@id='btn-download']"
             ).click()
         except Exception as e:
             print("Tried to download domain but it was already downloaded, skipping.")
@@ -266,7 +268,7 @@ class IsardSelenium:
         )
         # Home page
         print("Redirecting to home page.")
-        self.wd.find_element_by_xpath("//a[@href='/']").click()
+        self.wd.find_element("xpath", "//a[@href='/']").click()
         return True
 
     def startDomain(self, domain_name):
@@ -283,16 +285,17 @@ class IsardSelenium:
                     (By.XPATH, "//tr[@id='" + id_domain + "']//button[@id='btn-play']")
                 )
             )
-            self.wd.find_element_by_xpath(
+            self.wd.find_element(
+                "xpath",
                 (
                     "//table[@id='desktops']"
                     + "//tr[@id='{}']"
                     + "//button[@id='btn-play']"
-                ).format(id_domain)
+                ).format(id_domain),
             ).click()
             sleep(5)
-            self.wd.find_element_by_xpath(
-                "//div[@id='modalOpenViewer']//button[@class='close']"
+            self.wd.find_element(
+                "xpath", "//div[@id='modalOpenViewer']//button[@class='close']"
             ).click()
             return True
 
@@ -316,16 +319,17 @@ class IsardSelenium:
                     )
                 )
             )
-            self.wd.find_element_by_xpath(
+            self.wd.find_element(
+                "xpath",
                 (
                     "//table[@id='desktops']"
                     + "//tr[@id='{}']"
                     + "//button[@id='btn-display']"
-                ).format(id_domain)
+                ).format(id_domain),
             ).click()
             sleep(5)
-            self.wd.find_element_by_xpath(
-                "//div[@id='modalOpenViewer']//button[@data-type='vnc']"
+            self.wd.find_element(
+                "xpath", "//div[@id='modalOpenViewer']//button[@data-type='vnc']"
             ).click()
             return True
 
@@ -341,8 +345,8 @@ class IsardSelenium:
             )
         )
         return (
-            self.wd.find_element_by_xpath(
-                "//div[@id='top_bar']//div[@id='status']"
+            self.wd.find_element(
+                "xpath", "//div[@id='top_bar']//div[@id='status']"
             ).text
             == "IsardVDI.com"
         )
@@ -356,25 +360,27 @@ class IsardSelenium:
         except Exception as e:
             print("!!!!ERROR: The domains table isn't available")
         try:
-            self.wd.find_element_by_xpath(
+            self.wd.find_element(
+                "xpath",
                 (
                     "//table[@id='desktops']"
                     + "//tr[@id='{}']"
                     + "//button[@id='btn-stop']"
-                ).format(id_domain)
+                ).format(id_domain),
             ).click()
             sleep(2)
             # Force stop
-            self.wd.find_element_by_xpath(
+            self.wd.find_element(
+                "xpath",
                 (
                     "//table[@id='desktops']"
                     + "//tr[@id='{}']"
                     + "//button[@id='btn-stop']"
-                ).format(id_domain)
+                ).format(id_domain),
             ).click()
             # popup message to confirmation destroy
-            self.wd.find_element_by_xpath(
-                "//div[@role='alert']/.//button[contains(text(),'Ok')]"
+            self.wd.find_element(
+                "xpath", "//div[@role='alert']/.//button[contains(text(),'Ok')]"
             ).click()
             return True
 
@@ -389,23 +395,25 @@ class IsardSelenium:
             )
         )
         try:
-            self.wd.find_element_by_xpath(
+            self.wd.find_element(
+                "xpath",
                 (
                     "//table[@id='desktops']"
                     + "//tr[@id='{}']"
                     + "//button[@class='btn btn-xs btn-info']"
-                ).format(id_domain)
+                ).format(id_domain),
             ).click()
             sleep(0.2)
-            self.wd.find_element_by_xpath(
+            self.wd.find_element(
+                "xpath",
                 (
                     "//div[@id='actions-{}']"
                     + "//button[contains(@class,'btn-delete')]"
-                ).format(id_domain)
+                ).format(id_domain),
             ).click()
             # popup message to confirmation destroy
-            self.wd.find_element_by_xpath(
-                "//div[@role='alert']/.//button[contains(text(),'Ok')]"
+            self.wd.find_element(
+                "xpath", "//div[@role='alert']/.//button[contains(text(),'Ok')]"
             ).click()
             return True
 
