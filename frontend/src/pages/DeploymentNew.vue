@@ -171,6 +171,7 @@ import { mapActions } from 'vuex'
 import useVuelidate from '@vuelidate/core'
 import { required, maxLength, minLength } from '@vuelidate/validators'
 import AllowedForm from '@/components/AllowedForm.vue'
+import { map } from 'lodash'
 
 // const inputFormat = helpers.regex('inputFormat', /^1(3|4|5|7|8)\d{9}$/) // /^\D*7(\D*\d){12}\D*$'
 const inputFormat = value => /^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$/.test(value)
@@ -192,8 +193,10 @@ export default {
     const selectedTemplateId = computed(() => selected.value[0] ? selected.value[0].id : '')
 
     const items = computed(() => $store.getters.getTemplates)
-    const users = computed(() => $store.getters.getSelectedUsers)
-    const groups = computed(() => $store.getters.getSelectedGroups)
+    const groupsChecked = computed(() => $store.getters.getGroupsChecked)
+    const selectedGroups = computed(() => $store.getters.getSelectedGroups)
+    const usersChecked = computed(() => $store.getters.getUsersChecked)
+    const selectedUsers = computed(() => $store.getters.getSelectedUsers)
 
     const fields = reactive([
       {
@@ -253,8 +256,10 @@ export default {
       visible,
       desktopName,
       description,
-      groups,
-      users,
+      groupsChecked,
+      selectedGroups,
+      usersChecked,
+      selectedUsers,
       items,
       fields,
       perPage,
@@ -308,6 +313,8 @@ export default {
       const isFormCorrect = await this.v$.$validate()
 
       if (isFormCorrect) {
+        const groups = this.groupsChecked ? map(this.selectedGroups, 'id') : false
+        const users = this.usersChecked ? map(this.selectedUsers, 'id') : false
         this.createNewDeployment(
           {
             visible: this.visible,
@@ -316,8 +323,8 @@ export default {
             desktop_name: this.desktopName,
             description: this.description,
             allowed: {
-              users: this.users,
-              groups: this.groups
+              users: users,
+              groups: groups
             }
           }
         )

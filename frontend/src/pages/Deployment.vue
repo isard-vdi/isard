@@ -25,7 +25,6 @@ export default {
   computed: {
     ...mapGetters(['getDeployment', 'getDeploymentLoaded']),
     sortedDesktops () {
-      console.log(this.getDeployment)
       return this.getDeployment.desktops.slice().sort(d => {
         // return started desktops first
         return [desktopStates.started, desktopStates.waitingip].includes(d.state.toLowerCase()) ? -1 : 1
