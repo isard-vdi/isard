@@ -1,3 +1,11 @@
+# Use debian ovmf
+FROM debian:11-slim as ovmf
+
+RUN apt-get update && apt-get install -y \
+    ovmf && \
+    rm -rf /var/lib/apt/lists/*
+
+# Build mdevctl
 FROM alpine:3.16 as build
 
 RUN apk add --no-cache cargo uuidgen py3-docutils make git
@@ -8,10 +16,12 @@ WORKDIR /opt/mdevctl
 RUN CARGO_INCREMENTAL=0 cargo build --release
 RUN make install || true
 
-
-
+# Image isard-hypervisor
 FROM alpine:3.15 as production
 MAINTAINER isard <info@isardvdi.com>
+
+RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories
+RUN echo "@testing http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
 
 RUN apk add --no-cache \
     libvirt \
@@ -30,7 +40,9 @@ RUN apk add --no-cache \
     qemu \
     qemu-img \
     qemu-modules \
-    qemu-system-x86_64
+    qemu-system-x86_64 \
+    libcrypto3@edge \
+    swtpm@testing
     
 
 RUN apk add --no-cache \
@@ -106,6 +118,10 @@ RUN chmod a+x /usr/bin/qemu-kvm
 RUN chmod a+x /usr/libexec/qemu-kvm
 RUN ln -s /usr/bin/qemu-system-x86_64 /usr/local/bin/qemu-system-x86_64
 
+RUN rm -rf /usr/share/OVMF
+COPY --from=ovmf /usr/share/OVMF /usr/share/OVMF
+COPY --from=ovmf /usr/share/ovmf/OVMF.fd /usr/share/OVMF
+
 # SSH configuration
 RUN echo "root:isard" |chpasswd
 RUN sed -i \
@@ -143,7 +159,7 @@ RUN apk add --no-cache --virtual .build_deps \
     python3-dev \
     libffi-dev 
 RUN pip3 install --no-cache-dir python-jose==3.3.0 python-iptables==1.0.0 pythonping==1.0.15
-RUN apk del .build_deps
+# RUN apk del .build_deps
 
 # Openvswitch
 RUN apk add openvswitch
