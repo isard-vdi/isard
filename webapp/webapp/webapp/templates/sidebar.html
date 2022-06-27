@@ -32,13 +32,14 @@
 
     {% if current_user.role == 'manager' %}
     <h3>Manager</h3>
+    <div class="clearfix"></div>
     <ul class="nav side-menu">
       <li><a href="/isard-admin/admin/users"><i class="fa fa-user"></i> Users</a>
       </li>
       <li><a href="/isard-admin/admin/domains/render/Desktops"><i class="fa fa-desktop"></i> Desktops</a></li>
-      <li><a href="/isard-admin/admin/domains/render/Templates"><i class="fa fa-cube"></i>Templates</a></li>
-      <li><a href="/isard-admin/admin/isard-admin/media"><i class="fa fa-circle-o"></i>Media</a></li>
-      <li><a href="/monitor/" target="_blank"><i class="fa fa-bar-chart-o"></i>Graphs</a></li>
+      <li><a href="/isard-admin/admin/domains/render/Templates"><i class="fa fa-cube"></i> Templates</a></li>
+      <li><a href="/isard-admin/admin/isard-admin/media"><i class="fa fa-circle-o"></i> Media</a></li>
+      <li><a href="/monitor/" target="_blank"><i class="fa fa-bar-chart-o"></i> Graphs</a></li>
     </ul>
     {% endif %}
 
@@ -108,7 +109,7 @@
           </ul>
         </li>
         <li><a href="/isard-admin/admin/hypervisors"><i class="fa fa-rocket"></i> Hypervisors</span></a></li>
-        <li><a href="/monitor/" target="_blank"><i class="fa fa-bar-chart-o"></i>Graphs</a></li>
+        <li><a href="/monitor/" target="_blank"><i class="fa fa-bar-chart-o"></i> Graphs</a></li>
         <li>
           <a href="/isard-admin/admin/updates">
             <i class="fa fa-cloud-download"></i>
