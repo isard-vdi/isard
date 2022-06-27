@@ -1,0 +1,10 @@
+version: '3.5'
+services:
+  isard-backupninja:
+    volumes:
+    - type: bind
+      source: ${BUILD_ROOT_PATH}/docker/backupninja/run.sh
+      target: /usr/local/bin/run.sh
+    - type: bind
+      source: ${BUILD_ROOT_PATH}/docker/backupninja/backup.sh
+      target: /usr/local/bin/backup.sh

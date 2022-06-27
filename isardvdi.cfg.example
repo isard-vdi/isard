@@ -13,6 +13,7 @@
 ##  - toolbox-base: base image for toolbox, just to improve CI/CD build
 ##  - web: services to manage desktops
 ##  - monitor: monitoring only host (grafana/loki/influxdb)
+##  - backupninja: standalone backups
 #FLAVOUR=all-in-one
 
 ## This configuration should generate docker-compose file for the following
@@ -163,13 +164,14 @@ API_HYPERVISORS_SECRET=B5/bUEUzIC+AjNQRmFh3vxR3VeIKirwdeL/xuHPVO+E=
 # ------ Backups -------------------------------------------------------------
 
 ## Automated backups (https://0xacab.org/liberate/backupninja)
+# If BACKUP_NFS_ENABLED is not enabled it will use this directory to create backups
+# If BACKUP_NFS_ENABLED is enabled then this variable should be commented
 #BACKUP_DIR=/opt/isard-local/backup
 
+# If nfs enabled you need to set server and folder also
 #BACKUP_NFS_ENABLED=false
-#BACKUP_NFS_VERS=nfs4
-#BACKUP_NFS_OPTS-defaults,rw,auto,noatime,nodiratime
 #BACKUP_NFS_SERVER=172.16.0.10
-#BACKUP_NFS_FOLDER=/backupfolder
+#BACKUP_NFS_FOLDER=/remote/backupfolder
 
 #BACKUP_DB_ENABLED=false
 #BACKUP_DB_WHEN="everyday at 01"
