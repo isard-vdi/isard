@@ -63,7 +63,7 @@ from engine.services.lib.qcow import (
     get_host_long_operations_from_path,
     get_path_to_disk,
 )
-from engine.services.lib.storage import create_storage
+from engine.services.lib.storage import create_storage, insert_storage
 from engine.services.log import *
 
 DEFAULT_HOST_MODE = "host-passthrough"
@@ -394,7 +394,17 @@ class UiActions(object):
                         action["domain"] = id_domain
                         action["ssh_commands"] = cmds
                         action["index_disk"] = index_disk
-                        action["storage_id"] = d.get("storage_id")
+                        action["storage_id"] = (
+                            dict(
+                                enumerate(
+                                    dict_domain.get("create_dict", {})
+                                    .get("hardware", {})
+                                    .get("disks", [])
+                                )
+                            )
+                            .get(index_disk, {})
+                            .get("storage_id")
+                        )
 
                         try:
 
@@ -469,11 +479,9 @@ class UiActions(object):
         disk_index_in_bus = 0
         if "disks" in dict_domain["hardware"]:
 
-            list_disk_template_path_relative = [
-                d["file"] for d in create_dict["hardware"]["disks"]
-            ]
+            disk_list = [d for d in create_dict["hardware"]["disks"]]
             create_disk_template_created_list_in_domain(id_domain)
-            for i in range(len(list_disk_template_path_relative)):
+            for i in range(len(disk_list)):
                 # for disk in dict_domain['hardware']['disks']:
                 path_domain_disk = dict_domain["hardware"]["disks"][i]["file"]
 
@@ -876,6 +884,9 @@ class UiActions(object):
             dict_to_create["hardware"]["disks"][index_disk][
                 "path_selected"
             ] = path_selected
+            create_storage(
+                dict_to_create["hardware"]["disks"][index_disk], dict_domain.get("user")
+            )
 
         update_table_field("domains", id_new, "create_dict", dict_to_create)
 
@@ -886,6 +897,8 @@ class UiActions(object):
         ##################
 
         for index_disk in range(len(dict_to_create["hardware"]["disks"])):
+            disk = dict_to_create["hardware"]["disks"][index_disk]
+            insert_storage(disk)
             backing_file = dict_to_create["hardware"]["disks"][index_disk]["parent"]
             new_file = dict_to_create["hardware"]["disks"][index_disk]["file"]
             path_selected = dict_to_create["hardware"]["disks"][index_disk][
@@ -909,6 +922,7 @@ class UiActions(object):
             action["disk_path"] = new_file
             action["index_disk"] = index_disk
             action["domain"] = id_new
+            action["storage_id"] = disk.get("storage_id")
 
             if index_disk == 0:
                 cmds += add_cmds_if_custom(id_domain=id_new, path_new=new_file)

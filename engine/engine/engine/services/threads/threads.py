@@ -225,6 +225,7 @@ def launch_action_disk(action, hostname, user, port, from_scratch=False):
                     update_disk_backing_chain(
                         id_domain, index_disk, disk_path, list_backing_chain
                     )
+                update_storage_status(action.get("storage_id"), "ready")
                 ##INFO TO DEVELOPER
             # ahora ya se puede llamar a starting paused
             if id_domain is not False:
