@@ -61,11 +61,18 @@ class Scheduler:
         # self.add_scheduler('interval','stop_shutting_down_desktops','0','1')
 
         for job in self.load_jobs():
-            log.info(
-                "LOADING JOBS: Job {} is a {} programmed at hour {} and minute {}".format(
-                    job["name"], job["kind"], job["hour"], job["minute"]
+            if job["kind"] == "date" and job["kwargs"].get("plan_id"):
+                log.info(
+                    "LOADING RESERVATION DATE JOB: -> Plan Id: {}, ITEM id: {}, Subitem id: {}".format(
+                        job["kwargs"]["plan_id"],
+                        job["kwargs"]["item_id"],
+                        job["kwargs"]["subitem_id"],
+                    )
                 )
-            )
+            else:
+                log.info(
+                    "LOADING JOBS: Job {} is a {} job".format(job["name"], job["kind"])
+                )
         self.turnOn()
         # log.info('Adding default shutting_down_desktops job')
         # self.add_scheduler("interval", "stop_shutting_down_desktops", "0", "1")
@@ -89,14 +96,17 @@ class Scheduler:
     def list_actions(self):
         return [f[0] for f in getmembers(Actions, isfunction)]
 
-    def add_job(self, kind, action, hour, minute):
+    def add_job(self, kind, action, hour, minute, id=None, kwargs=None):
         if kind not in ["cron", "interval", "date"]:
             raise Error("bad_request", "Kind not in cron, interval or date")
         if int(hour) not in range(0, 23):
             raise Error("bad_request", "Hour range must be within 0-24")
         if int(minute) not in range(0, 59):
             raise Error("bad_request", "Minute range must be within 0-60")
-        id = kind + "_" + action + "_" + str(hour) + "_" + str(minute)
+        if not id:
+            id = kind + "_" + action + "_" + str(hour) + "_" + str(minute)
+        else:
+            id = kind + "_" + action + "." + id + "_" + str(hour) + "_" + str(minute)
         if r.table("scheduler_jobs").get(id).run(db.conn):
             raise Error("conflict", "Same job already exists")
         try:
@@ -112,6 +122,7 @@ class Scheduler:
                 jobstore=self.rStore,
                 replace_existing=True,
                 id=id,
+                kwargs=kwargs,
             )
         if kind == "interval":
             self.scheduler.add_job(
@@ -122,6 +133,7 @@ class Scheduler:
                 jobstore=self.rStore,
                 replace_existing=True,
                 id=id,
+                kwargs=kwargs,
             )
         if kind == "date":
             alarm_time = datetime.now() + timedelta(
@@ -134,6 +146,7 @@ class Scheduler:
                 jobstore=self.rStore,
                 replace_existing=True,
                 id=id,
+                kwargs=kwargs,
             )
         with app.app_context():
             r.table("scheduler_jobs").get(id).update(
@@ -143,6 +156,72 @@ class Scheduler:
                     "name": action.replace("_", " "),
                     "hour": hour,
                     "minute": minute,
+                    "kwargs": kwargs,
+                }
+            ).run(db.conn)
+
+    def add_advanced_interval_job(self, action, data, id=None, kwargs=None):
+        try:
+            function = getattr(Actions, action)
+        except:
+            raise Error("bad_request", "Action not implemented")
+        if not id:
+            id = id = (
+                "interval_" + action + "." + id + "_" + str(hour) + "_" + str(minute)
+            )
+
+        self.scheduler.add_job(
+            function,
+            "interval",
+            weeks=data["weeks"],
+            days=data["days"],
+            hours=data["hours"],
+            minutes=data["minutes"],
+            seconds=data["seconds"],
+            start_date=data["start_date"],
+            end_date=data["end_date"],
+            timezone=data["timezone"],
+            jitter=data["jitter"],
+            kwargs=kwargs,
+        )
+        with app.app_context():
+            r.table("scheduler_jobs").get(id).update(
+                {
+                    "kind": kind,
+                    "action": action,
+                    "name": action.replace("_", " "),
+                    "hour": hour,
+                    "minute": minute,
+                    "kwargs": kwargs,
+                }
+            ).run(db.conn)
+
+    def add_advanced_date_job(self, action, date, id=None, kwargs=None):
+        try:
+            function = getattr(Actions, action)
+        except:
+            raise Error("bad_request", "Action not implemented")
+
+        if not id:
+            id = "date_" + action + "." + str(date)
+        date = datetime.strptime(date, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
+        self.scheduler.add_job(
+            function,
+            "date",
+            run_date=date,
+            jobstore=self.rStore,
+            replace_existing=True,
+            id=id,
+            kwargs=kwargs,
+        )
+        with app.app_context():
+            r.table("scheduler_jobs").get(id).update(
+                {
+                    "kind": "date",
+                    "action": action,
+                    "name": action.replace("_", " "),
+                    "date": date,
+                    "kwargs": kwargs,
                 }
             ).run(db.conn)
 
@@ -151,6 +230,15 @@ class Scheduler:
             self.scheduler.remove_job(job_id)
         except:
             raise Error("not_found", "Job id not found")
+
+    def remove_job_startswith(self, job_id):
+        jobs = (
+            r.table("scheduler_jobs")
+            .filter(lambda job: job["id"].match("^" + job_id))
+            .run(db.conn)
+        )
+        for job in jobs:
+            self.remove_job(job["id"])
 
     def turnOff(self):
         self.scheduler.shutdown()

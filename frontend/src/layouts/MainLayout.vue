@@ -15,6 +15,7 @@ import NewNavBar from '@/components/NewNavBar.vue'
 import StatusBar from '@/components/StatusBar.vue'
 import ImagesStatusBar from '@/components/images/ImagesStatusBar.vue'
 import DeploymentVideowallStatusBar from '@/components/deployments/DeploymentVideowallStatusBar.vue'
+import BookingStatusBar from '@/components/booking/BookingStatusBar.vue'
 
 export default {
   setup (_, context) {
@@ -39,7 +40,8 @@ export default {
     StatusBar,
     NewNavBar,
     ImagesStatusBar,
-    DeploymentVideowallStatusBar
+    DeploymentVideowallStatusBar,
+    BookingStatusBar
   }
 }
 </script>

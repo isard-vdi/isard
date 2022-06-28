@@ -3,7 +3,14 @@ import os
 from time import sleep
 
 from engine.models.engine import Engine
-from engine.services.db.db import update_table_field
+from engine.services.db import (
+    get_domains_started_in_vgpu,
+    get_hyp_hostname_user_port_from_id,
+    get_vgpu_info,
+    get_vgpu_model_profile_change,
+)
+from engine.services.db.db import get_isardvdi_secret, update_table_field
+from engine.services.lib.functions import execute_commands
 from engine.services.log import logs
 from flask import Blueprint, current_app, jsonify, request
 
@@ -11,6 +18,9 @@ api = Blueprint("api", __name__)
 
 app = current_app
 # from . import evaluate
+from .tokens import is_admin
+
+#### NOTE: The /engine paths are publicy open so they need @is_admin decorator!
 
 
 def shutdown_server():
@@ -20,9 +30,17 @@ def shutdown_server():
     func()
 
 
+@api.route("/", methods=["GET"])
+def get_if_running():
+    return jsonify({"running": True}), 200
+
+
 @api.route("/threads", methods=["GET"])
 def get_threads():
-    d = [{"prova1": "provando1", "prova2": "provando2"}]
+    d = {
+        "threads_info_hyps": app.m.threads_info_hyps,
+        "threads_info_main": app.m.threads_info_main,
+    }
     json_d = json.dumps(d)
 
     return jsonify(threads=json_d), 200
@@ -99,7 +117,7 @@ def grafana_restart():
     app.m.t_grafana.restart_send_config = True
 
 
-@api.route("/engine/status")
+@api.route("/status")
 def engine_status():
     """all main threads are running"""
 
@@ -118,7 +136,7 @@ def grafana_reload():
     pass
 
 
-@api.route("/engine/events/stop")
+@api.route("/events/stop")
 def stop_thread_event():
     app.m.t_events.stop = True
     app.t_events.q_event_register.put(
@@ -126,12 +144,14 @@ def stop_thread_event():
     )
 
 
-@api.route("/engine_restart", methods=["GET"])
+@api.route("/restart", methods=["GET"])
 def engine_restart():
-    os.system("supervisorctl -c /etc/supervisord.conf restart engine")
+    address_from = request.access_route[0]
+    logs.main.info(f"engine_restart api called from {address_from}")
+    pass
 
 
-@api.route("/engine_info", methods=["GET"])
+@api.route("/info", methods=["GET"])
 def engine_info():
     d_engine = {}
     http_code = 503
@@ -225,3 +245,93 @@ def get_domains(username):
     json_domains = json.dumps(domains, sort_keys=True, indent=4)
 
     return jsonify(domains=json_domains)
+
+
+@api.route("/profile/gpu/<string:gpu_id>", methods=["PUT"])
+def set_gpu_profile(gpu_id):
+    logs.main.info("set_gpu_profile: {}".format(gpu_id))
+    d = request.get_json()
+    pci_id = gpu_id.split("-")[-1]
+    profile_id = d.get("profile_id", False)
+    profile = profile_id.split("-")[-1]
+    hyp_id = gpu_id[: gpu_id.rfind("-")]
+
+    h = app.m.t_workers[hyp_id].h
+    # old_profile = h.info_nvidia.get(pci_id,{}).get('vgpu_profile',None)
+    h.change_vgpu_profile(gpu_id, profile)
+    h.info_nvidia[pci_id]["model"]
+    return jsonify(True)
+
+
+@api.route("/profile/gpu/<string:gpu_id>", methods=["GET"])
+def get_gpu_profile(payload, gpu_id):
+    logs.main.info("get_gpu_profile: {}".format(gpu_id))
+    d = get_vgpu_model_profile_change(gpu_id)
+    return jsonify(d)
+
+
+@api.route("/engine/profile/gpu/<string:gpu_id>", methods=["GET"])
+@is_admin
+def get_gpu_profile_jwt(payload, gpu_id):
+    logs.main.info("get_gpu_profile: {}".format(gpu_id))
+    d = get_vgpu_model_profile_change(gpu_id)
+    return jsonify(d)
+
+
+@api.route("/engine/profile/gpu/mdevcmd/<string:gpu_id>", methods=["GET"])
+@is_admin
+def get_gpu_from_mdevcmd_profile_jwt(payload, gpu_id):
+    profile = False
+    logs.main.info("get_gpu_profile_from_mdev_command: {}".format(gpu_id))
+    cmds_mdev = ["mdevctl list"]
+    try:
+        d_info = get_vgpu_info(gpu_id)
+        hyp_id = d_info["hyp_id"]
+        d_types = d_info["info"]["types"]
+        d = get_hyp_hostname_user_port_from_id(hyp_id)
+        hostname = d["hostname"]
+        port = d["port"]
+        user = d["user"]
+        arra_out_err = execute_commands(hostname, cmds_mdev, port=port, user=user)
+        mdevctl_out_lines = [
+            l for l in arra_out_err[0]["out"].splitlines() if len(l) > 0
+        ]
+        extract_pci_model_from_mdev_out = [
+            [b.split(" ")[0], b.split(" ")[1]]
+            for b in list(
+                set(
+                    [
+                        "_".join(a[0].split(":")[0:2]) + " " + a[1]
+                        for a in [l.split(" ")[1:3] for l in mdevctl_out_lines]
+                    ]
+                )
+            )
+        ]
+        model = [b[1] for b in extract_pci_model_from_mdev_out if gpu_id.find(b[0]) > 0]
+
+        d_model_types = {v["id"]: k for k, v in d_types.items()}
+
+        if len(model) > 0:
+            profile = d_model_types[model[0]]
+
+    except Exception as e:
+        logs.main.error(f"Exception extracting mdevcmd_profile: {e}")
+
+    return jsonify({"gpu_id": gpu_id, "profile": profile})
+
+
+@api.route("/profile/gpu/started_domains/<string:gpu_id>", methods=["GET"])
+def get_gpu_started_domains(gpu_id):
+    logs.main.info("get_gpu_started_domains: {}".format(gpu_id))
+    l_domains = get_domains_started_in_vgpu(gpu_id)
+    return jsonify(l_domains)
+
+
+@api.route("/qmp/<string:desktop_id>", methods=["PUT"])
+def send_qmp(desktop_id):
+    command = request.get_json()
+    logs.main.info(
+        "NOT IMPLEMENTED. send_qmp: action: {}, kwargs: {}".format(
+            command["action"], str(command["kwargs"])
+        )
+    )

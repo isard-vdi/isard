@@ -749,6 +749,261 @@ def get_disks_all_domains():
     return tuples_id_disk
 
 
+def get_vgpu_uuid_status(uuid, gpu_id=None, profile=None):
+    r_conn = new_rethink_connection()
+    rtable = r.table("vgpus")
+    try:
+        if profile is not None and gpu_id is not None:
+            d_uuid = (
+                rtable.get(gpu_id)
+                .pluck({"mdevs": {profile: [uuid]}})
+                .run(r_conn)["mdevs"][profile][uuid]
+            )
+            d_uuid["profile"] = profile
+            d_uuid["gpu_id"] = gpu_id
+            close_rethink_connection(r_conn)
+            return d_uuid
+
+        else:
+            if gpu_id is None:
+                l_mdevs = list(rtable.pluck("id", "mdevs").run(r_conn))
+            else:
+                l_mdevs = [rtable.get(gpu_id).pluck("id", "mdevs").run(r_conn)]
+
+            for d_vgpu in l_mdevs:
+                d_mdevs = d_vgpu["mdevs"]
+                gpu_id = d_vgpu["id"]
+                d_uuids = {}
+                for profile, e in d_mdevs.items():
+                    for u, d_uuid in e.items():
+                        d_uuids[u] = d_uuid.copy()
+                        d_uuids[u]["profile"] = profile
+                        d_uuids[u]["gpu_id"] = gpu_id
+                        if u == uuid:
+                            close_rethink_connection(r_conn)
+                            return d_uuids[u]
+
+    except Exception as e:
+        close_rethink_connection(r_conn)
+        logs.exception_id.debug("0080")
+        logs.main.error(e)
+        return False
+
+    return False
+
+
+def get_all_mdev_uuids_from_profile(gpu_id, profile):
+    r_conn = new_rethink_connection()
+    rtable = r.table("vgpus")
+
+    try:
+        l = list(
+            rtable.get(gpu_id)
+            .pluck({"mdevs": [profile]})
+            .run(r_conn)["mdevs"][profile]
+            .keys()
+        )
+
+    except Exception as e:
+        close_rethink_connection(r_conn)
+        return list()
+
+    close_rethink_connection(r_conn)
+    return l
+
+
+def update_vgpu_uuid_domain_action(
+    gpu_id, mdev_uuid, action, domain_id=False, profile=None
+):
+    if action not in ["domain_reserved", "domain_started", "domain_stopped"]:
+        logs.main.error(
+            "action in update_vgpu_uuid_domain_action function is not domain_reserved or domain_started"
+        )
+        return False
+    r_conn = new_rethink_connection()
+    rtable = r.table("vgpus")
+    try:
+        if profile is None:
+            d_mdevs = rtable.get(gpu_id).pluck("mdevs").run(r_conn)["mdevs"]
+            d_uuids = {}
+            for profile, e in d_mdevs.items():
+                for u, d_uuid in e.items():
+                    d_uuids[u] = d_uuid.copy()
+                    d_uuids[u]["profile"] = profile
+
+            if mdev_uuid not in d_uuids.keys():
+                logs.main.error(
+                    f"domain {domain_id} with gpu {gpu_id} and uuid {mdev_uuid}, but uuid does not exist in vgpus table"
+                )
+                close_rethink_connection(r_conn)
+                return False
+
+            if d_uuids[mdev_uuid]["domain_started"] is False:
+                logs.main.error(
+                    f"domain {domain_id} with gpu {gpu_id} and uuid {mdev_uuid}, uuid exists but domain_started is False, nothing to update"
+                )
+                close_rethink_connection(r_conn)
+                return False
+            profile = d_uuids[mdev_uuid]["profile"]
+
+        if get_vgpu_uuid_status(mdev_uuid, gpu_id, profile) is not False:
+            # if mdev_uuid in rtable.get(gpu_id).pluck({"mdevs":[profile]}).run(r_conn)['mdevs'][profile].keys():
+            if action == "domain_reserved":
+                results = (
+                    rtable.get(gpu_id)
+                    .update(
+                        {"mdevs": {profile: {mdev_uuid: {"domain_started": False}}}}
+                    )
+                    .run(r_conn)
+                )
+                results = (
+                    rtable.get(gpu_id)
+                    .update(
+                        {
+                            "mdevs": {
+                                profile: {mdev_uuid: {"domain_reserved": domain_id}}
+                            }
+                        }
+                    )
+                    .run(r_conn)
+                )
+                if domain_id is not False:
+                    results = (
+                        r.table("domains")
+                        .get(domain_id)
+                        .update(
+                            {
+                                "vgpu_info": {
+                                    "gpu_id": gpu_id,
+                                    "profile": profile,
+                                    "uuid": mdev_uuid,
+                                    "started": False,
+                                    "reserved": True,
+                                }
+                            }
+                        )
+                        .run(r_conn)
+                    )
+                else:
+                    results = (
+                        r.table("domains")
+                        .get(domain_id)
+                        .update(
+                            {
+                                "vgpu_info": {
+                                    "gpu_id": False,
+                                    "profile": False,
+                                    "uuid": False,
+                                    "started": False,
+                                    "reserved": False,
+                                }
+                            }
+                        )
+                        .run(r_conn)
+                    )
+                logs.main.info(
+                    f"vgpu reserved: domain_id:  {domain_id} / gpu_id: {gpu_id} / profile: {profile} / uuid: {mdev_uuid}"
+                )
+            if action == "domain_started":
+                results = (
+                    rtable.get(gpu_id)
+                    .update(
+                        {"mdevs": {profile: {mdev_uuid: {"domain_reserved": False}}}}
+                    )
+                    .run(r_conn)
+                )
+                results = (
+                    rtable.get(gpu_id)
+                    .update(
+                        {"mdevs": {profile: {mdev_uuid: {"domain_started": domain_id}}}}
+                    )
+                    .run(r_conn)
+                )
+                if domain_id is not False:
+                    results = (
+                        r.table("domains")
+                        .get(domain_id)
+                        .update(
+                            {
+                                "vgpu_info": {
+                                    "gpu_id": gpu_id,
+                                    "profile": profile,
+                                    "uuid": mdev_uuid,
+                                    "started": True,
+                                    "reserved": False,
+                                }
+                            }
+                        )
+                        .run(r_conn)
+                    )
+                logs.main.info(
+                    f"vgpu started: domain_id:  {domain_id} / gpu_id: {gpu_id} / profile: {profile} / uuid: {mdev_uuid}"
+                )
+            if action == "domain_stopped":
+                results = (
+                    rtable.get(gpu_id)
+                    .update(
+                        {"mdevs": {profile: {mdev_uuid: {"domain_reserved": False}}}}
+                    )
+                    .run(r_conn)
+                )
+                results = (
+                    rtable.get(gpu_id)
+                    .update(
+                        {"mdevs": {profile: {mdev_uuid: {"domain_started": False}}}}
+                    )
+                    .run(r_conn)
+                )
+                if domain_id is not False:
+                    results = (
+                        r.table("domains")
+                        .get(domain_id)
+                        .update(
+                            {
+                                "vgpu_info": {
+                                    "gpu_id": False,
+                                    "profile": False,
+                                    "uuid": False,
+                                    "started": False,
+                                    "reserved": False,
+                                }
+                            }
+                        )
+                        .run(r_conn)
+                    )
+                logs.main.info(
+                    f"vgpu stopped: domain_id:  {domain_id} / gpu_id: {gpu_id} / profile: {profile} / uuid: {mdev_uuid}"
+                )
+        else:
+            logs.main.error(
+                f"domain {domain_id} with gpu {gpu_id} and uuid {mdev_uuid}, but uuid does not exist in vgpus table with profile {profile}"
+            )
+            close_rethink_connection(r_conn)
+            return False
+
+    except Exception as e:
+        close_rethink_connection(r_conn)
+        logs.exception_id.debug("0080")
+        logs.main.error(e)
+        print(e)
+        return False
+
+    close_rethink_connection(r_conn)
+    return True
+
+
+def get_vgpus_mdevs(id_gpu, type_gpu):
+    r_conn = new_rethink_connection()
+    rtable = r.table("vgpus")
+    try:
+        d = rtable.get(id_gpu).pluck("vgpu_profile", {"mdevs": [type_gpu]}).run(r_conn)
+    except Exception as e:
+        close_rethink_connection(r_conn)
+        return False, False, {}
+    close_rethink_connection(r_conn)
+    return d["vgpu_profile"], d["mdevs"]
+
+
 def get_domains(user, status=None, origin=None):
     """
 
@@ -1089,138 +1344,11 @@ def update_domains_started_in_hyp_to_unknown(hyp_id):
     return result
 
 
-def update_info_nvidia_hyp_domain(status, nvidia_uid, hyp_id, dom_id=False):
-    """status: created,started,stopped,removed"""
-    if status not in ["created", "reserved", "started", "stopped", "removed"]:
-        return False
-    r_conn = new_rethink_connection()
-    # rtable_dom = r.table('domains')
-    rtable_hyp = r.table("hypervisors")
-    if type(nvidia_uid) is not list:
-        nvidia_uids = [nvidia_uid]
-    else:
-        nvidia_uids = nvidia_uid
-    # d_hyp = dict(rtable_hyp.get(hyp_id).run(r_conn))
-    if hyp_id is None:
-        print(f"hyp_id is None in update_info_nvidia_hyp_domain")
-        return False
-    d = dict(rtable_hyp.get(hyp_id).pluck("nvidia_uids").run(r_conn))
-    result = False
-    if len(d) > 0:
-        d_uids = d["nvidia_uids"]
-        if len(d_uids) > 0:
-            d_uids_flatten = flatten_dict.flatten(d_uids)
-            d_update_merged = {}
-            for nvidia_uid in nvidia_uids:
-                d_update = {}
-                l = [i for i in d_uids_flatten if nvidia_uid in i]
-                if len(l) > 0:
-                    values = l[0]
-                    pci_id = values[0]
-                    model = values[1]
-                    if status in ["started", "reserved"]:
-                        d_update = {pci_id: {model: {nvidia_uid: {"started": dom_id}}}}
-                    elif status in ["stopped"]:
-                        d_update = {
-                            pci_id: {
-                                model: {
-                                    nvidia_uid: {"started": False, "reserved": False}
-                                }
-                            }
-                        }
-                    elif status in ["removed"]:
-                        d_update = {
-                            pci_id: {
-                                model: {
-                                    nvidia_uid: {
-                                        "created": False,
-                                        "started": False,
-                                        "reserved": False,
-                                    }
-                                }
-                            }
-                        }
-                    elif status in ["created"]:
-                        d_update = {
-                            pci_id: {
-                                model: {
-                                    nvidia_uid: {
-                                        "created": True,
-                                        "started": False,
-                                        "reserved": False,
-                                    }
-                                }
-                            }
-                        }
-                if len(d_update) > 0:
-                    d_update_merged = dict_merge(d_update_merged, d_update)
-            if len(d_update_merged) > 0:
-                result = (
-                    rtable_hyp.get(hyp_id)
-                    .update({"nvidia_uids": d_update_merged})
-                    .run(r_conn)
-                )
-
-    close_rethink_connection(r_conn)
-    return result
-
-
-def domain_stopped_update_nvidia_uids_status(domain_id, hyp_id):
+def domain_get_vgpu_info(domain_id):
     r_conn = new_rethink_connection()
     rtable_dom = r.table("domains")
-    rtable_hyp = r.table("hypervisors")
-
-    d = dict(
-        rtable_dom.get(domain_id)
-        .pluck({"create_dict": {"hardware": "videos"}})
-        .run(r_conn)
-    )
-    try:
-        video = d["create_dict"]["hardware"]["videos"][0]
-    except:
-        close_rethink_connection(r_conn)
-        return False
-    result = False
-    if video.find("nvidia") == 0 or video.find("gpu_default"):
-        d = dict(rtable_hyp.get(hyp_id).pluck("nvidia_uids").run(r_conn))
-        if len(d) > 0:
-            d_uids = d["nvidia_uids"]
-            if len(d_uids) > 0:
-                d_uids_flatten = flatten_dict.flatten(d_uids)
-                d_update_merged = {}
-                d_uids_domains = {
-                    k: v for k, v in d_uids_flatten.items() if type(v) is not bool
-                }
-                nvidia_uids = set(
-                    [k[2] for k, v in d_uids_domains.items() if domain_id in v]
-                )
-
-                for nvidia_uid in nvidia_uids:
-                    d_update = {}
-                    l = [i for i in d_uids_flatten if nvidia_uid in i]
-                    if len(l) > 0:
-                        values = l[0]
-                        pci_id = values[0]
-                        model = values[1]
-                        # status = 'stopped'
-                        d_update = {
-                            pci_id: {
-                                model: {
-                                    nvidia_uid: {"started": False, "reserved": False}
-                                }
-                            }
-                        }
-                    if len(d_update) > 0:
-                        d_update_merged = dict_merge(d_update_merged, d_update)
-                if len(d_update_merged) > 0:
-                    result = (
-                        rtable_hyp.get(hyp_id)
-                        .update({"nvidia_uids": d_update_merged})
-                        .run(r_conn)
-                    )
-
-    close_rethink_connection(r_conn)
-    return result
+    d = dict(rtable_dom.get(domain_id).pluck("vgpu_info").run(r_conn))
+    return d.get("vgpu_info", {})
 
 
 def get_domains_started_in_hyp(hyp_id, only_started=False, only_unknown=False):

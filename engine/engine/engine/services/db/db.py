@@ -357,7 +357,7 @@ def get_domains_from_template_origin():
     return []
 
 
-def insert_table_dict(table, d_new):
+def insert_table_dict(table, d_new, ignore_if_exists=False):
     r_conn = new_rethink_connection()
     rtable = r.table(table)
 
@@ -367,8 +367,38 @@ def insert_table_dict(table, d_new):
     if result["inserted"] > 0:
         return True
     if result["errors"] > 0:
-        print(result["first_error"])
+        if (
+            ignore_if_exists is True
+            and result["first_error"].find("Duplicate primary key") == 0
+        ):
+            return True
+        else:
+            print(result["first_error"])
     return False
+
+
+def get_table_item(table, id_item):
+    r_conn = new_rethink_connection()
+    rtable = r.table(table)
+
+    result = rtable.get(id_item).run(r_conn)
+    close_rethink_connection(r_conn)
+    return result
+
+
+def get_table_field(table, id_item, field):
+    r_conn = new_rethink_connection()
+    rtable = r.table(table)
+
+    try:
+        result = rtable.get(id_item).pluck(field).run(r_conn)
+    except Exception as e:
+        close_rethink_connection(r_conn)
+        return None
+    close_rethink_connection(r_conn)
+    if type(result) is dict:
+        return result.get(field, None)
+    return None
 
 
 def delete_table_item(table, id_item):
@@ -436,6 +466,18 @@ def remove_media(id):
     return result
 
 
+def get_video_model_profile(video_id):
+    r_conn = new_rethink_connection()
+    rtable = r.table("videos")
+
+    result = rtable.get(video_id).pluck("model", "profile").run(r_conn)
+    close_rethink_connection(r_conn)
+    if result is None:
+        return None, None
+    else:
+        return result.get("model", None), result.get("profile", None)
+
+
 def get_media_with_status(status):
     """
     get media with status
@@ -470,3 +512,16 @@ def get_graphics_types(id_graphics="default"):
     close_rethink_connection(r_conn)
 
     return d_types
+
+
+def get_isardvdi_secret():
+    r_conn = new_rethink_connection()
+    d = (
+        r.table("secrets")
+        .get("isardvdi")
+        .pluck("secret")
+        .default({"secret": os.environ["API_ISARDVDI_SECRET"]})
+        .run(r_conn)["secret"]
+    )
+    close_rethink_connection(r_conn)
+    return d

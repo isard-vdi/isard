@@ -96,7 +96,12 @@
             },
             "admin": "Administration",
             "deployments": "Deployments",
-            "templates": "Templates"
+            "templates": "Templates",
+            "bookings": {
+                "text": "Bookings",
+                "summary": "Summary",
+                "planning": "Planning"
+            }
         },
         "statusbar": {
             "desktops-started": "Desktops started",
@@ -140,7 +145,8 @@
         "desktop-cards": {
             "actions": {
                 "delete": "Delete",
-                "template": "Template it"
+                "template": "Template it",
+                "booking": "Schedule"
             },
             "table-header": {
                 "name": "Name",
@@ -148,6 +154,10 @@
                 "description": "Description",
                 "action": "Action",
                 "viewers": "Viewers"
+            },
+            "notification-bar": {
+                "next-booking": "Next booking",
+                "no-next-booking": "The desktop isn't booked!"
             },
             "no-info-default": "No description available",
             "open-with": "Open with",
@@ -207,6 +217,51 @@
                 "error": "Client Error"
             },
             "button-refresh": "Refresh"
+        },
+        "bookings": {
+            "item": {
+                "event-titles": {
+                    "available": "Available",
+                    "unavailable": "Unavailable",
+                    "overridable": "Overridable"
+                },
+                "units": "units",
+                "split-labels": {
+                    "availability": "Availability",
+                    "bookings": "Bookings"
+                },
+                "status-bar": {
+                    "buttons": {
+                        "add-booking": "Add booking"
+                    },
+                    "forbid-time": "Advance time needed",
+                    "max-time": "Maximum booking time",
+                    "max-items": "Maximum bookings"
+                },
+                "modal": {
+                    "title": "Title",
+                    "start-date": "Start date",
+                    "start-time": "Start time",
+                    "end-date": "End date",
+                    "end-time": "End time",
+                    "profile": "Profile",
+                    "select-profile": "Please select a profile",
+                    "create": {
+                        "modal-title": "Add booking",
+                        "button": "Add booking"
+                    },
+                    "edit": {
+                        "modal-title": "Edit booking",
+                        "button": "Save changes"
+                    },
+                    "view": {
+                        "modal-title": "View booking"
+                    },
+                    "delete": {
+                        "button": "Delete"
+                    }
+                }
+            }
         }
     },
     "views": {
@@ -505,7 +560,8 @@
             "start-deployment-desktops": "'{name}' desktops will be started, continue?",
             "stop-deployment-desktops": "'{name}' desktops will be stopped, continue?",
             "enable-template": "'{name}' will be visible for its users, continue?",
-            "disable-template": "'{name}' will be invisible for its users, continue?"
+            "disable-template": "'{name}' will be invisible for its users, continue?",
+            "delete-event": "'{name}' booking will be deleted, continue?"
         },
         "yes": "Yes",
         "no": "No",
@@ -524,7 +580,13 @@
             "creating-template": "Creating template",
             "new-template-stop": "To create a template the desktop must be stopped",
             "enable-template": "Making the template visible",
-            "disable-template": "Making the template invisible"
+            "disable-template": "Making the template invisible",
+            "creating-event": "Creating event",
+            "editing-event": "Editing event",
+            "deleting-event": "Deleting event",
+            "no-availability-event": "There's no availability in the selected range",
+            "not-created-event": "Couldn't create the event",
+            "missing-data": "Missing data"
         },
         "loading": "Loading"
     },
@@ -578,6 +640,11 @@
         "bad_request": "The request parameters are incorrect",
         "bad_request_title": "Request error",
         "undefined_error": "An error occurred",
-        "generic_error": "An error occurred"
+        "generic_error": "An error occurred",
+        "booking_new_event_start_error": "The starting time is not valid",
+        "booking_new_event_end_error": "The end time is not valid",
+        "booking_new_event_overlap_error": "The event overlaps",
+        "conflict": "Conflict",
+        "conflict_title": "Conflict"
     }
 }

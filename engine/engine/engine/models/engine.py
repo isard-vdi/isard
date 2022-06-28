@@ -68,7 +68,6 @@ from engine.services.threads.threads import (
     launch_disk_operations_thread,
     launch_long_operations_thread,
     launch_thread_worker,
-    launch_try_hyps,
     set_domains_coherence,
 )
 from rethinkdb import r

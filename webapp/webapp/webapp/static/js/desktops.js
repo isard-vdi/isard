@@ -45,6 +45,7 @@ $(document).ready(function() {
                 });                
         }else{
             setHardwareOptions('#modalAddDesktop');
+            setReservablesOptions('#modalAddDesktop');
             $("#modalAdd")[0].reset();
             $('#modalAddDesktop').modal({
                 backdrop: 'static',
@@ -338,6 +339,8 @@ function actionsDesktopDetail(){
             var pk=$(this).closest("[data-pk]").attr("data-pk");
             setHardwareOptions('#modalEditDesktop');
             setHardwareDomainDefaults('#modalEditDesktop',pk);
+            setReservablesOptions('#modalEditDesktop');
+            setReservablesDomainDefaults('#modalEditDesktop',pk);
             $("#modalEdit")[0].reset();
             $('#modalEditDesktop').modal({
                 backdrop: 'static',
@@ -809,6 +812,7 @@ $("#modalEditDesktop #send").on('click', function(e){
                 }
                 data=replaceMedia_arrays('#modalEditDesktop',data);
                 data=parseViewersOptions(data)
+                data["reservables-vgpus"]=[data["reservables-vgpus"]]
                 socket.emit('domain_edit',data)
         }
     });

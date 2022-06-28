@@ -17,8 +17,8 @@ export const sectionConfig = {
   images: {
     statusBar: 'ImagesStatusBar'
   },
-  desktopsBookingCalendar: {
-    statusBar: 'StatusBar'
+  booking: {
+    statusBar: 'BookingStatusBar'
   },
   default: {
     statusBar: 'StatusBar'

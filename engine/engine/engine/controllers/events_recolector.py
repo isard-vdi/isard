@@ -21,7 +21,7 @@ import libvirt
 from engine.models.domain_xml import DomainXML
 from engine.models.rethink_hyp_event import RethinkHypEvent
 from engine.services.db import (
-    domain_stopped_update_nvidia_uids_status,
+    domain_get_vgpu_info,
     get_domain,
     get_domain_hyp_started_and_status_and_detail,
     get_domain_status,
@@ -31,6 +31,7 @@ from engine.services.db import (
     update_domain_status,
     update_domain_viewer_started_values,
     update_uri_hyp,
+    update_vgpu_uuid_domain_action,
 )
 from engine.services.lib.functions import get_tid, hostname_to_uri
 from engine.services.log import *
@@ -532,7 +533,18 @@ def myDomainEventCallbackRethink(conn, dom, event, detail, opaque):
                     hyp_id=False,
                     detail="Ready to Start",
                 )
-                domain_stopped_update_nvidia_uids_status(dict_event["domain"], hyp_id)
+                vgpu_info = domain_get_vgpu_info(dom_id)
+                if (
+                    vgpu_info.get("started", False) is True
+                    or vgpu_info.get("reserved", False) is True
+                ):
+                    update_vgpu_uuid_domain_action(
+                        vgpu_info.get("gpu_id", False),
+                        vgpu_info.get("uuid", False),
+                        "domain_stopped",
+                        domain_id=dom_id,
+                        profile=vgpu_info.get("profile", False),
+                    )
 
         # TODO: Send event to influxdb?
         if dict_event["event"] in (

@@ -601,6 +601,8 @@ function actionsDomainDetail(){
             var pk=$(this).closest("[data-pk]").attr("data-pk");
 			setHardwareOptions('#modalEditDesktop');
             setHardwareDomainDefaults('#modalEditDesktop',pk);
+            setReservablesOptions('#modalEditDesktop');
+            setReservablesDomainDefaults('#modalEditDesktop',pk);
             $("#modalEdit")[0].reset();
 			$('#modalEditDesktop').modal({
 				backdrop: 'static',
@@ -1132,6 +1134,7 @@ function modal_edit_desktop_datatables(id){
                             });
                         return
                     }
+                    data['reservables-vgpus'] = [data['reservables-vgpus']]
                     data=replaceMedia_arrays('#modalEditDesktop',data);
                     data=parseViewersOptions(data)
                     socket.emit('domain_edit',data)

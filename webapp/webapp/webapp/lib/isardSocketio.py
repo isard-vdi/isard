@@ -1530,6 +1530,48 @@ def socketio_quota_update(form_data):
         )
 
 
+"""
+BOOKINGS
+"""
+
+
+@socketio.on("bookable_add", namespace="/isard-admin/sio_admins")
+def socketio_bookable_add(form_data):
+    if current_user.role == "admin":
+        res = app.adminapi.bookable_add(form_data)
+        if res is True:
+            data = json.dumps(
+                {
+                    "result": True,
+                    "title": "Bookable resources",
+                    "text": "Bookable resource "
+                    + form_data["name"]
+                    + " has been added...",
+                    "icon": "success",
+                    "type": "success",
+                }
+            )
+        else:
+            data = json.dumps(
+                {
+                    "result": False,
+                    "title": "Bookable resources",
+                    "text": "Bookable " + form_data["name"] + " can't be added!",
+                    "icon": "warning",
+                    "type": "error",
+                }
+            )
+        socketio.emit(
+            "add_form_result", data, namespace="/isard-admin/sio_admins", room="users"
+        )
+        socketio.emit(
+            "add_form_result",
+            data,
+            namespace="/isard-admin/sio_admins",
+            room=current_user.category + "_users",
+        )
+
+
 ## Domains namespace
 @socketio.on("connect", namespace="/isard-admin/sio_users")
 def socketio_users_connect():
@@ -1876,6 +1918,10 @@ def socketio_domain_edit(form_data):
     }
     create_dict.pop("hardware", None)
 
+    create_dict["create_dict"]["reservables"] = create_dict.pop("reservables")
+    if create_dict["create_dict"]["reservables"]["vgpus"] == ["None"]:
+        create_dict["create_dict"]["reservables"]["vgpus"] = None
+
     res = app.isardapi.update_domain(create_dict.copy())
     if res is True:
         data = json.dumps(
@@ -2154,6 +2200,10 @@ def socketio_admins_domain_edit(form_data):
         **create_dict["create_dict"]["hardware"],
     }
     create_dict.pop("hardware", None)
+
+    create_dict["create_dict"]["reservables"] = create_dict.pop("reservables")
+    if create_dict["create_dict"]["reservables"]["vgpus"] == ["None"]:
+        create_dict["create_dict"]["reservables"]["vgpus"] = None
 
     res = app.isardapi.update_domain(create_dict.copy())
     if res is True:

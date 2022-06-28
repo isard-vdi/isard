@@ -1,0 +1,5 @@
+
+
+remove find /sys/devices/pci0000\:40 |grep remove |egrep '[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89aAbB][a-f0-9]{3}-[a-f0-9]{12}'  | xargs -I % sh -c 'echo 1 >  %;'
+/sys/class/mdev_bus/0000\:41\:00.7/mdev_supported_types/nvidia-557/create
+

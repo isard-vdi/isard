@@ -349,6 +349,10 @@ class isard:
                         # ~ return json.dumps({'title':item+' deleting error','text':item+' '+dom['name']+' can\'t be deleted while not Stopped or Failed','icon':'warning','type':'error'}), 500, {'Content-Type':'application/json'}
                     else:
                         if dom["status"] in ["Stopped", "Failed"]:
+                            with app.app_context():
+                                r.table("bookings").get_all(
+                                    ["desktop", data["pk"]], index="item_type-id"
+                                ).delete().run(db.conn)
                             if app.isardapi.update_table_value(
                                 table, data["pk"], data["name"], data["value"]
                             ):
@@ -1389,6 +1393,13 @@ class isard:
         if "categories" not in form_data["allowed"].keys():
             form_data["allowed"]["categories"] = False
 
+        create_dict = {"hardware": hardware, "origin": from_id}
+        if desktop["create_dict"].get("reservables"):
+            create_dict = {
+                **create_dict,
+                **{"reservables": desktop["create_dict"]["reservables"]},
+            }
+
         template_dict = {
             "id": template_id,
             "name": form_data["name"],
@@ -1407,7 +1418,7 @@ class isard:
             "server": desktop["server"],
             "os": desktop["os"],
             "guest_properties": desktop["guest_properties"],
-            "create_dict": {"hardware": hardware, "origin": from_id},
+            "create_dict": create_dict,
             "hypervisors_pools": form_data["hypervisors_pools"],
             "parents": desktop["parents"] if "parents" in desktop.keys() else [],
             "allowed": form_data["allowed"],
@@ -1639,6 +1650,16 @@ class isard:
             .get("not_change_cpu_section", False)
         )
 
+        new_create_dict = {
+            "hardware": create_dict["hardware"],
+            "origin": create_dict["template"],
+        }
+        if dom["create_dict"].get("reservables"):
+            new_create_dict = {
+                **new_create_dict,
+                **{"reservables": dom["create_dict"]["reservables"]},
+            }
+
         new_domain = {
             "id": "_" + user + "-" + parsed_name,
             "name": create_dict["name"],
@@ -1662,10 +1683,7 @@ class isard:
             "server": dom["server"],
             "os": dom["os"],
             "guest_properties": dom["guest_properties"],
-            "create_dict": {
-                "hardware": create_dict["hardware"],
-                "origin": create_dict["template"],
-            },
+            "create_dict": new_create_dict,
             "forced_hyp": dom["forced_hyp"],
             "hypervisors_pools": create_dict["hypervisors_pools"],
             "allowed": {
@@ -1693,7 +1711,10 @@ class isard:
 
         if "diskbus" in create_dict["create_dict"]["hardware"]:
             new_create_dict = (
-                r.table("domains").get(id).pluck("create_dict").run(db.conn)
+                r.table("domains")
+                .get(id)
+                .pluck("create_dict", "tag", "booking_id")
+                .run(db.conn)
             )
             if len(new_create_dict["create_dict"]["hardware"]["disks"]):
                 new_create_dict["create_dict"]["hardware"]["disks"][0][
@@ -1721,9 +1742,23 @@ class isard:
                 }
             }
         ).run(db.conn)
-        return self.check(
-            r.table("domains").get(id).update(create_dict).run(db.conn), "replaced"
-        )
+
+        if (
+            new_create_dict["create_dict"].get("reservables")
+            and create_dict["create_dict"]["reservables"]
+            != new_create_dict["create_dict"]["reservables"]
+        ):
+            try:
+                with app.app_context():
+                    r.table("bookings").get_all(
+                        ["desktop", id], index="item_type-id"
+                    ).delete().run(db.conn)
+            except:
+                log.debug(traceback.format_exc())
+        with app.app_context():
+            return self.check(
+                r.table("domains").get(id).update(create_dict).run(db.conn), "replaced"
+            )
         # ~ return update_table_value('domains',id,{'create_dict':'hardware'},create_dict['hardware'])
 
     def parse_media_info(self, create_dict):

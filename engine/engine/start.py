@@ -43,7 +43,7 @@ from engine.services import db
 
 
 def run(app):
-    http_server = WSGIServer(("0.0.0.0", 5555), app)
+    http_server = WSGIServer(("0.0.0.0", 5000), app)
     http_server.serve_forever()
 
 
@@ -87,4 +87,4 @@ if __name__ == "__main__":
     # if os.environ.get("LOG_LEVEL") == "DEBUG":
     #     app.run(debug=True, host="0.0.0.0")
     # else:
-    app.run(host="0.0.0.0")
+    app.run(host="0.0.0.0", port=5000)

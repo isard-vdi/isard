@@ -1,0 +1,231 @@
+!apk add hwids-pci
+!apk add pciutils-libs
+!apk add py3-libvirt
+
+import libvirt
+from libpci import LibPCI
+import xmltodict
+import uuid
+from time import sleep
+
+
+# 2 cores / 256MB
+memory = 256 * 1024
+cores = 2
+type_gpu = "1Q"
+total_domains = 32
+
+pci = LibPCI()
+uri = "qemu:///system"
+conn = libvirt.open(uri)
+
+
+xml_test_gpu = """<domain type="kvm">
+  <name>{name}</name>
+  <memory unit="KiB">{memory}</memory>
+  <currentMemory unit="KiB">{memory}</currentMemory>
+  <vcpu placement="static">{cores}</vcpu>
+  <os>
+    <type arch="x86_64" machine="q35">hvm</type>
+    <boot dev="network"/>
+    <loader readonly="yes" type="pflash">/usr/share/OVMF/OVMF_CODE.fd</loader>
+  </os>
+  <features>
+    <acpi/>
+    <apic/>
+    <hyperv>
+      <relaxed state="on"/>
+      <vapic state="on"/>
+      <spinlocks state="on" retries="8191"/>
+    </hyperv>
+    <vmport state="off"/>
+  </features>
+  <cpu mode="host-model">
+    <topology sockets="1" dies="1" cores="{cores}" threads="1"/>
+  </cpu>
+  <clock offset="localtime">
+    <timer name="rtc" tickpolicy="catchup"/>
+    <timer name="pit" tickpolicy="delay"/>
+    <timer name="hpet" present="no"/>
+    <timer name="hypervclock" present="yes"/>
+  </clock>
+      <interface type="network">
+      <source network="default"/>
+      <model type="virtio"/>
+    </interface>
+  <pm>
+    <suspend-to-mem enabled="no"/>
+    <suspend-to-disk enabled="no"/>
+  </pm>
+  <devices>
+    <emulator>/usr/bin/qemu-kvm</emulator>
+    <controller type="usb" index="0" model="qemu-xhci" ports="15"/>
+    <console type="pty">
+      <target type="serial"/>
+    </console>
+    <channel type="spicevmc">
+      <target type="virtio" name="com.redhat.spice.0"/>
+    </channel>
+    <input type="tablet" bus="usb"/>
+    <sound model="ich9"/>
+    <video>
+	    <model type="none"/>
+    </video>
+    <redirdev bus="usb" type="spicevmc"/>
+    <redirdev bus="usb" type="spicevmc"/>
+    <redirdev bus="usb" type="spicevmc"/>
+    <hostdev mode='subsystem' type='mdev' model='vfio-pci'>
+    <source>
+      <address uuid='{uid}'/>
+    </source>
+  </hostdev>
+  </devices>
+</domain>
+"""
+
+
+
+domain_xml = xml_test_gpu.format(cores=cores, memory=memory, name="{name}", uid="{uid}")
+
+
+def get_types_from_a40(conn, d):
+    parent = d["device"]["parent"]
+    dev_parent = conn.nodeDeviceLookupByName(parent)
+    d_dev_parent = xmltodict.parse(dev_parent.XMLDesc())
+    path_parent = d_dev_parent["device"]["path"]
+    cmd = f"find \"{path_parent}\" -name nvidia-* | grep mdev_supported_types | xargs -I % sh -c 'echo %; cat %/available_instances; cat %/name;'"
+    cmds1 = [
+        {"title": f"extract mdev supported types", "cmd": cmd}
+    ]
+    array_out_err = execute_commands(
+        self.hostname, cmds1, port=self.port, dict_mode=True
+    )
+    if len(array_out_err[0]["err"]) == 0:
+        l_types = []
+        d_available_instances = {}
+        out = array_out_err[0]["out"]
+        paths = set()
+        types = {}
+        for i, line in enumerate(out.splitlines()):
+            if i % 3 == 0:
+                path = line
+            elif i % 3 == 1:
+                available_instances = int(line)
+            else:
+                name = line.replace("NVIDIA ", "")
+                if name[-1] == "Q":
+                    paths.add(path.split("/mdev_supported_types/")[0])
+                    id_mdev = path.split("/mdev_supported_types/")[1].split("/")[0]
+                    types[name] = id_mdev
+                    if name not in d_available_instances.keys():
+                        d_available_instances[name] = 0
+                    d_available_instances[name] += available_instances
+                    # print(f"path: {path} -- {line}")
+        for name, id_mdev in types.items():
+            l_types.append(
+                {'@id': id_mdev,
+                 'name': name,
+                 'availableInstances': d_available_instances[name]}
+            )
+        return l_types, paths, path_parent
+    else:
+
+        return False, False, False
+
+### EXTRACT NVIDIA INFO:
+conn = libvirt.open(uri)
+libvirt_pci_names = conn.listDevices("pci")
+#libvirt_mdev_names = self.conn.listDevices("mdev_types")
+
+pci_names = list(set([a[:-3] + "0_0" for a in libvirt_pci_names]))
+pci_devices = [a for a in conn.listAllDevices() if a.name() in pci_names]
+
+l_dict_pci = [xmltodict.parse(a.XMLDesc()) for a in pci_devices]
+l_nvidia_devices = [
+    a for a in l_dict_pci if a["device"].get("driver", {}).get("name", {}) == "nvidia"
+]
+
+has_nvidia = False
+d_info_nvidia = {}
+
+
+
+if len(l_nvidia_devices) > 0:
+    has_nvidia = True
+    for d in l_nvidia_devices:
+        info_nvidia = {}
+        try:
+            name = d["device"]["name"]
+            path = d["device"]["path"]
+            parent = d["device"]["parent"]
+            vendor_pci_id = int(
+                d["device"]["capability"]["vendor"]["@id"], base=0
+            )
+            device_pci_id = int(
+                d["device"]["capability"]["product"]["@id"], base=0
+            )
+            pci = LibPCI()
+            device_name = pci.lookup_device_name(vendor_pci_id, device_pci_id)
+            l_mdev_bus = [
+                a["@domain"].replace("0x", "") + a["@bus"].replace("0x", ":") + a["@slot"].replace("0x", ":") + a[
+                    "@function"].replace("0x", ".") for a in d["device"]["capability"]["capability"]["address"]]
+
+            path_to_find = "/sys/class/mdev_bus/" + l_mdev_bus[0] + "/mdev_supported_types"
+            cmd = f"find \"{path_to_find}\" -name nvidia-* | grep mdev_supported_types | xargs -I % sh -c 'echo %; cat %/available_instances; cat %/name;'"
+            
+            out = ! $cmd
+            l_types = []
+            d_available_instances = {}
+            paths = set()
+            types = {}
+            for i, line in enumerate(out):
+                if i % 3 == 0:
+                    path = line
+                elif i % 3 == 1:
+                    available_instances = int(line)
+                else:
+                    name = line.replace("NVIDIA ", "")
+                    if name[-1] == "Q":
+                        paths.add(path.split("/mdev_supported_types/")[0])
+                        id_mdev = path.split("/mdev_supported_types/")[1].split("/")[0]
+                        types[name] = id_mdev
+                        if name not in d_available_instances.keys():
+                            d_available_instances[name] = 0
+                        d_available_instances[name] += available_instances
+                        #print(f"path: {path} -- {line}")
+            for name, id_mdev in types.items():
+                l_types.append(
+                    {'@id': id_mdev,
+                     'name': name,
+                     'availableInstances': d_available_instances[name]}
+                )
+
+        except:
+            max_count = 0
+            device_name = "NO DEV NVIDIA"
+            continue
+
+
+### CREAMOS Y ARRANCAMOS ESCRITORIOS
+
+uuids = [str(uuid.uuid4()) for i in range(total_domains)]
+id_pci = [a["@id"] for a in l_types if a["name"].find("-"+type_gpu) > 0][0]
+
+cmds_create_uuids = []
+xmls = []
+for i, mdev_bus in enumerate(l_mdev_bus):
+    print(f"#{i} - {mdev_bus} - {id_pci} - {uuids[i]}")
+    cmd = f"echo {uuids[i]} > /sys/class/mdev_bus/{mdev_bus}/mdev_supported_types/{id_pci}/create"
+    cmds_create_uuids.append(cmd)
+    print(cmd)
+    domain_name = "test_gpu_" + str(i).zfill(2)
+    xml = domain_xml.format(name=domain_name, uid=uuids[i])
+    xmls.append(xml)
+
+for i in range(21,22):
+    print(f"CREANDO UUID #{i}")
+    cmd = cmds_create_uuids[i]
+    ! $cmd
+    sleep(2)
+    conn.createXML(xmls[i])
+    sleep(1)

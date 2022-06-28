@@ -21,6 +21,8 @@ import { appTitle } from '../shared/constants'
 import ImagesList from '@/views/ImagesList.vue'
 import TemplateNew from '@/pages/TemplateNew.vue'
 import Templates from '@/pages/Templates.vue'
+import Booking from '@/pages/Booking'
+import Planning from '@/pages/Planning'
 
 Vue.use(VueRouter)
 
@@ -54,6 +56,22 @@ const router = new VueRouter({
           component: ImagesList,
           meta: {
             title: 'Images'
+          }
+        },
+        {
+          path: 'booking',
+          name: 'booking',
+          component: Booking,
+          meta: {
+            title: 'Booking'
+          }
+        },
+        {
+          path: 'planning',
+          name: 'Planning',
+          component: Planning,
+          meta: {
+            title: 'Planning'
           }
         }
       ],

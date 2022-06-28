@@ -24,7 +24,11 @@ db.init_app(app)
 from ..api_desktops_common import ApiDesktopsCommon
 from ..api_desktops_persistent import ApiDesktopsPersistent
 from ..ds import DS
-from ..helpers import _parse_deployment_desktop, _parse_string
+from ..helpers import (
+    _parse_deployment_booking,
+    _parse_deployment_desktop,
+    _parse_string,
+)
 
 ds = DS()
 
@@ -49,6 +53,8 @@ def lists(user_id):
             )
             .run(db.conn)
         )
+    for i, deploy in enumerate(deployments):
+        deployments[i] = {**deployments[i], **_parse_deployment_booking(deploy)}
     return deployments
 
 

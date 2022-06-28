@@ -1,0 +1,122 @@
+<!-- EDIT BOOKABLE -->
+<div class="modal fade" id="modalEditBookable" tabindex="-1" role="dialog" 
+   aria-labelledby="modalEditBookable" aria-hidden="true">
+   <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+         <!-- Modal Header -->
+         <div class="modal-header">
+            <button type="button" class="close"
+               data-dismiss="modal">
+                  <span aria-hidden="true">&times;</span>
+                  <span class="sr-only">Close</span>
+            </button>
+            <h4 class="modal-title" id="myModalLabel">
+               <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-briefcase"> </i> Edit bookable resource
+            </h4>
+         </div>
+         <!-- Modal Body -->
+         <div class="modal-body">
+            <form id="modalEdit" class="form-inline form-label-left">
+               <div class="x_panel">
+                  <h4><i class="fa fa-info-circle" aria-hidden="true"></i> Bookable name and description</h4>
+                  <input  id="bookable_table" name="bookable_table" type="hidden" required>
+                  <input  id="bookable_id" name="bookable_id" type="hidden" required>
+                  <div class="x_content" style="padding: 0px;">
+                     <div class="row">
+                        <div class="col-md-4 col-xs-12">
+                           <label class="control-label" for="name">Name <span class="required">*</span>
+                           </label>
+                           <input id="name" class="roundbox" maxlength="40" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text" style="width:100%">
+                        </div>
+                        <div class="col-md-6 col-xs-12">
+                            <label class="control-label" for="description">Description
+                            </label>
+                            <input id="description" name="description" class="roundbox" style="width:100%"></input>
+                        </div> 
+                     </div>
+                     <div class="row">
+                        <div class="col-md-4 col-xs-12">
+                           <label class="control-label" for="priority">Priority <span class="required">*</span>
+                           </label>
+                           <select class="form-control roundbox" style="font-size:12px; padding:1px; width:100%; overflow: hidden; text-overflow: ellipsis;" id="priority" name="priority">           
+                           </select>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </form>
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+               <ul class="nav navbar-left panel_toolbox">
+                  <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                  </li>
+               </ul>
+               <ul class="nav navbar-right panel_toolbox">
+                  <li><button id="send" type="button" class="btn btn-success">Update bookable</button></li>
+                  </li>
+               </ul>
+            </div>
+         </div>
+      </div>
+   </div>
+</div>
+<!-- END -->
+
+<!-- EDIT PRIORITY -->
+<div class="modal fade" id="modalEditPriority" tabindex="-1" role="dialog" 
+   aria-labelledby="modalEditPriority" aria-hidden="true">
+   <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+         <!-- Modal Header -->
+         <div class="modal-header">
+            <button type="button" class="close"
+               data-dismiss="modal">
+                  <span aria-hidden="true">&times;</span>
+                  <span class="sr-only">Close</span>
+            </button>
+            <h4 class="modal-title" id="myModalLabel">
+               <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-briefcase"> </i> Edit priority for resource
+            </h4>
+         </div>
+         <!-- Modal Body -->
+         <div class="modal-body">
+            <form id="modalEdit" class="form-inline form-label-left">
+               <div class="x_panel">
+                  <h4><i class="fa fa-info-circle" aria-hidden="true"></i> Priority name and description</h4>
+                  <input  id="priority_table" name="priority_table" type="hidden" required>
+                  <input  id="priority_id" name="priority_id" type="hidden" required>
+                  <div class="x_content" style="padding: 0px;">
+                     <div class="row">
+                        <div class="col-md-4 col-xs-12">
+                           <label class="control-label" for="name">Name <span class="required">*</span>
+                           </label>
+                           <input id="name" class="roundbox" maxlength="40" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text" style="width:100%">
+                        </div>
+                     </div>
+                     <div class="row">
+                        <div class="col-md-12 col-xs-12">
+                            <label class="control-label" for="description">Description
+                            </label>
+                            <input id="description" name="description" class="form-control col-md-7 col-xs-12"></input>
+                        </div> 
+                     </div>
+                  </div>
+               </div>
+            </form>
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+               <ul class="nav navbar-left panel_toolbox">
+                  <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                  </li>
+               </ul>
+               <ul class="nav navbar-right panel_toolbox">
+                  <li><button id="send" type="button" class="btn btn-success">Update priority</button></li>
+                  </li>
+               </ul>
+            </div>
+         </div>
+      </div>
+   </div>
+</div>
+<!-- END -->
+

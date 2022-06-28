@@ -65,7 +65,6 @@ from engine.services.threads.threads import (
     launch_disk_operations_thread,
     launch_long_operations_thread,
     launch_thread_worker,
-    launch_try_hyps,
     set_domains_coherence,
 )
 from rethinkdb import r
@@ -339,7 +338,14 @@ class HypervisorsOrchestratorThread(threading.Thread):
 
     def try_hyp_and_threads_alive(self, hyp_id):
         # try dns resolution
-        hostname, port, user = get_hyp_hostname_from_id(hyp_id)
+        (
+            hostname,
+            port,
+            user,
+            nvidia_enabled,
+            force_get_hyp_info,
+            init_vgpu_profiles,
+        ) = get_hyp_hostname_from_id(hyp_id)
         try:
             self.ip = socket.gethostbyname(hostname)
         except:

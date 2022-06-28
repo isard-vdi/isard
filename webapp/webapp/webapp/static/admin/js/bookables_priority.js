@@ -1,0 +1,343 @@
+/*
+ * Copyright 2017 the Isard-vdi project authors:
+ *      Josep Maria Viñolas Auquer
+ *      Alberto Larraz Dalmases
+ * License: AGPLv3
+ */
+
+$(document).ready(function () {
+  $bookable = $(".bookings_priority_detail");
+  // RESERVABLE VGPUS
+  bookings_priority = $("#bookings_priority").DataTable({
+    ajax: {
+      url: "/admin/table/bookings_priority",
+      contentType: "application/json",
+      type: "POST",
+      data: function (d) {
+        return JSON.stringify({ order_by: "name" });
+      },
+    },
+    sAjaxDataProp: "",
+    language: {
+      loadingRecords:
+        '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
+    },
+    rowId: "id",
+    deferRender: true,
+    columns: [
+      {
+        className: "details-control",
+        orderable: false,
+        data: null,
+        defaultContent: '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
+      },
+      { data: "rule_id" },
+      { data: "name" },
+      { data: "description" },
+      { data: "allowed.roles", defaultContent: "-" },
+      { data: "allowed.categories", defaultContent: "-" },
+      { data: "allowed.groups", defaultContent: "-" },
+      { data: "allowed.users", defaultContent: "-" },
+      { data: "priority" },
+      { data: "forbid_time" },
+      { data: "max_time" },
+      { data: "max_items" },
+      {
+        className: "actions-control",
+        orderable: false,
+        data: null,
+        defaultContent:
+          '<button id="btn-alloweds" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button> \
+            <button id="btn-edit" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-pencil" style="color:darkblue"></i></button> \
+            <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>',
+      },
+    ],
+    order: [[1, "asc"]],
+    columnDefs: [
+      {
+        targets: 4,
+        render: function (data, type, full, meta) {
+          if (data) {
+            if (data.length) {
+              return data;
+            } else {
+              return 'All';
+            }
+          } else {
+            return "-";
+          }
+        },
+      },
+      {
+        targets: 5,
+        render: function (data, type, full, meta) {
+          if (data) {
+            if (data.length) {
+              return data;
+            } else {
+              return 'All';
+            }
+          } else {
+            return "-";
+          }
+        },
+      },
+      {
+        targets: 6,
+        render: function (data, type, full, meta) {
+          if (data) {
+            if (data.length) {
+              return data;
+            } else {
+              return 'All';
+            }
+          } else {
+            return "-";
+          }
+        },
+      },
+      {
+        targets: 7,
+        render: function (data, type, full, meta) {
+          if (data) {
+            if (data.length) {
+              return data;
+            } else {
+              return 'All';
+            }
+          } else {
+            return "-";
+          }
+        },
+      },
+    ],
+  });
+
+  $("#bookings_priority")
+    .find(" tbody")
+    .on("click", "button", function () {
+      var data = bookings_priority.row($(this).parents("tr")).data();
+      switch ($(this).attr("id")) {
+        case "btn-delete":
+          new PNotify({
+            title: "Confirmation Needed",
+            text: "Are you sure you want to delete: " + data["name"] + "?",
+            hide: false,
+            opacity: 0.9,
+            confirm: {
+              confirm: true,
+            },
+            buttons: {
+              closer: false,
+              sticker: false,
+            },
+            history: {
+              history: false,
+            },
+            addclass: "pnotify-center",
+          })
+            .get()
+            .on("pnotify.confirm", function () {
+              data["table"] = "remotevpn";
+              $.ajax({
+                type: "DELETE",
+                url: "/admin/table/delete/bookings_priority",
+                data: JSON.stringify(data),
+                contentType: "application/json",
+                success: function (data) {
+                  $("form").each(function () {
+                    this.reset();
+                  });
+                  $(".modal").modal("hide");
+                  bookings_priority.ajax.reload();
+                },
+              });
+            })
+            .on("pnotify.cancel", function () {});
+          break;
+        case "btn-edit":
+          $("#modalEditPriority #modalEdit")[0].reset();
+          $("#modalEditPriority")
+            .modal({
+              backdrop: "static",
+              keyboard: false,
+            })
+            .modal("show");
+          $("#modalEditPriority #modalEdit").parsley();
+          $("#modalEdit #priority_id").val(data.id);
+          $("#modalEdit #name").val(data.name);
+          $("#modalEdit #description").val(data.description);
+          $("#modalEdit #rule_id").val(data.rule_id);
+          $("#modalEdit #priority").val(data.priority);
+          $("#modalEdit #forbid_time").val(data.forbid_time);
+          $("#modalEdit #max_time").val(data.max_time);
+          $("#modalEdit #max_items").val(data.max_items);
+          break;
+        case "btn-alloweds":
+          modalAllowedsFormShow("bookings_priority", data);
+          break;
+      }
+    });
+
+  $(".add-new").on("click", function () {
+    $("#modalAddPriority #modalAdd").attr("disabled", false);
+    $("#modalAdd")[0].reset();
+    $("#modalAddPriority")
+      .modal({
+        backdrop: "static",
+        keyboard: false,
+      })
+      .modal("show");
+    $("modalAddPriority modalAdd").parsley();
+    setAlloweds_add("#alloweds-priority-add");
+    $("#modalAddPriority #modalAdd #alloweds_panel").attr("style", "display: block;");
+  });
+
+  $("#modalAddPriority #send").on("click", function (e) {
+    var form = $("#modalAdd");
+    data = form.serializeObject();
+    data = data2integers(data)
+
+
+    data = replaceAlloweds_arrays(
+      "#modalAddPriority #alloweds-priority-add",
+      data
+    );
+    form.parsley().validate();
+    if (form.parsley().isValid()) {
+      //Insert
+      data["id"] = data["name"];
+      $.ajax({
+        type: "POST",
+        url: "/admin/table/add/bookings_priority",
+        data: JSON.stringify(data),
+        contentType: "application/json",
+        success: function (data) {
+          bookings_priority.ajax.reload();
+          $("form").each(function () {
+            this.reset();
+          });
+          $(".modal").modal("hide");
+        },
+        error: function (xhr, ajaxOptions, thrownError) {
+          if (xhr.status == 409) {
+            new PNotify({
+                title: "Cannot create priority",
+                text: "Can't create the priority, the name already exists.",
+                hide: true,
+                delay: 3000,
+                icon: 'fa fa-warning',
+                opacity: 1,
+                type: 'error'
+            });
+          }
+        }
+      });
+    }
+  });
+
+  $("#modalEditPriority #send").on("click", function (e) {
+    var form = $("#modalEdit");
+    form.parsley().validate();
+    data = $("#modalEdit").serializeObject();
+    data = data2integers(data)
+    
+    data["id"]=data.priority_id
+    $.ajax({
+      type: "PUT",
+      url: "/admin/table/update/bookings_priority",
+      data: JSON.stringify(data),
+      contentType: "application/json",
+      success: function (data) {
+        bookings_priority.ajax.reload();
+        $("form").each(function () {
+          this.reset();
+        });
+        $(".modal").modal("hide");
+      },
+    });
+  });
+
+  $('#bookings_priority').find('tbody').on('click', 'td.details-control', function() {
+    var tr = $(this).closest('tr');
+    var row = bookings_priority.row(tr);
+    if (row.child.isShown()) {
+        // This row is already open - close it
+        row.child.hide();
+        tr.removeClass('shown');
+    } else {
+        // Close other rows
+        if (bookings_priority.row('.shown').length) {
+            $('.details-control', bookings_priority.row('.shown').node()).click();
+        }
+        // Open this row
+        row.child(renderBookableDetailPannel(row.data())).show()
+        tr.addClass('shown');
+        $('#status-detail-' + row.data().id).html(row.data().detail);
+
+        setAlloweds_viewer('#alloweds-' + row.data().id, row.data().id, "bookings_priority");
+    }
+});
+
+
+  // SocketIO
+  socket = io.connect(
+    location.protocol +
+      "//" +
+      document.domain +
+      ":" +
+      location.port +
+      "/isard-admin/sio_admins",
+    {
+      path: "/isard-admin/socket.io/",
+      transports: ["websocket"],
+    }
+  );
+
+  socket.on("connect", function () {
+    connection_done();
+    console.log("Listening admins namespace");
+    socket.emit("join_rooms", ["config"]);
+    console.log("Listening config updates");
+  });
+
+  socket.on("connect_error", function (data) {
+    connection_lost();
+  });
+
+  socket.on("add_form_result", function (data) {
+    console.log("received result");
+    var data = JSON.parse(data);
+    if (data.result) {
+      $("#modalAddScheduler")[0].reset();
+      $("#modalScheduler").modal("hide");
+    }
+    new PNotify({
+      title: data.title,
+      text: data.text,
+      hide: true,
+      delay: 4000,
+      icon: "fa fa-" + data.icon,
+      opacity: 1,
+      type: data.type,
+    });
+  });
+
+  function renderBookableDetailPannel ( d ) {
+
+		$newPanel = $bookable.clone();
+    $newPanel.html(function(i, oldHtml){
+      return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name).replace(/d.description/g, d.description);
+    });
+		return $newPanel
+}
+
+});
+
+function data2integers(data){
+  data["forbid_time"]=parseInt(data["forbid_time"]);
+  data["max_items"]=parseInt(data["max_items"]);
+  data["max_time"]=parseInt(data["max_time"]);
+  data["priority"]=parseInt(data["priority"]);
+  return data
+}

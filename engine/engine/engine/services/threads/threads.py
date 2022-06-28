@@ -27,12 +27,10 @@ from engine.services.db.downloads import update_status_media_from_path
 from engine.services.db.hypervisors import (
     get_hyp,
     get_hyp_hostname_from_id,
-    update_db_default_gpu_models,
     update_db_hyp_info,
     update_hyp_status,
     update_hyp_thread_status,
     update_hypervisor_failed_connection,
-    update_uids_for_nvidia_id,
 )
 from engine.services.lib.functions import (
     dict_domain_libvirt_state_to_isard_state,
@@ -437,46 +435,16 @@ def launch_thread_worker(hyp_id, q_event_register, queue_master):
     return t, q
 
 
-def launch_try_hyps(dict_hyps, enabled_thread=True):
-    # launch TryHypConnectionThread for all hyps
-    threads_try = {}
-    hyps = {}
-    for hyp_id, dict_hyp_parameters in dict_hyps.items():
-        # update_hyp_status(hyp_id, 'TryConnection')
-        hostname = dict_hyp_parameters["hostname"]
-        port = dict_hyp_parameters["port"]
-        user = dict_hyp_parameters["user"]
-        if enabled_thread == True:
-            threads_try[hyp_id] = TryHypConnectionThread(
-                "try_" + hyp_id, hyp_id, hostname, port=port, user=user
-            )
-            threads_try[hyp_id].start()
-        else:
-            hyps[hyp_id], ok = try_hyp_connection(hyp_id, hostname)
-
-    return_state = {}
-    for hyp_id, hostname in dict_hyps.items():
-        return_state[hyp_id] = {}
-        TIMEOUT_TRY_HYP = CONFIG_DICT["TIMEOUTS"]["timeout_trying_hyp_and_ssh"]
-
-        if enabled_thread == True:
-            if threads_try[hyp_id].is_alive() is True:
-                pass
-            threads_try[hyp_id].join(timeout=TIMEOUT_TRY_HYP)
-        try:
-            hyps[hyp_id] = threads_try[hyp_id].hyp_obj
-            return_state[hyp_id]["reason"] = hyps[hyp_id].fail_connected_reason
-        except Exception as e:
-            logs.exception_id.debug("0069")
-            log.error("try hypervisor fail - reason: {}".format(e))
-            return_state[hyp_id]["reason"] = "threads_try fail {}".format(e)
-
-    return return_state
-
-
 def hyp_from_hyp_id(hyp_id):
     try:
-        host, port, user = get_hyp_hostname_from_id(hyp_id)
+        (
+            host,
+            port,
+            user,
+            nvidia_enabled,
+            force_get_hyp_info,
+            init_vgpu_profiles,
+        ) = get_hyp_hostname_from_id(hyp_id)
         h = hyp(host, user=user, port=port)
         return h
     except:
@@ -525,86 +493,7 @@ def set_domains_coherence(dict_hyps_ready):
         update_hyp_status(hyp_id, "ReadyToStart")
 
 
-def try_hyp_connection(hyp_id, hostname, port, user):
-    update_hyp_status(hyp_id, "TryConnection")
-    log.debug("Starting trying to connect to hypervisor {} ".format(hostname))
-    # INFO TO DEVELOPER, VOLVER A ACTIVAR CUANDO NO FALLE LA AUTENTICACIÓN CON ALGORITMOS MODERNOS DE SSH
-    # hyp_obj = hyp(hostname,user=user,port=port,try_ssh_autologin=True)
-    hyp_obj = hyp(hostname, user=user, port=port, try_ssh_autologin=True)
-    log.debug("####@@@@$$$$$$$$$$$$$$$$")
-    log.debug(
-        "hostname: {} , reason: {}".format(hostname, hyp_obj.fail_connected_reason)
-    )
-    try:
-        reason = hyp_obj.fail_connected_reason
-        update_hypervisor_failed_connection(hyp_id, reason)
-    except Exception as e:
-        logs.exception_id.debug("0070")
-        log.error("try hyp {}, error: {}".format(hyp_id, e))
-        reason = "no reason available"
-        update_hypervisor_failed_connection(hyp_id, reason)
-
-    if hyp_obj.connected is True:
-        log.debug("hypervisor {} libvirt connection ready".format(hyp_id))
-        hyp_obj.get_kvm_mod()
-        hyp_obj.get_hyp_info()
-        update_db_hyp_info(hyp_id, hyp_obj.info)
-        d_hyp = get_hyp(hyp_id)
-        default_gpu_models = d_hyp.get("default_gpu_models", {})
-        uuids_gpu = d_hyp.get("nvidia_uids", {})
-
-        if len(hyp_obj.info["nvidia"]) > 0:
-            if len(default_gpu_models) < len(hyp_obj.info["nvidia"]):
-
-                default_gpu_models = {
-                    k: a["type_max_gpus"] for k, a in hyp_obj.info["nvidia"].items()
-                }
-                update_db_default_gpu_models(hyp_id, default_gpu_models)
-
-            for gpu_id, d_info_gpu in hyp_obj.info["nvidia"].items():
-                if gpu_id not in uuids_gpu.keys():
-                    d_uids = hyp_obj.create_uuids(d_info_gpu)
-                    update_uids_for_nvidia_id(hyp_id, gpu_id, d_uids)
-
-            d_hyp = get_hyp(hyp_id)
-            for gpu_id, d_uids in d_hyp["nvidia_uids"].items():
-                selected_gpu_type = default_gpu_models[gpu_id]
-                info_nvidia = d_hyp["info"]["nvidia"][gpu_id]
-                hyp_obj.delete_and_create_devices_if_not_exist(
-                    gpu_id, d_uids, info_nvidia, selected_gpu_type, hyp_id
-                )
-            if len(d_hyp["nvidia_uids"]) > 0:
-                hyp_obj.update_started_uids()
-
-        if hyp_obj.info["kvm_module"] == "intel" or hyp_obj.info["kvm_module"] == "amd":
-            ok = True
-            update_hyp_status(hyp_id, "ReadyToStart")
-        else:
-            ok = False
-            log.error(
-                "hypervisor {} has not virtualization support (VT-x for Intel processors and AMD-V for AMD processors). ".format(
-                    hyp_id
-                )
-            )
-            update_hyp_status(
-                hyp_id,
-                "Error",
-                detail="KVM requires that the virtual machine host's processor has virtualization "
-                + "support (named VT-x for Intel processors and AMD-V for AMD processors). "
-                + "Check CPU capabilities and enable virtualization support in your BIOS.",
-            )
-        hyp_obj.disconnect()
-    else:
-        ok = False
-        log.error("hypervisor {} failed when trying to connect".format(hyp_id))
-        log.error("fail_connected_reason: {}".format(reason))
-        update_hyp_status(hyp_id, "Error", detail=reason)
-
-    return hyp_obj, ok
-
-
 # IMPORT Thread Classes HERE
 from engine.services.threads.disk_operations_thread import DiskOperationsThread
 from engine.services.threads.hyp_worker_thread import HypWorkerThread
 from engine.services.threads.long_operations_thread import LongOperationsThread
-from engine.services.threads.try_hyp_connection_thread import TryHypConnectionThread

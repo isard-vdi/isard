@@ -1,3 +1,21 @@
+<style>
+   [id^=modal_add_] .selected {
+      background-color: #e0f1af !important;
+  }
+
+  [id^=modal_add_] tr {
+      cursor: pointer;
+  } 
+
+  .my-error{
+      margin-top: 5px;
+      color: #B94A48 !important;
+      background-color: #F2DEDE !important;
+      border: 1px solid #EED3D7 !important;
+      padding: 10px;
+  }
+</style>
+
 <div class="modal fade" id="modalAddHyper" tabindex="-1" role="dialog" 
      aria-labelledby="myModalLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -153,14 +171,6 @@
                                     <input id="viewer-proxy_hyper_host" class="form-control col-md-7 col-xs-12" maxlength="255" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[2, 255]" name="viewer-proxy_hyper_host" placeholder="IP/DNS from video proxy" type="text">
                                  </div>
                               </div>
-
-                              <!-- <div class="item form-group">
-                                 <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer-hyper_vpn_host">Hypervisor VPN host
-                                 </label>
-                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <input id="viewer-hyper_vpn_host" class="form-control col-md-7 col-xs-12" maxlength="255" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[2, 255]" name="viewer-hyper_vpn_host" placeholder="Hyper vpn host" type="text">
-                                 </div>
-                              </div> -->
                            </div>
 
                         </div>
@@ -192,21 +202,20 @@
       <div class="modal-content">
          <!-- Modal Header -->
          <div class="modal-header">   
-               <button type="button" class="close" 
-                  data-dismiss="modal">
-                     <span aria-hidden="true">&times;</span>
-                     <span class="sr-only">Close</span>
-               </button>
-               <h4 class="modal-title" id="myModalLabel">
-                  <i class="fa fa-plus fa-1x"></i><i class="fa fa-rocket"> </i> Edit hypervisor
-               </h4>
+            <button type="button" class="close"
+               data-dismiss="modal">
+                  <span aria-hidden="true">&times;</span>
+                  <span class="sr-only">Close</span>
+            </button>
+            <h4 class="modal-title" id="myModalLabel">
+               <i class="fa fa-plus fa-1x"></i><i class="fa fa-rocket"> </i> Edit hypervisor
+            </h4>
          </div>
             
          <!-- Modal Body -->
          <div class="modal-body">
                
             <form id="modalEdit" class="form-horizontal form-label-left">
-               <!--action="{{ url_for('admin_hypervisors') }}" method="POST" novalidate>-->
                <div class="x_panel">
                   <div class="x_content">
                      <input type="hidden" id="id" name="id"/>                        
@@ -274,92 +283,85 @@
                      <div class="clearfix"></div>
                   </div>
                   <div class="x_content"> 
-                  <div class="item form-group">
-                     <label class="control-label col-md-3 col-sm-3 col-xs-12" for="capabilities-disk_operations">Disk operations
-                     </label>
-                     <div class="col-md-6 col-sm-6 col-xs-12">
-                     <div class="checkbox">
-                        <label class="">
-                           <div class="icheckbox_flat-green" style="position: relative;">
-                              <input type="checkbox" id="capabilities-disk_operations" name="capabilities-disk_operations" class="flat"  style="position: absolute; opacity: 0;">
-                              <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
-                              </ins>
-                           </div> Select if it can operate disks
-                        </label>
-                     </div>                
-                     </div>
-                  </div>
-
-                  <div class="item form-group">
-                     <label class="control-label col-md-3 col-sm-3 col-xs-12" for="capabilities-hypervisor">Hypervisor
-                     </label>
-                     <div class="col-md-6 col-sm-6 col-xs-12">
-                     <div class="checkbox">
-                        <label class="">
-                           <div class="icheckbox_flat-green" style="position: relative;">
-                              <input type="checkbox" id="capabilities-hypervisor" name="capabilities-hypervisor" class="flat capabilities_hypervisor"  style="position: absolute; opacity: 0;">
-                              <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
-                              </ins>
-                           </div> Select if can launch desktops
-                        </label>
-                     </div> 
-                     </div>                                              
-                  </div>
-
-                  <div id="viewer_fields" style="display:none;">
                      <div class="item form-group">
-                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer-static">Web host
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="capabilities-disk_operations">Disk operations
                         </label>
                         <div class="col-md-6 col-sm-6 col-xs-12">
-                           <input  id="viewer-static" class="form-control col-md-7 col-xs-12" maxlength="255" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[2, 255]" name="viewer-static" placeholder="IP/DNS for isard (static) host" type="text">
+                        <div class="checkbox">
+                           <label class="">
+                              <div class="icheckbox_flat-green" style="position: relative;">
+                                 <input type="checkbox" id="capabilities-disk_operations" name="capabilities-disk_operations" class="flat"  style="position: absolute; opacity: 0;">
+                                 <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                 </ins>
+                              </div> Select if it can operate disks
+                           </label>
                         </div>
-                     </div> 
-                     <div class="item form-group">
-                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer-proxy_video">Video proxy host (squid/websockify)
-                        </label>
-                        <div class="col-md-6 col-sm-6 col-xs-12">
-                           <input id="viewer-proxy_video" class="form-control col-md-7 col-xs-12" maxlength="255" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[2, 255]" name="viewer-proxy_video" placeholder="IP/DNS for video server" type="text">
-                        </div>
-                     </div>  
-
-                     <div class="item form-group">
-                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="port">SPICE (squid) external port <span class="required">*</span>
-                        </label>
-                        <div class="col-md-6 col-sm-6 col-xs-12">
-                           <input id="viewer-spice_ext_port" class="form-control col-md-7 col-xs-12" data-parsley-range='[1, 65535]' name="viewer-spice_ext_port" placeholder="Default 80" required="required" type="text">
                         </div>
                      </div>
 
                      <div class="item form-group">
-                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="port">HTML5 (websockify) external port <span class="required">*</span>
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="capabilities-hypervisor">Hypervisor
                         </label>
                         <div class="col-md-6 col-sm-6 col-xs-12">
-                           <input id="viewer-html5_ext_port" class="form-control col-md-7 col-xs-12" data-parsley-range='[1, 65535]' name="viewer-html5_ext_port" placeholder="Default 443" required="required" type="text">
+                        <div class="checkbox">
+                           <label class="">
+                              <div class="icheckbox_flat-green" style="position: relative;">
+                                 <input type="checkbox" id="capabilities-hypervisor" name="capabilities-hypervisor" class="flat capabilities_hypervisor"  style="position: absolute; opacity: 0;">
+                                 <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                 </ins>
+                              </div> Select if can launch desktops
+                           </label>
+                        </div>
                         </div>
                      </div>
 
-                     <div class="item form-group">
-                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer-proxy_hyper_host">Hypervisor hostname from video proxy
-                        </label>
-                        <div class="col-md-6 col-sm-6 col-xs-12">
-                           <input id="viewer-proxy_hyper_host" class="form-control col-md-7 col-xs-12" maxlength="255" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[2, 255]" name="viewer-proxy_hyper_host" placeholder="IP/DNS from video proxy" type="text">
+                     <div id="viewer_fields" style="display:none;">
+                        <div class="item form-group">
+                           <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer-static">Web host
+                           </label>
+                           <div class="col-md-6 col-sm-6 col-xs-12">
+                              <input  id="viewer-static" class="form-control col-md-7 col-xs-12" maxlength="255" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[2, 255]" name="viewer-static" placeholder="IP/DNS for isard (static) host" type="text">
+                           </div>
+                        </div> 
+                        <div class="item form-group">
+                           <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer-proxy_video">Video proxy host (squid/websockify)
+                           </label>
+                           <div class="col-md-6 col-sm-6 col-xs-12">
+                              <input id="viewer-proxy_video" class="form-control col-md-7 col-xs-12" maxlength="255" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[2, 255]" name="viewer-proxy_video" placeholder="IP/DNS for video server" type="text">
+                           </div>
+                        </div>  
+
+                        <div class="item form-group">
+                           <label class="control-label col-md-3 col-sm-3 col-xs-12" for="port">SPICE (squid) external port <span class="required">*</span>
+                           </label>
+                           <div class="col-md-6 col-sm-6 col-xs-12">
+                              <input id="viewer-spice_ext_port" class="form-control col-md-7 col-xs-12" data-parsley-range='[1, 65535]' name="viewer-spice_ext_port" placeholder="Default 80" required="required" type="text">
+                           </div>
+                        </div>
+
+                        <div class="item form-group">
+                           <label class="control-label col-md-3 col-sm-3 col-xs-12" for="port">HTML5 (websockify) external port <span class="required">*</span>
+                           </label>
+                           <div class="col-md-6 col-sm-6 col-xs-12">
+                              <input id="viewer-html5_ext_port" class="form-control col-md-7 col-xs-12" data-parsley-range='[1, 65535]' name="viewer-html5_ext_port" placeholder="Default 443" required="required" type="text">
+                           </div>
+                        </div>
+
+                        <div class="item form-group">
+                           <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer-proxy_hyper_host">Hypervisor hostname from video proxy
+                           </label>
+                           <div class="col-md-6 col-sm-6 col-xs-12">
+                              <input id="viewer-proxy_hyper_host" class="form-control col-md-7 col-xs-12" maxlength="255" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[2, 255]" name="viewer-proxy_hyper_host" placeholder="IP/DNS from video proxy" type="text">
+                           </div>
                         </div>
                      </div>
-
-                     <!-- <div class="item form-group">
-                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer-hyper_vpn_host">Hypervisor VPN host
-                        </label>
-                        <div class="col-md-6 col-sm-6 col-xs-12">
-                           <input id="viewer-hyper_vpn_host" class="form-control col-md-7 col-xs-12" maxlength="255" pattern="[-_.a-zA-Z0-9]+$" data-parsley-length="[2, 255]" name="viewer-hyper_vpn_host" placeholder="Vpn host" type="text">
-                        </div>
-                     </div> -->
-                  </div>
                                                 
-                  <div class="item form-group">
-                     <label>Pools:</label>
-                     <select class="form-control" id="hypervisors_pools_dropdown" name="hypervisors_pools">
-                     </select>
-                  </div>                     
+                     <div class="item form-group">
+                        <label>Pools:</label>
+                        <select class="form-control" id="hypervisors_pools_dropdown" name="hypervisors_pools">
+                        </select>
+                     </div>                     
+                  </div>
                </div>
             </form>
          </div>
@@ -376,6 +378,76 @@
    </div>
 </div>
 
+<!-- ADD -->
+<div class="modal fade" id="modalAddGpu" tabindex="-1" role="dialog" 
+   aria-labelledby="modalAddGpu" aria-hidden="true">
+   <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+         <!-- Modal Header -->
+         <div class="modal-header">
+            <button type="button" class="close"
+               data-dismiss="modal">
+                  <span aria-hidden="true">&times;</span>
+                  <span class="sr-only">Close</span>
+            </button>
+            <h4 class="modal-title" id="myModalLabel">
+               <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-briefcase"> </i> Add new gpu
+            </h4>
+         </div>
+         <!-- Modal Body -->
+         <div class="modal-body">
+            <form id="modalAdd" class="form-inline form-label-left">
+               <div class="x_panel">
+                  <h4><i class="fa fa-info-circle" aria-hidden="true"></i> Gpu name and description</h4>
+                  <div class="x_content" style="padding: 0px;">
+                     <div class="row">
+                        <div class="col-md-4 col-xs-12">
+                           <label class="control-label" for="name">Name <span class="required">*</span>
+                           </label>
+                           <input id="name" class="roundbox" maxlength="40" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New gpu name" data-parsley-trigger="change" required type="text" style="width:100%">
+                        </div>
+                        <div class="col-md-8 col-xs-12">
+                           <label class="control-label" for="description">Description <span class="required">*</span>
+                           </label>
+                           <input id="description" class="roundbox" name="description" placeholder="Gpu description"  type="text" style="width:100%">
+                        </div>
+                     </div>
+                  </div>
+               </div>
+               <div class="x_panel">
+                  <h4><i class="fa fa-briefcase" aria-hidden="true"></i> Select a profile</h4>
+                  <input  id="reservable_type" name="reservable_type" type="hidden" required>
+                  <input  id="bookable" name="bookable" type="hidden" required>
+                  <table id="modal_add_gpu" class="table" cellspacing="0" width="100%"  style="margin-top: 0px;">
+                     <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Brand</th>
+                            <th>Model</th>
+                            <th>Description</th>
+                        </tr>
+                     </thead>
+                     <tbody>
+                     </tbody>
+                  </table>
+                  <div id="datatables-error-status"></div>
+               </div>
+            </form>
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+               <ul class="nav navbar-left panel_toolbox">
+                  <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                  </li>
+               </ul>
+               <ul class="nav navbar-right panel_toolbox">
+                  <li><button id="send" type="button" class="btn btn-success">Create bookable</button></li>
+                  </li>
+               </ul>
+            </div>
+         </div>
+      </div>
+   </div>
+</div>
 
 
 <div class="modal fade" id="modalAddPool" tabindex="-1" role="dialog" 
@@ -672,15 +744,6 @@
                                 <div class="clearfix"></div>
                              </div>
                              <div class="x_content"> 
-<!--
-                            <div class="item form-group">
-                                <label>Mode:</label>
-                                <select class="form-control" id="viewer-defaultMode" name="viewer-defaultMode">
-                                <option value="Secure" selected="selected">Secure</option>
-                                <option value="Insecure" >Insecure</option>
-                                </select>
-                            </div>  
--->
                              <div class="item form-group">
                                 <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer-domain">Domain
                                 </label>
@@ -688,15 +751,6 @@
                                    <input id="viewer-domain" class="form-control col-md-7 col-xs-12" data-validate-length-range="2,255" name="viewer-domain" placeholder="domain.com" type="text">
                                 </div>
                              </div>
-<!--
-                             <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="viewer-certificate">Certificate
-                                </label>
-                                <div class="col-md-6 col-sm-6 col-xs-12">
-                                   <textarea id="viewer-certificate" name="viewer-certificate" placeholder="Paste it from BEGIN to END included." class="form-control col-md-7 col-xs-12"></textarea>
-                                </div>
-                             </div>
--->
                         </div>
                       </div>
 

@@ -47,9 +47,10 @@ from engine.services.db import (
     update_domain_hyp_stopped,
     update_domain_status,
     update_domain_viewer_started_values,
-    update_info_nvidia_hyp_domain,
     update_origin_and_parents_to_new_template,
     update_table_field,
+    update_vgpu_reserved,
+    update_vgpu_uuid_domain_action,
 )
 from engine.services.lib.functions import exec_remote_list_of_cmds
 from engine.services.lib.qcow import (
@@ -128,73 +129,40 @@ class UiActions(object):
             xml, id_domain, pool_id, action="start_paused_domain"
         )
 
-        #
-        # failed = False
-        # if pool_id in self.manager.pools.keys():
-        #     forced_hyp,preferred_hyp = get_domain_forced_hyp(id_domain)
-        #     next_hyp,extra_info = self.manager.pools[pool_id].get_next(domain_id=id_domain,
-        #                                                                force_hyp=forced_hyp,
-        #                                                                preferred_hyp=preferred_hyp)
-        #
-        #     if next_hyp is not False:
-        #         log.debug('next_hyp={}'.format(next_hyp))
-        #         if extra_info.get('nvidia',False) is True:
-        #             xml = recreate_xml_if_gpu(id_domain,xml,next_hyp,extra_info)
-        #
-        #         dict_action = {'type': 'start_paused_domain', 'xml': xml, 'id_domain': id_domain}
-        #         # if start_after_created is True:
-        #         #     dict_action['start_after_created'] = True
-        #         #else:
-        #
-        #         if LOG_LEVEL == 'DEBUG':
-        #             print(f'%%%% DOMAIN CREATING:{id_domain} -- XML TO START PAUSED IN HYPERVISOR {next_hyp} %%%%')
-        #             print(xml)
-        #             update_table_field('domains', id_domain, 'xml_to_start', xml)
-        #             print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
-        #
-        #         self.manager.q.workers[next_hyp].put(
-        #             dict_action)
-        #         update_domain_status(status='CreatingDomain',
-        #                              id_domain=id_domain,
-        #                              hyp_id=False,
-        #                              detail='Waiting to try starting paused in hypervisor {} in pool {} ({} operations in queue)'.format(
-        #                                  next_hyp,
-        #                                  pool_id,
-        #                                  self.manager.q.workers[next_hyp].qsize()))
-        #     else:
-        #         log.error('get next hypervisor in pool {} failed'.format(pool_id))
-        #         failed = True
-        # else:
-        #     log.error('pool_id {} does not exists??'.format(pool_id))
-        #     failed = True
-        #
-        # if failed is True:
-        #     #update_domain_status(status='FailedCreatingDomain',
-        #     update_domain_status(status='Failed',
-        #                          id_domain=id_domain,
-        #                          hyp_id=next_hyp,
-        #                          detail='desktop not started: no hypervisors online in pool {}'.format(pool_id))
-        #
-        #     log.error('desktop not started: no hypervisors online in pool {}'.format(pool_id))
-        #     return False
-        # else:
-        #     return next_hyp
-
     def start_domain_from_xml(
         self, xml, id_domain, pool_id="default", action="start_domain"
     ):
         failed = False
         if pool_id in self.manager.pools.keys():
             forced_hyp, preferred_hyp = get_domain_forced_hyp(id_domain)
+
+            permit_reservables = True
+            if action == "start_paused_domain":
+                # in updates start paused doesn't try gpus
+                permit_reservables = False
+                logs.main.debug("RESERVAVLES PERMIT FALSE")
+
             next_hyp, extra_info = self.manager.pools[pool_id].get_next(
-                domain_id=id_domain, force_hyp=forced_hyp, preferred_hyp=preferred_hyp
+                domain_id=id_domain,
+                force_hyp=forced_hyp,
+                preferred_hyp=preferred_hyp,
+                reservables=permit_reservables,
             )
             if next_hyp is not False:
+                if action == "start_paused_domain":
+                    # in updates start paused doesn't try gpus
+                    extra_info = {}
+
                 if extra_info.get("nvidia", False) is True:
-                    xml = recreate_xml_if_gpu(id_domain, xml, next_hyp, extra_info)
-                    nvidia_uid = extra_info["uid"]
-                    ok = update_info_nvidia_hyp_domain(
-                        "reserved", nvidia_uid, next_hyp, id_domain
+                    xml = recreate_xml_if_gpu(xml, extra_info["uid"])
+                    # nvidia_uid = extra_info["uid"]
+                    # update_vgpu_reserved(extra_info["gpu_id"], extra_info["profile"], nvidia_uid, id_domain)
+                    update_vgpu_uuid_domain_action(
+                        extra_info["gpu_id"],
+                        extra_info["uid"],
+                        "domain_reserved",
+                        domain_id=id_domain,
+                        profile=extra_info["profile"],
                     )
 
                 if LOG_LEVEL == "DEBUG":
@@ -212,6 +180,8 @@ class UiActions(object):
 
                 if extra_info.get("nvidia", False) is True:
                     dict_action["nvidia_uid"] = extra_info.get("uid", False)
+                    dict_action["profile"] = extra_info.get("profile", False)
+                    dict_action["vgpu_id"] = extra_info["gpu_id"]
 
                 if action == "start_paused_domain":
                     update_domain_status(
@@ -226,20 +196,18 @@ class UiActions(object):
                 self.manager.q.workers[next_hyp].put(dict_action)
 
             else:
-                log.error("get next hypervisor in pool {} failed".format(pool_id))
                 failed = True
         else:
             log.error("pool_id {} does not exists??".format(pool_id))
             failed = True
 
         if failed is True:
+            if extra_info.get("nvidia", False) is True:
+                detail = f"desktop not started: no hypervisors online with GPU model available  and profile"
+            else:
+                detail = f"desktop not started: no hypervisors online in pool {pool_id}"
             update_domain_status(
-                status="Failed",
-                id_domain=id_domain,
-                hyp_id=next_hyp,
-                detail="desktop not started: no hypervisors online in pool {}".format(
-                    pool_id
-                ),
+                status="Failed", id_domain=id_domain, hyp_id=next_hyp, detail=detail
             )
 
             log.error(
@@ -406,7 +374,7 @@ class UiActions(object):
                                 ].get_next(domain_id=id_domain)
                         else:
                             next_hyp, extra_info = self.manager.pools[pool_id].get_next(
-                                domain_id=id_domain
+                                domain_id=id_domain, reservables=False
                             )
 
                         if type(next_hyp) is tuple:

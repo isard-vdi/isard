@@ -70,6 +70,10 @@ class ApiDesktopsNonPersistent:
         if desktop == None:
             raise Error("not_found", "Desktop not found", traceback.format_exc())
         ds.delete_desktop(desktop_id, desktop["status"])
+        with app.app_context():
+            r.table("bookings").get_all(
+                ["desktop", desktop_id], index="item_type-id"
+            ).delete().run(db.conn)
 
     def DeleteOthers(self, user_id, template_id):
         """Will leave only one nonpersistent desktops form template `template_id`

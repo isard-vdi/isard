@@ -593,6 +593,8 @@ function actionsDomainDetail(){
             var pk=$(this).closest("[data-pk]").attr("data-pk");
 			setHardwareOptions('#modalEditDesktop');
             setHardwareDomainDefaults('#modalEditDesktop',pk);
+            setReservablesOptions('#modalEditDesktop');
+            setReservablesDomainDefaults('#modalEditDesktop',pk);
             $("#modalEdit")[0].reset();
 			$('#modalEditDesktop').modal({
 				backdrop: 'static',

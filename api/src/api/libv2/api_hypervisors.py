@@ -70,6 +70,8 @@ class ApiHypervisors:
         isard_video_url=os.environ["DOMAIN"],
         isard_proxy_hyper_url="isard-hypervisor",
         isard_hyper_vpn_host="isard-vpn",
+        nvidia_enabled=False,
+        force_get_hyp_info=False,
         user="root",
         only_forced=False,
     ):
@@ -93,6 +95,8 @@ class ApiHypervisors:
                     isard_video_url=isard_video_url,
                     isard_proxy_hyper_url=isard_proxy_hyper_url,
                     isard_hyper_vpn_host=isard_hyper_vpn_host,
+                    nvidia_enabled=nvidia_enabled,
+                    force_get_hyp_info=force_get_hyp_info,
                     description="Added via api",
                     user=user,
                     only_forced=only_forced,
@@ -116,6 +120,8 @@ class ApiHypervisors:
                 isard_video_url=isard_video_url,
                 isard_proxy_hyper_url=isard_proxy_hyper_url,
                 isard_hyper_vpn_host=isard_hyper_vpn_host,
+                nvidia_enabled=nvidia_enabled,
+                force_get_hyp_info=force_get_hyp_info,
                 description="Added via api",
                 user=user,
                 only_forced=only_forced,
@@ -162,6 +168,8 @@ class ApiHypervisors:
         isard_video_url=os.environ["DOMAIN"],
         isard_proxy_hyper_url="isard-hypervisor",
         isard_hyper_vpn_host="isard-vpn",
+        nvidia_enabled=False,
+        force_get_hyp_info=False,
         user="root",
         only_forced=False,
     ):
@@ -192,6 +200,8 @@ class ApiHypervisors:
             },
             "info": {},
             "only_forced": only_forced,
+            "nvidia_enabled": nvidia_enabled,
+            "force_get_hyp_info": force_get_hyp_info,
         }
 
         with app.app_context():
@@ -267,7 +277,7 @@ class ApiHypervisors:
 
     def engine_restart(self):
         try:
-            requests.get("http://isard-engine:5000/engine_restart")
+            requests.get("http://isard-engine:5000/restart")
         except:
             ## The procedure just restarts engine, so no answer is expected:
             pass
@@ -524,3 +534,31 @@ class ApiHypervisors:
                     )
             except:
                 raise Error("internal_server", "Could not stop the hypervisor" + hyp_id)
+
+    def assign_gpus(self):
+        with app.app_context():
+            hypers = [
+                h["hostname"]
+                for h in r.table("hypervisors")
+                .filter({"status": "Online"})
+                .run(db.conn)
+            ]
+            r.table("gpus").update({"physical_device": None}).run(db.conn)
+            physical_devices = list(
+                r.table("vgpus")
+                .pluck("id", "brand", "hyp_id", {"info": "model"})
+                .run(db.conn)
+            )
+            physical_devices = [pd for pd in physical_devices if pd["hyp_id"] in hypers]
+            log.debug(physical_devices)
+            for pd in physical_devices:
+                gpus = list(
+                    r.table("gpus")
+                    .get_all([pd["brand"], pd["info"]["model"]], index="brand-model")
+                    .filter({"physical_device": None})
+                    .run(db.conn)
+                )
+                if len(gpus):
+                    r.table("gpus").get(gpus[0]["id"]).update(
+                        {"physical_device": pd["id"]}
+                    ).run(db.conn)

@@ -6,7 +6,7 @@ from engine.services.db import (
     close_rethink_connection,
     new_rethink_connection,
 )
-from engine.services.log import log
+from engine.services.log import log, logs
 from rethinkdb import r
 from rethinkdb.errors import ReqlNonExistenceError
 
@@ -163,7 +163,9 @@ def update_hyp_thread_status(thread_type, hyp_id, status):
                 ok_worker = True
 
             if ok_worker is True and ok_disk_operations is True:
-                update_hyp_status(hyp_id, "Online", "all threads for hyp are Started")
+                logs.workers.info(
+                    f"All threads for hyp are started in hypervisor: {hyp_id}"
+                )
         close_rethink_connection(r_conn)
         return result
     else:
@@ -342,6 +344,32 @@ def update_uri_hyp(hyp_id, uri):
     return out
 
 
+def get_hyp_info(hyp_id):
+    r_conn = new_rethink_connection()
+    rtable = r.table("hypervisors")
+    try:
+        out = rtable.get(hyp_id).pluck("info").run(r_conn)
+    except ReqlNonExistenceError:
+        close_rethink_connection(r_conn)
+        return False
+
+    close_rethink_connection(r_conn)
+    return out.get("info", False)
+
+
+def get_hyp_default_gpu_models(hyp_id):
+    r_conn = new_rethink_connection()
+    rtable = r.table("hypervisors")
+    try:
+        out = rtable.get(hyp_id).pluck("default_gpu_models").run(r_conn)
+    except ReqlNonExistenceError:
+        close_rethink_connection(r_conn)
+        return {}
+
+    close_rethink_connection(r_conn)
+    return out.get("default_gpu_models", {})
+
+
 def get_hyp_status(hyp_id):
     r_conn = new_rethink_connection()
     rtable = r.table("hypervisors")
@@ -358,21 +386,41 @@ def get_hyp_status(hyp_id):
 def get_hyp_hostname_from_id(id):
     r_conn = new_rethink_connection()
     try:
-        l = r.table("hypervisors").get(id).pluck("hostname", "port", "user").run(r_conn)
+        l = (
+            r.table("hypervisors")
+            .get(id)
+            .pluck(
+                "hostname",
+                "port",
+                "user",
+                "nvidia_enabled",
+                "force_get_hyp_info",
+                "init_vgpu_profiles",
+            )
+            .run(r_conn)
+        )
         close_rethink_connection(r_conn)
     except ReqlNonExistenceError:
         close_rethink_connection(r_conn)
         return False, False, False
     if len(l) > 0:
         if l.__contains__("user") and l.__contains__("port"):
-            return l["hostname"], l["port"], l["user"]
+            return (
+                l["hostname"],
+                l["port"],
+                l["user"],
+                l.get("nvidia_enabled", False),
+                l.get("force_get_hyp_info", False),
+                l.get("init_vgpu_profiles", False),
+            )
+
         else:
             log.error(
                 "hypervisor {} does not contain user or port in database".format(id)
             )
-            return False, False, False
+            return False, False, False, False, False, False
     else:
-        return False, False, False
+        return False, False, False, False, False, False
 
 
 def get_hypers_ids_with_status(status):
@@ -716,31 +764,200 @@ def update_db_hyp_info(id, hyp_info):
     close_rethink_connection(r_conn)
 
 
+def get_vgpu_model_profile_change(vgpu_id):
+    r_conn = new_rethink_connection()
+    rtable = r.table("vgpus")
+
+    d = (
+        rtable.get(vgpu_id)
+        .pluck("model", "vgpu_profile", "changing_to_profile")
+        .run(r_conn)
+    )
+    close_rethink_connection(r_conn)
+    return d
+
+
+def get_vgpu_info(vgpu_id):
+    r_conn = new_rethink_connection()
+    rtable = r.table("vgpus")
+    out = False
+    try:
+        out = rtable.get(vgpu_id).pluck("hyp_id", "info").run(r_conn)
+    except ReqlNonExistenceError:
+        close_rethink_connection(r_conn)
+        return False
+    close_rethink_connection(r_conn)
+    return out
+
+
+def get_domains_started_in_vgpu(vgpu_id):
+    r_conn = new_rethink_connection()
+    rtable = r.table("vgpus")
+
+    profile = rtable.get(vgpu_id).pluck("vgpu_profile").run(r_conn)["vgpu_profile"]
+    mdevs = (
+        rtable.get(vgpu_id)
+        .pluck({"mdevs": [profile]})
+        .run(r_conn)["mdevs"]
+        .get(profile, {})
+    )
+    l_domains = [
+        i["domain_started"]
+        for i in mdevs.values()
+        if type(i.get("domain_started", False)) is str and len(i["domain_started"]) > 0
+    ]
+
+    close_rethink_connection(r_conn)
+    return l_domains
+
+
+def update_vgpu_uuids(vgpu_id, d_uuids):
+    r_conn = new_rethink_connection()
+    rtable = r.table("vgpus")
+
+    rtable.filter({"id": vgpu_id}).update({"mdevs": d_uuids}).run(r_conn)
+    close_rethink_connection(r_conn)
+
+
+def update_vgpu_uuid_started_in_domain(hyp_id, pci_id, profile, mdev_uuid, domain_id):
+    r_conn = new_rethink_connection()
+    rtable = r.table("vgpus")
+
+
+def update_vgpu_uuid_started_in_domain(hyp_id, pci_id, profile, mdev_uuid, domain_id):
+    r_conn = new_rethink_connection()
+    rtable = r.table("vgpus")
+    vgpu_id = "-".join([hyp_id, pci_id])
+    rtable.filter({"id": vgpu_id}).update(
+        {"mdevs": {profile: {mdev_uuid: {"domain_started": domain_id}}}}
+    ).run(r_conn)
+    close_rethink_connection(r_conn)
+
+
+def reset_vgpu_created_started(hyp_id, pci_id, d_mdevs_running):
+    r_conn = new_rethink_connection()
+    rtable = r.table("vgpus")
+    vgpu_id = "-".join([hyp_id, pci_id])
+    out = rtable.get(vgpu_id).run(r_conn)
+    for profile, d in out["mdevs"].items():
+        for uuid64, d_uid in d.items():
+            d_uid["created"] = True if uuid64 in d_mdevs_running.keys() else False
+            d_uid["domain_started"] = False
+            d_uid["domain_reserved"] = False
+    rtable.filter({"id": vgpu_id}).update({"mdevs": out["mdevs"]}).run(r_conn)
+    close_rethink_connection(r_conn)
+
+
+def update_vgpu_profile(vgpu_id, vgpu_profile):
+    r_conn = new_rethink_connection()
+    rtable = r.table("vgpus")
+
+    rtable.filter({"id": vgpu_id}).update({"vgpu_profile": vgpu_profile}).run(r_conn)
+    close_rethink_connection(r_conn)
+
+
+def update_db_hyp_nvidia_info(hyp_id, d_info_nvidia):
+    r_conn = new_rethink_connection()
+    rtable = r.table("vgpus")
+    for pci_bus, d_vgpu in d_info_nvidia.items():
+        vgpu_id = "-".join([hyp_id, pci_bus])
+        try:
+            result = rtable.get(vgpu_id).delete().run(r_conn)
+        except ReqlNonExistenceError:
+            pass
+        d = {}
+        d["id"] = vgpu_id
+        d["hyp_id"] = hyp_id
+        d["force_selected_profile"] = False
+        d["changing_to_profile"] = False
+        # d["selected_profile"] = False
+        d["nvidia_uids"] = {}
+        d["info"] = d_vgpu
+        d["model"] = d_vgpu["model"]
+        d["brand"] = "NVIDIA"
+        result = rtable.insert(d).run(r_conn)
+    close_rethink_connection(r_conn)
+    return True
+
+
+def update_vgpu_created(vgpu_id, profile, uuid64, created=True):
+    r_conn = new_rethink_connection()
+    rtable = r.table("vgpus")
+    result = (
+        rtable.get(vgpu_id)
+        .update({"mdevs": {profile: {uuid64: {"created": created}}}})
+        .run(r_conn)
+    )
+    close_rethink_connection(r_conn)
+    return result
+
+
+def update_vgpu_started(vgpu_id, profile, uuid64, domain_id):
+    now = time.time()
+    r_conn = new_rethink_connection()
+    rtable = r.table("vgpus")
+    result = (
+        rtable.get(vgpu_id)
+        .update(
+            {
+                "mdevs": {
+                    profile: {
+                        uuid64: {
+                            "domain_started": {"timestamp": now, "domain_id": domain_id}
+                        }
+                    }
+                }
+            }
+        )
+        .run(r_conn)
+    )
+    close_rethink_connection(r_conn)
+    return result
+
+
+def update_vgpu_reserved(vgpu_id, profile, uuid64, domain_id):
+    now = time.time()
+    r_conn = new_rethink_connection()
+    rtable = r.table("vgpus")
+    result = (
+        rtable.get(vgpu_id)
+        .update(
+            {
+                "mdevs": {
+                    profile: {
+                        uuid64: {
+                            "domain_reserved": {
+                                "timestamp": now,
+                                "domain_id": domain_id,
+                            }
+                        }
+                    }
+                }
+            }
+        )
+        .run(r_conn)
+    )
+    close_rethink_connection(r_conn)
+    return result
+
+
+def get_vgpu(vgpu_id):
+    r_conn = new_rethink_connection()
+    rtable = r.table("vgpus")
+
+    try:
+        out = rtable.get(vgpu_id).run(r_conn)
+    except ReqlNonExistenceError:
+        close_rethink_connection(r_conn)
+        return False
+    close_rethink_connection(r_conn)
+    return out
+
+
 def get_hyp(hyp_id):
     r_conn = new_rethink_connection()
     rtable = r.table("hypervisors")
 
     out = rtable.get(hyp_id).run(r_conn)
-    close_rethink_connection(r_conn)
-    return out
-
-
-def update_db_default_gpu_models(hyp_id, default_gpu_models):
-    r_conn = new_rethink_connection()
-    rtable = r.table("hypervisors")
-    out = (
-        rtable.get(hyp_id)
-        .update({"default_gpu_models": default_gpu_models})
-        .run(r_conn)
-    )
-    close_rethink_connection(r_conn)
-    return out
-
-
-def update_uids_for_nvidia_id(hyp_id, gpu_id, d_uids):
-    r_conn = new_rethink_connection()
-    rtable = r.table("hypervisors")
-    # out = rtable.get(hyp_id).update({'nvidia_uids': ''}).run(r_conn)
-    out = rtable.get(hyp_id).update({"nvidia_uids": {gpu_id: d_uids}}).run(r_conn)
     close_rethink_connection(r_conn)
     return out

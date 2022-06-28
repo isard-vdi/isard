@@ -89,11 +89,17 @@ class DomainsThread(threading.Thread):
                                 "tag_visible",
                                 "viewer",
                                 "guest_properties",
-                                {"create_dict": {"hardware": ["interfaces", "videos"]}},
+                                {
+                                    "create_dict": {
+                                        "hardware": ["interfaces", "videos"],
+                                        "reservables": True,
+                                    }
+                                },
                                 "kind",
                                 "tag",
                                 "progress",
                                 "jumperurl",
+                                "booking_id",
                             ]
                         )
                         .changes(include_initial=False)

@@ -7,6 +7,7 @@
 import time
 from datetime import datetime, timedelta
 
+import pytz
 from rethinkdb import RethinkDB
 
 from api import app
@@ -80,6 +81,45 @@ class InternalUsers(object):
 
     def list(self):
         return self.users
+
+
+def _get_reservables(item_type, item_id, tolist=False):
+    if item_type == "desktop":
+        data = r.table("domains").get(item_id).run(db.conn)
+        units = 1
+        item_name = data["name"]
+    elif item_type == "deployment":
+        deployment = r.table("deployments").get(item_id).run(db.conn)
+        if not deployment:
+            raise Error("not_found", "Deployment id not found")
+        item_name = deployment["name"]
+        deployment_domains = list(
+            r.table("domains").get_all(item_id, index="tag").run(db.conn)
+        )
+        if not len(deployment_domains):
+            ## Now there is no desktop at the deployment. No reservation will be done.
+            raise (
+                "precondition_required",
+                "Deployment has no desktops to be reserved.",
+            )
+        data = deployment_domains[0]
+        units = len(deployment_domains)
+    else:
+        raise Error("not_found", "Item type " + str(item_type) + " not found")
+
+    if not data["create_dict"].get("reservables") or not any(
+        list(data["create_dict"]["reservables"].values())
+    ):
+        raise Error("precondition_required", "Item has no reservables")
+    data = data["create_dict"]["reservables"]
+    log.debug("GET RESERVABLES: " + str(data))
+    data_without_falses = {k: v for k, v in data.items() if v}
+    if tolist:
+        return (
+            [item for sublist in list(reservables.values()) for item in sublist],
+            units,
+        )
+    return (data_without_falses, units, item_name)
 
 
 def _parse_string(txt):
@@ -247,18 +287,35 @@ def _parse_desktop(desktop):
         }
     else:
         progress = None
+    editable = True
+    if desktop.get("tag"):
+        try:
+            deployment_user = (
+                r.table("deployments")
+                .get(desktop.get("tag"))
+                .pluck("user")
+                .run(db.conn)
+            )["user"]
+            editable = True if deployment_user == desktop["user"] else False
+        except:
+            log.debug(traceback.format_exc())
+            editable = False
     return {
-        "id": desktop["id"],
-        "name": desktop["name"],
-        "state": desktop["status"],
-        "type": desktop["type"],
-        "template": desktop["from_template"],
-        "viewers": desktop["viewers"],
-        "icon": desktop["icon"],
-        "image": desktop["image"],
-        "description": desktop["description"],
-        "ip": desktop.get("ip"),
-        "progress": progress,
+        **{
+            "id": desktop["id"],
+            "name": desktop["name"],
+            "state": desktop["status"],
+            "type": desktop["type"],
+            "template": desktop["from_template"],
+            "viewers": desktop["viewers"],
+            "icon": desktop["icon"],
+            "image": desktop["image"],
+            "description": desktop["description"],
+            "ip": desktop.get("ip"),
+            "progress": progress,
+            "editable": editable,
+        },
+        **_parse_desktop_booking(desktop),
     }
 
 
@@ -286,6 +343,64 @@ def _parse_deployment_desktop(desktop, user_id=False):
     desktop.pop("template")
 
     return desktop
+
+
+def _parse_desktop_booking(desktop):
+    if not desktop["create_dict"].get("reservables") or not any(
+        list(desktop["create_dict"]["reservables"].values())
+    ):
+        return {
+            "needs_booking": False,
+            "next_booking_start": None,
+            "next_booking_end": None,
+            "booking_id": False,
+        }
+
+    if not desktop.get("tag"):
+        item_id = desktop["id"]
+        item_type = "desktop"
+    else:
+        item_id = desktop.get("tag")
+        item_type = "deployment"
+    with app.app_context():
+        try:
+            plan = (
+                r.table("bookings")
+                .get_all([item_type, item_id], index="item_type-id")
+                .filter(lambda plan: plan["end"] > r.now())
+                .order_by("start")
+                .nth(0)
+                .run(db.conn)
+            )
+        except:
+            # log.debug("PLAN IS " + str(len(plan)) + " LENGTH")
+            return {
+                "needs_booking": True,
+                "next_booking_start": None,
+                "next_booking_end": None,
+                "bookings_id": False,
+            }
+    return {
+        "needs_booking": True,
+        "next_booking_start": plan["start"].strftime("%Y-%m-%dT%H:%M%z"),
+        "next_booking_end": plan["end"].strftime("%Y-%m-%dT%H:%M%z"),
+        "booking_id": desktop.get("booking_id", False),
+    }
+
+
+def _parse_deployment_booking(deployment):
+    deployment_domains = list(
+        r.table("domains").get_all(deployment["id"], index="tag").run(db.conn)
+    )
+    if not len(deployment_domains):
+        return {
+            "needs_booking": False,
+            "next_booking_start": None,
+            "next_booking_end": None,
+            "booking_id": False,
+        }
+    desktop = deployment_domains[0]
+    return _parse_desktop_booking(desktop)
 
 
 # suffixes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']

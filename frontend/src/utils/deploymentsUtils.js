@@ -6,13 +6,14 @@ export class DeploymentsUtils {
   }
 
   static parseDeploymentsItem (deployment) {
-    const { id, name, startedDesktops, totalDesktops, visible } = deployment
+    const { id, name, startedDesktops, totalDesktops, visible, needs_booking: needsBooking } = deployment
     return {
       id,
       name,
       startedDesktops,
       totalDesktops,
-      visible
+      visible,
+      needsBooking
     }
   }
 

@@ -94,7 +94,12 @@
             },
             "admin": "Administración",
             "deployments": "Despliegues",
-            "templates": "Plantillas"
+            "templates": "Plantillas",
+            "bookings": {
+                "text": "Reservas",
+                "summary": "Resumen",
+                "planning": "Planificación"
+            }
         },
         "statusbar": {
             "desktops-started": "Escritorios arrancados",
@@ -138,7 +143,8 @@
         "desktop-cards": {
             "actions": {
                 "delete": "Borrar",
-                "template": "Convertir en plantilla"
+                "template": "Convertir en plantilla",
+                "booking": "Reservar"
             },
             "table-header": {
                 "name": "Nombre",
@@ -146,6 +152,10 @@
                 "description": "Descripción",
                 "action": "Acción",
                 "viewers": "Visores"
+            },
+            "notification-bar": {
+                "next-booking": "Próxima reserva",
+                "no-next-booking": "El escritorio no está reservado!"
             },
             "no-info-default": "No hay descripción disponible",
             "open-with": "Accede con",
@@ -205,6 +215,51 @@
                 "error": "Error"
             },
             "button-refresh": "Recargar"
+        },
+        "bookings": {
+            "item": {
+                "event-titles": {
+                    "available": "Disponible",
+                    "unavailable": "No disponible",
+                    "overridable": "Sobreescribible"
+                },
+                "units": "unidades",
+                "split-labels": {
+                    "availability": "Disponibilidad",
+                    "bookings": "Reservas"
+                },
+                "status-bar": {
+                    "buttons": {
+                        "add-booking": "Añadir reserva"
+                    },
+                    "forbid-time": "Antelación requerida",
+                    "max-time": "Tiempo máximo de reserva",
+                    "max-items": "Máximo de reservas"
+                },
+                "modal": {
+                    "title": "Título",
+                    "start-date": "Fecha de inicio",
+                    "start-time": "Hora de inicio",
+                    "end-date": "Fecha de finalización",
+                    "end-time": "Hora de finalización",
+                    "profile": "Perfil",
+                    "select-profile": "Por favor seleccione un perfil",
+                    "create": {
+                        "modal-title": "Añadir reserva",
+                        "button": "Añadir reserva"
+                    },
+                    "edit": {
+                        "modal-title": "Editar reserva",
+                        "button": "Guardar cambios"
+                    },
+                    "view": {
+                        "modal-title": "Ver reserva"
+                    },
+                    "delete": {
+                        "button": "Eliminar"
+                    }
+                }
+            }
         }
     },
     "views": {
@@ -509,7 +564,8 @@
             "delete-deployment": "'{name}' se borrará, continuar?",
             "delete-deployment-desktop": "El escritorio de '{name}' se borrará, continuar?",
             "start-deployment-desktops": "Los escritorios de '{name}' se iniciarán, continuar?",
-            "stop-deployment-desktops": "Los escritorios de '{name}' se pararán, continuar?"
+            "stop-deployment-desktops": "Los escritorios de '{name}' se pararán, continuar?",
+            "delete-event": "La reserva '{name}' se borrará, continuar?"
         },
         "yes": "Si",
         "no": "No",
@@ -526,7 +582,10 @@
             "starting-desktops": "Iniciando los escritorios del despliegue",
             "stopping-desktops": "Parando los escritorios del despliegue",
             "creating-template": "Creando plantilla",
-            "new-template-stop": "Para crear una plantilla es necesario que el escritorio esté parado"
+            "new-template-stop": "Para crear una plantilla es necesario que el escritorio esté parado",
+            "no-availability-event": "No hay disponibilidad en el rango seleccionado",
+            "not-created-event": "No se ha creado el evento",
+            "missing-data": "Faltan datos"
         },
         "loading": "Cargando"
     },
@@ -583,6 +642,8 @@
         "create_desktop_user_quota": "Cuota de usuario de creación de escritorios excedida",
         "create_desktop_group_quota": "Cuota de grupo de creación de escritorios excedida",
         "create_desktop_category_quota": "Cuota de categoría de creación de escritorios excedida",
-        "generic_error": "Se ha producido un error"
+        "generic_error": "Se ha producido un error",
+        "conflict": "Conflicto",
+        "conflict_title": "Conflicto"
     }
 }

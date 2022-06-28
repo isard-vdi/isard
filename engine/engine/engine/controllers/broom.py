@@ -75,7 +75,14 @@ class ThreadBroom(threading.Thread):
             hyps_domain_started = {}
             for hyp_id in hyps_to_try:
                 try:
-                    hostname, port, user = get_hyp_hostname_from_id(hyp_id)
+                    (
+                        hostname,
+                        port,
+                        user,
+                        nvidia_enabled,
+                        force_get_hyp_info,
+                        init_vgpu_profiles,
+                    ) = get_hyp_hostname_from_id(hyp_id)
                     if hostname is False:
                         logs.broom.error(
                             "hyp {} with id has not hostname or is nos in database".format(

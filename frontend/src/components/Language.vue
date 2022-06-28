@@ -5,6 +5,7 @@
 </template>
 
 <script>
+import moment from 'moment'
 
 export default {
   data () {
@@ -24,6 +25,7 @@ export default {
     changeLanguage (lang) {
       localStorage.language = lang
       this.$i18n.locale = lang
+      moment.locale(lang)
     }
   }
 }

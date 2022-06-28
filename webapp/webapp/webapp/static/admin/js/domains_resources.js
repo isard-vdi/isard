@@ -404,7 +404,6 @@ $(document).ready(function() {
             }).modal('show');
             $('#modalQosDisk #modalQosDiskForm').parsley();
 
-    });
 
     $("#modalQosDisk #send").on('click', function(e){
         var form = $('#modalQosDiskForm');
@@ -446,8 +445,7 @@ $(document).ready(function() {
                     });
                 }
         }
-            
-    });
+      });
 
 
     // INTERFACES

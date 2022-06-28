@@ -7,7 +7,24 @@
             img-alt='' img-top no-body
           >
             <vue-fab v-if="desktop.editable && !(desktop.state && desktop.type === 'nonpersistent')" icon="more_vert" mainBtnColor="#bcc6cc" class='info-icon position-absolute' size='small' unfoldDirection='down' :scrollAutoHide="false">
-               <fab-item v-if="desktop.type === 'persistent'" :idx="1"
+                <fab-item  :idx="0"
+                  @clickItem="goToImagesList({itemId: desktop.id, returnPage: currentRouteName})"
+                  icon='image' color='#318bb5'
+                  v-b-tooltip="{  title: 'Change Image',
+                                  placement: 'top',
+                                  customClass: 'isard-tooltip',
+                                  trigger: 'hover' }">
+                </fab-item>
+                <fab-item  :idx="2"
+                  v-if="getUser.role_id != 'user' && desktop.type === 'persistent'"
+                  @clickItem="onClickGoToNewTemplate(desktop.id)"
+                  icon='content_copy' color='#97c277'
+                  v-b-tooltip="{  title: `${$t('components.desktop-cards.actions.template')}`,
+                                  placement: 'top',
+                                  customClass: 'isard-tooltip',
+                                  trigger: 'hover' }">
+                </fab-item>
+                <fab-item v-if="desktop.type === 'persistent'" :idx="1"
                  @clickItem="onClickDeleteDesktop"
                   icon='delete' color='#e34934'
                   v-b-tooltip="{  title: `${$t('components.desktop-cards.actions.delete')}`,
@@ -15,24 +32,12 @@
                                  customClass: 'isard-tooltip',
                                   trigger: 'hover' }">
                 </fab-item>
-                <fab-item  :idx="0"
-                @clickItem="goToImagesList({itemId: desktop.id, returnPage: currentRouteName})"
-                  icon='image' color='#318bb5'
-                  v-b-tooltip="{  title: 'Change Image',
-                                  placement: 'top',
-                                  customClass: 'isard-tooltip',
-                                  trigger: 'hover' }">
-                 </fab-item>
-                 <fab-item  :idx="2"
-                 v-if="getUser.role_id != 'user' && desktop.type === 'persistent'"
-                @clickItem="onClickGoToNewTemplate(desktop.id)"
-                  icon='content_copy' color='#97c277'
-                  v-b-tooltip="{  title: `${$t('components.desktop-cards.actions.template')}`,
-                                  placement: 'top',
-                                  customClass: 'isard-tooltip',
-                                  trigger: 'hover' }">
-                 </fab-item>
             </vue-fab>
+
+            <!-- Desktop next booking -->
+            <div v-if="desktop.needsBooking" class='machine-notification-bar px-4 d-flex flex-row align-content-center text-white' :class="notificationBarCssClass">
+              <p class='mb-0 py-2 text-white'>{{ getBookingNotificationBar(desktop.nextBookingStart) }}</p>
+            </div>
 
             <div class='p-2 h-100 d-flex flex-wrap flex-column' :class="{'startedHighlight': desktopState === desktopStates.started}">
               <div class='flex-grow-1'>
@@ -40,6 +45,10 @@
                 <!-- Title -->
                 <div class='font-weight-bold card-title ml-2 mt-2 mb-2'
                   v-b-tooltip="{ title: `${getCardTitle.length > MAX_TITLE_SIZE ? getCardTitle : ''}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }">
+                    <b-iconstack v-if="desktop.editable && desktop.needsBooking" @click="onClickBookingDesktop" font-scale="1" role="button" :title="$t('components.desktop-cards.actions.booking')">
+                      <b-icon stacked icon="calendar" variant="warning"></b-icon>
+                      <b-icon stacked icon="exclamation-triangle-fill" scale="0.5" shift-v="-1" variant="warning"></b-icon>
+                    </b-iconstack>
                     {{ getCardTitle | truncate(MAX_TITLE_SIZE) }}
                 </div>
 
@@ -70,7 +79,7 @@
                       class="card-button"
                       :active="true"
                       @buttonClicked="chooseDesktop(desktop.id)"
-                      :buttColor = "buttCssColor"
+                      :buttonClass = "buttCssColor"
                       :spinnerActive ="false"
                       :buttText = "$t('views.select-template.status.notCreated.action')"
                       :iconName = "desktop.buttonIconName">
@@ -78,9 +87,9 @@
                   <!-- Main action button persistent-->
                   <DesktopButton v-if="desktop.type === 'persistent' || (desktop.type === 'nonpersistent' && desktop.state && desktopState ===  desktopStates.stopped )"
                       class="card-button"
-                      :active="true"
+                      :active="canStart"
                       @buttonClicked="changeDesktopStatus({ action: status[desktopState || 'stopped'].action, desktopId: desktop.id })"
-                      :buttColor = "buttCssColor"
+                      :buttonClass = "canStart ? buttCssColor : ''"
                       :spinnerActive ="false"
                       :buttText = "$t(`views.select-template.status.${desktopState}.action`)"
                       :iconName = "desktop.buttonIconName">
@@ -90,7 +99,7 @@
                       class="card-button"
                       :active="true"
                       @buttonClicked="deleteDesktop(desktop.id)"
-                      buttColor = "btn-red"
+                      buttonClass = "btn-red"
                       :spinnerActive ="false"
                       :buttText = "$t('views.select-template.remove')"
                       iconName = "trash">
@@ -115,7 +124,7 @@
                   <DesktopButton
                     v-if="!hideViewers && desktop.viewers && desktop.viewers.length === 1"
                     :active="desktopState === desktopStates.started || (desktopState === desktopStates.waitingip && !singleViewerNeedsIp)"
-                    :buttColor = "buttViewerCssColor"
+                    :buttonClass = "buttViewerCssColor"
                     :buttText="getViewerText"
                     variant="primary"
                     :spinnerActive="waitingIp"
@@ -150,6 +159,7 @@ import { mapActions, mapGetters } from 'vuex'
 import IsardDropdown from '@/components/shared/IsardDropdown.vue'
 import DesktopButton from '@/components/desktops/Button.vue'
 import { desktopStates, status } from '@/shared/constants'
+import { DateUtils } from '@/utils/dateUtils'
 
 const MAX_TITLE_SIZE = 20
 const MAX_DESCRIPTION_SIZE = 30
@@ -173,8 +183,16 @@ export default {
       'createDesktop',
       'navigate',
       'goToImagesList',
-      'goToNewTemplate'
+      'goToNewTemplate',
+      'goToItemBooking'
     ]),
+    getBookingNotificationBar (date) {
+      if (date) {
+        return i18n.t('components.desktop-cards.notification-bar.next-booking') + ': ' + DateUtils.formatAsTime(date) + ' ' + DateUtils.formatAsDayMonth(date)
+      } else {
+        return i18n.t('components.desktop-cards.notification-bar.no-next-booking')
+      }
+    },
     chooseDesktop (template) {
       this.$snotify.clear()
 
@@ -229,6 +247,10 @@ export default {
         ],
         placeholder: ''
       })
+    },
+    onClickBookingDesktop () {
+      const data = { id: this.desktop.id, type: 'desktop', name: this.desktop.name }
+      this.goToItemBooking(data)
     }
   },
   computed: {
@@ -236,7 +258,7 @@ export default {
     filterViewerFromList () {
       return DesktopUtils.filterViewerFromList(this.desktop.viewers, this.getDefaultViewer)
     },
-    stateBarCssClass () {
+    notificationBarCssClass () {
       const states = {
         stopped: 'state-off',
         started: 'state-on',
@@ -244,9 +266,10 @@ export default {
         error: 'state-error',
         failed: 'state-failed',
         working: 'state-loading',
-        'shutting-down': 'state-loading'
+        'shutting-down': 'state-loading',
+        booking: 'booking-notification'
       }
-      return states[this.desktopState]
+      return states[this.desktop.needsBooking ? 'booking' : this.desktopState]
     },
     buttCssColor () {
       const stateColors = {
@@ -325,6 +348,13 @@ export default {
     },
     currentRouteName () {
       return this.$route.name
+    },
+    canStart () {
+      if (this.desktop.needsBooking) {
+        return this.desktop.bookingId
+      } else {
+        return true
+      }
     }
   },
   data () {

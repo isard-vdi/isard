@@ -64,7 +64,7 @@
                 <DesktopButton
                     v-if="!hideViewers && data.item.viewers !== undefined && data.item.viewers.length === 1"
                     :active="getItemState(data.item) === desktopStates.started"
-                    :buttColor = "buttViewerCssColor"
+                    :buttonClass = "buttViewerCssColor"
                     :buttText="data.item.viewers[0]"
                     variant="primary"
                     :spinnerActive="waitingIp"
@@ -92,7 +92,7 @@
                     class="table-action-button"
                     :active="true"
                     @buttonClicked="chooseDesktop(data.item.id)"
-                    :buttColor = "buttCssColor(getItemState(data.item))"
+                    :buttonClass = "buttCssColor(getItemState(data.item))"
                     :spinnerActive ="false"
                     :buttText = "$t('views.select-template.status.notCreated.action')"
                     :iconName = "data.item.buttonIconName">
@@ -102,7 +102,7 @@
                     class="table-action-button"
                     :active="true"
                     @buttonClicked="changeDesktopStatus({ action: status[getItemState(data.item) || 'stopped'].action, desktopId: data.item.id })"
-                    :buttColor = "buttCssColor(getItemState(data.item))"
+                    :buttonClass = "buttCssColor(getItemState(data.item))"
                     :spinnerActive ="false"
                     :buttText = "$t(`views.select-template.status.${getItemState(data.item)}.action`)"
                     :iconName = "data.item.buttonIconName">
@@ -112,7 +112,7 @@
                     class="table-action-button"
                     :active="true"
                     @buttonClicked="deleteDesktop(data.item.id)"
-                    buttColor = "btn-red"
+                    buttonClass = "btn-red"
                     :spinnerActive ="false"
                     :buttText = "$t('views.select-template.remove')"
                     iconName = "trash">
@@ -121,6 +121,11 @@
             <template #cell(delete)='data'>
               <div class='d-flex justify-content-center align-items-center'>
                 <a class='cursor-pointer' @click="onClickDeleteDesktop(data.item)"><b-icon icon="trash" variant="danger"></b-icon></a>
+              </div>
+            </template>
+            <template #cell(booking)='data'>
+              <div class='d-flex justify-content- align-items-center'>
+                <a class='cursor-pointer' @click="onClickBookingDesktop(data.item)"><b-icon icon="calendar" variant="info"></b-icon></a>
               </div>
             </template>
           </b-table>
@@ -180,7 +185,8 @@ export default {
       'deleteDesktop',
       'openDesktop',
       'changeDesktopStatus',
-      'createDesktop'
+      'createDesktop',
+      'goToItemBooking'
     ]),
     chooseDesktop (template) {
       const data = new FormData()
@@ -257,6 +263,10 @@ export default {
         ],
         placeholder: ''
       })
+    },
+    onClickBookingDesktop (desktop) {
+      const data = { id: desktop.id, type: 'desktop' }
+      this.goToItemBooking(data)
     }
   },
   data () {
@@ -313,6 +323,13 @@ export default {
         },
         {
           key: 'delete',
+          label: '',
+          thStyle: { width: '5%' },
+          thClass: `${this.desktops[0].type === 'persistent' ? '' : 'd-none'}`,
+          tdClass: `${this.desktops[0].type === 'persistent' ? '' : 'd-none'}`
+        },
+        {
+          key: 'booking',
           label: '',
           thStyle: { width: '5%' },
           thClass: `${this.desktops[0].type === 'persistent' ? '' : 'd-none'}`,

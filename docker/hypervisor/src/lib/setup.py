@@ -55,6 +55,12 @@ def SetupHypervisor():
         "isard_proxy_hyper_url": proxy_hyper_url,
         "isard_hyper_vpn_host": isard_hyper_vpn_host,
         "only_forced": json.loads(os.environ.get("ONLY_FORCED_HYP", "false").lower()),
+        "nvidia_enabled": True
+        if os.environ.get("GPU_NVIDIA_SCAN") == "true"
+        else False,
+        "force_get_hyp_info": True
+        if os.environ.get("GPU_NVIDIA_RESCAN") == "true"
+        else False,
     }
 
     ## Adding hyper. Received dict with certs and number

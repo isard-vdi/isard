@@ -6,9 +6,11 @@
 # !/usr/bin/env python
 # coding=utf-8
 
+import json
 import random
 import sys
 import time
+import traceback
 from string import ascii_lowercase, digits
 
 from rethinkdb import r
@@ -66,15 +68,16 @@ class Populate(object):
             self.check_integrity()
             return True
         except Exception as e:
-            # exc_type, exc_obj, exc_tb = sys.exc_info()
-            # fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            log.error(e)
+            log.error(traceback.format_exc())
             return False
 
     # ~ def defaults(self):
     # ~ return self.check_integrity()
 
     def check_integrity(self, commit=True):
+        log.info(
+            "------------ CHECKING DATABASE VERSION, TABLES AND INDEXES ------------"
+        )
         dbtables = r.table_list().run(self.conn)
         newtables = [
             "roles",
@@ -99,6 +102,14 @@ class Populate(object):
             "remotevpn",
             "deployments",
             "secrets",
+            "bookings",
+            "bookings_resources",
+            "bookings_priority",
+            "resource_planner",
+            "gpu_profiles",
+            "gpus",
+            "reservables_vgpus",
+            "vgpus",
             # config should be the last table to be created
             # api waits for config table to start
             "config",
@@ -987,8 +998,8 @@ class Populate(object):
 
         if type(txt) is not str:
             txt = txt.decode("utf-8")
-        locale.setlocale(locale.LC_ALL, "ca_ES")
-        prog = re.compile("[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$", re.L)
+        # locale.setlocale(locale.LC_ALL, 'ca_ES')
+        prog = re.compile("[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$")
         if not prog.match(txt):
             return False
         else:
@@ -1137,3 +1148,238 @@ class Populate(object):
             category = found[0]['id'].split('_')[0]
             return {'code':code,'role':'user', 'category':category, 'group':found[0]['id']}  
         return False """
+
+    """ RESERVABLES & BOOKINGS"""
+
+    def bookings(self):
+        try:
+            log.info("Table bookings not found, creating...")
+            r.table_create("bookings", primary_key="id").run(self.conn)
+        except:
+            None
+        try:
+            self.index_create("bookings", ["item_id"])
+        except:
+            None
+        try:
+            r.table("bookings").index_create(
+                "item_type-id",
+                [r.row["item_type"], r.row["item_id"]],
+            ).run(self.conn)
+        except:
+            None
+        try:
+            self.index_create("bookings", ["user_id"])
+        except:
+            None
+        try:
+            r.table("bookings").index_create(
+                "reservables_vgpus", r.row["reservables"]["vgpus"]
+            ).run(self.conn)
+        except:
+            None
+
+    def bookings_resources(self):
+        try:
+            log.info("Table bookings_resources not found, creating...")
+            r.table_create("bookings_resources", primary_key="id").run(self.conn)
+        except:
+            None
+
+    def bookings_priority(self):
+        try:
+            log.info("Table bookings_priority not found, creating...")
+            r.table_create("bookings_priority", primary_key="id").run(self.conn)
+        except:
+            None
+        try:
+            self.index_create("bookings_priority", ["rule_id"])
+        except:
+            None
+        try:
+            priority = [
+                {
+                    "id": "default",
+                    "rule_id": "default",
+                    "name": "default",
+                    "description": "Applied to non matching users",
+                    "allowed": {
+                        "roles": [],
+                        "categories": None,
+                        "groups": None,
+                        "users": None,
+                    },
+                    "priority": 1,
+                    "forbid_time": 0,
+                    "max_time": 60,
+                    "max_items": 1,
+                },
+                {
+                    "id": "default admins",
+                    "rule_id": "default",
+                    "name": "default admins",
+                    "description": "Applied to all admin users",
+                    "allowed": {
+                        "roles": ["admin"],
+                        "categories": None,
+                        "groups": None,
+                        "users": None,
+                    },
+                    "priority": 999,
+                    "forbid_time": 1,
+                    "max_time": 999999,
+                    "max_items": 999999,
+                },
+            ]
+            r.table("bookings_priority").insert(priority).run(self.conn)
+        except:
+            None
+
+    def resource_planner(self):
+        try:
+            log.info("Table resource_planner not found, creating...")
+            r.table_create("resource_planner", primary_key="id").run(self.conn)
+        except:
+            None
+        try:
+            self.index_create(
+                "resource_planner", ["item_type", "item_id", "subitem_id", "start"]
+            )
+        except:
+            None
+        try:
+            r.table("resource_planner").index_create(
+                "default_order", [r.row["item_type"], r.row["item_id"], r.row["start"]]
+            ).run(self.conn)
+        except:
+            None
+        try:
+            r.table("resource_planner").index_create(
+                "type-item",
+                [r.row["item_type"], r.row["item_id"]],
+            ).run(self.conn)
+        except:
+            None
+        try:
+            r.table("resource_planner").index_create(
+                "type-item-subitem",
+                [r.row["item_type"], r.row["item_id"], r.row["subitem_id"]],
+            ).run(self.conn)
+        except:
+            None
+        try:
+            r.table("resource_planner").index_create(
+                "item-subitem",
+                [r.row["item_id"], r.row["subitem_id"]],
+            ).run(self.conn)
+        except:
+            None
+
+    def gpu_profiles(self):
+        ## List of gpus
+        try:
+            log.info("Table gpu_profiles not found, creating...")
+            r.table_create("gpu_profiles", primary_key="id").run(self.conn)
+        except:
+            None
+        try:
+            r.table("gpu_profiles").index_create(
+                "brand-model", [r.row["brand"], r.row["model"]]
+            ).run(self.conn)
+        except:
+            None
+        try:
+            r.table("gpu_profiles").index_create(
+                "brand-model-profile",
+                [r.row["brand"], r.row["model"], r.row["profiles"]["profile"]],
+            ).run(self.conn)
+        except:
+            None
+        try:
+            r.table("gpu_profiles").index_create(
+                "profile", r.row["profiles"]["profile"]
+            ).run(self.conn)
+        except:
+            None
+        try:
+            r.table("gpu_profiles").index_create(
+                "profile_id", r.row["profiles"]["id"]
+            ).run(self.conn)
+        except:
+            None
+        try:
+            self.index_create("gpu_profiles", ["brand", "model"])
+        except:
+            None
+
+        f = open("./initdb/profiles/gpu_profiles.json")
+        gpu_profiles = json.loads(f.read())
+        f.close()
+        r.table("gpu_profiles").insert(gpu_profiles, conflict="update").run(self.conn)
+
+    def gpus(self):
+        ## Gpus administrator activated in system
+        try:
+            log.info("Table gpus not found, creating...")
+            r.table_create("gpus", primary_key="id").run(self.conn)
+        except:
+            None
+        try:
+            r.table("gpus").index_create(
+                "brand-model", [r.row["brand"], r.row["model"]]
+            ).run(self.conn)
+        except:
+            None
+        try:
+            self.index_create("gpus", ["brand", "model"])
+        except:
+            None
+
+    def vgpus(self):
+        ## Engine detected VGPUS
+        try:
+            log.info("Table vgpus not found, creating...")
+            r.table_create("vgpus", primary_key="id").run(self.conn)
+        except:
+            None
+        try:
+            r.table("vgpus").index_create(
+                "brand-model", [r.row["brand"], r.row["model"]]
+            ).run(self.conn)
+        except:
+            None
+        try:
+            self.index_create("vgpus", ["brand", "model"])
+        except:
+            None
+
+    def reservables_vgpus(self):
+        try:
+            log.info("Table reservables_vgpus not found, creating...")
+            r.table_create("reservables_vgpus", primary_key="id").run(self.conn)
+        except:
+            None
+        try:
+            default_reservable_vgpu = {
+                "allowed": {
+                    "categories": False,
+                    "groups": False,
+                    "roles": [],
+                    "users": False,
+                },
+                "brand": "None",
+                "description": "None",
+                "heads": 0,
+                "id": "None",
+                "model": "None",
+                "name": "No GPU",
+                "profile": "None",
+                "ram": 0,
+                "vram": 0,
+                "units": 0,
+            }
+            r.table("reservables_vgpus").insert(
+                default_reservable_vgpu, conflict="update"
+            ).run(self.conn)
+        except:
+            None
