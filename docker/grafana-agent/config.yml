@@ -10,9 +10,13 @@ metrics:
         - job_name: glances_exporter
           static_configs:
             - targets: ['host.docker.internal:9091']
+              labels:
+                domain: ${DOMAIN}
         - job_name: stats_exporter
           static_configs:
             - targets: ['isard-stats-go:9091']
+              labels:
+                domain: ${DOMAIN}
           scrape_interval: 30s
           scrape_timeout: 30s
       remote_write:

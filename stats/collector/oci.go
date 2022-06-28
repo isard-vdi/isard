@@ -121,10 +121,10 @@ func (o *OCI) getUsage(start, end time.Time) ([]usageapi.UsageSummary, error) {
 			RequestSummarizedUsagesDetails: usageapi.RequestSummarizedUsagesDetails{
 				TenantId:          common.String(o.tenancy),
 				Filter:            nil,
-				Granularity:       usageapi.RequestSummarizedUsagesDetailsGranularityHourly,
+				Granularity:       usageapi.RequestSummarizedUsagesDetailsGranularityDaily,
 				GroupBy:           []string{"service", "skuName"},
-				TimeUsageEnded:    &common.SDKTime{Time: end.Truncate(time.Hour)},
-				TimeUsageStarted:  &common.SDKTime{Time: start.Truncate(time.Hour)},
+				TimeUsageEnded:    &common.SDKTime{Time: end.Truncate(24 * time.Hour)},
+				TimeUsageStarted:  &common.SDKTime{Time: start.Truncate(24 * time.Hour)},
 				IsAggregateByTime: common.Bool(true),
 				QueryType:         usageapi.RequestSummarizedUsagesDetailsQueryTypeCost,
 			},
