@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 31
+release_version = 32
+# release 32: Remove reservables bug when updating desktop
 # release 31: Removed all nvidia video types and added none type
 # release 30: Moved domain options to guest_properties
 # release 29: Add volatile path to hypervisors_pools
@@ -922,6 +923,16 @@ class Upgrade(object):
                 self.conn
             )
 
+        if version == 32:
+            try:
+                r.table(table).filter(
+                    {"create_dict": {"reservables": {"vgpus": [None]}}}
+                ).replace(r.row.without({"create_dict": {"reservables": True}})).run(
+                    self.conn
+                )
+            except Exception as e:
+                print(e)
+                None
         return True
 
     """

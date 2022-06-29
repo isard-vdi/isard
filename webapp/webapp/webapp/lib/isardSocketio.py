@@ -1919,7 +1919,7 @@ def socketio_domain_edit(form_data):
     create_dict.pop("hardware", None)
 
     create_dict["create_dict"]["reservables"] = create_dict.pop("reservables")
-    if create_dict["create_dict"]["reservables"]["vgpus"] == ["None"]:
+    if create_dict["create_dict"]["reservables"]["vgpus"] == [None]:
         create_dict["create_dict"]["reservables"]["vgpus"] = None
 
     res = app.isardapi.update_domain(create_dict.copy())
@@ -2202,7 +2202,7 @@ def socketio_admins_domain_edit(form_data):
     create_dict.pop("hardware", None)
 
     create_dict["create_dict"]["reservables"] = create_dict.pop("reservables")
-    if create_dict["create_dict"]["reservables"]["vgpus"] == ["None"]:
+    if create_dict["create_dict"]["reservables"]["vgpus"] == [None]:
         create_dict["create_dict"]["reservables"]["vgpus"] = None
 
     res = app.isardapi.update_domain(create_dict.copy())
