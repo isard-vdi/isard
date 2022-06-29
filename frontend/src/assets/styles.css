@@ -313,6 +313,11 @@
 
 .visibleHighlight {
   background-color: #EAF5E1;
+}
+
+.table-list .visibleHighlight {
+  background-color: #EAF5E1;
+  box-shadow: 0 2px 4px 0 #b2bec3;
   border-bottom-right-radius: 20px;
   border-bottom-left-radius: 20px;
 }

@@ -14,7 +14,7 @@
           cols='12'
           class='d-flex flex-row flex-wrap justify-content-start'
         >
-          <b-table :items='desktops' :fields='fields' :tbody-tr-class="visible ? 'visibleHighlight' : ''" :responsive="true">
+          <b-table :items='desktops' :fields='fields' :responsive="true">
             <template #cell(image)='data'>
               <!-- INFO -->
               <b-icon

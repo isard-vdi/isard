@@ -165,11 +165,11 @@ export default {
     }
 
     const visibleClass = () => {
-      return deployment.value.visible ? 'btn-grey' : 'btn-blue'
+      return deployment.value.visible ? 'btn-blue' : 'btn-grey'
     }
 
     const toggleVisibleIcon = () => {
-      return deployment.value.visible ? 'eye-slash-fill' : 'eye-fill'
+      return deployment.value.visible ? 'eye-fill' : 'eye-slash-fill'
     }
 
     const goToVideowall = () => {

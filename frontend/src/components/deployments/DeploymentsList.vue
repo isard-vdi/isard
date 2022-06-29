@@ -18,7 +18,7 @@
           <b-table :items='deployments' :fields='fields' :tbody-tr-class="rowClass" :responsive="true" @row-clicked="redirectDeployment">
             <template #cell(visible)='data'>
               <p class='text-dark-gray m-0 text-center'>
-                <b-icon :icon="visibleIcon(data.item)" scale="1"></b-icon>
+                <b-badge :variant="data.item.visible ? 'success' : 'danger'">{{ data.item.visible ? $t('views.deployment.visibility.visible') : $t('views.deployment.visibility.not-visible') }}</b-badge>
               </p>
             </template>
             <template #cell(name)='data'>
@@ -77,10 +77,6 @@ export default {
       context.root.$router.push({ name: 'deployment_desktops', params: { id: item.id } })
     }
 
-    const visibleIcon = (deployment) => {
-      return deployment.visible ? 'check' : 'x'
-    }
-
     const deleteDeployment = (deployment) => {
       context.root.$snotify.clear()
 
@@ -110,7 +106,6 @@ export default {
 
     return {
       rowClass,
-      visibleIcon,
       redirectDeployment,
       deleteDeployment,
       onClickBookingDesktop

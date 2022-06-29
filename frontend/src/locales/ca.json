@@ -395,6 +395,11 @@
             },
             "desktop": {
                 "not-available": "Escriptori no disponible"
+            },
+            "visibility-warning": "Els escriptoris d'aquest desplegament són {visibility}.",
+            "visibility": {
+                "visible": "Visibles",
+                "not-visible": "No visibles"
             }
         },
         "direct-viewer": {

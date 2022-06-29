@@ -472,6 +472,11 @@
             },
             "desktop": {
                 "not-available": "Desktop not available"
+            },
+            "visibility-warning": "The desktops from this deployment are {visibility}.",
+            "visibility": {
+                "visible": "Visible",
+                "not-visible": "Not visible"
             }
         },
         "direct-viewer": {
