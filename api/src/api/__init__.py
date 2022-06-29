@@ -3,9 +3,6 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
-#!flask/bin/python
-# coding=utf-8
-
 import os
 import shutil
 
@@ -70,7 +67,9 @@ cfg = loadConfig(app)
 if not cfg.init_app(app):
     exit(0)
 
-import os
+from api.libv2.load_validator_schemas import load_validators
+
+app.validators = load_validators()
 
 debug = True if os.environ["LOG_LEVEL"] == "DEBUG" else False
 
