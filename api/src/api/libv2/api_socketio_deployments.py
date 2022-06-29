@@ -106,6 +106,18 @@ class DeploymentsThread(threading.Thread):
                                 .run(db.conn),
                                 "visible": c["new_val"]["create_dict"]["tag_visible"],
                             }
+                            socketio.emit(
+                                "deployment_update",
+                                json.dumps(deployment),
+                                namespace="/userspace",
+                                room=user,
+                            )
+                            socketio.emit(
+                                "deployments_update",
+                                json.dumps(deployment),
+                                namespace="/userspace",
+                                room=user,
+                            )
 
                         socketio.emit(
                             "deployments_" + event,
