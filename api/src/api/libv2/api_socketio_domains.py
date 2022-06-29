@@ -68,7 +68,6 @@ class DomainsThread(threading.Thread):
         self.stop = False
 
     def run(self):
-        last_deployment = None
         while True:
             try:
                 with app.app_context():
@@ -258,24 +257,6 @@ class DomainsThread(threading.Thread):
                                     }
                                 )
                                 .run(db.conn)
-                            )
-                            # And then update deployments to user owner (if the deployment still exists)
-                            if last_deployment == deployment:
-                                continue
-                            else:
-                                last_deployment = deployment
-
-                            socketio.emit(
-                                "deployment_update",
-                                json.dumps(deployment),
-                                namespace="/userspace",
-                                room=deployment_user,
-                            )
-                            socketio.emit(
-                                "deployments_update",
-                                json.dumps(deployment),
-                                namespace="/userspace",
-                                room=deployment_user,
                             )
 
             except ReqlDriverError:
