@@ -458,7 +458,10 @@
                 "name": "Nombre",
                 "visible": "Visible",
                 "started-desktops": "Escritorios arrancados / Total",
-                "actions": "Acciones"
+                "actions": "Acciones",
+                "template": "Plantilla",
+                "desktop-name": "Nombre del escritorio",
+                "description": "Descripción"
             }
         },
         "deployment": {

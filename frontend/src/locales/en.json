@@ -460,7 +460,10 @@
                 "name": "Name",
                 "visible": "Visible",
                 "started-desktops": "Started desktops / Total",
-                "actions": "Actions"
+                "actions": "Actions",
+                "template": "Template",
+                "desktop-name": "Desktops name",
+                "description": "Description"
             }
         },
         "deployment": {

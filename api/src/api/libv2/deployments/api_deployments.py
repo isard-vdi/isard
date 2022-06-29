@@ -38,7 +38,18 @@ def lists(user_id):
         deployments = list(
             r.table("deployments")
             .get_all(user_id, index="user")
-            .pluck("id", "name", {"create_dict": {"tag_visible": True}})
+            .pluck(
+                "id",
+                "name",
+                {
+                    "create_dict": {
+                        "tag_visible": True,
+                        "template": True,
+                        "name": True,
+                        "description": True,
+                    }
+                },
+            )
             .merge(
                 lambda deployment: {
                     "totalDesktops": r.table("domains")
@@ -48,7 +59,12 @@ def lists(user_id):
                     .get_all(deployment["id"], index="tag")
                     .filter({"status": "Started"})
                     .count(),
+                    "description": deployment["create_dict"]["description"],
                     "visible": deployment["create_dict"]["tag_visible"],
+                    "template": r.table("domains").get(
+                        deployment["create_dict"]["template"]
+                    )["name"],
+                    "desktop_name": deployment["create_dict"]["name"],
                 }
             )
             .run(db.conn)

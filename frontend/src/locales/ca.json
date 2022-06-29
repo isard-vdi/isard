@@ -383,7 +383,10 @@
                 "name": "Nom",
                 "visible": "Visible",
                 "started-desktops": "Escriptoris arrencats / Total",
-                "actions": "Accions"
+                "actions": "Accions",
+                "template": "Plantilla",
+                "desktop-name": "Nom de l'escriptori",
+                "description": "Descripció"
             }
         },
         "deployment": {

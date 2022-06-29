@@ -140,7 +140,28 @@ export default {
           key: 'name',
           sortable: true,
           label: i18n.t('views.deployments.table-header.name'),
-          thStyle: { width: '25%' },
+          thStyle: { width: '20%' },
+          tdClass: 'name'
+        },
+        {
+          key: 'description',
+          sortable: true,
+          label: i18n.t('views.deployments.table-header.description'),
+          thStyle: { width: '20%' },
+          tdClass: 'name'
+        },
+        {
+          key: 'desktopName',
+          sortable: true,
+          label: i18n.t('views.deployments.table-header.desktop-name'),
+          thStyle: { width: '20%' },
+          tdClass: 'name'
+        },
+        {
+          key: 'template',
+          sortable: true,
+          label: i18n.t('views.deployments.table-header.template'),
+          thStyle: { width: '20%' },
           tdClass: 'name'
         },
         {
