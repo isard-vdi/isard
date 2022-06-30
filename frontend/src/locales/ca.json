@@ -363,7 +363,7 @@
                 },
                 "shutting-down": {
                     "text": "Apagant",
-                    "action": "Apagant"
+                    "action": "Forçar parada"
                 },
                 "downloading": {
                     "text": "Descarregant"

@@ -73,7 +73,7 @@
                 </div>
 
                 <!-- Actions -->
-                <div v-if="[desktopStates.started, desktopStates.waitingip, desktopStates.stopped, desktopStates.failed].includes(desktopState)" class='d-flex flex-row justify-content-start ml-3 mb-1'>
+                <div v-if="[desktopStates.started, desktopStates.waitingip, desktopStates.stopped, desktopStates.failed, desktopStates['shutting-down']].includes(desktopState)" class='d-flex flex-row justify-content-start ml-3 mb-1'>
                   <!-- Main action button nonpersistent -->
                   <DesktopButton v-if="!desktop.state"
                       class="card-button"
@@ -274,6 +274,7 @@ export default {
     buttCssColor () {
       const stateColors = {
         stopped: 'btn-green',
+        'shutting-down': 'btn-red',
         started: 'btn-red',
         waitingip: 'btn-red',
         failed: 'btn-red'

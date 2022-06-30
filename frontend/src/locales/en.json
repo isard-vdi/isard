@@ -440,7 +440,7 @@
                 },
                 "shutting-down": {
                     "text": "Stopping",
-                    "action": "Stopping"
+                    "action": "Force stop"
                 },
                 "downloading": {
                     "text": "Downloading"

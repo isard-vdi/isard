@@ -98,7 +98,7 @@
                     :iconName = "data.item.buttonIconName">
                 </DesktopButton>
                 <!-- Main action button persistent-->
-                <DesktopButton v-if="(data.item.type === 'persistent' || (data.item.type === 'nonpersistent' && data.item.state && getItemState(data.item) ===  desktopStates.stopped )) && ![desktopStates.working, desktopStates['shutting-down']].includes(getItemState(data.item))"
+                <DesktopButton v-if="(data.item.type === 'persistent' || (data.item.type === 'nonpersistent' && data.item.state && getItemState(data.item) ===  desktopStates.stopped )) && ![desktopStates.working].includes(getItemState(data.item))"
                     class="table-action-button"
                     :active="true"
                     @buttonClicked="changeDesktopStatus({ action: status[getItemState(data.item) || 'stopped'].action, desktopId: data.item.id })"
@@ -211,6 +211,7 @@ export default {
     buttCssColor (state) {
       const stateColors = {
         stopped: 'btn-green',
+        'shutting-down': 'btn-red',
         started: 'btn-red',
         waitingip: 'btn-red',
         error: 'btn-red',
