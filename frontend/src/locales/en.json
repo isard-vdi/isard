@@ -405,8 +405,8 @@
                     "action": "Create"
                 },
                 "creating": {
-                    "text": "Creando",
-                    "action": "Creando"
+                    "text": "Creating",
+                    "action": "Creating"
                 },
                 "failed": {
                     "text": "Failed",
@@ -502,7 +502,7 @@
                 "rdpgw": "Windows includes the software required for its use"
             },
             "help": {
-                "spice" : {
+                "spice": {
                     "spice-help": "SPICE installation instructions",
                     "close-guide": "Close guide",
                     "local-client": "Use the local client (recommended)",
