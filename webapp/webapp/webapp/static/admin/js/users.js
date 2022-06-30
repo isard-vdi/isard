@@ -146,10 +146,20 @@ $(document).ready(function() {
         form.parsley().validate();
         if (form.parsley().isValid()){
             data={}
-            data['id']=data['username']=$('#modalPasswdUserForm #id').val();
+            data['id']=$('#modalPasswdUserForm #id').val();
             data['name']=$('#modalPasswdUserForm #name').val();
             data['password']=$('#modalPasswdUserForm #password-reset').val();
-            socket.emit('user_passwd',data)
+            $.ajax({
+                type: "PUT",
+                url:"/api/v3/admin/user/" + data['id'],
+                data: JSON.stringify(data),
+                contentType: "application/json",
+                success: function(data)
+                {
+                    $('form').each(function() { this.reset() });
+                    $('.modal').modal('hide');
+                }
+            }); 
         }
     }); 
 
@@ -291,18 +301,7 @@ $(document).ready(function() {
             });
         }
     }); 
-
-
-    var form = $('#modalEditUserForm');
-    formdata = form.serializeObject()
-    form.parsley().validate();
-    if (form.parsley().isValid()){              // || 'unlimited' in formdata){   
-        data=userQuota2dict(formdata);
-        delete data['unlimited']
-        //data['id']=$('#modalEditUserForm #id').val();
-        socket.emit('user_edit',data)
-    }
-
+    
 
     $("#add-category").on('change', function(e){
         setQuotaMax('#users-quota',kind='category',id=$(this).val(),disabled=false);
