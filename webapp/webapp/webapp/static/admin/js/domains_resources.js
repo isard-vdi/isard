@@ -403,6 +403,7 @@ $(document).ready(function() {
                 keyboard: false
             }).modal('show');
             $('#modalQosDisk #modalQosDiskForm').parsley();
+    })
 
 
     $("#modalQosDisk #send").on('click', function(e){
