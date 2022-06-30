@@ -124,7 +124,7 @@
               </div>
             </template>
             <template #cell(booking)='data'>
-              <div class='d-flex justify-content- align-items-center'>
+              <div class='d-flex justify-content- align-items-center' v-if="data.item.needsBooking">
                 <a class='cursor-pointer' @click="onClickBookingDesktop(data.item)"><b-icon icon="calendar" variant="info"></b-icon></a>
               </div>
             </template>
