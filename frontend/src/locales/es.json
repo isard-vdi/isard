@@ -458,7 +458,10 @@
                 "name": "Nombre",
                 "visible": "Visible",
                 "started-desktops": "Escritorios arrancados / Total",
-                "actions": "Acciones"
+                "actions": "Acciones",
+                "template": "Plantilla",
+                "desktop-name": "Nombre del escritorio",
+                "description": "Descripción"
             }
         },
         "deployment": {
@@ -467,6 +470,11 @@
             },
             "desktop": {
                 "not-available": "Escritorio no disponible"
+            },
+            "visibility-warning": "Los escritorios de este despliegue son {visibility}.",
+            "visibility": {
+                "visible": "Visibles",
+                "not-visible": "No visibles"
             }
         },
         "deployment-desktop-list": {

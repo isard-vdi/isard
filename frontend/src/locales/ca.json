@@ -383,7 +383,10 @@
                 "name": "Nom",
                 "visible": "Visible",
                 "started-desktops": "Escriptoris arrencats / Total",
-                "actions": "Accions"
+                "actions": "Accions",
+                "template": "Plantilla",
+                "desktop-name": "Nom de l'escriptori",
+                "description": "Descripció"
             }
         },
         "deployment": {
@@ -392,6 +395,11 @@
             },
             "desktop": {
                 "not-available": "Escriptori no disponible"
+            },
+            "visibility-warning": "Els escriptoris d'aquest desplegament són {visibility}.",
+            "visibility": {
+                "visible": "Visibles",
+                "not-visible": "No visibles"
             }
         },
         "direct-viewer": {
