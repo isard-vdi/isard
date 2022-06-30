@@ -136,7 +136,7 @@
             },
             "title": {
                 "connecting": "Connectant",
-                "disconnected": "Desconectat",
+                "disconnected": "Desconnectat",
                 "unstable": "Inestable",
                 "error": "Error"
             },
@@ -189,7 +189,7 @@
         }
     },
     "views": {
-        "cancel": "Cancelar",
+        "cancel": "Cancel·lar",
         "error": {
             "title": "Error",
             "codes": {
@@ -425,7 +425,7 @@
                 "rdpgw": "Windows incorpora l'aplicació necessaria pel seu ús"
             },
             "help": {
-                "spice" : {
+                "spice": {
                     "spice-help": "Instruccions d'instal·lació de SPICE",
                     "close-guide": "Tancar la guia",
                     "local-client": "Utilitzar el client local (recomanat)",
@@ -451,7 +451,8 @@
                     "here": "aqui.",
                     "once-installed": "Un cop instal·lat, s'ha de clicar al botó de «RDP», i es descarregarà el fitxer per a fer servir l'escriptori virtual."
                 }
-            }
+            },
+            "waitingip": "Esperant que s'arrenqui l'escriptori"
         },
         "templates": {
             "no-templates": {
@@ -466,13 +467,19 @@
             "buttons": {
                 "allowed": {
                     "title": "Canviar permissos"
+                },
+                "enable": {
+                    "title": "Habilitar"
+                },
+                "disable": {
+                    "title": "Deshabilitar"
                 }
             }
         }
     },
     "validations": {
         "required": "El camp {property} és requerit.",
-        "minLengthValue": "El camp {property} te {model} caràcters, però el ha de tenir com a mínim una llargada de {min}.",
+        "minLengthValue": "El camp {property} te {model} caràcters, però ha de tenir com a mínim una llargada de {min}.",
         "maxLengthValue": "El camp {property} te {model} caràcters, però ha de tenir una com a màxim una llargada de {max}.",
         "inputFormat": "Els caràcters vàlids són lletres, digits, coma, punt, - i _"
     },
@@ -514,7 +521,9 @@
         "new-template": {
             "title": "Crear nova plantilla",
             "name": "Nom",
-            "description": "Descripció"
+            "description": "Descripció",
+            "enabled": "Habilitada",
+            "disabled": "Inhabilitada"
         },
         "new-deployment": {
             "title": "Crear nou desplegament:",
@@ -617,7 +626,9 @@
             "delete-deployment-desktop": "L'escriptori de '{name}' se borrará, continuar?",
             "start-deployment-desktops": "Els escriptoris de '{name}' s'iniciaran, continuar?",
             "stop-deployment-desktops": "Els escriptoris de '{name}' es pararan, continuar?",
-            "delete-event": "La reserva '{name}' s'esborrarà, continuar?"
+            "delete-event": "La reserva '{name}' s'esborrarà, continuar?",
+            "enable-template": "'{name}' serà visible pels seus usuaris, continuar?",
+            "disable-template": "'{name}' serà invisible pels seus usuaris, continuar?"
         },
         "yes": "Si",
         "no": "No",
@@ -637,7 +648,12 @@
             "new-template-stop": "Per crear una template és necessari que el escriptori estigui parat",
             "no-availability-event": "No hi ha disponibilitat al rang seleccionat",
             "not-created-event": "No s'ha pogut crear l'event",
-            "missing-data": "Falten dades"
+            "missing-data": "Falten dades",
+            "deleting-event": "Esborrant event",
+            "enable-template": "Fent la plantilla visible",
+            "creating-event": "Creant event",
+            "disable-template": "Fent la plantilla invisible",
+            "editing-event": "Editant event"
         },
         "loading": "Carregant"
     }
