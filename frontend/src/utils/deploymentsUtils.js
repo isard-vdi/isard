@@ -1,3 +1,5 @@
+import { DesktopUtils } from './desktopsUtils'
+
 export class DeploymentsUtils {
   static parseDeployments (items) {
     return items.map((item) => {
@@ -41,7 +43,8 @@ export class DeploymentsUtils {
       image,
       state,
       viewer,
-      viewers
+      viewers,
+      buttonIconName: DesktopUtils.buttonIconName(desktop)
     }
   }
 }
