@@ -438,7 +438,7 @@
                 },
                 "shutting-down": {
                     "text": "Apagando",
-                    "action": "Apagando"
+                    "action": "Forzar parada"
                 },
                 "downloading": {
                     "text": "Descargando"

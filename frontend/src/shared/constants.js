@@ -51,8 +51,9 @@ export const status = {
     icon: 'play'
   },
   'shutting-down': {
-    action: '',
-    icon: ''
+    action: 'stop',
+    icon: 'power',
+    variant: 'danger'
   },
   working: {
     action: '',
