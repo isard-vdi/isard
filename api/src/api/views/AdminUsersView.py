@@ -52,22 +52,9 @@ def api_v3_admin_jwt(payload, user_id):
 
 @app.route("/api/v3/admin/user/<user_id>", methods=["GET"])
 @has_token
-def api_v3_admin_user_exists(payload, user_id=False):
-    if id == False:
-        log.error("Incorrect access parameters. Check your query.")
-        return (
-            json.dumps(
-                {
-                    "error": "undefined_error",
-                    "msg": "Incorrect access parameters. Check your query.",
-                }
-            ),
-            401,
-            {"Content-Type": "application/json"},
-        )
-
+def api_v3_admin_user_exists(payload, user_id):
     ownsUserId(payload, user_id)
-    return json.dumps(users.Get(user_idid)), 200, {"Content-Type": "application/json"}
+    return json.dumps(users.Get(user_id)), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/api/v3/admin/users", methods=["GET"])
