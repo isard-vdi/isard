@@ -4,9 +4,8 @@
 #      Josep Maria Viñolas Auquer
 #      Alberto Larraz Dalmases
 # License: AGPLv3
-import pprint
+
 import time
-from datetime import datetime, timedelta
 
 import requests
 from rethinkdb import RethinkDB
@@ -14,9 +13,11 @@ from rethinkdb import RethinkDB
 from api import app
 
 r = RethinkDB()
-import logging
+import logging as log
 
+from .api_exceptions import Error
 from .flask_rethink import RDB
+from .isardViewer import default_guest_properties
 
 db = RDB(app)
 db.init_app(app)
@@ -40,7 +41,6 @@ def get_card(card_id, type):
 
 class Downloads(object):
     def __init__(self):
-        # ~ self.working=True
         self.reload_updates()
 
     def reload_updates(self):
@@ -59,7 +59,6 @@ class Downloads(object):
             "videos",
             "viewers",
         ]
-        failed = 0
         for k in self.kinds:
             self.web[k] = self.getKind(kind=k)
             if self.web[k] == 500:
@@ -74,9 +73,6 @@ class Downloads(object):
             private_web = self.getPrivateKind(kind="private_domains")
             if private_web != False:
                 self.web["domains"] = self.web["domains"] + private_web
-
-        # ~ if len(self.kinds)==failed:
-        # ~ self.working=False
 
     def updateFromConfig(self):
         with app.app_context():
@@ -114,12 +110,6 @@ class Downloads(object):
     def is_registered(self):
         if self.is_conected():
             return self.code
-            # ~ if self.working:
-            # ~ return self.code
-            # ~ else:
-            # we have an invalid code. (changes in web database?)
-            # ~ with app.app_context():
-            # ~ r.table('config').get(1).update({'resources':{'code':False}}).run(db.conn)
         return False
 
     def register(self):
@@ -183,7 +173,6 @@ class Downloads(object):
                 dict["status"] = "Available"
             result.append(dict)
         return result
-        # ~ return [i for i in web for j in dbb if i['id']==j['id']]
 
     def getNewKindId(self, kind, username, id):
         if kind == "domains" or kind == "media":
@@ -264,18 +253,6 @@ class Downloads(object):
     """
     RETURN FORMATTED DOMAINS TO INSERT ON TABLES
     """
-    # ~ def formatDomain(self,dom,current_user):
-    # ~ d=dom.copy()
-    # ~ d['progress']={}
-    # ~ d['status']='DownloadStarting'
-    # ~ d['detail']=''
-    # ~ d['accessed']=time.time()
-    # ~ d['hypervisors_pools']=d['create_dict']['hypervisors_pools']
-    # ~ d.update(self.get_user_data(current_user))
-    # ~ for disk in d['create_dict']['hardware']['disks']:
-    # ~ if not disk['file'].startswith(current_user.path):
-    # ~ disk['file']=current_user.path+disk['file']
-    # ~ return d
 
     def formatDomains(self, data, user_id):
         new_data = data.copy()
@@ -286,16 +263,11 @@ class Downloads(object):
             d["image"] = get_domain_stock_card(d["id"])
             d["accessed"] = time.time()
             d["hypervisors_pools"] = d["create_dict"]["hypervisors_pools"]
-            user = self.get_user_data(user_id)
-            d.update(
-                {
-                    "user": user["id"],
-                    "category": user["category"],
-                    "group": user["group"],
-                    "username": user["username"],
-                }
-            )
-            path = self.get_user_path(user)
+            d["guest_properties"] = default_guest_properties()
+            if d.get("options"):
+                d.pop("options")
+            d.update(self.get_user_data(user_id))
+            path = self.get_user_path(user_id)
             for disk in d["create_dict"]["hardware"]["disks"]:
                 if not disk["file"].startswith(path):
                     disk["file"] = path + disk["file"]
@@ -312,23 +284,21 @@ class Downloads(object):
                 d["path"] = current_user.path + d["url-web"].split("/")[-1]
             else:
                 d["path"] = current_user.path + d["url-isard"]
-            # ~ if not d['path'].startswith(current_user.path):
-            # ~ d['path']=current_user.path+d['url-isard']
         return new_data
 
     def get_user_data(self, user_id):
         with app.app_context():
             user = r.table("users").get(user_id).run(db.conn)
         return {
-            "provider": user["provider"],
             "category": user["category"],
             "group": user["group"],
-            "id": user["id"],
-            "uid": user["uid"],
+            "user": user["id"],
             "username": user["username"],
         }
 
-    def get_user_path(self, user):
+    def get_user_path(self, user_id):
+        with app.app_context():
+            user = r.table("users").get(user_id).run(db.conn)
         return (
             user["category"]
             + "/"
@@ -364,10 +334,12 @@ class Downloads(object):
     def download_desktop(self, desktop_id, user_id):
         with app.app_context():
             if r.table("domains").get(desktop_id).run(db.conn) is not None:
-                return False
+                raise Error(
+                    "conflict",
+                    "Trying to download " + str(desktop_id) + " that already exists",
+                )
         desktop = self.formatDomains(
             [self.getNewKindId("domains", user_id, desktop_id)], user_id
         )[0]
         with app.app_context():
             r.table("domains").insert(desktop).run(db.conn)
-        return True

@@ -35,6 +35,23 @@ from datetime import datetime, timedelta
 from jose import jwt
 
 
+def default_guest_properties():
+    return {
+        "credentials": {
+            "username": "isard",
+            "password": "pirineus",
+        },
+        "fullscreen": False,
+        "viewers": {
+            "file_spice": {"options": None},
+            "browser_vnc": {"options": None},
+            "file_rdpgw": {"options": None},
+            "file_rdpvpn": {"options": None},
+            "browser_rdp": {"options": None},
+        },
+    }
+
+
 def viewer_jwt(desktop_id, minutes=240):
     # user_id = provider_id+'-'+category_id+'-'+id+'-'+id
     return jwt.encode(
