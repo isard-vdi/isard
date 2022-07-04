@@ -646,7 +646,10 @@
         "bad_request_title": "Error de petició",
         "undefined_error": "S'ha produït un error",
         "conflict": "Conflicte",
-        "conflict_title": "Conflicte"
+        "conflict_title": "Conflicte",
+        "booking_new_event_end_error": "L'hora de finalització no és vàlida",
+        "booking_new_event_overlap_error": "L'esdeveniment es solapa",
+        "booking_new_event_start_error": "L'hora d'inici no és vàlida"
     },
     "messages": {
         "title": {
@@ -684,13 +687,13 @@
             "creating-template": "Creant plantilla",
             "new-template-stop": "Per crear una template és necessari que el escriptori estigui parat",
             "no-availability-event": "No hi ha disponibilitat al rang seleccionat",
-            "not-created-event": "No s'ha pogut crear l'event",
+            "not-created-event": "No s'ha pogut crear l'esdeveniment",
             "missing-data": "Falten dades",
-            "deleting-event": "Esborrant event",
+            "deleting-event": "Esborrant esdeveniment",
             "enable-template": "Fent la plantilla visible",
-            "creating-event": "Creant event",
+            "creating-event": "Creant esdeveniment",
             "disable-template": "Fent la plantilla invisible",
-            "editing-event": "Editant event"
+            "editing-event": "Editant esdeveniment"
         },
         "loading": "Carregant"
     }
