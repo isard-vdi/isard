@@ -44,10 +44,5 @@ def api_v3_admin_downloads_desktops(payload, kind):
 @app.route("/api/v3/admin/downloads/desktop/<desktop_id>", methods=["POST"])
 @is_admin
 def api_v3_admin_downloads_desktops_download(desktop_id, payload):
-    downloads = Downloads()
-    res = downloads.download_desktop(desktop_id, payload["user_id"])
-    if not res:
-        json.dumps(
-            {"error": "undefined_error", "description": "Could not download desktop"}
-        ), 401, {"Content-Type": "application/json"}
+    Downloads().download_desktop(desktop_id, payload["user_id"])
     return json.dumps({}), 200, {"Content-Type": "application/json"}
