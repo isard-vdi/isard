@@ -229,20 +229,11 @@ def api_v3_user_desktops(payload):
 @app.route("/api/v3/user/desktop/<desktop_id>", methods=["GET"])
 @has_token
 def api_v3_user_desktop(payload, desktop_id):
-    desktop = users.Desktop(desktop_id, payload["user_id"])
-    desktop_dict = {
-        "id": desktop["id"],
-        "name": desktop["name"],
-        "state": desktop["state"],
-        "type": desktop["type"],
-        "template": desktop["template"],
-        "viewers": desktop["viewers"],
-        "icon": desktop["icon"],
-        "image": desktop["image"],
-        "description": desktop["description"],
-        "ip": desktop.get("ip"),
-    }
-    return json.dumps(desktop_dict), 200, {"Content-Type": "application/json"}
+    return (
+        json.dumps(users.Desktop(desktop_id, payload["user_id"])),
+        200,
+        {"Content-Type": "application/json"},
+    )
 
 
 @app.route("/api/v3/user/vpn/<kind>/<os>", methods=["GET"])

@@ -524,48 +524,47 @@ class ApiUsers:
 
     def Desktop(self, desktop_id, user_id):
         self.Get(user_id)
-        with app.app_context():
-            desktop = (
-                r.table("domains")
-                .get(desktop_id)
-                .pluck(
-                    [
-                        "id",
-                        "name",
-                        "icon",
-                        "image",
-                        "user",
-                        "status",
-                        "description",
-                        "parents",
-                        "persistent",
-                        "guest_properties",
-                        "os",
-                        "tag_visible",
-                        {"viewer": "guest_ip"},
-                        {"create_dict": {"hardware": ["interfaces", "videos"]}},
-                    ]
-                )
-                .default(None)
-                .run(db.conn)
-            )
-        if not desktop:
-            raise Error(
-                "not_found",
-                "Not found desktop_id " + desktop_id + " for user_id " + user_id,
-                traceback.format_exc(),
-            )
-
         try:
-            # Modify desktop data to be returned
+            with app.app_context():
+                desktop = (
+                    r.table("domains")
+                    .get(desktop_id)
+                    .pluck(
+                        [
+                            "id",
+                            "name",
+                            "icon",
+                            "image",
+                            "user",
+                            "status",
+                            "description",
+                            "parents",
+                            "persistent",
+                            "os",
+                            "guest_properties",
+                            "tag",
+                            "tag_visible",
+                            {"viewer": "guest_ip"},
+                            {
+                                "create_dict": {
+                                    "hardware": ["interfaces", "videos"],
+                                    "reservables": True,
+                                }
+                            },
+                            "progress",
+                            "booking_id",
+                        ]
+                    )
+                    .run(db.conn)
+                )
             if desktop.get("tag_visible", True):
                 return _parse_desktop(desktop)
             else:
-                return None
-        except Exception:
+                raise Error("forbidden", "Desktop is not visible to this user now.")
+        except:
             raise Error(
-                "internal_server",
-                "Get desktop failed for user_id " + user_id,
+                "not_found",
+                "Desktop not found",
                 traceback.format_exc(),
             )
 
