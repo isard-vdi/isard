@@ -432,7 +432,14 @@
         },
         "allowed": {
             "groups": "Groupes :",
-            "users": "Utilisateurs :"
+            "users": "Utilisateurs :",
+            "title": "Permis",
+            "placeholder": "Tapez au moins 2 lettres pour la recherche.",
+            "modal": {
+                "buttons": {
+                    "update": "Mettre à jour"
+                }
+            }
         },
         "new-deployment": {
             "desktop": {
