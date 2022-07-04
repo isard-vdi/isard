@@ -1,54 +1,82 @@
 <template>
-  <div class='table-list px-5'>
-    <b-container fluid class='px-0'>
-      <b-skeleton-wrapper :loading="loading" class='pb-1 pt-4 justify-content-start'>
+  <div class="table-list px-5">
+    <b-container
+      fluid
+      class="px-0"
+    >
+      <b-skeleton-wrapper
+        :loading="loading"
+        class="pb-1 pt-4 justify-content-start"
+      >
         <template #loading>
           <b-col>
-            <list-item-skeleton class="mb-2"></list-item-skeleton>
-            <list-item-skeleton class="mb-2"></list-item-skeleton>
-            <list-item-skeleton class="mb-2"></list-item-skeleton>
-            <list-item-skeleton class="mb-2"></list-item-skeleton>
+            <list-item-skeleton class="mb-2" />
+            <list-item-skeleton class="mb-2" />
+            <list-item-skeleton class="mb-2" />
+            <list-item-skeleton class="mb-2" />
           </b-col>
         </template>
-      <b-row class="scrollable-div">
-        <b-col
-          cols='12'
-          class='d-flex flex-row flex-wrap justify-content-start'
-        >
-          <b-table :items='deployments' :fields='fields' :tbody-tr-class="rowClass" :responsive="true" @row-clicked="redirectDeployment">
-            <template #cell(visible)='data'>
-              <p class='text-dark-gray m-0 text-center'>
-                <b-badge :variant="data.item.visible ? 'success' : 'danger'">{{ data.item.visible ? $t('views.deployment.visibility.visible') : $t('views.deployment.visibility.not-visible') }}</b-badge>
-              </p>
-            </template>
-            <template #cell(name)='data'>
-              <p class='m-0 font-weight-bold'>
-                {{ data.item.name }}
-              </p>
-            </template>
-            <template #cell(description)='data'>
-              <p class='text-dark-gray m-0'>
-                {{ data.item.description }}
-              </p>
-            </template>
-            <template #cell(startedDesktops)='data'>
-              <p class='text-dark-gray m-0'>
-                {{ data.item.startedDesktops }} / {{ data.item.totalDesktops }}
-              </p>
-            </template>
-            <template #cell(actions)='data'>
-              <div class='d-flex justify-content-center align-items-center'>
-                <b-button v-if="data.item.needsBooking" class="rounded-circle btn-orange px-2 mr-2" @click="onClickBookingDesktop(data.item)">
-                  <b-icon icon="calendar" scale="0.75"></b-icon>
-                </b-button>
-                <b-button class="rounded-circle btn btn-red px-2 mr-2" @click="deleteDeployment(data.item)" :title="$t('components.statusbar.deployment.buttons.delete.title')">
-                  <b-icon icon="trash-fill" scale="0.75"></b-icon>
-                </b-button>
-              </div>
-            </template>
-          </b-table>
+        <b-row class="scrollable-div">
+          <b-col
+            cols="12"
+            class="d-flex flex-row flex-wrap justify-content-start"
+          >
+            <b-table
+              :items="deployments"
+              :fields="fields"
+              :tbody-tr-class="rowClass"
+              :responsive="true"
+              @row-clicked="redirectDeployment"
+            >
+              <template #cell(visible)="data">
+                <p class="text-dark-gray m-0 text-center">
+                  <b-badge :variant="data.item.visible ? 'success' : 'danger'">
+                    {{ data.item.visible ? $t('views.deployment.visibility.visible') : $t('views.deployment.visibility.not-visible') }}
+                  </b-badge>
+                </p>
+              </template>
+              <template #cell(name)="data">
+                <p class="m-0 font-weight-bold">
+                  {{ data.item.name }}
+                </p>
+              </template>
+              <template #cell(description)="data">
+                <p class="text-dark-gray m-0">
+                  {{ data.item.description }}
+                </p>
+              </template>
+              <template #cell(startedDesktops)="data">
+                <p class="text-dark-gray m-0">
+                  {{ data.item.startedDesktops }} / {{ data.item.totalDesktops }}
+                </p>
+              </template>
+              <template #cell(actions)="data">
+                <div class="d-flex justify-content-center align-items-center">
+                  <b-button
+                    v-if="data.item.needsBooking"
+                    class="rounded-circle btn-orange px-2 mr-2"
+                    @click="onClickBookingDesktop(data.item)"
+                  >
+                    <b-icon
+                      icon="calendar"
+                      scale="0.75"
+                    />
+                  </b-button>
+                  <b-button
+                    class="rounded-circle btn btn-red px-2 mr-2"
+                    :title="$t('components.statusbar.deployment.buttons.delete.title')"
+                    @click="deleteDeployment(data.item)"
+                  >
+                    <b-icon
+                      icon="trash-fill"
+                      scale="0.75"
+                    />
+                  </b-button>
+                </div>
+              </template>
+            </b-table>
           </b-col>
-      </b-row>
+        </b-row>
       </b-skeleton-wrapper>
     </b-container>
   </div>
@@ -58,6 +86,17 @@ import i18n from '@/i18n'
 import ListItemSkeleton from '@/components/ListItemSkeleton.vue'
 
 export default {
+  components: { ListItemSkeleton },
+  props: {
+    deployments: {
+      required: true,
+      type: Array
+    },
+    loading: {
+      required: true,
+      type: Boolean
+    }
+  },
   setup (props, context) {
     const $store = context.root.$store
 
@@ -109,17 +148,6 @@ export default {
       redirectDeployment,
       deleteDeployment,
       onClickBookingDesktop
-    }
-  },
-  components: { ListItemSkeleton },
-  props: {
-    deployments: {
-      required: true,
-      type: Array
-    },
-    loading: {
-      required: true,
-      type: Boolean
     }
   },
   data () {

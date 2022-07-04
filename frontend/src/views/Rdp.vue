@@ -1,10 +1,25 @@
 <template>
-  <div class='viewport-rdp' ref='viewport'>
-    <modal v-show='clientState!==3' ref='modal'/>
+  <div
+    ref="viewport"
+    class="viewport-rdp"
+  >
+    <modal
+      v-show="clientState!==3"
+      ref="modal"
+    />
     <!-- trick AudioContext to think the user has clicked in order to be able to start the viewer -->
-    <p ref='connectionbutton' @click='startViewer()' style='margin-bottom: 0.1px;'></p>
+    <p
+      ref="connectionbutton"
+      style="margin-bottom: 0.1px;"
+      @click="startViewer()"
+    />
     <!-- tabindex allows for div to be focused -->
-    <div v-show='clientState===3' ref='display' class='display-rdp' tabindex='0' />
+    <div
+      v-show="clientState===3"
+      ref="display"
+      class="display-rdp"
+      tabindex="0"
+    />
   </div>
 </template>
 
@@ -23,11 +38,6 @@ export default {
   name: 'Rdp',
   components: {
     Modal
-  },
-  computed: {
-    ...mapGetters([
-      'getToken'
-    ])
   },
   data () {
     return {
@@ -49,10 +59,18 @@ export default {
       clientState: 0
     }
   },
+  computed: {
+    ...mapGetters([
+      'getToken'
+    ])
+  },
   watch: {
     connectionState (state) {
       this.$refs.modal.show(state, this.errorMessage)
     }
+  },
+  mounted () {
+    this.$refs.connectionbutton.click()
   },
   methods: {
     startViewer () {
@@ -334,9 +352,6 @@ export default {
     uninstallKeyboard () {
       this.keyboard.onkeydown = this.keyboard.onkeyup = () => {}
     }
-  },
-  mounted () {
-    this.$refs.connectionbutton.click()
   }
 }
 </script>

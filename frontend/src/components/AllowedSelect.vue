@@ -1,14 +1,14 @@
 <template>
   <div>
     <IsardSearchSelect
-      @search="fetchAllowedTerm"
-      @updateSelected="updateSelected"
       :options="options"
-      :closeOnSelect="false"
-      :deselectFromDropdown="true"
+      :close-on-select="false"
+      :deselect-from-dropdown="true"
       :placeholder="placeholder"
       :disabled="disabled"
-      :selectedValues="selectedValues"
+      :selected-values="selectedValues"
+      @search="fetchAllowedTerm"
+      @updateSelected="updateSelected"
     />
   </div>
 </template>

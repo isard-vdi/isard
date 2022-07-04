@@ -1,9 +1,15 @@
 <template>
-  <div class='modal-rdp'>
-    <b-spinner v-if="loading"/>
+  <div class="modal-rdp">
+    <b-spinner v-if="loading" />
     <h2>{{ title[status] || i18n.t('components.rdp-modal.title.connecting') }}</h2>
-    <p>{{ message || text[status]  }}</p>
-    <button class='buttonRefresh' v-if="!loading" @click="refreshRdpWindow"><i18n path="components.rdp-modal.button-refresh"></i18n></button>
+    <p>{{ message || text[status] }}</p>
+    <button
+      v-if="!loading"
+      class="buttonRefresh"
+      @click="refreshRdpWindow"
+    >
+      <i18n path="components.rdp-modal.button-refresh" />
+    </button>
   </div>
 </template>
 <script>
@@ -33,6 +39,11 @@ export default {
       }
     }
   },
+  computed: {
+    loading () {
+      return this.status === states.CONNECTING || this.status === states.CONNECTED || this.status === states.WAITING
+    }
+  },
   methods: {
     show (state, message) {
       this.message = ''
@@ -41,11 +52,6 @@ export default {
     },
     refreshRdpWindow () {
       window.location.reload()
-    }
-  },
-  computed: {
-    loading () {
-      return this.status === states.CONNECTING || this.status === states.CONNECTED || this.status === states.WAITING
     }
   }
 }

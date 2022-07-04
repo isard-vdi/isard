@@ -69,7 +69,7 @@ export class DesktopUtils {
     const H = 48
     let total = 0
 
-    for (var i = 0; i < term.length; i++) {
+    for (let i = 0; i < term.length; i++) {
       total += total + term.charCodeAt(i)
     }
 

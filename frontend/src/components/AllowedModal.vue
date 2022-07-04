@@ -1,11 +1,11 @@
 <template>
   <b-modal
     id="allowedModal"
+    v-model="showAllowedModal"
     size="lg"
     :title="$t(`forms.allowed.modal.title`)"
-    v-model="showAllowedModal"
-    @hidden="closeAllowedModal"
     centered
+    @hidden="closeAllowedModal"
   >
     <div class="ml-4 mr-4">
       <AllowedForm />

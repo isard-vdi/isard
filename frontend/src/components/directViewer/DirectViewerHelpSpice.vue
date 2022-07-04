@@ -1,93 +1,102 @@
 <template>
-    <form>
-        <b-modal
-            id="spice_help_modal"
-            size="lg"
-            content-class="shadow"
-            centered
-            ref="spice_help_modal"
-            :ok-title="$t('views.direct-viewer.help.spice.close-guide')"
-            ok-only
-            hide-header
+  <form>
+    <b-modal
+      id="spice_help_modal"
+      ref="spice_help_modal"
+      size="lg"
+      content-class="shadow"
+      centered
+      :ok-title="$t('views.direct-viewer.help.spice.close-guide')"
+      ok-only
+      hide-header
+    >
+      <b-container class="text-left">
+        <h3>
+          <b-icon
+            icon="star-fill"
+            variant="warning"
+          />
+          {{ $t('views.direct-viewer.help.spice.local-client') }}
+        </h3>
+        <hr>
+        <b>{{ $t('views.direct-viewer.help.spice.best-performance') }}</b>
+        {{ $t('views.direct-viewer.help.spice.spice-client-required') }}
+        <div v-if="os=='Windows' || os==null">
+          {{ $t('views.direct-viewer.help.spice.text.windows') }}
+          <ul @click.stop>
+            <li>
+              <b>Windows 64bits (Windows 10):</b>
+              <b-button
+                variant="outline-primary"
+                href="https://virt-manager.org/download/sources/virt-viewer/virt-viewer-x64-7.0.msi"
+              >
+                {{ $t('views.direct-viewer.help.spice.install') }}
+              </b-button>
+            </li>
+            <li>
+              <b>Windows 32bits ({{ $t('views.direct-viewer.help.spice.other-windows-versions') }}):</b>
+              <b-button
+                variant="outline-primary"
+                href="https://virt-manager.org/download/sources/virt-viewer/virt-viewer-x86-7.0.msi"
+              >
+                {{ $t('views.direct-viewer.help.spice.install') }}
+              </b-button>
+            </li>
+          </ul>
+        </div>
+        <div v-if="os=='Linux' || os==null">
+          {{ $t('views.direct-viewer.help.spice.text.linux') }}
+          <ul @click.stop>
+            <li>
+              <b>Debian / Ubuntu:</b>
+              <code>sudo apt install virt-viewer -y</code>
+            </li>
+            <li>
+              <b>RedHat / CentOS / Fedora:</b>
+              <code>sudo dnf install remote-viewer -y</code>
+            </li>
+          </ul>
+        </div>
+        <div v-if="os=='Android' || os==null">
+          {{ $t('views.direct-viewer.help.spice.text.android') }}
+          <ul @click.stop>
+            <li>
+              <b>Android:</b>
+              <b-button
+                variant="outline-primary"
+                href="https://play.google.com/store/apps/details?id=com.iiordanov.freeaSPICE"
+              >
+                {{ $t('views.direct-viewer.help.spice.install') }}
+              </b-button>
+            </li>
+          </ul>
+        </div>
+        <div v-if="os=='iOS' || os==null">
+          {{ $t('views.direct-viewer.help.spice.text.ios') }}
+          <ul @click.stop>
+            <li>
+              <b>iOS:</b>
+              <b-button
+                variant="outline-primary"
+                href="https://itunes.apple.com/us/app/flexvdi-client/id1051361263"
+              >
+                {{ $t('views.direct-viewer.help.spice.install') }}
+              </b-button>
+            </li>
+          </ul>
+        </div>
+        <div v-if="os=='MacOS' || os==null">
+          {{ $t('views.direct-viewer.help.spice.text.macos') }}
+        </div>
+        <div
+          v-if="os!='MacOS'"
+          class="mb-4"
         >
-            <b-container class="text-left">
-                <h3>
-                    <b-icon icon="star-fill" variant="warning"></b-icon>
-                    {{ $t('views.direct-viewer.help.spice.local-client') }}
-                </h3>
-                <hr />
-                <b>{{ $t('views.direct-viewer.help.spice.best-performance') }}</b>
-                {{ $t('views.direct-viewer.help.spice.spice-client-required') }}
-                <div v-if="os=='Windows' || os==null">
-                    {{ $t('views.direct-viewer.help.spice.text.windows') }}
-                    <ul v-on:click.stop>
-                        <li>
-                            <b>Windows 64bits (Windows 10):</b>
-                            <b-button
-                                variant="outline-primary"
-                                href="https://virt-manager.org/download/sources/virt-viewer/virt-viewer-x64-7.0.msi"
-                            >
-                                {{ $t('views.direct-viewer.help.spice.install') }}
-                            </b-button>
-                        </li>
-                        <li>
-                            <b>Windows 32bits ({{ $t('views.direct-viewer.help.spice.other-windows-versions') }}):</b>
-                            <b-button
-                                variant="outline-primary"
-                                href="https://virt-manager.org/download/sources/virt-viewer/virt-viewer-x86-7.0.msi"
-                            >
-                                {{ $t('views.direct-viewer.help.spice.install') }}
-                            </b-button>
-                        </li>
-                    </ul>
-                </div>
-                <div v-if="os=='Linux' || os==null">
-                    {{ $t('views.direct-viewer.help.spice.text.linux') }}
-                    <ul v-on:click.stop>
-                        <li>
-                            <b>Debian / Ubuntu:</b>
-                            <code>sudo apt install virt-viewer -y</code>
-                        </li>
-                        <li>
-                            <b>RedHat / CentOS / Fedora:</b>
-                            <code>sudo dnf install remote-viewer -y</code>
-                        </li>
-                    </ul>
-                </div>
-                <div v-if="os=='Android' || os==null">
-                    {{ $t('views.direct-viewer.help.spice.text.android') }}
-                    <ul v-on:click.stop>
-                        <li>
-                            <b>Android:</b>
-                            <b-button
-                                variant="outline-primary"
-                                href="https://play.google.com/store/apps/details?id=com.iiordanov.freeaSPICE"
-                            >
-                                {{ $t('views.direct-viewer.help.spice.install') }}
-                            </b-button>
-                        </li>
-                    </ul>
-                </div>
-                <div v-if="os=='iOS' || os==null">
-                    {{ $t('views.direct-viewer.help.spice.text.ios') }}
-                    <ul v-on:click.stop>
-                        <li>
-                            <b>iOS:</b>
-                            <b-button
-                                variant="outline-primary"
-                                href="https://itunes.apple.com/us/app/flexvdi-client/id1051361263">
-                                {{ $t('views.direct-viewer.help.spice.install') }}
-                            </b-button>
-                        </li>
-                    </ul>
-                </div>
-                <div v-if="os=='MacOS' || os==null">
-                    {{ $t('views.direct-viewer.help.spice.text.macos') }}
-                </div>
-                <div class="mb-4" v-if="os!='MacOS'">{{ $t('views.direct-viewer.help.spice.once-installed') }}</div>
-            </b-container>
-        </b-modal>
-    </form>
+          {{ $t('views.direct-viewer.help.spice.once-installed') }}
+        </div>
+      </b-container>
+    </b-modal>
+  </form>
 </template>
 
 <script>
@@ -101,12 +110,12 @@ export default {
   },
   methods: {
     getOS () {
-      var userAgent = window.navigator.userAgent
-      var platform = window.navigator.platform
-      var macosPlatforms = ['Macintosh', 'MacIntel', 'MacPPC', 'Mac68K', 'Mac OS']
-      var windowsPlatforms = ['Win32', 'Win64', 'Windows', 'WinCE']
-      var iosPlatforms = ['iPhone', 'iPad', 'iPod']
-      var os = null
+      const userAgent = window.navigator.userAgent
+      const platform = window.navigator.platform
+      const macosPlatforms = ['Macintosh', 'MacIntel', 'MacPPC', 'Mac68K', 'Mac OS']
+      const windowsPlatforms = ['Win32', 'Win64', 'Windows', 'WinCE']
+      const iosPlatforms = ['iPhone', 'iPad', 'iPod']
+      let os = null
 
       if (macosPlatforms.indexOf(platform) !== -1) {
         os = 'MacOS'

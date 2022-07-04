@@ -1,12 +1,17 @@
 <template>
-<!-- TODO: change spinnerActive to clickActive -->
+  <!-- TODO: change spinnerActive to clickActive -->
   <b-button
-      :disabled="!active"
-      @click="active && $emit('buttonClicked')"
-      size='md'
-      class='rounded-pill pt-2'
-      :class="[buttonClass]">
-      <b-icon class="mb-0" v-if="iconName !== '' && iconName !== undefined" :icon="iconName"></b-icon><span class="ml-1">{{ buttText }}</span>
+    :disabled="!active"
+    size="md"
+    class="rounded-pill pt-2"
+    :class="[buttonClass]"
+    @click="active && $emit('buttonClicked')"
+  >
+    <b-icon
+      v-if="iconName !== '' && iconName !== undefined"
+      class="mb-0"
+      :icon="iconName"
+    /><span class="ml-1">{{ buttText }}</span>
   </b-button>
 </template>
 

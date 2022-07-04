@@ -1,77 +1,133 @@
 <template>
-<b-container fluid class="h-100 w-100 pt-4 scrollable-div" style="background: #a7a5a7;">
-  <b-row class="h-100 justify-content-center ml-2 mr-2 mr-md-5">
-    <b-col class="pb-4" cols="12" md="10" lg="10">
-      <b-row class="justify-content-center align-content-center h-100">
-        <!-- HEADER -->
-        <b-col sm="12" class="justify-content-center align-content-center d-flex right-separator-border rounded-top-30" style="background: #3a4445; height:100px;">
-          <!-- logo -->
-          <div id="logo-wrapper">
-            <Logo/>
-          </div>
-        </b-col>
-        <b-col class="px-0">
-          <b-row style="background:#F7F7F7; padding-top: 100px;" class="m-0 rounded-bottom-30">
-            <!-- MACHINE INFO -->
-            <b-col sm="12" class="text-center">
-              <!-- organitzation name -->
-              <h5 class="font-weight-bold text-medium-gray">{{ $t('views.direct-viewer.title') }}</h5>
-              <!-- machine name -->
-              <div v-if="!directViewer.name && !(directViewer.state === 'error')">
-                <span><h2>{{ `${$t('messages.loading')}` }}</h2><b-spinner></b-spinner></span>
-              </div>
-              <h1 class="font-weight-bold">{{ directViewer.name }}</h1>
-              <!-- machine description -->
-              <h5 class="text-medium-gray">{{ directViewer.description }}</h5>
-            </b-col>
-            <!-- MACHINE ACCESS METHODS -->
-            <b-col cols="12" class="rounded-bottom-30 pt-3">
-              <!-- machine access methods  -->
-              <b-row class="justify-content-center">
-                <!-- single method start -->
-                <b-skeleton-wrapper :loading="loading" class='card-body pt-2 d-flex flex-row flex-wrap justify-content-center'>
-                  <template #loading>
-                      <DirectViewerSkeleton></DirectViewerSkeleton>
-                      <DirectViewerSkeleton></DirectViewerSkeleton>
-                  </template>
-                  <b-col sm="10">
-                    <b-row class="justify-content-center text-center">
-                      <!-- Browser viewers -->
-                      <b-col xl="6" v-if="browserViewers.length">
-                        <h6 class="font-weight-bold text-medium-gray">{{ $t('views.direct-viewer.browser.title') }}</h6>
-                        <div class="column-header d-flex align-items-center justify-content-center">
-                          <p>{{ $t('views.direct-viewer.browser.subtitle') }}</p>
-                        </div>
-                        <DirectViewerButton v-for="viewer in browserViewers" :key="viewer.kind + viewer.protocol" :directViewer="directViewer" :viewer="viewer" :viewerDescription="viewerDescription[viewer.protocol]"/>
-                      </b-col>
-                      <!-- Client viewers -->
-                      <DirectViewerHelpSpice />
-                      <DirectViewerHelpRDP />
-                      <b-col xl="6" v-if="fileViewers.length">
-                        <h6 class="font-weight-bold text-medium-gray">{{ $t('views.direct-viewer.file.title') }}</h6>
-                        <div class="column-header d-flex align-items-center justify-content-center">
-                          <p>{{ $t('views.direct-viewer.file.subtitle') }}</p>
-                        </div>
-                        <DirectViewerButton v-for="viewer in fileViewers" :key="viewer.kind + viewer.protocol" :directViewer="directViewer" :viewer="viewer" :viewerDescription="viewerDescription[viewer.protocol]"/>
-                      </b-col>
-                    </b-row>
+  <b-container
+    fluid
+    class="h-100 w-100 pt-4 scrollable-div"
+    style="background: #a7a5a7;"
+  >
+    <b-row class="h-100 justify-content-center ml-2 mr-2 mr-md-5">
+      <b-col
+        class="pb-4"
+        cols="12"
+        md="10"
+        lg="10"
+      >
+        <b-row class="justify-content-center align-content-center h-100">
+          <!-- HEADER -->
+          <b-col
+            sm="12"
+            class="justify-content-center align-content-center d-flex right-separator-border rounded-top-30"
+            style="background: #3a4445; height:100px;"
+          >
+            <!-- logo -->
+            <div id="logo-wrapper">
+              <Logo />
+            </div>
+          </b-col>
+          <b-col class="px-0">
+            <b-row
+              style="background:#F7F7F7; padding-top: 100px;"
+              class="m-0 rounded-bottom-30"
+            >
+              <!-- MACHINE INFO -->
+              <b-col
+                sm="12"
+                class="text-center"
+              >
+                <!-- organitzation name -->
+                <h5 class="font-weight-bold text-medium-gray">
+                  {{ $t('views.direct-viewer.title') }}
+                </h5>
+                <!-- machine name -->
+                <div v-if="!directViewer.name && !(directViewer.state === 'error')">
+                  <span><h2>{{ `${$t('messages.loading')}` }}</h2><b-spinner /></span>
+                </div>
+                <h1 class="font-weight-bold">
+                  {{ directViewer.name }}
+                </h1>
+                <!-- machine description -->
+                <h5 class="text-medium-gray">
+                  {{ directViewer.description }}
+                </h5>
+              </b-col>
+              <!-- MACHINE ACCESS METHODS -->
+              <b-col
+                cols="12"
+                class="rounded-bottom-30 pt-3"
+              >
+                <!-- machine access methods  -->
+                <b-row class="justify-content-center">
+                  <!-- single method start -->
+                  <b-skeleton-wrapper
+                    :loading="loading"
+                    class="card-body pt-2 d-flex flex-row flex-wrap justify-content-center"
+                  >
+                    <template #loading>
+                      <DirectViewerSkeleton />
+                      <DirectViewerSkeleton />
+                    </template>
+                    <b-col sm="10">
+                      <b-row class="justify-content-center text-center">
+                        <!-- Browser viewers -->
+                        <b-col
+                          v-if="browserViewers.length"
+                          xl="6"
+                        >
+                          <h6 class="font-weight-bold text-medium-gray">
+                            {{ $t('views.direct-viewer.browser.title') }}
+                          </h6>
+                          <div class="column-header d-flex align-items-center justify-content-center">
+                            <p>{{ $t('views.direct-viewer.browser.subtitle') }}</p>
+                          </div>
+                          <DirectViewerButton
+                            v-for="viewer in browserViewers"
+                            :key="viewer.kind + viewer.protocol"
+                            :direct-viewer="directViewer"
+                            :viewer="viewer"
+                            :viewer-description="viewerDescription[viewer.protocol]"
+                          />
+                        </b-col>
+                        <!-- Client viewers -->
+                        <DirectViewerHelpSpice />
+                        <DirectViewerHelpRDP />
+                        <b-col
+                          v-if="fileViewers.length"
+                          xl="6"
+                        >
+                          <h6 class="font-weight-bold text-medium-gray">
+                            {{ $t('views.direct-viewer.file.title') }}
+                          </h6>
+                          <div class="column-header d-flex align-items-center justify-content-center">
+                            <p>{{ $t('views.direct-viewer.file.subtitle') }}</p>
+                          </div>
+                          <DirectViewerButton
+                            v-for="viewer in fileViewers"
+                            :key="viewer.kind + viewer.protocol"
+                            :direct-viewer="directViewer"
+                            :viewer="viewer"
+                            :viewer-description="viewerDescription[viewer.protocol]"
+                          />
+                        </b-col>
+                      </b-row>
+                    </b-col>
+                    <!-- single method end -->
+                  </b-skeleton-wrapper>
+                </b-row>
+                <!-- Powered By-->
+                <b-row
+                  id="powered-by"
+                  align-h="center"
+                >
+                  <b-col class="text-center">
+                    <PoweredBy />
                   </b-col>
-                <!-- single method end -->
-                </b-skeleton-wrapper>
-              </b-row>
-              <!-- Powered By-->
-              <b-row id="powered-by" align-h="center">
-                <b-col class="text-center">
-                  <PoweredBy/>
-                </b-col>
-              </b-row>
-            </b-col>
-          </b-row>
-        </b-col>
-      </b-row>
-    </b-col>
-  </b-row>
-</b-container>
+                </b-row>
+              </b-col>
+            </b-row>
+          </b-col>
+        </b-row>
+      </b-col>
+    </b-row>
+  </b-container>
 </template>
 
 <script>
@@ -85,6 +141,14 @@ import DirectViewerHelpRDP from '@/components/directViewer/DirectViewerHelpRDP.v
 import i18n from '@/i18n'
 
 export default {
+  components: {
+    Logo,
+    DirectViewerSkeleton,
+    PoweredBy,
+    DirectViewerButton,
+    DirectViewerHelpSpice,
+    DirectViewerHelpRDP
+  },
   setup (props, context) {
     const $store = context.root.$store
     const loading = computed(() => $store.getters.getDirectViewer.viewers.length === 0)
@@ -117,14 +181,6 @@ export default {
       fileViewers,
       viewerDescription
     }
-  },
-  components: {
-    Logo,
-    DirectViewerSkeleton,
-    PoweredBy,
-    DirectViewerButton,
-    DirectViewerHelpSpice,
-    DirectViewerHelpRDP
   }
 }
 </script>

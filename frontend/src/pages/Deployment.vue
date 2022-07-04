@@ -1,18 +1,27 @@
 <template>
-  <b-container fluid id='content'>
-    <h5 class='font-weight-bold'>
+  <b-container
+    id="content"
+    fluid
+  >
+    <h5 class="font-weight-bold">
       {{ getDeployment.name }}
-      <b-badge :variant="badgeVariant">{{ badgeText }}</b-badge>
+      <b-badge :variant="badgeVariant">
+        {{ badgeText }}
+      </b-badge>
     </h5>
-    <hr class="mb-0"/>
-    <b-alert show :class="deploymentVariant" class="mt-3">
+    <hr class="mb-0">
+    <b-alert
+      show
+      :class="deploymentVariant"
+      class="mt-3"
+    >
       {{ $t('views.deployment.visibility-warning', { visibility: badgeText.toLowerCase() }) }}
     </b-alert>
     <DeploymentDesktopsList
       :desktops="sortedDesktops"
       :loading="!getDeploymentLoaded"
-      :visible="getDeployment.visible">
-    </DeploymentDesktopsList>
+      :visible="getDeployment.visible"
+    />
   </b-container>
 </template>
 <script>
@@ -24,6 +33,9 @@ import { computed } from '@vue/composition-api'
 import i18n from '@/i18n'
 
 export default {
+  components: {
+    DeploymentDesktopsList
+  },
   setup (props, context) {
     const $store = context.root.$store
 
@@ -41,12 +53,6 @@ export default {
       deploymentVariant
     }
   },
-  components: {
-    DeploymentDesktopsList
-  },
-  created () {
-    this.$store.dispatch('fetchDeployment', { id: this.$route.params.id })
-  },
   computed: {
     ...mapGetters(['getDeployment', 'getDeploymentLoaded']),
     sortedDesktops () {
@@ -55,6 +61,9 @@ export default {
         return [desktopStates.started, desktopStates.waitingip].includes(d.state.toLowerCase()) ? -1 : 1
       })
     }
+  },
+  created () {
+    this.$store.dispatch('fetchDeployment', { id: this.$route.params.id })
   }
 }
 </script>

@@ -1,35 +1,61 @@
 <template>
   <div>
     <b-row>
-      <b-col cols="12" xl="12">
+      <b-col
+        cols="12"
+        xl="12"
+      >
         <b-form-checkbox
           v-model="groupsChecked"
           :value="true"
           :unchecked-value="false"
         >
-        {{$t('forms.allowed.groups')}}
+          {{ $t('forms.allowed.groups') }}
         </b-form-checkbox>
       </b-col>
     </b-row>
     <b-row>
-      <b-col cols="12" xl="12">
-        <AllowedSelect id="allowedGroupsField" :placeholder="placeholder" :disabled="!groupsChecked" :table="'groups'" :options="groups" :selectedValues="selectedGroups" />
+      <b-col
+        cols="12"
+        xl="12"
+      >
+        <AllowedSelect
+          id="allowedGroupsField"
+          :placeholder="placeholder"
+          :disabled="!groupsChecked"
+          :table="'groups'"
+          :options="groups"
+          :selected-values="selectedGroups"
+        />
       </b-col>
     </b-row>
     <b-row class="mt-4">
-      <b-col cols="12" xl="12">
+      <b-col
+        cols="12"
+        xl="12"
+      >
         <b-form-checkbox
           v-model="usersChecked"
           :value="true"
           :unchecked-value="false"
         >
-        {{$t('forms.allowed.users')}}
+          {{ $t('forms.allowed.users') }}
         </b-form-checkbox>
       </b-col>
     </b-row>
     <b-row>
-      <b-col cols="12" xl="12">
-        <AllowedSelect id="allowedUsersField" :placeholder="placeholder" :disabled="!usersChecked" :table="'users'" :options="users" :selectedValues="selectedUsers" />
+      <b-col
+        cols="12"
+        xl="12"
+      >
+        <AllowedSelect
+          id="allowedUsersField"
+          :placeholder="placeholder"
+          :disabled="!usersChecked"
+          :table="'users'"
+          :options="users"
+          :selected-values="selectedUsers"
+        />
       </b-col>
     </b-row>
   </div>
@@ -41,6 +67,9 @@ import AllowedSelect from '@/components/AllowedSelect.vue'
 import i18n from '@/i18n'
 
 export default {
+  components: {
+    AllowedSelect
+  },
   setup (props, context) {
     const $store = context.root.$store
     const placeholder = context.root.$route.name === 'deploymentsnew' ? i18n.t('forms.allowed.placeholder') : `${i18n.t('forms.allowed.placeholder')} ${i18n.t('forms.allowed.empty')}`
@@ -90,9 +119,6 @@ export default {
       'getGroups',
       'getUsers'
     ])
-  },
-  components: {
-    AllowedSelect
   }
 }
 </script>

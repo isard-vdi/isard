@@ -1,5 +1,8 @@
 <template>
-  <div ref='screen' :style='`height: ${this.height}; cursor: pointer;`' />
+  <div
+    ref="screen"
+    :style="`height: ${height}; cursor: pointer;`"
+  />
 </template>
 
 <script>
@@ -24,6 +27,9 @@ export default {
       required: true
     }
   },
+  mounted () {
+    this.newRFB(this.$refs.screen, this.viewOnly, this.qualityLevel)
+  },
   methods: {
     newRFB (target, viewOnly, qualityLevel) {
       this.rfb = new RFB(
@@ -45,9 +51,6 @@ export default {
       this.rfb.qualityLevel = qualityLevel
       this.rfb.scaleViewport = true
     }
-  },
-  mounted () {
-    this.newRFB(this.$refs.screen, this.viewOnly, this.qualityLevel)
   }
 }
 </script>

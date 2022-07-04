@@ -1,12 +1,17 @@
 <template>
-  <b-container fluid id="content">
+  <b-container
+    id="content"
+    fluid
+  >
     <div v-if="templates_loaded && getTemplates.length === 0">
       <h3><strong>{{ $t('views.templates.no-templates.title') }}</strong></h3>
       <p>{{ $t('views.templates.no-templates.subtitle') }}</p>
     </div>
-    <TemplatesList v-else
+    <TemplatesList
+      v-else
       :templates="getTemplates"
-      :loading="!(templates_loaded)"/>
+      :loading="!(templates_loaded)"
+    />
   </b-container>
 </template>
 <script>
@@ -18,14 +23,14 @@ export default {
   components: {
     TemplatesList
   },
-  created () {
-    this.$store.dispatch('fetchTemplates')
-  },
   computed: {
     ...mapGetters(['getTemplates']),
     templates_loaded () {
       return this.$store.getters.getTemplatesLoaded
     }
+  },
+  created () {
+    this.$store.dispatch('fetchTemplates')
   },
   destroyed () {
     this.$store.dispatch('resetTemplatesState')

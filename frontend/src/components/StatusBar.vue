@@ -1,96 +1,219 @@
 <template>
-  <div id="statusbar" class="px-0 px-lg-5 pl-2" style="min-height: 3.6rem;">
-    <b-container fluid class="px-0">
-      <b-navbar toggleable="lg" type="light" variant="">
-        <div class="separator"></div>
+  <div
+    id="statusbar"
+    class="px-0 px-lg-5 pl-2"
+    style="min-height: 3.6rem;"
+  >
+    <b-container
+      fluid
+      class="px-0"
+    >
+      <b-navbar
+        toggleable="lg"
+        type="light"
+        variant=""
+      >
+        <div class="separator" />
         <div class="d-flex flex-grow">
-           <!-- Left aligned nav items-->
-          <b-navbar-nav id="statusbar-content" class="flex-grow flex-row">
+          <!-- Left aligned nav items-->
+          <b-navbar-nav
+            id="statusbar-content"
+            class="flex-grow flex-row"
+          >
             <!-- Back -->
-            <b-nav-item v-if="locationDeployment" href="#" @click="goToDeployments">
+            <b-nav-item
+              v-if="locationDeployment"
+              href="#"
+              @click="goToDeployments"
+            >
               <div>
                 <b-icon
                   icon="arrow-left"
                   aria-hidden="true"
-                  class="text-medium-gray mr-2 mr-lg-2">
-                </b-icon>
-                {{$t("components.statusbar.deployment.back")}}
+                  class="text-medium-gray mr-2 mr-lg-2"
+                />
+                {{ $t("components.statusbar.deployment.back") }}
               </div>
             </b-nav-item>
             <!-- filter -->
-            <DesktopsFilter v-if="locationDesktops && !creationMode" class="d-none d-lg-flex"></DesktopsFilter>
+            <DesktopsFilter
+              v-if="locationDesktops && !creationMode"
+              class="d-none d-lg-flex"
+            />
             <!-- Only started checkbox -->
-            <b-nav-item v-if="locationDesktops && !creationMode" class="ml-2 ml-md-4" href="#" @click="toggleDesktopsFilter">
+            <b-nav-item
+              v-if="locationDesktops && !creationMode"
+              class="ml-2 ml-md-4"
+              href="#"
+              @click="toggleDesktopsFilter"
+            >
               <div>
                 <b-form-checkbox
                   id="started-checkbox"
-                  name="checkbox-1"
                   v-model="started"
-                  value=true
-                  unchecked-value=false
+                  name="checkbox-1"
+                  value="true"
+                  unchecked-value="false"
                   aria-hidden="true"
-                  class="mr-2 mr-lg-0">
-                    <p class="d-none d-md-inline p-0 m-0">{{$t("components.statusbar.checkbox-text")}}</p>
-                    <p class="d-inline d-md-none  p-0 m-0">{{$t("components.statusbar.checkbox-text-short")}}</p>
+                  class="mr-2 mr-lg-0"
+                >
+                  <p class="d-none d-md-inline p-0 m-0">
+                    {{ $t("components.statusbar.checkbox-text") }}
+                  </p>
+                  <p class="d-inline d-md-none  p-0 m-0">
+                    {{ $t("components.statusbar.checkbox-text-short") }}
+                  </p>
                 </b-form-checkbox>
               </div>
             </b-nav-item>
             <!-- Started count -->
-            <b-nav-item v-if="locationDesktops && !creationMode"  disabled class="d-none d-md-inline ml-4">
+            <b-nav-item
+              v-if="locationDesktops && !creationMode"
+              disabled
+              class="d-none d-md-inline ml-4"
+            >
               <b-icon
                 icon="display-fill"
                 aria-hidden="true"
-                class="text-medium-gray mr-2 mr-lg-0">
-              </b-icon>
+                class="text-medium-gray mr-2 mr-lg-0"
+              />
             </b-nav-item>
-            <b-nav-item v-if="locationDesktops && !creationMode" disabled><span class="d-none d-lg-inline text-medium-gray">{{`${$t("components.statusbar.desktops-started")}:`}}</span><span class="text-medium-gray">{{ ` ${startedDesktops}` }}</span></b-nav-item>
+            <b-nav-item
+              v-if="locationDesktops && !creationMode"
+              disabled
+            >
+              <span class="d-none d-lg-inline text-medium-gray">{{ `${$t("components.statusbar.desktops-started")}:` }}</span><span class="text-medium-gray">{{ ` ${startedDesktops}` }}</span>
+            </b-nav-item>
           </b-navbar-nav>
 
           <!-- Right aligned nav items-->
-          <div class="pt-1"><b-button v-if="locationDesktops && !creationMode" :pill="true" class="mr-0 mr-md-4" variant="outline-primary" size="sm" @click="navigate('desktopsnew')">{{`${$t("components.statusbar.new-desktop")}`}}</b-button></div>
-          <div class="pt-1"><b-button v-if="locationDeployments && !creationMode" :pill="true" class="mr-0 mr-md-4" variant="outline-primary" size="sm" @click="navigate('deploymentsnew')">{{`${$t("components.statusbar.new-deployment")}`}}</b-button></div>
-          <div class="pt-1" v-if="locationDeployment">
-            <b-button class="rounded-circle px-2 mr-2 btn-green" @click="startDesktops()" :title="$t('components.statusbar.deployment.buttons.start.title')">
-              <b-icon icon="play" scale="0.75"></b-icon>
-            </b-button>
-            <b-button class="rounded-circle px-2 mr-2 btn-red" @click="stopDesktops()" :title="$t('components.statusbar.deployment.buttons.stop.title')">
-              <b-icon icon="stop" scale="0.75"></b-icon>
-            </b-button>
-            <b-button class="rounded-circle px-2 mr-2" :class="visibleClass()"
-              @click="toggleVisible()"
-              :title="deployment.visible ? $t('components.statusbar.deployment.buttons.make-not-visible.title') : $t('components.statusbar.deployment.buttons.make-visible.title')"
+          <div class="pt-1">
+            <b-button
+              v-if="locationDesktops && !creationMode"
+              :pill="true"
+              class="mr-0 mr-md-4"
+              variant="outline-primary"
+              size="sm"
+              @click="navigate('desktopsnew')"
             >
-              <b-icon :icon="toggleVisibleIcon()" scale="0.75"></b-icon>
-            </b-button>
-            <b-button class="rounded-circle px-2 mr-2 btn-dark-blue" @click="goToVideowall()" :title="$t('components.statusbar.deployment.buttons.videowall.title')">
-              <b-icon icon="grid-fill" scale="0.75"></b-icon>
-            </b-button>
-            <b-button class="rounded-circle btn-purple px-2 mr-2" @click="downloadDirectViewerCSV()" :title="$t('components.statusbar.deployment.buttons.download-direct-viewer.title')">
-              <b-icon icon="download" scale="0.75"></b-icon>
-            </b-button>
-            <b-button class="rounded-circle px-2 mr-2 btn-orange" @click="recreateDeployment()" :title="$t('components.statusbar.deployment.buttons.recreate.title')">
-              <b-icon icon="arrow-clockwise" scale="0.75"></b-icon>
-            </b-button>
-            <b-button class="rounded-circle btn-red px-2 mr-2" @click="deleteDeployment()" :title="$t('components.statusbar.deployment.buttons.delete.title')">
-              <b-icon icon="trash-fill" scale="0.75"></b-icon>
+              {{ `${$t("components.statusbar.new-desktop")}` }}
             </b-button>
           </div>
-          <b-navbar-nav v-if="locationDesktops && !creationMode" class="ml-auto flex-row d-none d-xl-flex">
-            <b-nav-item href="#" @click="setViewType('grid')" :class="{selectedView: getViewType === 'grid'}">
+          <div class="pt-1">
+            <b-button
+              v-if="locationDeployments && !creationMode"
+              :pill="true"
+              class="mr-0 mr-md-4"
+              variant="outline-primary"
+              size="sm"
+              @click="navigate('deploymentsnew')"
+            >
+              {{ `${$t("components.statusbar.new-deployment")}` }}
+            </b-button>
+          </div>
+          <div
+            v-if="locationDeployment"
+            class="pt-1"
+          >
+            <b-button
+              class="rounded-circle px-2 mr-2 btn-green"
+              :title="$t('components.statusbar.deployment.buttons.start.title')"
+              @click="startDesktops()"
+            >
+              <b-icon
+                icon="play"
+                scale="0.75"
+              />
+            </b-button>
+            <b-button
+              class="rounded-circle px-2 mr-2 btn-red"
+              :title="$t('components.statusbar.deployment.buttons.stop.title')"
+              @click="stopDesktops()"
+            >
+              <b-icon
+                icon="stop"
+                scale="0.75"
+              />
+            </b-button>
+            <b-button
+              class="rounded-circle px-2 mr-2"
+              :class="visibleClass()"
+              :title="deployment.visible ? $t('components.statusbar.deployment.buttons.make-not-visible.title') : $t('components.statusbar.deployment.buttons.make-visible.title')"
+              @click="toggleVisible()"
+            >
+              <b-icon
+                :icon="toggleVisibleIcon()"
+                scale="0.75"
+              />
+            </b-button>
+            <b-button
+              class="rounded-circle px-2 mr-2 btn-dark-blue"
+              :title="$t('components.statusbar.deployment.buttons.videowall.title')"
+              @click="goToVideowall()"
+            >
+              <b-icon
+                icon="grid-fill"
+                scale="0.75"
+              />
+            </b-button>
+            <b-button
+              class="rounded-circle btn-purple px-2 mr-2"
+              :title="$t('components.statusbar.deployment.buttons.download-direct-viewer.title')"
+              @click="downloadDirectViewerCSV()"
+            >
+              <b-icon
+                icon="download"
+                scale="0.75"
+              />
+            </b-button>
+            <b-button
+              class="rounded-circle px-2 mr-2 btn-orange"
+              :title="$t('components.statusbar.deployment.buttons.recreate.title')"
+              @click="recreateDeployment()"
+            >
+              <b-icon
+                icon="arrow-clockwise"
+                scale="0.75"
+              />
+            </b-button>
+            <b-button
+              class="rounded-circle btn-red px-2 mr-2"
+              :title="$t('components.statusbar.deployment.buttons.delete.title')"
+              @click="deleteDeployment()"
+            >
+              <b-icon
+                icon="trash-fill"
+                scale="0.75"
+              />
+            </b-button>
+          </div>
+          <b-navbar-nav
+            v-if="locationDesktops && !creationMode"
+            class="ml-auto flex-row d-none d-xl-flex"
+          >
+            <b-nav-item
+              href="#"
+              :class="{selectedView: getViewType === 'grid'}"
+              @click="setViewType('grid')"
+            >
               <b-icon
                 icon="grid-fill"
                 aria-hidden="true"
                 class="text-medium-gray mt-1"
-              ></b-icon>
+              />
             </b-nav-item>
-            <b-nav-item href="#" @click="setViewType('list')" :class="{selectedView: getViewType === 'list'}" class="ml-sm-2 ml-xl-0">
+            <b-nav-item
+              href="#"
+              :class="{selectedView: getViewType === 'list'}"
+              class="ml-sm-2 ml-xl-0"
+              @click="setViewType('list')"
+            >
               <b-icon
                 icon="list"
                 aria-hidden="true"
                 class="text-medium-gray mt-1"
-              ></b-icon>
+              />
             </b-nav-item>
-
           </b-navbar-nav>
         </div>
       </b-navbar>
@@ -106,6 +229,9 @@ import { computed } from '@vue/composition-api'
 import i18n from '@/i18n'
 
 export default {
+  components: {
+    DesktopsFilter
+  },
   setup (props, context) {
     const $store = context.root.$store
 
@@ -263,24 +389,10 @@ export default {
       recreateDeployment
     }
   },
-  components: {
-    DesktopsFilter
-  },
   data () {
     return {
       started: false,
       showStarted: 'false'
-    }
-  },
-  methods: {
-    ...mapActions([
-      'setViewType',
-      'toggleShowStarted',
-      'navigate'
-    ]),
-    toggleDesktopsFilter () {
-      this.started = !this.started
-      this.toggleShowStarted()
     }
   },
   computed: {
@@ -309,6 +421,17 @@ export default {
     },
     creationMode () {
       return this.getUrlTokens.includes('new')
+    }
+  },
+  methods: {
+    ...mapActions([
+      'setViewType',
+      'toggleShowStarted',
+      'navigate'
+    ]),
+    toggleDesktopsFilter () {
+      this.started = !this.started
+      this.toggleShowStarted()
     }
   }
 }

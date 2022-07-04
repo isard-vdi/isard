@@ -1,16 +1,27 @@
 <template>
-  <b-container fluid class="vh-100">
+  <b-container
+    fluid
+    class="vh-100"
+  >
     <b-row class="h-100 d-flex justify-content-center align-items-center">
-      <b-col md="1"/>
+      <b-col md="1" />
       <b-col md="10">
         <h1>{{ $t('views.not-found.title') }}</h1>
-        <b-button @click="redirectLogin()" class="btn mt-4" variant="primary" size="lg">
-          <b-icon icon="house-door-fill" variant="white"></b-icon>
+        <b-button
+          class="btn mt-4"
+          variant="primary"
+          size="lg"
+          @click="redirectLogin()"
+        >
+          <b-icon
+            icon="house-door-fill"
+            variant="white"
+          />
           {{ $t('views.not-found.back') }}
         </b-button>
-        </b-col>
-        <b-col md="1"/>
-      </b-row>
+      </b-col>
+      <b-col md="1" />
+    </b-row>
   </b-container>
 </template>
 

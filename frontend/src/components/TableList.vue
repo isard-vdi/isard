@@ -1,136 +1,166 @@
 <template>
-  <div class='table-list px-5'>
-    <b-container fluid class='px-0 pt-2'>
-      <b-skeleton-wrapper :loading="loading" class='pb-1 pt-4 justify-content-start'>
-              <template #loading>
-                <b-col>
-                  <list-item-skeleton class="mb-2"></list-item-skeleton>
-                  <list-item-skeleton class="mb-2"></list-item-skeleton>
-                  <list-item-skeleton class="mb-2"></list-item-skeleton>
-                </b-col>
+  <div class="table-list px-5">
+    <b-container
+      fluid
+      class="px-0 pt-2"
+    >
+      <b-skeleton-wrapper
+        :loading="loading"
+        class="pb-1 pt-4 justify-content-start"
+      >
+        <template #loading>
+          <b-col>
+            <list-item-skeleton class="mb-2" />
+            <list-item-skeleton class="mb-2" />
+            <list-item-skeleton class="mb-2" />
+          </b-col>
+        </template>
+        <b-row>
+          <b-col
+            cols="12"
+            class="py-3 p-5 pt-4 d-flex flex-row flex-wrap justify-content-start"
+          >
+            <b-table
+              :items="desktops"
+              :fields="fields"
+            >
+              <template #cell(image)="data">
+                <!-- INFO -->
+                <b-icon
+                  v-b-tooltip="{ title: `${data.item.description ? data.item.description : $t(`components.desktop-cards.no-info-default`)}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
+                  icon="info-circle-fill"
+                  class="info-icon position-absolute cursor-pointer"
+                />
+                <!-- IMAGE -->
+                <div
+                  class="rounded-circle bg-red"
+                  :style="{'background-image': `url('..${data.item.image.url}')`}"
+                />
               </template>
-      <b-row>
-        <b-col
-          cols='12'
-          class='py-3 p-5 pt-4 d-flex flex-row flex-wrap justify-content-start'
-        >
-          <b-table :items='desktops' :fields='fields'>
-            <template #cell(image)='data'>
-              <!-- INFO -->
-              <b-icon
-                icon='info-circle-fill'
-                class='info-icon position-absolute cursor-pointer'
-                v-b-tooltip="{ title: `${data.item.description ? data.item.description : $t(`components.desktop-cards.no-info-default`)}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
-              ></b-icon>
-              <!-- IMAGE -->
-              <div
-                class='rounded-circle bg-red'
-                :style="{'background-image': `url('..${data.item.image.url}')`}"
-              ></div>
-            </template>
-            <template #cell(name)='data'>
-              <p class='m-0 font-weight-bold'>
-                {{ data.item.name }}
-              </p>
-            </template>
-            <template #cell(description)='data'>
-              <p class='text-dark-gray m-0'>
-                {{ data.item.description }}
-              </p>
-            </template>
-            <template #cell(ip)='data'>
-              <p class='text-dark-gray m-0'>
-                {{ data.item.ip }}
-              </p>
-            </template>
-            <template #cell(state)='data'>
-              <div class='d-flex justify-content-center align-items-center'>
-                <!-- STATE DOT -->
-                  <div v-if="![desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down']].includes(getItemState(data.item))" :class="'state-dot mr-2 ' + stateCssClass(getItemState(data.item))"></div>
+              <template #cell(name)="data">
+                <p class="m-0 font-weight-bold">
+                  {{ data.item.name }}
+                </p>
+              </template>
+              <template #cell(description)="data">
+                <p class="text-dark-gray m-0">
+                  {{ data.item.description }}
+                </p>
+              </template>
+              <template #cell(ip)="data">
+                <p class="text-dark-gray m-0">
+                  {{ data.item.ip }}
+                </p>
+              </template>
+              <template #cell(state)="data">
+                <div class="d-flex justify-content-center align-items-center">
+                  <!-- STATE DOT -->
+                  <div
+                    v-if="![desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down']].includes(getItemState(data.item))"
+                    :class="'state-dot mr-2 ' + stateCssClass(getItemState(data.item))"
+                  />
                   <!-- SPINNER -->
                   <b-spinner
-                        v-if="[desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down']].includes(getItemState(data.item))"
-                        small
-                        class='align-self-center mr-2 spinner-loading'
-                      ></b-spinner>
-                      <!-- TITLE -->
-                  <p class='mb-0 text-medium-gray flex-grow'>
-                    {{ data.item.type === 'nonpersistent' && getItemState(data.item) === desktopStates.stopped ? $t(`views.select-template.status.readyCreation.text`) : $t(`views.select-template.status.${getItemState(data.item)}.text`)}}
+                    v-if="[desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down']].includes(getItemState(data.item))"
+                    small
+                    class="align-self-center mr-2 spinner-loading"
+                  />
+                  <!-- TITLE -->
+                  <p class="mb-0 text-medium-gray flex-grow">
+                    {{ data.item.type === 'nonpersistent' && getItemState(data.item) === desktopStates.stopped ? $t(`views.select-template.status.readyCreation.text`) : $t(`views.select-template.status.${getItemState(data.item)}.text`) }}
                   </p>
-              </div>
-            </template>
-            <template #cell(viewers)="data">
-              <div class=''>
-                <DesktopButton
+                </div>
+              </template>
+              <template #cell(viewers)="data">
+                <div class="">
+                  <DesktopButton
                     v-if="!hideViewers && data.item.viewers !== undefined && data.item.viewers.length === 1"
                     :active="getItemState(data.item) === desktopStates.started"
-                    :buttonClass = "buttViewerCssColor"
-                    :buttText="data.item.viewers[0]"
+                    :button-class="buttViewerCssColor"
+                    :butt-text="data.item.viewers[0]"
                     variant="primary"
-                    :spinnerActive="waitingIp"
-                    @buttonClicked="openDesktop({desktopId: data.item.id, viewer: data.item.viewers && data.item.viewers[0]})">
-                  </DesktopButton>
+                    :spinner-active="waitingIp"
+                    @buttonClicked="openDesktop({desktopId: data.item.id, viewer: data.item.viewers && data.item.viewers[0]})"
+                  />
                   <isard-dropdown
                     v-else
-                    :ddDisabled="!showDropDown(data.item)"
+                    :dd-disabled="!showDropDown(data.item)"
                     :class="{ 'dropdown-inactive': !showDropDown(data.item) }"
-                    cssClass='viewers-dropdown flex-grow-1'
-                    variant='light'
+                    css-class="viewers-dropdown flex-grow-1"
+                    variant="light"
                     :viewers="data.item.viewers && data.item.viewers.filter(item => item !== getDefaultViewer(data.item))"
                     :desktop="data.item"
-                    :viewerText="getViewerText(data.item).substring(0, 40)"
-                    fullViewerText=''
-                    :defaultViewer="getDefaultViewer(data.item)"
-                    :waitingIp="data.item.state && data.item.state.toLowerCase() === desktopStates.waitingip"
-                    @dropdownClicked="openDesktop">
-                  </isard-dropdown>
-              </div>
-            </template>
-            <template #cell(action)='data'>
-               <!-- Main action button nonpersistent -->
-              <DesktopButton v-if="!data.item.state"
-                    class="table-action-button"
-                    :active="true"
-                    @buttonClicked="chooseDesktop(data.item.id)"
-                    :buttonClass = "buttCssColor(getItemState(data.item))"
-                    :spinnerActive ="false"
-                    :buttText = "$t('views.select-template.status.notCreated.action')"
-                    :iconName = "data.item.buttonIconName">
-                </DesktopButton>
+                    :viewer-text="getViewerText(data.item).substring(0, 40)"
+                    full-viewer-text=""
+                    :default-viewer="getDefaultViewer(data.item)"
+                    :waiting-ip="data.item.state && data.item.state.toLowerCase() === desktopStates.waitingip"
+                    @dropdownClicked="openDesktop"
+                  />
+                </div>
+              </template>
+              <template #cell(action)="data">
+                <!-- Main action button nonpersistent -->
+                <DesktopButton
+                  v-if="!data.item.state"
+                  class="table-action-button"
+                  :active="true"
+                  :button-class="buttCssColor(getItemState(data.item))"
+                  :spinner-active="false"
+                  :butt-text="$t('views.select-template.status.notCreated.action')"
+                  :icon-name="data.item.buttonIconName"
+                  @buttonClicked="chooseDesktop(data.item.id)"
+                />
                 <!-- Main action button persistent-->
-                <DesktopButton v-if="(data.item.type === 'persistent' || (data.item.type === 'nonpersistent' && data.item.state && getItemState(data.item) ===  desktopStates.stopped )) && ![desktopStates.working].includes(getItemState(data.item))"
-                    class="table-action-button"
-                    :active="true"
-                    @buttonClicked="changeDesktopStatus({ action: status[getItemState(data.item) || 'stopped'].action, desktopId: data.item.id })"
-                    :buttonClass = "buttCssColor(getItemState(data.item))"
-                    :spinnerActive ="false"
-                    :buttText = "$t(`views.select-template.status.${getItemState(data.item)}.action`)"
-                    :iconName = "data.item.buttonIconName">
-                </DesktopButton>
+                <DesktopButton
+                  v-if="(data.item.type === 'persistent' || (data.item.type === 'nonpersistent' && data.item.state && getItemState(data.item) === desktopStates.stopped )) && ![desktopStates.working].includes(getItemState(data.item))"
+                  class="table-action-button"
+                  :active="true"
+                  :button-class="buttCssColor(getItemState(data.item))"
+                  :spinner-active="false"
+                  :butt-text="$t(`views.select-template.status.${getItemState(data.item)}.action`)"
+                  :icon-name="data.item.buttonIconName"
+                  @buttonClicked="changeDesktopStatus({ action: status[getItemState(data.item) || 'stopped'].action, desktopId: data.item.id })"
+                />
                 <!-- Delete action button-->
-                <DesktopButton v-if="(data.item.state && data.item.type === 'nonpersistent' && [desktopStates.started, desktopStates.waitingip, desktopStates.stopped].includes(getItemState(data.item)))"
-                    class="table-action-button"
-                    :active="true"
-                    @buttonClicked="deleteDesktop(data.item.id)"
-                    buttonClass = "btn-red"
-                    :spinnerActive ="false"
-                    :buttText = "$t('views.select-template.remove')"
-                    iconName = "trash">
-                </DesktopButton>
-            </template>
-            <template #cell(delete)='data'>
-              <div class='d-flex justify-content-center align-items-center'>
-                <a class='cursor-pointer' @click="onClickDeleteDesktop(data.item)"><b-icon icon="trash" variant="danger"></b-icon></a>
-              </div>
-            </template>
-            <template #cell(booking)='data'>
-              <div class='d-flex justify-content- align-items-center' v-if="data.item.needsBooking">
-                <a class='cursor-pointer' @click="onClickBookingDesktop(data.item)"><b-icon icon="calendar" variant="info"></b-icon></a>
-              </div>
-            </template>
-          </b-table>
+                <DesktopButton
+                  v-if="(data.item.state && data.item.type === 'nonpersistent' && [desktopStates.started, desktopStates.waitingip, desktopStates.stopped].includes(getItemState(data.item)))"
+                  class="table-action-button"
+                  :active="true"
+                  button-class="btn-red"
+                  :spinner-active="false"
+                  :butt-text="$t('views.select-template.remove')"
+                  icon-name="trash"
+                  @buttonClicked="deleteDesktop(data.item.id)"
+                />
+              </template>
+              <template #cell(delete)="data">
+                <div class="d-flex justify-content-center align-items-center">
+                  <a
+                    class="cursor-pointer"
+                    @click="onClickDeleteDesktop(data.item)"
+                  ><b-icon
+                    icon="trash"
+                    variant="danger"
+                  /></a>
+                </div>
+              </template>
+              <template #cell(booking)="data">
+                <div
+                  v-if="data.item.needsBooking"
+                  class="d-flex justify-content- align-items-center"
+                >
+                  <a
+                    class="cursor-pointer"
+                    @click="onClickBookingDesktop(data.item)"
+                  ><b-icon
+                    icon="calendar"
+                    variant="info"
+                  /></a>
+                </div>
+              </template>
+            </b-table>
           </b-col>
-      </b-row>
+        </b-row>
       </b-skeleton-wrapper>
     </b-container>
   </div>
@@ -147,7 +177,6 @@ import ListItemSkeleton from '@/components/ListItemSkeleton.vue'
 
 export default {
   components: { DesktopButton, IsardDropdown, ListItemSkeleton },
-  setup () {},
   props: {
     listTitle: String,
     templates: {
@@ -167,6 +196,75 @@ export default {
       type: Boolean
     }
   },
+  data () {
+    return {
+      desktopStates,
+      status,
+      fields: [
+        {
+          key: 'image',
+          sortable: false,
+          label: '',
+          thStyle: { width: '5%' },
+          tdClass: 'image position-relative'
+        },
+        {
+          key: 'name',
+          sortable: true,
+          label: `${i18n.t('components.desktop-cards.table-header.name')}`,
+          thStyle: { width: '20%' },
+          tdClass: 'name'
+        },
+        {
+          key: 'description',
+          sortable: true,
+          label: `${i18n.t('components.desktop-cards.table-header.description')}`,
+          thStyle: { width: '30%' },
+          tdClass: 'description'
+        },
+        {
+          key: 'ip',
+          sortable: true,
+          label: 'IP',
+          thStyle: { width: '10%' },
+          tdClass: 'ip'
+        },
+        {
+          key: 'state',
+          sortable: true,
+          label: `${i18n.t('components.desktop-cards.table-header.state')}`,
+          thStyle: { width: '10%' },
+          tdClass: 'state'
+        },
+        {
+          key: 'viewers',
+          thStyle: { width: '15%' },
+          label: `${i18n.t('components.desktop-cards.table-header.viewers')}`,
+          tdClass: 'viewers'
+        },
+        {
+          key: 'action',
+          label: `${i18n.t('components.desktop-cards.table-header.action')}`,
+          thStyle: { width: '10%' },
+          tdClass: 'px-4 action'
+        },
+        {
+          key: 'delete',
+          label: '',
+          thStyle: { width: '5%' },
+          thClass: `${this.desktops[0].type === 'persistent' ? '' : 'd-none'}`,
+          tdClass: `${this.desktops[0].type === 'persistent' ? '' : 'd-none'}`
+        },
+        {
+          key: 'booking',
+          label: '',
+          thStyle: { width: '5%' },
+          thClass: `${this.desktops[0].type === 'persistent' ? '' : 'd-none'}`,
+          tdClass: `${this.desktops[0].type === 'persistent' ? '' : 'd-none'}`
+        }
+      ]
+    }
+  },
   computed: {
     ...mapGetters(['getViewers']),
     stateBarCssClass () {
@@ -179,6 +277,9 @@ export default {
       }
       return states[this.desktopState]
     }
+  },
+  destroyed () {
+    this.$snotify.clear()
   },
   methods: {
     ...mapActions([
@@ -269,78 +370,6 @@ export default {
       const data = { id: desktop.id, type: 'desktop' }
       this.goToItemBooking(data)
     }
-  },
-  data () {
-    return {
-      desktopStates,
-      status,
-      fields: [
-        {
-          key: 'image',
-          sortable: false,
-          label: '',
-          thStyle: { width: '5%' },
-          tdClass: 'image position-relative'
-        },
-        {
-          key: 'name',
-          sortable: true,
-          label: `${i18n.t('components.desktop-cards.table-header.name')}`,
-          thStyle: { width: '20%' },
-          tdClass: 'name'
-        },
-        {
-          key: 'description',
-          sortable: true,
-          label: `${i18n.t('components.desktop-cards.table-header.description')}`,
-          thStyle: { width: '30%' },
-          tdClass: 'description'
-        },
-        {
-          key: 'ip',
-          sortable: true,
-          label: 'IP',
-          thStyle: { width: '10%' },
-          tdClass: 'ip'
-        },
-        {
-          key: 'state',
-          sortable: true,
-          label: `${i18n.t('components.desktop-cards.table-header.state')}`,
-          thStyle: { width: '10%' },
-          tdClass: 'state'
-        },
-        {
-          key: 'viewers',
-          thStyle: { width: '15%' },
-          label: `${i18n.t('components.desktop-cards.table-header.viewers')}`,
-          tdClass: 'viewers'
-        },
-        {
-          key: 'action',
-          label: `${i18n.t('components.desktop-cards.table-header.action')}`,
-          thStyle: { width: '10%' },
-          tdClass: 'px-4 action'
-        },
-        {
-          key: 'delete',
-          label: '',
-          thStyle: { width: '5%' },
-          thClass: `${this.desktops[0].type === 'persistent' ? '' : 'd-none'}`,
-          tdClass: `${this.desktops[0].type === 'persistent' ? '' : 'd-none'}`
-        },
-        {
-          key: 'booking',
-          label: '',
-          thStyle: { width: '5%' },
-          thClass: `${this.desktops[0].type === 'persistent' ? '' : 'd-none'}`,
-          tdClass: `${this.desktops[0].type === 'persistent' ? '' : 'd-none'}`
-        }
-      ]
-    }
-  },
-  destroyed () {
-    this.$snotify.clear()
   }
 }
 </script>

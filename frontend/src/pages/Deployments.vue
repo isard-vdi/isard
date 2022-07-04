@@ -1,12 +1,17 @@
 <template>
-  <b-container fluid id="content">
+  <b-container
+    id="content"
+    fluid
+  >
     <div v-if="deployments_loaded && getDeployments.length === 0">
       <h3><strong>{{ $t('views.deployments.no-deployments.title') }}</strong></h3>
       <p>{{ $t('views.deployments.no-deployments.subtitle') }}</p>
     </div>
-    <DeploymentsList v-else
+    <DeploymentsList
+      v-else
       :deployments="sortedDeployments"
-      :loading="!(deployments_loaded)"/>
+      :loading="!(deployments_loaded)"
+    />
   </b-container>
 </template>
 <script>
@@ -17,9 +22,6 @@ import { mapGetters } from 'vuex'
 export default {
   components: {
     DeploymentsList
-  },
-  created () {
-    this.$store.dispatch('fetchDeployments')
   },
   computed: {
     ...mapGetters(['getDeployments']),
@@ -32,6 +34,9 @@ export default {
     deployments_loaded () {
       return this.$store.getters.getDeploymentsLoaded
     }
+  },
+  created () {
+    this.$store.dispatch('fetchDeployments')
   }
 }
 </script>

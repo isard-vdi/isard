@@ -1,17 +1,27 @@
 <template>
-  <b-row class='mt-1'>
-    <b-col cols="2" class='mt-1'><label for="filterInput">{{ $t('components.desktop-cards.filter-label') }}</label></b-col>
-      <b-col cols="10">
-        <b-input-group size="sm">
-          <b-form-input
-            id="filterInput"
-            v-model="filterText">
-          </b-form-input>
-          <b-input-group-append>
-            <b-button :disabled="!filterText" @click="filterText = ''">{{ $t('forms.clear') }}</b-button>
-          </b-input-group-append>
-        </b-input-group>
-      </b-col>
+  <b-row class="mt-1">
+    <b-col
+      cols="2"
+      class="mt-1"
+    >
+      <label for="filterInput">{{ $t('components.desktop-cards.filter-label') }}</label>
+    </b-col>
+    <b-col cols="10">
+      <b-input-group size="sm">
+        <b-form-input
+          id="filterInput"
+          v-model="filterText"
+        />
+        <b-input-group-append>
+          <b-button
+            :disabled="!filterText"
+            @click="filterText = ''"
+          >
+            {{ $t('forms.clear') }}
+          </b-button>
+        </b-input-group-append>
+      </b-input-group>
+    </b-col>
   </b-row>
 </template>
 

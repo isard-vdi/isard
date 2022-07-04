@@ -1,11 +1,21 @@
 <template>
-  <b-container class="calendar-container" fluid id="content">
+  <b-container
+    id="content"
+    class="calendar-container"
+    fluid
+  >
     <b-row class="mb-3">
       <b-col>
-        <b-form-select v-model="selectedReservableType" :options="types"></b-form-select>
+        <b-form-select
+          v-model="selectedReservableType"
+          :options="types"
+        />
       </b-col>
       <b-col>
-        <b-form-select v-model="selectedReservableItem" :options="items"></b-form-select>
+        <b-form-select
+          v-model="selectedReservableItem"
+          :options="items"
+        />
       </b-col>
     </b-row>
     <b-row>
@@ -21,7 +31,7 @@
         />
       </b-col>
     </b-row>
-    <PlanningModal/>
+    <PlanningModal />
   </b-container>
 </template>
 <script>

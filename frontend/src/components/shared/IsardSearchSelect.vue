@@ -1,22 +1,30 @@
 <template>
   <v-select
     multiple
-    @search="fetch"
     :placeholder="placeholder"
     :options="options"
     :disabled="disabled"
-    :closeOnSelect="closeOnSelect"
-    :deselectFromDropdown="deselectFromDropdown"
+    :close-on-select="closeOnSelect"
+    :deselect-from-dropdown="deselectFromDropdown"
     :loading="false"
     :value="selectedValues"
+    @search="fetch"
     @input="setSelected"
   >
-    <template v-slot:option="option">
-      <input type="checkbox" :checked="selectedValues && selectedValues.includes(selectedValues.find(el => el.id === option.id))" />
+    <template #option="option">
+      <input
+        type="checkbox"
+        :checked="selectedValues && selectedValues.includes(selectedValues.find(el => el.id === option.id))"
+      >
       {{ option.label }}
     </template>
     <template #spinner="{ loading }">
-      <b-spinner v-if="loading" variant="info" small label="Spinning"></b-spinner>
+      <b-spinner
+        v-if="loading"
+        variant="info"
+        small
+        label="Spinning"
+      />
     </template>
     <!-- eslint-disable-next-line vue/no-unused-vars  -->
     <template #no-options="{ search, searching, loading }">

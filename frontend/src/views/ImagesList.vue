@@ -1,13 +1,21 @@
 <template>
-  <b-container fluid class="main-container px-3 pl-xl-5 pr-xl-5 pt-3">
+  <b-container
+    fluid
+    class="main-container px-3 pl-xl-5 pr-xl-5 pt-3"
+  >
     <b-row align-h="center">
-      <b-col cols="auto" v-for="image in items" :key="image.id" class="m-2 p-2">
+      <b-col
+        v-for="image in items"
+        :key="image.id"
+        cols="auto"
+        class="m-2 p-2"
+      >
         <IsardImage
-          :imageUrl="image.url"
-          :imageId="image.id"
-          imageClass="desktop-image"
-          @imageClicked="onClickChangeDesktopImage(image.id, image.type)">
-        </IsardImage>
+          :image-url="image.url"
+          :image-id="image.id"
+          image-class="desktop-image"
+          @imageClicked="onClickChangeDesktopImage(image.id, image.type)"
+        />
       </b-col>
     </b-row>
   </b-container>
@@ -32,13 +40,13 @@ export default {
       items
     }
   },
+  computed: {
+    ...mapGetters(['getImagesListItemId'])
+  },
   mounted () {
     if (this.getImagesListItemId.length < 1) {
       this.navigate('desktops')
     }
-  },
-  computed: {
-    ...mapGetters(['getImagesListItemId'])
   },
   methods: {
     ...mapActions([

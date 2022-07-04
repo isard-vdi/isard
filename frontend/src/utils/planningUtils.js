@@ -56,7 +56,7 @@ export class PlanningUtils {
   }
 
   static checkModalData (modalData) {
-    for (var key in modalData) {
+    for (const key in modalData) {
       if (StringUtils.isNullOrUndefinedOrEmpty(modalData[key])) {
         return false
       }

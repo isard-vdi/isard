@@ -1,8 +1,8 @@
 <template>
   <i18n path="views.select-template.viewer">
-      <template v-slot:name>
-        {{$t(`views.select-template.viewer-name.${viewerName}`)}}
-      </template>
+    <template #name>
+      {{ $t(`views.select-template.viewer-name.${viewerName}`) }}
+    </template>
   </i18n>
 </template>
 
