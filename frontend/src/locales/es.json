@@ -43,7 +43,9 @@
         "new-template": {
             "title": "Crear nueva plantilla",
             "name": "Nombre",
-            "description": "Descripción"
+            "description": "Descripción",
+            "enabled": "Habilitada",
+            "disabled": "Deshabilitada"
         },
         "new-deployment": {
             "title": "Crear nuevo despliegue:",
@@ -514,7 +516,7 @@
                 "rdpgw": "Windows incorpora la aplicación necesaria para su uso"
             },
             "help": {
-                "spice" : {
+                "spice": {
                     "spice-help": "Instrucciones de instalación de SPICE",
                     "close-guide": "Cerrar la guía",
                     "local-client": "Utilizar el cliente local (recomendado)",
@@ -555,6 +557,12 @@
             "buttons": {
                 "allowed": {
                     "title": "Cambiar permisos"
+                },
+                "disable": {
+                    "title": "Deshabilitar"
+                },
+                "enable": {
+                    "title": "Habilitar"
                 }
             }
         }
