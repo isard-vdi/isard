@@ -162,7 +162,7 @@ class ApiUsers:
         return {
             "show_admin_button": show_admin_button,
             "show_bookings_button": show_bookings_button,
-            "documentation_url": "https://isard.gitlab.io/isardvdi-docs/",
+            "documentation_url": os.environ.get("FRONTEND_DOCS_URI"),
         }
 
     def Get(self, user_id):

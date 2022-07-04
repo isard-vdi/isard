@@ -207,7 +207,6 @@
                 "download": "VPN"
             },
             "help": "Помощь",
-            "home": "Главная",
             "deployments": "Развертывания"
         },
         "not-found": {

@@ -2,7 +2,6 @@
     "components": {
         "navbar": {
             "admin": "Administrazioa",
-            "home": "Hasiera",
             "help": "Laguntza",
             "vpn": {
                 "downloaded": {

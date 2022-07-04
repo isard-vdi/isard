@@ -1,4 +1,4 @@
-# Isard main config v2.2.0
+# Isard main config v2.2.1
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -51,6 +51,10 @@ WEBAPP_ADMIN_PWD=IsardVDI
 # ------ Frontend Bookings ---------------------------------------------------
 ## Will show/hide Resource bookings menu.
 #FRONTEND_SHOW_BOOKINGS=False
+
+# ------ Frontend Documentation URI ---------------------------------------------------
+## Documentation URI where the user will be redirected.
+FRONTEND_DOCS_URI=https://isard.gitlab.io/isardvdi-docs/
 
 # ------ Secrets -------------------------------------------------------------
 ## Generate your own SECRETS!

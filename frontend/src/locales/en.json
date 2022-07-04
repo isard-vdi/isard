@@ -81,7 +81,7 @@
             "empty": "No options available"
         },
         "navbar": {
-            "home": "Home",
+            "desktops": "Desktops",
             "help": "Help",
             "vpn": {
                 "download": "VPN",
@@ -101,7 +101,8 @@
                 "text": "Bookings",
                 "summary": "Summary",
                 "planning": "Planning"
-            }
+            },
+            "logout": "Logout"
         },
         "statusbar": {
             "desktops-started": "Desktops started",

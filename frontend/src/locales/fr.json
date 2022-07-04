@@ -261,8 +261,7 @@
                 "download": "RPV"
             },
             "help": "Aide",
-            "deployments": "Déploiements",
-            "home": "Accueil"
+            "deployments": "Déploiements"
         },
         "not-found": {
             "home": "Retour",
