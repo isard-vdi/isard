@@ -14,6 +14,9 @@ from rethinkdb import RethinkDB
 from api import app
 
 from .api_exceptions import Error
+from .quotas import Quotas
+
+quotas = Quotas()
 
 r = RethinkDB()
 import logging
@@ -167,13 +170,29 @@ class ApiUsers:
 
     def Get(self, user_id):
         with app.app_context():
-            user = r.table("users").get(user_id).run(db.conn)
+            user = (
+                r.table("users")
+                .get(user_id)
+                .merge(
+                    lambda d: {
+                        "category_name": r.table("categories").get(d["category"])[
+                            "name"
+                        ],
+                        "group_name": r.table("groups").get(d["group"])["name"],
+                        "role_name": r.table("roles").get(d["role"])["name"],
+                    }
+                )
+                .without("password")
+                .run(db.conn)
+            )
         if not user:
             raise Error(
                 "not_found",
                 "Not found user_id " + user_id,
                 traceback.format_exc(),
             )
+        user["quota"] = quotas.GetUserQuota(user_id)
+        del user["quota"]["user"]
         return user
 
     def List(self):

@@ -23,6 +23,7 @@ import TemplateNew from '@/pages/TemplateNew.vue'
 import Templates from '@/pages/Templates.vue'
 import Booking from '@/pages/Booking'
 import Planning from '@/pages/Planning'
+import Profile from '@/pages/Profile.vue'
 
 Vue.use(VueRouter)
 
@@ -149,6 +150,25 @@ const router = new VueRouter({
           component: Deployment,
           meta: {
             title: 'Deployment'
+          }
+        }
+      ],
+      meta: {
+        requiresAuth: true
+      }
+    },
+    {
+      path: '/',
+      name: 'Profile',
+      redirect: '/profile',
+      component: MainLayout,
+      children: [
+        {
+          path: 'profile',
+          name: 'profile',
+          component: Profile,
+          meta: {
+            title: 'Profile'
           }
         }
       ],

@@ -1,6 +1,7 @@
 {
     "validations": {
         "required": "{property} is required.",
+        "sameAs": "The {property} field must have the same value as {property2}.",
         "minLengthValue": "The {property} field has {model} characters, but it must have a min length of {min}.",
         "maxLengthValue": "The {property} field has {model} characters, but it must have a maximum length of {max}.",
         "inputFormat": "Valid characters are letters, numbers, comma, dot, -, _"
@@ -18,6 +19,22 @@
                 }
             },
             "empty": "Checked and empty will share to all."
+        },
+        "password": {
+            "modal": {
+                "title": "Change password",
+                "password": {
+                    "label": "Password",
+                    "placeholder": "Password"
+                },
+                "confirmation-password": {
+                    "label": "Confirmation password",
+                    "placeholder": "Confirm password"
+                },
+                "buttons": {
+                    "update": "Update"
+                }
+            }
         },
         "registration": {
             "code": "Registration code"
@@ -102,7 +119,8 @@
                 "summary": "Summary",
                 "planning": "Planning"
             },
-            "logout": "Logout"
+            "logout": "Logout",
+            "profile": "Profile"
         },
         "statusbar": {
             "desktops-started": "Desktops started",
@@ -262,6 +280,25 @@
                         "button": "Delete"
                     }
                 }
+            }
+        },
+        "profile": {
+            "change-password": "Change password",
+            "info": {
+                "name": "Name",
+                "email": "Email",
+                "authentication": "Authentication",
+                "role": "Role",
+                "category": "Category",
+                "group": "Group"
+            },
+            "quota": {
+                "d": "Created desktops / Total desktops",
+                "i": "Created isos / Total isos",
+                "m": "Used memory / Total memory (GB)",
+                "r": "Running desktops / Total running desktops",
+                "t": "Created templates / Total templates",
+                "v": "Used vcpus / Total vcpus"
             }
         }
     },

@@ -25,7 +25,8 @@
                 "summary": "Resum",
                 "planning": "Planificació"
             },
-            "logout": "Tancar la sessió"
+            "logout": "Tancar la sessió",
+            "profile": "Perfil"
         },
         "statusbar": {
             "desktops-started": "Desktops arrencats",
@@ -185,6 +186,25 @@
                         "button": "Eliminar"
                     }
                 }
+            }
+        },
+        "profile": {
+            "change-password": "Canviar contrasenya",
+            "info": {
+                "name": "Nom",
+                "email": "Email",
+                "authentication": "Autenticació",
+                "role": "Rol",
+                "category": "Categoria",
+                "group": "Grup"
+            },
+            "quota": {
+                "d": "Escriptoris creats / Total d'escriptoris",
+                "i": "Isos creades / Total d'isos",
+                "m": "Memòria utilitzada / Total de memòria (GB)",
+                "r": "Escriptoris arrencats / Total d'escriptoris arrencats",
+                "t": "Plantilles creades / Total de plantilles",
+                "v": "Vcpus utilitzades / Total de vcpus"
             }
         }
     },
@@ -479,7 +499,8 @@
     },
     "validations": {
         "required": "El camp {property} és requerit.",
-        "minLengthValue": "El camp {property} te {model} caràcters, però ha de tenir com a mínim una llargada de {min}.",
+        "sameAs": "El camp {property} ha de tenir el mateix valor que {property2}.",
+        "minLengthValue": "El camp {property} té {model} caràcters, però ha de tenir com a mínim una llargada de {min}.",
         "maxLengthValue": "El camp {property} te {model} caràcters, però ha de tenir una com a màxim una llargada de {max}.",
         "inputFormat": "Els caràcters vàlids són lletres, digits, coma, punt, - i _"
     },
@@ -496,6 +517,22 @@
                 }
             },
             "empty": "Marcat i buit ho compartirà amb tothom."
+        },
+        "password": {
+            "modal": {
+                "title": "Canviar la contrasenya",
+                "password": {
+                    "label": "Contrasenya",
+                    "placeholder": "Contrasenya"
+                },
+                "confirmation-password": {
+                    "label": "Confirmació de la contrasenya",
+                    "placeholder": "Confirma la contrasenya"
+                },
+                "buttons": {
+                    "update": "Actualitzar"
+                }
+            }
         },
         "registration": {
             "code": "Codi de registre"

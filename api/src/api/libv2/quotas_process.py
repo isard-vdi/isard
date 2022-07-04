@@ -39,7 +39,7 @@ class QuotasProcess:
                 user = r.table("users").get(user_id).run(db.conn)
             if user == None:
                 return userquotas
-            userquotas = self.process_user_quota(user)
+            userquotas = self.process_user_quota(user_id)
             if user["role"] == "manager":
                 userquotas["limits"] = self.process_category_limits(
                     user_id, from_user_id=True
