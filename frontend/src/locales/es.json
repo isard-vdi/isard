@@ -619,7 +619,9 @@
             "delete-deployment-desktop": "El escritorio de '{name}' se borrará, continuar?",
             "start-deployment-desktops": "Los escritorios de '{name}' se iniciarán, continuar?",
             "stop-deployment-desktops": "Los escritorios de '{name}' se pararán, continuar?",
-            "delete-event": "La reserva '{name}' se borrará, continuar?"
+            "delete-event": "La reserva '{name}' se borrará, continuar?",
+            "disable-template": "'{name}' será invisible para sus usuarios, ¿desea continuar?",
+            "enable-template": "'{name}' será visible para sus usuarios, ¿desea continuar?"
         },
         "yes": "Si",
         "no": "No",
@@ -639,7 +641,12 @@
             "new-template-stop": "Para crear una plantilla es necesario que el escritorio esté parado",
             "no-availability-event": "No hay disponibilidad en el rango seleccionado",
             "not-created-event": "No se ha creado el evento",
-            "missing-data": "Faltan datos"
+            "missing-data": "Faltan datos",
+            "deleting-event": "Borrando el evento",
+            "disable-template": "Invisibilizando la plantilla",
+            "creating-event": "Creando el evento",
+            "editing-event": "Editando el evento",
+            "enable-template": "Visibilizando la plantilla"
         },
         "loading": "Cargando"
     },
@@ -698,6 +705,9 @@
         "create_desktop_category_quota": "Cuota de categoría de creación de escritorios excedida",
         "generic_error": "Se ha producido un error",
         "conflict": "Conflicto",
-        "conflict_title": "Conflicto"
+        "conflict_title": "Conflicto",
+        "booking_new_event_start_error": "La hora de inicio no es válida",
+        "booking_new_event_end_error": "La hora de finalización no es válida",
+        "booking_new_event_overlap_error": "El evento se solapa"
     }
 }
