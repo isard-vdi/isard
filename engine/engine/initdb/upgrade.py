@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 32
+release_version = 33
+# release 33: Fix missing media upload roles and categories keys
 # release 32: Remove reservables bug when updating desktop
 # release 31: Removed all nvidia video types and added none type
 # release 30: Moved domain options to guest_properties
@@ -1009,6 +1010,11 @@ class Upgrade(object):
             # ~ except Exception as e:
             # ~ log.error('Could not update table '+table+' remove fields for db version '+str(version)+'!')
             # ~ log.error('Error detail: '+str(e))
+
+        if version == 33:
+            r.table(table).filter(
+                lambda media: r.not_(media.has_fields({"allowed": {"roles": True}}))
+            ).update({"allowed": {"roles": False, "categories": False}}).run(self.conn)
 
         return True
 

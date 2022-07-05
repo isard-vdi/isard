@@ -1590,6 +1590,10 @@ class isardAdmin:
                 "url-isard": False,
             }
             dict = {**media, **missing_keys}
+            if "roles" not in dict["allowed"].keys():
+                dict["allowed"]["roles"] = False
+            if "categories" not in dict["allowed"].keys():
+                dict["allowed"]["categories"] = False
             return self.insert_table_dict("media", dict)
         except Exception as e:
             log.error(str(e))
