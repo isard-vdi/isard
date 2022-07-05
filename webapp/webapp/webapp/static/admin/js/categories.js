@@ -261,7 +261,7 @@ function actionsCategoryDetail(){
             backdrop: 'static',
             keyboard: false
         }).modal('show');
-        api.ajax('/isard-admin/admin/load/categories/post','POST',{'id':pk}).done(function(category) {
+        api.ajax('/api/v3/admin/table/categories','POST',{'id':pk}).done(function(category) {
             $('#modalEditCategoryForm #name').val(category.name);
             $('#modalEditCategoryForm #description').val(category.description);
             $('#modalEditCategoryForm #id').val(category.id);
@@ -279,7 +279,7 @@ function actionsCategoryDetail(){
                 $("#modalEditCategoryForm #auto-desktops").empty()
 
                 category['auto-desktops'].forEach(function(dom_id){
-                    api.ajax('/isard-admin/admin/load/domains/post','POST',{'id':dom_id,'pluck':['id','name']}).done(function(dom) {
+                    api.ajax('/api/v3/admin/table/domains','POST',{'id':dom_id,'pluck':['id','name']}).done(function(dom) {
                         var newOption = new Option(dom.name, dom.id, true, true);
                         $("#modalEditCategoryForm #auto-desktops").append(newOption).trigger('change');
                     });

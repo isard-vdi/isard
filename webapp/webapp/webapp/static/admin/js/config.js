@@ -113,7 +113,7 @@ $(document).ready(function() {
         
     backups_table=$('#table-backups').DataTable({
 			"ajax": {
-				"url": "/isard-admin/admin/load/backups/post",
+				"url": "/api/v3/admin/table/backups",
                 "contentType": "application/json",
                 "type": 'POST',
                 "data": function(d){return JSON.stringify({'order':'filename'})}
