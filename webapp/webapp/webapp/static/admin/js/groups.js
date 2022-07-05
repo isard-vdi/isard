@@ -385,10 +385,13 @@ $('.btn-enrollment').on('click', function () {
             keyboard: false
         }).modal('show');
         data={}
-        data['group_id']=pk;
+        data['id']=pk;
         // setModalUser()
-        // setQuotaTableDefaults('#edit-users-quota','users',pk) 
-        api.ajax('/isard-admin/admin/group/enrollment/'+pk,'GET',{}).done(function(data) {
+        $.ajax({
+            type: 'POST',
+            url: '/api/v3/admin/table/groups',
+            data: JSON.stringify(data)
+        }).done(function(data) {
             if(data.enrollment.manager != false){
                 $('#manager-key').show();
                 $('.btn-copy-manager').show();
