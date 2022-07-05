@@ -1,154 +1,239 @@
 <template>
-        <b-overlay :show="show" rounded="lg">
-          <b-card
-            :img-src= "`..${desktop.image.url}`"
-            class='border-0 mx-3'
-            :aria-hidden="show ? 'true' : null"
-            img-alt='' img-top no-body
+  <b-overlay
+    :show="show"
+    rounded="lg"
+  >
+    <b-card
+      :img-src="`..${desktop.image.url}`"
+      class="border-0 mx-3"
+      :aria-hidden="show ? 'true' : null"
+      img-alt=""
+      img-top
+      no-body
+    >
+      <vue-fab
+        v-if="desktop.editable && !(desktop.state && desktop.type === 'nonpersistent')"
+        icon="more_vert"
+        main-btn-color="#bcc6cc"
+        class="info-icon position-absolute"
+        size="small"
+        unfold-direction="down"
+        :scroll-auto-hide="false"
+      >
+        <fab-item
+          v-b-tooltip="{ title: 'Change Image',
+                         placement: 'top',
+                         customClass: 'isard-tooltip',
+                         trigger: 'hover' }"
+          :idx="0"
+          icon="image"
+          color="#318bb5"
+          @clickItem="goToImagesList({itemId: desktop.id, returnPage: currentRouteName})"
+        />
+        <fab-item
+          v-if="getUser.role_id != 'user' && desktop.type === 'persistent'"
+          v-b-tooltip="{ title: `${$t('components.desktop-cards.actions.template')}`,
+                         placement: 'top',
+                         customClass: 'isard-tooltip',
+                         trigger: 'hover' }"
+          :idx="2"
+          icon="content_copy"
+          color="#97c277"
+          @clickItem="onClickGoToNewTemplate(desktop.id)"
+        />
+        <fab-item
+          v-if="desktop.type === 'persistent'"
+          v-b-tooltip="{ title: `${$t('components.desktop-cards.actions.delete')}`,
+                         placement: 'top',
+                         customClass: 'isard-tooltip',
+                         trigger: 'hover' }"
+          :idx="1"
+          icon="delete"
+          color="#e34934"
+          @clickItem="onClickDeleteDesktop"
+        />
+      </vue-fab>
+
+      <!-- Desktop next booking -->
+      <div
+        v-if="desktop.needsBooking"
+        class="machine-notification-bar px-4 d-flex flex-row align-content-center text-white"
+        :class="notificationBarCssClass"
+      >
+        <p class="mb-0 py-2 text-white">
+          {{ getBookingNotificationBar(desktop.nextBookingStart) }}
+        </p>
+      </div>
+
+      <div
+        class="p-2 h-100 d-flex flex-wrap flex-column"
+        :class="{'startedHighlight': desktopState === desktopStates.started}"
+      >
+        <div class="flex-grow-1">
+          <!-- Title -->
+          <div
+            v-b-tooltip="{ title: `${getCardTitle.length > MAX_TITLE_SIZE ? getCardTitle : ''}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
+            class="font-weight-bold card-title ml-2 mt-2 mb-2"
           >
-            <vue-fab v-if="desktop.editable && !(desktop.state && desktop.type === 'nonpersistent')" icon="more_vert" mainBtnColor="#bcc6cc" class='info-icon position-absolute' size='small' unfoldDirection='down' :scrollAutoHide="false">
-                <fab-item  :idx="0"
-                  @clickItem="goToImagesList({itemId: desktop.id, returnPage: currentRouteName})"
-                  icon='image' color='#318bb5'
-                  v-b-tooltip="{  title: 'Change Image',
-                                  placement: 'top',
-                                  customClass: 'isard-tooltip',
-                                  trigger: 'hover' }">
-                </fab-item>
-                <fab-item  :idx="2"
-                  v-if="getUser.role_id != 'user' && desktop.type === 'persistent'"
-                  @clickItem="onClickGoToNewTemplate(desktop.id)"
-                  icon='content_copy' color='#97c277'
-                  v-b-tooltip="{  title: `${$t('components.desktop-cards.actions.template')}`,
-                                  placement: 'top',
-                                  customClass: 'isard-tooltip',
-                                  trigger: 'hover' }">
-                </fab-item>
-                <fab-item v-if="desktop.type === 'persistent'" :idx="1"
-                 @clickItem="onClickDeleteDesktop"
-                  icon='delete' color='#e34934'
-                  v-b-tooltip="{  title: `${$t('components.desktop-cards.actions.delete')}`,
-                                  placement: 'top',
-                                 customClass: 'isard-tooltip',
-                                  trigger: 'hover' }">
-                </fab-item>
-            </vue-fab>
+            <b-iconstack
+              v-if="desktop.editable && desktop.needsBooking"
+              font-scale="1"
+              role="button"
+              :title="$t('components.desktop-cards.actions.booking')"
+              @click="onClickBookingDesktop"
+            >
+              <b-icon
+                stacked
+                icon="calendar"
+                variant="warning"
+              />
+              <b-icon
+                stacked
+                icon="exclamation-triangle-fill"
+                scale="0.5"
+                shift-v="-1"
+                variant="warning"
+              />
+            </b-iconstack>
+            {{ getCardTitle | truncate(MAX_TITLE_SIZE) }}
+          </div>
 
-            <!-- Desktop next booking -->
-            <div v-if="desktop.needsBooking" class='machine-notification-bar px-4 d-flex flex-row align-content-center text-white' :class="notificationBarCssClass">
-              <p class='mb-0 py-2 text-white'>{{ getBookingNotificationBar(desktop.nextBookingStart) }}</p>
-            </div>
+          <!-- DESCRIPTION -->
+          <p
+            v-b-tooltip="{ title: `${getCardDescription.length > MAX_DESCRIPTION_SIZE ? getCardDescription : ''}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
+            class="w-100 mb-0 card-text ml-2 mb-2"
+          >
+            {{ getCardDescription | truncate(MAX_DESCRIPTION_SIZE) }}
+          </p>
 
-            <div class='p-2 h-100 d-flex flex-wrap flex-column' :class="{'startedHighlight': desktopState === desktopStates.started}">
-              <div class='flex-grow-1'>
+          <!-- State -->
+          <div class="ml-4 d-flex flex-row justify-left">
+            <b-spinner
+              v-if="[desktopStates.downloading, desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down']].includes(desktopState.toLowerCase())"
+              small
+              variant="light"
+              class="align-self-center mr-2 status-spinner"
+            />
+            <p
+              class="mb-0 text-state font-weight-bold"
+              :class="statusTextCssColor"
+            >
+              {{ desktop.type === 'nonpersistent' && desktopState === desktopStates.stopped ? $t(`views.select-template.status.readyCreation.text`) : $t(`views.select-template.status.${desktopState}.text`) }}
+            </p>
+          </div>
 
-                <!-- Title -->
-                <div class='font-weight-bold card-title ml-2 mt-2 mb-2'
-                  v-b-tooltip="{ title: `${getCardTitle.length > MAX_TITLE_SIZE ? getCardTitle : ''}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }">
-                    <b-iconstack v-if="desktop.editable && desktop.needsBooking" @click="onClickBookingDesktop" font-scale="1" role="button" :title="$t('components.desktop-cards.actions.booking')">
-                      <b-icon stacked icon="calendar" variant="warning"></b-icon>
-                      <b-icon stacked icon="exclamation-triangle-fill" scale="0.5" shift-v="-1" variant="warning"></b-icon>
-                    </b-iconstack>
-                    {{ getCardTitle | truncate(MAX_TITLE_SIZE) }}
-                </div>
+          <div
+            v-if="desktop.progress"
+            class="ml-4 mr-4 flex-row justify-left"
+          >
+            <small>{{ desktop.progress.size }} - {{ desktop.progress.throughput_average }}/s - {{ desktop.progress.time_left }}</small>
+            <b-progress
+              :max="100"
+              height="2rem"
+            >
+              <b-progress-bar
+                variant="secondary"
+                :value="desktop.progress.percentage"
+                show-progress
+                animated
+              >
+                <strong>{{ desktop.progress.percentage }} %</strong>
+              </b-progress-bar>
+            </b-progress>
+          </div>
 
-                <!-- DESCRIPTION -->
-                <p class='w-100 mb-0 card-text ml-2 mb-2' v-b-tooltip="{ title: `${getCardDescription.length > MAX_DESCRIPTION_SIZE ? getCardDescription : ''}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }">
-                  {{ getCardDescription | truncate(MAX_DESCRIPTION_SIZE)}}
-                </p>
+          <!-- Actions -->
+          <div
+            v-if="[desktopStates.started, desktopStates.waitingip, desktopStates.stopped, desktopStates.failed, desktopStates['shutting-down']].includes(desktopState)"
+            class="d-flex flex-row justify-content-start ml-3 mb-1"
+          >
+            <!-- Main action button nonpersistent -->
+            <DesktopButton
+              v-if="!desktop.state"
+              class="card-button"
+              :active="true"
+              :button-class="buttCssColor"
+              :spinner-active="false"
+              :butt-text="$t('views.select-template.status.notCreated.action')"
+              :icon-name="desktop.buttonIconName"
+              @buttonClicked="chooseDesktop(desktop.id)"
+            />
+            <!-- Main action button persistent-->
+            <DesktopButton
+              v-if="desktop.type === 'persistent' || (desktop.type === 'nonpersistent' && desktop.state && desktopState === desktopStates.stopped )"
+              class="card-button"
+              :active="canStart"
+              :button-class="canStart ? buttCssColor : ''"
+              :spinner-active="false"
+              :butt-text="$t(`views.select-template.status.${desktopState}.action`)"
+              :icon-name="desktop.buttonIconName"
+              @buttonClicked="changeDesktopStatus({ action: status[desktopState || 'stopped'].action, desktopId: desktop.id })"
+            />
+            <!-- Delete action button-->
+            <DesktopButton
+              v-if="desktop.state && desktop.type === 'nonpersistent'"
+              class="card-button"
+              :active="true"
+              button-class="btn-red"
+              :spinner-active="false"
+              :butt-text="$t('views.select-template.remove')"
+              icon-name="trash"
+              @buttonClicked="deleteDesktop(desktop.id)"
+            />
+          </div>
 
-                <!-- State -->
-                <div class='ml-4 d-flex flex-row justify-left'>
-                  <b-spinner v-if="[desktopStates.downloading, desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down']].includes(desktopState.toLowerCase())" small variant='light' class='align-self-center mr-2 status-spinner'></b-spinner>
-                  <p class='mb-0 text-state font-weight-bold' :class="statusTextCssColor"> {{ desktop.type === 'nonpersistent' && desktopState === desktopStates.stopped ? $t(`views.select-template.status.readyCreation.text`) : $t(`views.select-template.status.${desktopState}.text`)}}</p>
-                </div>
+          <!-- IP -->
+          <p class="w-100 mb-0 card-text ml-2 mt-2 mb-1">
+            {{ desktop.ip ? `IP:  ${desktop.ip}` : '' }}
+          </p>
 
-                <div v-if="desktop.progress"  class='ml-4 mr-4 flex-row justify-left'>
-                  <small>{{ desktop.progress.size }} - {{ desktop.progress.throughput_average }}/s - {{ desktop.progress.time_left }}</small>
-                  <b-progress :max="100" height="2rem">
-                    <b-progress-bar variant="secondary" :value="desktop.progress.percentage" show-progress animated>
-                      <strong>{{ desktop.progress.percentage }} %</strong>
-                    </b-progress-bar>
-                  </b-progress>
-                </div>
+          <!-- Template -->
+          <p
+            v-if="desktop.type === 'persistent' && template"
+            v-b-tooltip="{ title: `${template.name.length > MAX_TEMPLATE_TEXT_SIZE ? template.name : ''}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
+            class="w-100 mb-0 card-text ml-2"
+          >
+            Plantilla: {{ template.name | truncate(MAX_TEMPLATE_TEXT_SIZE) }}
+          </p>
+        </div>
 
-                <!-- Actions -->
-                <div v-if="[desktopStates.started, desktopStates.waitingip, desktopStates.stopped, desktopStates.failed, desktopStates['shutting-down']].includes(desktopState)" class='d-flex flex-row justify-content-start ml-3 mb-1'>
-                  <!-- Main action button nonpersistent -->
-                  <DesktopButton v-if="!desktop.state"
-                      class="card-button"
-                      :active="true"
-                      @buttonClicked="chooseDesktop(desktop.id)"
-                      :buttonClass = "buttCssColor"
-                      :spinnerActive ="false"
-                      :buttText = "$t('views.select-template.status.notCreated.action')"
-                      :iconName = "desktop.buttonIconName">
-                  </DesktopButton>
-                  <!-- Main action button persistent-->
-                  <DesktopButton v-if="desktop.type === 'persistent' || (desktop.type === 'nonpersistent' && desktop.state && desktopState ===  desktopStates.stopped )"
-                      class="card-button"
-                      :active="canStart"
-                      @buttonClicked="changeDesktopStatus({ action: status[desktopState || 'stopped'].action, desktopId: desktop.id })"
-                      :buttonClass = "canStart ? buttCssColor : ''"
-                      :spinnerActive ="false"
-                      :buttText = "$t(`views.select-template.status.${desktopState}.action`)"
-                      :iconName = "desktop.buttonIconName">
-                  </DesktopButton>
-                  <!-- Delete action button-->
-                  <DesktopButton v-if="desktop.state && desktop.type === 'nonpersistent'"
-                      class="card-button"
-                      :active="true"
-                      @buttonClicked="deleteDesktop(desktop.id)"
-                      buttonClass = "btn-red"
-                      :spinnerActive ="false"
-                      :buttText = "$t('views.select-template.remove')"
-                      iconName = "trash">
-                  </DesktopButton>
-                </div>
-
-                <!-- IP -->
-                <p class='w-100 mb-0 card-text ml-2 mt-2 mb-1'>{{ desktop.ip ? `IP:  ${desktop.ip}` : '' }}</p>
-
-                <!-- Template -->
-                <p class='w-100 mb-0 card-text ml-2'
-                  v-if="desktop.type === 'persistent' && template"
-                  v-b-tooltip="{ title: `${template.name.length > MAX_TEMPLATE_TEXT_SIZE ? template.name : ''}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }">
-                  Plantilla: {{ template.name  | truncate(MAX_TEMPLATE_TEXT_SIZE) }}
-                </p>
-              </div>
-
-              <!-- Actions -->
-              <div v-if="[desktopStates.started, desktopStates.waitingip].includes(desktopState)" class='d-flex flex-column mb-2 buttons-padding buttons-margin'>
-                <div class="ml-1 mb-1">{{ $t("components.desktop-cards.open-with") }}:</div>
-                <div>
-                  <DesktopButton
-                    v-if="!hideViewers && desktop.viewers && desktop.viewers.length === 1"
-                    :active="desktopState === desktopStates.started || (desktopState === desktopStates.waitingip && !singleViewerNeedsIp)"
-                    :buttonClass = "buttViewerCssColor"
-                    :buttText="getViewerText"
-                    variant="primary"
-                    :spinnerActive="waitingIp"
-                    @buttonClicked="openDesktop({desktopId: desktop.id, viewer: desktop.viewers[0]})">
-                  </DesktopButton>
-                  <isard-dropdown
-                  v-if="!hideViewers && desktop.viewers && desktop.viewers.length > 1"
-                    :ddDisabled="!showDropDown"
-                    cssClass='viewers-dropdown m-0'
-                    :class="{ 'dropdown-inactive': !showDropDown, 'dropdown-wait': isWaiting(getDefaultViewer), 'dropdown-active': !isWaiting(getDefaultViewer) }"
-                    variant='light'
-                    :viewers="filterViewerFromList"
-                    :desktop="desktop"
-                    :viewerText="getViewerText.substring(0, MAX_VIEWER_TEXT_SIZE)"
-                    :fullViewerText="getViewerText"
-                    :defaultViewer="getDefaultViewer"
-                    :waitingIp="waitingIp"
-                    @dropdownClicked="openDesktop">
-                  </isard-dropdown>
-                  </div>
-              </div>
-            </div>
-          </b-card>
-        </b-overlay>
+        <!-- Actions -->
+        <div
+          v-if="[desktopStates.started, desktopStates.waitingip].includes(desktopState)"
+          class="d-flex flex-column mb-2 buttons-padding buttons-margin"
+        >
+          <div class="ml-1 mb-1">
+            {{ $t("components.desktop-cards.open-with") }}:
+          </div>
+          <div>
+            <DesktopButton
+              v-if="!hideViewers && desktop.viewers && desktop.viewers.length === 1"
+              :active="desktopState === desktopStates.started || (desktopState === desktopStates.waitingip && !singleViewerNeedsIp)"
+              :button-class="buttViewerCssColor"
+              :butt-text="getViewerText"
+              variant="primary"
+              :spinner-active="waitingIp"
+              @buttonClicked="openDesktop({desktopId: desktop.id, viewer: desktop.viewers[0]})"
+            />
+            <isard-dropdown
+              v-if="!hideViewers && desktop.viewers && desktop.viewers.length > 1"
+              :dd-disabled="!showDropDown"
+              css-class="viewers-dropdown m-0"
+              :class="{ 'dropdown-inactive': !showDropDown, 'dropdown-wait': isWaiting(getDefaultViewer), 'dropdown-active': !isWaiting(getDefaultViewer) }"
+              variant="light"
+              :viewers="filterViewerFromList"
+              :desktop="desktop"
+              :viewer-text="getViewerText.substring(0, MAX_VIEWER_TEXT_SIZE)"
+              :full-viewer-text="getViewerText"
+              :default-viewer="getDefaultViewer"
+              :waiting-ip="waitingIp"
+              @dropdownClicked="openDesktop"
+            />
+          </div>
+        </div>
+      </div>
+    </b-card>
+  </b-overlay>
 </template>
 
 <script>
@@ -175,82 +260,17 @@ export default {
       type: Array
     }
   },
-  methods: {
-    ...mapActions([
-      'deleteDesktop',
-      'openDesktop',
-      'changeDesktopStatus',
-      'createDesktop',
-      'navigate',
-      'goToImagesList',
-      'goToNewTemplate',
-      'goToItemBooking'
-    ]),
-    getBookingNotificationBar (date) {
-      if (date) {
-        return i18n.t('components.desktop-cards.notification-bar.next-booking') + ': ' + DateUtils.formatAsTime(date) + ' ' + DateUtils.formatAsDayMonth(date)
-      } else {
-        return i18n.t('components.desktop-cards.notification-bar.no-next-booking')
-      }
-    },
-    chooseDesktop (template) {
-      this.$snotify.clear()
-
-      const yesAction = () => {
-        const data = new FormData()
-        data.append('template', template)
-        this.createDesktop(data)
-        this.$snotify.clear()
-      }
-
-      const noAction = (toast) => {
-        this.$snotify.clear()
-      }
-
-      this.$snotify.prompt(`${i18n.t('messages.confirmation.create-nonpersistent')}`, {
-        position: 'centerTop',
-        buttons: [
-          { text: `${i18n.t('messages.yes')}`, action: yesAction, bold: true },
-          { text: `${i18n.t('messages.no')}`, action: noAction }
-        ],
-        placeholder: ''
-      })
-    },
-    isWaiting (viewer) {
-      return this.getDefaultViewer && (this.waitingIp && DesktopUtils.viewerNeedsIp(viewer))
-    },
-    onClickGoToNewTemplate (desktopId) {
-      if (this.desktopState === desktopStates.stopped) {
-        this.goToNewTemplate(desktopId)
-      } else {
-        ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.new-template-stop'), '', true, 2000)
-      }
-    },
-    onClickDeleteDesktop (toast) {
-      this.$snotify.clear()
-
-      const yesAction = () => {
-        toast.valid = true // default value
-        this.$snotify.remove(toast.id)
-        this.deleteDesktop(this.desktop.id)
-      }
-
-      const noAction = (toast) => {
-        this.$snotify.remove(toast.id) // default
-      }
-
-      this.$snotify.prompt(`${i18n.t('messages.confirmation.delete-desktop', { name: this.getCardTitle })}`, {
-        position: 'centerTop',
-        buttons: [
-          { text: `${i18n.t('messages.yes')}`, action: yesAction, bold: true },
-          { text: `${i18n.t('messages.no')}`, action: noAction }
-        ],
-        placeholder: ''
-      })
-    },
-    onClickBookingDesktop () {
-      const data = { id: this.desktop.id, type: 'desktop', name: this.desktop.name }
-      this.goToItemBooking(data)
+  data () {
+    return {
+      desktopStates,
+      status,
+      item: {},
+      highlightDropdown: false,
+      MAX_TITLE_SIZE,
+      MAX_DESCRIPTION_SIZE,
+      MAX_TEMPLATE_TEXT_SIZE,
+      MAX_VIEWER_TEXT_SIZE,
+      show: false
     }
   },
   computed: {
@@ -358,21 +378,86 @@ export default {
       }
     }
   },
-  data () {
-    return {
-      desktopStates,
-      status,
-      item: {},
-      highlightDropdown: false,
-      MAX_TITLE_SIZE,
-      MAX_DESCRIPTION_SIZE,
-      MAX_TEMPLATE_TEXT_SIZE,
-      MAX_VIEWER_TEXT_SIZE,
-      show: false
-    }
-  },
   destroyed () {
     this.$snotify.clear()
+  },
+  methods: {
+    ...mapActions([
+      'deleteDesktop',
+      'openDesktop',
+      'changeDesktopStatus',
+      'createDesktop',
+      'navigate',
+      'goToImagesList',
+      'goToNewTemplate',
+      'goToItemBooking'
+    ]),
+    getBookingNotificationBar (date) {
+      if (date) {
+        return i18n.t('components.desktop-cards.notification-bar.next-booking') + ': ' + DateUtils.formatAsTime(date) + ' ' + DateUtils.formatAsDayMonth(date)
+      } else {
+        return i18n.t('components.desktop-cards.notification-bar.no-next-booking')
+      }
+    },
+    chooseDesktop (template) {
+      this.$snotify.clear()
+
+      const yesAction = () => {
+        const data = new FormData()
+        data.append('template', template)
+        this.createDesktop(data)
+        this.$snotify.clear()
+      }
+
+      const noAction = (toast) => {
+        this.$snotify.clear()
+      }
+
+      this.$snotify.prompt(`${i18n.t('messages.confirmation.create-nonpersistent')}`, {
+        position: 'centerTop',
+        buttons: [
+          { text: `${i18n.t('messages.yes')}`, action: yesAction, bold: true },
+          { text: `${i18n.t('messages.no')}`, action: noAction }
+        ],
+        placeholder: ''
+      })
+    },
+    isWaiting (viewer) {
+      return this.getDefaultViewer && (this.waitingIp && DesktopUtils.viewerNeedsIp(viewer))
+    },
+    onClickGoToNewTemplate (desktopId) {
+      if (this.desktopState === desktopStates.stopped) {
+        this.goToNewTemplate(desktopId)
+      } else {
+        ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.new-template-stop'), '', true, 2000)
+      }
+    },
+    onClickDeleteDesktop (toast) {
+      this.$snotify.clear()
+
+      const yesAction = () => {
+        toast.valid = true // default value
+        this.$snotify.remove(toast.id)
+        this.deleteDesktop(this.desktop.id)
+      }
+
+      const noAction = (toast) => {
+        this.$snotify.remove(toast.id) // default
+      }
+
+      this.$snotify.prompt(`${i18n.t('messages.confirmation.delete-desktop', { name: this.getCardTitle })}`, {
+        position: 'centerTop',
+        buttons: [
+          { text: `${i18n.t('messages.yes')}`, action: yesAction, bold: true },
+          { text: `${i18n.t('messages.no')}`, action: noAction }
+        ],
+        placeholder: ''
+      })
+    },
+    onClickBookingDesktop () {
+      const data = { id: this.desktop.id, type: 'desktop', name: this.desktop.name }
+      this.goToItemBooking(data)
+    }
   }
 }
 </script>

@@ -1,72 +1,130 @@
 <template>
-  <b-container fluid class="main-container pl-3 pr-3 pl-xl-5 pr-xl-5 pb-5 new-templates-list">
+  <b-container
+    fluid
+    class="main-container pl-3 pr-3 pl-xl-5 pr-xl-5 pb-5 new-templates-list"
+  >
     <b-form @submit.prevent="submitForm">
       <!-- Title -->
       <b-row clas="mt-2">
-        <h4 class="p-1 mb-4 mt-2 mt-xl-4 ml-2"><strong>{{ $t('forms.new-deployment.title') }}</strong></h4>
+        <h4 class="p-1 mb-4 mt-2 mt-xl-4 ml-2">
+          <strong>{{ $t('forms.new-deployment.title') }}</strong>
+        </h4>
       </b-row>
 
       <!-- Name -->
       <b-row>
-        <b-col cols="4" xl="2"><label for="deploymentNameField">{{ $t('forms.new-deployment.name') }}</label></b-col>
-        <b-col cols="6" xl="4" class="mb-4">
+        <b-col
+          cols="4"
+          xl="2"
+        >
+          <label for="deploymentNameField">{{ $t('forms.new-deployment.name') }}</label>
+        </b-col>
+        <b-col
+          cols="6"
+          xl="4"
+          class="mb-4"
+        >
           <b-form-input
             id="deploymentNameField"
-            type="text"
             v-model="deploymentName"
+            type="text"
             size="sm"
-            @blur="v$.deploymentName.$touch"/>
-            <div class="isard-form-error" v-if="v$.deploymentName.$error">{{ $t(`validations.${v$.deploymentName.$errors[0].$validator}`, { property: $t('forms.new-deployment.name'), model: deploymentName.length,  min: 4, max: 40 }) }}</div>
+            @blur="v$.deploymentName.$touch"
+          />
+          <div
+            v-if="v$.deploymentName.$error"
+            class="isard-form-error"
+          >
+            {{ $t(`validations.${v$.deploymentName.$errors[0].$validator}`, { property: $t('forms.new-deployment.name'), model: deploymentName.length, min: 4, max: 40 }) }}
+          </div>
         </b-col>
       </b-row>
 
       <b-row>
         <b-col cols="12">
           <div class="d-flex">
-            <label for="switch_1" class="mr-2"><b-icon icon="eye-slash-fill" class="mr-2" variant="danger"></b-icon>{{ $t('forms.new-deployment.not-visible') }}</label>
+            <label
+              for="switch_1"
+              class="mr-2"
+            ><b-icon
+              icon="eye-slash-fill"
+              class="mr-2"
+              variant="danger"
+            />{{ $t('forms.new-deployment.not-visible') }}</label>
             <b-form-checkbox
               id="checkbox-1"
               v-model="visible"
               switch
             >
-            <b-icon class="mr-2" icon="eye-fill" variant="success"></b-icon>{{ $t('forms.new-deployment.visible') }}
-          </b-form-checkbox>
+              <b-icon
+                class="mr-2"
+                icon="eye-fill"
+                variant="success"
+              />{{ $t('forms.new-deployment.visible') }}
+            </b-form-checkbox>
           </div>
         </b-col>
       </b-row>
 
       <b-row clas="mt-2">
-        <h4 class="p-1 mb-4 mt-2 mt-xl-4 ml-2"><strong>{{ $t('forms.new-deployment.desktop.title') }}</strong></h4>
+        <h4 class="p-1 mb-4 mt-2 mt-xl-4 ml-2">
+          <strong>{{ $t('forms.new-deployment.desktop.title') }}</strong>
+        </h4>
       </b-row>
 
       <b-row>
-        <b-col cols="4" xl="2"><label for="desktopNameField">{{ $t('forms.new-deployment.desktop.name') }}</label></b-col>
-        <b-col cols="6" xl="4">
+        <b-col
+          cols="4"
+          xl="2"
+        >
+          <label for="desktopNameField">{{ $t('forms.new-deployment.desktop.name') }}</label>
+        </b-col>
+        <b-col
+          cols="6"
+          xl="4"
+        >
           <b-form-input
             id="desktopNameField"
-            type="text"
             v-model="desktopName"
+            type="text"
             size="sm"
-            @blur="v$.desktopName.$touch"/>
-            <div class="isard-form-error" v-if="v$.desktopName.$error">{{ $t(`validations.${v$.desktopName.$errors[0].$validator}`, { property: $t('forms.new-deployment.desktop.name'), model: desktopName.length,  min: 4, max: 40 }) }}</div>
+            @blur="v$.desktopName.$touch"
+          />
+          <div
+            v-if="v$.desktopName.$error"
+            class="isard-form-error"
+          >
+            {{ $t(`validations.${v$.desktopName.$errors[0].$validator}`, { property: $t('forms.new-deployment.desktop.name'), model: desktopName.length, min: 4, max: 40 }) }}
+          </div>
         </b-col>
       </b-row>
 
       <!-- Description -->
       <b-row class="mt-4">
-        <b-col cols="4" xl="2"><label for="desktopDescriptionField">{{ $t('forms.new-deployment.desktop.description') }}</label></b-col>
-        <b-col cols="6" xl="4">
+        <b-col
+          cols="4"
+          xl="2"
+        >
+          <label for="desktopDescriptionField">{{ $t('forms.new-deployment.desktop.description') }}</label>
+        </b-col>
+        <b-col
+          cols="6"
+          xl="4"
+        >
           <b-form-input
             id="desktopDescriptionField"
-            type="text"
             v-model="description"
-            size="sm"/>
+            type="text"
+            size="sm"
+          />
         </b-col>
       </b-row>
 
       <!-- Template section title -->
       <b-row class="mt-2 mt-xl-5">
-        <h5 class="p-2 mt-2"><strong>{{ $t('forms.new-desktop.section-title-template') }}</strong></h5>
+        <h5 class="p-2 mt-2">
+          <strong>{{ $t('forms.new-desktop.section-title-template') }}</strong>
+        </h5>
       </b-row>
 
       <!-- Table validation hidden field -->
@@ -74,68 +132,90 @@
         <b-col cols="4">
           <b-form-input
             id="tableValidationField"
-            type="text"
             v-model="selectedTemplateId"
+            type="text"
             class="d-none"
-            @change="v$.selectedTemplateId.$touch"/>
-            <div class="isard-form-error" v-if="v$.selectedTemplateId.$error">{{ $t(`validations.${v$.selectedTemplateId.$errors[0].$validator}`, { property: `${$t("forms.new-desktop.desktop-template")}` }) }}</div>
+            @change="v$.selectedTemplateId.$touch"
+          />
+          <div
+            v-if="v$.selectedTemplateId.$error"
+            class="isard-form-error"
+          >
+            {{ $t(`validations.${v$.selectedTemplateId.$errors[0].$validator}`, { property: `${$t("forms.new-desktop.desktop-template")}` }) }}
+          </div>
         </b-col>
       </b-row>
 
       <!-- Filter -->
       <b-row class="mt-2">
-          <b-col cols="2"><label for="filter-input">{{ $t('forms.new-desktop.filter') }}</label></b-col>
-          <b-col cols="8" md="6" lg="4" xl="4">
-            <b-input-group size="sm">
-              <b-form-input
-                id="filter-input"
-                v-model="filter"
-                type="search"
-                :placeholder="$t('forms.new-desktop.filter-placeholder')"
-              ></b-form-input>
-              <b-input-group-append>
-                <b-button :disabled="!filter" @click="filter = ''">{{ $t('forms.clear') }}</b-button>
-              </b-input-group-append>
-            </b-input-group>
-          </b-col>
+        <b-col cols="2">
+          <label for="filter-input">{{ $t('forms.new-desktop.filter') }}</label>
+        </b-col>
+        <b-col
+          cols="8"
+          md="6"
+          lg="4"
+          xl="4"
+        >
+          <b-input-group size="sm">
+            <b-form-input
+              id="filter-input"
+              v-model="filter"
+              type="search"
+              :placeholder="$t('forms.new-desktop.filter-placeholder')"
+            />
+            <b-input-group-append>
+              <b-button
+                :disabled="!filter"
+                @click="filter = ''"
+              >
+                {{ $t('forms.clear') }}
+              </b-button>
+            </b-input-group-append>
+          </b-input-group>
+        </b-col>
       </b-row>
 
       <!-- Table -->
       <b-row class="mt-4">
         <b-col>
           <b-table
-          id="desktops-table"
-          striped
-          hover
-          :items="items"
-          :per-page="perPage"
-          :current-page="currentPage"
-          :filter="filter"
-          :filter-included-fields="filterOn"
-          :fields="fields"
-          :responsive="true"
-          small
-          @filtered="onFiltered"
-          select-mode="single"
-          selected-variant="primary"
-          selectable
-          @row-selected="onRowSelected">
-
-          <!-- Scoped slot for line selected column -->
-          <template #cell(selected)="{ rowSelected }">
-            <template v-if="rowSelected">
-              <span aria-hidden="true">&check;</span>
+            id="desktops-table"
+            striped
+            hover
+            :items="items"
+            :per-page="perPage"
+            :current-page="currentPage"
+            :filter="filter"
+            :filter-included-fields="filterOn"
+            :fields="fields"
+            :responsive="true"
+            small
+            select-mode="single"
+            selected-variant="primary"
+            selectable
+            @filtered="onFiltered"
+            @row-selected="onRowSelected"
+          >
+            <!-- Scoped slot for line selected column -->
+            <template #cell(selected)="{ rowSelected }">
+              <template v-if="rowSelected">
+                <span aria-hidden="true">&check;</span>
+              </template>
+              <template v-else>
+                <span aria-hidden="true">&nbsp;</span>
+              </template>
             </template>
-            <template v-else>
-              <span aria-hidden="true">&nbsp;</span>
-            </template>
-          </template>
 
-           <!-- Scoped slot for image -->
-          <template #cell(image)="data">
-            <img :src="`..${data.item.image.url}`" alt="" style="height: 2rem; border: 1px solid #555;">
-          </template>
-        </b-table>
+            <!-- Scoped slot for image -->
+            <template #cell(image)="data">
+              <img
+                :src="`..${data.item.image.url}`"
+                alt=""
+                style="height: 2rem; border: 1px solid #555;"
+              >
+            </template>
+          </b-table>
         </b-col>
       </b-row>
 
@@ -143,12 +223,12 @@
       <b-row>
         <b-col>
           <b-pagination
-          v-model="currentPage"
-          :total-rows="totalRows"
-          :per-page="perPage"
-          aria-controls="desktops-table"
-          size="sm">
-          </b-pagination>
+            v-model="currentPage"
+            :total-rows="totalRows"
+            :per-page="perPage"
+            aria-controls="desktops-table"
+            size="sm"
+          />
         </b-col>
       </b-row>
 
@@ -157,10 +237,22 @@
 
       <!-- Buttons -->
       <b-row align-h="end">
-        <b-button size="md" class="btn-red rounded-pill mt-4 mr-2" @click="navigate('deployments')">{{ $t('forms.cancel') }}</b-button>
-        <b-button type="submit" size="md" class="btn-green rounded-pill mt-4 ml-2 mr-5">{{ $t('forms.create') }}</b-button>
+        <b-button
+          size="md"
+          class="btn-red rounded-pill mt-4 mr-2"
+          @click="navigate('deployments')"
+        >
+          {{ $t('forms.cancel') }}
+        </b-button>
+        <b-button
+          type="submit"
+          size="md"
+          class="btn-green rounded-pill mt-4 ml-2 mr-5"
+        >
+          {{ $t('forms.create') }}
+        </b-button>
       </b-row>
-  </b-form>
+    </b-form>
   </b-container>
 </template>
 
@@ -177,6 +269,9 @@ import { map } from 'lodash'
 const inputFormat = value => /^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$/.test(value)
 
 export default {
+  components: {
+    AllowedForm
+  },
   setup (props, context) {
     const $store = context.root.$store
     $store.dispatch('fetchAllowedTemplates')
@@ -330,9 +425,6 @@ export default {
         )
       }
     }
-  },
-  components: {
-    AllowedForm
   }
 }
 </script>

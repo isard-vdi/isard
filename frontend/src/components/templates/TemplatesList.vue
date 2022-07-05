@@ -1,48 +1,71 @@
 <template>
-  <div class='table-list px-5'>
-    <b-container fluid class='px-0'>
-      <b-skeleton-wrapper :loading="loading" class='pb-1 pt-4 justify-content-start'>
+  <div class="table-list px-5">
+    <b-container
+      fluid
+      class="px-0"
+    >
+      <b-skeleton-wrapper
+        :loading="loading"
+        class="pb-1 pt-4 justify-content-start"
+      >
         <template #loading>
           <b-col>
-            <list-item-skeleton class="mb-2"></list-item-skeleton>
-            <list-item-skeleton class="mb-2"></list-item-skeleton>
-            <list-item-skeleton class="mb-2"></list-item-skeleton>
-            <list-item-skeleton class="mb-2"></list-item-skeleton>
+            <list-item-skeleton class="mb-2" />
+            <list-item-skeleton class="mb-2" />
+            <list-item-skeleton class="mb-2" />
+            <list-item-skeleton class="mb-2" />
           </b-col>
         </template>
         <b-row class="scrollable-div">
           <b-col
-            cols='12'
-            class='d-flex flex-row flex-wrap justify-content-start'
+            cols="12"
+            class="d-flex flex-row flex-wrap justify-content-start"
           >
-            <b-table :items='templates' :fields='fields' tbody-tr-class="cursor-pointer" :responsive="true">
-              <template #cell(image)='data'>
+            <b-table
+              :items="templates"
+              :fields="fields"
+              tbody-tr-class="cursor-pointer"
+              :responsive="true"
+            >
+              <template #cell(image)="data">
                 <!-- IMAGE -->
                 <div
-                  class='rounded-circle bg-red'
+                  class="rounded-circle bg-red"
                   :style="{'background-image': `url('..${data.item.image.url}')`}"
-                ></div>
+                />
               </template>
-              <template #cell(name)='data'>
-                <p class='m-0 font-weight-bold'>
+              <template #cell(name)="data">
+                <p class="m-0 font-weight-bold">
                   {{ data.item.name }}
                 </p>
               </template>
-              <template #cell(description)='data'>
-                <p class='text-dark-gray m-0'>
+              <template #cell(description)="data">
+                <p class="text-dark-gray m-0">
                   {{ data.item.description }}
                 </p>
               </template>
-              <template #cell(actions)='data'>
-                <div class='d-flex justify-content-center align-items-center'>
-                  <b-button class="rounded-circle px-2 mr-2 btn-dark-blue" @click="showAllowedModal(data.item)" :title="$t('views.templates.buttons.allowed.title')">
-                    <b-icon icon="people-fill" scale="0.75"></b-icon>
-                  </b-button>
-                  <b-button class="rounded-circle px-2 mr-2" :class="enabledClass(data.item)"
-                    @click="toggleEnabled(data.item)"
-                    :title="data.item.enabled ? $t('views.templates.buttons.disable.title') : $t('views.templates.buttons.enable.title')"
+              <template #cell(actions)="data">
+                <div class="d-flex justify-content-center align-items-center">
+                  <b-button
+                    class="rounded-circle px-2 mr-2 btn-dark-blue"
+                    :title="$t('views.templates.buttons.allowed.title')"
+                    @click="showAllowedModal(data.item)"
                   >
-                    <b-icon :icon="toggleEnabledIcon(data.item)" scale="0.75"></b-icon>
+                    <b-icon
+                      icon="people-fill"
+                      scale="0.75"
+                    />
+                  </b-button>
+                  <b-button
+                    class="rounded-circle px-2 mr-2"
+                    :class="enabledClass(data.item)"
+                    :title="data.item.enabled ? $t('views.templates.buttons.disable.title') : $t('views.templates.buttons.enable.title')"
+                    @click="toggleEnabled(data.item)"
+                  >
+                    <b-icon
+                      :icon="toggleEnabledIcon(data.item)"
+                      scale="0.75"
+                    />
                   </b-button>
                 </div>
               </template>
@@ -61,6 +84,17 @@ import AllowedModal from '@/components/AllowedModal.vue'
 import { computed } from '@vue/composition-api'
 
 export default {
+  components: { ListItemSkeleton, AllowedModal },
+  props: {
+    templates: {
+      required: true,
+      type: Array
+    },
+    loading: {
+      required: true,
+      type: Boolean
+    }
+  },
   setup (props, context) {
     const $store = context.root.$store
 
@@ -110,17 +144,6 @@ export default {
       enabledClass,
       toggleEnabledIcon,
       toggleEnabled
-    }
-  },
-  components: { ListItemSkeleton, AllowedModal },
-  props: {
-    templates: {
-      required: true,
-      type: Array
-    },
-    loading: {
-      required: true,
-      type: Boolean
     }
   },
   data () {

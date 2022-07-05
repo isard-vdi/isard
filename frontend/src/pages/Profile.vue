@@ -1,7 +1,15 @@
 <template>
-  <b-container fluid id="content" class=' w-100 px-5'>
+  <b-container
+    id="content"
+    fluid
+    class=" w-100 px-5"
+  >
     <b-row class="justify-content-center scrollable-div">
-      <b-col cols="10" md="10" lg="10">
+      <b-col
+        cols="10"
+        md="10"
+        lg="10"
+      >
         <b-row class="justify-content-center align-content-center">
           <!-- <b-skeleton-wrapper :loading="false" class='card-body pt-4 d-flex flex-row flex-wrap justify-content-start'>
             <template #loading>
@@ -10,30 +18,56 @@
             <ProfileCard :profile="getProfile"/>
           </b-skeleton-wrapper> -->
           <b-col class="px-0">
-            <b-row style="background: #fbfbfb;" class="m-0 rounded-bottom-30 rounded-top-30 pt-4 pb-4">
+            <b-row
+              style="background: #fbfbfb;"
+              class="m-0 rounded-bottom-30 rounded-top-30 pt-4 pb-4"
+            >
               <!-- MACHINE ACCESS METHODS -->
-              <b-col cols="12" class="rounded-bottom-30 pt-4">
+              <b-col
+                cols="12"
+                class="rounded-bottom-30 pt-4"
+              >
                 <!-- machine access methods  -->
                 <b-row class="justify-content-center">
                   <!-- single method start -->
-                  <b-skeleton-wrapper :loading="false" class='card-body pt-4 d-flex flex-row flex-wrap justify-content-center'>
+                  <b-skeleton-wrapper
+                    :loading="false"
+                    class="card-body pt-4 d-flex flex-row flex-wrap justify-content-center"
+                  >
                     <template #loading>
-                        <ProfileCardSkeleton></ProfileCardSkeleton>
-                        <ProfileCardSkeleton></ProfileCardSkeleton>
+                      <ProfileCardSkeleton />
+                      <ProfileCardSkeleton />
                     </template>
                     <b-col sm="10">
                       <b-row class="justify-content-center text-center py-4">
                         <!-- User info -->
                         <b-col xl="6">
-                          <b-avatar src="https://placekitten.com/300/300" size="8rem"></b-avatar>
+                          <b-avatar
+                            src="https://placekitten.com/300/300"
+                            size="8rem"
+                          />
                           <!-- User name -->
-                          <h4 class="font-weight-bold mt-4">{{ getProfile.name }}</h4>
+                          <h4 class="font-weight-bold mt-4">
+                            {{ getProfile.name }}
+                          </h4>
                           <!-- User role -->
-                          <h5 class="text-medium-gray">{{ getProfile.username }}</h5>
-                          <div class="pt-1" v-if="getProfile.provider === 'local'">
+                          <h5 class="text-medium-gray">
+                            {{ getProfile.username }}
+                          </h5>
+                          <div
+                            v-if="getProfile.provider === 'local'"
+                            class="pt-1"
+                          >
                             <PasswordModal />
-                            <b-button class="rounded-pill mr-2 pl-2 pr-3 btn-dark-blue" @click="showPasswordModal(true)" :title="$t('components.profile.change-password')">
-                              <b-icon icon="lock-fill" scale="0.75"></b-icon>
+                            <b-button
+                              class="rounded-pill mr-2 pl-2 pr-3 btn-dark-blue"
+                              :title="$t('components.profile.change-password')"
+                              @click="showPasswordModal(true)"
+                            >
+                              <b-icon
+                                icon="lock-fill"
+                                scale="0.75"
+                              />
                               {{ $t('components.profile.change-password') }}
                             </b-button>
                           </div>
@@ -41,50 +75,74 @@
                             <b-col xl="12">
                               <b-row>
                                 <b-col>
-                                  <h6 class="font-weight-bold mt-4">{{ $t('components.profile.info.name') }}</h6>
+                                  <h6 class="font-weight-bold mt-4">
+                                    {{ $t('components.profile.info.name') }}
+                                  </h6>
                                 </b-col>
                                 <b-col>
-                                  <h6 class="mt-4">{{ getProfile.name }}</h6>
-                                </b-col>
-                              </b-row>
-                              <b-row>
-                                <b-col>
-                                  <h6 class="font-weight-bold mt-4">{{ $t('components.profile.info.email') }}</h6>
-                                </b-col>
-                                <b-col>
-                                  <h6 class="mt-4">{{ getProfile.email }}</h6>
+                                  <h6 class="mt-4">
+                                    {{ getProfile.name }}
+                                  </h6>
                                 </b-col>
                               </b-row>
                               <b-row>
                                 <b-col>
-                                  <h6 class="font-weight-bold mt-4">{{ $t('components.profile.info.authentication') }}</h6>
+                                  <h6 class="font-weight-bold mt-4">
+                                    {{ $t('components.profile.info.email') }}
+                                  </h6>
                                 </b-col>
                                 <b-col>
-                                  <h6 class="mt-4">{{ getProfile.provider }}</h6>
-                                </b-col>
-                              </b-row>
-                              <b-row>
-                                <b-col>
-                                  <h6 class="font-weight-bold mt-4">{{ $t('components.profile.info.role') }}</h6>
-                                </b-col>
-                                <b-col>
-                                  <h6 class="mt-4">{{ getProfile.role }}</h6>
+                                  <h6 class="mt-4">
+                                    {{ getProfile.email }}
+                                  </h6>
                                 </b-col>
                               </b-row>
                               <b-row>
                                 <b-col>
-                                  <h6 class="font-weight-bold mt-4">{{ $t('components.profile.info.category') }}</h6>
+                                  <h6 class="font-weight-bold mt-4">
+                                    {{ $t('components.profile.info.authentication') }}
+                                  </h6>
                                 </b-col>
                                 <b-col>
-                                  <h6 class="mt-4">{{ getProfile.category }}</h6>
+                                  <h6 class="mt-4">
+                                    {{ getProfile.provider }}
+                                  </h6>
                                 </b-col>
                               </b-row>
                               <b-row>
                                 <b-col>
-                                  <h6 class="font-weight-bold mt-4">{{ $t('components.profile.info.group') }}</h6>
+                                  <h6 class="font-weight-bold mt-4">
+                                    {{ $t('components.profile.info.role') }}
+                                  </h6>
                                 </b-col>
                                 <b-col>
-                                  <h6 class="mt-4">{{ getProfile.group }}</h6>
+                                  <h6 class="mt-4">
+                                    {{ getProfile.role }}
+                                  </h6>
+                                </b-col>
+                              </b-row>
+                              <b-row>
+                                <b-col>
+                                  <h6 class="font-weight-bold mt-4">
+                                    {{ $t('components.profile.info.category') }}
+                                  </h6>
+                                </b-col>
+                                <b-col>
+                                  <h6 class="mt-4">
+                                    {{ getProfile.category }}
+                                  </h6>
+                                </b-col>
+                              </b-row>
+                              <b-row>
+                                <b-col>
+                                  <h6 class="font-weight-bold mt-4">
+                                    {{ $t('components.profile.info.group') }}
+                                  </h6>
+                                </b-col>
+                                <b-col>
+                                  <h6 class="mt-4">
+                                    {{ getProfile.group }}
+                                  </h6>
                                 </b-col>
                               </b-row>
                             </b-col>
@@ -92,21 +150,49 @@
                         </b-col>
                         <!-- User quota -->
                         <b-col xl="6">
-                          <h5 class="font-weight-bold mt-4">Language</h5>
+                          <h5 class="font-weight-bold mt-4">
+                            Language
+                          </h5>
                           <b-row class="justify-content-center text-center">
                             <b-col cols="12">
                               <Language class="mt-2 mt-md-4 mb-3" />
                             </b-col>
                           </b-row>
-                          <h5 class="font-weight-bold mt-4">Quota</h5>
+                          <h5 class="font-weight-bold mt-4">
+                            Quota
+                          </h5>
                           <b-row class="justify-content-center text-center pb-4">
                             <b-col cols="12">
-                              <QuotaProgressBar :title="$t('components.profile.quota.d')" :value="getProfile.quota.d" :max="getProfile.quota.dq"/>
-                              <QuotaProgressBar :title="$t('components.profile.quota.i')" :value="getProfile.quota.i" :max="getProfile.quota.iq"/>
-                              <QuotaProgressBar :title="$t('components.profile.quota.m')" :value="getProfile.quota.m" :max="getProfile.quota.mq"/>
-                              <QuotaProgressBar :title="$t('components.profile.quota.r')" :value="getProfile.quota.r" :max="getProfile.quota.rq"/>
-                              <QuotaProgressBar :title="$t('components.profile.quota.t')" :value="getProfile.quota.t" :max="getProfile.quota.tq"/>
-                              <QuotaProgressBar :title="$t('components.profile.quota.v')" :value="getProfile.quota.v" :max="getProfile.quota.vq"/>
+                              <QuotaProgressBar
+                                :title="$t('components.profile.quota.d')"
+                                :value="getProfile.quota.d"
+                                :max="getProfile.quota.dq"
+                              />
+                              <QuotaProgressBar
+                                :title="$t('components.profile.quota.i')"
+                                :value="getProfile.quota.i"
+                                :max="getProfile.quota.iq"
+                              />
+                              <QuotaProgressBar
+                                :title="$t('components.profile.quota.m')"
+                                :value="getProfile.quota.m"
+                                :max="getProfile.quota.mq"
+                              />
+                              <QuotaProgressBar
+                                :title="$t('components.profile.quota.r')"
+                                :value="getProfile.quota.r"
+                                :max="getProfile.quota.rq"
+                              />
+                              <QuotaProgressBar
+                                :title="$t('components.profile.quota.t')"
+                                :value="getProfile.quota.t"
+                                :max="getProfile.quota.tq"
+                              />
+                              <QuotaProgressBar
+                                :title="$t('components.profile.quota.v')"
+                                :value="getProfile.quota.v"
+                                :max="getProfile.quota.vq"
+                              />
                             </b-col>
                           </b-row>
                         </b-col>
@@ -132,16 +218,16 @@ import PasswordModal from '@/components/profile/PasswordModal.vue'
 import QuotaProgressBar from '@/components/profile/QuotaProgressBar.vue'
 
 export default {
-  setup (_, context) {
-    const $store = context.root.$store
-
-    $store.dispatch('fetchProfile')
-  },
   components: {
     ProfileCardSkeleton,
     Language,
     PasswordModal,
     QuotaProgressBar
+  },
+  setup (_, context) {
+    const $store = context.root.$store
+
+    $store.dispatch('fetchProfile')
   },
   computed: {
     ...mapGetters([

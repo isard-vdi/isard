@@ -1,22 +1,46 @@
 <template>
   <b-modal
     id="passwordModal"
+    v-model="showPasswordModal"
     size="lg"
     :title="$t(`forms.password.modal.title`)"
-    v-model="showPasswordModal"
-    @hidden="closePasswordModal"
     centered
+    @hidden="closePasswordModal"
   >
     <b-row class="ml-2 mr-2">
       <b-col cols="12">
         <label for="password">{{ $t(`forms.password.modal.password.label`) }}</label>
-        <b-form-input type="password" id="password" v-model="password" :placeholder="$t(`forms.password.modal.password.placeholder`)" @blur="v$.password.$touch"></b-form-input>
-        <div class="isard-form-error" v-if="v$.password.$error">{{ $t(`validations.${v$.password.$errors[0].$validator}`, { property: $t('forms.password.modal.password.label'), model: password.length,  min: 4 }) }}</div>
+        <b-form-input
+          id="password"
+          v-model="password"
+          type="password"
+          :placeholder="$t(`forms.password.modal.password.placeholder`)"
+          @blur="v$.password.$touch"
+        />
+        <div
+          v-if="v$.password.$error"
+          class="isard-form-error"
+        >
+          {{ $t(`validations.${v$.password.$errors[0].$validator}`, { property: $t('forms.password.modal.password.label'), model: password.length, min: 4 }) }}
+        </div>
       </b-col>
-      <b-col cols="12" class="mt-2">
+      <b-col
+        cols="12"
+        class="mt-2"
+      >
         <label for="confirmation-password">{{ $t(`forms.password.modal.confirmation-password.label`) }}</label>
-        <b-form-input type="password" id="confirmation-password" v-model="passwordConfirmation" :placeholder="$t(`forms.password.modal.confirmation-password.placeholder`)"></b-form-input>
-        <div class="isard-form-error" v-if="v$.passwordConfirmation.$error">{{ $t(`validations.${v$.passwordConfirmation.$errors[0].$validator}`, { property: `${$t("forms.password.modal.confirmation-password.label")}`, property2: `${$t("forms.password.modal.password.label")}` }) }}</div>
+        <b-form-input
+          id="confirmation-password"
+          v-model="passwordConfirmation"
+          type="password"
+          :placeholder="$t(`forms.password.modal.confirmation-password.placeholder`)"
+        />
+        <div
+          v-if="v$.passwordConfirmation.$error"
+          class="isard-form-error"
+        >
+          {{ $t(`validations.${v$.passwordConfirmation.$errors[0].$validator}`, { property: `${$t("forms.password.modal.confirmation-password.label")}`, property2: `${$t("forms.password.modal.password.label")}` }) }}
+        </div>
       </b-col>
     </b-row>
     <template #modal-footer>

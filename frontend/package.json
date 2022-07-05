@@ -40,20 +40,23 @@
     "vuex": "^3.1.2"
   },
   "devDependencies": {
+    "@babel/core": "^7.12.16",
+    "@babel/eslint-parser": "^7.12.16",
     "@babel/preset-stage-2": "^7.8.3",
     "@vue/cli-plugin-babel": "^4.2.0",
     "@vue/cli-plugin-e2e-cypress": "~4.5.0",
-    "@vue/cli-plugin-eslint": "^4.2.0",
+    "@vue/cli-plugin-eslint": "~5.0.0",
     "@vue/cli-service": "^4.2.0",
-    "@vue/eslint-config-standard": "^5.1.0",
+    "@vue/eslint-config-standard": "^6.1.0",
     "babel-eslint": "^10.0.3",
     "babel-jest": "^25.2.3",
-    "eslint": "^6.7.2",
-    "eslint-plugin-import": "^2.20.1",
-    "eslint-plugin-node": "^11.0.0",
-    "eslint-plugin-promise": "^4.2.1",
+    "eslint": "^8.19.0",
+    "eslint-plugin-import": "^2.25.3",
+    "eslint-plugin-jest": "^26.5.3",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^5.1.0",
     "eslint-plugin-standard": "^4.0.0",
-    "eslint-plugin-vue": "^6.1.2",
+    "eslint-plugin-vue": "^8.0.3",
     "jest": "^25.2.3",
     "vue-cli-plugin-i18n": "^1.0.1",
     "vue-jest": "^3.0.5",
@@ -63,16 +66,23 @@
   "eslintConfig": {
     "root": true,
     "env": {
-      "node": true
+      "node": true,
+      "jest/globals": true
     },
+    "plugins": [
+      "jest"
+    ],
     "extends": [
-      "plugin:vue/essential",
+      "plugin:vue/recommended",
       "@vue/standard"
     ],
     "parserOptions": {
-      "parser": "babel-eslint"
+      "parser": "@babel/eslint-parser"
     },
-    "rules": {}
+    "rules": {
+      "vue/multi-word-component-names": "off",
+      "vue/require-default-prop": "off"
+    }
   },
   "browserslist": [
     "> 1%",

@@ -41,7 +41,7 @@ import VueFab from 'vue-float-action-button'
 // Vue Select plugin
 import vSelect from 'vue-select'
 
-Vue.component('v-select', vSelect)
+Vue.component('VSelect', vSelect)
 
 console.log(i18n.locale)
 
@@ -49,7 +49,7 @@ axiosSetup()
 
 library.add(faDesktop, faPlay, faStop, faTrash, faWindows, faUbuntu, faFedora, faLinux, faCentos, faGithub, faGoogle, faVideo, faMemory, faMicrochip, faBan)
 
-Vue.component('font-awesome-icon', FontAwesomeIcon)
+Vue.component('FontAwesomeIcon', FontAwesomeIcon)
 
 // Install BootstrapVue and the BootstrapVue icon components plugin
 Vue.use(BootstrapVue)

@@ -5,7 +5,8 @@
     src="/custom/logo.svg"
     :alt="$t('components.title.logo-alt')"
     :style="styles"
-    :class="classes"/>
+    :class="classes"
+  />
 </template>
 
 <script>

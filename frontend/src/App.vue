@@ -1,8 +1,11 @@
 <template>
-    <div id="app" :class="{ guacamole: this.$route.name === 'Rdp' }">
-        <router-view />
-        <vue-snotify />
-    </div>
+  <div
+    id="app"
+    :class="{ guacamole: $route.name === 'Rdp' }"
+  >
+    <router-view />
+    <vue-snotify />
+  </div>
 </template>
 
 <script>

@@ -1,10 +1,10 @@
 <template>
   <div id="main-layout">
     <div class="header-wrapper">
-      <NewNavBar/>
-      <component v-bind:is="currentStatusBarComponent"></component>
+      <NewNavBar />
+      <component :is="currentStatusBarComponent" />
     </div>
-    <router-view></router-view>
+    <router-view />
   </div>
 </template>
 
@@ -18,6 +18,13 @@ import DeploymentVideowallStatusBar from '@/components/deployments/DeploymentVid
 import BookingStatusBar from '@/components/booking/BookingStatusBar.vue'
 
 export default {
+  components: {
+    StatusBar,
+    NewNavBar,
+    ImagesStatusBar,
+    DeploymentVideowallStatusBar,
+    BookingStatusBar
+  },
   setup (_, context) {
     const $store = context.root.$store
 
@@ -35,13 +42,6 @@ export default {
       section,
       currentStatusBarComponent
     }
-  },
-  components: {
-    StatusBar,
-    NewNavBar,
-    ImagesStatusBar,
-    DeploymentVideowallStatusBar,
-    BookingStatusBar
   }
 }
 </script>

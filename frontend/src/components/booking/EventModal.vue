@@ -1,65 +1,86 @@
 <template>
   <b-modal
     id="eventModal"
+    v-model="modalShow"
     size="lg"
     :title="$t(`components.bookings.item.modal.${modal.type}.modal-title`)"
-    v-model="modalShow"
-    @hidden="closeModal"
     centered
+    @hidden="closeModal"
   >
     <b-row class="ml-2 mr-2">
       <b-col cols="12">
         <label for="title">{{ $t(`components.bookings.item.modal.title`) }}</label>
-        <b-form-input id="title" v-model="modal.title" placeholder="Enter a title"></b-form-input>
+        <b-form-input
+          id="title"
+          v-model="modal.title"
+          placeholder="Enter a title"
+        />
       </b-col>
-      <b-col cols="6" class="mt-2">
+      <b-col
+        cols="6"
+        class="mt-2"
+      >
         <label for="eventStartDate">{{ $t(`components.bookings.item.modal.start-date`) }}*</label>
         <b-form-datepicker
-          :disabled="modal.type == 'view'"
           id="eventStartDate"
-          type="date"
           v-model="modal.startDate"
-          :locale="this.$i18n.locale"
-        ></b-form-datepicker>
+          :disabled="modal.type == 'view'"
+          type="date"
+          :locale="$i18n.locale"
+        />
       </b-col>
-      <b-col cols="6" class="mt-2">
+      <b-col
+        cols="6"
+        class="mt-2"
+      >
         <label for="eventStartTime">{{ $t(`components.bookings.item.modal.start-time`) }}*</label>
         <b-form-input
-          :disabled="modal.type == 'view'"
           id="eventStartTime"
-          type="time"
           v-model="modal.startTime"
-        ></b-form-input>
-      </b-col>
-      <b-col cols="6" class="mt-2">
-      <label for="eventEndDate">{{ $t(`components.bookings.item.modal.end-date`) }}*</label>
-        <b-form-datepicker
           :disabled="modal.type == 'view'"
-          id="eventEndDate"
-          type="date"
-          v-model="modal.endDate"
-          :locale="this.$i18n.locale"
-        ></b-form-datepicker>
+          type="time"
+        />
       </b-col>
-      <b-col cols="6" class="mt-2">
+      <b-col
+        cols="6"
+        class="mt-2"
+      >
+        <label for="eventEndDate">{{ $t(`components.bookings.item.modal.end-date`) }}*</label>
+        <b-form-datepicker
+          id="eventEndDate"
+          v-model="modal.endDate"
+          :disabled="modal.type == 'view'"
+          type="date"
+          :locale="$i18n.locale"
+        />
+      </b-col>
+      <b-col
+        cols="6"
+        class="mt-2"
+      >
         <label for="eventEndTime">{{ $t(`components.bookings.item.modal.end-time`) }}*</label>
-        <b-form-input :disabled="modal.type == 'view'" id="eventEndTime" type="time" v-model="modal.endTime"></b-form-input>
+        <b-form-input
+          id="eventEndTime"
+          v-model="modal.endTime"
+          :disabled="modal.type == 'view'"
+          type="time"
+        />
       </b-col>
     </b-row>
     <template #modal-footer>
       <div class="w-100">
         <b-button
+          v-if="modal.type === 'edit'"
           squared
           class="float-left"
           variant="outline-danger"
-          v-if="modal.type === 'edit'"
           @click="deleteEvent"
         >
           {{ $t(`components.bookings.item.modal.delete.button`) }}
         </b-button>
         <b-button
-          squared
           v-if="modal.type === 'create'"
+          squared
           variant="primary"
           class="float-right"
           @click="createEvent"

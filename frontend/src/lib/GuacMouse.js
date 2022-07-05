@@ -5,7 +5,7 @@ const mouse = function (element) {
    * Reference to this Guacamole.Mouse.
    * @private
    */
-  var guacMouse = this
+  const guacMouse = this
 
   /**
    * The number of mousemove events to require before re-enabling mouse
@@ -81,7 +81,7 @@ const mouse = function (element) {
    * while non-zero, mouse events will have no effect.
    * @private
    */
-  var ignoreMouse = 0
+  let ignoreMouse = 0
 
   /**
    * Cumulative scroll delta amount. This value is accumulated through scroll
@@ -90,7 +90,7 @@ const mouse = function (element) {
    *
    * @private
    */
-  var scrollDelta = 0
+  let scrollDelta = 0
 
   function cancelEvent (e) {
     e.stopPropagation()
@@ -162,7 +162,7 @@ const mouse = function (element) {
     if (!e) e = window.event
 
     // Check that mouseout is due to actually LEAVING the element
-    var target = e.relatedTarget || e.toElement
+    let target = e.relatedTarget || e.toElement
     while (target) {
       if (target === element) { return }
       target = target.parentNode
@@ -200,7 +200,7 @@ const mouse = function (element) {
   // Scroll wheel support
   function mousewheelHandler (e) {
     // Determine approximate scroll amount (in pixels)
-    var delta = e.deltaY || -e.wheelDeltaY || -e.wheelDelta
+    let delta = e.deltaY || -e.wheelDeltaY || -e.wheelDelta
 
     // If successfully retrieved scroll amount, convert to pixels if not
     // already in pixels
@@ -272,8 +272,8 @@ const mouse = function (element) {
      * @private
      * @type {Boolean}
      */
-  var CSS3_CURSOR_SUPPORTED = (function () {
-    var div = document.createElement('div')
+  const CSS3_CURSOR_SUPPORTED = (function () {
+    const div = document.createElement('div')
 
     // If no cursor property at all, then no support
     if (!('cursor' in div.style)) { return false }
@@ -312,7 +312,7 @@ const mouse = function (element) {
   this.setCursor = function (canvas, x, y) {
     // Attempt to set via CSS3 cursor styling
     if (CSS3_CURSOR_SUPPORTED) {
-      var dataURL = canvas.toDataURL('image/png')
+      const dataURL = canvas.toDataURL('image/png')
       element.style.cursor = 'url(' + dataURL + ') ' + x + ' ' + y + ', auto'
       return true
     }

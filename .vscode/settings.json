@@ -1,0 +1,9 @@
+{
+    "eslint.format.enable": true,
+    "eslint.workingDirectories": [
+        "frontend"
+    ],
+    "[vue]": {
+        "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    }
+}

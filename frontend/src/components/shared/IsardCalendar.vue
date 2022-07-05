@@ -1,9 +1,10 @@
 <template>
-  <vue-cal style=""
+  <vue-cal
     id="vuecal"
+    style=""
     sticky-split-labels
     today-button
-    :locale="this.$i18n.locale === 'eu' ? 'en' : this.$i18n.locale"
+    :locale="$i18n.locale === 'eu' ? 'en' : $i18n.locale"
     :events="events"
     :disable-views="['years', 'year']"
     :split-days="splitDays"
@@ -14,29 +15,39 @@
     :on-event-click="onEventClick"
     :editable-events="{ title: false, drag: false, resize: false, delete: false, create: true }"
     :on-event-create="onEventCreate"
+    :time-cell-height="40"
+    :min-event-width="50"
     @cell-click="onCellClick"
     @view-change="onViewChange"
     @event-drag-create="onCellDrag"
-    :time-cell-height="40"
     @ready="scrollToCurrentTime"
-    :min-event-width="50">
   >
-    <template v-slot:split-label="{ split }">
-      <i v-if="split.id === 2" class="icon material-icons">person</i>
-      <i v-else class="icon material-icons">event</i>
+    >
+    <template #split-label="{ split }">
+      <i
+        v-if="split.id === 2"
+        class="icon material-icons"
+      >person</i>
+      <i
+        v-else
+        class="icon material-icons"
+      >event</i>
       <strong :style="`color: ${split.color}`">{{ split.label }}</strong>
     </template>
-    <template v-slot:event="{ event }">
-      <div v-b-tooltip.hover :title="event.title">
+    <template #event="{ event }">
+      <div
+        v-b-tooltip.hover
+        :title="event.title"
+      >
         <div v-if="view.type === 'month'">
-          <span>{{ event.start.formatTime("HH:mm") }} - {{ event.end.formatTime("HH:mm") }} {{event.title}}</span>
+          <span>{{ event.start.formatTime("HH:mm") }} - {{ event.end.formatTime("HH:mm") }} {{ event.title }}</span>
         </div>
         <div v-else>
           <small>
             {{ event.start.formatTime("HH:mm") }} - {{ event.end.formatTime("HH:mm") }}
           </small>
           <h6>
-            {{event.title}}
+            {{ event.title }}
           </h6>
           <small v-if="event.subtitle">{{ event.subtitle }} </small>
         </div>

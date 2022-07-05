@@ -1,25 +1,41 @@
 <template>
   <b-dropdown
-        :disabled="ddDisabled"
-        :variant="!(waitingIp && needsIp(defaultViewer)) ? variant : 'secondary'"
-        :class="cssClass"
-        split
-        @click="defaultViewer && !(waitingIp && needsIp(defaultViewer)) && $emit('dropdownClicked', {desktopId: desktop.id, viewer: defaultViewer})">
-        <template #button-content>
-          <div class="dropdown-default-text" v-b-tooltip="{ title: `${fullViewerText}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }">
-            {{ viewerText }}
-          </div>
-          <b-spinner v-if="defaultViewer && (waitingIp && needsIp(defaultViewer))" small type="grow" class="item-spinner"/>   </template>
-          <b-dropdown-item class="dropdown-text"
-            v-for="dkpviewer in viewers"
-            :disabled="waitingIp && needsIp(dkpviewer)"
-            :key="dkpviewer"
-            @click="$emit('dropdownClicked', {desktopId: desktop.id, viewer: dkpviewer, template: template || null})"
-          >
-          <isard-butt-viewer-text :viewerName="dkpviewer"></isard-butt-viewer-text>
-          <b-spinner v-if="waitingIp && needsIp(dkpviewer)" small type="grow" class="item-spinner"/>
-          </b-dropdown-item>
-                </b-dropdown>
+    :disabled="ddDisabled"
+    :variant="!(waitingIp && needsIp(defaultViewer)) ? variant : 'secondary'"
+    :class="cssClass"
+    split
+    @click="defaultViewer && !(waitingIp && needsIp(defaultViewer)) && $emit('dropdownClicked', {desktopId: desktop.id, viewer: defaultViewer})"
+  >
+    <template #button-content>
+      <div
+        v-b-tooltip="{ title: `${fullViewerText}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
+        class="dropdown-default-text"
+      >
+        {{ viewerText }}
+      </div>
+      <b-spinner
+        v-if="defaultViewer && (waitingIp && needsIp(defaultViewer))"
+        small
+        type="grow"
+        class="item-spinner"
+      />
+    </template>
+    <b-dropdown-item
+      v-for="dkpviewer in viewers"
+      :key="dkpviewer"
+      class="dropdown-text"
+      :disabled="waitingIp && needsIp(dkpviewer)"
+      @click="$emit('dropdownClicked', {desktopId: desktop.id, viewer: dkpviewer, template: template || null})"
+    >
+      <isard-butt-viewer-text :viewer-name="dkpviewer" />
+      <b-spinner
+        v-if="waitingIp && needsIp(dkpviewer)"
+        small
+        type="grow"
+        class="item-spinner"
+      />
+    </b-dropdown-item>
+  </b-dropdown>
 </template>
 
 <script>

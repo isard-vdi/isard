@@ -1,30 +1,73 @@
 <template>
-  <b-container class="calendar-container" fluid id="content">
+  <b-container
+    id="content"
+    class="calendar-container"
+    fluid
+  >
     <b-row>
       <b-col>
-        <b-button class="ms-2 me-2 mb-2" pill variant="outline-secondary" @click="hideSplit(0)">
-          <b-icon v-if="splitDays[0].hide" icon="circle" aria-hidden="true" class="text-medium-gray" font-scale="0.75" shift-v="3"></b-icon>
-          <b-icon v-else style="color: rgba(255, 102, 102, 0.9)" icon="circle-fill" aria-hidden="true" class="text-medium-gray" font-scale="0.75" shift-v="3"></b-icon>
+        <b-button
+          class="ms-2 me-2 mb-2"
+          pill
+          variant="outline-secondary"
+          @click="hideSplit(0)"
+        >
+          <b-icon
+            v-if="splitDays[0].hide"
+            icon="circle"
+            aria-hidden="true"
+            class="text-medium-gray"
+            font-scale="0.75"
+            shift-v="3"
+          />
+          <b-icon
+            v-else
+            style="color: rgba(255, 102, 102, 0.9)"
+            icon="circle-fill"
+            aria-hidden="true"
+            class="text-medium-gray"
+            font-scale="0.75"
+            shift-v="3"
+          />
           {{ splitDays[0].label }}
         </b-button>
-        <b-button pill variant="outline-secondary" @click="hideSplit(1)" class="ml-2 mr-2 mb-2">
-          <b-icon v-if="splitDays[1].hide" icon="circle" aria-hidden="true" class="text-medium-gray" font-scale="0.75" shift-v="3"></b-icon>
-          <b-icon v-else style="color: rgba(100,200,255,.8);" icon="circle-fill" aria-hidden="true" class="text-medium-gray" font-scale="0.75" shift-v="3"></b-icon>
+        <b-button
+          pill
+          variant="outline-secondary"
+          class="ml-2 mr-2 mb-2"
+          @click="hideSplit(1)"
+        >
+          <b-icon
+            v-if="splitDays[1].hide"
+            icon="circle"
+            aria-hidden="true"
+            class="text-medium-gray"
+            font-scale="0.75"
+            shift-v="3"
+          />
+          <b-icon
+            v-else
+            style="color: rgba(100,200,255,.8);"
+            icon="circle-fill"
+            aria-hidden="true"
+            class="text-medium-gray"
+            font-scale="0.75"
+            shift-v="3"
+          />
           {{ splitDays[1].label }}
         </b-button>
       </b-col>
       <b-col class="text-center">
         <h4>{{ item.name }}</h4>
       </b-col>
-      <b-col>
-      </b-col>
+      <b-col />
     </b-row>
     <b-row>
       <b-col class="calendar-row-container">
         <IsardCalendar
-          :disabledSplit="1"
+          :disabled-split="1"
           :events="events"
-          :splitDays="splitDays"
+          :split-days="splitDays"
           :view="view"
           :snap-to-time="15"
           @viewChanged="viewChange"
@@ -34,7 +77,7 @@
         />
       </b-col>
     </b-row>
-    <EventModal/>
+    <EventModal />
   </b-container>
 </template>
 <script>

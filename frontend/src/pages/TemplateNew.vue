@@ -1,34 +1,63 @@
 <template>
-  <b-container fluid class="main-container pl-3 pr-3 pl-xl-5 pr-xl-5 pb-5">
+  <b-container
+    fluid
+    class="main-container pl-3 pr-3 pl-xl-5 pr-xl-5 pb-5"
+  >
     <b-form @submit.prevent="submitForm">
       <!-- Title -->
       <b-row clas="mt-2">
-        <h4 class="p-1 mb-4 mt-2 mt-xl-4 ml-2"><strong>{{ $t('forms.new-template.title') }}</strong></h4>
+        <h4 class="p-1 mb-4 mt-2 mt-xl-4 ml-2">
+          <strong>{{ $t('forms.new-template.title') }}</strong>
+        </h4>
       </b-row>
 
       <!-- Name -->
       <b-row>
-        <b-col cols="4" xl="2"><label for="nameField">{{ $t('forms.new-template.name') }}</label></b-col>
-        <b-col cols="6" xl="4" class="mb-4">
+        <b-col
+          cols="4"
+          xl="2"
+        >
+          <label for="nameField">{{ $t('forms.new-template.name') }}</label>
+        </b-col>
+        <b-col
+          cols="6"
+          xl="4"
+          class="mb-4"
+        >
           <b-form-input
             id="nameField"
-            type="text"
             v-model="name"
+            type="text"
             size="sm"
-            @blur="v$.name.$touch"/>
-            <div class="isard-form-error" v-if="v$.name.$error">{{ $t(`validations.${v$.desktop.$errors[0].$validator}`, { property: $t('forms.new-template.name'), model: name.length,  min: 4, max: 40 }) }}</div>
+            @blur="v$.name.$touch"
+          />
+          <div
+            v-if="v$.name.$error"
+            class="isard-form-error"
+          >
+            {{ $t(`validations.${v$.desktop.$errors[0].$validator}`, { property: $t('forms.new-template.name'), model: name.length, min: 4, max: 40 }) }}
+          </div>
         </b-col>
       </b-row>
 
       <!-- Description -->
       <b-row class="mt-4">
-        <b-col cols="4" xl="2"><label for="descriptionField">{{ $t('forms.new-template.description') }}</label></b-col>
-        <b-col cols="6" xl="4">
+        <b-col
+          cols="4"
+          xl="2"
+        >
+          <label for="descriptionField">{{ $t('forms.new-template.description') }}</label>
+        </b-col>
+        <b-col
+          cols="6"
+          xl="4"
+        >
           <b-form-input
             id="descriptionField"
-            type="text"
             v-model="description"
-            size="sm"/>
+            type="text"
+            size="sm"
+          />
         </b-col>
       </b-row>
 
@@ -36,20 +65,33 @@
       <b-row>
         <b-col cols="12">
           <div class="d-flex">
-            <label for="switch_1" class="mr-2"><b-icon icon="eye-slash-fill" class="mr-2" variant="danger"></b-icon>{{ $t('forms.new-template.disabled') }}</label>
+            <label
+              for="switch_1"
+              class="mr-2"
+            ><b-icon
+              icon="eye-slash-fill"
+              class="mr-2"
+              variant="danger"
+            />{{ $t('forms.new-template.disabled') }}</label>
             <b-form-checkbox
               id="checkbox-1"
               v-model="enabled"
               switch
             >
-            <b-icon class="mr-2" icon="eye-fill" variant="success"></b-icon>{{ $t('forms.new-template.enabled') }}
-          </b-form-checkbox>
+              <b-icon
+                class="mr-2"
+                icon="eye-fill"
+                variant="success"
+              />{{ $t('forms.new-template.enabled') }}
+            </b-form-checkbox>
           </div>
         </b-col>
       </b-row>
 
       <b-row clas="mt-2">
-        <h4 class="p-1 mb-2 mt-2 mt-xl-4 ml-2"><strong>{{ $t('forms.allowed.title') }}</strong></h4>
+        <h4 class="p-1 mb-2 mt-2 mt-xl-4 ml-2">
+          <strong>{{ $t('forms.allowed.title') }}</strong>
+        </h4>
       </b-row>
 
       <!-- Allowed -->
@@ -57,10 +99,22 @@
 
       <!-- Buttons -->
       <b-row align-h="end">
-        <b-button size="md" class="btn-red rounded-pill mt-4 mr-2" @click="navigate('desktops')">{{ $t('forms.cancel') }}</b-button>
-        <b-button type="submit" size="md" class="btn-green rounded-pill mt-4 ml-2 mr-5">{{ $t('forms.create') }}</b-button>
+        <b-button
+          size="md"
+          class="btn-red rounded-pill mt-4 mr-2"
+          @click="navigate('desktops')"
+        >
+          {{ $t('forms.cancel') }}
+        </b-button>
+        <b-button
+          type="submit"
+          size="md"
+          class="btn-green rounded-pill mt-4 ml-2 mr-5"
+        >
+          {{ $t('forms.create') }}
+        </b-button>
       </b-row>
-  </b-form>
+    </b-form>
   </b-container>
 </template>
 
@@ -75,6 +129,9 @@ import { map } from 'lodash'
 const inputFormat = value => /^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$/.test(value)
 
 export default {
+  components: {
+    AllowedForm
+  },
   setup (props, context) {
     const $store = context.root.$store
 
@@ -112,15 +169,15 @@ export default {
       }
     }
   },
-  mounted () {
-    if (this.getTemplateNewItemId.length < 1) {
-      this.navigate('desktops')
-    }
-  },
   computed: {
     ...mapGetters([
       'getTemplateNewItemId'
     ])
+  },
+  mounted () {
+    if (this.getTemplateNewItemId.length < 1) {
+      this.navigate('desktops')
+    }
   },
   methods: {
     ...mapActions([
@@ -147,9 +204,6 @@ export default {
         )
       }
     }
-  },
-  components: {
-    AllowedForm
   }
 }
 </script>

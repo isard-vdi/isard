@@ -5,8 +5,8 @@
       thumbnail
       fluid
       :src="`..${imageUrl}`"
-      @click="$emit('imageClicked')">
-    </b-img>
+      @click="$emit('imageClicked')"
+    />
   </div>
 </template>
 

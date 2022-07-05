@@ -1,35 +1,63 @@
 <template>
-  <b-container fluid id="login" class="h-100 w-100 pt-5 pt-md-0">
-    <b-row class="h-100 justify-content-center ml-2 mr-2 mr-md-5" align-v="center">
-      <b-col cols="3" sm="3" md="6" lg="8" xl="8" class="d-flex justify-content-center">
-        <Logo style="max-width: 35rem; max-height: 25rem;"/>
+  <b-container
+    id="login"
+    fluid
+    class="h-100 w-100 pt-5 pt-md-0"
+  >
+    <b-row
+      class="h-100 justify-content-center ml-2 mr-2 mr-md-5"
+      align-v="center"
+    >
+      <b-col
+        cols="3"
+        sm="3"
+        md="6"
+        lg="8"
+        xl="8"
+        class="d-flex justify-content-center"
+      >
+        <Logo style="max-width: 35rem; max-height: 25rem;" />
       </b-col>
-      <b-col cols="12" sm="12" md="6" lg="4" xl="4" class="pb-5 mb-5 pb-md-0 mb-md-0 d-flex flex-column align-content-center">
+      <b-col
+        cols="12"
+        sm="12"
+        md="6"
+        lg="4"
+        xl="4"
+        class="pb-5 mb-5 pb-md-0 mb-md-0 d-flex flex-column align-content-center"
+      >
         <b-row class="mr-xl-5 pr-xl-3">
           <b-col class="d-flex flex-column">
             <!-- Spacer -->
-            <b-row class="justify-content-center mb-md-3" style="height: 2rem">
-            </b-row>
+            <b-row
+              class="justify-content-center mb-md-3"
+              style="height: 2rem"
+            />
             <!-- Title -->
             <b-row class="justify-content-center mb-3">
-              <h1 v-if="show_login_extras">{{ $t('views.login.title') }}</h1>
+              <h1 v-if="show_login_extras">
+                {{ $t('views.login.title') }}
+              </h1>
             </b-row>
             <!-- Category by path display -->
-            <b-row v-if="category_by_path" class="ml-2 mt-2">
+            <b-row
+              v-if="category_by_path"
+              class="ml-2 mt-2"
+            >
               <h3>{{ category_name }}</h3>
             </b-row>
             <!-- Language selection -->
             <b-row>
               <Language
-              v-if="show_login_extras"
-              class="ml-3 mt-2 mt-md-4 mb-3"
-            />
+                v-if="show_login_extras"
+                class="ml-3 mt-2 mt-md-4 mb-3"
+              />
             </b-row>
             <!-- Login form -->
             <b-form
               v-if="show_login_form"
-              @submit.prevent="login('form')"
               class="m-0"
+              @submit.prevent="login('form')"
             >
               <!-- Error message -->
               <b-alert
@@ -42,35 +70,56 @@
               <!-- Category selection -->
               <b-form-select
                 v-if="!category_by_path && getCategories.length > 1"
+                ref="select_category"
+                v-model="category"
                 class="mb-3"
                 size="md"
                 required
                 :options="categories_select"
-                v-model="category"
-                ref="select_category"
               >
                 <template #first>
-                  <b-form-select-option value="" disabled>{{ $t('views.login.form.select-category') }}</b-form-select-option>
+                  <b-form-select-option
+                    value=""
+                    disabled
+                  >
+                    {{ $t('views.login.form.select-category') }}
+                  </b-form-select-option>
                 </template>
               </b-form-select>
-              <b-form-input v-model="usr" type="text" required :placeholder="$t('views.login.form.usr')" />
               <b-form-input
+                v-model="usr"
+                type="text"
+                required
+                :placeholder="$t('views.login.form.usr')"
+              />
+              <b-form-input
+                v-model="pwd"
                 type="password"
                 required
-                v-model="pwd"
                 :placeholder="$t('views.login.form.pwd')"
               />
-              <b-button type="submit" size="lg" class="btn-green w-100 rounded-pill mt-2 mt-md-5">{{ $t('views.login.form.login') }}</b-button>
+              <b-button
+                type="submit"
+                size="lg"
+                class="btn-green w-100 rounded-pill mt-2 mt-md-5"
+              >
+                {{ $t('views.login.form.login') }}
+              </b-button>
             </b-form>
             <div v-if="show_login_providers">
-              <hr class="m-4" style="border-bottom: 1px solid #ececec;"/>
+              <hr
+                class="m-4"
+                style="border-bottom: 1px solid #ececec;"
+              >
               <div class="d-flex flex-row flex-wrap justify-content-center align-items-center">
-                <p class="w-100 text-center">{{ $t('views.login.other-logins') }}</p>
+                <p class="w-100 text-center">
+                  {{ $t('views.login.other-logins') }}
+                </p>
                 <b-button
                   v-for="provider in getProviders"
-                  v-bind:key="provider"
-                  @click="login(provider.toLowerCase())"
+                  :key="provider"
                   :class="'rounded-pill mt-0 btn-sm login-btn btn-' + provider.toLowerCase()"
+                  @click="login(provider.toLowerCase())"
                 >
                   <font-awesome-icon :icon="['fab', provider.toLowerCase()]" />
                   {{ provider }}
@@ -78,10 +127,17 @@
               </div>
             </div>
             <!-- Powered By-->
-            <b-row id="powered-by" align-h="center" class="mt-5">
+            <b-row
+              id="powered-by"
+              align-h="center"
+              class="mt-5"
+            >
               <b-col class="text-center">
-                <PoweredBy/>
-                <a href="isard_changelog_link" target="_blank">
+                <PoweredBy />
+                <a
+                  href="isard_changelog_link"
+                  target="_blank"
+                >
                   <p>isard_display_version</p>
                 </a>
                 <b-spinner v-if="loading" />
@@ -102,7 +158,7 @@ import { authenticationSegment } from '@/shared/constants'
 import PoweredBy from '@/components/shared/PoweredBy.vue'
 
 export default {
-  name: 'login',
+  name: 'Login',
   components: {
     Language,
     Logo,
@@ -137,7 +193,7 @@ export default {
       return this.$route.params.category !== undefined
     },
     category_name () {
-      var name = ''
+      let name = ''
       this.getCategories.forEach(category => {
         if (this.category === category.id) {
           name = category.name
@@ -158,29 +214,10 @@ export default {
       return this.show_login_form || this.show_login_providers
     }
   },
-  methods: {
-    login (provider) {
-      if (provider === 'form') {
-        this.loading = true
-        const data = new FormData()
-        data.append('category_id', this.category)
-        data.append('provider', provider)
-        data.append('username', this.usr)
-        data.append('password', this.pwd)
-        this.$store
-          .dispatch('login', data)
-          .then(() => {})
-          .catch(err => {
-            console.log(err)
-            this.showDismissibleAlert = true
-            this.loading = false
-          })
-      } else {
-        if (this.category) {
-          window.location = `${window.location.protocol}//${window.location.host}${authenticationSegment}/login?provider=${provider}&category_id=${this.category}&redirect=/`
-        } else {
-          this.$refs.select_category.$el.reportValidity()
-        }
+  watch: {
+    category: function () {
+      if (!this.category_by_path) {
+        localStorage.category = this.category
       }
     }
   },
@@ -211,10 +248,29 @@ export default {
       this.showDismissibleAlert = true
     }
   },
-  watch: {
-    category: function () {
-      if (!this.category_by_path) {
-        localStorage.category = this.category
+  methods: {
+    login (provider) {
+      if (provider === 'form') {
+        this.loading = true
+        const data = new FormData()
+        data.append('category_id', this.category)
+        data.append('provider', provider)
+        data.append('username', this.usr)
+        data.append('password', this.pwd)
+        this.$store
+          .dispatch('login', data)
+          .then(() => {})
+          .catch(err => {
+            console.log(err)
+            this.showDismissibleAlert = true
+            this.loading = false
+          })
+      } else {
+        if (this.category) {
+          window.location = `${window.location.protocol}//${window.location.host}${authenticationSegment}/login?provider=${provider}&category_id=${this.category}&redirect=/`
+        } else {
+          this.$refs.select_category.$el.reportValidity()
+        }
       }
     }
   }
