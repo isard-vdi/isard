@@ -905,7 +905,7 @@ class ApiUsers:
     def EnrollmentAction(self, data):
         if data["action"] == "disable":
             with app.app_context():
-                r.table("groups").get(data["group_id"]).update(
+                r.table("groups").get(data["id"]).update(
                     {"enrollment": {data["role"]: False}}
                 ).run(db.conn)
             return True
@@ -916,7 +916,7 @@ class ApiUsers:
             code = "".join([random.choice(chars) for i in range(6)])
             if self.enrollment_code_check(code) == False:
                 with app.app_context():
-                    r.table("groups").get(data["group_id"]).update(
+                    r.table("groups").get(data["id"]).update(
                         {"enrollment": {data["role"]: code}}
                     ).run(db.conn)
                 return code

@@ -386,7 +386,7 @@ def api_v3_admin_group_insert(payload):
 def api_v3_admin_group_enrollment(payload):
 
     data = request.get_json()
-    ownsCategoryId(payload, users.GroupGet(data["group_id"])["parent_category"])
+    ownsCategoryId(payload, users.GroupGet(data["id"])["parent_category"])
 
     code = users.EnrollmentAction(data)
 
