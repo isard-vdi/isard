@@ -19,8 +19,8 @@ do
     # Download newer images for each flavour but do not bring it up
     "${script_path%/*}"/isard-upgrade-cron.sh -c "$config_name" -n
     # Check which service is running in this host and restart only this one.
-     server=$(pcs resource status | awk "/\s*$config_name\s+\(ocf::heartbeat:compose\):/{print \$NF}")
-     if [ "$server" = "$(hostname)" ];then
+    if pcs status --full | grep -q "^\s*$config_name\s\+(ocf::heartbeat:compose):\s\+Started\s\+$(hostname)$"
+    then
          if [ $EXCLUDE_HYPER = 1 ]
          then
             services="$(docker-compose -f "$cfgs_path"/docker-compose.$config_name.yml config --services | sed '/^isard-\(hypervisor\|pipework\)$/d')"
@@ -31,5 +31,5 @@ do
          && docker-compose -f "$cfgs_path"/docker-compose.$config_name.yml --ansi never up -d $services \
          && pcs resource manage $config_name
          docker image prune -f --filter "until=72h"
-     fi
+    fi
 done
