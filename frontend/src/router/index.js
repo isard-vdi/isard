@@ -24,6 +24,7 @@ import Templates from '@/pages/Templates.vue'
 import Booking from '@/pages/Booking'
 import Planning from '@/pages/Planning'
 import Profile from '@/pages/Profile.vue'
+import Media from '@/pages/Media.vue'
 
 Vue.use(VueRouter)
 
@@ -169,6 +170,25 @@ const router = new VueRouter({
           component: Profile,
           meta: {
             title: 'Profile'
+          }
+        }
+      ],
+      meta: {
+        requiresAuth: true
+      }
+    },
+    {
+      path: '/',
+      name: 'Media',
+      redirect: '/media',
+      component: MainLayout,
+      children: [
+        {
+          path: 'media',
+          name: 'media',
+          component: Media,
+          meta: {
+            title: 'Media'
           }
         }
       ],

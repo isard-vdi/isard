@@ -120,7 +120,8 @@
                 "planning": "Planning"
             },
             "logout": "Logout",
-            "profile": "Profile"
+            "profile": "Profile",
+            "media": "Media"
         },
         "statusbar": {
             "desktops-started": "Desktops started",
@@ -586,6 +587,22 @@
                 },
                 "disable": {
                     "title": "Disable"
+                }
+            }
+        },
+        "media": {
+            "no-media": {
+                "title": "There is no media from this user",
+                "subtitle": "If you think this is an error, please contact the administrator"
+            },
+            "table-header": {
+                "name": "Name",
+                "description": "Description",
+                "actions": "Actions"
+            },
+            "buttons": {
+                "allowed": {
+                    "title": "Change allowed"
                 }
             }
         }
