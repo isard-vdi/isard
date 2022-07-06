@@ -1,6 +1,6 @@
 export class ProfileUtils {
   static parseProfile (item) {
-    const { category, email, group, name, provider, quota, role, username } = item
+    const { category, email, group, name, provider, quota, role, username, photo } = item
     return {
       category,
       email,
@@ -9,7 +9,8 @@ export class ProfileUtils {
       provider,
       quota,
       role,
-      username
+      username,
+      photo
     }
   }
 }

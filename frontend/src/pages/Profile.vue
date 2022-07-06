@@ -43,7 +43,7 @@
                         <!-- User info -->
                         <b-col xl="6">
                           <b-avatar
-                            src="https://placekitten.com/300/300"
+                            :src="getProfile.photo"
                             size="8rem"
                           />
                           <!-- User name -->
