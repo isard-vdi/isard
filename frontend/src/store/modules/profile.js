@@ -6,12 +6,12 @@ import { apiV3Segment } from '../../shared/constants'
 const getDefaultState = () => {
   return {
     profile: {
-      quota: {
-      }
+      quota: {}
     },
     modalShow: false,
     password: '',
-    passwordConfirmation: ''
+    passwordConfirmation: '',
+    profile_loaded: false
   }
 }
 
@@ -22,6 +22,9 @@ export default {
   getters: {
     getProfile: state => {
       return state.profile
+    },
+    getProfileLoaded: state => {
+      return state.profile_loaded
     },
     getPassword: state => {
       return state.password
@@ -34,12 +37,13 @@ export default {
     }
   },
   mutations: {
-    resetPasswordState: (state) => {
+    resetPasswordState: state => {
       state.password = ''
       state.passwordConfirmation = ''
     },
     setProfile (state, profile) {
       state.profile = profile
+      state.profile_loaded = true
     },
     setPassword (state, password) {
       state.password = password
@@ -53,11 +57,14 @@ export default {
   },
   actions: {
     fetchProfile (context) {
-      axios.get(`${apiV3Segment}/user`).then(response => {
-        context.commit('setProfile', ProfileUtils.parseProfile(response.data))
-      }).catch(e => {
-        ErrorUtils.handleErrors(e, this._vm.$snotify)
-      })
+      axios
+        .get(`${apiV3Segment}/user`)
+        .then(response => {
+          context.commit('setProfile', ProfileUtils.parseProfile(response.data))
+        })
+        .catch(e => {
+          ErrorUtils.handleErrors(e, this._vm.$snotify)
+        })
     },
     updatePassword (context, data) {
       return axios.put(`${apiV3Segment}/user`, data).catch(e => {
