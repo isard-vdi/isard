@@ -1,5 +1,10 @@
 #!/bin/sh -i
 
+export DOMAIN
+export HYPER_ID
+export VIEWER_BROWSER
+export VIEWER_SPICE
+
 # Will remove hyper on docker shutdown
 remove_hyper()
 {
