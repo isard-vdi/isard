@@ -31,11 +31,10 @@
                 <b-row class="justify-content-center">
                   <!-- single method start -->
                   <b-skeleton-wrapper
-                    :loading="false"
+                    :loading="!getProfileLoaded"
                     class="card-body pt-4 d-flex flex-row flex-wrap justify-content-center"
                   >
                     <template #loading>
-                      <ProfileCardSkeleton />
                       <ProfileCardSkeleton />
                     </template>
                     <b-col sm="10">
@@ -232,7 +231,8 @@ export default {
   computed: {
     ...mapGetters([
       'getUser',
-      'getProfile'
+      'getProfile',
+      'getProfileLoaded'
     ])
   },
   methods: {
