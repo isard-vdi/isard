@@ -10,7 +10,7 @@ $hypervisor_template = $(".hyper-detail");
 
 $(document).ready(function() {
     $('.admin-status').show()
-    
+
     $('.btn-new-hyper').on('click', function () {
             $('#modalAddHyper').modal({
                 backdrop: 'static',
@@ -18,7 +18,7 @@ $(document).ready(function() {
             }).modal('show');
             $("#modalAddHyper #hypervisors_pools_dropdown").find('option').remove();
             api.ajax('/isard-admin/admin/hypervisors_pools','GET','').done(function(pools) {
-                $.each(pools,function(key, value) 
+                $.each(pools,function(key, value)
                 {
                     $("#modalAddHyper #hypervisors_pools_dropdown").append('<option value=' + value.id + '>' + value.name + '</option>');
                 });
@@ -27,21 +27,20 @@ $(document).ready(function() {
             $('#modalAddHyper #modalAdd #hostname').val(window.location.hostname)
             $('#modalAddHyper #modalAdd #user').val('root')
             $('#modalAddHyper #modalAdd #port').val(2022)
+            $('#modalAddHyper #modalAdd #capabilities-disk_operations').iCheck('check')
             $('#modalAddHyper .capabilities_hypervisor').on('ifChecked', function(event){
                 $('#viewer_fields').show()
                     $('#modalAddHyper #viewer-static').val($('#modalAddHyper #modalAdd #hostname').val());
                     $('#modalAddHyper #viewer-proxy_video').val($('#modalAddHyper #modalAdd #hostname').val());
                     $('#modalAddHyper #viewer-proxy_hyper_host').val('isard-hypervisor');
-                    $('#modalAddHyper #viewer-hyper_vpn_host').val('isard-hypervisor');                       
-                
-
+                    $('#modalAddHyper #viewer-hyper_vpn_host').val('isard-hypervisor');
             });
 
             $('#modalAddHyper .capabilities_hypervisor').on('ifUnchecked', function(event){
                 $('#modalAddHyper #viewer_fields').hide()
                     $('#modalAddHyper #modalAddHyper #viewer-static').val('');
                     $('#modalAddHyper #modalAddHyper #viewer-proxy_video').val('');
-                    $('#modalAddHyper #modalAddHyper #viewer-proxy_hyper_host').val(0);                   
+                    $('#modalAddHyper #modalAddHyper #viewer-proxy_hyper_host').val(0);
             });
 
     });
@@ -509,9 +508,7 @@ function actionsHyperDetail(){
                 }
                 if(hyp.capabilities.hypervisor){
                     $('#modalEditHyper #modalEdit #capabilities-hypervisor').iCheck('check');
-                }                
-                //~ $('#modalEditHyper #modalEdit #capabilities-disk_operations').val(hyp['capabilities']['disk_operations']);
-                //~ $('#modalEditHyper #modalEdit #capabilities-hypervisor').val(hyp['capabilities']['hypervisor']);
+                }
                 $('#modalEditHyper #modalEdit #viewer-static').val(hyp.viewer.static);
                 $('#modalEditHyper #modalEdit #viewer-proxy_video').val(hyp.viewer.proxy_video);
                 $('#modalEditHyper #modalEdit #viewer-spice_ext_port').val(hyp.viewer.spice_ext_port);
@@ -560,6 +557,11 @@ function actionsHyperDetail(){
                     form.parsley().validate();
                     if (form.parsley().isValid()){
                         data=$('#modalEditHyper #modalEdit').serializeObject();
+                        delete data['capabilities-hypervisor']
+                        delete data['capabilities-disk_operations']
+                        data['capabilities'] = {}
+                        data['capabilities']['hypervisor'] = $('#modalEditHyper #modalEdit #capabilities-hypervisor').prop('checked')
+                        data['capabilities']['disk_operations'] = $('#modalEditHyper #modalEdit #capabilities-disk_operations').prop('checked')
                         data['hypervisors_pools'] = [$('#modalEditHyper #hypervisors_pools_dropdown').val()];
                             $.ajax({
                                 type: "PUT",

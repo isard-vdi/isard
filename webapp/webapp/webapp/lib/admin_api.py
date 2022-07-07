@@ -1415,7 +1415,10 @@ class isardAdmin:
             result = self.check(
                 r.table("hypervisors").update(dict).run(db.conn), "replaced"
             )
-        if dict["capabilities"]["disk_operations"] and result:
+        if (
+            dict["capabilities"]["disk_operations"]
+            or dict["capabilities"]["hypervisor"]
+        ) and result:
             self.update_hypervisors_pools()
             return True
         return False
