@@ -428,6 +428,29 @@ class ApiAdmin:
                 )
         return fancyd
 
+    def TemplatesByTerm(self, term):
+        with app.app_context():
+            data = (
+                r.table("domains")
+                .get_all("template", index="kind")
+                .filter(r.row["name"].match(term))
+                .order_by("name")
+                .pluck(
+                    {
+                        "id",
+                        "name",
+                        "kind",
+                        "group",
+                        "icon",
+                        "user",
+                        "description",
+                        "category",
+                    }
+                )
+                .run(db.conn)
+            )
+        return data
+
     def MultipleActions(self, table, action, ids):
         with app.app_context():
             if action == "soft_toggle":
