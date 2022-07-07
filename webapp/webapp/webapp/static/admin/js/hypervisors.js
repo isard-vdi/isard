@@ -17,11 +17,22 @@ $(document).ready(function() {
                 keyboard: false
             }).modal('show');
             $("#modalAddHyper #hypervisors_pools_dropdown").find('option').remove();
-            api.ajax('/isard-admin/admin/hypervisors_pools','GET','').done(function(pools) {
-                $.each(pools,function(key, value)
+
+            $.ajax({
+                url: "/admin/table/hypervisors_pools",
+                type: "POST",
+                data: JSON.stringify({'order_by':'name'}),
+                contentType: "application/json",
+                success: function(pools)
                 {
-                    $("#modalAddHyper #hypervisors_pools_dropdown").append('<option value=' + value.id + '>' + value.name + '</option>');
-                });
+                    $.each(pools,function(key, value) 
+                    {
+                        $("#modalAddHyper #hypervisors_pools_dropdown").append('<option value=' + value.id + '>' + value.name + '</option>');
+                    });
+                },
+                error: function (jqXHR, exception) {
+                    processError(jqXHR,form)
+                }
             });
             
             $('#modalAddHyper #modalAdd #hostname').val(window.location.hostname)
@@ -517,21 +528,23 @@ function actionsHyperDetail(){
                 $('#modalEditHyper #modalEdit #viewer-proxy_hyper_host').val(hyp.viewer.proxy_hyper_host);
                 
             });
-           api.ajax('/isard-admin/admin/hypervisors_pools','GET','').done(function(pools) {
-                
-                $.each(pools,function(key, value) 
+
+            $.ajax({
+                url: "/admin/table/hypervisors_pools",
+                type: "POST",
+                data: JSON.stringify({'order_by':'name'}),
+                contentType: "application/json",
+                success: function(pools)
                 {
-                    $("#modalEditHyper #hypervisors_pools_dropdown").append('<option value=' + value.id + '>' + value.name + '</option>');
-                });
-                //Set selected!
-                
-            });            
-             //~ $('#hardware-block').hide();
-            //~ $('#modalEdit').parsley();
-            //~ modal_edit_desktop_datatables(pk);
-
-
-
+                    $.each(pools,function(key, value) 
+                    {
+                        $("#modalEditHyper #hypervisors_pools_dropdown").append('<option value=' + value.id + '>' + value.name + '</option>');
+                    });
+                },
+                error: function (jqXHR, exception) {
+                    processError(jqXHR,form)
+                }
+            });
             
             $('#modalEditHyper .capabilities_hypervisor').on('ifChecked', function(event){
                 $('#modalEditHyper #viewer_fields').show()

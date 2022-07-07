@@ -152,7 +152,9 @@ $(document).ready(function() {
 
     tablepools = $('#hypervisors_pools').DataTable( {
         "ajax": {
-            "url": "/isard-admin/admin/hypervisors_pools/",
+            "url": "/admin/table/hypervisors_pools",
+            "method": "POST",
+            "data": function(d){return JSON.stringify({'order_by':'name'})},
             "dataSrc": ""
         },
 		"rowId": "id",
@@ -313,15 +315,11 @@ function interfaces_list(){
                     //~ minimumInputLength: 2,
                     //~ minimumResultsForSearch: 10,
                     ajax: {
-                        url: "/isard-admin/admin/table/interfaces/get",
+                        url: "/api/v3/admin/table/interfaces",
                         dataType: "json",
-                        type: "GET",
-                        data: function (params) {
-
-                            var queryParameters = {
-                                term: params.term
-                            }
-                            return queryParameters;
+                        type: "POST",
+                        data: function (d) {
+                            return JSON.stringify({ order_by: "name" });
                         },
                         processResults: function (data) {
                             return {
