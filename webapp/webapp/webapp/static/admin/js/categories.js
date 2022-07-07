@@ -117,7 +117,7 @@ $(document).ready(function() {
                 multiple: true,
                 ajax: {
                     type: "POST",
-                    url: '/isard-admin/admin/getAllTemplates',
+                    url: '/api/v3/admin/getAllTemplates',
                     dataType: 'json',
                     contentType: "application/json",
                     delay: 250,
@@ -234,7 +234,7 @@ function actionsCategoryDetail(){
             multiple: true,
             ajax: {
                 type: "POST",
-                url: '/isard-admin/admin/getAllTemplates',
+                url: '/api/v3/admin/getAllTemplates',
                 dataType: 'json',
                 contentType: "application/json",
                 delay: 250,
