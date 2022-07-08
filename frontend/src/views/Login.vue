@@ -68,7 +68,7 @@
                 {{ getPageErrorMessage }}
               </b-alert>
               <!-- Category selection -->
-              <b-form-select
+              <v-select
                 v-if="!category_by_path && getCategories.length > 1"
                 ref="select_category"
                 v-model="category"
@@ -76,16 +76,19 @@
                 size="md"
                 required
                 :options="categories_select"
+                :reduce="category => category.value"
+                :placeholder="$t('views.login.form.select-category')"
               >
-                <template #first>
-                  <b-form-select-option
-                    value=""
-                    disabled
+                <template #search="{attributes, events}">
+                  <input
+                    class="vs__search"
+                    style="margin-bottom: 0px"
+                    :required="!category"
+                    v-bind="attributes"
+                    v-on="events"
                   >
-                    {{ $t('views.login.form.select-category') }}
-                  </b-form-select-option>
                 </template>
-              </b-form-select>
+              </v-select>
               <b-form-input
                 v-model="usr"
                 type="text"
@@ -185,7 +188,7 @@ export default {
       return this.getCategories.map(category =>
         ({
           value: category.id,
-          text: category.name
+          label: category.name
         })
       )
     },
