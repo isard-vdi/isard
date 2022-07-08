@@ -261,7 +261,7 @@ def api_v3_desktop_edit(payload, desktop_id):
 
     ## Server value
     if data.get("server", None) != None:
-        desktops.Update(desktop_id, {"create_dict": {"server": data.get("server")}})
+        data = {**data, **{"create_dict": {"server": data.get("server")}}}
 
     ## Pop image from data if exists and process
     if data.get("image"):
