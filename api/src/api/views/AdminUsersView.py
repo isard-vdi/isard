@@ -16,7 +16,12 @@ from flask import jsonify, request
 # coding=utf-8
 from api import app
 
-from ..libv2.api_admin import admin_table_delete, admin_table_insert, admin_table_update
+from ..libv2.api_admin import (
+    admin_table_delete,
+    admin_table_insert,
+    admin_table_list,
+    admin_table_update,
+)
 from ..libv2.api_exceptions import Error
 from ..libv2.api_users import ApiUsers, Password, check_category_domain
 from ..libv2.helpers import _check
@@ -499,3 +504,43 @@ def api_v3_admin_secret(payload):
 def api_v3_admin_secret_delete(payload, kid):
     users.SecretDelete(kid)
     return json.dumps({}), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/admin/userschema", methods=["POST"])
+@is_admin_or_manager
+def admin_userschema(payload):
+    dict = {}
+    dict["role"] = admin_table_list(
+        "roles", pluck=["id", "name", "description"], order_by="name", without=False
+    )
+    if payload["role_id"] == "manager":
+        dict["role"] = [
+            r for r in dict["role"] if r["id"] in ["manager", "advanced", "user"]
+        ]
+        dict["category"] = payload["category_id"]
+
+    dict["category"] = admin_table_list(
+        "categories",
+        pluck=["id", "name", "description"],
+        order_by="name",
+        without=False,
+    )
+
+    dict["group"] = admin_table_list(
+        "groups",
+        pluck=["id", "name", "description", "parent_category"],
+        order_by="name",
+        without=False,
+    )
+    if payload["role_id"] == "manager":
+        dict["group"] = [
+            g
+            for g in dict["group"]
+            if "parent_category" in g.keys()
+            and g["parent_category"] == payload["category_id"]
+        ]
+    else:
+        for g in dict["group"]:
+            if "parent_category" in g.keys():
+                g["name"] = "[" + g["parent_category"] + "] " + g["name"]
+    return json.dumps(dict)
