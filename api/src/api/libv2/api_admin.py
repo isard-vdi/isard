@@ -96,16 +96,19 @@ def admin_table_update(table, data):
     if table == "interfaces":
         _validate_item(table, data)
     with app.app_context():
-        if r.table(table).get(data["id"]).run(db.conn):
-            if not _check(
-                r.table(table).get(data["id"]).update(data).run(db.conn),
-                "replaced",
-            ):
-                raise Error(
-                    "internal_server",
-                    "Internal server error",
-                    traceback.format_exc(),
-                )
+        if table == "users":
+            old_data = r.table("users").get(data["id"]).run(db.conn)
+            old_data.update(data)
+            _validate_item("user", old_data)
+        if not _check(
+            r.table(table).get(data["id"]).update(data).run(db.conn),
+            "replaced",
+        ):
+            raise Error(
+                "internal_server",
+                "Internal server error",
+                traceback.format_exc(),
+            )
 
 
 def admin_table_get(table, pluck=False, id=False):

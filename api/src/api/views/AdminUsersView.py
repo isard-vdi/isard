@@ -95,12 +95,17 @@ def api_v3_admin_user_update(payload, id=False):
             traceback.format_exc(),
         )
 
-    ownsUserId(payload, id)
-    ownsCategoryId(payload, data["category"])
-    itemExists("categories", data["category"])
-    itemExists("groups", data["group"])
+    user = users.Get(id)
 
-    quotas.UserCreate(data["category"], data["group"])
+    ownsUserId(payload, id)
+    ownsCategoryId(payload, user["category"])
+    itemExists("categories", user["category"])
+    itemExists("groups", user["group"])
+
+    quotas.UserCreate(user["category"], user["group"])
+
+    if "password" in data:
+        data["password"] = Password().encrypt(data["password"])
 
     admin_table_update("users", data)
     return json.dumps({}), 200, {"Content-Type": "application/json"}
