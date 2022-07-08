@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 51
+release_version = 52
+# release 52 :Add sortorder field to roles table
 # release 51: Add support for external apps
 # release 50: Added secondary indices for domains and users tables
 # release 49: Replace dots in media ids
@@ -1507,6 +1508,14 @@ class Upgrade(object):
             # ~ except Exception as e:
             # ~ log.error('Could not update table '+table+' remove fields for db version '+str(version)+'!')
             # ~ log.error('Error detail: '+str(e))
+        if version == 52:
+            log.info("UPGRADING " + table + " VERSION " + str(version))
+            updated = r.table("roles").has_fields('sortorder').count().run(self.conn)
+            if updated == 0:
+                r.table("roles").get("user").update({"sortorder": 1}).run(self.conn)
+                r.table("roles").get("advanced").update({"sortorder": 2}).run(self.conn)
+                r.table("roles").get("manager").update({"sortorder": 3}).run(self.conn)
+                r.table("roles").get("admin").update({"sortorder": 4}).run(self.conn)
 
         return True
 
