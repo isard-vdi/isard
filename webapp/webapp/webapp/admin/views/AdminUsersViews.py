@@ -85,44 +85,6 @@ def admin_users_get_detail(id):
     return json.dumps(data), 200, {"Content-Type": "application/json"}
 
 
-@app.route("/isard-admin/admin/userschema", methods=["POST"])
-@login_required
-@isAdminManager
-def admin_userschema():
-    dict = {}
-    dict["role"] = app.adminapi.get_admin_table(
-        "roles", pluck=["id", "name", "description"], order="name"
-    )
-    if current_user.role == "manager":
-        dict["role"] = [
-            r for r in dict["role"] if r["id"] in ["manager", "advanced", "user"]
-        ]
-
-    dict["category"] = app.adminapi.get_admin_table(
-        "categories", pluck=["id", "name", "description"], order="name"
-    )
-    if current_user.role == "manager":
-        dict["category"] = [
-            c for c in dict["category"] if c["id"] == current_user.category
-        ]
-
-    dict["group"] = app.adminapi.get_admin_table(
-        "groups", pluck=["id", "name", "description", "parent_category"], order="name"
-    )
-    if current_user.role == "manager":
-        dict["group"] = [
-            g
-            for g in dict["group"]
-            if "parent_category" in g.keys()
-            and g["parent_category"] == current_user.category
-        ]
-    else:
-        for g in dict["group"]:
-            if "parent_category" in g.keys():
-                g["name"] = "[" + g["parent_category"] + "] " + g["name"]
-    return json.dumps(dict)
-
-
 @app.route("/isard-admin/admin/user/delete", methods=["POST"])
 @login_required
 @isAdminManager

@@ -635,7 +635,7 @@ function renderUsersDetailPannel ( d ) {
 }
 
 function setModalUser(){
-    api.ajax_async('/isard-admin/admin/userschema','POST','').done(function(d) {
+    api.ajax_async('/api/v3/admin/userschema','POST','').done(function(d) {
         $.each(d, function(key, value) {
                 $("." + key).find('option').remove().end();
                 for(var i in d[key]){

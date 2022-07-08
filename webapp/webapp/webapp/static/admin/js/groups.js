@@ -99,7 +99,7 @@ $(document).ready(function() {
             $('#modalAddGroupForm')[0].reset();
             //~ setModalAddUser();
 
-            api.ajax_async('/isard-admin/admin/userschema','POST','').done(function(d) {
+            api.ajax_async('/api/v3/admin/userschema','POST','').done(function(d) {
                 $.each(d, function(key, value) {
                     if(key == 'category'){
                         $("#parent_category").find('option').remove().end();
