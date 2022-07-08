@@ -363,7 +363,7 @@ $(document).ready(function() {
                 tr.addClass('shown');
                 $('#status-detail-'+row.data().id).html(row.data().detail);
                 actionsDomainDetail();
-                setDomainDetailButtonsStatus(row.data().id,row.data().status)
+                setDomainDetailButtonsStatus(row.data().id,row.data().status,row.data().server)
                 //if(row.data().status=='Stopped' || row.data().status=='Started' || row.data().status=='Failed'){
                     //~ setDomainGenealogy(row.data().id);
                     setDomainHotplug(row.data().id, row.data());
@@ -503,7 +503,7 @@ $(document).ready(function() {
             }
         }        
         dtUpdateInsert(domains_table,data,false);
-        setDomainDetailButtonsStatus(data.id, data.status);
+        setDomainDetailButtonsStatus(data.id, data.status, data.server);
     });
 
     socket.on(kind+'_delete', function(data){
@@ -645,11 +645,16 @@ function actionsDomainDetail(){
         }).modal('show');
         $('#modalServerForm #id').val(pk);
         $.ajax({
-            type: "GET",
-            url:"/api/v3/admin/domains/server/" + pk,
+            type: "POST",
+            url:"/api/v3/admin/table/domains",
+            data: JSON.stringify({
+                'id': pk,
+                'pluck': { 'create_dict': { 'server': true } }
+            }),
+            contentType: 'application/json',
             success: function(data)
             {
-                if(data == true){
+                if(data.create_dict.server == true){
                     $('#modalServerForm #create_dict-server').iCheck('check').iCheck('update');
                 }else{
                     $('#modalServerForm #create_dict-server').iCheck('unckeck').iCheck('update');
@@ -901,11 +906,42 @@ function actionsDomainDetail(){
 
     $("#modalServer #send").on('click', function(e){
         data=$('#modalServerForm').serializeObject();
-        if('create_dict-server' in data){
-            socket.emit('create_dict-server',{'id':data.id,'create_dict-server':true})
-        }else{
-            socket.emit('create_dict-server',{'id':data.id,'create_dict-server':false})
-        }
+        let pk=$('#modalServerForm #id').val()
+        let server=$('#modalServerForm #create_dict-server').prop('checked')
+        $.ajax({
+            type: "PUT",
+            url: "/api/v3/desktop/" + pk,
+            data: JSON.stringify({
+                'id': pk,
+                'server': server
+            }),
+            contentType: "application/json",
+            success: function(data)
+            {
+                $('form').each(function() { this.reset() });
+                $('.modal').modal('hide');
+                new PNotify({
+                    title: "Updated desktop as server",
+                    text: "Server desktop has been updated...",
+                    hide: true,
+                    delay: 4000,
+                    icon: 'fa fa-success',
+                    opacity: 1,
+                    type: "success"
+                });
+            },
+            error: function(data){
+                new PNotify({
+                    title: "ERROR",
+                    text: "Can't update desktop as server",
+                    type: 'error',
+                    hide: true,
+                    icon: 'fa fa-warning',
+                    delay: 15000,
+                    opacity: 1
+                });
+            }
+        });
         $("#modalServer").modal('hide');
     });
 
@@ -952,7 +988,7 @@ function addDomainDetailPannel ( d ) {
 		return $newPanel
 }
 
-function setDomainDetailButtonsStatus(id,status){
+function setDomainDetailButtonsStatus(id,status,server){
     if(status=='Started' || status=='Starting'){
         $('#actions-'+id+' *[class^="btn"]').prop('disabled', true);
         $('#actions-'+id+' .btn-jumperurl').prop('disabled', false);
@@ -960,6 +996,9 @@ function setDomainDetailButtonsStatus(id,status){
         $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
     }
     $('#actions-'+id+' .btn-server').prop('disabled', false);
+    if (server) {
+        $('#actions-'+id+' .btn-template').prop('disabled', true);
+    }
 }
 
 function icon(data){
