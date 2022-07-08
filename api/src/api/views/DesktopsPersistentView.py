@@ -15,7 +15,10 @@ import traceback
 from uuid import uuid4
 
 from flask import request
+from rethinkdb import RethinkDB
 from schema import And, Optional, Schema, SchemaError, Use
+
+r = RethinkDB()
 
 from api import app
 
@@ -35,45 +38,6 @@ api_cards = ApiCards()
 
 from ..libv2.validators import _validate_item
 from .decorators import allowedTemplateId, has_token, is_admin, ownsDomainId
-
-
-def validate_desktop_schema(desktop_data, validate=True):
-
-    desktop_schema_template = Schema(
-        {
-            Optional("forced_hyp"): And(Use(list)),
-            Optional("options"): {
-                Optional("viewers"): {
-                    Optional("spice"): {
-                        Optional("fullscreen"): And(Use(bool)),
-                    }
-                }
-            },
-            Optional("image"): {
-                "type": And(Use(str), lambda t: t in ["user", "stock"]),
-                Optional("id"): And(Use(str)),
-                Optional("file"): {
-                    "data": And(Use(str)),
-                    "filename": And(Use(str)),
-                },
-            },
-        }
-    )
-    if validate:
-        try:
-            desktop_schema_template.validate(desktop_data)
-            ## Note: The lambda schema option didn't work
-            if desktop_data.get("forced_hyp"):
-                hypervisors = get_hypervisors()
-                for forced_hyp in desktop_data["forced_hyp"]:
-                    if forced_hyp in [hyp["id"] for hyp in hypervisors]:
-                        return True
-                return False
-            return desktop_schema_template.validate(desktop_data)
-        except SchemaError:
-            return False
-    else:
-        return desktop_schema_template.json_schema("https://example.com/my-schema.json")
 
 
 @app.route("/api/v3/desktop/start/<desktop_id>", methods=["GET"])
@@ -287,21 +251,17 @@ def api_v3_desktop_edit(payload, desktop_id):
     try:
         data = request.get_json(force=True)
     except:
-        Error(
+        raise Error(
             "bad_request",
             "Desktop edit incorrect body data",
             traceback.format_exc(),
         )
-
-    if not validate_desktop_schema(data):
-        raise Error(
-            "bad_request",
-            validate_desktop_schema(data, validate=False),
-            traceback.format_exc(),
-        )
-
+    _validate_item("desktop", data)
     ownsDomainId(payload, desktop_id)
-    user_id = desktops.UserDesktop(desktop_id)
+
+    ## Server value
+    if data.get("server", None) != None:
+        data = {**data, **{"create_dict": {"server": data.get("server")}}}
 
     ## Pop image from data if exists and process
     if data.get("image"):
@@ -317,6 +277,7 @@ def api_v3_desktop_edit(payload, desktop_id):
             img_uuid = api_cards.upload(desktop_id, image_data)
             card = api_cards.get_card(img_uuid, image_data["type"])
             return json.dumps(card), 200, {"Content-Type": "application/json"}
+
     desktops.Update(desktop_id, data)
     return (
         json.dumps(data),

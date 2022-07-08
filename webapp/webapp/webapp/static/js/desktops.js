@@ -79,6 +79,7 @@ $(document).ready(function() {
                 "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
                 },
                 { "data": "icon", "width": "10px" },
+                { "data": "server", "width": "10px"},
                 { "data": null, "width": "10px"},
                 { "data": null, "width": "10px"},
                 { "data": "status", "width": "10px"},
@@ -95,33 +96,42 @@ $(document).ready(function() {
                             }},
                             {
                             "targets": 2,
-                            "render": function ( data, type, full, meta ) {
-                              return renderAction(full);
+                            "render": function (data, type, full, meta) {
+                                if('server' in full['create_dict']){
+                                    return full['create_dict']['server']
+                                }else{
+                                    return false;
+                                }
                             }},
                             {
                             "targets": 3,
                             "render": function ( data, type, full, meta ) {
-                              return renderDisplay(full);
+                              return renderAction(full);
                             }},
                             {
                             "targets": 4,
                             "render": function ( data, type, full, meta ) {
-                              return renderStatus(full,table);
+                              return renderDisplay(full);
                             }},
                             {
                             "targets": 5,
+                            "render": function ( data, type, full, meta ) {
+                              return renderStatus(full,table);
+                            }},
+                            {
+                            "targets": 6,
                             "render": function ( data, type, full, meta ) {
                                 if(full["guest_properties"]["viewers"]["preferred"])
                                 {return full["guest_properties"]["viewers"]["preferred"].replace('-','/');}
                               return '';
                             }},
                             {
-                            "targets": 6,
+                            "targets": 7,
                             "render": function ( data, type, full, meta ) {
                               return renderName(full);
                             }},
                             {
-                            "targets": 7,
+                            "targets": 8,
                             "render": function ( data, type, full, meta ) {
                               return renderMedia(full);
                             }},
@@ -130,7 +140,16 @@ $(document).ready(function() {
                             //~ "render": function ( data, type, full, meta ) {
                               //~ return renderHotplugMedia(full);
                             //~ }}
-                            ]
+                            ],
+        "rowCallback": function (row, data) {
+            if('server' in data['create_dict']){
+                if(data['create_dict']['server'] == true){
+                    $(row).css("background-color", "#f7eac6");
+                }else{
+                    $(row).css("background-color", "#ffffff");
+                }
+            }
+        }
     } );
 
     // DataTable detail
@@ -153,7 +172,7 @@ $(document).ready(function() {
             tr.addClass('shown');
             $('#status-detail-'+row.data().id).html(row.data().detail);
             actionsDesktopDetail();
-            setDesktopDetailButtonsStatus(row.data().id,row.data().status)
+            setDesktopDetailButtonsStatus(row.data().id,row.data().status, row.data().server)
             if(row.data().status=='Stopped' || row.data().status=='Started'){
                 setDomainHotplug(row.data().id, row.data());
                 setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data());
@@ -263,7 +282,7 @@ $(document).ready(function() {
         }
 
         dtUpdateInsert(table,data,false);
-        setDesktopDetailButtonsStatus(data.id, data.status);
+        setDesktopDetailButtonsStatus(data.id, data.status, data.server);
     });
 
     socket.on('desktop_delete', function(data){
@@ -282,6 +301,9 @@ $(document).ready(function() {
 
     socket.on('result', function (data) {
         var data = JSON.parse(data);
+        if(data.result){
+            $('.modal').modal('hide');
+        }
         if(data.title){
             new PNotify({
                     title: data.title,
@@ -463,6 +485,75 @@ function actionsDesktopDetail(){
             }
         }); 
     });
+
+    $('.btn-server').on('click', function () {
+        var pk=$(this).closest("[data-pk]").attr("data-pk");
+        $("#modalServerForm")[0].reset();
+        $('#modalServer').modal({
+            backdrop: 'static',
+            keyboard: false
+        }).modal('show');
+        $('#modalServerForm #id').val(pk);
+        $.ajax({
+            type: "POST",
+            url:"/api/v3/admin/table/domains",
+            data: JSON.stringify({
+                'id': pk,
+                'pluck': { 'create_dict': { 'server': true } }
+            }),
+            contentType: 'application/json',
+            success: function(data)
+            {
+                if(data.create_dict.server == true){
+                    $('#modalServerForm #create_dict-server').iCheck('check').iCheck('update');
+                }else{
+                    $('#modalServerForm #create_dict-server').iCheck('unckeck').iCheck('update');
+                } 
+            }				
+        });
+    });
+
+    $("#modalServer #send").on('click', function(e){
+        data=$('#modalServerForm').serializeObject();
+        let pk=$('#modalServerForm #id').val()
+        let server=$('#modalServerForm #create_dict-server').prop('checked')
+        $.ajax({
+            type: "PUT",
+            url: "/api/v3/desktop/" + pk,
+            data: JSON.stringify({
+                'id': pk,
+                'server': server
+            }),
+            contentType: "application/json",
+            success: function(data)
+            {
+                $('form').each(function() { this.reset() });
+                $('.modal').modal('hide');
+                new PNotify({
+                    title: "Updated desktop as server",
+                    text: "Server desktop has been updated...",
+                    hide: true,
+                    delay: 4000,
+                    icon: 'fa fa-success',
+                    opacity: 1,
+                    type: "success"
+                });
+            },
+            error: function(data){
+                new PNotify({
+                    title: "ERROR",
+                    text: "Can't update desktop as server",
+                    type: 'error',
+                    hide: true,
+                    icon: 'fa fa-warning',
+                    delay: 15000,
+                    opacity: 1
+                });
+            }
+        });
+        $("#modalServer").modal('hide');
+    });
+
     
         $('#jumperurl-check').unbind('ifChecked').on('ifChecked', function(event){
             if($('#jumperurl').val()==''){
@@ -537,8 +628,7 @@ function addDesktopDetailPannel ( d ) {
         return $newPanel
 }
 
-function setDesktopDetailButtonsStatus(id,status){
-    
+function setDesktopDetailButtonsStatus(id,status,server){
     if(status=='Stopped'){
         $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
     }else{
@@ -546,8 +636,12 @@ function setDesktopDetailButtonsStatus(id,status){
         $('#actions-'+id+' .btn-jumperurl').prop('disabled', false);
     }
     if(status=='Failed'){
-      $('#actions-'+id+' .btn-edit').prop('disabled', false);
-      $('#actions-'+id+' .btn-delete').prop('disabled', false);
+        $('#actions-'+id+' .btn-edit').prop('disabled', false);
+        $('#actions-'+id+' .btn-delete').prop('disabled', false);
+    }
+    $('#actions-'+id+' .btn-server').prop('disabled', false);
+    if (server) {
+        $('#actions-'+id+' .btn-template').prop('disabled', true);
     }
 }
         
