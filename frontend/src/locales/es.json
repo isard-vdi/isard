@@ -621,7 +621,8 @@
             "stop-deployment-desktops": "Los escritorios de '{name}' se pararán, continuar?",
             "delete-event": "La reserva '{name}' se borrará, continuar?",
             "disable-template": "'{name}' será invisible para sus usuarios, ¿desea continuar?",
-            "enable-template": "'{name}' será visible para sus usuarios, ¿desea continuar?"
+            "enable-template": "'{name}' será visible para sus usuarios, ¿desea continuar?",
+            "direct-viewer-reset": "Se descargará el fichero de visores directos. Reestablecer las direcciones de los visores?"
         },
         "yes": "Si",
         "no": "No",
