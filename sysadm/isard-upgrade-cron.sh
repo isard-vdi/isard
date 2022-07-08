@@ -111,6 +111,9 @@ fi
 
 git fetch $REMOTE
 
+# Get last published version
+LAST_VERSION_TAG="$(git tag --sort="-committerdate" --merged @{u} | grep -m1 "^v")"
+
 # Check if there is a BREAKING CHANGES due to change of major version
 CURRENT_MAJOR_VERSION="$(git name-rev --name-only HEAD | sed -n 's|^tags/v\([^\.]\+\)\.[^\.]\+\.[^\^]\+$|\1|p')"
 if [ -z "$CURRENT_MAJOR_VERSION" ]
@@ -118,7 +121,7 @@ then
 	echo "Error: Current major version not detected. Please, checkout a branch with a version tag." >&2
 	exit 1
 fi
-CANDIDATE_MAJOR_VERSION="$(git name-rev --name-only @{u} | sed -n 's|^tags/v\([^\.]\+\)\.[^\.]\+\.[^\^]\+$|\1|p')"
+CANDIDATE_MAJOR_VERSION="$(echo $LAST_VERSION_TAG | sed -n 's|^v\([^\.]\+\)\.[^\.]\+\.[^\^]\+$|\1|p')"
 if [ -z "$CANDIDATE_MAJOR_VERSION" ]
 then
 	echo "Error: Candidate major version not detected. Maybe a version is not released yet. Try again later." >&2
@@ -131,7 +134,7 @@ then
 fi
 
 # Check if there are docker images for last commit of remote traked branch
-sha="$(git rev-parse @{u})"
+sha="$(git rev-parse $LAST_VERSION_TAG)"
 success_pipelines="$(wget -qO - "$GITLAB_PIPELINES_API?status=success&sha=$sha" | jq 'reduce .[] as $_ (0;.+1)')"
 if [ "$success_pipelines" = 0 ]
 then
@@ -139,13 +142,13 @@ then
 	exit 1
 fi
 
-if ! git diff --exit-code @{u} -- isardvdi.cfg.example
+if ! git diff --exit-code $LAST_VERSION_TAG -- isardvdi.cfg.example
 then
 	# TODO: Script that sources isardvdi.cfg and generates new from isardvdi.cfg.example
 	echo "
 Has changes in isardvdi.cfg.example. Upgrade manually!
 git stash -u
-git merge --ff @{u}
+git merge --ff $LAST_VERSION_TAG
 git stash pop
 (compare and fix new/removed envvars from isardvdi.cfg.example to isardvdi$CONFIG_NAME.cfg)
 Run the cron script now or wait for the cron to be executed automatically
@@ -158,7 +161,7 @@ then
   git stash -u
   stashed=true
 fi
-if ! git merge --ff @{u}
+if ! git merge --ff $LAST_VERSION_TAG
 then
   git merge --abort
   echo "Error: merge conflicts" >&2
