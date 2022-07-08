@@ -2,7 +2,7 @@
   <b-container
     id="login"
     fluid
-    class="h-100 w-100 pt-5 pt-md-0"
+    class="h-100 w-100 pt-5 pt-md-0 scrollable-div"
   >
     <b-row
       class="h-100 justify-content-center ml-2 mr-2 mr-md-5"
