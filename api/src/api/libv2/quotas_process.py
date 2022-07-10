@@ -868,27 +868,29 @@ class QuotasProcess:
                     user_hardware["quota"]["memory"] * 1048576
                 )
 
-        if create_dict["hardware"]["videos"][0] not in [
-            uh["id"] for uh in user_hardware["videos"]
-        ]:
+        if len(create_dict["hardware"].get("videos", [])) and create_dict["hardware"][
+            "videos"
+        ][0] not in [uh["id"] for uh in user_hardware["videos"]]:
             create_dict["hardware"]["videos"] = ["default"]
-        if create_dict["hardware"]["interfaces"][0] not in [
-            uh["id"] for uh in user_hardware["nets"]
-        ]:
+
+        if len(create_dict["hardware"].get("interfaces", [])) and create_dict[
+            "hardware"
+        ]["interfaces"][0] not in [uh["id"] for uh in user_hardware["nets"]]:
             create_dict["hardware"]["interfaces"] = ["default"]
 
-        if create_dict["hardware"]["graphics"][0] not in [
-            uh["id"] for uh in user_hardware["graphics"]
-        ]:
+        if len(create_dict["hardware"].get("graphics", [])) and create_dict["hardware"][
+            "graphics"
+        ][0] not in [uh["id"] for uh in user_hardware["graphics"]]:
             create_dict["hardware"]["graphics"] = ["default"]
 
-        if create_dict["hardware"]["boot_order"][0] not in [
-            uh["id"] for uh in user_hardware["boots"]
-        ]:
+        if len(create_dict["hardware"].get("boot_order", [])) and create_dict[
+            "hardware"
+        ]["boot_order"][0] not in [uh["id"] for uh in user_hardware["boots"]]:
             create_dict["hardware"]["boot_order"] = ["hd"]
-        if create_dict["hardware"]["qos_id"] not in [
-            uh["id"] for uh in user_hardware["qos_id"]
-        ]:
+
+        if len(create_dict["hardware"].get("qos_id", [])) and create_dict["hardware"][
+            "qos_id"
+        ] not in [uh["id"] for uh in user_hardware["qos_id"]]:
             create_dict["hardware"]["qos_id"] = "unlimited"
 
         return create_dict
