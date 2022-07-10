@@ -6,62 +6,6 @@
 */
 
 $(document).ready(function() {
-    $('.admin-status').show()
-    
-    api.ajax('/isard-admin/admin/config/','POST',{}).done(function(data) {
-        $.each( data, function( key, value ) {
-            if(typeof(value) === "boolean"){
-                $('#'+key).iCheck('disable');
-                if(value){$('#'+key).iCheck('check');}
-            }else{
-                $('#'+key).val(value).prop('disabled',true);
-            }
-           
-        });
-    });  
-    
-    //~ Not using it now
-
-    
-    $('.btn-edit').on( 'click', function () {
-        basekey=$(this).attr('data-panel')
-        api.ajax('/isard-admin/admin/config','POST',{}).done(function(data) {
-            $.each( data, function( key, value ) {
-                if(key.startsWith(basekey)){
-                    if(typeof(value) === "boolean"){
-                        $('#'+key).iCheck('enable');
-                    }else{
-                        $('#'+key).val(value).prop('disabled',false);
-                    }
-                }
-            });
-        });  
-        $('.footer-'+basekey).css('display','block');
-        $('[id^="btn-'+basekey+'-"]').show();
-        //~ Not using it now
-        //~ if(basekey=='disposable_desktops'){
-            //~ activateDisposables();
-        //~ }
-            
-    });
-
-    $('.btn-cancel').on( 'click', function () {
-        basekey=$(this).attr('data-panel')
-        api.ajax('/isard-admin/admin/config','POST',{}).done(function(data) {
-            $.each( data, function( key, value ) {
-                if(key.startsWith(basekey)){
-                    if(typeof(value) === "boolean"){
-                        $('#'+key).iCheck('disable');
-                    }else{
-                        $('#'+key).val(value).prop('disabled',true);
-                    }
-                }
-            });
-        });  
-        $('.footer-'+basekey).css('display','none');
-        $('[id^="btn-'+basekey+'-"]').hide(); 
-    });
-    
     $('.btn-scheduler').on( 'click', function () {
         $('#modalScheduler').modal({
 				backdrop: 'static',
@@ -78,15 +22,6 @@ $(document).ready(function() {
             $("#modalScheduler").modal('hide');
         });
 
-	//~ Not using it now
-    //~ $('.btn-add-disposables').on( 'click', function () {
-        //~ $('#modalDisposable').modal({
-				//~ backdrop: 'static',
-				//~ keyboard: false
-        //~ }).modal('show');
-        //~ setTemplates()
-    //~ });
-        
     $('.btn-backup').on( 'click', function () {
 				new PNotify({
 						title: 'Create backup',
@@ -275,54 +210,6 @@ $(document).ready(function() {
 											}).on('pnotify.cancel', function() {
 									});	                                                        
 								}); 
-								
-                                // Api call to /isard-admin/admin/restore does not send correct data.
-                                // New function should be done at AdminViews.py
-								//~ $('.btn-bulk-restore').on('click', function(e) {
-									//~ names=''
-									//~ ids=[]
-									//~ if(backup_table_detail.rows('.active').data().length){
-										//~ $.each(backup_table_detail.rows('.active').data(),function(key, value){
-											//~ names+=value['name']+'\n';
-											//~ ids.push(value['id']);
-										//~ });
-										//~ var text = "You are about to restore these desktops:\n\n "+names
-									//~ }else{ 
-										//~ $.each(backup_table_detail.rows({filter: 'applied'}).data(),function(key, value){
-											//~ ids.push(value['id']);
-										//~ });
-										//~ var text = "You are about to restore "+backup_table_detail.rows({filter: 'applied'}).data().length+". All the desktops in list!"
-									//~ }
-                                            //~ table=$('#backup-tables').val()
-											//~ new PNotify({
-													//~ title: 'Warning!',
-														//~ text: text,
-														//~ hide: false,
-														//~ opacity: 0.9,
-														//~ confirm: {
-															//~ confirm: true
-														//~ },
-														//~ buttons: {
-															//~ closer: false,
-															//~ sticker: false
-														//~ },
-														//~ history: {
-															//~ history: false
-														//~ },
-														//~ addclass: 'pnotify-center'
-													//~ }).get().on('pnotify.confirm', function() {
-                                                        //~ api.ajax('/isard-admin/admin/restore/'+table,'POST',{'data':data,}).done(function(data1) {
-                                                            //~ api.ajax('/isard-admin/admin/backup_detailinfo','POST',{'pk':$('#backup-id').val(),'table':table}).done(function(data2) {
-                                                                //~ data['new_backup_data']=false
-                                                                //~ dtUpdateInsert(backup_table_detail,data,false);
-                                                            //~ });
-                                                        //~ });                                                        
-													//~ }).on('pnotify.cancel', function() {
-											//~ });                                                        
-									
-								//~ });                                
-				
-				
 			});
 		});   
     
@@ -463,7 +350,7 @@ $(document).ready(function() {
     })
 
     // SocketIO
-        socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/isard-admin/sio_admins', {
+    socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/isard-admin/sio_admins', {
         'path': '/isard-admin/socket.io/',
         'transports': ['websocket']
     });
@@ -480,19 +367,16 @@ $(document).ready(function() {
     });
     
     socket.on('user_quota', function(data) {
-        console.log('Quota update')
         var data = JSON.parse(data);
         drawUserQuota(data);
     });
 
     socket.on('backups_data', function(data){
-        console.log('backup data received')
         var data = JSON.parse(data);
         dtUpdateInsert(backups_table,data,false);
     });
     
     socket.on('backups_deleted', function(data){
-        console.log('backup deleted')
         var data = JSON.parse(data);
         backups_table.row('#'+data.id).remove().draw();
         new PNotify({
@@ -525,27 +409,6 @@ $(document).ready(function() {
         });
     });
 
-    socket.on('disposables_deleted', function(data){
-        console.log('disposable deleted')
-        var data = JSON.parse(data);
-        var row = disposables_table.row('#'+data.id).remove().draw();
-        new PNotify({
-                title: "Disposable deleted",
-                text: "Disposable "+data.name+" has been deleted",
-                hide: true,
-                delay: 4000,
-                icon: 'fa fa-success',
-                opacity: 1,
-                type: 'success'
-        });
-    });
-
-    socket.on('disposables_data', function(data){
-        console.log('disposables data received')
-        var data = JSON.parse(data);
-        dtUpdateInsert(disposables_table,data,false);
-    });
-            
     socket.on ('result', function (data) {
         var data = JSON.parse(data);
         new PNotify({
@@ -560,7 +423,6 @@ $(document).ready(function() {
     });
 
     socket.on('add_form_result', function (data) {
-        console.log('received result')
         var data = JSON.parse(data);
         if(data.result){
             $("#modalAddScheduler")[0].reset();
