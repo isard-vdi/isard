@@ -31,7 +31,7 @@ from .helpers import _check, _parse_string
 from .validators import _validate_item, _validate_table
 
 
-def admin_table_list(table, order_by, pluck, without, id=None):
+def admin_table_list(table, order_by=None, pluck=None, without=None, id=None):
     _validate_table(table)
 
     if not pluck and not without:
