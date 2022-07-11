@@ -120,12 +120,12 @@ def admin_table_get(table, pluck=False, id=False):
         return query.run(db.conn)
 
 
-def admin_table_delete(table, data):
+def admin_table_delete(table, item_id):
     _validate_table(table)
     with app.app_context():
-        if r.table(table).get(data["id"]).run(db.conn):
+        if r.table(table).get(item_id).run(db.conn):
             if not _check(
-                r.table(table).get(data["id"]).delete().run(db.conn),
+                r.table(table).get(item_id).delete().run(db.conn),
                 "deleted",
             ):
                 raise Error(
@@ -133,6 +133,8 @@ def admin_table_delete(table, data):
                     "Internal server error",
                     traceback.format_exc(),
                 )
+        else:
+            raise Error("not_found", "Item " + str(item_id) + " not found")
 
 
 class ApiAdmin:

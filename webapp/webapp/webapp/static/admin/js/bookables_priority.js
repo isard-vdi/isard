@@ -141,8 +141,7 @@ $(document).ready(function () {
               data["table"] = "remotevpn";
               $.ajax({
                 type: "DELETE",
-                url: "/admin/table/delete/bookings_priority",
-                data: JSON.stringify(data),
+                url: "/admin/table/bookings_priority/"+data["id"],
                 contentType: "application/json",
                 success: function (data) {
                   $("form").each(function () {
