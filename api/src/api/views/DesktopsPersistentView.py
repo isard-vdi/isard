@@ -256,6 +256,7 @@ def api_v3_desktop_edit(payload, desktop_id):
             "Desktop edit incorrect body data",
             traceback.format_exc(),
         )
+    data["id"] = desktop_id
     _validate_item("desktop", data)
     ownsDomainId(payload, desktop_id)
 
