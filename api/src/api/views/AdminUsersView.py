@@ -537,7 +537,7 @@ def api_v3_admin_secret_delete(payload, kid):
 def admin_userschema(payload):
     dict = {}
     dict["role"] = admin_table_list(
-        "roles", pluck=["id", "name", "description"], order_by="name", without=False
+        "roles", pluck=["id", "name", "description"], order_by="sortorder", without=False
     )
     if payload["role_id"] == "manager":
         dict["role"] = [

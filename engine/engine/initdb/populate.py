@@ -302,21 +302,25 @@ class Populate(object):
                             "id": "user",
                             "name": "User",
                             "description": "Can create desktops and start it",
+                            "sortorder": 1,
                         },
                         {
                             "id": "advanced",
                             "name": "Advanced",
                             "description": "Can create desktops and templates and start desktops",
+                            "sortorder": 2,
                         },
                         {
                             "id": "manager",
                             "name": "Manager",
                             "description": "Can manage users, desktops, templates and media in a category",
+                            "sortorder": 3,
                         },
                         {
                             "id": "admin",
                             "name": "Administrator",
                             "description": "Is God",
+                            "sortorder": 4,
                         },
                     ]
                 )
