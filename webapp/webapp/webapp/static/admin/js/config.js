@@ -33,7 +33,7 @@ $(document).ready(function() {
 							history: {history: false},
 							addclass: 'pnotify-center'
 						}).get().on('pnotify.confirm', function() {
-                            api.ajax('/isard-admin/admin/backup','POST',{}).done(function(data) {
+                            api.ajax('/api/v3/backup','POST',{}).done(function(data) {
                             });  
 						}).on('pnotify.cancel', function() {
 				});	         
@@ -100,7 +100,7 @@ $(document).ready(function() {
 							history: {history: false},
 							addclass: 'pnotify-center'
 						}).get().on('pnotify.confirm', function() {
-                            api.ajax('/isard-admin/admin/backup_remove','POST',{'pk':data['id'],}).done(function(data) {
+                            api.ajax('/api/v3/backup/'+data["id"],'DELETE',{}).done(function(data) {
                             });  
 						}).on('pnotify.cancel', function() {
 				});	  
@@ -116,13 +116,13 @@ $(document).ready(function() {
 							history: {history: false},
 							addclass: 'pnotify-center'
 						}).get().on('pnotify.confirm', function() {
-                            api.ajax('/isard-admin/admin/restore','POST',{'pk':data['id'],}).done(function(data) {
+                            api.ajax('/api/v3/backup/restore/'+data["id"],'PUT',{}).done(function(data) {
                             });  
 						}).on('pnotify.cancel', function() {
 				});	  
         }
         if($(this).attr('id')=='btn-backups-download'){
-						var url = '/isard-admin/admin/backup/download/'+data['id'];
+						var url = '/api/v3/backup/download/'+data['id']+'?jwt='+localStorage.getItem("token");
 						var anchor = document.createElement('a');
 							anchor.setAttribute('href', url);
 							anchor.setAttribute('download', data['filename']);
@@ -131,7 +131,7 @@ $(document).ready(function() {
 						anchor.dispatchEvent(ev);
         }
         if($(this).attr('id')=='btn-backups-info'){
-						api.ajax('/isard-admin/admin/backup_info','POST',{'pk':data['id'],}).done(function(data) {
+						api.ajax('/api/v3/backup/'+data["id"],'GET',{}).done(function(data) {
                             $("#backup-tables").find('option').remove();
                             $("#backup-tables").append('<option value="">Choose..</option>');
                             $.each(data.data,function(key, value) 
@@ -154,7 +154,8 @@ $(document).ready(function() {
 
     $('#backup-tables').on('change', function (e) {
 			var valueSelected = this.value;
-			api.ajax('/isard-admin/admin/backup_detailinfo','POST',{'pk':$('#backup-id').val(),'table':valueSelected}).done(function(data) {
+            // var backup_id = +'/'+$('#backup-id').val()
+			api.ajax('/api/v3/backup/table/'+valueSelected,'GET',{}).done(function(data) {
 				if ( $.fn.dataTable.isDataTable( '#backup-table-detail' ) ) {
 					backup_table_detail.clear().rows.add(data).draw()
 				}else{
@@ -201,9 +202,8 @@ $(document).ready(function() {
 												history: {history: false},
 												addclass: 'pnotify-center'
 											}).get().on('pnotify.confirm', function() {
-												api.ajax('/isard-admin/admin/restore/'+table,'POST',{'data':data,}).done(function(data1) {
-													api.ajax('/isard-admin/admin/backup_detailinfo','POST',{'pk':$('#backup-id').val(),'table':table}).done(function(data2) {
-														data['new_backup_data']=false
+												api.ajax('/api/v3/backup/restore/table/'+table,'PUT',{'data':data,}).done(function(data1) {
+													api.ajax('/api/v3/backup/table/'+table,'GET',{}).done(function(data) {
 														dtUpdateInsert(backup_table_detail,data,false);
 													});
 												});  
@@ -213,7 +213,8 @@ $(document).ready(function() {
 			});
 		});   
     
-    scheduler_table=$('#table-scheduler').DataTable({
+    
+        scheduler_table=$('#table-scheduler').DataTable({
 			"ajax": {
 				"url": "/scheduler/not_date",
                 "contentType": "application/json",
@@ -307,7 +308,7 @@ $(document).ready(function() {
                         "render": function ( data, type, full, meta ) {
                             return JSON.stringify(full.kwargs);
                         }}]
-        } ); 
+        } )
 
     maintenance_update_checkbox = (enabled) => {
         let status
