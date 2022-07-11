@@ -1510,7 +1510,7 @@ class Upgrade(object):
             # ~ log.error('Error detail: '+str(e))
         if version == 52:
             log.info("UPGRADING " + table + " VERSION " + str(version))
-            updated = r.table("roles").has_fields('sortorder').count().run(self.conn)
+            updated = r.table("roles").has_fields("sortorder").count().run(self.conn)
             if updated == 0:
                 r.table("roles").get("user").update({"sortorder": 1}).run(self.conn)
                 r.table("roles").get("advanced").update({"sortorder": 2}).run(self.conn)
