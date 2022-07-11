@@ -8,13 +8,14 @@ RUN apk add --no-cache \
 
 WORKDIR /build
 
-RUN git clone https://gitlab.com/isard/isardvdi-cli
-
-WORKDIR /build/isardvdi-cli
+COPY go.mod /build
+COPY go.sum /build
 
 RUN go mod download
 
-RUN CGO_ENABLED=0 go build -o isardvdi-cli main.go
+COPY testing/check-isardvdi/check-isardvdi.go /build/
+
+RUN CGO_ENABLED=0 go build -o check-isardvdi check-isardvdi.go
 
 #
 # Testing
@@ -33,17 +34,17 @@ RUN apt-get update && apt-get install -y \
     cowsay
 
 COPY testing/check-isardvdi/isard.cow /isard.cow
-COPY --from=build /build/isardvdi-cli/isardvdi-cli /usr/local/bin
+COPY --from=build /build/check-isardvdi /usr/local/bin
 
 RUN echo "#!/bin/sh\nsleep infinity" > /startapp.sh && chmod +x /startapp.sh
-COPY testing/check-isardvdi/check_isardvdi_works.sh /check_isardvdi_works.sh
 
 # Set the name of the application.
 ENV APP_NAME="IsardVDI Testing"
 ENV S6_LOGGING="1"
 ENV USER_ID=0
 ENV GROUP_ID=0
+ENV PATH="$PATH:/usr/games"
 
 
 ENTRYPOINT [ "/init" ]
-CMD [ "/check_isardvdi_works.sh" ]
+CMD [ "check-isardvdi" ]
