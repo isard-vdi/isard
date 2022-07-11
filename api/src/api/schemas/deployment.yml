@@ -24,6 +24,4 @@ desktop_name:
   empty: false
   default: setdeploymentname
 allowed:
-  required: true
-  type: dict
-  empty: false
+  schema: allowed

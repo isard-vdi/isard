@@ -1,0 +1,72 @@
+accessed:
+  type: float
+allowed:
+  schema: allowed
+category:
+  required: true
+  type: string
+create_dict:
+  type: dict
+description:
+  type: string
+  default: ""
+detail:
+  type: string
+  default: ""
+disks_info:
+  type: list
+group:
+  required: true
+  type: string
+hardware:
+  type: dict
+  required: true
+hardware_from_xml:
+  type: dict
+history_domain:
+  type: list
+hw_stats:
+  type: dict
+hyp_started:
+  default: ""
+hypervisors_pools:
+  type: list
+icon:
+  type: string
+image:
+  schema:
+    id:
+      type: string
+    type:
+      type: string
+    url:
+      type: string
+kind:
+  type: string
+  allowed:
+    - desktop
+    - template
+name:
+  type: string
+  required: true
+options:
+  type: dict
+os:
+  type: string
+parents:
+  type: list
+server:
+  type: boolean
+status:
+  required: true
+  type: string
+user:
+  type: string
+username:
+  type: string
+xml:
+  type: string
+id:
+  required: yes
+  type: string
+  default: gendomainid
