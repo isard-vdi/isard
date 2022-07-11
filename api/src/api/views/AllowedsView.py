@@ -14,6 +14,7 @@ from api import app
 from ..libv2.api_admin import admin_table_get, admin_table_update
 from ..libv2.api_alloweds import ApiAlloweds
 from ..libv2.api_exceptions import Error
+from ..libv2.validators import _validate_item
 from .decorators import has_token, owns_table_item_id, ownsDomainId
 
 alloweds = ApiAlloweds()
@@ -69,6 +70,7 @@ def alloweds_table_term(payload, table):
 @owns_table_item_id
 def admin_allowed_update(payload, table):
     data = request.get_json(force=True)
+    data.update(_validate_item("allowed", data))
     admin_table_update(
         table,
         dict(admin_table_get(table, id=data["id"]), allowed=data["allowed"]),

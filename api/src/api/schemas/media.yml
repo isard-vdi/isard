@@ -10,23 +10,7 @@ name:
 accessed:
   type: float
 allowed:
-  schema:
-    categories:
-      type:
-        - boolean
-        - list
-    groups:
-      type:
-        - boolean
-        - list
-    roles:
-      type:
-        - boolean
-        - list
-    users:
-      type:
-        - boolean
-        - list
+  schema: allowed
 category:
   required: true
   empty: false

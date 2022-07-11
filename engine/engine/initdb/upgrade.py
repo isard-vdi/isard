@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 33
+release_version = 34
+# release 34: Fix missing media upload roles and categories keys
 # release 33: Fix missing media upload roles and categories keys
 # release 32: Remove reservables bug when updating desktop
 # release 31: Removed all nvidia video types and added none type
@@ -1012,6 +1013,10 @@ class Upgrade(object):
             # ~ log.error('Error detail: '+str(e))
 
         if version == 33:
+            r.table(table).filter(
+                lambda media: r.not_(media.has_fields({"allowed": {"roles": True}}))
+            ).update({"allowed": {"roles": False, "categories": False}}).run(self.conn)
+        if version == 34:
             r.table(table).filter(
                 lambda media: r.not_(media.has_fields({"allowed": {"roles": True}}))
             ).update({"allowed": {"roles": False, "categories": False}}).run(self.conn)
