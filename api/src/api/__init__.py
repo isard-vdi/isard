@@ -95,6 +95,7 @@ Import all views
 from .views import (
     AdminBackupsView,
     AdminDomainsView,
+    AdminDownloadsView,
     AdminMediaViews,
     AdminResourcesView,
     AdminTablesView,
@@ -104,7 +105,6 @@ from .views import (
     CommonView,
     DesktopsNonPersistentView,
     DesktopsPersistentView,
-    DownloadsView,
     HypervisorsView,
     JumperViewerView,
     MediaViews,

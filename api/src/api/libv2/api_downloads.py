@@ -273,17 +273,18 @@ class Downloads(object):
                     disk["file"] = path + disk["file"]
         return new_data
 
-    def formatMedias(self, data, current_user):
+    def formatMedias(self, data, user_id):
         new_data = data.copy()
         for d in new_data:
-            d.update(self.get_user_data(current_user))
+            d.update(self.get_user_data(user_id))
             d["progress"] = {}
             d["status"] = "DownloadStarting"
             d["accessed"] = time.time()
+            path = self.get_user_path(user_id)
             if d["url-isard"] == False:
-                d["path"] = current_user.path + d["url-web"].split("/")[-1]
+                d["path"] = path + d["url-web"].split("/")[-1]
             else:
-                d["path"] = current_user.path + d["url-isard"]
+                d["path"] = path + d["url-isard"]
         return new_data
 
     def get_user_data(self, user_id):
@@ -330,16 +331,3 @@ class Downloads(object):
                     missing_resources["videos"].append(resource)
         ## graphics and interfaces missing
         return missing_resources
-
-    def download_desktop(self, desktop_id, user_id):
-        with app.app_context():
-            if r.table("domains").get(desktop_id).run(db.conn) is not None:
-                raise Error(
-                    "conflict",
-                    "Trying to download " + str(desktop_id) + " that already exists",
-                )
-        desktop = self.formatDomains(
-            [self.getNewKindId("domains", user_id, desktop_id)], user_id
-        )[0]
-        with app.app_context():
-            r.table("domains").insert(desktop).run(db.conn)

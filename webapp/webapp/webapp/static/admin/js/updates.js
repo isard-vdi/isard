@@ -29,11 +29,11 @@ $(document).ready(function() {
     });
 
     socket.on('desktop_delete', function(){
-	table['domains'].ajax.reload();
+	    table['domains'].ajax.reload();
     });
 
     socket.on('media_delete', function(){
-	table['media'].ajax.reload();
+	    table['media'].ajax.reload();
     });
 
     table['domains']=$('#domains_tbl').DataTable({
@@ -71,10 +71,7 @@ $(document).ready(function() {
                                 }
                                 if(full.status.endsWith('ing')){
                                     return '<span class="label label-warning pull-right">'+full.status+'</span>';
-                                } 
-                                //~ if(full.status=='Downloaded'){
-                                    //~ return '<span class="label label-info pull-right">'+full.status+'</span>';
-                                //~ } 
+                                }
                                 if(full.status == 'Stopped'){full.status='Downloaded'}                                                                     
                                 return '<span class="label label-info pull-right">'+full.status+'</span>';
 							}},
@@ -86,15 +83,11 @@ $(document).ready(function() {
                             {
 							"targets": 2,
 							"render": function ( data, type, full, meta ) {
-                                //~ return full.create_dict.hardware.disks['0'].file;
                                 return renderName(full)
 							}},
                             {
 							"targets": 3,
 							"render": function ( data, type, full, meta ) {
-                                //~ if(full.status == 'Downloaded' || full.status == 'Stopped'){
-                                    //~ return 'Downloaded';
-                                //~ }media
                                 if(full.status == 'Downloading'){
                                     return renderProgress(full);
                                 }
@@ -103,7 +96,6 @@ $(document).ready(function() {
                             {
 							"targets": 4,
 							"render": function ( data, type, full, meta ) {
-                                //~ console.log(full.status+' '+full.id)
                                 if(full.status == 'Available' || full.status == "DownloadFailed"){
                                     return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
                                 }
@@ -121,7 +113,6 @@ $(document).ready(function() {
                         var data = JSON.parse(data);
                         if(data['id'].includes('_downloaded_')){
                             dtUpdateInsert(table['domains'],data,false);
-                            //~ setDomainDetailButtonsStatus(data.id, data.status);
                         }
                     });
 
@@ -130,40 +121,36 @@ $(document).ready(function() {
                         if(data['id'].includes('_downloaded_')){
                             var row = table['domains'].row('#'+data.id).remove().draw();
                         }
-                    });                
-                }                            
-                            
-                            
+                    });
+                } 
     } );
 
     $('#domains_tbl').find(' tbody').on( 'click', 'button', function () {
-        var datarow = table['domains'].row( $(this).parents('tr') ).data();
-        var id = datarow['id'];
+        var id = table['domains'].row( $(this).parents('tr') ).data()['id'];
         switch($(this).attr('id')){
             case 'btn-download':
-                api.ajax('/isard-admin/admin/updates/download/domains/'+id,'POST',{}).done(function(data) {
-                    //~ dtUpdateInsert(table['domains'],id,false);
-                    table['domains'].ajax.reload();
-                      //~ table['domains'].ajax.reload();
-                  }); 
+                $.ajax({
+                    type: "POST",
+                    url:"/api/v3/admin/downloads/download/domains/" + id,
+                    success: function(data){table['domains'].ajax.reload();}
+                })
                 break;
             case 'btn-abort':
-                api.ajax('/isard-admin/admin/updates/abort/domains/'+id,'POST',{}).done(function(data) {
-                    //~ dtUpdateInsert(table['domains'],id,false);
-                    table['domains'].ajax.reload();
-                      //~ table['domains'].ajax.reload();
-                  }); 
+                $.ajax({
+                    type: "POST",
+                    url:"/api/v3/admin/downloads/abort/domains/" + id,
+                    success: function(data){table['domains'].ajax.reload();}
+                })
                 break;
             case 'btn-delete':
-                api.ajax('/isard-admin/admin/updates/delete/domains/'+id,'POST',{}).done(function(data) {
-                    table['domains'].ajax.reload();
-                   //~ table['domains'].row('#'+id).remove().draw();
-                  }); 
+                $.ajax({
+                    type: "POST",
+                    url:"/api/v3/admin/downloads/delete/domains/" + id,
+                    success: function(data){table['domains'].ajax.reload();}
+                })
                 break;
             };  
     });
-
-
 
     table['media']=$('#media_tbl').DataTable({
 			"ajax": {
@@ -201,9 +188,6 @@ $(document).ready(function() {
                                 if(full.status.endsWith('ing')){
                                     return '<span class="label label-warning pull-right">'+full.status+'</span>';
                                 } 
-                                //~ if(full.status=='Downloaded'){
-                                    //~ return '<span class="label label-info pull-right">'+full.status+'</span>';
-                                //~ }   
                                 if(full.status == 'Stopped'){full.status='Downloaded'}                                                                 
                                 return '<span class="label label-info pull-right">'+full.status+'</span>';
 							}},
@@ -228,7 +212,6 @@ $(document).ready(function() {
                             {
 							"targets": 4,
 							"render": function ( data, type, full, meta ) {
-                                //~ console.log(full.status+' '+full.id)
                                 if(full.status == 'Available' || full.status == "DownloadFailed"){
                                     return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
                                 }
@@ -251,39 +234,34 @@ $(document).ready(function() {
                         var row = table['media'].row('#'+data.id).remove().draw();
                     });                    
                                       
-                }
-                            
-                            
+                }               
     } );
 
-
-
-
     $('#media_tbl').find(' tbody').on( 'click', 'button', function () {
-        var datarow = table['media'].row( $(this).parents('tr') ).data();
-        //~ console.log($(this).attr('id'),datarow);
+        var id = table['media'].row( $(this).parents('tr') ).data()['id'];
         switch($(this).attr('id')){
             case 'btn-download':
-                api.ajax('/isard-admin/admin/updates/download/media/'+datarow['id'],'POST',{}).done(function(data) {
-                    //~ dtUpdateInsert(table['media'],datarow['id'],false);
-                      //~ console.log(datarow['id'])
-                      table['media'].ajax.reload();
-                  }); 
+                $.ajax({
+                    type: "POST",
+                    url:"/api/v3/admin/downloads/download/media/" + id,
+                    success: function(data){table['media'].ajax.reload();}
+                })
                 break;
             case 'btn-abort':
-                api.ajax('/isard-admin/admin/updates/abort/media/'+datarow['id'],'POST',{}).done(function(data) {
-                    //~ dtUpdateInsert(table['media'],datarow['id'],false);
-                      //~ console.log(datarow['id'])
-                      table['media'].ajax.reload();
-                  }); 
+                $.ajax({
+                    type: "POST",
+                    url:"/api/v3/admin/downloads/abort/media/" + id,
+                    success: function(data){table['media'].ajax.reload();}
+                })
                 break;
             case 'btn-delete':
-                api.ajax('/isard-admin/admin/updates/delete/media/'+datarow['id'],'POST',{}).done(function(data) {
-                    table['media'].ajax.reload();
-                   //~ table['media'].row('#'+datarow['id']).remove().draw();
-                  }); 
+                $.ajax({
+                    type: "POST",
+                    url:"/api/v3/admin/downloads/delete/media/" + id,
+                    success: function(data){table['media'].ajax.reload();}
+                })
                 break;
-            };  
+            };    
     });
 
     table['virt_install']=$('#virt_install_tbl').DataTable({
@@ -330,7 +308,6 @@ $(document).ready(function() {
                             {
 							"targets": 3,
 							"render": function ( data, type, full, meta ) {
-                                //~ console.log(full.status+' '+full.id)
                                 if(full['new']){
                                     return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
                                 }else{
@@ -340,18 +317,21 @@ $(document).ready(function() {
     } );
 
     $('#virt_install_tbl').find(' tbody').on( 'click', 'button', function () {
-        var datarow = table['virt_install'].row( $(this).parents('tr') ).data();
+        var id = table['virt_install'].row( $(this).parents('tr') ).data()['id'];
         switch($(this).attr('id')){
             case 'btn-download':
-                api.ajax('/isard-admin/admin/updates/download/virt_install/'+datarow['id'],'POST',{}).done(function(data) {
-                      table['virt_install'].ajax.reload();
-                  }); 
+                $.ajax({
+                    type: "POST",
+                    url:"/api/v3/admin/downloads/download/virt_install/" + id,
+                    success: function(data){table['virt_install'].ajax.reload();}
+                })
                 break;
             case 'btn-delete':
-                api.ajax('/isard-admin/admin/updates/delete/virt_install/'+datarow['id'],'POST',{}).done(function(data) {
-                   table['virt_install'].ajax.reload();
-                   //~ table['virt_install'].row('#'+datarow['id']).remove().draw();
-                  }); 
+                $.ajax({
+                    type: "POST",
+                    url:"/api/v3/admin/downloads/delete/virt_install/" + id,
+                    success: function(data){table['virt_install'].ajax.reload();}
+                })
                 break;
             };         
     });
@@ -400,7 +380,6 @@ $(document).ready(function() {
                             {
 							"targets": 3,
 							"render": function ( data, type, full, meta ) {
-                                //~ console.log(full.status+' '+full.id)
                                 if(full['new']){
                                     return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
                                 }else{
@@ -410,42 +389,33 @@ $(document).ready(function() {
     } );
 
     $('#videos_tbl').find(' tbody').on( 'click', 'button', function () {
-        var datarow = table['videos'].row( $(this).parents('tr') ).data();
+        var id = table['videos'].row( $(this).parents('tr') ).data()['id'];
         switch($(this).attr('id')){
             case 'btn-download':
-                api.ajax('/isard-admin/admin/updates/download/videos/'+datarow['id'],'POST',{}).done(function(data) {
-                      table['videos'].ajax.reload();
-                  }); 
+                $.ajax({
+                    type: "POST",
+                    url:"/api/v3/admin/downloads/download/videos/" + id,
+                    success: function(data){table['videos'].ajax.reload();}
+                })
                 break;
             case 'btn-delete':
-                api.ajax('/isard-admin/admin/updates/delete/videos/'+datarow['id'],'POST',{}).done(function(data) {
-                   table['videos'].ajax.reload();
-                   //~ table['virt_install'].row('#'+datarow['id']).remove().draw();
-                  }); 
+                $.ajax({
+                    type: "POST",
+                    url:"/api/v3/admin/downloads/delete/videos/" + id,
+                    success: function(data){table['videos'].ajax.reload();}
+                })
                 break;
             };         
     });
-    
 
-
-    
     $('.update-all').on( 'click', function () {
-      id=$(this).attr('id')
-      api.ajax('/isard-admin/admin/updates/download/'+id,'POST',{}).done(function(data) {
-          //~ console.log(id)
-          table[id].ajax.reload();
-          //~ if(id == 'virt_install'){virt_install_table.ajax.reload();}
-      }); 
-      // invalidate table
-     
+        id=$(this).attr('id')
+        $.ajax({
+            type: "POST",
+            url:"/api/v3/admin/downloads/download/" + id,
+            success: function(data){table[id].ajax.reload();}
+        })
     })
-
-    //~ $('.update-one').on( 'click', function () {
-      //~ id=$(this).attr('id')
-          //~ console.log(id)
-     
-    //~ })
-
 
     table['viewers']=$('#viewers_tbl').DataTable({
 			"ajax": {
@@ -461,8 +431,6 @@ $(document).ready(function() {
 			"rowId": "id",
 			"deferRender": true,
 			"columns": [
-                //~ {"data": null,
-                 //~ 'defaultContent': ''},
 				{"data": "icon"},
 				{"data": "name"},
                 {"data": null,
@@ -470,15 +438,6 @@ $(document).ready(function() {
                 ],
 			 "order": [[0, 'asc'],[1,'desc'],[2,'asc']],
 			 "columnDefs": [
-                            //~ {
-							//~ "targets": 0,
-							//~ "render": function ( data, type, full, meta ) {
-                                //~ if(full['new']){
-                                    //~ return '<span class="label label-success pull-right">New</span>';
-                                //~ }else{
-                                    //~ return '<span class="label label-info pull-right">Downloaded</span>';
-                                //~ }
-							//~ }},
                             {
 							"targets": 0,
 							"render": function ( data, type, full, meta ) {
@@ -492,17 +451,11 @@ $(document).ready(function() {
                             {
 							"targets": 2,
 							"render": function ( data, type, full, meta ) {
-                                //~ console.log(full.status+' '+full.id)
-                                //~ if(full['new']){
                                     return '<a href="'+full['url-web']+'"><button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button></a>'
-                                //~ }else{
-                                    //~ return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
-                                //~ } 
 							}}]
     } );
  
 });
-
 
 function renderName(data){
 		return '<div class="block_content" > \
@@ -522,7 +475,6 @@ function renderProgress(data){
                   </div> \
                 </<div> '
 }
-
 
 function renderIcon(data){
     if(data.icon == null){
