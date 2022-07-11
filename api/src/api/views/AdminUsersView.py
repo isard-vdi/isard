@@ -538,7 +538,7 @@ def admin_userschema(payload):
     dict = {}
     dict["role"] = admin_table_list(
         "roles",
-        pluck=["id", "name", "description"],
+        pluck=["id", "name", "description", "sortorder"],
         order_by="sortorder",
         without=False,
     )
