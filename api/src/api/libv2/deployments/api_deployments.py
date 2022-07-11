@@ -7,6 +7,7 @@
 import csv
 import io
 import os
+import traceback
 
 from rethinkdb import RethinkDB
 
@@ -22,7 +23,7 @@ db = RDB(app)
 db.init_app(app)
 
 from ..api_desktops_common import ApiDesktopsCommon
-from ..api_desktops_persistent import ApiDesktopsPersistent
+from ..api_desktops_persistent import ApiDesktopsPersistent, api_jumperurl_gencode
 from ..ds import DS
 from ..helpers import (
     _parse_deployment_booking,
@@ -465,3 +466,16 @@ def direct_viewer_csv(deployment_id):
         for row in result:
             writer.writerow(row)
         return csvfile.getvalue()
+
+
+def jumper_url_reset(deployment_id):
+    with app.app_context():
+        deployment_desktops = list(
+            r.table("domains")
+            .get_all(deployment_id, index="tag")
+            .pluck("id", "user", "jumperurl")
+            .run(db.conn)
+        )
+
+        for deployment_desktop in deployment_desktops:
+            ApiDesktopsCommon().gen_jumpertoken(deployment_desktop["id"])

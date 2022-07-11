@@ -111,6 +111,9 @@ def api_v3_deployments_viewer(payload, deployment_id):
 @is_not_user
 def api_v3_deployments_directviewer_csv(payload, deployment_id):
     ownsDeploymentId(payload, deployment_id)
+    reset_url = request.args.get("reset")
+    if reset_url:
+        api_deployments.jumper_url_reset(deployment_id)
     return (
         json.dumps(api_deployments.direct_viewer_csv(deployment_id)),
         200,

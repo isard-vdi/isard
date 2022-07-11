@@ -325,7 +325,26 @@ export default {
     }
 
     const downloadDirectViewerCSV = () => {
-      $store.dispatch('downloadDirectViewerCSV', { id: deployment.value.id })
+      context.root.$snotify.clear()
+
+      const resetJumperUrls = () => {
+        context.root.$snotify.clear()
+        $store.dispatch('downloadDirectViewerCSV', { id: deployment.value.id, reset: true })
+      }
+
+      const downloadCsv = () => {
+        context.root.$snotify.clear()
+        $store.dispatch('downloadDirectViewerCSV', { id: deployment.value.id })
+      }
+
+      context.root.$snotify.confirm(`${i18n.t('messages.confirmation.direct-viewer-reset')}`, {
+        position: 'centerTop',
+        buttons: [
+          { text: `${i18n.t('messages.yes')}`, action: resetJumperUrls, bold: true },
+          { text: `${i18n.t('messages.no')}`, action: downloadCsv }
+        ],
+        placeholder: ''
+      })
     }
 
     const deleteDeployment = () => {

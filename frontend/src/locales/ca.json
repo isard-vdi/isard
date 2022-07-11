@@ -668,7 +668,8 @@
             "stop-deployment-desktops": "Els escriptoris de '{name}' es pararan, continuar?",
             "delete-event": "La reserva '{name}' s'esborrarà, continuar?",
             "enable-template": "'{name}' serà visible pels seus usuaris, continuar?",
-            "disable-template": "'{name}' serà invisible pels seus usuaris, continuar?"
+            "disable-template": "'{name}' serà invisible pels seus usuaris, continuar?",
+            "direct-viewer-reset": "Es descarregarà el fitxer de visors directes. Reestablir les adreces dels visors?"
         },
         "yes": "Si",
         "no": "No",
