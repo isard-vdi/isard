@@ -64,8 +64,6 @@ def get_kind(payload, kind):
 @is_admin
 def get_not_date(payload):
     jobs = [job for job in app.scheduler.load_jobs() if job["kind"] != "date"]
-    for job in jobs:
-        job["date"] = job["date"].strftime("%Y-%m-%dT%H:%M%z")
     return (
         json.dumps(jobs),
         200,
