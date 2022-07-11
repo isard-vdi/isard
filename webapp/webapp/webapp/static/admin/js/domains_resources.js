@@ -119,7 +119,7 @@ $(document).ready(function() {
                         data['table']='remotevpn'
                         $.ajax({
                             type: "DELETE",
-                            url:"/admin/table/delete/remotevpn",
+                            url:"/admin/table/remotevpn/"+data["id"],
                             data: JSON.stringify(data),
                             contentType: "application/json",
                             success: function(data)
@@ -572,8 +572,7 @@ $(document).ready(function() {
                     }).get().on('pnotify.confirm', function() {
                        $.ajax({
                             type: "DELETE",
-                            url:"/admin/table/delete/interfaces",
-                            data: JSON.stringify(data),
+                            url:"/admin/table/interfaces/"+data["id"],
                             contentType: "application/json",
                             success: function(data)
                             {

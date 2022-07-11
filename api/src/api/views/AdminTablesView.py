@@ -77,9 +77,8 @@ def api_v3_admin_update_table(payload, table):
     return (json.dumps({}), 200, {"Content-Type": "application/json"})
 
 
-@app.route("/api/v3/admin/table/delete/<table>", methods=["DELETE"])
+@app.route("/api/v3/admin/table/<table>/<item_id>", methods=["DELETE"])
 @is_admin
-def api_v3_admin_delete_table(payload, table):
-    data = request.get_json()
-    admin_table_delete(table, data)
+def api_v3_admin_delete_table(payload, table, item_id):
+    admin_table_delete(table, item_id)
     return (json.dumps({}), 200, {"Content-Type": "application/json"})
