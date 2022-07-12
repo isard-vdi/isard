@@ -226,16 +226,15 @@ def api_v3_admin_user_desktops(payload, user_id=None):
     )
 
 
-@app.route("/api/v3/admin/user/check", methods=["POST"])
+@app.route("/api/v3/admin/users/delete/check", methods=["POST"])
 @is_admin_or_manager
-def api_v3_admin_user_check(payload):
+def api_v3_admin_users_delete_check(payload):
 
     data = request.get_json()
-    log.error(data)
 
     desktops = []
     for user in data:
-        for desktop in users._user_delete_checks(user["id"]):
+        for desktop in users._delete_checks(user["id"], "user"):
             ownsDomainId(payload, desktop["id"])
             desktops.append(desktop)
 
@@ -447,6 +446,24 @@ def api_v3_admin_group_delete(group_id, payload):
     users.GroupDelete(group_id)
     return (
         json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/delete/check", methods=["POST"])
+@is_admin_or_manager
+def api_v3_admin_delete_check(payload):
+
+    data = request.get_json()
+
+    desktops = []
+    for desktop in users._delete_checks(data["id"], data["table"]):
+        ownsDomainId(payload, desktop["id"])
+        desktops.append(desktop)
+
+    return (
+        json.dumps(desktops),
         200,
         {"Content-Type": "application/json"},
     )
