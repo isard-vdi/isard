@@ -43,7 +43,7 @@ def remove_backup_db(id):
         r.table("backups").get(id).delete().run(db.conn)
 
 
-def backup_db():
+def new_backup_db():
     id = "isard_backup_" + datetime.now().strftime("%Y%m%d-%H%M%S")
     path = "./backups/"
     os.makedirs(path, exist_ok=True)
