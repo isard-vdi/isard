@@ -671,29 +671,44 @@ class QuotaLimits:
                     user_hardware["quota"]["memory"] * 1048576
                 )
 
-        if len(create_dict["hardware"].get("videos", [])) and create_dict["hardware"][
-            "videos"
-        ][0] not in [uh["id"] for uh in user_hardware["videos"]]:
+        if (
+            create_dict["hardware"].get("videos")
+            and len(create_dict["hardware"].get("videos", []))
+            and create_dict["hardware"]["videos"][0]
+            not in [uh["id"] for uh in user_hardware["videos"]]
+        ):
             create_dict["hardware"]["videos"] = ["default"]
 
-        if len(create_dict["hardware"].get("interfaces", [])) and create_dict[
-            "hardware"
-        ]["interfaces"][0] not in [uh["id"] for uh in user_hardware["nets"]]:
+        if (
+            create_dict["hardware"].get("interfaces")
+            and len(create_dict["hardware"].get("interfaces", []))
+            and create_dict["hardware"]["interfaces"][0]
+            not in [uh["id"] for uh in user_hardware["nets"]]
+        ):
             create_dict["hardware"]["interfaces"] = ["default"]
 
-        if len(create_dict["hardware"].get("graphics", [])) and create_dict["hardware"][
-            "graphics"
-        ][0] not in [uh["id"] for uh in user_hardware["graphics"]]:
+        if (
+            create_dict["hardware"].get("graphics")
+            and len(create_dict["hardware"].get("graphics", []))
+            and create_dict["hardware"]["graphics"][0]
+            not in [uh["id"] for uh in user_hardware["graphics"]]
+        ):
             create_dict["hardware"]["graphics"] = ["default"]
 
-        if len(create_dict["hardware"].get("boot_order", [])) and create_dict[
-            "hardware"
-        ]["boot_order"][0] not in [uh["id"] for uh in user_hardware["boots"]]:
+        if (
+            create_dict["hardware"].get("boot_order")
+            and len(create_dict["hardware"].get("boot_order", []))
+            and create_dict["hardware"]["boot_order"][0]
+            not in [uh["id"] for uh in user_hardware["boots"]]
+        ):
             create_dict["hardware"]["boot_order"] = ["hd"]
 
-        if len(create_dict["hardware"].get("qos_id", [])) and create_dict["hardware"][
-            "qos_id"
-        ] not in [uh["id"] for uh in user_hardware["qos_id"]]:
+        if (
+            create_dict["hardware"].get("qos_id")
+            and len(create_dict["hardware"].get("qos_id", []))
+            and create_dict["hardware"]["qos_id"]
+            not in [uh["id"] for uh in user_hardware["qos_id"]]
+        ):
             create_dict["hardware"]["qos_id"] = "unlimited"
 
         return create_dict
