@@ -4,9 +4,7 @@
 #      Josep Maria Viñolas Auquer
 #      Alberto Larraz Dalmases
 # License: AGPLv3
-import pprint
-import time
-from datetime import datetime, timedelta
+
 
 from rethinkdb import RethinkDB
 
@@ -17,7 +15,6 @@ from .api_exceptions import Error
 r = RethinkDB()
 import csv
 import io
-import logging as log
 import traceback
 
 from .flask_rethink import RDB
@@ -26,7 +23,9 @@ db = RDB(app)
 db.init_app(app)
 
 from ..auth.authentication import *
+from .api_desktops_persistent import ApiDesktopsPersistent
 from .api_exceptions import Error
+from .api_templates import ApiTemplates
 from .helpers import _check, _parse_string
 from .validators import _validate_item, _validate_table
 
@@ -135,6 +134,21 @@ def admin_table_delete(table, item_id):
                 )
         else:
             raise Error("not_found", "Item " + str(item_id) + " not found")
+
+
+def admin_domains_delete(list):
+    errors = []
+    # Function in current main:
+    # for domain in list:
+    #     if domain["kind"] == "desktop":
+    #         try:
+    #             api_templates.Delete(domain["id"], domain["status"])
+    #         except:
+    #             errors.append(domain)
+
+    # We first delete desktops then templates in order for them to could find disks
+    [ApiDesktopsPersistent().Delete(d["id"]) for d in list if d["kind"] == "desktop"]
+    [ApiTemplates().Delete(d["id"]) for d in list if d["kind"] == "template"]
 
 
 class ApiAdmin:
