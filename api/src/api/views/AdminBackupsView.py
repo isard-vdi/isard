@@ -13,10 +13,10 @@ from api import app
 from ..auth.tokens import get_token_payload
 from ..libv2.api_admin import admin_table_insert, admin_table_update
 from ..libv2.api_backups import (
-    backup_db,
     check_new_values,
     download_backup,
     info_backup_db,
+    new_backup_db,
     remove_backup_db,
     restore_db,
     upload_backup,
@@ -31,7 +31,7 @@ backup_db = []
 @app.route("/api/v3/backup", methods=["POST"])
 @is_admin
 def admin_backup(payload):
-    backup_db()
+    new_backup_db()
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
