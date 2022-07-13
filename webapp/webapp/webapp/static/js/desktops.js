@@ -769,7 +769,7 @@ function modal_add_desktop_datatables(){
 
     modal_add_desktops = $('#modal_add_desktops').DataTable({
             "ajax": {
-                "url": "/isard-admin/desktops/getAllTemplates/",
+                "url": "/api/v3/user/templates_allowed",
                 "dataSrc": ""
             },
             "scrollY":        "350px",
@@ -787,8 +787,8 @@ function modal_add_desktop_datatables(){
             "columns": [
                 { "data": "name"},
                 { "data": "description"},
-                { "data": "group"},
-                { "data": "username"}
+                { "data": "group_name"},
+                { "data": "user_name"}
                 ],
              "order": [[0, 'asc']], 
              "pageLength": 10,   

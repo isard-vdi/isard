@@ -141,8 +141,8 @@ $(document).ready(function() {
                 minimumInputLength: 2,
                 multiple: true,
                 ajax: {
-                    type: "POST",
-                    url: '/api/v3/admin/getAllTemplates',
+                    type: "GET",
+                    url: '/api/v3/user/templates_allowed',
                     dataType: 'json',
                     contentType: "application/json",
                     delay: 250,
