@@ -24,9 +24,9 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
 		disabled = typeof disabled !== 'undefined' ? disabled : false;
 		id = typeof id !== 'undefined' ? id : false; //Missing id will get current user/category/group
 		if(id == false){
-			url='/isard-admin/'+kind+'/quotamax';
+			url='/api/v3/quota/'+kind;
 		}else{
-			url='/isard-admin/'+kind+'/quotamax/'+id;
+			url='/api/v3/quota/'+kind+'/'+id;
 		}
 
         api.ajax(url,'GET','').done(function(usrquota) {

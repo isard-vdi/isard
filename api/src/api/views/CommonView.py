@@ -89,3 +89,22 @@ def api_v3_desktop_hardware(payload, desktop_id):
         200,
         {"Content-Type": "application/json"},
     )
+
+
+# Will get allowed hardware quota max resources for different items
+@app.route("/api/v3/quota/<kind>", methods=["GET"])
+@app.route("/api/v3/quota/<kind>/<item_id>", methods=["GET"])
+@has_token
+def user_quota_max(payload, kind, item_id=None):
+    if kind == "user":
+        if not item_id:
+            item_id = payload["user_id"]
+        return json.dumps(quotas.GetUserQuota(item_id))
+    if kind == "category":
+        if not item_id:
+            item_id = payload["category_id"]
+        return json.dumps(quotas.GetCategoryQuota(item_id))
+    if kind == "group":
+        if not item_id:
+            item_id = payload["group_id"]
+        return json.dumps(quotas.GetGroupQuota(item_id))

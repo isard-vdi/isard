@@ -3,11 +3,7 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
-import rethinkdb as r
-
-#!/usr/bin/env python
-# coding=utf-8
-from flask import Response, redirect, render_template, request, url_for
+from flask import request
 from flask_login import current_user, login_required
 
 from webapp import app
@@ -20,20 +16,10 @@ db = RethinkDB(app)
 db.init_app(app)
 
 import json
-import time
 
 from ..lib.quotas import QuotaLimits
 
 quotas = QuotaLimits()
-
-
-# Gets all allowed for a domain
-# ~ @app.route('/isard-admin/domain/alloweds/select2', methods=['POST'])
-# ~ @login_required
-# ~ def domain_alloweds_select2():
-# ~ allowed=request.get_json(force=True)['allowed']
-# ~ return json.dumps(app.isardapi.get_alloweds_select2(allowed))
-
 
 # Will get allowed hardware resources for current_user
 @app.route("/isard-admin/domains/hardware/allowed", methods=["GET"])
@@ -52,19 +38,16 @@ def user_quota_max(kind, id=False):
     if kind == "user":
         if id == False:
             id = current_user.id
-        # return json.dumps(quotas.get(id))
         return json.dumps(quotas.get_user(id))
 
     if kind == "category":
         if id == False:
             id = current_user.category
-        # return json.dumps(app.isardapi.process_category_limits(id))
         return json.dumps(quotas.get_category(id))
 
     if kind == "group":
         if id == False:
             id = current_user.group
-        # return json.dumps(app.isardapi.process_group_limits(id))
         return json.dumps(quotas.get_group(id))
 
 
@@ -72,9 +55,6 @@ def user_quota_max(kind, id=False):
 @app.route("/isard-admin/domains/hardware", methods=["POST"])
 @login_required
 @maintenance
-# @ownsid
-
-
 def domains_hadware():
     try:
         hs = request.get_json(force=True)["hs"]
@@ -94,7 +74,6 @@ def domains_hadware():
 @app.route("/isard-admin/alloweds/table/<table>", methods=["POST"])
 @login_required
 @maintenance
-# @ownsid
 @ownsidortag
 def alloweds_table(table):
     return json.dumps(
