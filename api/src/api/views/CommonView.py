@@ -4,25 +4,8 @@
 # License: AGPLv3
 
 import json
-import logging as log
-import os
-import sys
-import time
 import traceback
-from uuid import uuid4
 
-from flask import (
-    Response,
-    redirect,
-    render_template,
-    request,
-    send_file,
-    send_from_directory,
-    url_for,
-)
-
-#!flask/bin/python
-# coding=utf-8
 from api import app
 
 from ..libv2.api_exceptions import Error
@@ -38,7 +21,7 @@ from ..libv2.api_allowed import ApiAllowed
 
 allowed = ApiAllowed()
 
-from .decorators import allowedTemplateId, has_token, is_admin, ownsDomainId
+from .decorators import has_token, ownsDomainId
 
 
 @app.route("/api/v3/desktop/<desktop_id>/viewer/<protocol>", methods=["GET"])
@@ -95,3 +78,14 @@ def api_v3_domains_default_hardware_reservables(payload, kind, domain_id):
         return json.dumps(allowed.get_domain_reservables(domain_id))
     if kind == "hardware":
         return Error("bad_request", "Not implemented")
+
+
+@app.route("/api/v3/domain/hardware/<desktop_id>", methods=["GET"])
+@has_token
+def api_v3_desktop_hardware(payload, desktop_id):
+    ownsDomainId(payload, desktop_id)
+    return (
+        json.dumps(common.get_domain_hardware(desktop_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )
