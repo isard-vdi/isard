@@ -360,7 +360,6 @@ function actionsDesktopDetail(){
     $('.btn-edit').on('click', function () {
             var pk=$(this).closest("[data-pk]").attr("data-pk");
             setHardwareOptions('#modalEditDesktop');
-            setHardwareDomainDefaults('#modalEditDesktop',pk);
             setReservablesOptions('#modalEditDesktop');
             setReservablesDomainDefaults('#modalEditDesktop',pk);
             $("#modalEdit")[0].reset();
@@ -746,7 +745,7 @@ function renderHotplugMedia(data){
 function setDefaultsTemplate(id) {
     $.ajax({
         type: "GET",
-        url:"/isard-admin/desktops/templateUpdate/" + id,
+        url:"/api/v3/domain/info/" + id,
         success: function(data)
         {
             $('.template-id').val(id);
@@ -871,7 +870,7 @@ function initalize_modal_all_desktops_events(){
 function modal_edit_desktop_datatables(id){
     $.ajax({
         type: "GET",
-        url:"/isard-admin/desktops/templateUpdate/" + id,
+        url:"/api/v3/domain/info/" + id,
         success: function(data)
         {
             $('#modalEditDesktop #forced_hyp').closest("div").remove();
@@ -879,9 +878,9 @@ function modal_edit_desktop_datatables(id){
             $('#modalEditDesktop #name').val(data.name);
             $('#modalEditDesktop #description').val(data.description);
             $('#modalEditDesktop #id').val(data.id);
-            $('#modalEditDesktop #guest_properties-credentials-username').val(data["guest_properties-credentials-username"]);
-            $('#modalEditDesktop #guest_properties-credentials-password').val(data["guest_properties-credentials-password"]);
-            setHardwareDomainDefaults('#modalEditDesktop', id);
+            $('#modalEditDesktop #guest_properties-credentials-username').val(data["guest_properties"]["credentials"]["username"]);
+            $('#modalEditDesktop #guest_properties-credentials-password').val(data["guest_properties"]["credentials"]["password"]);
+            setHardwareDomainDefaults('#modalEditDesktop', data);
             setViewers('#modalEditDesktop',data)
         }
     });

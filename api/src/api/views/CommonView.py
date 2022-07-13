@@ -13,6 +13,7 @@ from ..libv2.quotas import Quotas
 
 quotas = Quotas()
 
+from ..libv2.api_admin import admin_table_get
 from ..libv2.api_desktops_common import ApiDesktopsCommon
 
 common = ApiDesktopsCommon()
@@ -108,3 +109,22 @@ def user_quota_max(payload, kind, item_id=None):
         if not item_id:
             item_id = payload["group_id"]
         return json.dumps(quotas.GetGroupQuota(item_id))
+
+
+@app.route("/api/v3/domain/info/<desktop_id>", methods=["GET"])
+@has_token
+def api_v3_desktop_info(payload, desktop_id):
+    ownsDomainId(payload, desktop_id)
+    domain = {
+        **admin_table_get(
+            "domains",
+            pluck=["id", "name", "description", "guest_properties"],
+            id=desktop_id,
+        ),
+        **common.get_domain_hardware(desktop_id),
+    }
+    return (
+        json.dumps(domain),
+        200,
+        {"Content-Type": "application/json"},
+    )

@@ -592,7 +592,7 @@ function actionsDomainDetail(){
 	$('.btn-edit').on('click', function () {
             var pk=$(this).closest("[data-pk]").attr("data-pk");
 			setHardwareOptions('#modalEditDesktop');
-            setHardwareDomainDefaults('#modalEditDesktop',pk);
+            setHardwareDomainIdDefaults('#modalEditDesktop',pk);
             setReservablesOptions('#modalEditDesktop');
             setReservablesDomainDefaults('#modalEditDesktop',pk);
             $("#modalEdit")[0].reset();
@@ -864,7 +864,7 @@ function updateDeployments_list(tag_selected){
 function modal_edit_desktop_datatables(id){
 	$.ajax({
 		type: "GET",
-		url:"/isard-admin/desktops/templateUpdate/" + id,
+		url:"/api/v3/domain/info/" + id,
 		success: function(data)
 		{
             $('#modalEditDesktop #forced_hyp').closest("div").remove();
@@ -872,8 +872,8 @@ function modal_edit_desktop_datatables(id){
             $('#modalEditDesktop #name').val(data.name);
 			$('#modalEditDesktop #description').val(data.description);
             $('#modalEditDesktop #id').val(data.id);
-            setHardwareDomainDefaults('#modalEditDesktop', id);
-            if(data['guest_properties-fullscreen']){
+            setHardwareDomainDefaults('#modalEditDesktop', data);
+            if(data['guest_properties']['fullscreen']){
                 $('#modalEditDesktop #guest_properties-fullscreen').iCheck('check');
             }
 		}
