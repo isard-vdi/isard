@@ -191,7 +191,7 @@ class ApiUsers:
                 "Not found user_id " + user_id,
                 traceback.format_exc(),
             )
-        user["quota"] = quotas.GetUserQuota(user_id)
+        user["quota"] = quotas.Get(user_id)
         del user["quota"]["user"]
         return user
 

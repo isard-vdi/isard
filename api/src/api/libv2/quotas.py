@@ -32,8 +32,17 @@ class Quotas:
     def __init__(self):
         None
 
-    def GetUserQuota(self, user_id):
+    def Get(self, user_id):
         return qp.get(user_id)
+
+    def GetUserQuota(self, user_id):
+        return qp.get_user(user_id)
+
+    def GetCategoryQuota(self, category_id):
+        return qp.get_category(category_id)
+
+    def GetGroupQuota(self, group_id):
+        return qp.get_group(group_id)
 
     def UserCreate(self, category_id, group_id):
         qp.check_new_autoregistered_user(category_id, group_id)
