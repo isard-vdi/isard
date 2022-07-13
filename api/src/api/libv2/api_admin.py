@@ -137,16 +137,6 @@ def admin_table_delete(table, item_id):
 
 
 def admin_domains_delete(list):
-    errors = []
-    # Function in current main:
-    # for domain in list:
-    #     if domain["kind"] == "desktop":
-    #         try:
-    #             api_templates.Delete(domain["id"], domain["status"])
-    #         except:
-    #             errors.append(domain)
-
-    # We first delete desktops then templates in order for them to could find disks
     [ApiDesktopsPersistent().Delete(d["id"]) for d in list if d["kind"] == "desktop"]
     [ApiTemplates().Delete(d["id"]) for d in list if d["kind"] == "template"]
 
