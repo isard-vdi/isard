@@ -32,6 +32,10 @@ from ..libv2.api_users import ApiUsers, check_category_domain
 
 users = ApiUsers()
 
+from ..libv2.api_allowed import ApiAllowed
+
+allowed = ApiAllowed()
+
 from ..libv2.isardVpn import isardVpn
 
 vpn = isardVpn()
@@ -198,25 +202,30 @@ def api_v3_user_templates(payload):
 @app.route("/api/v3/user/templates_allowed", methods=["GET"])
 @has_token
 def api_v3_user_templates_allowed(payload):
-    templates = users.TemplatesAllowed(payload)
-    dropdown_templates = [
-        {
-            "id": t["id"],
-            "name": t["name"],
-            "category": t["category"],
-            "category_name": t["category_name"],
-            "group": t["group"],
-            "group_name": t["group_name"],
-            "user_id": t["user"],
-            "user_name": t["username"],
-            "icon": t["icon"],
-            "image": t["image"],
-            "editable": t["editable"],
-            "description": t["description"],
-        }
-        for t in templates
-    ]
-    return json.dumps(dropdown_templates), 200, {"Content-Type": "application/json"}
+    templates = allowed.get_items_allowed(
+        payload=payload,
+        table="domains",
+        query_pluck=[
+            "id",
+            "name",
+            "allowed",
+            "kind",
+            "category",
+            "category_name",
+            "group",
+            "group_name",
+            "icon",
+            "image",
+            "user",
+            "description",
+        ],
+        query_filter={"enabled": True},
+        index="kind",
+        index_value="template",
+        order="name",
+        query_merge=True,
+    )
+    return json.dumps(templates), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/api/v3/user/desktops", methods=["GET"])

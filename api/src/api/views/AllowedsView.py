@@ -12,12 +12,12 @@ from flask import request
 from api import app
 
 from ..libv2.api_admin import admin_table_get, admin_table_update
-from ..libv2.api_alloweds import ApiAlloweds
+from ..libv2.api_allowed import ApiAllowed
 from ..libv2.api_exceptions import Error
 from ..libv2.validators import _validate_item
 from .decorators import has_token, owns_table_item_id, ownsDomainId
 
-alloweds = ApiAlloweds()
+alloweds = ApiAllowed()
 
 
 # Gets all list of roles, categories, groups and users from a 2+ chars term
