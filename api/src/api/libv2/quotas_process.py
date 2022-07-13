@@ -5,22 +5,17 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
-import time
 import traceback
-from datetime import datetime, timedelta
 
 from rethinkdb import RethinkDB
 
 from api import app
 
+from .api_allowed import ApiAllowed
 from .api_exceptions import Error
 
+allowed = ApiAllowed()
 r = RethinkDB()
-# ~ from ..libv1.log import *
-import logging as log
-
-from rethinkdb.errors import ReqlTimeoutError
-
 from .flask_rethink import RDB
 
 db = RDB(app)
@@ -822,35 +817,56 @@ class QuotasProcess:
                 )
         return {"quota": user["quota"], "limits": limits}
 
-    def user_hardware_allowed(self, user_id):
+    def user_hardware_allowed(self, payload):
         dict = {}
-        dict["nets"] = app.isardapi.get_alloweds(
-            user_id, "interfaces", pluck=["id", "name", "description"], order="name"
+        dict["nets"] = allowed.get_items_allowed(
+            payload,
+            "interfaces",
+            query_pluck=["id", "name", "description"],
+            order="name",
+            query_merge=False,
         )
-        # ~ dict['disks']=app.isardapi.get_alloweds(user_id,'disks',pluck=['id','name','description'],order='name')
-        dict["graphics"] = app.isardapi.get_alloweds(
-            user_id, "graphics", pluck=["id", "name", "description"], order="name"
+        # ~ dict['disks']=allowed.get_items_allowed(user_id,'disks',pluck=['id','name','description'],order='name')
+        dict["graphics"] = allowed.get_items_allowed(
+            payload,
+            "graphics",
+            query_pluck=["id", "name", "description"],
+            order="name",
+            query_merge=False,
         )
-        dict["videos"] = app.isardapi.get_alloweds(
-            user_id, "videos", pluck=["id", "name", "description"], order="name"
+        dict["videos"] = allowed.get_items_allowed(
+            payload,
+            "videos",
+            query_pluck=["id", "name", "description"],
+            order="name",
+            query_merge=False,
         )
-        dict["boots"] = app.isardapi.get_alloweds(
-            user_id, "boots", pluck=["id", "name", "description"], order="name"
+        dict["boots"] = allowed.get_items_allowed(
+            payload,
+            "boots",
+            query_pluck=["id", "name", "description"],
+            order="name",
+            query_merge=False,
         )
         # dict['forced_hyp'].insert(0,{'id':'default','hostname':'Auto','description':'Hypervisor pool default'})
-        dict["qos_id"] = app.isardapi.get_alloweds(
-            user_id, "qos_disk", pluck=["id", "name", "description"], order="name"
+        dict["qos_id"] = allowed.get_items_allowed(
+            payload,
+            "qos_disk",
+            query_pluck=["id", "name", "description"],
+            order="name",
+            query_merge=False,
         )
 
-        dict["hypervisors_pools"] = app.isardapi.get_alloweds(
-            user_id,
+        dict["hypervisors_pools"] = allowed.get_items_allowed(
+            payload,
             "hypervisors_pools",
-            pluck=["id", "name", "description"],
+            query_pluck=["id", "name", "description"],
             order="name",
+            query_merge=False,
         )
         dict["forced_hyp"] = []
 
-        quota = self.get_user(user_id)
+        quota = self.get_user(payload["user_id"])
         dict = {**dict, **quota}
         return dict
 

@@ -4,18 +4,11 @@
 # License: AGPLv3
 
 import json
-import logging as log
-import os
-import sys
-import time
 import traceback
-from uuid import uuid4
 
-from flask import jsonify, request
+from flask import request
 from rethinkdb import RethinkDB
 
-#!flask/bin/python
-# coding=utf-8
 from api import app
 
 from ..libv2.api_exceptions import Error
@@ -226,6 +219,16 @@ def api_v3_user_templates_allowed(payload):
         query_merge=True,
     )
     return json.dumps(templates), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/user/hardware_allowed", methods=["GET"])
+@has_token
+def api_v3_user_hardware_allowed(payload):
+    return (
+        json.dumps(quotas.get_hardware_allowed(payload)),
+        200,
+        {"Content-Type": "application/json"},
+    )
 
 
 @app.route("/api/v3/user/desktops", methods=["GET"])
