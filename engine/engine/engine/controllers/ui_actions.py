@@ -333,7 +333,7 @@ class UiActions(object):
         try:
             dict_domain = get_domain(id_domain)
             if dict_domain is None:
-                log.eror(
+                log.error(
                     f"The domain {id_domain} is deleted from the database and deleting_disk function is called."
                 )
                 return False
