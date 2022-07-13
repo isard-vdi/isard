@@ -167,3 +167,14 @@ class ApiDesktopsCommon:
             "Unable to generate jumpertoken",
             traceback.format_exc(),
         )
+
+    def get_domain_hardware(self, domain_id, human_size=False, flatten=True):
+        with app.app_context():
+            hardware = (
+                r.table("domains")
+                .get(domain_id)
+                .pluck({"create_dict": "hardware"})
+                .run(db.conn)["create_dict"]
+            )
+            hardware["hardware"]["memory"] = hardware["hardware"]["memory"] / 1048576
+            return hardware

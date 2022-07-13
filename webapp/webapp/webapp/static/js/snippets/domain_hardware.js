@@ -101,7 +101,7 @@
             $(div_id+' #hardware-graphics option:selected').prop("selected", false);
             $(div_id+' #hardware-videos option:selected').prop("selected", false);
             $(div_id+' #hardware-boot_order option:selected').prop("selected", false);
-			api.ajax('/isard-admin/domains/hardware','POST',{'pk':domain_id}).done(function(domain) {
+			api.ajax('/api/v3/domain/hardware/'+domain_id,'GET','').done(function(domain) {
 				$.each(domain.hardware.interfaces, function(k,value){
 					$(div_id+' #hardware-interfaces option[value="'+value+'"]').prop("selected",true);
 				})

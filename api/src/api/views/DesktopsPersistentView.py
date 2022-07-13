@@ -4,19 +4,10 @@
 # License: AGPLv3
 
 import json
-import logging as log
-import os
-
-#!flask/bin/python
-# coding=utf-8
-import sys
-import time
 import traceback
-from uuid import uuid4
 
 from flask import request
 from rethinkdb import RethinkDB
-from schema import And, Optional, Schema, SchemaError, Use
 
 r = RethinkDB()
 
