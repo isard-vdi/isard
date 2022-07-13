@@ -4,115 +4,32 @@
 #      Josep Maria Viñolas Auquer
 #      Alberto Larraz Dalmases
 # License: AGPLv3
-import ipaddress
-import os
-import time
-import traceback
-from datetime import datetime, timedelta
-from pprint import pprint
 
-import requests
+import traceback
+
 from rethinkdb import RethinkDB
 
 from api import app
 
 r = RethinkDB()
-import logging as log
 import traceback
 
+from ..libv2.api_admin import admin_table_delete, admin_table_update
+from ..libv2.api_desktops_persistent import ApiDesktopsPersistent
 from .api_exceptions import Error
 from .flask_rethink import RDB
 
 db = RDB(app)
 db.init_app(app)
 
-
-from .ds import DS
-from .helpers import _check, _disk_path, _parse_media_info, _parse_string
-
-# from ..libv2.isardViewer import isardViewer
-# isardviewer = isardViewer()
-
-
-# from ..libv2.isardVpn import isardVpn
-# isardVpn = isardVpn()
-
-
-ds = DS()
-
-import socket
-from subprocess import check_call, check_output
-
-from .helpers import _check, _random_password
+persistent = ApiDesktopsPersistent()
 
 
 class ApiMedia:
     def __init__(self):
         None
 
-    def Get(self, payload):
-        try:
-            with app.app_context():
-                medias = list(r.table("media").run(db.conn))
-            alloweds = []
-            for media in medias:
-                # with app.app_context():
-                #     media['username']=r.table('users').get(media['user']).pluck('name').run(db.conn)['name']
-                if payload["role_id"] == "admin":
-                    alloweds.append(media)
-                    continue
-                if (
-                    payload["role_id"] == "manager"
-                    and payload["category_id"] == media["category"]
-                ):
-                    alloweds.append(media)
-                    continue
-                if not payload.get("user_id", False):
-                    continue
-                if media["user"] == payload["user_id"]:
-                    alloweds.append(media)
-                    continue
-                if media["allowed"]["roles"] is not False:
-                    if len(media["allowed"]["roles"]) == 0:
-                        alloweds.append(media)
-                        continue
-                    else:
-                        if payload["role_id"] in media["allowed"]["roles"]:
-                            alloweds.append(media)
-                            continue
-                if media["allowed"]["categories"] is not False:
-                    if len(media["allowed"]["categories"]) == 0:
-                        alloweds.append(media)
-                        continue
-                    else:
-                        if payload["category_id"] in media["allowed"]["categories"]:
-                            alloweds.append(media)
-                            continue
-                if media["allowed"]["groups"] is not False:
-                    if len(media["allowed"]["groups"]) == 0:
-                        alloweds.append(media)
-                        continue
-                    else:
-                        if payload["group_id"] in media["allowed"]["groups"]:
-                            alloweds.append(media)
-                            continue
-                if media["allowed"]["users"] is not False:
-                    if len(media["allowed"]["users"]) == 0:
-                        alloweds.append(media)
-                        continue
-                    else:
-                        if payload["user_id"] in media["allowed"]["users"]:
-                            alloweds.append(media)
-                            continue
-            return alloweds
-        except:
-            raise Error(
-                "internal_server",
-                "Unable to get user media shared",
-                traceback.format_exc(),
-            )
-
-    def GetMediaList(self, id):
+    def List(self, id):
         with app.app_context():
             domain_cd = (
                 r.table("domains")
@@ -152,3 +69,58 @@ class ApiMedia:
                     """Media does not exist"""
                     None
         return media
+
+    def Get(self, media_id):
+        with app.app_context():
+            media = r.table("media").get(media_id).run(db.conn)
+        if not media:
+            raise Error(
+                "not_found",
+                "Not found media: " + media_id,
+                traceback.format_exc(),
+            )
+        return media
+
+    def DesktopList(self, media_id):
+        with app.app_context():
+            desktops = list(
+                r.table("domains")
+                .filter(
+                    lambda dom: dom["create_dict"]["hardware"]["isos"].contains(
+                        lambda media: media["id"].eq(media_id)
+                    )
+                )
+                .pluck(
+                    "id",
+                    "name",
+                    "kind",
+                    "status",
+                    "user",
+                    {"create_dict": {"hardware": {"isos"}}},
+                )
+                .run(db.conn)
+            )
+        return desktops
+
+    def DeleteDesktops(self, media_id):
+        for desktop in self.DesktopList(media_id):
+            if desktop["status"] in ["Starting", "Started", "Shutting-down"]:
+                persistent.Stop(desktop["id"])
+        # If was left in Shutting-down and did not shut down, force it.
+        for desktop in self.DesktopList(media_id):
+            if desktop["status"] in ["Starting", "Started", "Shutting-down"]:
+                persistent.Stop(desktop["id"])
+
+        for desktop in self.DesktopList(media_id):
+            desktop["create_dict"]["hardware"]["isos"][:] = [
+                iso
+                for iso in desktop["create_dict"]["hardware"]["isos"]
+                if iso.get("id") != media_id
+            ]
+
+            desktop.pop("name", None)
+            desktop.pop("kind", None)
+            desktop["status"] = "Updating"
+
+            admin_table_update("domains", desktop)
+        admin_table_update("media", {"id": media_id, "status": "Deleting"})
