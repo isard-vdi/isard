@@ -34,9 +34,9 @@ from ..libv2.api_desktops_common import ApiDesktopsCommon
 
 common = ApiDesktopsCommon()
 
-from ..libv2.api_alloweds import ApiAlloweds
+from ..libv2.api_allowed import ApiAllowed
 
-allowed = ApiAlloweds()
+allowed = ApiAllowed()
 
 from .decorators import allowedTemplateId, has_token, is_admin, ownsDomainId
 
@@ -78,8 +78,9 @@ def api_v3_domains_allowed_hardware_reservables(payload, kind):
         reservables["vgpus"] = allowed.get_items_allowed(
             payload,
             "reservables_vgpus",
-            pluck=["id", "name", "description"],
+            query_pluck=["id", "name", "description"],
             order="name",
+            query_merge=False,
         )
         return json.dumps(reservables)
     if kind == "hardware":
