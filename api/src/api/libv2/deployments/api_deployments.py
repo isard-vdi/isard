@@ -62,17 +62,25 @@ def lists(user_id):
                     .count(),
                     "description": deployment["create_dict"]["description"],
                     "visible": deployment["create_dict"]["tag_visible"],
-                    "template": r.table("domains").get(
-                        deployment["create_dict"]["template"]
-                    )["name"],
+                    "template": r.table("domains")
+                    .get(deployment["create_dict"]["template"])
+                    .default({"name": False})["name"],
                     "desktop_name": deployment["create_dict"]["name"],
                 }
             )
             .run(db.conn)
         )
-    for i, deploy in enumerate(deployments):
-        deployments[i] = {**deployments[i], **_parse_deployment_booking(deploy)}
-    return deployments
+    parsed_deployments = []
+    for deployment in deployments:
+        if not deployment["template"]:
+            # Template does no exist anymore
+            with app.app_context():
+                r.table("deployments").get(deployment["id"]).delete().run(db.conn)
+            continue
+        parsed_deployments.append(
+            {**deployment, **_parse_deployment_booking(deployment)}
+        )
+    return parsed_deployments
 
 
 def get(deployment_id):
