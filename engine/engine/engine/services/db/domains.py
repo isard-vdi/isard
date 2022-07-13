@@ -459,14 +459,21 @@ def update_disk_backing_chain(
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
     domain = rtable.get(id_domain).run(r_conn)
-
-    if new_template == True:
-        domain["create_dict"]["template_dict"][
-            "disks_info"
-        ] = list_backing_chain_template
-
-    domain["disks_info"] = list_backing_chain
-    results = rtable.replace(domain).run(r_conn)
+    # Domain could be deleted by api and webapp
+    # https://gitlab.com/isard/isardvdi/-/blob/main/api/src/api/libv2/ds.py#L60
+    # https://gitlab.com/isard/isardvdi/-/blob/main/webapp/webapp/webapp/lib/ds.py#L53
+    if domain:
+        if new_template == True:
+            domain["create_dict"]["template_dict"][
+                "disks_info"
+            ] = list_backing_chain_template
+        domain["disks_info"] = list_backing_chain
+        results = rtable.replace(domain).run(r_conn)
+    else:
+        logs.main.error(
+            f"trying to update disk backing chain of non-existent domain {id_domain}"
+        )
+        results = None
 
     #
     # if new_template == True:
