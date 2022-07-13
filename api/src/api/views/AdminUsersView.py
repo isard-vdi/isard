@@ -29,8 +29,6 @@ from ..libv2.quotas import Quotas
 from ..libv2.validators import _validate_item
 
 quotas = Quotas()
-
-
 users = ApiUsers()
 
 from ..libv2.isardVpn import isardVpn
@@ -104,8 +102,13 @@ def api_v3_admin_user_update(payload, id=False):
 
     quotas.UserCreate(user["category"], user["group"])
 
+    data = _validate_item("user_update", data)
+
     if "password" in data:
         data["password"] = Password().encrypt(data["password"])
+
+    if "active" in data:
+        data["active"] = not data["active"]
 
     admin_table_update("users", data)
     return json.dumps({}), 200, {"Content-Type": "application/json"}

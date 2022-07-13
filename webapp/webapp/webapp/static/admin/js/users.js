@@ -567,32 +567,60 @@ function actionsUserDetail(){
 	});
 
 
-		$('.btn-active').on('click', function () {
-                var closest=$(this).closest("div");
-				var pk=closest.attr("data-pk");
-				var name=closest.attr("data-name");
-                new PNotify({
-						title: 'Confirmation Needed',
-							text: "Are you sure you want to enable/disable: "+name+"?",
-							hide: false,
-							opacity: 0.9,
-							confirm: {
-								confirm: true
-							},
-							buttons: {
-								closer: false,
-								sticker: false
-							},
-							history: {
-								history: false
-							},
-							addclass: 'pnotify-center'
-						}).get().on('pnotify.confirm', function() {
-                            socket.emit('user_toggle',{'pk':pk,'name':name})
-						}).on('pnotify.cancel', function() {
-                    });	
-                });
-        
+    $('.btn-active').on('click', function () {
+        var closest=$(this).closest("div");
+        var id=closest.attr("data-pk");
+        var name=closest.attr("data-name");
+        var active = users_table.row($(this).closest("tr").prev()).data().active
+        new PNotify({
+            title: 'Confirmation Needed',
+            text: "Are you sure you want to enable/disable: "+name+"?",
+            hide: false,
+            opacity: 0.9,
+            confirm: {
+                confirm: true
+            },
+            buttons: {
+                closer: false,
+                sticker: false
+            },
+            history: {
+                history: false
+            },
+            addclass: 'pnotify-center'
+        }).get().on('pnotify.confirm', function() {
+            $.ajax({
+                type: "PUT",
+                url: "/api/v3/admin/user/" + id,
+                data: JSON.stringify({ id, active }),
+                contentType: "application/json",
+                success: function(data) {
+                    $('form').each(function() { this.reset() });
+                    $('.modal').modal('hide');
+                    new PNotify({
+                        title: "Updated user " + name + " status ",
+                        text: "User status has been updated...",
+                        hide: true,
+                        delay: 4000,
+                        icon: 'fa fa-success',
+                        opacity: 1,
+                        type: "success"
+                    });
+                },
+                error: function(data) {
+                    new PNotify({
+                        title: "ERROR",
+                        text: "Can't update user status",
+                        type: 'error',
+                        hide: true,
+                        icon: 'fa fa-warning',
+                        delay: 15000,
+                        opacity: 1
+                    });
+                }
+            });
+        }).on('pnotify.cancel', function() {});
+    });
 }
 
 function modal_edit_user(id){
