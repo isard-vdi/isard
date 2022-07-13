@@ -1,10 +1,4 @@
 import json
-import logging as log
-import os
-import sys
-import time
-import traceback
-from uuid import uuid4
 
 from flask import request
 
@@ -34,7 +28,7 @@ def api_v3_admin_media(payload):
 def api_v3_desktops_media_list(payload):
     data = request.get_json(force=True)
     return (
-        json.dumps(api_media.GetMediaList(data["pk"])),
+        json.dumps(api_media.List(data["pk"])),
         200,
         {"Content-Type": "application/json"},
     )

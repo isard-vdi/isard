@@ -58,20 +58,11 @@ $(document).ready(function() {
 			}).modal('show');
             
             $('#modal-add-media-form-local').parsley();
-            //~ $('#modal-add-media-form-local #name').focus(function(){
-                //~ console.log(($(this).val()))
-                //~ if($(this).val()=='' && $('#modalAddMediaFormLocal #url').val() !=''){
-                    //~ console.log($('#modalAddMediaForm #url').val())
-                    //~ $(this).val($('#modalAddMediaForm #url').val().split('/').pop(-1));
-                //~ }
-            //~ });
             setAlloweds_add('#modalAddMediaLocal #upload-alloweds-add');
 	});
     
     var table=$('#media').DataTable( {
         "ajax": {
-                //~ "url": "/isard-admin/admin/table/isard-admin/media/get",
-                //~ "dataSrc": ""
 				"url": "/api/v3/admin/table/media",
                 "contentType": "application/json",
                 "type": 'POST',
@@ -84,13 +75,6 @@ $(document).ready(function() {
 			"rowId": "id",
 			"deferRender": true,
         "columns": [
-				//~ {setDropzone();
-                //~ "className":      'details-control',
-                //~ "orderable":      false,
-                //~ "data":           null,
-                //~ "width": "10px",
-                //~ "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
-				//~ },
             { "data": "icon", "width": "10px"},
             { "data": "name", "width": "100px"},
             { "data": "status", "width": "10px"},
@@ -138,10 +122,6 @@ $(document).ready(function() {
                             {
 							"targets": 7,
 							"render": function ( data, type, full, meta ) { 
-                                //~ if(full.status == 'Downloaded' || full.status == 'Stopped'){
-                                    //~ return '<button id="btn-createfromiso" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-desktop" style="color:darkgreen"></i></button>'
-                                //~ }
-                                //~ }else{
                                     if(full.status == 'Available' || full.status == "DownloadFailed"){
                                         return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button> \
                                                 <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
@@ -159,43 +139,30 @@ $(document).ready(function() {
                                         <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
                                     } 
                                 }
-                                //~ return full.status;                                 
                                 }}],
-        "initComplete": function() {
-                                //~ $('.progress .progress-bar').progressbar();
-                                //~ $('.progress-bar').progressbar();
-                              }
     } );
 
     $('#media').find(' tbody').on( 'click', 'button', function () {
-        var data = table.row( $(this).parents('tr') ).data();
+        data = table.row( $(this).parents('tr') ).data();
         switch($(this).attr('id')){
             case 'btn-delete':
-				new PNotify({
-						title: 'Confirmation Needed',
-							text: "Are you sure you want to delete this media: "+data.name+"?",
-							hide: false,
-							opacity: 0.9,
-							confirm: {
-								confirm: true
-							},
-							buttons: {
-								closer: false,
-								sticker: false
-							},
-							history: {
-								history: false
-							},
-							addclass: 'pnotify-center'
-						}).get().on('pnotify.confirm', function() {
-                            socket.emit('media_update',{'pk':data.id,'name':'status','value':'Deleting'})
-						}).on('pnotify.cancel', function() {
-				});
+                $("#modalDeleteMediaForm")[0];
+                $('#modalDeleteMediaForm #id').val(data['id']);
+                $('#modalDeleteMedia').modal({
+                    backdrop: 'static',
+                    keyboard: false
+                }).modal('show');
+                $.ajax({
+                    type: "GET",
+                    url: "/api/v3/admin/media/desktops/"+data['id'],
+                }).done(function(domains) {
+                    $('#table_modal_media_delete tbody').empty()
+                    $.each(domains, function(key, value) {
+                        infoDomains(value, $('#table_modal_media_delete tbody'));
+                    });
+                }); 
                 break;
              case 'btn-abort':
-                    //~ var pk=$(this).closest("div").attr("data-pk");
-                    //~ console.log('abort:'+pk)
-                    //~ var name=$(this).closest("div").attr("data-name");
                     new PNotify({
                             title: 'Confirmation Needed',
                                 text: "Are you sure you want to abort this download: "+data.name+"?",
@@ -263,16 +230,6 @@ $(document).ready(function() {
                 }
             break;		
         };
-
-
-        //~ $('btn-abort').on('click', function () {
-
-        //~ });
-        
-        //~ $('btn-delete').on('click', function () {
-
-        //~ });
-    
     });    
     
     $("#modalAddMedia #send").on('click', function(e){
@@ -303,6 +260,47 @@ $(document).ready(function() {
             }
         });
 
+        $('#modalDeleteMedia #send').on('click', function(e) {
+            media_id = $('#modalDeleteMediaForm #id').val()
+
+            var notice = new PNotify({
+                text: 'Deleting media...',
+                hide: false,
+                opacity: 1,
+                icon: 'fa fa-spinner fa-pulse'
+            })
+    
+            $.ajax({
+                type: 'DELETE',
+                url: '/api/v3/admin/media/'+media_id,
+                error: function(data) {
+                    notice.update({
+                        title: 'ERROR',
+                        text: 'Something went wrong',
+                        type: 'error',
+                        hide: true,
+                        icon: 'fa fa-warning',
+                        delay: 5000,
+                        opacity: 1
+                    })
+                },
+                success: function(data) {
+                    $('form').each(function() {
+                        this.reset()
+                    })
+                    $('.modal').modal('hide')
+                    notice.update({
+                        text: 'Media deleted successfully',
+                        hide: true,
+                        delay: 2000,
+                        icon: '',
+                        opacity: 1,
+                        type: 'success'
+                    })
+                }
+            })
+        });  
+
     // SocketIO
         socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/isard-admin/sio_admins', {
         'path': '/isard-admin/socket.io/',
@@ -326,16 +324,10 @@ $(document).ready(function() {
     });
 
     socket.on('media_data', function(data){
-        //~ console.log('add or update')
         var data = JSON.parse(data);
-            //~ $('#pbid_'+data.id).data('transitiongoal',data.percentage);
-            //~ $('#pbid_').css('width', data.percentage+'%').attr('aria-valuenow', data.percentage).text(data.percentage); 
-            //~ $('#psmid_'+data.id).text(data.percentage);
         dtUpdateInsert(table,data,false);
-        //~ $('.progress .progress-bar').progressbar();
     });
 
-    
     socket.on('media_delete', function(data){
         //~ console.log('delete')
         var data = JSON.parse(data);
@@ -350,7 +342,7 @@ $(document).ready(function() {
                 type: 'success'
         });
     });
-    
+
     socket.on('result', function (data) {
         var data = JSON.parse(data);
         new PNotify({
@@ -662,4 +654,21 @@ function modal_add_install_datatables(){
 
 }
 
+function setModalUser(){
+    api.ajax_async('/isard-admin/admin/userschema','POST','').done(function(d) {
+        $.each(d, function(key, value) {
+                $("." + key).find('option').remove().end();
+                for(var i in d[key]){
+                    if(value[i].id!='disposables' && value[i].id!='eval'){
+                        $("."+key).append('<option value=' + value[i].id + '>' + value[i].name + '</option>');
+                        //~ if(value[i].id=='local'){
+                            //~ $("."+key+' option[value="'+value[i]+'"]').prop("selected",true);
+                        //~ }
+                    }
+                }
+                $("."+key+' option[value="local"]').prop("selected",true);
+        });
+        $('#add-category').trigger("change")
+    });       
+}
 

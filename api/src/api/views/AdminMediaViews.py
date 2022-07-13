@@ -1,26 +1,24 @@
 import json
-import logging as log
-import os
 import time
 import traceback
 
 from flask import request
 from rethinkdb import RethinkDB
 
-#!flask/bin/python
-# coding=utf-8
 from api import app
 
 from ..libv2.api_admin import admin_table_insert
 from ..libv2.api_exceptions import Error
+from ..libv2.api_media import ApiMedia
 from ..libv2.flask_rethink import RDB
 from ..libv2.validators import _validate_item
-from .decorators import is_admin_or_manager
+from .decorators import has_token, is_admin_or_manager, ownsCategoryId
 
 r = RethinkDB()
 db = RDB(app)
 db.init_app(app)
 
+api_media = ApiMedia()
 
 # Add media
 @app.route("/api/v3/admin/media", methods=["POST"])
@@ -71,3 +69,22 @@ def api_v3_admin_media_insert(payload):
     admin_table_insert("media", data)
 
     return json.dumps({}), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/admin/media/desktops/<media_id>", methods=["GET"])
+@has_token
+def api_v3_admin_media_desktops(payload, media_id):
+    return (
+        json.dumps(api_media.DesktopList(media_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/media/<media_id>", methods=["DELETE"])
+@has_token
+def api_v3_admin_media_delete(payload, media_id):
+    media = api_media.Get(media_id)
+    ownsCategoryId(payload, media["category"])
+    api_media.DeleteDesktops(media_id)
+    return json.dumps(media_id), 200, {"Content-Type": "application/json"}
