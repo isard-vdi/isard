@@ -9,7 +9,7 @@
 			$(id+" #hardware-boot_order").find('option').remove();
 			$(id+" #hardware-qos_id").find('option').remove();
 			
-			api.ajax_async('/isard-admin/domains/hardware/allowed','GET','').done(function(hardware) {
+			api.ajax_async('/api/v3/user/hardware_allowed','GET','').done(function(hardware) {
 				if(hardware.nets.length == 1){
 					$(id+" #hardware-interfaces").attr("disabled",true);
 				}else{
