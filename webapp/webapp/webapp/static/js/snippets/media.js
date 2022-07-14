@@ -32,7 +32,7 @@
 				multiple: true,
 				ajax: {
 					type: "POST",
-					url: '/isard-admin/media/select2/post',
+					url: '/api/v3/admin/alloweds/term/media',
 					dataType: 'json',
 					contentType: "application/json",
 					delay: 250,
@@ -40,7 +40,7 @@
 						return  JSON.stringify({
 							term: params.term,
 							pluck: ['id','name'],
-                            kind: id.replace('m-','')
+							kind: id.replace('m-','')
 						});
 					},
 					processResults: function (data) {
