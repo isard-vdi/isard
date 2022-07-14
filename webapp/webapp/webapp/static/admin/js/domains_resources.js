@@ -251,29 +251,6 @@ $(document).ready(function() {
                     });             
                 });
             break;
-            case 'btn-delete':
-                // update_keyvalue on admin_api 
-                // update qos_id from all interfaces to false
-                new PNotify({
-                    title: 'Confirmation Needed',
-                        text: "Are you sure you want to delete: "+data.name+"? It will be removed from all depending interfaces.",
-                        hide: false,
-                        opacity: 0.9,
-                        confirm: {
-                            confirm: true
-                        },
-                        buttons: {
-                            closer: false,
-                            sticker: false
-                        },
-                        history: {
-                            history: false
-                        },
-                        addclass: 'pnotify-center'
-                    }).get().on('pnotify.confirm', function() {
-                        socket.emit('user_toggle',{'pk':pk,'name':name})
-                    }).on('pnotify.cancel', function() {
-                });	                
         }
     });
 

@@ -7,13 +7,13 @@
 # coding=utf-8
 import json
 
-from flask import Response, redirect, render_template, request, url_for
+from flask import render_template, request, url_for
 from flask_login import current_user, login_required
 
 from webapp import app
 
 from ..lib.log import *
-from .decorators import maintenance, ownsid, ownsidortag
+from .decorators import maintenance
 
 
 @app.route("/isard-admin/media", methods=["GET"])
@@ -57,20 +57,6 @@ def domain_media():
     return url_for("media")
 
 
-@app.route("/isard-admin/domain/media_list", methods=["POST"])
-@login_required
-@maintenance
-def domain_media_list():
-    if request.method == "POST":
-        data = request.get_json(force=True)
-        return (
-            json.dumps(app.isardapi.get_domain_media_list(data["pk"])),
-            200,
-            {"Content-Type": "application/json"},
-        )
-    return url_for("media")
-
-
 @app.route("/isard-admin/media/installs")
 @login_required
 @maintenance
@@ -94,8 +80,6 @@ def media_select2_post():
             kind = "iso"
         if data["kind"] == "floppies":
             kind = "floppy"
-        # ~ if 'order' not in data.keys():
-        # ~ data['order']=False
         result = app.isardapi.get_all_table_allowed_term(
             "media",
             kind,
@@ -111,21 +95,5 @@ def media_select2_post():
                 for r in result
                 if r["category"] == current_user.category or r["category"] == "default"
             ]
-        # ~ result=app.adminapi.get_admin_table_term('media','name',data['term'],kind=kind,pluck=data['pluck'])
         return json.dumps(result), 200, {"Content-Type": "application/json"}
     return json.dumps("Could not select."), 500, {"Content-Type": "application/json"}
-
-
-# ~ @app.route('/isard-admin/admin/table/<table>/post', methods=["POST"])
-# ~ @login_required
-# ~ @isAdmin
-# ~ def admin_table_post(table):
-# ~ if request.method == 'POST':
-# ~ data=request.get_json(force=True)
-# ~ if 'pluck' not in data.keys():
-# ~ data['pluck']=False
-# ~ #~ if 'order' not in data.keys():
-# ~ #~ data['order']=False
-# ~ result=app.adminapi.get_admin_table_term(table,'name',data['term'],pluck=data['pluck'])
-# ~ return json.dumps(result), 200, {'Content-Type':'application/json'}
-# ~ return json.dumps('Could not delete.'), 500, {'Content-Type':'application/json'}

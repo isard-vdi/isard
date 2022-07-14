@@ -17,22 +17,10 @@ from ..flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
-import json
-import os
-import random
 import traceback
-import uuid
-from datetime import datetime, timedelta
-
-import portion as P
-
-# import humanize
-import pytz
-import requests
-from jose import jwt
 
 from ..api_exceptions import Error
-from ..helpers import _check, _get_reservables, _parse_string
+from ..helpers import _check, _parse_string
 
 
 class Reservables:

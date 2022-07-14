@@ -13,7 +13,6 @@ from rethinkdb import RethinkDB
 from api import app
 
 r = RethinkDB()
-from rethinkdb.errors import ReqlTimeoutError
 
 from ..libv2.flask_rethink import RDB
 

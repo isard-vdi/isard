@@ -492,7 +492,6 @@ class QuotasProcess:
         category = self.process_category_limits(user_id, from_user_id=True)
         if item == "NewDesktop":
             if user != False and float(user["dqp"]) >= 100:
-                # return "New user desktop quota exceeded."
                 raise Error(
                     "precondition_required",
                     "User "
@@ -502,7 +501,6 @@ class QuotasProcess:
                     user,
                 )
             if group != False and float(group["dqp"]) >= 100:
-                # return "New group desktop quota exceeded."
                 raise Error(
                     "precondition_required",
                     "Group "
@@ -512,7 +510,6 @@ class QuotasProcess:
                     group,
                 )
             if category != False and float(category["dqp"]) >= 100:
-                # return "New category desktop quota exceeded."
                 raise Error(
                     "precondition_required",
                     "Category "
@@ -525,7 +522,6 @@ class QuotasProcess:
         if item == "NewConcurrent":
             if user != False:
                 if float(user["rqp"]) >= 100:
-                    # return "New user concurrent desktop quota exceeded."
                     raise Error(
                         "precondition_required",
                         "User "
@@ -535,7 +531,6 @@ class QuotasProcess:
                         user,
                     )
                 if float(user["vqp"]) >= 100:
-                    # return "New user concurrent desktop quota for vCPU exceeded."
                     raise Error(
                         "precondition_required",
                         "User "
@@ -545,7 +540,6 @@ class QuotasProcess:
                         user,
                     )
                 if float(user["mqp"]) >= 100:
-                    # return "New user concurrent desktop quota for MEMORY exceeded."
                     raise Error(
                         "precondition_required",
                         "User "
@@ -556,7 +550,6 @@ class QuotasProcess:
                     )
             if group != False:
                 if float(group["rqp"]) >= 100:
-                    # return "New group concurrent desktop quota exceeded."
                     raise Error(
                         "precondition_required",
                         "Group "
@@ -566,7 +559,6 @@ class QuotasProcess:
                         group,
                     )
                 if float(group["vqp"]) >= 100:
-                    # return "New group concurrent desktop quota for vCPU exceeded."
                     raise Error(
                         "precondition_required",
                         "Group "
@@ -576,7 +568,6 @@ class QuotasProcess:
                         group,
                     )
                 if float(group["mqp"]) >= 100:
-                    # return "New group concurrent desktop quota for MEMORY exceeded."
                     raise Error(
                         "precondition_required",
                         "Group "
@@ -587,7 +578,6 @@ class QuotasProcess:
                     )
             if category != False:
                 if float(category["rqp"]) >= 100:
-                    # return "New category concurrent desktop quota exceeded."
                     raise Error(
                         "precondition_required",
                         "Category"
@@ -597,7 +587,6 @@ class QuotasProcess:
                         category,
                     )
                 if float(category["vqp"]) >= 100:
-                    # return "New category concurrent desktop quota for vCPU exceeded."
                     raise Error(
                         "precondition_required",
                         "Category"
@@ -607,7 +596,6 @@ class QuotasProcess:
                         category,
                     )
                 if float(category["mqp"]) >= 100:
-                    # return "New category concurrent desktop quota for MEMORY exceeded."
                     raise Error(
                         "precondition_required",
                         "Category"
@@ -619,7 +607,6 @@ class QuotasProcess:
 
         if item == "NewTemplate":
             if user != False and float(user["tqp"]) >= 100:
-                # return "New user template quota exceeded."
                 raise Error(
                     "precondition_required",
                     "User "
@@ -629,7 +616,6 @@ class QuotasProcess:
                     user,
                 )
             if group != False and float(group["tqp"]) >= 100:
-                # return "New group template quota exceeded."
                 raise Error(
                     "precondition_required",
                     "Group "
@@ -639,7 +625,6 @@ class QuotasProcess:
                     group,
                 )
             if category != False and float(category["tqp"]) >= 100:
-                # return "New category template quota exceeded."
                 raise Error(
                     "precondition_required",
                     "Category "
@@ -651,7 +636,6 @@ class QuotasProcess:
 
         if item == "NewIso":
             if user != False and float(user["iqp"]) >= 100:
-                # return "New user iso upload quota exceeded."
                 raise Error(
                     "precondition_required",
                     "User "
@@ -661,7 +645,6 @@ class QuotasProcess:
                     user,
                 )
             if group != False and float(group["iqp"]) >= 100:
-                # return "New group iso upload quota exceeded."
                 raise Error(
                     "precondition_required",
                     "Group "
@@ -671,7 +654,6 @@ class QuotasProcess:
                     group,
                 )
             if category != False and float(category["iqp"]) >= 100:
-                # return "New category iso upload quota exceeded."
                 raise Error(
                     "precondition_required",
                     "Category "
@@ -683,7 +665,6 @@ class QuotasProcess:
 
         if item == "NewUser":
             if group != False and float(group["uqp"]) >= 100:
-                # return "New group add user quota exceeded."
                 raise Error(
                     "precondition_required",
                     "Group "
@@ -693,7 +674,6 @@ class QuotasProcess:
                     group,
                 )
             if category != False and float(category["uqp"]) >= 100:
-                # return "New category add user quota exceeded."
                 raise Error(
                     "precondition_required",
                     "Category "
@@ -705,15 +685,6 @@ class QuotasProcess:
 
         if item == "NewUsers":
             if group != False and group["u"] + amount > group["uq"]:
-                # return (
-                #     "New group add user quota exceeded. You want to insert "
-                #     + str(amount)
-                #     + " users and your group already has "
-                #     + str(group["u"])
-                #     + "/"
-                #     + str(group["uq"])
-                #     + " users."
-                # )
                 raise Error(
                     "precondition_required",
                     "Group "
@@ -725,15 +696,6 @@ class QuotasProcess:
                     group,
                 )
             if category != False and category["u"] + amount > category["uq"]:
-                # return (
-                #     "New category add user quota exceeded. You want to insert "
-                #     + str(amount)
-                #     + " users and your category already has "
-                #     + str(category["u"])
-                #     + "/"
-                #     + str(category["uq"])
-                #     + " users."
-                # )
                 raise Error(
                     "precondition_required",
                     "Category "
@@ -753,7 +715,6 @@ class QuotasProcess:
         category = self.process_category_limits(category_id, from_user_id=False)
 
         if group != False and float(group["uqp"]) >= 100:
-            # return "New group add user quota exceeded."
             raise Error(
                 "precondition_required",
                 "Group " + group["group"]["name"] + " quota exceeded for creating user",
@@ -761,7 +722,6 @@ class QuotasProcess:
                 group,
             )
         if category != False and float(category["uqp"]) >= 100:
-            # return "New category add user quota exceeded."
             raise Error(
                 "precondition_required",
                 "Category "
@@ -826,7 +786,6 @@ class QuotasProcess:
             order="name",
             query_merge=False,
         )
-        # ~ dict['disks']=allowed.get_items_allowed(user_id,'disks',pluck=['id','name','description'],order='name')
         dict["graphics"] = allowed.get_items_allowed(
             payload,
             "graphics",
@@ -848,7 +807,6 @@ class QuotasProcess:
             order="name",
             query_merge=False,
         )
-        # dict['forced_hyp'].insert(0,{'id':'default','hostname':'Auto','description':'Hypervisor pool default'})
         dict["qos_id"] = allowed.get_items_allowed(
             payload,
             "qos_disk",

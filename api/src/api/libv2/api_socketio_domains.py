@@ -4,10 +4,8 @@
 #      Josep Maria Viñolas Auquer
 #      Alberto Larraz Dalmases
 # License: AGPLv3
-import os
+
 import time
-from datetime import datetime, timedelta
-from pprint import pprint
 
 from rethinkdb import RethinkDB
 
@@ -18,7 +16,7 @@ import json
 import logging as log
 import traceback
 
-from rethinkdb.errors import ReqlDriverError, ReqlTimeoutError
+from rethinkdb.errors import ReqlDriverError
 
 from ..libv2.api_desktops_common import ApiDesktopsCommon
 from .flask_rethink import RDB
@@ -30,16 +28,7 @@ common = ApiDesktopsCommon()
 import threading
 
 from flask import request
-from flask_socketio import (
-    SocketIO,
-    close_room,
-    disconnect,
-    emit,
-    join_room,
-    leave_room,
-    rooms,
-    send,
-)
+from flask_socketio import join_room, leave_room
 
 from .. import socketio
 from .api_cards import ApiCards
@@ -48,7 +37,7 @@ api_cards = ApiCards()
 
 threads = {}
 
-from flask import Flask, _request_ctx_stack, jsonify, request
+from flask import request
 
 from ..auth.tokens import Error, get_token_payload
 from .api_exceptions import Error
@@ -58,10 +47,7 @@ from .helpers import (
     _parse_desktop,
 )
 
-# from flask_cors import cross_origin
 
-
-## Domains Threading
 class DomainsThread(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
@@ -268,9 +254,6 @@ class DomainsThread(threading.Thread):
                 log.error("DomainsThread internal error: restarting")
                 log.error(traceback.format_exc())
                 time.sleep(2)
-
-        print("DomainsThread ENDED!!!!!!!")
-        log.error("DomainsThread ENDED!!!!!!!")
 
 
 def start_domains_thread():

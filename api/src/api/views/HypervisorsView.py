@@ -6,10 +6,7 @@
 import json
 import logging as log
 import os
-import sys
-import time
 import traceback
-from uuid import uuid4
 
 from flask import request
 
@@ -73,18 +70,6 @@ def api_v3_guest_addr():
         200,
         {"Content-Type": "application/json"},
     )
-
-
-# Not directly used anymore
-# @app.route('/api/v2/hypervisor_certs', methods=['GET'])
-# def api_v2_hypervisor_certs():
-#     try:
-#         certs=api_hypervisors.get_hypervisors_certs()
-#         return json.dumps(certs), 200, {'Content-Type': 'application/json'}
-#     except Exception as e:
-#         error = traceback.format_exc()
-#         log.error("ViewerCerts general exception" + error)
-#         return json.dumps({"error": "undefined_error","msg":"ViewerCerts general exception: " + error }), 500, {'Content-Type': 'application/json'}
 
 
 @app.route("/api/v3/hypervisor", methods=["POST"])
@@ -223,46 +208,3 @@ def api_v3_hypervisor_media_delete():
 def api_v3_hypervisors_gpus(payload):
     api_hypervisors.assign_gpus()
     return json.dumps(True), 200, {"Content-Type": "application/json"}
-
-
-# @app.route('/api/v3/hypervisor/groups_found', methods=['POST'])
-# @is_hyper
-# def api_v3_hypervisor_groups_found():
-#     try:
-#         api_hypervisors.update_disks_found('groups',request.get_json(force=True))
-#         return json.dumps(True), 200, {'Content-Type': 'application/json'}
-#     except Exception as e:
-#         error = traceback.format_exc()
-#         log.error("HypervisorMediaFound general exception" + error)
-#         return json.dumps({"error": "undefined_error","msg":"HypervisorMediaFound general exception: " + error }), 500, {'Content-Type': 'application/json'}
-
-
-# @app.route('/api/v3/vlans', methods=['GET','POST'])
-# @is_hyper
-# def api_v3_vlans():
-#     if request.method == 'POST':
-#         try:
-#             vlans = request.get_json(force=True)
-#         except Exception as e:
-#             error = traceback.format_exc()
-#             return json.dumps({"error": "undefined_error","msg":"Incorrect access. exception: " + error }), 500, {'Content-Type': 'application/json'}
-
-#         try:
-#             api_hypervisors.add_vlans(vlans)
-#             return json.dumps({}), 200, {'Content-Type': 'application/json'}
-#         except Exception as e:
-#             error = traceback.format_exc()
-#             log.error("Vlans add general exception" + error)
-#             return json.dumps({"error": "undefined_error","msg":"Vlans add general exception: " + error }), 500, {'Content-Type': 'application/json'}
-
-#     if request.method == 'GET':
-#         try:
-#             vlans=api_hypervisors.get_vlans()
-#             return json.dumps(vlans), 200, {'Content-Type': 'application/json'}
-#         except Exception as e:
-#             error = traceback.format_exc()
-#             log.error("Vlans general exception" + error)
-#             return json.dumps({"error": "undefined_error","msg":"Vlans general exception: " + error }), 500, {'Content-Type': 'application/json'}
-
-#     log.error("Incorrect access parameters. Check your query.")
-#     return json.dumps({"error": "undefined_error","msg":"Incorrect access parameters. Check your query." }), 500, {'Content-Type': 'application/json'}

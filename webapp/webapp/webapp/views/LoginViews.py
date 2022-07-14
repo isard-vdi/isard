@@ -7,43 +7,13 @@ import requests
 
 #!flask/bin/python
 # coding=utf-8
-from flask import (
-    flash,
-    jsonify,
-    make_response,
-    redirect,
-    render_template,
-    request,
-    url_for,
-)
+from flask import flash, jsonify, make_response, redirect, render_template, request
 from flask_login import current_user, login_required, login_user, logout_user
 
 from webapp import app
 
 from ..auth.authentication import *
 from ..lib.log import *
-
-""" @app.route('/isard-admin/admin', methods=['POST', 'GET'])
-def login():
-    if request.method == 'POST':
-        if request.form['user'] == '' or request.form['password'] == '':
-            flash("Can't leave it blank",'danger')
-        elif request.form['user'].startswith(' '):
-            flash('Username not found or incorrect password.','warning')
-        else:
-            au=auth()
-            user=au.check(request.form['user'],request.form['password'])
-            if user:
-                if user.auto != False:
-                    app.isardapi.new_domains_auto_user(user.username,user.auto)
-                login_user(user)
-                flash('Logged in successfully.','success')
-                if user.is_admin:
-                    return render_template('admin/pages/hypervisors.html', title="Hypervisors", header="Hypervisors", nav="Hypervisors")
-                return render_template('pages/desktops.html', title="Desktops", nav="Desktops")
-            else:
-                flash('Username not found or incorrect password.','warning')
-    return render_template('login.html') """
 
 
 @app.route("/isard-admin", methods=["POST", "GET"])

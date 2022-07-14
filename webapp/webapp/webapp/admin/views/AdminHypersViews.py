@@ -8,7 +8,7 @@
 import json
 import time
 
-from flask import Response, flash, redirect, render_template, request, url_for
+from flask import flash, render_template, request
 from flask_login import login_required
 
 from webapp import app

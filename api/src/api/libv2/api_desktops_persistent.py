@@ -16,6 +16,7 @@ from api import app
 from .api_exceptions import Error
 
 r = RethinkDB()
+import logging as log
 
 from .flask_rethink import RDB
 
@@ -178,7 +179,6 @@ class ApiDesktopsPersistent:
             user = r.table("users").get(payload["user_id"]).run(db.conn)
 
         with app.app_context():
-            import logging as log
 
             log.info(data["id"])
             if r.table("domains").get(data["id"]).run(db.conn):

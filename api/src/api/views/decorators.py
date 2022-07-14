@@ -3,8 +3,6 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
-import json
-import os
 from functools import wraps
 
 from flask import request
@@ -15,12 +13,9 @@ from api import app
 from ..libv2.api_exceptions import Error
 
 r = RethinkDB()
-import logging
 import traceback
 
-from flask import Flask, _request_ctx_stack, abort, jsonify, request
-from jose import jwt
-from rethinkdb.errors import ReqlTimeoutError
+from flask import abort, request
 
 from ..libv2.flask_rethink import RDB
 
@@ -262,7 +257,7 @@ def ownsDomainId(payload, domain_id):
 
     raise Error(
         "forbidden",
-        "Not enough access rights to access this desktop_id " + str(desktop_id),
+        "Not enough access rights to access this desktop_id " + str(domain_id),
         traceback.format_exc(),
     )
 

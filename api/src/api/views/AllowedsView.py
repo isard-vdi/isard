@@ -15,7 +15,7 @@ from ..libv2.api_admin import admin_table_get, admin_table_update
 from ..libv2.api_allowed import ApiAllowed
 from ..libv2.api_exceptions import Error
 from ..libv2.validators import _validate_item
-from .decorators import has_token, owns_table_item_id, ownsDomainId
+from .decorators import has_token, owns_table_item_id
 
 alloweds = ApiAllowed()
 

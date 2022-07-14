@@ -4,10 +4,9 @@
 #      Josep Maria Viñolas Auquer
 #      Alberto Larraz Dalmases
 # License: AGPLv3
-import time
-from datetime import datetime, timedelta
 
-import pytz
+import time
+
 from rethinkdb import RethinkDB
 
 from api import app
@@ -15,18 +14,13 @@ from api import app
 r = RethinkDB()
 import logging as log
 
-from rethinkdb.errors import ReqlTimeoutError
-
 from .flask_rethink import RDB
 
 db = RDB(app)
 db.init_app(app)
 
-
 import random
 import string
-
-import bcrypt
 
 from ..libv2.isardViewer import isardViewer
 

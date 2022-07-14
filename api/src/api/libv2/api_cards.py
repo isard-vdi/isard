@@ -4,13 +4,10 @@
 #      Josep Maria Viñolas Auquer
 #      Alberto Larraz Dalmases
 # License: AGPLv3
-import ipaddress
-import os
-import time
-import traceback
-from datetime import datetime, timedelta
 
-import requests
+import os
+import traceback
+
 from rethinkdb import RethinkDB
 
 from api import app
@@ -30,10 +27,8 @@ import mimetypes
 import uuid
 from io import BytesIO
 from pathlib import Path
-from subprocess import check_call, check_output
 
 from PIL import Image, ImageOps
-from werkzeug.utils import secure_filename
 
 from ..auth.authentication import *
 from .genimage import gen_img_from_name

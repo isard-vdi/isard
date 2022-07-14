@@ -10,7 +10,6 @@ from rethinkdb import RethinkDB
 from api import app
 
 r = RethinkDB()
-import os
 import traceback
 
 from .api_exceptions import Error

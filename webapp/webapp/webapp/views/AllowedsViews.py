@@ -21,14 +21,6 @@ from ..lib.quotas import QuotaLimits
 
 quotas = QuotaLimits()
 
-# Will get allowed hardware resources for current_user
-@app.route("/isard-admin/domains/hardware/allowed", methods=["GET"])
-@login_required
-@maintenance
-def domains_hardware_allowed():
-    return json.dumps(quotas.user_hardware_allowed(current_user.id))
-
-
 # Will get allowed hardware quota max resources for current_user
 @app.route("/isard-admin/<kind>/quotamax", methods=["GET"])
 @app.route("/isard-admin/<kind>/quotamax/<id>", methods=["GET"])
@@ -49,90 +41,6 @@ def user_quota_max(kind, id=False):
         if id == False:
             id = current_user.group
         return json.dumps(quotas.get_group(id))
-
-
-# Get hardware for domain
-@app.route("/isard-admin/domains/hardware", methods=["POST"])
-@login_required
-@maintenance
-def domains_hadware():
-    try:
-        hs = request.get_json(force=True)["hs"]
-    except:
-        hs = False
-    try:
-        hardware = app.isardapi.get_domain_create_dict(
-            request.get_json(force=True)["pk"], human_size=hs, flatten=False
-        )
-        hardware["hardware"]["memory"] = hardware["hardware"]["memory"] / 1048576
-        return json.dumps(hardware)
-    except:
-        return json.dumps([])
-
-
-# Who has acces to a table item
-@app.route("/isard-admin/alloweds/table/<table>", methods=["POST"])
-@login_required
-@maintenance
-@ownsidortag
-def alloweds_table(table):
-    return json.dumps(
-        app.isardapi.get_alloweds_select2(
-            app.adminapi.get_admin_table(
-                table,
-                pluck=["allowed"],
-                id=request.get_json(force=True)["pk"],
-                flatten=False,
-            )["allowed"]
-        )
-    )
-
-
-# Gets all list of roles, categories, groups and users from a 2+ chars term
-@app.route("/isard-admin/alloweds/term/<table>", methods=["POST"])
-@login_required
-@maintenance
-def alloweds_table_term(table):
-    if request.method == "POST" and table in ["roles", "categories", "groups", "users"]:
-        data = request.get_json(force=True)
-        data["pluck"] = ["id", "name"]
-        if current_user.role == "admin":
-            if table == "groups":
-                result = app.adminapi.get_admin_table_term(
-                    table, "id", data["term"], pluck=["id", "name", "parent_category"]
-                )
-            elif table == "users":
-                result = app.adminapi.get_admin_table_term(
-                    table, "id", data["term"], pluck=["id", "name", "uid"]
-                )
-            else:
-                result = app.adminapi.get_admin_table_term(
-                    table, "name", data["term"], pluck=data["pluck"]
-                )
-        else:
-            if table == "roles":
-                result = app.adminapi.get_admin_table_term(
-                    table, "name", data["term"], pluck=data["pluck"]
-                )
-            if table == "categories":
-                result = app.adminapi.get_admin_table_term(
-                    table, "name", data["term"], pluck=data["pluck"]
-                )
-                result = [c for c in result if c["id"] == current_user.category]
-            if table == "groups":
-                result = app.adminapi.get_admin_table_term(
-                    table, "id", data["term"], pluck=["id", "name", "parent_category"]
-                )
-                result = [
-                    g for g in result if g["id"].startswith(current_user.category)
-                ]
-            if table == "users":
-                result = app.adminapi.get_admin_table_term(
-                    table, "name", data["term"], pluck=["id", "name", "category", "uid"]
-                )
-                result = [u for u in result if u["category"] == current_user.category]
-        return json.dumps(result), 200, {"Content-Type": "application/json"}
-    return json.dumps("Could not select."), 500, {"Content-Type": "application/json"}
 
 
 @app.route("/isard-admin/domains/removable", methods=["POST"])

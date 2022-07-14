@@ -33,7 +33,6 @@ class loadConfig:
                 app.system_tables = r.table_list().run(conn)
                 ready = True
             except Exception as e:
-                # print(traceback.format_exc())
                 print(
                     "Database server "
                     + app.config["RETHINKDB_HOST"]

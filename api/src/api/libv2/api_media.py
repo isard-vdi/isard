@@ -6,9 +6,6 @@
 # License: AGPLv3
 
 import traceback
-from datetime import datetime, timedelta
-from pprint import pprint
-from urllib import response
 
 from rethinkdb import RethinkDB
 
@@ -23,7 +20,7 @@ from ..libv2.api_cards import ApiCards
 
 api_cards = ApiCards()
 
-from ..libv2.api_admin import admin_table_delete, admin_table_update
+from ..libv2.api_admin import admin_table_update
 from ..libv2.api_desktops_persistent import ApiDesktopsPersistent
 from .api_allowed import ApiAllowed
 from .api_exceptions import Error

@@ -4,10 +4,8 @@
 #      Josep Maria Viñolas Auquer
 #      Alberto Larraz Dalmases
 # License: AGPLv3
-import os
+
 import time
-from datetime import datetime, timedelta
-from pprint import pprint
 
 from rethinkdb import RethinkDB
 
@@ -20,7 +18,7 @@ import json
 import logging as log
 import traceback
 
-from rethinkdb.errors import ReqlDriverError, ReqlTimeoutError
+from rethinkdb.errors import ReqlDriverError
 
 from .flask_rethink import RDB
 
@@ -29,31 +27,11 @@ db.init_app(app)
 
 import threading
 
-from flask import request
-from flask_socketio import (
-    SocketIO,
-    close_room,
-    disconnect,
-    emit,
-    join_room,
-    leave_room,
-    rooms,
-    send,
-)
-
 from .. import socketio
 
 threads = {}
 
-from flask import Flask, _request_ctx_stack, jsonify, request
 
-from ..auth.tokens import Error, get_token_payload
-from .helpers import _parse_desktop
-
-# from flask_cors import cross_origin
-
-
-## deployments Threading
 class DeploymentsThread(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)

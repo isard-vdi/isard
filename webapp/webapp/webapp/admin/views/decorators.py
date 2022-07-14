@@ -6,7 +6,7 @@
 from functools import wraps
 
 import rethinkdb as r
-from flask import Flask, abort, redirect, render_template, request, url_for
+from flask import render_template, request
 from flask_login import current_user, logout_user
 
 from webapp import app

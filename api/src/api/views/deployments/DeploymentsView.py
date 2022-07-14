@@ -16,7 +16,7 @@ quotas = Quotas()
 
 from api.libv2.deployments import api_deployments
 
-from ..decorators import has_token, is_not_user, ownsDeploymentId
+from ..decorators import is_not_user, ownsDeploymentId
 
 
 @app.route("/api/v3/deployment/<deployment_id>", methods=["GET"])

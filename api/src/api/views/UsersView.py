@@ -33,7 +33,7 @@ from ..libv2.isardVpn import isardVpn
 
 vpn = isardVpn()
 
-from .decorators import has_token, is_admin, is_auto_register, is_register
+from .decorators import has_token, is_auto_register, is_register
 
 """
 Users jwt endpoints

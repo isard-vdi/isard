@@ -7,7 +7,7 @@
 import pickle
 import tarfile
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from rethinkdb import RethinkDB
 from werkzeug.utils import secure_filename
@@ -18,7 +18,6 @@ from .api_exceptions import Error
 
 r = RethinkDB()
 import logging as log
-import traceback
 
 from .flask_rethink import RDB
 
@@ -27,8 +26,6 @@ db.init_app(app)
 
 from ..auth.authentication import *
 from .api_exceptions import Error
-from .helpers import _check, _parse_string
-from .validators import _validate_item, _validate_table
 
 
 def remove_backup_db(id):
@@ -142,7 +139,6 @@ def restore_db(id):
                     )
                 )
                 continue
-                # ~ return False
             else:
                 log.info("Restoring table {}".format(k))
                 with app.app_context():
@@ -173,13 +169,10 @@ def download_backup(id):
 def info_backup_db(id):
     with app.app_context():
         dict = r.table("backups").get(id).run(db.conn)
-        # ~ r.table('backups').get(id).update({'status':'Uncompressing backup'}).run(db.conn)
     path = dict["path"]
     with tarfile.open(path + id + ".tar.gz", "r:gz") as tar:
         tar.extractall(path)
         tar.close()
-    # ~ with app.app_context():
-    # ~ r.table('backups').get(id).update({'status':'Loading data..'}).run(db.conn)
     with open(path + id + ".rethink", "rb") as tbl_data_file:
         tbl_data = pickle.load(tbl_data_file)
     with open(path + id + ".json", "rb") as isard_db_file:
@@ -188,10 +181,6 @@ def info_backup_db(id):
     for sch in isard_db["scheduler_jobs"]:
         isard_db["scheduler_jobs"][i].pop("job_state", None)
         i = i + 1
-    # ~ i=0
-    # ~ for sch in isard_db['users']:
-    # ~ isard_db['users'][i].pop('password',None)
-    # ~ i=i+1
     try:
         os.remove(path + id + ".json")
         os.remove(path + id + ".rethink")
@@ -224,16 +213,10 @@ def upload_backup(handler):
     id = handler.filename.split(".tar.gz")[0]
     filename = secure_filename(handler.filename)
     handler.save(os.path.join(path + filename))
-    # ~ with app.app_context():
-    # ~ dict=r.table('backups').get(id).run(db.conn)
-    # ~ r.table('backups').get(id).update({'status':'Uncompressing backup'}).run(db.conn)
-    # ~ path=dict['path']
 
     with tarfile.open(path + handler.filename, "r:gz") as tar:
         tar.extractall(path)
         tar.close()
-    # ~ with app.app_context():
-    # ~ r.table('backups').get(id).update({'status':'Loading data..'}).run(db.conn)
     with open(path + id + ".rethink", "rb") as isard_rethink_file:
         isard_rethink = pickle.load(isard_rethink_file)
     with app.app_context():
