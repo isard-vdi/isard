@@ -1602,7 +1602,14 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
         .get("hardware", {})
         .get("not_change_cpu_section")
     ):
-        x.set_cpu_host_model(cpu_host_model)
+        if (
+            dict_domain.get("create_dict", {})
+            .get("hardware", {})
+            .get("nested_virtualization")
+        ):
+            x.set_cpu_host_model("host-passthrough")
+        else:
+            x.set_cpu_host_model(cpu_host_model)
 
     # spice video compression
     # x.add_spice_graphics_if_not_exist()
