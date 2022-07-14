@@ -1387,6 +1387,11 @@ class isard:
             .get("hardware", {})
             .get("not_change_cpu_section", False)
         )
+        hardware["nested_virtualization"] = (
+            desktop.get("create_dict", {})
+            .get("hardware", {})
+            .get("nested_virtualization", False)
+        )
 
         if "roles" not in form_data["allowed"].keys():
             form_data["allowed"]["roles"] = False
@@ -1648,6 +1653,11 @@ class isard:
             dom.get("create_dict", {})
             .get("hardware", {})
             .get("not_change_cpu_section", False)
+        )
+        create_dict["hardware"]["nested_virtualization"] = (
+            dom.get("create_dict", {})
+            .get("hardware", {})
+            .get("nested_virtualization", False)
         )
 
         new_create_dict = {
