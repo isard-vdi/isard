@@ -87,7 +87,7 @@ class ApiAllowed:
                     )
             else:
                 if len(query_pluck) > 0:
-                    query = query.pluck(query_pluck)
+                    query = query.pluck(["allowed"] + query_pluck)
             if order:
                 query = query.order_by(order)
             with app.app_context():
@@ -102,16 +102,15 @@ class ApiAllowed:
                     item["editable"] = True
                     allowed.append(item)
                     continue
-                if (
-                    payload["role_id"] == "manager"
-                    and payload["category_id"] == item["category"]
-                ):
+                if payload["role_id"] == "manager" and payload[
+                    "category_id"
+                ] == item.get("category"):
                     item["editable"] = True
                     allowed.append(item)
                     continue
                 if not payload.get("user_id", False):
                     continue
-                if item["user"] == payload["user_id"]:
+                if item.get("user") == payload["user_id"]:
                     item["editable"] = True
                     allowed.append(item)
                     continue
@@ -133,7 +132,11 @@ class ApiAllowed:
                             continue
                 if item["allowed"]["groups"] is not False:
                     if len(item["allowed"]["groups"]) == 0:
-                        allowed.append(item)
+                        if table in ["domains", "media"]:
+                            if item.get("category") == payload["category_id"]:
+                                allowed.append(item)
+                        else:
+                            allowed.append(item)
                         continue
                     else:
                         if payload["group_id"] in item["allowed"]["groups"]:
@@ -141,7 +144,11 @@ class ApiAllowed:
                             continue
                 if item["allowed"]["users"] is not False:
                     if len(item["allowed"]["users"]) == 0:
-                        allowed.append(item)
+                        if table in ["domains", "media"]:
+                            if item.get("category") == payload["category_id"]:
+                                allowed.append(item)
+                        else:
+                            allowed.append(item)
                         continue
                     else:
                         if payload["user_id"] in item["allowed"]["users"]:
