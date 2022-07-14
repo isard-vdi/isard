@@ -623,25 +623,6 @@ function actionsUserDetail(){
     });
 }
 
-function modal_edit_user(id){
-    
-	$.ajax({
-		type: "GET",
-		url:"/isard-admin/desktops/templateUpdate/" + id,
-		success: function(data)
-		{
-            $('#modalEditDesktop #forced_hyp').closest("div").remove();
-			$('#modalEditDesktop #name_hidden').val(data.name);
-            $('#modalEditDesktop #name').val(data.name);
-			$('#modalEditDesktop #description').val(data.description);
-            $('#modalEditDesktop #id').val(data.id);
-            setHardwareDomainDefaults('#modalEditDesktop', id);
-		}				
-	});
-  
-    
-}
-
 function renderUsersDetailPannel ( d ) {
     if(d.id == 'local-default-admin-admin'){
         $('.template-detail-users .btn-delete').hide()

@@ -95,58 +95,63 @@
 			}); 
 	}
     
-	function setHardwareDomainDefaults(div_id,domain_id){
-			// id is the domain id
-            $(div_id+' #hardware-interfaces option:selected').prop("selected", false);
-            $(div_id+' #hardware-graphics option:selected').prop("selected", false);
-            $(div_id+' #hardware-videos option:selected').prop("selected", false);
-            $(div_id+' #hardware-boot_order option:selected').prop("selected", false);
-			api.ajax('/api/v3/domain/hardware/'+domain_id,'GET','').done(function(domain) {
-				$.each(domain.hardware.interfaces, function(k,value){
-					$(div_id+' #hardware-interfaces option[value="'+value+'"]').prop("selected",true);
-				})
-				$(div_id+' #hardware-graphics option[value="'+domain.hardware.graphics[0].type+'"]').prop("selected",true);
-                $(div_id+' #hardware-videos option[value="'+domain.hardware.videos[0]+'"]').prop("selected",true);
-                $(div_id+' #hardware-diskbus option[value="'+domain.hardware.disks[0].bus+'"]').prop("selected",true);
-                
-                // Need to talk with engine and change this
-                if(domain.hardware.boot_order[0]=='hd'){domain.hardware.boot_order[0]='disk'}
-                if(domain.hardware.boot_order[0]=='cdrom'){domain.hardware.boot_order[0]='iso'}
-                if(domain.hardware.boot_order[0]=='network'){domain.hardware.boot_order[0]='pxe'}
-                $(div_id+' #hardware-boot_order option[value="'+domain.hardware.boot_order[0]+'"]').prop("selected",true);
+	function setHardwareDomainIdDefaults(div_id,domain_id){
+		api.ajax('/api/v3/domain/hardware/'+domain_id,'GET','').done(function(domain) {
+			setHardwareDomainDefaults(div_id,domain)
+		})
+	}
+	
+	function setHardwareDomainDefaults(div_id,domain){
+		// id is the domain id
+		$(div_id+' #hardware-interfaces option:selected').prop("selected", false);
+		$(div_id+' #hardware-graphics option:selected').prop("selected", false);
+		$(div_id+' #hardware-videos option:selected').prop("selected", false);
+		$(div_id+' #hardware-boot_order option:selected').prop("selected", false);
 
-				if(domain.hardware.memory > $(div_id+' #hardware-memory option:last-child').val()){
-					$(div_id+' #hardware-memory option:last-child').prop("selected",true);
-				}else{
-					if($(div_id+' #hardware-memory option[value="'+domain.hardware.memory+'"]').length > 0){
-						$(div_id+' #hardware-memory option[value="'+domain.hardware.memory+'"]').prop("selected",true);
-					}else{
-						$(div_id+' #hardware-memory option:first').prop("selected",true);
-					}
-				}
+		$.each(domain.hardware.interfaces, function(k,value){
+			$(div_id+' #hardware-interfaces option[value="'+value+'"]').prop("selected",true);
+		})
+		$(div_id+' #hardware-graphics option[value="'+domain.hardware.graphics[0].type+'"]').prop("selected",true);
+		$(div_id+' #hardware-videos option[value="'+domain.hardware.videos[0]+'"]').prop("selected",true);
+		$(div_id+' #hardware-diskbus option[value="'+domain.hardware.disks[0].bus+'"]').prop("selected",true);
+		
+		// Need to talk with engine and change this
+		if(domain.hardware.boot_order[0]=='hd'){domain.hardware.boot_order[0]='disk'}
+		if(domain.hardware.boot_order[0]=='cdrom'){domain.hardware.boot_order[0]='iso'}
+		if(domain.hardware.boot_order[0]=='network'){domain.hardware.boot_order[0]='pxe'}
+		$(div_id+' #hardware-boot_order option[value="'+domain.hardware.boot_order[0]+'"]').prop("selected",true);
 
-				if(domain.hardware.vcpus > $(div_id+' #hardware-vcpus option:last-child').val()){
-					$(div_id+' #hardware-vcpus option:last-child').prop("selected",true);
-				}else{
-					if($(div_id+' #hardware-vcpus option[value="'+domain.hardware.vcpus+'"]').length > 0){
-						$(div_id+' #hardware-vcpus option[value="'+domain.hardware.vcpus+'"]').prop("selected",true);
-					}else{
-						$(div_id+' #hardware-vcpus option:first').prop("selected",true);
-					}
-				}
-				
-				if('qos_id' in domain.hardware.disks[0]){
-					if(domain.hardware.disks[0]['qos_id']==false){
-						qos_id='unlimited'
-					}else{
-						qos_id=domain.hardware.disks[0]['qos_id']
-					}
-				}else{
-					qos_id='unlimited'
-				}
+		if(domain.hardware.memory > $(div_id+' #hardware-memory option:last-child').val()){
+			$(div_id+' #hardware-memory option:last-child').prop("selected",true);
+		}else{
+			if($(div_id+' #hardware-memory option[value="'+domain.hardware.memory+'"]').length > 0){
+				$(div_id+' #hardware-memory option[value="'+domain.hardware.memory+'"]').prop("selected",true);
+			}else{
+				$(div_id+' #hardware-memory option:first').prop("selected",true);
+			}
+		}
 
-				$(div_id+' #hardware-qos_id option[value="'+qos_id+'"]').prop("selected",true);	  
-			}); 
+		if(domain.hardware.vcpus > $(div_id+' #hardware-vcpus option:last-child').val()){
+			$(div_id+' #hardware-vcpus option:last-child').prop("selected",true);
+		}else{
+			if($(div_id+' #hardware-vcpus option[value="'+domain.hardware.vcpus+'"]').length > 0){
+				$(div_id+' #hardware-vcpus option[value="'+domain.hardware.vcpus+'"]').prop("selected",true);
+			}else{
+				$(div_id+' #hardware-vcpus option:first').prop("selected",true);
+			}
+		}
+		
+		if('qos_id' in domain.hardware.disks[0]){
+			if(domain.hardware.disks[0]['qos_id']==false){
+				qos_id='unlimited'
+			}else{
+				qos_id=domain.hardware.disks[0]['qos_id']
+			}
+		}else{
+			qos_id='unlimited'
+		}
+
+		$(div_id+' #hardware-qos_id option[value="'+qos_id+'"]').prop("selected",true);	  
 	}
 
 

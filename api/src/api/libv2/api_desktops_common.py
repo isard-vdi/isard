@@ -168,7 +168,7 @@ class ApiDesktopsCommon:
             traceback.format_exc(),
         )
 
-    def get_domain_hardware(self, domain_id, human_size=False, flatten=True):
+    def get_domain_hardware(self, domain_id):
         with app.app_context():
             hardware = (
                 r.table("domains")

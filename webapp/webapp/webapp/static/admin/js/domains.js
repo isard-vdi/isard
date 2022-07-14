@@ -610,7 +610,7 @@ function actionsDomainDetail(){
 	$('.btn-edit').on('click', function () {
             var pk=$(this).closest("[data-pk]").attr("data-pk");
 			setHardwareOptions('#modalEditDesktop');
-            setHardwareDomainDefaults('#modalEditDesktop',pk);
+            setHardwareDomainIdDefaults('#modalEditDesktop',pk);
             setReservablesOptions('#modalEditDesktop');
             setReservablesDomainDefaults('#modalEditDesktop',pk);
             $("#modalEdit")[0].reset();
@@ -694,7 +694,7 @@ function actionsDomainDetail(){
             
 			setDefaultsTemplate(pk);
 			setHardwareOptions('#modalTemplateDesktop');
-			setHardwareDomainDefaults('#modalTemplateDesktop',pk);
+			setHardwareDomainIdDefaults('#modalTemplateDesktop',pk);
             
 			$('#modalTemplateDesktop').modal({
 				backdrop: 'static',
@@ -972,7 +972,7 @@ function HypervisorsDropdown(selected) {
 function setDefaultsTemplate(id) {
 	$.ajax({
 		type: "GET",
-		url:"/isard-admin/desktops/templateUpdate/" + id,
+		url:"/api/v3/domain/info/" + id,
 		success: function(data)
 		{
 			$('.template-id').val(id);
@@ -1116,21 +1116,20 @@ function populate_tree_template_delete(id){
     });
 }
 
-
 // MODAL EDIT DESKTOP
 function modal_edit_desktop_datatables(id){
 	$.ajax({
 		type: "GET",
-		url:"/isard-admin/desktops/templateUpdate/" + id,
+		url:"/api/v3/domain/info/" + id,
 		success: function(data)
 		{
 			$('#modalEditDesktop #name_hidden').val(data.name);
             $('#modalEditDesktop #name').val(data.name);
 			$('#modalEditDesktop #description').val(data.description);
             $('#modalEditDesktop #id').val(data.id);
-            $('#modalEditDesktop #guest_properties-credentials-username').val(data["guest_properties-credentials-username"]);
-            $('#modalEditDesktop #guest_properties-credentials-password').val(data["guest_properties-credentials-password"]);
-            setHardwareDomainDefaults('#modalEditDesktop', id);
+            $('#modalEditDesktop #guest_properties-credentials-username').val(data["guest_properties"]["credentials"]["username"]);
+            $('#modalEditDesktop #guest_properties-credentials-password').val(data["guest_properties"]["credentials"]["password"]);
+            setHardwareDomainDefaults('#modalEditDesktop', data);
             setViewers('#modalEditDesktop',data)
 		}
 	});

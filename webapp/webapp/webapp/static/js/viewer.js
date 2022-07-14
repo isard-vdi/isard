@@ -166,33 +166,32 @@ function setCookie(name,value,days) {
 }
 
 function setViewers(div,data){
-    if(data['guest_properties-fullscreen']){
+    if(data.guest_properties.fullscreen){
         $(div+' #guest_properties-fullscreen').iCheck('check');
     }else{
         $(div+' #guest_properties-fullscreen').iCheck('update')[0].unchecked;
     }
-    if("guest_properties-viewers-file_spice-options" in data){
-        console.log("spice")
+    if("file_spice" in data.guest_properties.viewers){
         $(div+' #viewers-file_spice').iCheck('check');
     }else{
         $(div+' #viewers-file_spice').iCheck('update')[0].unchecked;
     }
-    if("guest_properties-viewers-file_rdpgw-options" in data){
+    if("file_rdpgw" in data.guest_properties.viewers){
         $(div+' #viewers-file_rdpgw').iCheck('check');
     }else{
         $(div+' #viewers-file_rdpgw').iCheck('update')[0].unchecked;
     }
-    if("guest_properties-viewers-file_rdpvpn-options" in data){
+    if("file_rdpvpn" in data.guest_properties.viewers){
         $(div+' #viewers-file_rdpvpn').iCheck('check');
     }else{
         $(div+' #viewers-file_rdpvpn').iCheck('update')[0].unchecked;
     }
-    if("guest_properties-viewers-browser_vnc-options" in data){
+    if("browser_vnc" in data.guest_properties.viewers){
         $(div+' #viewers-browser_vnc').iCheck('check');
     }else{
         $(div+' #viewers-browser_vnc').iCheck('update')[0].unchecked;
     }
-    if("guest_properties-viewers-browser_rdp-options" in data){
+    if("browser_rdp" in data.guest_properties.viewers){
         $(div+' #viewers-browser_rdp').iCheck('check');
     }else{
         $(div+' #viewers-browser_rdp').iCheck('update')[0].unchecked;
@@ -229,6 +228,7 @@ function parseViewersOptions(data){
     delete data["options"]
     return data
 }
+
 function setViewerHelp(){
     $(".howto-"+getOS()).css("display", "block");
 }

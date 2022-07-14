@@ -207,7 +207,6 @@ $(document).ready(function() {
             
             $('.btn-viewer-pool-edit').on('click', function(){
                 pk=$(this).attr("data-pk");
-                //~ setHardwareDomainDefaults('#modalEditDesktop',pk);
                 $("#modalEditViewer #modalEditViewerForm")[0].reset();
                 $('#modalEditViewer').modal({
                     backdrop: 'static',
