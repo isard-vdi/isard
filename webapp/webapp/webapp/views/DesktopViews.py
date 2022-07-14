@@ -58,15 +58,6 @@ def viewer_download(os, id):
         return Response("Error in viewer", mimetype="application/txt")
 
 
-# ~ @app.route('/disposable/download_viewer/<os>/<id>')
-# ~ def viewer_disposable_download(os,id):
-# ~ remote_addr=request.headers['X-Forwarded-For'].split(',')[0] if 'X-Forwarded-For' in request.headers else request.remote_addr.split(',')[0]
-# ~ if id.startswith('_disposable_'+remote_addr.replace('.','_')+'_'):
-# ~ extension,mimetype,consola=app.isardapi.get_viewer_ticket(id,os)
-# ~ return Response(consola,
-# ~ mimetype=mimetype,
-# ~ headers={"Content-Disposition":"attachment;filename=consola."+extension})
-
 # ~ #~ Serves desktops and templates (domains)
 @app.route("/isard-admin/domains/update", methods=["POST"])
 @login_required

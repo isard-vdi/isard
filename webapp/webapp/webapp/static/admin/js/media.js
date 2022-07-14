@@ -10,9 +10,6 @@ $(document).ready(function() {
     $('.admin-status').show()
     modal_add_install = $('#modal_add_install').DataTable()
 	initialize_modal_all_install_events()
-	
-	setDropzone();    
-	
 	$('.btn-new').on('click', function () {
         if($('.quota-isos .perc').text() >=100){
             new PNotify({
@@ -429,115 +426,6 @@ function icon(name){
 		}       
 }
 
-
-//~ function setDropzone(){
-    //~ console.log('set dropzone')
-    //~ Dropzone.autoDiscover = false;
-    //~ var myDropzone     = new Dropzone("div#myDropzone", { 
-        //~ url: '/isard-admin/admin/isard-admin/media/localupload',
-        //~ paramName: 'someParameter[image]',
-  //~ autoProcessQueue: false,// used for stopping auto processing uploads
-  //~ autoDiscover: false,        
-    //~ });
-
-    //~ $('#modalAddMediaLocalForm #send').click(function(){           
-      //~ myDropzone.processQueue();
-    //~ });
-
-    //~ myDropzone.on('sending', function(file, xhr, formData){
-        //~ formData.append('someParameter[image]', file);
-        //~ formData.append('someParameter[userName]', 'bob');
-    //~ }); 
-    
-//~ }
-
- 
- 
-//~ function setDropzone(){
-        //~ Dropzone.autoDiscover = false;
-
-        //~ var myDropzone = new Dropzone("div#myDropzone", {
-          //~ url: '/isard-admin/admin/isard-admin/media/localupload',
-
-          //~ maxFiles:1,
-          //~ queueLimit:1,
-          //acceptedFiles:".zip",
-          //~ init: function() {
-          //~ this.on("maxfilesexceeded", function(file) {
-                //~ this.removeAllFiles();
-                //~ this.addFile(file);
-          //~ })
-          //~ this.on("error", function(file){if (!file.accepted) this.removeFile(file);});
-//~ },
-          //previewsContainer:"#previewsContainer",
-
-          //~ sending:function(file, xhr, formData){
-          //~ formData.append('name',$("#name").val() );
-          //~ formData.append('description',$("#description").val() );
-
-          //~ },
-          //~ success: function(file, response){
-                //~ alert(response);
-            //~ },
-
-          //~ autoProcessQueue: false,
-        //~ });
-
-
-        //~ $('#modal-add-media-form-local #send').on('click', function(e){
-          //~ myDropzone.processQueue();
-        //~ }); 
-
-    //~ myDropzone.on('sending', function(file, xhr, formData){
-        //~ formData.append('someParameter[image]', file);
-        //~ formData.append('someParameter[userName]', 'bob');
-    //~ });            
-//~ }
-
-function setDropzone(){
-    Dropzone.options.myDropzone= {
-        url: '/isard-admin/admin/isard-admin/media/localupload',
-        autoProcessQueue: false,
-        uploadMultiple: false,
-        parallelUploads: 5,
-        maxFiles: 1,
-        maxFilesize: 10000,
-        //~ acceptedFiles: 'image/*',
-        addRemoveLinks: true,
-        init: function() {
-            dzClosure = this; // Makes sure that 'this' is understood inside the functions below.
-
-            // for Dropzone to process the queue (instead of default form behavior):
-            document.getElementById("send-localupload").addEventListener("click", function(e) {
-                // Make sure that the form isn't actually being sent.
-                e.preventDefault();
-                e.stopPropagation();
-                dzClosure.processQueue();
-                //~ $('#modalAddMediaLocal').modal('hide');
-            });
-                
-
-            //send all the form data along with the files:
-            this.on("sending", function(data, xhr, formData) {
-                formData.append("name", $("#modal-add-media-form-local #name").val());
-                formData.append("kind", $("#modal-add-media-form-local #kind").val());
-                formData.append("description", $("#modal-add-media-form-local #description").val());
-                formData.append("hypervisors_pools", $("#modal-add-media-form-local #hypervisors_pools").val());
-
-                data=$('#modal-add-media-form-local').serializeObject();
-                data=replaceAlloweds_arrays('#upload-alloweds-add',data)  
-                formData.append("allowed", JSON.stringify(data['allowed']));
-                            
-            });
-        },
-            success: function(file, response){
-                $('#modalAddMediaLocal').modal('hide');
-                $('#modal-add-media-form-local')[0].reset();
-                this.removeAllFiles(true);
-            }        
-    }    
-
-}
 
 // MODAL install FUNCTIONS
 function initialize_modal_all_install_events(){
