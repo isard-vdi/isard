@@ -52,7 +52,7 @@ $(document).ready(function() {
 
     var table=$('#media').DataTable( {
         "ajax": {
-                "url": "/isard-admin/media/get/",
+                "url": "/api/v3/media",
                 "dataSrc": ""
 				//~ "url": "/isard-admin/admin/load/media/post",
                 //~ "contentType": "application/json",
@@ -150,7 +150,7 @@ $(document).ready(function() {
 
     var table_share=$('#media_share').DataTable( {
         "ajax": {
-                "url": "/isard-admin/media/get/shared",
+                "url": "/api/v3/media_allowed",
                 "dataSrc": ""
 				//~ "url": "/isard-admin/admin/load/media/post",
                 //~ "contentType": "application/json",
