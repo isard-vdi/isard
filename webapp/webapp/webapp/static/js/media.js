@@ -561,7 +561,7 @@ function modal_add_install_datatables(){
     
 	modal_add_install = $('#modal_add_install').DataTable({
 			"ajax": {
-				"url": "/isard-admin/media/installs/",
+                "url": "/api/v3/admin/media/installs",
 				"dataSrc": ""
 			},
             "scrollY":        "125px",
