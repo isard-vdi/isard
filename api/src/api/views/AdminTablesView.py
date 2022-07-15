@@ -54,6 +54,8 @@ def api_v3_admin_table(payload, table):
             ]
         if table == "roles":
             result = [r for r in result if r["id"] != "admin"]
+        if table == "media":
+            result = [r for r in result if r["category"] == payload["category_id"]]
     return (
         json.dumps(result),
         200,
