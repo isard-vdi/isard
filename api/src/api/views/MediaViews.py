@@ -13,7 +13,8 @@ from ..libv2.api_media import ApiMedia
 
 api_media = ApiMedia()
 
-from .decorators import has_token
+from ..libv2.validators import _validate_item
+from .decorators import has_token, is_admin_or_manager
 
 
 @app.route("/api/v3/media", methods=["GET"])

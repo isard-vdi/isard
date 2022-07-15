@@ -133,106 +133,22 @@ def api_v3_persistent_desktop_new(payload):
     return json.dumps({"id": desktop_id}), 200, {"Content-Type": "application/json"}
 
 
-@app.route("/api/v3/desktop/from/scratch", methods=["POST"])
+@app.route("/api/v3/desktop/from/media", methods=["POST"])
 @has_token
-def api_v3_desktop_from_scratch(payload):
+def api_v3_desktop_from_media(payload):
     try:
-        name = request.form.get("name", type=str)
-        # Optionals but some required (check after)
-        if payload["role_id"] == "admin":
-            user_id = payload.get("user_id", "local-default-admin-admin")
-        else:
-            user_id = payload["user_id"]
-
-        ## TODO: If role is manager can create in his category
-        ##      If role is teacher can create in his deployment?
-
-        description = request.form.get("description", "")
-        disk_user = request.form.get("disk_user", False)
-        disk_path = request.form.get("disk_path", False)
-        disk_path_selected = request.form.get("disk_path_selected", "/isard/groups")
-        disk_bus = request.form.get("disk_bus", "virtio")
-        disk_size = request.form.get("disk_size", False)
-        disks = request.form.get("disks", False)
-        isos = request.form.get("isos", [])
-        boot_order = request.form.get("boot_order", ["disk"])
-        vcpus = request.form.get("vcpus", 2)
-        memory = request.form.get("memory", 4096)
-        graphics = request.form.get("graphics", ["default"])
-        videos = request.form.get("videos", ["default"])
-        interfaces = request.form.get("interfaces", ["default"])
-        opsystem = request.form.get("opsystem", ["windows"])
-        icon = request.form.get("icon", ["fa-desktop"])
-        image = request.form.get("image", "")
-        forced_hyp = request.form.get("forced_hyp", False)
-        hypervisors_pools = request.form.get("hypervisors_pools", ["default"])
-        server = request.form.get("server", False)
-        virt_install_id = request.form.get("virt_install_id", False)
-        xml = request.form.get("xml", False)
-
+        data = request.get_json(force=True)
     except:
-        raise Error(
+        Error(
             "bad_request",
-            "New desktop from scratch bad body data",
+            "Desktop persistent add incorrect body data",
             traceback.format_exc(),
         )
+    data["user_id"] = payload["user_id"]
+    data = _validate_item("desktop_from_media", data)
+    quotas.DesktopCreate(payload["user_id"])
 
-    if name == None:
-        raise Error(
-            "bad_request",
-            "New desktop from scratch bad body data",
-            traceback.format_exc(),
-        )
-
-    if not virt_install_id and not xml:
-        raise Error(
-            "bad_request",
-            "New desktop from scratch missing virt_install_id or xml in body data",
-            traceback.format_exc(),
-        )
-
-    if not disk_user and not disk_path and not disks:
-        raise Error(
-            "bad_request",
-            "New desktop from scratch missing disk_user or disk_path or disks in body data",
-            traceback.format_exc(),
-        )
-
-    if not boot_order not in ["disk", "iso", "pxe"]:
-        raise Error(
-            "bad_request",
-            "New desktop from scratch incorrect boot order in body data",
-            traceback.format_exc(),
-        )
-
-    quotas.DesktopCreate(user_id)
-
-    desktop_id = desktops.NewFromScratch(
-        name=name,
-        user_id=user_id,
-        description=description,
-        disk_user=disk_user,
-        disk_path=disk_path,
-        disk_path_selected=disk_path_selected,
-        disk_bus=disk_bus,
-        disk_size=disk_size,
-        disks=disks,
-        isos=isos,  # ['_local-default-admin-admin-systemrescue-8.04-amd64.iso']
-        boot_order=boot_order,
-        vcpus=vcpus,
-        memory=memory,
-        graphics=graphics,
-        videos=videos,
-        interfaces=interfaces,
-        opsystem=opsystem,
-        icon=icon,
-        image=image,
-        forced_hyp=forced_hyp,
-        hypervisors_pools=hypervisors_pools,
-        server=server,
-        virt_install_id=virt_install_id,
-        xml=xml,
-    )
+    desktop_id = desktops.NewFromMedia(payload, data)
     return json.dumps({"id": desktop_id}), 200, {"Content-Type": "application/json"}
 
 

@@ -4,13 +4,11 @@
 #      Josep Maria Viñolas Auquer
 #      Alberto Larraz Dalmases
 # License: AGPLv3
-import pprint
+
 import secrets
 import time
 import traceback
-from datetime import datetime, timedelta
 
-from mergedeep import merge
 from rethinkdb import RethinkDB
 
 from api import app
@@ -18,9 +16,6 @@ from api import app
 from .api_exceptions import Error
 
 r = RethinkDB()
-import logging as log
-
-from rethinkdb.errors import ReqlTimeoutError
 
 from .flask_rethink import RDB
 
@@ -31,7 +26,7 @@ from ..libv2.isardViewer import isardViewer
 
 isardviewer = isardViewer()
 
-from ..libv2.api_cards import ApiCards
+from ..libv2.api_cards import ApiCards, get_domain_stock_card
 
 api_cards = ApiCards()
 
@@ -189,209 +184,127 @@ class ApiDesktopsPersistent:
             else:
                 return new_desktop_id
 
-    def NewFromScratch(
-        self,
-        name,
-        user_id,
-        description="Created from api v3",
-        disk_user=False,
-        disk_path=False,
-        disk_path_selected="/isard/groups",
-        disk_bus="virtio",
-        disk_size=False,
-        disks=False,
-        isos=[],  # ['_local-default-admin-admin-systemrescue-8.04-amd64.iso']
-        boot_order=["disk"],
-        vcpus=2,
-        memory=4096,
-        graphics=["default"],
-        videos=["default"],
-        interfaces=["default"],
-        opsystem="windows",
-        icon="circle-o",
-        image="",
-        forced_hyp=False,
-        hypervisors_pools=["default"],
-        server=False,
-        virt_install_id=False,
-        xml=None,
-    ):
-        ## If disk_path is False then generates path from user_id
-        ## If disks is not False then should be a list
-        ## Isos [']
-        ## takes virt_install_id if xml is None else puts the xml
-
-        ## TODO: quotas??
-
-        # Default status:
-        json_status = {"status": "CreatingDomainFromDisk"}
-
-        # Get user_id
+    def NewFromMedia(self, payload, data):
         with app.app_context():
-            user = r.table("users").get(user_id).run(db.conn)
-        if user == None:
-            raise Error("not_found", "User not found", traceback.format_exc())
-
-        json_user = {
-            "user": user["id"],
-            "username": user["username"],
-            "category": user["category"],
-            "group": user["group"],
-        }
-
-        json_allowed = {
-            "allowed": {
-                "categories": False,
-                "groups": False,
-                "roles": False,
-                "users": False,
-            }
-        }
-
-        # Parse desktop name
-        desktop_name_parsed = _parse_string(name)
-        desktop_id = "_" + user["id"] + "-" + desktop_name_parsed
+            user = r.table("users").get(payload["user_id"]).run(db.conn)
 
         with app.app_context():
-            if r.table("domains").get(desktop_id).run(db.conn) != None:
-                raise DesktopExists
+            import logging as log
 
-        # Get xml (from virt_install or xml)
-        if xml is None:
-            with app.app_context():
-                vi = r.table("virt_install").get(virt_install_id).run(db.conn)
-            if vi == None:
+            log.info(data["id"])
+            if r.table("domains").get(data["id"]).run(db.conn):
                 raise Error(
-                    "not_found",
-                    "Virt install id not found",
+                    "conflict",
+                    "Already exists a desktop with this id",
                     traceback.format_exc(),
                 )
-            domain["create_dict"]["create_from_virt_install_xml"] = virt_install_id
-            json_xml = {
-                "create_dict": {"create_from_virt_install_xml": virt_install_id},
-                "xml": vi["xml"],
-            }
-        else:
-            json_xml = {"xml": xml}
+        with app.app_context():
+            xml = r.table("virt_install").get(data["xml_id"]).run(db.conn)
+            if not xml:
+                raise Error(
+                    "not_found", "Not found virt install xml id", traceback.format_exc()
+                )
+        with app.app_context():
+            media = r.table("media").get(data["media_id"]).run(db.conn)
+            if not media:
+                raise Error("not_found", "Not found media id", traceback.format_exc())
 
-        # OPTIONS
-
-        # Get disk(s) dict
-        if disks:
-            try:
-                for disk in disks:
-                    if not disk.get("file"):
-                        raise DisksFileError
-                    if not disk.get("path_selected"):
-                        raise DisksPathselectedError
-            except:
-                raise DisksFormatError
-        elif disk_path:
-            disks = [
-                {
-                    "file": disk_path,
-                    "path_selected": disk_path_selected,
-                    "size": disk_size,
-                }
+        with app.app_context():
+            graphics = [
+                g["id"]
+                for g in r.table("graphics")
+                .get_all(r.args(data["hardware"]["graphics"]))
+                .run(db.conn)
             ]
-        elif disk_user:
-            dir_disk, disk_filename = _disk_path(user, desktop_name_parsed)
+            if not len(graphics):
+                raise Error(
+                    "not_found", "Not found graphics ids", traceback.format_exc()
+                )
+
+        with app.app_context():
+            videos = [
+                v["id"]
+                for v in r.table("videos")
+                .get_all(r.args(data["hardware"]["videos"]))
+                .run(db.conn)
+            ]
+            if not len(videos):
+                raise Error("not_found", "Not found videos ids", traceback.format_exc())
+
+        with app.app_context():
+            interfaces = [
+                i["id"]
+                for i in r.table("interfaces")
+                .get_all(r.args(data["hardware"]["interfaces"]))
+                .run(db.conn)
+            ]
+            if not len(interfaces):
+                raise Error(
+                    "not_found", "Not found interface id", traceback.format_exc()
+                )
+
+        if data["hardware"]["disk_size"]:
+            dir_disk, disk_filename = _disk_path(user, _parse_string(data["name"]))
             disks = [
                 {
                     "file": dir_disk + "/" + disk_filename,
-                    "path_selected": disk_path_selected,
-                    "size": disk_size,
+                    "size": str(data["hardware"]["disk_size"]) + "G",
                 }
             ]
         else:
             disks = []
 
-        json_disks = {
-            "create_dict": {"hardware": {"disks": disks}},
-            "hardware": {"hardware": {"disks": disks}},
-        }
-
-        # Get iso(s) list of dicts (we should put it in media??)
-        list_isos = []
-        for iso in isos:
-            with app.app_context():
-                dbiso = r.table("media").get(iso).run(db.conn)
-            if dbiso == None:
-                raise Error("not_found", "Media not found", traceback.format_exc())
-            list_isos.append({"id": iso})
-        json_isos = {"create_dict": {"hardware": {"isos": list_isos}}}
-
-        # Check that graphics,videos,interfaces exists!
-        list_graphics = []
-        for graphic in graphics:
-            with app.app_context():
-                dbgraphic = r.table("graphics").get(graphic).run(db.conn)
-            if dbgraphic == None:
-                raise Error("not_found", "Graphic not found", traceback.format_exc())
-            list_graphics.append(graphic)
-        json_graphics = {"create_dict": {"hardware": {"graphics": list_graphics}}}
-
-        list_videos = []
-        for video in videos:
-            with app.app_context():
-                dbvideo = r.table("videos").get(video).run(db.conn)
-            if dbvideo == None:
-                raise Error("not_found", "Video not found", traceback.format_exc())
-            list_videos.append(video)
-        json_videos = {"create_dict": {"hardware": {"videos": list_videos}}}
-
-        list_interfaces = []
-        for interface in interfaces:
-            with app.app_context():
-                dbinterface = r.table("interfaces").get(interface).run(db.conn)
-            if dbinterface == None:
-                raise Error("not_found", "Interface not found", traceback.format_exc())
-            list_interfaces.append(interface)
-        json_interfaces = {"create_dict": {"hardware": {"interfaces": list_interfaces}}}
-
-        # We don't check the forced hyp as now can't be in db if down
-
         domain = {
-            "id": desktop_id,
+            "id": data["id"],
+            "name": data["name"],
+            "description": data["description"],
             "kind": "desktop",
-            "name": name,
-            "description": description,
-            "icon": icon,
-            "image": image,
+            "status": "CreatingDiskFromScratch",
             "detail": "Creating desktop from existing disk and checking if it is valid (can start)",
-            "os": opsystem,
-            "server": server,
+            "user": payload["user_id"],
+            "username": user["username"],
+            "category": payload["category_id"],
+            "group": payload["group_id"],
+            "server": data["server"],
+            "xml": None,
+            "icon": "fa-circle-o"
+            if data["kind"] == "iso"
+            else "fa-disk-o"
+            if data["kind"] == "file"
+            else "fa-floppy-o",
+            "image": get_domain_stock_card(data["id"]),
+            "os": "win",
+            "guest_properties": default_guest_properties(),
+            "hypervisors_pools": ["default"],
+            "accessed": time.time(),
+            "persistent": True,
+            "forced_hyp": data["forced_hyp"],
+            "allowed": {
+                "categories": False,
+                "groups": False,
+                "roles": False,
+                "users": False,
+            },
             "create_dict": {
-                "forced_hyp": forced_hyp,
+                "create_from_virt_install_xml": xml["id"],
                 "hardware": {
-                    "boot_order": boot_order,
-                    "diskbus": disk_bus,
+                    "disks": disks,
+                    "isos": [{"id": media["id"]}],
                     "floppies": [],
-                    "memory": memory,
-                    "vcpus": vcpus,
+                    "boot_order": data["hardware"]["boot_order"],
+                    "diskbus": data["hardware"]["disk_bus"],
+                    "graphics": graphics,
                     "videos": videos,
+                    "interfaces": interfaces,
+                    "memory": int(data["hardware"]["memory"] * 1048576),
+                    "vcpus": int(data["hardware"]["vcpus"]),
                 },
             },
-            "hyp_started": "",
-            "hypervisors_pools": hypervisors_pools,
-            "guest_properties": default_guest_properties(),
         }
 
-        result = merge(
-            domain,
-            json_user,
-            json_allowed,
-            json_xml,
-            json_disks,
-            json_isos,
-            json_graphics,
-            json_videos,
-            json_interfaces,
-            json_status,
-        )
         with app.app_context():
-            r.table("domains").insert(result).run(db.conn)
-        return result["id"]
+            r.table("domains").insert(domain).run(db.conn)
+        return domain["id"]
 
     def UserDesktop(self, desktop_id):
         try:

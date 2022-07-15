@@ -1,0 +1,34 @@
+id:
+  required: yes
+  type: string
+  default_setter: gendomainid
+name:
+  required: true
+  type: string
+  minlength: 4
+description: 
+  type: string
+  default: ""
+hardware:
+  schema: hardware
+media_id:
+  type: string
+  required: true
+kind:
+  type: string
+  allowed:
+    - iso
+  default: iso
+xml_id:
+  type: string
+  default: win10Virtio
+server:
+  type: boolean
+  default: false
+forced_hyp:
+  type:
+    - boolean
+    - list
+  default: false
+user_id:
+  type: string

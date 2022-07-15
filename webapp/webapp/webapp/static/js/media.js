@@ -596,6 +596,7 @@ function modal_add_install_datatables(){
         } );
     } );
 
+    $("#modalAddFromMedia #send").off('click');
     $("#modalAddFromMedia #send").on('click', function(e){
             var form = $('#modalAddFromMedia #modalAdd');
             form.parsley().validate();
@@ -604,12 +605,52 @@ function modal_add_install_datatables(){
                 install=$('#modalAddFromMedia #install').val();
                 if (install !=''){
                     data=$('#modalAddFromMedia  #modalAdd').serializeObject();
-                    socket.emit('domain_media_add',data)
-                }else{                
-                        show_no_os_hardware_template_selected()
+                    data=parse_media(JSON.unflatten(data));
+                    $.ajax({
+                        type: "POST",
+                        url:"/api/v3/desktop/from/media",
+                        contentType: "application/json",
+                        data: JSON.stringify(data),
+                        success: function(data)
+                        {
+                            $('form').each(function() { this.reset() });
+                            $('.modal').modal('hide');
+                        },
+                        error: function(data){
+                            var error = new PNotify({
+                                title: "ERROR",
+                                text: data.responseJSON.description,
+                                type: 'error',
+                                hide: true,
+                                icon: 'fa fa-warning',
+                                delay: 15000,
+                                opacity: 1
+                            });
+                        }
+                    });
+                }else{
+                    show_no_os_hardware_template_selected()
                 }
-            }
-        });
+            }        
+        });    
 }
 
+function parse_media(data){
 
+    return {"media_id":data["media"],
+            "xml_id":data["install"],
+            "kind":data["kind"],
+            "name":data["name"],
+            "description":data["description"],
+            "hardware": {
+                ...("vcpus" in data["hardware"]) && {"vcpus": parseInt(data["hardware"]["vcpus"])},
+                ...("memory" in data["hardware"]) && {"memory": parseFloat(data["hardware"]["memory"])},
+                ...("videos" in data["hardware"]) && {"videos": [data["hardware"]["videos"]]},
+                ...("graphics" in data["hardware"]) && {"graphics": [data["hardware"]["graphics"]]},
+                ...("boot_order" in data["hardware"]) && {"boot_order": [data["hardware"]["boot_order"]]},
+                ...("interfaces" in data["hardware"]) && {"interfaces": [data["hardware"]["interfaces"]]},
+                ...("diskbus" in data["hardware"]) && {"disk_bus": data["hardware"]["diskbus"]},
+                ...("disk_size" in data["hardware"]) && {"disk_size": parseInt(data["hardware"]["disk_size"])},
+              },
+            }
+}

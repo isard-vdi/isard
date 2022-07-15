@@ -1,0 +1,24 @@
+boot_order:
+  type: list
+  default: ["iso"]
+vcpus:
+  type: integer
+  default: 2
+memory:
+  type: float
+  default: 4096
+graphics:
+  type: list
+  default: ["default"]
+videos:
+  type: list
+  default: ["default"]
+interfaces:
+  type: list
+  default: ["default"]
+disk_size:
+  type: integer
+  default: 40
+disk_bus:
+  type: string
+  default: "virtio"

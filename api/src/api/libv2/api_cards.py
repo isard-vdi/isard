@@ -39,6 +39,22 @@ from ..auth.authentication import *
 from .genimage import gen_img_from_name
 
 
+def get_domain_stock_card(domain_id):
+    total = 0
+    for i in range(0, len(domain_id)):
+        total += total + ord(domain_id[i])
+    total = total % 48 + 1
+    return get_card(str(total) + ".jpg", "stock")
+
+
+def get_card(card_id, type):
+    return {
+        "id": card_id,
+        "url": "/assets/img/desktops/" + type + "/" + card_id,
+        "type": type,
+    }
+
+
 class ApiCards:
     def __init__(self):
         self.stock_cards = self.read_stock_cards()
