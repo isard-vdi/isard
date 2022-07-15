@@ -4,7 +4,7 @@ ARG DOCKER_IMAGE_PREFIX=registry.gitlab.com/isard/isardvdi/
 ARG DOCKER_IMAGE_TAG
 FROM ${DOCKER_IMAGE_PREFIX}rdpgw:$DOCKER_IMAGE_TAG as rdpgw
 
-FROM alpine:3.14.0 as production
+FROM alpine:3.16 as production
 MAINTAINER isard <info@isardvdi.com>
 
 RUN apk add --no-cache --update wireguard-tools openssh python3
@@ -45,8 +45,7 @@ RUN pip3 install --no-cache-dir -r requirements.pip3
 RUN apk del .build_deps
 
 RUN echo "@testing http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
-RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories
-RUN apk add libwebsockets@edge guacamole-server@testing guacamole-server-dev@testing freerdp freerdp-plugins
+RUN apk add guacamole-server@testing guacamole-server-dev@testing freerdp freerdp-plugins
 
 RUN apk add openvswitch
 RUN /usr/bin/ovsdb-tool create /etc/openvswitch/conf.db
