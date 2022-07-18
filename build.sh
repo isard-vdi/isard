@@ -106,6 +106,7 @@ WEB_PARTS="
 MONITOR_STANDALONE_KEY="monitor"
 MONITOR_STANDALONE_PARTS="
 	network
+	stats
 	monitor
 	monitor-proxy
 "
