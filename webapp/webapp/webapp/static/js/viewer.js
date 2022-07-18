@@ -6,14 +6,24 @@
 */
 
 function startClientVpnSocket(socket){
-    $('#btn-uservpninstall').on('click', function () {
-        socket.emit('vpn',{'vpn':'users','kind':'install','os':getOS()});   
-    });
     $('#btn-uservpnconfig').on('click', function () {
-        socket.emit('vpn',{'vpn':'users','kind':'config','os':getOS()});   
-    });
-    $('#btn-uservpnclient').on('click', function () {
-        socket.emit('vpn',{'vpn':'users','kind':'client','os':getOS()});   
+        $.ajax({
+            type: "GET",
+            url:"/api/v3/user/vpn/config",
+            success: function (data) {
+                const el = document.createElement('a')
+                const content = data.content
+                el.setAttribute(
+                    'href',
+                    `data:${data.mime};charset=utf-8,${encodeURIComponent(content)}`
+                )
+                el.setAttribute('download', `${data.name}.${data.ext}`)
+                el.style.display = 'none'
+                document.body.appendChild(el)
+                el.click()
+                document.body.removeChild(el)
+            }
+        })
     });
 
     socket.on('vpn', function (data) {
