@@ -13,15 +13,45 @@ from ..libv2.api_media import ApiMedia
 
 api_media = ApiMedia()
 
-from ..libv2.validators import _validate_item
-from .decorators import has_token, is_admin_or_manager
+from ..libv2.api_allowed import ApiAllowed
+
+allowed = ApiAllowed()
+
+from .decorators import has_token
 
 
 @app.route("/api/v3/media", methods=["GET"])
 @has_token
 def api_v3_admin_media(payload):
-    medias = api_media.Get(payload)
-    return json.dumps(medias), 200, {"Content-Type": "application/json"}
+    media = api_media.Media(payload)
+    return json.dumps(media), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/media_allowed", methods=["GET"])
+@has_token
+def api_v3_user_media_allowed(payload):
+    media = allowed.get_items_allowed(
+        payload=payload,
+        table="media",
+        query_pluck=[
+            "id",
+            "name",
+            "status",
+            "category",
+            "category_name",
+            "group",
+            "group_name",
+            "owner",
+            "progress",
+            "user",
+            "description",
+            "kind",
+            "icon",
+        ],
+        order="name",
+        query_merge=True,
+    )
+    return json.dumps(media), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/api/v3/desktops/media_list", methods=["POST"])

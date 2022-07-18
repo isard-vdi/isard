@@ -84,6 +84,12 @@ class ApiMedia:
                     None
         return media
 
+    def Media(self, payload):
+        with app.app_context():
+            return list(
+                r.table("media").get_all(payload["user_id"], index="user").run(db.conn)
+            )
+
     def Get(self, media_id):
         with app.app_context():
             media = r.table("media").get(media_id).run(db.conn)
