@@ -14,6 +14,7 @@ $(document).ready(function() {
         setQuotaMax('#users-quota',kind='category',id=false,disabled=false);
         $('#modalAddUser').modal({backdrop: 'static', keyboard: false}).modal('show');
         $('#modalAddUserForm')[0].reset();
+        setModalUser();
 	});
 
 
@@ -22,6 +23,7 @@ $(document).ready(function() {
         setQuotaMax('#bulkusers-quota',kind='category',id=false,disabled=false);
         $('#modalAddBulkUsers').modal({backdrop: 'static', keyboard: false}).modal('show');
         $('#modalAddBulkUsersForm')[0].reset();
+        setModalUser();
 	});
 
     $('.btn-bulkdelete').on('click', function () {
@@ -505,6 +507,7 @@ function actionsUserDetail(){
 				backdrop: 'static',
 				keyboard: false
             }).modal('show');
+            setModalUser();
             api.ajax('/api/v3/admin/table/users','POST',{'id':pk}).done(function(user) {
                 $('#modalEditUserForm #name').val(user.name);
                 $('#modalEditUserForm #id').val(user.id);
@@ -632,4 +635,19 @@ function renderUsersDetailPannel ( d ) {
 			return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name).replace(/d.username/g, d.username);
         });
 		return $newPanel
+}
+
+function setModalUser(){
+    api.ajax_async('/api/v3/admin/userschema','POST','').done(function(d) {
+        $.each(d, function(key, value) {
+                $("." + key).find('option').remove().end();
+                for(var i in d[key]){
+                    if(value[i].id!='disposables' && value[i].id!='eval'){
+                        $("."+key).append('<option value=' + value[i].id + '>' + value[i].name + '</option>');
+                    }
+                }
+                $("."+key+' option[value="local"]').prop("selected",true);
+        });
+        $('#add-category').trigger("change")
+    });       
 }
