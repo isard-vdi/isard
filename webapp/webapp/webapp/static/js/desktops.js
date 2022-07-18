@@ -391,7 +391,7 @@ function actionsDesktopDetail(){
             
             setDefaultsTemplate(pk);
             setHardwareOptions('#modalTemplateDesktop');
-            setHardwareDomainDefaults('#modalTemplateDesktop',pk);
+            setHardwareDomainIdDefaults('#modalTemplateDesktop',pk);
             
             $('#modalTemplateDesktop').modal({
                 backdrop: 'static',
