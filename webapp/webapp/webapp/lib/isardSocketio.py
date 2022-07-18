@@ -2583,52 +2583,6 @@ def socketio_admin_vpn(data):
         )
 
 
-@socketio.on("disposable_viewer", namespace="/isard-admin/sio_disposables")
-def socketio_disposables_viewer(data):
-    remote_addr = (
-        request.headers["X-Forwarded-For"].split(",")[0]
-        if "X-Forwarded-For" in request.headers
-        else request.remote_addr.split(",")[0]
-    )
-    # ~ viewer_data=isardviewer.get_viewer(data,current_user,remote_addr)
-    viewer_data = isardviewer.viewer_data(
-        data["pk"],
-        get_viewer=data["kind"],
-        default_viewer=default_viewer,
-        current_user=current_user,
-    )
-    if viewer_data:
-        socketio.emit(
-            "disposable_viewer",
-            json.dumps(viewer_data),
-            namespace="/isard-admin/sio_disposables",
-            room="disposable_" + remote_addr,
-        )
-
-    else:
-        msg = json.dumps(
-            {
-                "result": True,
-                "title": "Viewer",
-                "text": "Viewer could not be opened. Try again.",
-                "icon": "warning",
-                "type": "error",
-            }
-        )
-        socketio.emit(
-            "result",
-            msg,
-            namespace="/isard-admin/sio_disposables",
-            room="disposable_" + remote_addr,
-        )
-
-    remote_addr = (
-        request.headers["X-Forwarded-For"].split(",")[0]
-        if "X-Forwarded-For" in request.headers
-        else request.remote_addr.split(",")[0]
-    )
-
-
 """
 MEDIA
 """

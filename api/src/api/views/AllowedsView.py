@@ -24,7 +24,7 @@ alloweds = ApiAllowed()
 @app.route("/api/v3/admin/alloweds/term/<table>", methods=["POST"])
 @has_token
 def alloweds_table_term(payload, table):
-    if table not in ["roles", "categories", "groups", "users"]:
+    if table not in ["roles", "categories", "groups", "users", "media"]:
         raise Error("forbidden", "Table not allowed.")
     data = request.get_json(force=True)
     data["pluck"] = ["id", "name"]
@@ -36,6 +36,18 @@ def alloweds_table_term(payload, table):
         elif table == "users":
             result = alloweds.get_table_term(
                 table, "id", data["term"], pluck=["id", "name", "uid"]
+            )
+        elif table == "media":
+            if data["kind"] == "isos":
+                kind = "iso"
+            if data["kind"] == "floppies":
+                kind = "floppy"
+            result = alloweds.get_table_term(
+                table,
+                "name",
+                data["term"],
+                pluck=data["pluck"],
+                query_filter={"kind": kind},
             )
         else:
             result = alloweds.get_table_term(
@@ -63,6 +75,25 @@ def alloweds_table_term(payload, table):
                 table, "name", data["term"], pluck=["id", "name", "category", "uid"]
             )
             result = [u for u in result if u["category"] == payload["category_id"]]
+        if table == "media":
+            if data["kind"] == "isos":
+                kind = "iso"
+            if data["kind"] == "floppies":
+                kind = "floppy"
+            # Search in the db for the term
+            term_results = alloweds.get_table_term(
+                table,
+                "name",
+                data["term"],
+                pluck=data["pluck"] + ["allowed"],
+                query_filter={"kind": kind},
+            )
+            # Filter if the user is allowed to see said resource
+            result = []
+            for element in term_results:
+                if alloweds.is_allowed(payload=payload, item=element, table="media"):
+                    element.pop("allowed")
+                    result.append(element)
     return json.dumps(result), 200, {"Content-Type": "application/json"}
 
 

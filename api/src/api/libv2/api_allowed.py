@@ -23,11 +23,13 @@ db.init_app(app)
 
 
 class ApiAllowed:
-    def get_table_term(self, table, field, value, pluck=False):
+    def get_table_term(self, table, field, value, pluck=False, query_filter={}):
         with app.app_context():
+            query = r.table(table)
+            if query_filter:
+                query = query.filter(query_filter)
             return list(
-                r.table(table)
-                .filter(lambda doc: doc[field].match("(?i)" + value))
+                query.filter(lambda doc: doc[field].match("(?i)" + value))
                 .pluck(pluck)
                 .run(db.conn)
             )
@@ -95,65 +97,20 @@ class ApiAllowed:
 
             allowed = []
             for item in items:
+                if (
+                    payload["role_id"] == "admin"
+                    or (
+                        payload["role_id"] == "manager"
+                        and payload["category_id"] == item.get("category")
+                    )
+                    or item.get("user") == payload["user_id"]
+                ):
+                    item["editable"] = True
+                else:
+                    item["editable"] = False
+                if self.is_allowed(payload, item, table):
+                    allowed.append(item)
 
-                item["editable"] = False
-
-                if payload["role_id"] == "admin":
-                    item["editable"] = True
-                    allowed.append(item)
-                    continue
-                if payload["role_id"] == "manager" and payload[
-                    "category_id"
-                ] == item.get("category"):
-                    item["editable"] = True
-                    allowed.append(item)
-                    continue
-                if not payload.get("user_id", False):
-                    continue
-                if item.get("user") == payload["user_id"]:
-                    item["editable"] = True
-                    allowed.append(item)
-                    continue
-                if item["allowed"]["roles"] is not False:
-                    if len(item["allowed"]["roles"]) == 0:
-                        allowed.append(item)
-                        continue
-                    else:
-                        if payload["role_id"] in item["allowed"]["roles"]:
-                            allowed.append(item)
-                            continue
-                if item["allowed"]["categories"] is not False:
-                    if len(item["allowed"]["categories"]) == 0:
-                        allowed.append(item)
-                        continue
-                    else:
-                        if payload["category_id"] in item["allowed"]["categories"]:
-                            allowed.append(item)
-                            continue
-                if item["allowed"]["groups"] is not False:
-                    if len(item["allowed"]["groups"]) == 0:
-                        if table in ["domains", "media"]:
-                            if item.get("category") == payload["category_id"]:
-                                allowed.append(item)
-                        else:
-                            allowed.append(item)
-                        continue
-                    else:
-                        if payload["group_id"] in item["allowed"]["groups"]:
-                            allowed.append(item)
-                            continue
-                if item["allowed"]["users"] is not False:
-                    if len(item["allowed"]["users"]) == 0:
-                        if table in ["domains", "media"]:
-                            if item.get("category") == payload["category_id"]:
-                                allowed.append(item)
-                        else:
-                            allowed.append(item)
-                        continue
-                    else:
-                        if payload["user_id"] in item["allowed"]["users"]:
-                            allowed.append(item)
-                            continue
             return allowed
         except Exception:
             raise Error(
@@ -161,6 +118,45 @@ class ApiAllowed:
                 "Internal server error",
                 traceback.format_exc(),
             )
+
+    def is_allowed(self, payload, item, table):
+        if not payload.get("user_id", False):
+            return False
+        if item.get("user") == payload["user_id"]:
+            return True
+        if item["allowed"]["roles"] is not False:
+            if len(item["allowed"]["roles"]) == 0:
+                return True
+            else:
+                if payload["role_id"] in item["allowed"]["roles"]:
+                    return True
+        if item["allowed"]["categories"] is not False:
+            if len(item["allowed"]["categories"]) == 0:
+                return True
+            else:
+                if payload["category_id"] in item["allowed"]["categories"]:
+                    return True
+        if item["allowed"]["groups"] is not False:
+            if len(item["allowed"]["groups"]) == 0:
+                if table in ["domains", "media"]:
+                    if item.get("category") == payload["category_id"]:
+                        return True
+                else:
+                    return True
+            else:
+                if payload["group_id"] in item["allowed"]["groups"]:
+                    return True
+        if item["allowed"]["users"] is not False:
+            if len(item["allowed"]["users"]) == 0:
+                if table in ["domains", "media"]:
+                    if item.get("category") == payload["category_id"]:
+                        return True
+                else:
+                    return True
+                return False
+            else:
+                if payload["user_id"] in item["allowed"]["users"]:
+                    return True
 
     def get_domain_reservables(self, domain_id):
         with app.app_context():

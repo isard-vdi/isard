@@ -145,14 +145,6 @@ def admin_config():
     return render_template("admin/pages/config.html", nav="Config")
 
 
-# ~ @app.route('/isard-admin/admin/disposables', methods=["POST"])
-# ~ @login_required
-# ~ @isAdmin
-# ~ def admin_disposables():
-# ~ result=app.adminapi.get_admin_table('disposables')
-# ~ return json.dumps(result), 200, {'Content-Type':'application/json'}
-
-
 @app.route("/isard-admin/admin/config/update", methods=["POST"])
 @login_required
 @isAdminManager
@@ -184,36 +176,6 @@ def admin_config_update():
         if app.adminapi.update_table_dict("config", 1, dict):
             # ~ return json.dumps('Updated'), 200, {'Content-Type':'application/json'}
             return render_template("admin/pages/config.html", nav="Config")
-    return json.dumps("Could not update."), 500, {"Content-Type": "application/json"}
-
-
-@app.route("/isard-admin/admin/disposable/add", methods=["POST"])
-@login_required
-@isAdminManager
-def admin_disposable_add():
-    if request.method == "POST":
-        dsps = []
-        # ~ Next 2 lines should be removed when form returns a list
-        nets = [request.form["nets"]]
-        disposables = request.form.getlist("disposables")
-        for d in disposables:
-            dsps.append(
-                app.adminapi.get_admin_table(
-                    "domains", pluck=["id", "name", "description"], id=d
-                )
-            )
-        disposable = [
-            {
-                "id": app.isardapi.parse_string(request.form["name"]),
-                "active": True,
-                "name": request.form["name"],
-                "description": request.form["description"],
-                "nets": nets,
-                "disposables": dsps,
-            }
-        ]
-        if app.adminapi.insert_table_dict("disposables", disposable):
-            return json.dumps("Updated"), 200, {"Content-Type": "application/json"}
     return json.dumps("Could not update."), 500, {"Content-Type": "application/json"}
 
 
