@@ -11,22 +11,32 @@ export class MediaUtils {
       name,
       description,
       status,
-      owner,
+      user,
+      user_name: userName,
       category,
+      category_name: categoryName,
       group,
+      group_name: groupName,
       allowed,
-      progress
+      progress,
+      kind,
+      editable
     } = item
     return {
       id,
       name,
       description,
       status,
-      owner,
+      user,
+      userName,
       category,
+      categoryName,
       group,
+      groupName,
       allowed,
-      progress
+      progress,
+      kind,
+      editable
     }
   }
 }

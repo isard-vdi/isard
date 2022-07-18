@@ -121,7 +121,7 @@
             },
             "logout": "Cerrar sesión",
             "profile": "Perfil",
-            "media": "Media"
+            "media": "Medios"
         },
         "statusbar": {
             "desktops-started": "Escritorios arrancados",
@@ -605,13 +605,28 @@
             }
         },
         "media": {
+            "tabs": {
+                "media": "Tus medios",
+                "media-compact": "Tuyos",
+                "shared-media": "Medios compartidos contigo",
+                "shared-media-compact": "Compartido"
+            },
             "no-media": {
-                "title": "No hay media para este usuario",
+                "title": "No hay medios para este usuario",
+                "subtitle": "Si crees que se trata de un error, contacta con el administrador"
+            },
+            "no-shared-media": {
+                "title": "No hay medios compartidos con este usuario",
                 "subtitle": "Si crees que se trata de un error, contacta con el administrador"
             },
             "table-header": {
                 "name": "Nombre",
                 "description": "Descripción",
+                "category": "Categoría",
+                "group": "Grupo",
+                "user": "Usuario",
+                "status": "Estado",
+                "progress-size": "Progreso / Mida",
                 "actions": "Acciones"
             },
             "buttons": {
