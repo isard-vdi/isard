@@ -26,7 +26,8 @@
                 "planning": "Planificació"
             },
             "logout": "Tancar la sessió",
-            "profile": "Perfil"
+            "profile": "Perfil",
+            "media": "Media"
         },
         "statusbar": {
             "desktops-started": "Desktops arrencats",
@@ -493,6 +494,22 @@
                 },
                 "disable": {
                     "title": "Deshabilitar"
+                }
+            }
+        },
+        "media": {
+            "no-media": {
+                "title": "No hi ha cap media de l'usuari actual",
+                "subtitle": "Si creus que es tracta d'un error, contacta a l'administrador"
+            },
+            "table-header": {
+                "name": "Nom",
+                "description": "Descripció",
+                "actions": "Accions"
+            },
+            "buttons": {
+                "allowed": {
+                    "title": "Canviar permissos"
                 }
             }
         }

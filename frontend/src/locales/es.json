@@ -120,7 +120,8 @@
                 "planning": "Planificación"
             },
             "logout": "Cerrar sesión",
-            "profile": "Perfil"
+            "profile": "Perfil",
+            "media": "Media"
         },
         "statusbar": {
             "desktops-started": "Escritorios arrancados",
@@ -600,6 +601,22 @@
                 },
                 "enable": {
                     "title": "Habilitar"
+                }
+            }
+        },
+        "media": {
+            "no-media": {
+                "title": "No hay media para este usuario",
+                "subtitle": "Si crees que se trata de un error, contacta con el administrador"
+            },
+            "table-header": {
+                "name": "Nombre",
+                "description": "Descripción",
+                "actions": "Acciones"
+            },
+            "buttons": {
+                "allowed": {
+                    "title": "Cambiar permisos"
                 }
             }
         }

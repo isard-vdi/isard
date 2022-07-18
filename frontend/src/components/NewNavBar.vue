@@ -38,6 +38,12 @@
               {{ $t("components.navbar.templates") }}
             </b-nav-item>
             <b-nav-item
+              v-if="getUser.role_id !== 'user'"
+              :to="{ name: 'media' }"
+            >
+              {{ $t("components.navbar.media") }}
+            </b-nav-item>
+            <b-nav-item
               v-if="getUser.role_id === 'advanced'"
               :to="{ name: 'deployments' }"
             >

@@ -15,6 +15,7 @@ import booking from './modules/booking'
 import snotify from './modules/snotify'
 import planning from './modules/planning'
 import profile from './modules/profile'
+import media from './modules/media'
 import store from '@/store/index.js'
 import { authenticationSegment, apiV3Segment, apiAdminSegment } from '@/shared/constants'
 import { getCookie } from 'tiny-cookie'
@@ -209,6 +210,7 @@ export default new Vuex.Store({
     booking,
     snotify,
     planning,
-    profile
+    profile,
+    media
   }
 })
