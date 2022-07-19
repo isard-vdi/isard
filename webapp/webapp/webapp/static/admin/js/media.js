@@ -244,7 +244,7 @@ $(document).ready(function() {
                 data["hypervisors_pools"] = [data["hypervisors_pools"]]
                 $.ajax({ 
                     type: "POST",
-                    url:"/api/v3/admin/media",
+                    url:"/api/v3/media",
                     data: JSON.stringify(data),
                     contentType: "application/json",
                     success: function(data)
