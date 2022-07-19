@@ -4,6 +4,7 @@ from flask import request
 
 from api import app
 
+from ..libv2.api_admin import admin_table_update
 from ..libv2.api_exceptions import Error
 from ..libv2.quotas import Quotas
 
@@ -17,7 +18,7 @@ from ..libv2.api_allowed import ApiAllowed
 
 allowed = ApiAllowed()
 
-from .decorators import has_token
+from .decorators import has_token, is_admin_or_manager_or_advanced
 
 
 @app.route("/api/v3/media", methods=["GET"])
@@ -63,3 +64,14 @@ def api_v3_desktops_media_list(payload):
         200,
         {"Content-Type": "application/json"},
     )
+
+
+# Media actions (abort for the moment)
+@app.route("/api/v3/media/<action>/<id>", methods=["POST"])
+@is_admin_or_manager_or_advanced
+def api_v3_media_actions(payload, action, id):
+    if action == "abort":
+        data = {"id": id, "status": "DownloadAborting"}
+        admin_table_update("media", data)
+
+    return json.dumps({}), 200, {"Content-Type": "application/json"}

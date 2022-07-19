@@ -279,7 +279,10 @@ $(document).ready(function() {
                                 },
                                 addclass: 'pnotify-center'
                             }).get().on('pnotify.confirm', function() {
-                                socket.emit('media_update',{'pk':data.id,'name':'status','value':'DownloadAborting'})
+                                $.ajax({ 
+                                    type: "POST",
+                                    url:"/api/v3/media/abort/" + data['id'],
+                                });
                             }).on('pnotify.cancel', function() {
                     });	             
                 break;
