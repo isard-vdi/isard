@@ -28,7 +28,7 @@ export class MediaUtils {
       id,
       name,
       description,
-      status: this.getMediaStatus(status),
+      status,
       user,
       userName,
       category,

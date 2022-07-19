@@ -4,7 +4,8 @@
         "sameAs": "The {property} field must have the same value as {property2}.",
         "minLengthValue": "The {property} field has {model} characters, but it must have a min length of {min}.",
         "maxLengthValue": "The {property} field has {model} characters, but it must have a maximum length of {max}.",
-        "inputFormat": "Valid characters are letters, numbers, comma, dot, -, _"
+        "inputFormat": "Valid characters are letters, numbers, comma, dot, -, _",
+        "url": "The {property} field must be an url."
     },
     "forms": {
         "allowed": {
@@ -88,6 +89,14 @@
                 "user": "User"
             }
         },
+        "new-media": {
+            "title": "Create new media:",
+            "url": "URL",
+            "type": "Type",
+            "name": "Media name",
+            "description": "Description",
+            "select-type": "Please, select an option"
+        },
         "clear": "Clear",
         "cancel": "Cancel",
         "submit": "Submit",
@@ -129,6 +138,7 @@
             "checkbox-text-short": "Started",
             "new-desktop": "New Desktop",
             "new-deployment": "New Deployment",
+            "new-media": "New Media",
             "upload-file": "Upload File",
             "cancel": "Cancel",
             "select": "Select",
@@ -674,7 +684,8 @@
             "deleting-event": "Deleting event",
             "no-availability-event": "There's no availability in the selected range",
             "not-created-event": "Couldn't create the event",
-            "missing-data": "Missing data"
+            "missing-data": "Missing data",
+            "creating-media": "Creating media"
         },
         "loading": "Loading"
     },

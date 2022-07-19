@@ -58,7 +58,7 @@
               </template>
               <template #cell(status)="data">
                 <p class="text-dark-gray m-0">
-                  {{ data.item.status }}
+                  {{ getMediaStatus(data.item.status) }}
                 </p>
               </template>
               <template #cell(progressSize)="data">
@@ -68,6 +68,21 @@
                 >
                   {{ data.item.progress.received }}
                 </p>
+                <div v-else-if="data.item.status !== 'DownloadFailed'">
+                  <b-progress
+                    :max="100"
+                    height="2rem"
+                  >
+                    <b-progress-bar
+                      variant="info"
+                      :value="data.item.progress.total_percent"
+                      show-progress
+                      animated
+                    >
+                      <strong>{{ data.item.progress.total_percent }} %</strong>
+                    </b-progress-bar>
+                  </b-progress>
+                </div>
               </template>
               <template #cell(actions)="data">
                 <div class="d-flex justify-content-center align-items-center">
@@ -94,6 +109,7 @@
 <script>
 import i18n from '@/i18n'
 import ListItemSkeleton from '@/components/ListItemSkeleton.vue'
+import { MediaUtils } from '@/utils/mediaUtils'
 
 export default {
   components: { ListItemSkeleton },
@@ -123,7 +139,12 @@ export default {
       return media.kind === 'iso' ? 'compact-disc' : 'save'
     }
 
+    const getMediaStatus = (status) => {
+      return MediaUtils.getMediaStatus(status)
+    }
+
     return {
+      getMediaStatus,
       showAllowedModal,
       mediaIcon
     }

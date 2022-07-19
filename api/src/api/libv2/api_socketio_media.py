@@ -65,6 +65,7 @@ class MediaThread(threading.Thread):
                             "status",
                             "user",
                             "category",
+                            "allowed",
                         )
                         .merge({"table": "domains"})
                         .changes(include_initial=False)
@@ -101,12 +102,13 @@ class MediaThread(threading.Thread):
                         else:
                             data = c["new_val"]
                             event = "update"
-                        ## Admins should receive all updates on /isard-admin/admin namespace
-                        ## Users should receive not only their media updates, also the shared one's with them!
+                        ## TODO: Users should receive not only their media updates, also the shared one's with them!
                         socketio.emit(
-                            event,
-                            json.dumps(data),
-                            namespace="/media_" + event,
+                            "media_" + event,
+                            json.dumps(
+                                {**data, "editable": True}
+                            ),  # The owner can edit its data
+                            namespace="/userspace",
                             room=data["user"],
                         )
             except ReqlDriverError:

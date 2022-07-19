@@ -1,5 +1,7 @@
-import axios from 'axios'
+import i18n from '@/i18n'
+import router from '@/router'
 import { MediaUtils } from '@/utils/mediaUtils'
+import axios from 'axios'
 import { orderBy } from 'lodash'
 import { apiV3Segment } from '../../shared/constants'
 import { ErrorUtils } from '../../utils/errorUtils'
@@ -42,9 +44,36 @@ export default {
     setSharedMedia: (state, media) => {
       state.sharedMedia = media
       state.sharedMedia_loaded = true
+    },
+    add_media: (state, media) => {
+      state.media = [...state.media, media]
+    },
+    update_media: (state, media) => {
+      const item = state.media.find(d => d.id === media.id)
+      if (item) {
+        Object.assign(item, media)
+      }
+    },
+    remove_media: (state, media) => {
+      const mediaIndex = state.media.findIndex(d => d.id === media.id)
+      if (mediaIndex !== -1) {
+        state.media.splice(mediaIndex, 1)
+      }
     }
   },
   actions: {
+    socket_mediaAdd (context, data) {
+      const media = MediaUtils.parseMedia(JSON.parse(data))
+      context.commit('add_media', media)
+    },
+    socket_mediaUpdate (context, data) {
+      const media = MediaUtils.parseMedia(JSON.parse(data))
+      context.commit('update_media', media)
+    },
+    socket_mediaDelete (context, data) {
+      const media = JSON.parse(data)
+      context.commit('remove_media', media)
+    },
     resetMediaState (context) {
       context.commit('resetMediaState')
     },
@@ -64,6 +93,15 @@ export default {
           'setSharedMedia',
           MediaUtils.parseMediaList(orderBy(response.data, ['desc']))
         )
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    createNewMedia (_, payload) {
+      ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.creating-media'), '', true, 1000)
+
+      axios.post(`${apiV3Segment}/media`, payload).then(response => {
+        router.push({ name: 'media' })
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })

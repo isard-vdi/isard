@@ -111,6 +111,18 @@
               {{ `${$t("components.statusbar.new-deployment")}` }}
             </b-button>
           </div>
+          <div class="pt-1">
+            <b-button
+              v-if="locationMedia && !creationMode"
+              :pill="true"
+              class="mr-0 mr-md-4"
+              variant="outline-primary"
+              size="sm"
+              @click="navigate('medianew')"
+            >
+              {{ `${$t("components.statusbar.new-media")}` }}
+            </b-button>
+          </div>
           <div
             v-if="locationDeployment"
             class="pt-1"
@@ -433,6 +445,10 @@ export default {
     locationDeployments () {
       const tokens = this.getUrlTokens
       return tokens === 'deployments'
+    },
+    locationMedia () {
+      const tokens = this.getUrlTokens
+      return tokens === 'media'
     },
     locationDeployment () {
       const tokens = this.getUrlTokens
