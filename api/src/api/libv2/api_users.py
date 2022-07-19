@@ -162,10 +162,16 @@ class ApiUsers:
             or os.environ.get("FRONTEND_SHOW_BOOKINGS") == "True"
             else False
         )
+        frontend_show_temporal_tab = (
+            True
+            if os.environ.get("FRONTEND_SHOW_TEMPORAL") == None
+            else os.environ.get("FRONTEND_SHOW_TEMPORAL") == "True"
+        )
         return {
             "show_admin_button": show_admin_button,
             "show_bookings_button": show_bookings_button,
             "documentation_url": os.environ.get("FRONTEND_DOCS_URI"),
+            "show_temporal_tab": frontend_show_temporal_tab,
         }
 
     def Get(self, user_id):
