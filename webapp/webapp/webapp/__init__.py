@@ -123,6 +123,5 @@ from .views import (
     DesktopViews,
     LoginViews,
     MediaViews,
-    ProfileViews,
     TemplateViews,
 )
