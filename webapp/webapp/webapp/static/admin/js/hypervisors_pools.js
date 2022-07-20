@@ -200,31 +200,31 @@ $(document).ready(function() {
 				});
 			}
             if(data['viewer']['certificate'].length >10){data['viewer']['certificate']='Yes';}
-            $('#hyper-pools-viewer-'+data.id+' tbody').append('<tr><td>'+data['viewer']['defaultMode']+'</td><td>'+data['viewer']['domain']+'</td><td>'+data['viewer']['certificate']+'</td> \
-                <td><button class="btn btn-xs btn-viewer-pool-edit" data-pk="'+data.id+'" type="button" ><i class="fa fa-pencil" style="color:darkblue"></i></button></td> \
-                </tr>');
+            $('#hyper-pools-viewer-'+data.id+' tbody').append('<tr><td>'+data['viewer']['defaultMode']+'</td><td>'+data['viewer']['domain']+'</td><td>'+data['viewer']['certificate']
+            // +'</td><td><button class="btn btn-xs btn-viewer-pool-edit" data-pk="'+data.id+'" type="button" ><i class="fa fa-pencil" style="color:darkblue"></i></button></td></tr>'
+            );
             tr.addClass('shown');
             
-            $('.btn-viewer-pool-edit').on('click', function(){
-                pk=$(this).attr("data-pk");
-                $("#modalEditViewer #modalEditViewerForm")[0].reset();
-                $('#modalEditViewer').modal({
-                    backdrop: 'static',
-                    keyboard: false
-                }).modal('show');
-                 //~ $('#hardware-block').hide();
-                //~ $('#modalEdit').parsley();
-                //~ modal_edit_desktop_datatables(pk);               
-            });
+            // $('.btn-viewer-pool-edit').on('click', function(){
+            //     pk=$(this).attr("data-pk");
+            //     $("#modalEditViewer #modalEditViewerForm")[0].reset();
+            //     $('#modalEditViewer').modal({
+            //         backdrop: 'static',
+            //         keyboard: false
+            //     }).modal('show');
+            //      //~ $('#hardware-block').hide();
+            //     //~ $('#modalEdit').parsley();
+            //     //~ modal_edit_desktop_datatables(pk);               
+            // });
             
-            $("#modalEditViewer #send").on('click', function(e){
-                var form = $('#modalEditViewer #modalEditViewerForm');
-                form.parsley().validate();
-                if (form.parsley().isValid()){
-                        data=$('#modalEditViewer #modalEditViewerForm').serializeObject();
-                        socket.emit('hyperpool_edit',data)
-                }
-            });
+            // $("#modalEditViewer #send").on('click', function(e){
+            //     var form = $('#modalEditViewer #modalEditViewerForm');
+            //     form.parsley().validate();
+            //     if (form.parsley().isValid()){
+            //             data=$('#modalEditViewer #modalEditViewerForm').serializeObject();
+            //             socket.emit('hyperpool_edit',data)
+            //     }
+            // });
                     
         }
     } );
