@@ -220,3 +220,11 @@ def admin_jumperurl_reset(payload, desktop_id):
         200,
         {"Content-Type": "application/json"},
     )
+
+
+@app.route("/api/v3/desktop/<desktop_id>", methods=["DELETE"])
+@has_token
+def api_v3_desktop_delete(payload, desktop_id):
+    ownsDomainId(payload, desktop_id)
+    desktops.Delete(desktop_id)
+    return json.dumps({}), 200, {"Content-Type": "application/json"}

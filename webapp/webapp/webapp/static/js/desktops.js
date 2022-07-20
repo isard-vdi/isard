@@ -430,7 +430,7 @@ function actionsDesktopDetail(){
                             },
                             addclass: 'pnotify-center'
                         }).get().on('pnotify.confirm', function() {
-                            socket.emit('domain_update',{'pk':pk,'name':'status','value':'Deleting'})
+                            api.ajax('/api/v3/desktop/' + pk, 'DELETE').done(function() {});
                         }).on('pnotify.cancel', function() {
                 }); 
     });
