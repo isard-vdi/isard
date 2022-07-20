@@ -66,14 +66,15 @@ def api_v3_desktops_media_list(payload):
     )
 
 
-# Media actions (abort for the moment)
+# Media actions
 @app.route("/api/v3/media/<action>/<id>", methods=["POST"])
 @is_admin_or_manager_or_advanced
 def api_v3_media_actions(payload, action, id):
     if action == "abort":
         data = {"id": id, "status": "DownloadAborting"}
-        admin_table_update("media", data)
-
+    if action == "download":
+        data = {"id": id, "status": "DownloadStarting"}
+    admin_table_update("media", data)
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 

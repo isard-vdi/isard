@@ -184,6 +184,31 @@ $(document).ready(function() {
                             }).on('pnotify.cancel', function() {
                     });	             
                 break;
+             case 'btn-download':
+                new PNotify({
+                    title: 'Confirmation Needed',
+                        text: "Do you want to reload the download for "+data.name+"?",
+                        hide: false,
+                        opacity: 0.9,
+                        confirm: {
+                            confirm: true
+                        },
+                        buttons: {
+                            closer: false,
+                            sticker: false
+                        },
+                        history: {
+                            history: false
+                        },
+                        addclass: 'pnotify-center'
+                    }).get().on('pnotify.confirm', function() {
+                        $.ajax({ 
+                            type: "POST",
+                            url:"/api/v3/media/download/" + data['id'],
+                        });
+                    }).on('pnotify.cancel', function() {
+                    });
+                break;
              case 'btn-alloweds':
                     modalAllowedsFormShow('media',data)
                 break;                
