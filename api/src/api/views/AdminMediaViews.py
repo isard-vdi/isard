@@ -7,7 +7,7 @@ from rethinkdb import RethinkDB
 
 from api import app
 
-from ..libv2.api_admin import admin_table_insert, admin_table_list
+from ..libv2.api_admin import admin_table_insert
 from ..libv2.api_exceptions import Error
 from ..libv2.api_media import ApiMedia
 from ..libv2.flask_rethink import RDB
@@ -88,19 +88,3 @@ def api_v3_admin_media_delete(payload, media_id):
     ownsCategoryId(payload, media["category"])
     api_media.DeleteDesktops(media_id)
     return json.dumps(media_id), 200, {"Content-Type": "application/json"}
-
-
-@app.route("/api/v3/admin/media/installs")
-@has_token
-def api_v3_media_installs(payload):
-    return (
-        json.dumps(
-            admin_table_list(
-                "virt_install",
-                order_by="name",
-                pluck=["id", "name", "description", "vers"],
-            )
-        ),
-        200,
-        {"Content-Type": "application/json"},
-    )

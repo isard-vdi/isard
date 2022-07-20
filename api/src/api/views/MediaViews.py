@@ -4,7 +4,7 @@ from flask import request
 
 from api import app
 
-from ..libv2.api_admin import admin_table_update
+from ..libv2.api_admin import admin_table_list, admin_table_update
 from ..libv2.api_exceptions import Error
 from ..libv2.quotas import Quotas
 
@@ -75,3 +75,19 @@ def api_v3_media_actions(payload, action, id):
         admin_table_update("media", data)
 
     return json.dumps({}), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/media/installs")
+@has_token
+def api_v3_media_installs(payload):
+    return (
+        json.dumps(
+            admin_table_list(
+                "virt_install",
+                order_by="name",
+                pluck=["id", "name", "description", "vers"],
+            )
+        ),
+        200,
+        {"Content-Type": "application/json"},
+    )
