@@ -396,7 +396,23 @@ $(document).ready(function() {
             if (form.parsley().isValid()){
                 data=$('#modalAddMediaForm').serializeObject();
                 data=replaceAlloweds_arrays('#modalAddMediaForm #alloweds-add',data)
-                socket.emit('media_add',data)
+                data["detail"] = "Downloaded from website"
+                data["hypervisors_pools"] = [data["hypervisors_pools"]]
+                $.ajax({
+                    type: "POST",
+                    url:"/api/v3/media",
+                    data: JSON.stringify(data),
+                    contentType: "application/json",
+                    success: function(data)
+                    {
+                        $('form').each(function() { this.reset() });
+                        $('.modal').modal('hide');
+                    },
+                    error: function (jqXHR, exception) {
+                        processError(jqXHR,form)
+                    }
+
+                });
             }
         });
 
