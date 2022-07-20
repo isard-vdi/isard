@@ -360,7 +360,7 @@
             "template": "Template",
             "loading": "Loading templates",
             "no-templates": {
-                "title": "There are no templates or desktops for this user",
+                "title": "There are no templates for this user",
                 "subtitle": "If you think this is an error, please contact the administrator"
             },
             "no-desktops": {
@@ -370,6 +370,9 @@
             "no-desktops-filtered": {
                 "title": "There are no desktops to display with current filters",
                 "subtitle": "You may create a new desktop with the top right button"
+            },
+            "no-templates-filtered": {
+                "title": "There are no templates to display with current filters"
             },
             "which-template": "Which desktop do you want to use?",
             "persistent": "Persistent desktops",

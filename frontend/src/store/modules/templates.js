@@ -1,10 +1,10 @@
-import axios from 'axios'
-import { DesktopUtils } from '@/utils/desktopsUtils'
-import { apiV3Segment } from '../../shared/constants'
-import { ErrorUtils } from '../../utils/errorUtils'
-import { orderBy } from 'lodash'
 import i18n from '@/i18n'
 import router from '@/router'
+import { DesktopUtils } from '@/utils/desktopsUtils'
+import axios from 'axios'
+import { orderBy } from 'lodash'
+import { apiV3Segment } from '../../shared/constants'
+import { ErrorUtils } from '../../utils/errorUtils'
 
 const getDefaultState = () => {
   return {
@@ -45,6 +45,9 @@ export default {
       if (item) {
         Object.assign(item, template)
       }
+    },
+    setTemplatesLoaded: (state, templatesLoaded) => {
+      state.templates_loaded = templatesLoaded
     }
   },
   actions: {
@@ -86,6 +89,9 @@ export default {
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
+    },
+    setTemplatesLoaded (context, templatesLoaded) {
+      context.commit('setTemplatesLoaded', templatesLoaded)
     }
   }
 }

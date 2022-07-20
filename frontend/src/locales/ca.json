@@ -266,7 +266,7 @@
             "template": "Plantilla",
             "loading": "Carregant plantilles",
             "no-templates": {
-                "title": "No hi ha cap plantilla o escriptori per a aquest usuari",
+                "title": "No hi ha cap plantilla per a aquest usuari",
                 "subtitle": "Si creus que es tracta d'un error, contacta a l'administrador"
             },
             "no-desktops": {
@@ -276,6 +276,9 @@
             "no-desktops-filtered": {
                 "title": "No hi ha escriptoris per mostrar amb els filtres actuals",
                 "subtitle": "Podeu crear un escriptori nou amb el botó superior dret"
+            },
+            "no-templates-filtered": {
+                "title": "No hi ha plantilles per mostrar amb els filtres actuals"
             },
             "which-template": "Quin escriptori vols fer servir?",
             "persistent": "Escriptoris persistents",

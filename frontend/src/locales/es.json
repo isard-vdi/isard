@@ -360,7 +360,7 @@
             "template": "Plantilla",
             "loading": "Cargando plantillas",
             "no-templates": {
-                "title": "No hay ninguna plantilla o escritorio para éste usuario",
+                "title": "No hay ninguna plantilla para éste usuario",
                 "subtitle": "Si crees que se trata de un error, contacta con el administrador"
             },
             "no-desktops": {
@@ -370,6 +370,9 @@
             "no-desktops-filtered": {
                 "title": "No hay escritorios para mostrar con los filtros actuales",
                 "subtitle": "Podéis crear un escritorio nuevo con el botón superior derecho"
+            },
+            "no-templates-filtered": {
+                "title": "No hay plantillas para mostrar con los filtros actuales"
             },
             "which-template": "¿Qué escritorio quieres usar?",
             "persistent": "Escritorios persistentes",

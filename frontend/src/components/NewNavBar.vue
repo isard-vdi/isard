@@ -50,7 +50,7 @@
               {{ $t("components.navbar.deployments") }}
             </b-nav-item>
             <b-nav-item-dropdown
-              v-if="getConfig['show_bookings_button']"
+              v-if="getConfig.showBookingsButton"
               :text="$t('components.navbar.bookings.text')"
             >
               <b-dropdown-item @click="menuGoToBookingSummary()">
@@ -64,7 +64,7 @@
               </b-dropdown-item>
             </b-nav-item-dropdown>
             <b-nav-item
-              v-if="getConfig['show_admin_button']"
+              v-if="getConfig.showAdminButton"
               @click="loginAdmin()"
             >
               {{ $t("components.navbar.admin") }}
@@ -94,7 +94,7 @@
                 {{ $t("components.navbar.profile") }}
               </b-dropdown-item>
               <b-dropdown-item
-                :href="getConfig['documentation_url']"
+                :href="getConfig.documentationUrl"
                 target="_blank"
               >
                 <b-icon
