@@ -27,7 +27,7 @@
             },
             "logout": "Tancar la sessió",
             "profile": "Perfil",
-            "media": "Media"
+            "media": "Mitjans"
         },
         "statusbar": {
             "desktops-started": "Desktops arrencats",
@@ -498,13 +498,28 @@
             }
         },
         "media": {
+            "tabs": {
+                "media": "Els teus mitjans",
+                "media-compact": "Teus",
+                "shared-media": "Mitjans compartits amb tu",
+                "shared-media-compact": "Compartits"
+            },
             "no-media": {
-                "title": "No hi ha cap media de l'usuari actual",
+                "title": "No hi ha cap mitjà de l'usuari actual",
+                "subtitle": "Si creus que es tracta d'un error, contacta a l'administrador"
+            },
+            "no-shared-media": {
+                "title": "No hi ha cap mitjà compartit amb l'usuari actual",
                 "subtitle": "Si creus que es tracta d'un error, contacta a l'administrador"
             },
             "table-header": {
                 "name": "Nom",
                 "description": "Descripció",
+                "category": "Categoria",
+                "group": "Grup",
+                "user": "Usuari",
+                "status": "Estat",
+                "progress-size": "Progrés / Mida",
                 "actions": "Accions"
             },
             "buttons": {

@@ -591,13 +591,28 @@
             }
         },
         "media": {
+            "tabs": {
+                "media": "Your media",
+                "media-compact": "Yours",
+                "shared-media": "Media shared with you",
+                "shared-media-compact": "Shared"
+            },
             "no-media": {
                 "title": "There is no media from this user",
+                "subtitle": "If you think this is an error, please contact the administrator"
+            },
+            "no-shared-media": {
+                "title": "There is no media shared with this user",
                 "subtitle": "If you think this is an error, please contact the administrator"
             },
             "table-header": {
                 "name": "Name",
                 "description": "Description",
+                "category": "Category",
+                "group": "Group",
+                "user": "User",
+                "status": "Status",
+                "progress-size": "Progress / Size",
                 "actions": "Actions"
             },
             "buttons": {

@@ -23,13 +23,32 @@
           >
             <b-table
               :items="media"
-              :fields="fields"
+              :fields="shared ? sharedFields : fields"
               tbody-tr-class="cursor-pointer"
               :responsive="true"
             >
               <template #cell(name)="data">
                 <p class="m-0 font-weight-bold">
+                  <font-awesome-icon
+                    class="mr-2"
+                    :icon="mediaIcon(data.item)"
+                  />
                   {{ data.item.name }}
+                </p>
+              </template>
+              <template #cell(user)="data">
+                <p class="text-dark-gray m-0">
+                  {{ data.item.userName }}
+                </p>
+              </template>
+              <template #cell(category)="data">
+                <p class="text-dark-gray m-0">
+                  {{ data.item.categoryName }}
+                </p>
+              </template>
+              <template #cell(group)="data">
+                <p class="text-dark-gray m-0">
+                  {{ data.item.groupName }}
                 </p>
               </template>
               <template #cell(description)="data">
@@ -37,9 +56,23 @@
                   {{ data.item.description }}
                 </p>
               </template>
+              <template #cell(status)="data">
+                <p class="text-dark-gray m-0">
+                  {{ data.item.status }}
+                </p>
+              </template>
+              <template #cell(progressSize)="data">
+                <p
+                  v-if="data.item.status === 'Downloaded'"
+                  class="text-dark-gray m-0"
+                >
+                  {{ data.item.progress.received }}
+                </p>
+              </template>
               <template #cell(actions)="data">
                 <div class="d-flex justify-content-center align-items-center">
                   <b-button
+                    v-if="data.item.editable"
                     class="rounded-circle px-2 mr-2 btn-dark-blue"
                     :title="$t('views.media.buttons.allowed.title')"
                     @click="showAllowedModal(data.item)"
@@ -75,6 +108,11 @@ export default {
     loading: {
       required: true,
       type: Boolean
+    },
+    shared: {
+      required: false,
+      type: Boolean,
+      default: false
     }
   },
   setup (props, context) {
@@ -90,9 +128,14 @@ export default {
       $store.dispatch('updateAllowed', { table: 'media', id: mediaId.value, allowed: allowed })
     }
 
+    const mediaIcon = (media) => {
+      return media.kind === 'iso' ? 'compact-disc' : 'save'
+    }
+
     return {
       showAllowedModal,
-      updateAllowed
+      updateAllowed,
+      mediaIcon
     }
   },
   data () {
@@ -102,14 +145,69 @@ export default {
           key: 'name',
           sortable: true,
           label: i18n.t('views.media.table-header.name'),
-          thStyle: { width: '25%' },
+          thStyle: { width: '20%' },
           tdClass: 'name'
         },
         {
           key: 'description',
           sortable: true,
           label: i18n.t('views.media.table-header.description'),
-          thStyle: { width: '35%' }
+          thStyle: { width: '20%' }
+        },
+        {
+          key: 'status',
+          label: i18n.t('views.media.table-header.status'),
+          thStyle: { width: '5%' }
+        },
+        {
+          key: 'progressSize',
+          label: i18n.t('views.media.table-header.progress-size'),
+          thStyle: { width: '10%' }
+        },
+        {
+          key: 'actions',
+          label: i18n.t('views.media.table-header.actions'),
+          thStyle: { width: '5%' }
+        }
+      ],
+      sharedFields: [
+        {
+          key: 'name',
+          sortable: true,
+          label: i18n.t('views.media.table-header.name'),
+          thStyle: { width: '20%' },
+          tdClass: 'name'
+        },
+        {
+          key: 'description',
+          sortable: true,
+          label: i18n.t('views.media.table-header.description'),
+          thStyle: { width: '20%' }
+        },
+        {
+          key: 'user',
+          label: i18n.t('views.media.table-header.user'),
+          thStyle: { width: '5%' }
+        },
+        {
+          key: 'category',
+          label: i18n.t('views.media.table-header.category'),
+          thStyle: { width: '5%' }
+        },
+        {
+          key: 'group',
+          label: i18n.t('views.media.table-header.group'),
+          thStyle: { width: '5%' }
+        },
+        {
+          key: 'status',
+          label: i18n.t('views.media.table-header.status'),
+          thStyle: { width: '5%' }
+        },
+        {
+          key: 'progressSize',
+          label: i18n.t('views.media.table-header.progress-size'),
+          thStyle: { width: '5%' }
         },
         {
           key: 'actions',
@@ -118,6 +216,9 @@ export default {
         }
       ]
     }
+  },
+  destroyed () {
+    this.$store.dispatch('resetMediaState')
   }
 }
 </script>

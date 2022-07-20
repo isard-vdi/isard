@@ -3,20 +3,65 @@
     id="content"
     fluid
   >
-    <div v-if="getMediaLoaded && getMedia.length === 0">
-      <h3><strong>{{ $t('views.media.no-media.title') }}</strong></h3>
-      <p>{{ $t('views.media.no-media.subtitle') }}</p>
-    </div>
-    <MediaList
-      v-else
-      :media="getMedia"
-      :loading="!(getMediaLoaded)"
-    />
+    <b-tabs>
+      <b-tab
+        :active="currentTab === 'media'"
+        @click="updateCurrentTab('media')"
+      >
+        <template #title>
+          <b-spinner
+            v-if="!(getMediaLoaded)"
+            type="border"
+            small
+          />
+          <span class="d-inline d-xl-none">{{ $t('views.media.tabs.media-compact') }}</span><span class="ml-2 d-none d-xl-inline">{{ $t('views.media.tabs.media') }}</span>
+        </template>
+        <template v-if="getMediaLoaded && getMedia.length === 0">
+          <div class="m-4">
+            <h3><strong>{{ $t('views.media.no-media.title') }}</strong></h3>
+            <p>{{ $t('views.media.no-media.subtitle') }}</p>
+          </div>
+        </template>
+        <template v-else>
+          <MediaList
+            :media="getMedia"
+            :loading="!(getMediaLoaded)"
+          />
+        </template>
+      </b-tab>
+      <b-tab
+        :active="currentTab === 'sharedMedia'"
+        @click="updateCurrentTab('sharedMedia')"
+      >
+        <template #title>
+          <b-spinner
+            v-if="!(getSharedMediaLoaded)"
+            type="border"
+            small
+          />
+          <span class="d-inline d-xl-none">{{ $t('views.media.tabs.shared-media-compact') }}</span><span class="ml-2 d-none d-xl-inline">{{ $t('views.media.tabs.shared-media') }}</span>
+        </template>
+        <template v-if="getSharedMediaLoaded && getSharedMedia.length === 0">
+          <div class="m-4">
+            <h3><strong>{{ $t('views.media.no-shared-media.title') }}</strong></h3>
+            <p>{{ $t('views.media.no-shared-media.subtitle') }}</p>
+          </div>
+        </template>
+        <template v-else>
+          <MediaList
+            :shared="true"
+            :media="getSharedMedia"
+            :loading="!(getSharedMediaLoaded)"
+          />
+        </template>
+      </b-tab>
+    </b-tabs>
   </b-container>
 </template>
 <script>
 import MediaList from '@/components/media/MediaList.vue'
-import { mapGetters } from 'vuex'
+import { mapGetters, mapActions } from 'vuex'
+import { computed } from '@vue/composition-api'
 
 export default {
   components: {
@@ -25,11 +70,28 @@ export default {
   setup (_, context) {
     const $store = context.root.$store
     $store.dispatch('fetchMedia')
+    $store.dispatch('fetchSharedMedia')
+
+    const currentTab = computed(() => $store.getters.getCurrentTab)
+
+    return {
+      currentTab
+    }
   },
   computed: {
     ...mapGetters([
       'getMedia',
-      'getMediaLoaded'
+      'getMediaLoaded',
+      'getSharedMedia',
+      'getSharedMediaLoaded'
+    ])
+  },
+  destroyed () {
+    this.$store.dispatch('resetMediaState')
+  },
+  methods: {
+    ...mapActions([
+      'updateCurrentTab'
     ])
   }
 }

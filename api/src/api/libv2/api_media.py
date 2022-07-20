@@ -86,9 +86,10 @@ class ApiMedia:
 
     def Media(self, payload):
         with app.app_context():
-            return list(
+            media = list(
                 r.table("media").get_all(payload["user_id"], index="user").run(db.conn)
             )
+        return [{**m, "editable": True} for m in media]
 
     def Get(self, media_id):
         with app.app_context():
