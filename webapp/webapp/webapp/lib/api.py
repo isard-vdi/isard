@@ -1214,7 +1214,7 @@ class isard:
         # ~ description=create_dict['description']
         # ~ create_dict.pop('description',None)
 
-        if "diskbus" in create_dict["create_dict"]["hardware"]:
+        if "disk_bus" in create_dict["create_dict"]["hardware"]:
             new_create_dict = (
                 r.table("domains")
                 .get(id)
@@ -1224,11 +1224,11 @@ class isard:
             if len(new_create_dict["create_dict"]["hardware"]["disks"]):
                 new_create_dict["create_dict"]["hardware"]["disks"][0][
                     "bus"
-                ] = create_dict["create_dict"]["hardware"]["diskbus"]
+                ] = create_dict["create_dict"]["hardware"]["disk_bus"]
                 create_dict["create_dict"]["hardware"]["disks"] = new_create_dict[
                     "create_dict"
                 ]["hardware"]["disks"]
-            create_dict["create_dict"]["hardware"].pop("diskbus", None)
+            create_dict["create_dict"]["hardware"].pop("disk_bus", None)
 
         if "qos_id" in create_dict["create_dict"]["hardware"]:
             create_dict["create_dict"]["hardware"]["disks"][0]["qos_id"] = create_dict[

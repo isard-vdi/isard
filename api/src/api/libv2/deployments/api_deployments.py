@@ -148,7 +148,7 @@ def new(
                                 "vcpus": True,
                                 "memory": True,
                                 "videos": True,
-                                "diskbus": True,
+                                "disk_bus": True,
                                 "interfaces": True,
                                 "graphics": True,
                                 "boot_order": True,

@@ -45,3 +45,20 @@ def _validate_table(table):
 
 def _validate_alloweds(alloweds):
     None
+
+
+def check_user_duplicated_domain_name(item_id, name, user_id, kind="desktop"):
+    if (
+        r.table("domains")
+        .get_all(user_id, index="user")
+        .filter(lambda item: (item["name"] == name.strip()) & (item["id"] != item_id))
+        .filter({"kind": kind})
+        .count()
+        .run(db.conn)
+        > 0
+    ):
+        raise Error(
+            "conflict",
+            "Desktop with name " + name + " already exists",
+            traceback.format_exc(),
+        )

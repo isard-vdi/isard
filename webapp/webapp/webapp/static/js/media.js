@@ -726,7 +726,7 @@ function parse_media(data){
                 ...("graphics" in data["hardware"]) && {"graphics": [data["hardware"]["graphics"]]},
                 ...("boot_order" in data["hardware"]) && {"boot_order": [data["hardware"]["boot_order"]]},
                 ...("interfaces" in data["hardware"]) && {"interfaces": [data["hardware"]["interfaces"]]},
-                ...("diskbus" in data["hardware"]) && {"disk_bus": data["hardware"]["diskbus"]},
+                ...("disk_bus" in data["hardware"]) && {"disk_bus": data["hardware"]["disk_bus"]},
                 ...("disk_size" in data["hardware"]) && {"disk_size": parseInt(data["hardware"]["disk_size"])},
               },
             }

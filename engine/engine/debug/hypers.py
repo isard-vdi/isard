@@ -79,7 +79,7 @@ new_domain_from_iso = {
         "forced_hyp": False,
         "hardware": {
             "boot_order": ["iso"],
-            "diskbus": "virtio",
+            "disk_bus": "virtio",
             "disks": [
                 {"file": "default/default/local/admin-admin/srcd01.qcow2", "size": "1G"}
             ],

@@ -54,6 +54,7 @@ class ApiAllowed:
         index_value="",
         order=False,
         query_merge=True,
+        extra_ids_allowed=[],
     ):
         try:
             query = r.table(table)
@@ -87,7 +88,7 @@ class ApiAllowed:
                     )
             else:
                 if len(query_pluck) > 0:
-                    query = query.pluck(["allowed"] + query_pluck)
+                    query = query.pluck(["id", "allowed"] + query_pluck)
             if order:
                 query = query.order_by(order)
             with app.app_context():
@@ -106,7 +107,9 @@ class ApiAllowed:
                     item["editable"] = True
                 else:
                     item["editable"] = False
-                if self.is_allowed(payload, item, table):
+                if item["id"] in extra_ids_allowed or self.is_allowed(
+                    payload, item, table
+                ):
                     allowed.append(item)
 
             return allowed

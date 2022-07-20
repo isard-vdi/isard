@@ -309,69 +309,154 @@ function formatPanel ( d ) {
         }
         return $newPanel
 }
-    
-function actionsTmplDetail(){
-        $('.btn-edit').on('click', function () {
-            // Not implemented
-        });
 
-        $('.btn-delete').on('click', function () {
-                var pk=$(this).closest("div").attr("data-pk");
-                var name=$(this).closest("div").attr("data-name");
-                new PNotify({
-                        title: 'Confirmation Needed',
-                            text: "Are you sure you want to delete template: "+name+"?",
-                            hide: false,
-                            opacity: 0.9,
-                            confirm: {
-                                confirm: true
-                            },
-                            buttons: {
-                                closer: false,
-                                sticker: false
-                            },
-                            history: {
-                                history: false
-                            },
-                            addclass: 'pnotify-center'
-                        }).get().on('pnotify.confirm', function() {
-                            api.ajax('/isard-admin/domains/removable','POST',{'id':pk}).done(function(data) {
-                                //console.log('data received:'+data);
-                            }); 
-			    			    
-                            //~ api.ajax('/isard-admin/domains/update','POST',{'pk':pk,'name':'status','value':'Deleting'}).done(function(data) {
-                                //~ console.log('data received:'+data);
-                            //~ });  
-                        }).on('pnotify.cancel', function() {
-                }); 
-            });
-    }
-
-    function icon(name){
-       if(name=='windows' || name=='linux'){
-           return "<span ><i class='fa fa-"+name+" fa-2x'></i></span>";
-        }else{
-            return "<span class='fl-"+name+" fa-2x'></span>";
-        }       
-    }
-
-    function renderName(data){
-        return '<div class="block_content" > \
-                <h4 class="title" style="margin-bottom: 0.1rem; margin-top: 0px;"> \
-                <a>'+data.name+'</a> \
-                </h4> \
-                <p class="excerpt" >'+data.description+'</p> \
-                </div>'
-    }
-        
-    function renderStatus(data){
-        return data.status
-    }   
-    
-    function renderPending(data){
-        status=data.status;
-        if(status=='Stopped'){
-            return 'None';
+function modal_edit_desktop_datatables(id){
+    $.ajax({
+        type: "GET",
+        url:"/api/v3/domain/info/" + id,
+        success: function(data)
+        {
+            $('#modalEditDesktop #forced_hyp').closest("div").remove();
+            $('#modalEditDesktop #name_hidden').val(data.name);
+            $('#modalEditDesktop #name').val(data.name);
+            $('#modalEditDesktop #description').val(data.description);
+            $('#modalEditDesktop #id').val(data.id);
+            $('#modalEditDesktop #guest_properties-credentials-username').val(data["guest_properties"]["credentials"]["username"]);
+            $('#modalEditDesktop #guest_properties-credentials-password').val(data["guest_properties"]["credentials"]["password"]);
+            setHardwareDomainDefaults('#modalEditDesktop', data);
+            setViewers('#modalEditDesktop',data)
         }
-        return '<div class="Change"> <i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i><span class="sr-only">Working...</span></i> </div>';
-    }   
+    });
+}
+
+$("#modalEditDesktop #send").on('click', function(e){
+    var form = $('#modalEdit');
+    form.parsley().validate();
+    if (form.parsley().isValid()){
+        data=$('#modalEdit').serializeObject();
+        if( ("viewers-file_rdpgw" in data || "viewers-file_rdpvpn" in data || "viewers-browser_rdp" in data) && ! data["hardware-interfaces"].includes("wireguard") ){
+            new PNotify({
+                title: "Incompatible options",
+                    text: "RDP viewers need the wireguard network. Please add wireguard network to this desktop or remove RDP viewers.",
+                    hide: true,
+                    delay: 6000,
+                    icon: 'fa fa-alert-sign',
+                    opacity: 1,
+                    type: 'error'
+                });
+            return
+        }
+        data['reservables-vgpus'] = [data['reservables-vgpus']]
+        data=replaceMedia_arrays('#modalEditDesktop',data);
+        data=parse_desktop(JSON.unflatten(parseViewersOptions(data)));
+        var notice = new PNotify({
+            text: 'Updating selected item...',
+            hide: false,
+            opacity: 1,
+            icon: 'fa fa-spinner fa-pulse'
+        })
+        $.ajax({
+            type: 'PUT',
+            url: '/api/v3/desktop/'+data["id"],
+            data: JSON.stringify(data),
+            contentType: 'application/json',
+            error: function(data) {
+                notice.update({
+                    title: 'ERROR',
+                    text: 'Something went wrong when updating',
+                    type: 'error',
+                    hide: true,
+                    icon: 'fa fa-warning',
+                    delay: 5000,
+                    opacity: 1
+                })
+            },
+            success: function(data) {
+                $("#modalEdit")[0].reset();
+                $("#modalEditDesktop").modal('hide');
+                table.ajax.reload()
+                notice.update({
+                    title: data.title,
+                    text: 'Item updated successfully',
+                    hide: true,
+                    delay: 2000,
+                    icon: 'fa fa-' + data.icon,
+                    opacity: 1,
+                    type: 'success'
+                })
+            }
+        })
+    }
+});
+
+function parse_desktop(data){
+    return {
+        "id": data["id"],
+        "name": data["name"],
+        "description": data["description"],
+        "guest_properties": data["guest_properties"],
+        "hardware": {
+            ...("vcpus" in data["hardware"]) && {"vcpus": parseInt(data["hardware"]["vcpus"])},
+            ...("memory" in data["hardware"]) && {"memory": parseFloat(data["hardware"]["memory"])},
+            ...("videos" in data["hardware"]) && {"videos": [data["hardware"]["videos"]]},
+            ...("graphics" in data["hardware"]) && {"graphics": [data["hardware"]["graphics"]]},
+            ...("boot_order" in data["hardware"]) && {"boot_order": [data["hardware"]["boot_order"]]},
+            ...("interfaces" in data["hardware"]) && {"interfaces": data["hardware"]["interfaces"]},
+            ...("disk_bus" in data["hardware"]) && {"disk_bus": data["hardware"]["disk_bus"]},
+            ...("disk_size" in data["hardware"]) && {"disk_size": parseInt(data["hardware"]["disk_size"])},
+            "reservables": {
+                ...(! data["reservables"]["vgpus"].includes(undefined) || data["reservables"]["vgpus"] == null ) && {"vgpus": data["reservables"]["vgpus"]},
+                ...(data["reservables"]["vgpus"].includes(undefined) ) && {"vgpus": null},
+            },
+          },
+        }
+}
+
+function actionsTmplDetail(){
+    $('.btn-edit').on('click', function () {
+        var pk=$(this).closest("[data-pk]").attr("data-pk");
+        setHardwareOptions('#modalEditDesktop');
+        setReservablesOptions('#modalEditDesktop',pk);
+        setReservablesDomainDefaults('#modalEditDesktop',pk);
+        $("#modalEdit")[0].reset();
+        $('#modalEditDesktop').modal({
+            backdrop: 'static',
+            keyboard: false
+        }).modal('show');
+         $('#hardware-block').hide();
+        $('#modalEdit').parsley();
+        modal_edit_desktop_datatables(pk);
+        
+        setDomainMediaDefaults('#modalEditDesktop',pk);
+        setMedia_add('#modalEditDesktop #media-block')
+    });
+}
+
+function icon(name){
+    if(name=='windows' || name=='linux'){
+        return "<span ><i class='fa fa-"+name+" fa-2x'></i></span>";
+    }else{
+        return "<span class='fl-"+name+" fa-2x'></span>";
+    }
+}
+
+function renderName(data){
+    return '<div class="block_content" > \
+            <h4 class="title" style="margin-bottom: 0.1rem; margin-top: 0px;"> \
+            <a>'+data.name+'</a> \
+            </h4> \
+            <p class="excerpt" >'+data.description+'</p> \
+            </div>'
+}
+
+function renderStatus(data){
+    return data.status
+}
+
+function renderPending(data){
+    status=data.status;
+    if(status=='Stopped'){
+        return 'None';
+    }
+    return '<div class="Change"> <i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i><span class="sr-only">Working...</span></i> </div>';
+}

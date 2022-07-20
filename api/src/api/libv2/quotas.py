@@ -60,5 +60,5 @@ class Quotas:
     def deployment_create(self, user_id):
         qp.check("NewDesktop", user_id)
 
-    def get_hardware_allowed(self, user_id):
-        return qp.user_hardware_allowed(user_id)
+    def get_hardware_allowed(self, user_id, domain_id=None):
+        return qp.user_hardware_allowed(user_id, domain_id)
