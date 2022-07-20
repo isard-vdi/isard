@@ -151,7 +151,7 @@ $(document).ready(function() {
                 }).modal('show');
                 $.ajax({
                     type: "GET",
-                    url: "/api/v3/admin/media/desktops/"+data['id'],
+                    url: "/api/v3/media/desktops/"+data['id'],
                 }).done(function(domains) {
                     $('#table_modal_media_delete tbody').empty()
                     $.each(domains, function(key, value) {
@@ -297,7 +297,7 @@ $(document).ready(function() {
     
             $.ajax({
                 type: 'DELETE',
-                url: '/api/v3/admin/media/'+media_id,
+                url: '/api/v3/media/'+media_id,
                 error: function(data) {
                     notice.update({
                         title: 'ERROR',

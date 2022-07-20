@@ -28,7 +28,12 @@ db.init_app(app)
 
 from ..libv2.api_admin import admin_table_insert
 from ..libv2.validators import _validate_item
-from .decorators import has_token, is_admin_or_manager_or_advanced
+from .decorators import (
+    has_token,
+    is_admin_or_manager_or_advanced,
+    ownsCategoryId,
+    ownsMediaId,
+)
 
 
 # Add media
@@ -153,3 +158,24 @@ def api_v3_media_installs(payload):
         200,
         {"Content-Type": "application/json"},
     )
+
+
+# Gets related desktops list at deleting media
+@app.route("/api/v3/media/desktops/<media_id>", methods=["GET"])
+@is_admin_or_manager_or_advanced
+def api_v3_admin_media_desktops(payload, media_id):
+    ownsMediaId(payload, media_id)
+    return (
+        json.dumps(api_media.DesktopList(media_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/media/<media_id>", methods=["DELETE"])
+@is_admin_or_manager_or_advanced
+def api_v3_admin_media_delete(payload, media_id):
+    media = api_media.Get(media_id)
+    ownsMediaId(payload, media_id)
+    api_media.DeleteDesktops(media_id)
+    return json.dumps(media_id), 200, {"Content-Type": "application/json"}
