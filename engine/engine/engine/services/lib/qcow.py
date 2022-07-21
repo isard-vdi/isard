@@ -11,6 +11,7 @@ import string
 from os.path import dirname as extract_dir_path
 from pprint import pformat, pprint
 from random import choices
+from uuid import uuid4
 
 from engine.services.db import (
     get_hyp_hostname_user_port_from_id,
@@ -845,7 +846,13 @@ def backing_chain(path_disk, disk_operations_hostname, json_format=True):
         )
 
 
-def get_path_to_disk(relative_path, pool="default", type_path="groups"):
+def get_path_to_disk(
+    relative_path=None, pool="default", type_path="groups", extension=None
+):
+    if not relative_path:
+        relative_path = str(uuid4())
+    if extension:
+        relative_path += f".{extension}"
     pool_paths = get_pool(pool)["paths"]
     paths_for_type = pool_paths[type_path]
     path_selected = choices(

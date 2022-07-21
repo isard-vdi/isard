@@ -137,21 +137,9 @@ class ApiDesktopsNonPersistent:
 
         parent_disk = template["hardware"]["disks"][0]["file"]
 
-        dir_disk = "/".join(
-            (
-                "volatiles",
-                user["category"],
-                group["uid"],
-                user["provider"],
-                user["username"],
-            )
-        )
-
-        disk_filename = parsed_name + ".qcow2"
-
         create_dict = template["create_dict"]
         create_dict["hardware"]["disks"] = [
-            {"file": dir_disk + "/" + disk_filename, "parent": parent_disk}
+            {"extension": "qcow2", "parent": parent_disk}
         ]
         create_dict = _parse_media_info(create_dict)
 

@@ -863,9 +863,10 @@ class UiActions(object):
         # d['hardware']['disks'][0]['backing_file']
 
         for index_disk in range(len(dict_to_create["hardware"]["disks"])):
-            relative_path = dict_to_create["hardware"]["disks"][index_disk]["file"]
             new_file, path_selected = get_path_to_disk(
-                relative_path, pool=pool_id, type_path=path_type
+                pool=pool_id,
+                type_path=path_type,
+                extension=dict_to_create["hardware"]["disks"][index_disk]["extension"],
             )
             # UPDATE PATH IN DOMAIN
             dict_to_create["hardware"]["disks"][index_disk]["file"] = new_file
