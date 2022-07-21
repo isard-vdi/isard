@@ -1,4 +1,4 @@
-# Isard main config v2.2.1
+# Isard main config v2.2.2
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -51,6 +51,10 @@ WEBAPP_ADMIN_PWD=IsardVDI
 # ------ Frontend Bookings ---------------------------------------------------
 ## Will show/hide Resource bookings menu.
 #FRONTEND_SHOW_BOOKINGS=False
+
+# ------ Frontend Temporal ---------------------------------------------------
+## Will show/hide temporal desktops tab.
+#FRONTEND_SHOW_TEMPORAL=True
 
 # ------ Frontend Documentation URI ---------------------------------------------------
 ## Documentation URI where the user will be redirected.

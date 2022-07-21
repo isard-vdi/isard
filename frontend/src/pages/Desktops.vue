@@ -3,40 +3,38 @@
     id="content"
     fluid
   >
-    <div v-if="getDesktopsLoaded && getTemplatesLoaded && getTemplates.length === 0 && getDesktops.length === 0">
-      <h3><strong>{{ $t('views.select-template.no-templates.title') }}</strong></h3>
-      <p>{{ $t('views.select-template.no-templates.subtitle') }}</p>
-    </div>
-    <div v-else-if="getDesktopsLoaded && getTemplatesLoaded && visibleNonPersistentDesktops.length === 0 && filteredPersistentDesktops.length === 0">
-      <h3><strong>{{ $t('views.select-template.no-desktops-filtered.title') }}</strong></h3>
-      <p>{{ $t('views.select-template.no-desktops-filtered.subtitle') }}</p>
-    </div>
-    <b-tabs v-else>
+    <b-tabs>
       <b-tab
-        v-if="(getDesktopsLoaded && getTemplatesLoaded) || filteredPersistentDesktops.length > 0"
         :active="currentTab === 'desktops'"
         @click="updateCurrentTab('desktops')"
       >
         <template #title>
           <b-spinner
-            v-if="!(getDesktopsLoaded && getTemplatesLoaded)"
+            v-if="!getDesktopsLoaded"
             type="border"
             small
           />
           <span class="d-inline d-xl-none">{{ $t('views.select-template.persistent-compact') }}</span><span class="ml-2 d-none d-xl-inline">{{ $t('views.select-template.persistent') }}</span>
         </template>
-        <template v-if="getDesktops.length === 0">
+        <template v-if="getDesktopsLoaded && getDesktops.length === 0">
           <div class="m-4">
             <h3><strong>{{ $t('views.select-template.no-desktops.title') }}</strong></h3>
             <p>{{ $t('views.select-template.no-desktops.subtitle') }}</p>
           </div>
         </template>
+        <div
+          v-else-if="getDesktopsLoaded && getDesktops.length > 0 && filteredPersistentDesktops.length === 0"
+          class="mt-4 ml-4"
+        >
+          <h3><strong>{{ $t('views.select-template.no-desktops-filtered.title') }}</strong></h3>
+          <p>{{ $t('views.select-template.no-desktops-filtered.subtitle') }}</p>
+        </div>
         <template v-else-if="getViewType === 'grid'">
           <card-list
             :templates="getTemplates"
             :desktops="filteredPersistentDesktops"
             :persistent="true"
-            :loading="!(getDesktopsLoaded && getTemplatesLoaded)"
+            :loading="!getDesktopsLoaded"
           />
         </template>
         <template v-else>
@@ -44,30 +42,42 @@
             :templates="getTemplates"
             :desktops="filteredPersistentDesktops"
             :persistent="true"
-            :loading="!(getDesktopsLoaded && getTemplatesLoaded)"
+            :loading="!getDesktopsLoaded"
           />
         </template>
       </b-tab>
 
       <b-tab
-        v-if="!(getDesktopsLoaded && getTemplatesLoaded) || visibleNonPersistentDesktops.length > 0"
+        v-if="config.showTemporalTab"
         :active="currentTab === 'templates'"
         @click="updateCurrentTab('templates')"
       >
         <template #title>
           <b-spinner
-            v-if="!(getDesktopsLoaded && getTemplatesLoaded)"
+            v-if="!getTemplatesLoaded"
             type="border"
             small
           />
           <span class="d-inline d-xl-none">{{ $t('views.select-template.volatile-compact') }}</span><span class="ml-2 d-none d-xl-inline">{{ $t('views.select-template.volatile') }}</span>
         </template>
-        <template v-if="getViewType === 'grid'">
+        <template v-if="getTemplatesLoaded && getTemplates.length === 0">
+          <div class="mt-4 ml-4">
+            <h3><strong>{{ $t('views.select-template.no-templates.title') }}</strong></h3>
+            <p>{{ $t('views.select-template.no-templates.subtitle') }}</p>
+          </div>
+        </template>
+        <div
+          v-else-if="getTemplatesLoaded && getTemplates.length > 0 && visibleNonPersistentDesktops.length === 0"
+          class="mt-4 ml-4"
+        >
+          <h3><strong>{{ $t('views.select-template.no-templates-filtered.title') }}</strong></h3>
+        </div>
+        <template v-else-if="getViewType === 'grid'">
           <CardList
             :templates="getTemplates"
             :desktops="visibleNonPersistentDesktops"
             :persistent="false"
-            :loading="!(getDesktopsLoaded && getTemplatesLoaded)"
+            :loading="!getTemplatesLoaded"
           />
         </template>
         <template v-else>
@@ -75,7 +85,7 @@
             :templates="getTemplates"
             :desktops="visibleNonPersistentDesktops"
             :persistent="false"
-            :loading="!(getDesktopsLoaded && getTemplatesLoaded)"
+            :loading="!getTemplatesLoaded"
           />
         </template>
       </b-tab>
@@ -88,7 +98,7 @@
 import { mapGetters, mapActions } from 'vuex'
 import CardList from '@/components/CardList.vue'
 import TableList from '@/components/TableList.vue'
-import { computed } from '@vue/composition-api'
+import { computed, watch } from '@vue/composition-api'
 import { desktopStates } from '@/shared/constants'
 
 export default {
@@ -98,9 +108,17 @@ export default {
   },
   setup (_, context) {
     const $store = context.root.$store
+    const config = computed(() => $store.getters.getConfig)
+
+    watch(config, (newVal, prevVal) => {
+      if (newVal.showTemporalTab) {
+        $store.dispatch('fetchAllowedTemplates')
+      } else {
+        $store.dispatch('setTemplatesLoaded', true)
+      }
+    }, { immediate: true })
 
     $store.dispatch('fetchDesktops')
-    $store.dispatch('fetchAllowedTemplates')
 
     const currentTab = computed(() => $store.getters.getCurrentTab)
     const showStarted = computed(() => $store.getters.getShowStarted)
@@ -119,7 +137,8 @@ export default {
     return {
       filteredPersistentDesktops,
       visibleNonPersistentDesktops,
-      currentTab
+      currentTab,
+      config
     }
   },
   computed: {

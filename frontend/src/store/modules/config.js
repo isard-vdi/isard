@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { apiV3Segment, authenticationSegment } from '../../shared/constants'
+import { ConfigUtils } from '../../utils/configUtils'
 
 export default {
   state: {
@@ -29,7 +30,7 @@ export default {
     },
     async fetchConfig ({ commit }) {
       const rsp = await axios.get(`${apiV3Segment}/user/config`)
-      commit('setConfig', rsp.data)
+      commit('setConfig', ConfigUtils.parseConfig(rsp.data))
     }
   }
 }
