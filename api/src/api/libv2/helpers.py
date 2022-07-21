@@ -143,25 +143,6 @@ def _parse_string(txt):
         return txt.replace(" ", "_")
 
 
-def _disk_path(user, parsed_name):
-    with app.app_context():
-        group_uid = r.table("groups").get(user["group"]).run(db.conn)["uid"]
-
-    dir_path = (
-        user["category"]
-        + "/"
-        + group_uid
-        + "/"
-        + user["provider"]
-        + "/"
-        + user["uid"]
-        + "-"
-        + user["username"]
-    )
-    filename = parsed_name + ".qcow2"
-    return dir_path, filename
-
-
 def _check(dict, action):
     """
     These are the actions:
