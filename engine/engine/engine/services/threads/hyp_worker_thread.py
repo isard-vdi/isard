@@ -248,7 +248,6 @@ class HypWorkerThread(threading.Thread):
 
                                 error_msg = pformat(e.get_error_message())
 
-                                # update_domain_status('FailedCreatingDomain', action['id_domain'], hyp_id=self.hyp_id,
                                 update_domain_status(
                                     "Failed",
                                     action["id_domain"],
@@ -311,7 +310,6 @@ class HypWorkerThread(threading.Thread):
 
                         error_msg = pformat(e.get_error_message())
 
-                        # update_domain_status('FailedCreatingDomain', action['id_domain'], hyp_id=self.hyp_id,
                         update_domain_status(
                             "Failed",
                             action["id_domain"],
