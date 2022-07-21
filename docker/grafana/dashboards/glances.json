@@ -1,2148 +1,2155 @@
 {
-  "annotations": {
-    "list": [
-      {
-        "builtIn": 1,
-        "datasource": {
-          "type": "datasource",
-          "uid": "grafana"
-        },
-        "enable": true,
-        "hide": true,
-        "iconColor": "rgba(0, 211, 255, 1)",
-        "name": "Annotations & Alerts",
-        "target": {
-          "limit": 100,
-          "matchAny": false,
-          "tags": [],
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": {
+            "type": "datasource",
+            "uid": "grafana"
+          },
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "target": {
+            "limit": 100,
+            "matchAny": false,
+            "tags": [],
+            "type": "dashboard"
+          },
           "type": "dashboard"
+        }
+      ]
+    },
+    "description": "Physical servers status based on glances data",
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": 2,
+    "links": [],
+    "liveNow": false,
+    "panels": [
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PBFA97CFB590B2093"
         },
-        "type": "dashboard"
-      }
-    ]
-  },
-  "description": "Physical servers status based on glances data",
-  "editable": true,
-  "fiscalYearStartMonth": 0,
-  "graphTooltip": 0,
-  "id": 1,
-  "iteration": 1652769928203,
-  "links": [],
-  "liveNow": false,
-  "panels": [
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [
-            {
-              "options": {
-                "match": "null",
-                "result": {
-                  "text": "N/A"
-                }
-              },
-              "type": "special"
-            }
-          ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "mappings": [
               {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
+                "options": {
+                  "match": "null",
+                  "result": {
+                    "text": "N/A"
+                  }
+                },
+                "type": "special"
               }
-            ]
+            ],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 80
+                }
+              ]
+            },
+            "unit": "none"
           },
-          "unit": "none"
+          "overrides": []
         },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 2,
-        "x": 0,
-        "y": 0
-      },
-      "id": 5,
-      "links": [],
-      "maxDataPoints": 100,
-      "options": {
-        "colorMode": "none",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "mean"
-          ],
-          "fields": "",
-          "values": false
+        "gridPos": {
+          "h": 7,
+          "w": 2,
+          "x": 0,
+          "y": 0
         },
-        "text": {},
-        "textMode": "auto"
-      },
-      "pluginVersion": "8.5.2",
-      "targets": [
-        {
-          "column": "cpucore",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+        "id": 5,
+        "links": [],
+        "maxDataPoints": 100,
+        "options": {
+          "colorMode": "none",
+          "graphMode": "none",
+          "justifyMode": "auto",
+          "orientation": "horizontal",
+          "reduceOptions": {
+            "calcs": [
+              "mean"
+            ],
+            "fields": "",
+            "values": false
           },
-          "dsType": "influxdb",
-          "exemplar": true,
-          "expr": "glances_cpu_cpucore{domain=\"$domain\"}",
-          "function": "mean",
-          "groupBy": [
-            {
-              "params": [
-                "auto"
-              ],
-              "type": "time"
-            }
-          ],
-          "interval": "",
-          "legendFormat": "",
-          "measurement": "load",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT mean(\"cpucore\") FROM \"$host.load\" WHERE $timeFilter GROUP BY time($interval)",
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
+          "text": {},
+          "textMode": "auto"
+        },
+        "pluginVersion": "9.0.5",
+        "targets": [
+          {
+            "column": "cpucore",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
+            },
+            "dsType": "influxdb",
+            "exemplar": true,
+            "expr": "glances_cpu_cpucore{domain=\"$domain\"}",
+            "function": "mean",
+            "groupBy": [
               {
                 "params": [
-                  "cpucore"
+                  "auto"
                 ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "max"
+                "type": "time"
               }
-            ]
-          ],
-          "series": "load",
-          "tags": [
-            {
-              "key": "hostname",
-              "operator": "=~",
-              "value": "/^$host$/"
-            }
-          ]
-        }
-      ],
-      "title": "Core",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisLabel": "",
-            "axisPlacement": "left",
-            "axisSoftMax": 20,
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "line"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "percentage",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 40
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "1min"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "blue",
-                  "mode": "fixed"
+            ],
+            "interval": "",
+            "legendFormat": "",
+            "measurement": "load",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT mean(\"cpucore\") FROM \"$host.load\" WHERE $timeFilter GROUP BY time($interval)",
+            "refId": "A",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "cpucore"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "max"
                 }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "5mins"
-            },
-            "properties": [
+              ]
+            ],
+            "series": "load",
+            "tags": [
               {
-                "id": "color",
-                "value": {
-                  "fixedColor": "yellow",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "15mins"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "red",
-                  "mode": "fixed"
-                }
+                "key": "hostname",
+                "operator": "=~",
+                "value": "/^$host$/"
               }
             ]
           }
-        ]
+        ],
+        "title": "Core",
+        "type": "stat"
       },
-      "gridPos": {
-        "h": 7,
-        "w": 20,
-        "x": 2,
-        "y": 0
-      },
-      "id": 4,
-      "links": [],
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean",
-            "max"
-          ],
-          "displayMode": "list",
-          "placement": "bottom"
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PBFA97CFB590B2093"
         },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "8.2.5",
-      "targets": [
-        {
-          "alias": "1min",
-          "column": "min1",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "dsType": "influxdb",
-          "exemplar": true,
-          "expr": "glances_load_min1{domain=\"$domain\"}",
-          "function": "mean",
-          "groupBy": [
-            {
-              "params": [
-                "auto"
-              ],
-              "type": "time"
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
             },
-            {
-              "params": [
-                "none"
-              ],
-              "type": "fill"
-            }
-          ],
-          "interval": "",
-          "legendFormat": "1min",
-          "measurement": "load",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT mean(\"min1\") FROM \"$host.load\" WHERE $timeFilter GROUP BY time($interval) fill(null)",
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "min1"
-                ],
-                "type": "field"
+            "custom": {
+              "axisLabel": "",
+              "axisPlacement": "left",
+              "axisSoftMax": 20,
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 10,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
               },
-              {
-                "params": [],
-                "type": "mean"
+              "lineInterpolation": "smooth",
+              "lineWidth": 2,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "never",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "line"
               }
-            ]
-          ],
-          "series": "load",
-          "tags": [
-            {
-              "key": "hostname",
-              "operator": "=~",
-              "value": "/^$host$/"
-            }
-          ],
-          "target": "randomWalk('random walk')"
-        },
-        {
-          "alias": "5mins",
-          "column": "min5",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "dsType": "influxdb",
-          "exemplar": true,
-          "expr": "glances_load_min5{domain=\"$domain\"}",
-          "function": "mean",
-          "groupBy": [
-            {
-              "params": [
-                "auto"
-              ],
-              "type": "time"
             },
-            {
-              "params": [
-                "none"
-              ],
-              "type": "fill"
-            }
-          ],
-          "interval": "",
-          "legendFormat": "5mins",
-          "measurement": "load",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT mean(\"min5\") FROM \"$host.load\" WHERE $timeFilter GROUP BY time($interval) fill(null)",
-          "refId": "B",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "min5"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ],
-          "series": "load",
-          "tags": [
-            {
-              "key": "hostname",
-              "operator": "=~",
-              "value": "/^$host$/"
-            }
-          ],
-          "target": ""
-        },
-        {
-          "alias": "15mins",
-          "column": "min15",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "dsType": "influxdb",
-          "exemplar": true,
-          "expr": "glances_load_min15{domain=\"$domain\"}",
-          "function": "mean",
-          "groupBy": [
-            {
-              "params": [
-                "auto"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "none"
-              ],
-              "type": "fill"
-            }
-          ],
-          "interval": "",
-          "legendFormat": "15mins",
-          "measurement": "load",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT mean(\"min15\") FROM \"$host.load\" WHERE $timeFilter GROUP BY time($interval) fill(null)",
-          "refId": "C",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "min15"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ],
-          "series": "load",
-          "tags": [
-            {
-              "key": "hostname",
-              "operator": "=~",
-              "value": "/^$host$/"
-            }
-          ],
-          "target": ""
-        }
-      ],
-      "title": "Load",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "fixedColor": "rgb(31, 120, 193)",
-            "mode": "fixed"
-          },
-          "mappings": [
-            {
-              "options": {
-                "match": "null",
-                "result": {
-                  "text": "N/A"
+            "mappings": [],
+            "thresholds": {
+              "mode": "percentage",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 40
                 }
-              },
-              "type": "special"
-            }
-          ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 2,
-        "x": 22,
-        "y": 0
-      },
-      "id": 18,
-      "links": [],
-      "maxDataPoints": 100,
-      "options": {
-        "colorMode": "none",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "mean"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "text": {},
-        "textMode": "auto"
-      },
-      "pluginVersion": "8.5.2",
-      "targets": [
-        {
-          "column": "total",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "dsType": "influxdb",
-          "exemplar": true,
-          "expr": "glances_processcount_total{domain=\"$domain\"}",
-          "function": "mean",
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            }
-          ],
-          "interval": "",
-          "legendFormat": "",
-          "measurement": "processcount",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT mean(\"total\") FROM \"$host.processcount\" WHERE $timeFilter GROUP BY time($interval)",
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "total"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "last"
-              }
-            ]
-          ],
-          "series": "processcount",
-          "tags": [
-            {
-              "key": "hostname",
-              "operator": "=~",
-              "value": "/^$host$/"
-            }
-          ]
-        }
-      ],
-      "title": "Processes",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisLabel": "",
-            "axisPlacement": "left",
-            "axisSoftMax": 100,
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
+              ]
             },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
+            "unit": "short"
           },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 12,
-        "x": 0,
-        "y": 7
-      },
-      "id": 6,
-      "links": [],
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "8.2.5",
-      "targets": [
-        {
-          "alias": "User",
-          "column": "user",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "dsType": "influxdb",
-          "exemplar": true,
-          "expr": "glances_cpu_user{domain=\"$domain\"}",
-          "function": "mean",
-          "groupBy": [
+          "overrides": [
             {
-              "params": [
-                "auto"
-              ],
-              "type": "time"
+              "matcher": {
+                "id": "byName",
+                "options": "1min"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "blue",
+                    "mode": "fixed"
+                  }
+                }
+              ]
             },
             {
-              "params": [
-                "none"
-              ],
-              "type": "fill"
-            }
-          ],
-          "interval": "",
-          "legendFormat": "User",
-          "measurement": "cpu",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT mean(\"user\") FROM \"$host.cpu\" WHERE $timeFilter GROUP BY time($interval) fill(null)",
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "user"
-                ],
-                "type": "field"
+              "matcher": {
+                "id": "byName",
+                "options": "5mins"
               },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ],
-          "series": "cpu",
-          "tags": [
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "yellow",
+                    "mode": "fixed"
+                  }
+                }
+              ]
+            },
             {
-              "key": "hostname",
-              "operator": "=~",
-              "value": "/^$host$/"
+              "matcher": {
+                "id": "byName",
+                "options": "15mins"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "red",
+                    "mode": "fixed"
+                  }
+                }
+              ]
             }
           ]
         },
-        {
-          "alias": "System",
-          "column": "system",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "dsType": "influxdb",
-          "exemplar": true,
-          "expr": "glances_cpu_system{domain=\"$domain\"}",
-          "function": "mean",
-          "groupBy": [
-            {
-              "params": [
-                "auto"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "none"
-              ],
-              "type": "fill"
-            }
-          ],
-          "interval": "",
-          "legendFormat": "System",
-          "measurement": "cpu",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT mean(\"system\") FROM \"$host.cpu\" WHERE $timeFilter GROUP BY time($interval) fill(null)",
-          "refId": "B",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "system"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ],
-          "series": "cpu",
-          "tags": [
-            {
-              "key": "hostname",
-              "operator": "=~",
-              "value": "/^$host$/"
-            }
-          ],
-          "target": ""
+        "gridPos": {
+          "h": 7,
+          "w": 20,
+          "x": 2,
+          "y": 0
         },
-        {
-          "alias": "IoWait",
-          "column": "iowait",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+        "id": 4,
+        "links": [],
+        "options": {
+          "legend": {
+            "calcs": [
+              "mean",
+              "max"
+            ],
+            "displayMode": "list",
+            "placement": "bottom"
           },
-          "dsType": "influxdb",
-          "exemplar": true,
-          "expr": "glances_cpu_iowait{domain=\"$domain\"}",
-          "function": "mean",
-          "groupBy": [
-            {
-              "params": [
-                "auto"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "none"
-              ],
-              "type": "fill"
-            }
-          ],
-          "interval": "",
-          "legendFormat": "IoWait",
-          "measurement": "cpu",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT mean(\"iowait\") FROM \"$host.cpu\" WHERE $timeFilter GROUP BY time($interval) fill(null)",
-          "refId": "C",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "iowait"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ],
-          "series": "cpu",
-          "tags": [
-            {
-              "key": "hostname",
-              "operator": "=~",
-              "value": "/^$host$/"
-            }
-          ],
-          "target": ""
-        }
-      ],
-      "title": "CPU (%)",
-      "type": "timeseries"
-    },
-    {
-      "aliasColors": {
-        "Max": "#BF1B00"
-      },
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "editable": true,
-      "error": false,
-      "fill": 0,
-      "fillGradient": 0,
-      "grid": {},
-      "gridPos": {
-        "h": 7,
-        "w": 12,
-        "x": 12,
-        "y": 7
-      },
-      "hiddenSeries": false,
-      "id": 7,
-      "legend": {
-        "avg": false,
-        "current": false,
-        "max": false,
-        "min": false,
-        "show": true,
-        "total": false,
-        "values": false
-      },
-      "lines": true,
-      "linewidth": 1,
-      "links": [],
-      "nullPointMode": "null",
-      "options": {
-        "alertThreshold": true
-      },
-      "percentage": false,
-      "pluginVersion": "8.5.2",
-      "pointradius": 5,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
-      "targets": [
-        {
-          "alias": "Used",
-          "column": "used",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "dsType": "influxdb",
-          "exemplar": true,
-          "expr": "glances_mem_used{domain=\"$domain\"}",
-          "function": "mean",
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "none"
-              ],
-              "type": "fill"
-            }
-          ],
-          "interval": "",
-          "legendFormat": "Used",
-          "measurement": "mem",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT mean(\"used\") FROM \"mem\" WHERE (\"hostname\" =~ /^$host$/) AND $timeFilter GROUP BY time($__interval) fill(none)",
-          "rawQuery": false,
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "used"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ],
-          "series": "mem",
-          "tags": [
-            {
-              "key": "hostname",
-              "operator": "=~",
-              "value": "/^$host$/"
-            }
-          ]
+          "tooltip": {
+            "mode": "single",
+            "sort": "none"
+          }
         },
-        {
-          "alias": "Max",
-          "column": "total",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "dsType": "influxdb",
-          "exemplar": true,
-          "expr": "glances_mem_total{domain=\"$domain\"}",
-          "function": "mean",
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "none"
-              ],
-              "type": "fill"
-            }
-          ],
-          "interval": "",
-          "legendFormat": "Max",
-          "measurement": "mem",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT mean(\"total\") FROM \"mem\" WHERE $timeFilter GROUP BY time($__interval) fill(none)",
-          "rawQuery": false,
-          "refId": "B",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "total"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ],
-          "series": "mem",
-          "tags": [
-            {
-              "key": "hostname",
-              "operator": "=~",
-              "value": "/^$host$/"
-            }
-          ],
-          "target": ""
-        }
-      ],
-      "thresholds": [],
-      "timeRegions": [],
-      "title": "MEM",
-      "tooltip": {
-        "shared": false,
-        "sort": 0,
-        "value_type": "cumulative"
-      },
-      "type": "graph",
-      "xaxis": {
-        "mode": "time",
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "$$hashKey": "object:2371",
-          "format": "bytes",
-          "logBase": 1,
-          "min": "0",
-          "show": true
-        },
-        {
-          "$$hashKey": "object:2372",
-          "format": "short",
-          "logBase": 1,
-          "show": true
-        }
-      ],
-      "yaxis": {
-        "align": false
-      }
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisLabel": "",
-            "axisPlacement": "left",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 30,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "max": 100000000,
-          "min": -100000000,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "bps"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 12,
-        "x": 0,
-        "y": 14
-      },
-      "id": 9,
-      "links": [],
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean",
-            "max"
-          ],
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "8.2.5",
-      "targets": [
-        {
-          "alias": "In",
-          "column": "enp0s25.rx",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "dsType": "influxdb",
-          "exemplar": true,
-          "expr": "glances_network_${interface}_rx{domain=\"$domain\"}",
-          "function": "mean",
-          "groupBy": [
-            {
-              "params": [
-                "auto"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "null"
-              ],
-              "type": "fill"
-            }
-          ],
-          "interval": "",
-          "legendFormat": "In",
-          "measurement": "$host.network",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT mean(\"rx\")/mean(\"time_since_update\")*8 FROM \"network\" WHERE (\"hostname\" =~ /^$host$/) AND (\"interface_name\" =~ /^$interface$/) AND $timeFilter GROUP BY time($interval) fill(none)",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "eth0.rx"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ],
-          "series": "network",
-          "tags": []
-        },
-        {
-          "alias": "Out",
-          "column": "eth0.tx*-1",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "dsType": "influxdb",
-          "exemplar": true,
-          "expr": "glances_network_${interface}_tx{domain=\"$domain\"}",
-          "function": "mean",
-          "groupBy": [
-            {
-              "params": [
-                "auto"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "null"
-              ],
-              "type": "fill"
-            }
-          ],
-          "interval": "",
-          "legendFormat": "Out",
-          "measurement": "$host.network",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT mean(\"tx\")/mean(\"time_since_update\")*-8 FROM \"network\" WHERE (\"hostname\" =~ /^$host$/) AND (\"interface_name\" =~ /^$interface$/) AND $timeFilter GROUP BY time($interval) fill(none)",
-          "rawQuery": true,
-          "refId": "B",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "eth0.tx"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ],
-          "series": "network",
-          "tags": [],
-          "target": ""
-        }
-      ],
-      "title": "$interface network interface",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 3,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "bytes"
-        },
-        "overrides": [
+        "pluginVersion": "8.2.5",
+        "targets": [
           {
-            "matcher": {
-              "id": "byName",
-              "options": "Max"
+            "alias": "1min",
+            "column": "min1",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
             },
-            "properties": [
+            "dsType": "influxdb",
+            "exemplar": true,
+            "expr": "node_load1{domain=\"$domain\"}",
+            "function": "mean",
+            "groupBy": [
               {
-                "id": "color",
-                "value": {
-                  "fixedColor": "#BF1B00",
-                  "mode": "fixed"
-                }
+                "params": [
+                  "auto"
+                ],
+                "type": "time"
+              },
+              {
+                "params": [
+                  "none"
+                ],
+                "type": "fill"
               }
-            ]
+            ],
+            "interval": "",
+            "legendFormat": "1min",
+            "measurement": "load",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT mean(\"min1\") FROM \"$host.load\" WHERE $timeFilter GROUP BY time($interval) fill(null)",
+            "refId": "A",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "min1"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "mean"
+                }
+              ]
+            ],
+            "series": "load",
+            "tags": [
+              {
+                "key": "hostname",
+                "operator": "=~",
+                "value": "/^$host$/"
+              }
+            ],
+            "target": "randomWalk('random walk')"
           },
           {
-            "matcher": {
-              "id": "byName",
-              "options": "Used"
+            "alias": "5mins",
+            "column": "min5",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
             },
-            "properties": [
+            "dsType": "influxdb",
+            "exemplar": true,
+            "expr": "node_load5{domain=\"$domain\"}",
+            "function": "mean",
+            "groupBy": [
               {
-                "id": "custom.fillOpacity",
-                "value": 100
+                "params": [
+                  "auto"
+                ],
+                "type": "time"
               },
               {
-                "id": "custom.fillOpacity",
-                "value": 80
+                "params": [
+                  "none"
+                ],
+                "type": "fill"
+              }
+            ],
+            "interval": "",
+            "legendFormat": "5mins",
+            "measurement": "load",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT mean(\"min5\") FROM \"$host.load\" WHERE $timeFilter GROUP BY time($interval) fill(null)",
+            "refId": "B",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "min5"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "mean"
+                }
+              ]
+            ],
+            "series": "load",
+            "tags": [
+              {
+                "key": "hostname",
+                "operator": "=~",
+                "value": "/^$host$/"
+              }
+            ],
+            "target": ""
+          },
+          {
+            "alias": "15mins",
+            "column": "min15",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
+            },
+            "dsType": "influxdb",
+            "exemplar": true,
+            "expr": "node_load15{domain=\"$domain\"}",
+            "function": "mean",
+            "groupBy": [
+              {
+                "params": [
+                  "auto"
+                ],
+                "type": "time"
+              },
+              {
+                "params": [
+                  "none"
+                ],
+                "type": "fill"
+              }
+            ],
+            "interval": "",
+            "legendFormat": "15mins",
+            "measurement": "load",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT mean(\"min15\") FROM \"$host.load\" WHERE $timeFilter GROUP BY time($interval) fill(null)",
+            "refId": "C",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "min15"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "mean"
+                }
+              ]
+            ],
+            "series": "load",
+            "tags": [
+              {
+                "key": "hostname",
+                "operator": "=~",
+                "value": "/^$host$/"
+              }
+            ],
+            "target": ""
+          }
+        ],
+        "title": "Load",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PBFA97CFB590B2093"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "fixedColor": "rgb(31, 120, 193)",
+              "mode": "fixed"
+            },
+            "mappings": [
+              {
+                "options": {
+                  "match": "null",
+                  "result": {
+                    "text": "N/A"
+                  }
+                },
+                "type": "special"
+              }
+            ],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 80
+                }
+              ]
+            },
+            "unit": "none"
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 7,
+          "w": 2,
+          "x": 22,
+          "y": 0
+        },
+        "id": 18,
+        "links": [],
+        "maxDataPoints": 100,
+        "options": {
+          "colorMode": "none",
+          "graphMode": "none",
+          "justifyMode": "auto",
+          "orientation": "horizontal",
+          "reduceOptions": {
+            "calcs": [
+              "mean"
+            ],
+            "fields": "",
+            "values": false
+          },
+          "text": {},
+          "textMode": "auto"
+        },
+        "pluginVersion": "9.0.5",
+        "targets": [
+          {
+            "column": "total",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
+            },
+            "dsType": "influxdb",
+            "exemplar": true,
+            "expr": "glances_processcount_total{domain=\"$domain\"}",
+            "function": "mean",
+            "groupBy": [
+              {
+                "params": [
+                  "$__interval"
+                ],
+                "type": "time"
+              }
+            ],
+            "interval": "",
+            "legendFormat": "",
+            "measurement": "processcount",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT mean(\"total\") FROM \"$host.processcount\" WHERE $timeFilter GROUP BY time($interval)",
+            "refId": "A",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "total"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "last"
+                }
+              ]
+            ],
+            "series": "processcount",
+            "tags": [
+              {
+                "key": "hostname",
+                "operator": "=~",
+                "value": "/^$host$/"
               }
             ]
           }
-        ]
+        ],
+        "title": "Processes",
+        "type": "stat"
       },
-      "gridPos": {
-        "h": 7,
-        "w": 10,
-        "x": 12,
-        "y": 14
-      },
-      "id": 11,
-      "links": [],
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PBFA97CFB590B2093"
         },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "8.5.2",
-      "targets": [
-        {
-          "alias": "Used",
-          "column": "\"/.used\"",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "dsType": "influxdb",
-          "editorMode": "code",
-          "expr": "glances_fs__disk_size{domain=\"$domain\"}",
-          "function": "mean",
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
             },
-            {
-              "params": [
-                "none"
-              ],
-              "type": "fill"
-            }
-          ],
-          "interval": "",
-          "legendFormat": "Disk size",
-          "measurement": "fs",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT mean(\"/.used\") FROM \"$host.fs\" WHERE $timeFilter GROUP BY time($interval) fill(null)",
-          "range": true,
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
+            "custom": {
+              "axisLabel": "",
+              "axisPlacement": "left",
+              "axisSoftMax": 100,
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 0,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              },
+              "lineInterpolation": "linear",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "never",
+              "spanNulls": true,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 80
+                }
+              ]
+            },
+            "unit": "percent"
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 7,
+          "w": 12,
+          "x": 0,
+          "y": 7
+        },
+        "id": 6,
+        "links": [],
+        "options": {
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom"
+          },
+          "tooltip": {
+            "mode": "single",
+            "sort": "none"
+          }
+        },
+        "pluginVersion": "8.2.5",
+        "targets": [
+          {
+            "alias": "User",
+            "column": "user",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
+            },
+            "dsType": "influxdb",
+            "editorMode": "code",
+            "exemplar": true,
+            "expr": "sum without(cpu) (rate(node_cpu_seconds_total{mode=\"user\", domain=\"$domain\"}[5m]))",
+            "function": "mean",
+            "groupBy": [
               {
                 "params": [
-                  "used"
+                  "auto"
                 ],
-                "type": "field"
+                "type": "time"
               },
               {
-                "params": [],
-                "type": "mean"
+                "params": [
+                  "none"
+                ],
+                "type": "fill"
               }
-            ]
-          ],
-          "series": "fs",
-          "tags": [
-            {
-              "key": "mnt_point",
-              "operator": "=",
-              "value": "/"
-            },
-            {
-              "condition": "AND",
-              "key": "hostname",
-              "operator": "=~",
-              "value": "/^$host$/"
-            }
-          ]
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "glances_fs__disk_used{domain=\"$domain\"}",
-          "hide": false,
-          "legendFormat": "Disk used",
-          "range": true,
-          "refId": "B"
-        }
-      ],
-      "title": "/ Size",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [
-            {
-              "options": {
-                "match": "null",
-                "result": {
-                  "text": "N/A"
+            ],
+            "interval": "",
+            "legendFormat": "User",
+            "measurement": "cpu",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT mean(\"user\") FROM \"$host.cpu\" WHERE $timeFilter GROUP BY time($interval) fill(null)",
+            "range": true,
+            "refId": "A",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "user"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "mean"
                 }
-              },
-              "type": "special"
-            }
-          ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
+              ]
+            ],
+            "series": "cpu",
+            "tags": [
               {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 70
-              },
-              {
-                "color": "semi-dark-red",
-                "value": 90
+                "key": "hostname",
+                "operator": "=~",
+                "value": "/^$host$/"
               }
             ]
           },
-          "unit": "percent"
+          {
+            "alias": "System",
+            "column": "system",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
+            },
+            "dsType": "influxdb",
+            "editorMode": "code",
+            "exemplar": true,
+            "expr": "sum without(cpu) (rate(node_cpu_seconds_total{mode=\"system\", domain=\"$domain\"}[5m]))",
+            "function": "mean",
+            "groupBy": [
+              {
+                "params": [
+                  "auto"
+                ],
+                "type": "time"
+              },
+              {
+                "params": [
+                  "none"
+                ],
+                "type": "fill"
+              }
+            ],
+            "interval": "",
+            "legendFormat": "System",
+            "measurement": "cpu",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT mean(\"system\") FROM \"$host.cpu\" WHERE $timeFilter GROUP BY time($interval) fill(null)",
+            "range": true,
+            "refId": "B",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "system"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "mean"
+                }
+              ]
+            ],
+            "series": "cpu",
+            "tags": [
+              {
+                "key": "hostname",
+                "operator": "=~",
+                "value": "/^$host$/"
+              }
+            ],
+            "target": ""
+          },
+          {
+            "alias": "IoWait",
+            "column": "iowait",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
+            },
+            "dsType": "influxdb",
+            "editorMode": "code",
+            "exemplar": true,
+            "expr": "sum without(cpu) (rate(node_cpu_seconds_total{mode=\"iowait\", domain=\"$domain\"}[5m]))",
+            "function": "mean",
+            "groupBy": [
+              {
+                "params": [
+                  "auto"
+                ],
+                "type": "time"
+              },
+              {
+                "params": [
+                  "none"
+                ],
+                "type": "fill"
+              }
+            ],
+            "interval": "",
+            "legendFormat": "IoWait",
+            "measurement": "cpu",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT mean(\"iowait\") FROM \"$host.cpu\" WHERE $timeFilter GROUP BY time($interval) fill(null)",
+            "range": true,
+            "refId": "C",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "iowait"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "mean"
+                }
+              ]
+            ],
+            "series": "cpu",
+            "tags": [
+              {
+                "key": "hostname",
+                "operator": "=~",
+                "value": "/^$host$/"
+              }
+            ],
+            "target": ""
+          }
+        ],
+        "title": "CPU (%)",
+        "type": "timeseries"
+      },
+      {
+        "aliasColors": {
+          "Max": "#BF1B00"
         },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 2,
-        "x": 22,
-        "y": 14
-      },
-      "id": 16,
-      "links": [],
-      "maxDataPoints": 100,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "mean"
-          ],
-          "fields": "",
+        "bars": false,
+        "dashLength": 10,
+        "dashes": false,
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PBFA97CFB590B2093"
+        },
+        "editable": true,
+        "error": false,
+        "fill": 0,
+        "fillGradient": 0,
+        "grid": {},
+        "gridPos": {
+          "h": 7,
+          "w": 12,
+          "x": 12,
+          "y": 7
+        },
+        "hiddenSeries": false,
+        "id": 7,
+        "legend": {
+          "avg": false,
+          "current": false,
+          "max": false,
+          "min": false,
+          "show": true,
+          "total": false,
           "values": false
         },
-        "text": {
-          "valueSize": 60
+        "lines": true,
+        "linewidth": 1,
+        "links": [],
+        "nullPointMode": "null",
+        "options": {
+          "alertThreshold": true
         },
-        "textMode": "auto"
-      },
-      "pluginVersion": "8.5.2",
-      "targets": [
-        {
-          "column": "\"/.percent\"",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "dsType": "influxdb",
-          "expr": "glances_fs__disk_percent{domain=\"$domain\"}",
-          "function": "mean",
-          "groupBy": [
-            {
-              "params": [
-                "auto"
-              ],
-              "type": "time"
-            }
-          ],
-          "measurement": "fs",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT mean(\"/.percent\") FROM \"$host.fs\" WHERE $timeFilter GROUP BY time($interval)",
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
+        "percentage": false,
+        "pluginVersion": "9.0.5",
+        "pointradius": 5,
+        "points": false,
+        "renderer": "flot",
+        "seriesOverrides": [],
+        "spaceLength": 10,
+        "stack": false,
+        "steppedLine": false,
+        "targets": [
+          {
+            "alias": "Used",
+            "column": "used",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
+            },
+            "dsType": "influxdb",
+            "exemplar": true,
+            "expr": "",
+            "function": "mean",
+            "groupBy": [
               {
                 "params": [
-                  "percent"
+                  "$__interval"
                 ],
-                "type": "field"
+                "type": "time"
               },
               {
-                "params": [],
-                "type": "mean"
+                "params": [
+                  "none"
+                ],
+                "type": "fill"
+              }
+            ],
+            "interval": "",
+            "legendFormat": "Used",
+            "measurement": "mem",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT mean(\"used\") FROM \"mem\" WHERE (\"hostname\" =~ /^$host$/) AND $timeFilter GROUP BY time($__interval) fill(none)",
+            "rawQuery": false,
+            "refId": "A",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "used"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "mean"
+                }
+              ]
+            ],
+            "series": "mem",
+            "tags": [
+              {
+                "key": "hostname",
+                "operator": "=~",
+                "value": "/^$host$/"
               }
             ]
-          ],
-          "series": "fs",
-          "tags": [
+          },
+          {
+            "alias": "Max",
+            "column": "total",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
+            },
+            "dsType": "influxdb",
+            "exemplar": true,
+            "expr": "node_memory_MemTotal_bytes{}",
+            "function": "mean",
+            "groupBy": [
+              {
+                "params": [
+                  "$__interval"
+                ],
+                "type": "time"
+              },
+              {
+                "params": [
+                  "none"
+                ],
+                "type": "fill"
+              }
+            ],
+            "interval": "",
+            "legendFormat": "Max",
+            "measurement": "mem",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT mean(\"total\") FROM \"mem\" WHERE $timeFilter GROUP BY time($__interval) fill(none)",
+            "rawQuery": false,
+            "refId": "B",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "total"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "mean"
+                }
+              ]
+            ],
+            "series": "mem",
+            "tags": [
+              {
+                "key": "hostname",
+                "operator": "=~",
+                "value": "/^$host$/"
+              }
+            ],
+            "target": ""
+          }
+        ],
+        "thresholds": [],
+        "timeRegions": [],
+        "title": "MEM",
+        "tooltip": {
+          "shared": false,
+          "sort": 0,
+          "value_type": "cumulative"
+        },
+        "type": "graph",
+        "xaxis": {
+          "mode": "time",
+          "show": true,
+          "values": []
+        },
+        "yaxes": [
+          {
+            "$$hashKey": "object:2371",
+            "format": "bytes",
+            "logBase": 1,
+            "min": "0",
+            "show": true
+          },
+          {
+            "$$hashKey": "object:2372",
+            "format": "short",
+            "logBase": 1,
+            "show": true
+          }
+        ],
+        "yaxis": {
+          "align": false
+        }
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PBFA97CFB590B2093"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisLabel": "",
+              "axisPlacement": "left",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 30,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              },
+              "lineInterpolation": "linear",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "never",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "mappings": [],
+            "max": 100000000,
+            "min": -100000000,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 80
+                }
+              ]
+            },
+            "unit": "bps"
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 7,
+          "w": 12,
+          "x": 0,
+          "y": 14
+        },
+        "id": 9,
+        "links": [],
+        "options": {
+          "legend": {
+            "calcs": [
+              "mean",
+              "max"
+            ],
+            "displayMode": "list",
+            "placement": "bottom"
+          },
+          "tooltip": {
+            "mode": "single",
+            "sort": "none"
+          }
+        },
+        "pluginVersion": "8.2.5",
+        "targets": [
+          {
+            "alias": "In",
+            "column": "enp0s25.rx",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
+            },
+            "dsType": "influxdb",
+            "exemplar": true,
+            "expr": "glances_network_${interface}_rx{domain=\"$domain\"}",
+            "function": "mean",
+            "groupBy": [
+              {
+                "params": [
+                  "auto"
+                ],
+                "type": "time"
+              },
+              {
+                "params": [
+                  "null"
+                ],
+                "type": "fill"
+              }
+            ],
+            "interval": "",
+            "legendFormat": "In",
+            "measurement": "$host.network",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT mean(\"rx\")/mean(\"time_since_update\")*8 FROM \"network\" WHERE (\"hostname\" =~ /^$host$/) AND (\"interface_name\" =~ /^$interface$/) AND $timeFilter GROUP BY time($interval) fill(none)",
+            "rawQuery": true,
+            "refId": "A",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "eth0.rx"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "mean"
+                }
+              ]
+            ],
+            "series": "network",
+            "tags": []
+          },
+          {
+            "alias": "Out",
+            "column": "eth0.tx*-1",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
+            },
+            "dsType": "influxdb",
+            "exemplar": true,
+            "expr": "glances_network_${interface}_tx{domain=\"$domain\"}",
+            "function": "mean",
+            "groupBy": [
+              {
+                "params": [
+                  "auto"
+                ],
+                "type": "time"
+              },
+              {
+                "params": [
+                  "null"
+                ],
+                "type": "fill"
+              }
+            ],
+            "interval": "",
+            "legendFormat": "Out",
+            "measurement": "$host.network",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT mean(\"tx\")/mean(\"time_since_update\")*-8 FROM \"network\" WHERE (\"hostname\" =~ /^$host$/) AND (\"interface_name\" =~ /^$interface$/) AND $timeFilter GROUP BY time($interval) fill(none)",
+            "rawQuery": true,
+            "refId": "B",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "eth0.tx"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "mean"
+                }
+              ]
+            ],
+            "series": "network",
+            "tags": [],
+            "target": ""
+          }
+        ],
+        "title": "$interface network interface",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PBFA97CFB590B2093"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 0,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              },
+              "lineInterpolation": "linear",
+              "lineWidth": 3,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "never",
+              "spanNulls": true,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "mappings": [],
+            "min": 0,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 80
+                }
+              ]
+            },
+            "unit": "bytes"
+          },
+          "overrides": [
             {
-              "key": "mnt_point",
-              "operator": "=",
-              "value": "/"
+              "matcher": {
+                "id": "byName",
+                "options": "Max"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "fixedColor": "#BF1B00",
+                    "mode": "fixed"
+                  }
+                }
+              ]
             },
             {
-              "condition": "AND",
-              "key": "hostname",
-              "operator": "=~",
-              "value": "/^$host$/"
+              "matcher": {
+                "id": "byName",
+                "options": "Used"
+              },
+              "properties": [
+                {
+                  "id": "custom.fillOpacity",
+                  "value": 100
+                },
+                {
+                  "id": "custom.fillOpacity",
+                  "value": 80
+                }
+              ]
             }
           ]
-        }
-      ],
-      "title": "/ used",
-      "type": "stat"
-    },
-    {
-      "aliasColors": {},
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "editable": true,
-      "error": false,
-      "fill": 0,
-      "fillGradient": 0,
-      "grid": {},
-      "gridPos": {
-        "h": 7,
-        "w": 24,
-        "x": 0,
-        "y": 21
-      },
-      "hiddenSeries": false,
-      "id": 10,
-      "legend": {
-        "avg": true,
-        "current": true,
-        "max": true,
-        "min": false,
-        "show": true,
-        "total": false,
-        "values": true
-      },
-      "lines": true,
-      "linewidth": 1,
-      "links": [],
-      "nullPointMode": "null",
-      "options": {
-        "alertThreshold": true
-      },
-      "percentage": false,
-      "pluginVersion": "8.5.2",
-      "pointradius": 5,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [
-        {
-          "$$hashKey": "object:246",
-          "alias": "Write",
-          "yaxis": 1
-        }
-      ],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
-      "targets": [
-        {
-          "alias": "Read",
-          "column": "sda2.read_bytes",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "dsType": "influxdb",
-          "exemplar": true,
-          "expr": "glances_diskio_${disk}_read_bytes{domain=\"$domain\"}",
-          "function": "mean",
-          "groupBy": [
-            {
-              "params": [
-                "auto"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "none"
-              ],
-              "type": "fill"
-            }
-          ],
-          "interval": "",
-          "legendFormat": "Read",
-          "measurement": "$host.diskio",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT mean(\"read_bytes\")/mean(\"time_since_update\") FROM \"diskio\" WHERE (\"hostname\" =~ /^$host$/) AND  (\"disk_name\" =~ /^$disk$/) AND $timeFilter GROUP BY time($__interval) fill(none)",
-          "rawQuery": true,
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "sda2.read_bytes"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ],
-          "series": "diskio",
-          "tags": []
         },
-        {
-          "alias": "Write",
-          "column": "sda2.write_bytes",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "dsType": "influxdb",
-          "exemplar": true,
-          "expr": "glances_diskio_${disk}_write_bytes{domain=\"$domain\"}",
-          "function": "mean",
-          "groupBy": [
-            {
-              "params": [
-                "auto"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "none"
-              ],
-              "type": "fill"
-            }
-          ],
-          "interval": "",
-          "legendFormat": "Write",
-          "measurement": "$host.diskio",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT mean(\"write_bytes\")/mean(\"time_since_update\") FROM \"diskio\" WHERE (\"hostname\" =~ /^$host$/) AND  (\"disk_name\" =~ /^$disk$/) AND $timeFilter GROUP BY time($__interval) fill(none)",
-          "rawQuery": true,
-          "refId": "B",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "sda2.write_bytes"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ],
-          "series": "diskio",
-          "tags": [],
-          "target": ""
-        }
-      ],
-      "thresholds": [],
-      "timeRegions": [],
-      "title": "$disk disk IO",
-      "tooltip": {
-        "shared": false,
-        "sort": 0,
-        "value_type": "cumulative"
-      },
-      "type": "graph",
-      "xaxis": {
-        "mode": "time",
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "$$hashKey": "object:2782",
-          "format": "bytes",
-          "logBase": 1,
-          "max": "10000000",
-          "show": true
+        "gridPos": {
+          "h": 7,
+          "w": 10,
+          "x": 12,
+          "y": 14
         },
-        {
-          "$$hashKey": "object:2783",
-          "format": "bytes",
-          "logBase": 1,
-          "show": false
-        }
-      ],
-      "yaxis": {
-        "align": false
-      }
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "editable": true,
-      "error": false,
-      "gridPos": {
-        "h": 3,
-        "w": 24,
-        "x": 0,
-        "y": 28
-      },
-      "id": 13,
-      "links": [],
-      "options": {
-        "content": "",
-        "mode": "markdown"
-      },
-      "pluginVersion": "8.5.2",
-      "style": {},
-      "title": "Containers",
-      "type": "text"
-    },
-    {
-      "aliasColors": {
-        "$host.docker.mean": "#ba43a9",
-        "CPU%": "#cca300",
-        "MEM": "#2f575e"
-      },
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": [
+        "id": 11,
+        "links": [],
+        "options": {
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom"
+          },
+          "tooltip": {
+            "mode": "single",
+            "sort": "none"
+          }
+        },
+        "pluginVersion": "8.5.2",
+        "targets": [
           {
-            "matcher": {
-              "id": "byName",
-              "options": "MEM"
+            "alias": "Used",
+            "column": "\"/.used\"",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
             },
-            "properties": [
+            "dsType": "influxdb",
+            "editorMode": "code",
+            "expr": "glances_fs__disk_size{domain=\"$domain\"}",
+            "function": "mean",
+            "groupBy": [
               {
-                "id": "unit",
-                "value": "decbytes"
+                "params": [
+                  "$__interval"
+                ],
+                "type": "time"
+              },
+              {
+                "params": [
+                  "none"
+                ],
+                "type": "fill"
+              }
+            ],
+            "interval": "",
+            "legendFormat": "Disk size",
+            "measurement": "fs",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT mean(\"/.used\") FROM \"$host.fs\" WHERE $timeFilter GROUP BY time($interval) fill(null)",
+            "range": true,
+            "refId": "A",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "used"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "mean"
+                }
+              ]
+            ],
+            "series": "fs",
+            "tags": [
+              {
+                "key": "mnt_point",
+                "operator": "=",
+                "value": "/"
+              },
+              {
+                "condition": "AND",
+                "key": "hostname",
+                "operator": "=~",
+                "value": "/^$host$/"
+              }
+            ]
+          },
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
+            },
+            "editorMode": "code",
+            "expr": "glances_fs__disk_used{domain=\"$domain\"}",
+            "hide": false,
+            "legendFormat": "Disk used",
+            "range": true,
+            "refId": "B"
+          }
+        ],
+        "title": "/ Size",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PBFA97CFB590B2093"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "mappings": [
+              {
+                "options": {
+                  "match": "null",
+                  "result": {
+                    "text": "N/A"
+                  }
+                },
+                "type": "special"
+              }
+            ],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "orange",
+                  "value": 70
+                },
+                {
+                  "color": "semi-dark-red",
+                  "value": 90
+                }
+              ]
+            },
+            "unit": "percent"
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 7,
+          "w": 2,
+          "x": 22,
+          "y": 14
+        },
+        "id": 16,
+        "links": [],
+        "maxDataPoints": 100,
+        "options": {
+          "colorMode": "background",
+          "graphMode": "none",
+          "justifyMode": "auto",
+          "orientation": "horizontal",
+          "reduceOptions": {
+            "calcs": [
+              "mean"
+            ],
+            "fields": "",
+            "values": false
+          },
+          "text": {
+            "valueSize": 60
+          },
+          "textMode": "auto"
+        },
+        "pluginVersion": "9.0.5",
+        "targets": [
+          {
+            "column": "\"/.percent\"",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
+            },
+            "dsType": "influxdb",
+            "expr": "glances_fs__disk_percent{domain=\"$domain\"}",
+            "function": "mean",
+            "groupBy": [
+              {
+                "params": [
+                  "auto"
+                ],
+                "type": "time"
+              }
+            ],
+            "measurement": "fs",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT mean(\"/.percent\") FROM \"$host.fs\" WHERE $timeFilter GROUP BY time($interval)",
+            "refId": "A",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "percent"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "mean"
+                }
+              ]
+            ],
+            "series": "fs",
+            "tags": [
+              {
+                "key": "mnt_point",
+                "operator": "=",
+                "value": "/"
+              },
+              {
+                "condition": "AND",
+                "key": "hostname",
+                "operator": "=~",
+                "value": "/^$host$/"
               }
             ]
           }
-        ]
+        ],
+        "title": "/ used",
+        "type": "stat"
       },
-      "fill": 4,
-      "fillGradient": 0,
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 0,
-        "y": 31
-      },
-      "hiddenSeries": false,
-      "id": 25,
-      "legend": {
-        "avg": false,
-        "current": false,
-        "max": false,
-        "min": false,
-        "show": true,
-        "total": false,
-        "values": false
-      },
-      "lines": true,
-      "linewidth": 2,
-      "links": [],
-      "maxPerRow": 3,
-      "nullPointMode": "null",
-      "options": {
-        "alertThreshold": true
-      },
-      "percentage": false,
-      "pluginVersion": "8.5.2",
-      "pointradius": 5,
-      "points": false,
-      "renderer": "flot",
-      "repeat": "container",
-      "repeatDirection": "h",
-      "seriesOverrides": [
-        {
-          "$$hashKey": "object:3517",
-          "alias": "MEM",
-          "yaxis": 2
+      {
+        "aliasColors": {},
+        "bars": false,
+        "dashLength": 10,
+        "dashes": false,
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PBFA97CFB590B2093"
         },
-        {
-          "$$hashKey": "object:3518",
-          "alias": "MEM",
-          "fill": 10,
-          "fillGradient": 8,
-          "steppedLine": true,
-          "zindex": -3
-        }
-      ],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
-      "targets": [
-        {
-          "alias": "CPU%",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "exemplar": true,
-          "expr": "glances_docker_${container}_cpu_percent{domain=\"$domain\"}",
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
+        "editable": true,
+        "error": false,
+        "fill": 0,
+        "fillGradient": 0,
+        "grid": {},
+        "gridPos": {
+          "h": 7,
+          "w": 24,
+          "x": 0,
+          "y": 21
+        },
+        "hiddenSeries": false,
+        "id": 10,
+        "legend": {
+          "avg": true,
+          "current": true,
+          "max": true,
+          "min": false,
+          "show": true,
+          "total": false,
+          "values": true
+        },
+        "lines": true,
+        "linewidth": 1,
+        "links": [],
+        "nullPointMode": "null",
+        "options": {
+          "alertThreshold": true
+        },
+        "percentage": false,
+        "pluginVersion": "9.0.5",
+        "pointradius": 5,
+        "points": false,
+        "renderer": "flot",
+        "seriesOverrides": [
+          {
+            "$$hashKey": "object:246",
+            "alias": "Write",
+            "yaxis": 1
+          }
+        ],
+        "spaceLength": 10,
+        "stack": false,
+        "steppedLine": false,
+        "targets": [
+          {
+            "alias": "Read",
+            "column": "sda2.read_bytes",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
             },
-            {
-              "params": [
-                "none"
-              ],
-              "type": "fill"
-            }
-          ],
-          "hide": false,
-          "interval": "",
-          "legendFormat": "CPU%",
-          "measurement": "docker",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT mean(\"cpu_percent\") FROM \"$host.docker\" WHERE $timeFilter GROUP BY time($__interval) fill(none)",
-          "rawQuery": false,
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
+            "dsType": "influxdb",
+            "exemplar": true,
+            "expr": "glances_diskio_${disk}_read_bytes{domain=\"$domain\"}",
+            "function": "mean",
+            "groupBy": [
               {
                 "params": [
-                  "cpu_percent"
+                  "auto"
                 ],
-                "type": "field"
+                "type": "time"
               },
-              {
-                "params": [],
-                "type": "mean"
-              }
-            ]
-          ],
-          "tags": [
-            {
-              "key": "name",
-              "operator": "=~",
-              "value": "/^$container$/"
-            },
-            {
-              "condition": "AND",
-              "key": "hostname",
-              "operator": "=~",
-              "value": "/^$host$/"
-            }
-          ]
-        },
-        {
-          "alias": "MEM",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "exemplar": true,
-          "expr": "glances_docker_${container}_memory_usage{domain=\"$domain\"}",
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "none"
-              ],
-              "type": "fill"
-            }
-          ],
-          "hide": false,
-          "interval": "",
-          "legendFormat": "MEM",
-          "measurement": "docker",
-          "orderByTime": "ASC",
-          "policy": "default",
-          "query": "SELECT mean(\"cpu_percent\") FROM \"$host.docker\" WHERE $timeFilter GROUP BY time($__interval) fill(none)",
-          "rawQuery": false,
-          "refId": "B",
-          "resultFormat": "time_series",
-          "select": [
-            [
               {
                 "params": [
-                  "memory_usage"
+                  "none"
                 ],
-                "type": "field"
+                "type": "fill"
+              }
+            ],
+            "interval": "",
+            "legendFormat": "Read",
+            "measurement": "$host.diskio",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT mean(\"read_bytes\")/mean(\"time_since_update\") FROM \"diskio\" WHERE (\"hostname\" =~ /^$host$/) AND  (\"disk_name\" =~ /^$disk$/) AND $timeFilter GROUP BY time($__interval) fill(none)",
+            "rawQuery": true,
+            "refId": "A",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "sda2.read_bytes"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "mean"
+                }
+              ]
+            ],
+            "series": "diskio",
+            "tags": []
+          },
+          {
+            "alias": "Write",
+            "column": "sda2.write_bytes",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
+            },
+            "dsType": "influxdb",
+            "exemplar": true,
+            "expr": "glances_diskio_${disk}_write_bytes{domain=\"$domain\"}",
+            "function": "mean",
+            "groupBy": [
+              {
+                "params": [
+                  "auto"
+                ],
+                "type": "time"
               },
               {
-                "params": [],
-                "type": "mean"
+                "params": [
+                  "none"
+                ],
+                "type": "fill"
               }
-            ]
-          ],
-          "tags": [
+            ],
+            "interval": "",
+            "legendFormat": "Write",
+            "measurement": "$host.diskio",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT mean(\"write_bytes\")/mean(\"time_since_update\") FROM \"diskio\" WHERE (\"hostname\" =~ /^$host$/) AND  (\"disk_name\" =~ /^$disk$/) AND $timeFilter GROUP BY time($__interval) fill(none)",
+            "rawQuery": true,
+            "refId": "B",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "sda2.write_bytes"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "mean"
+                }
+              ]
+            ],
+            "series": "diskio",
+            "tags": [],
+            "target": ""
+          }
+        ],
+        "thresholds": [],
+        "timeRegions": [],
+        "title": "$disk disk IO",
+        "tooltip": {
+          "shared": false,
+          "sort": 0,
+          "value_type": "cumulative"
+        },
+        "type": "graph",
+        "xaxis": {
+          "mode": "time",
+          "show": true,
+          "values": []
+        },
+        "yaxes": [
+          {
+            "$$hashKey": "object:2782",
+            "format": "bytes",
+            "logBase": 1,
+            "max": "10000000",
+            "show": true
+          },
+          {
+            "$$hashKey": "object:2783",
+            "format": "bytes",
+            "logBase": 1,
+            "show": false
+          }
+        ],
+        "yaxis": {
+          "align": false
+        }
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PBFA97CFB590B2093"
+        },
+        "editable": true,
+        "error": false,
+        "gridPos": {
+          "h": 3,
+          "w": 24,
+          "x": 0,
+          "y": 28
+        },
+        "id": 13,
+        "links": [],
+        "options": {
+          "content": "",
+          "mode": "markdown"
+        },
+        "pluginVersion": "9.0.5",
+        "style": {},
+        "title": "Containers",
+        "type": "text"
+      },
+      {
+        "aliasColors": {
+          "$host.docker.mean": "#ba43a9",
+          "CPU%": "#cca300",
+          "MEM": "#2f575e"
+        },
+        "bars": false,
+        "dashLength": 10,
+        "dashes": false,
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PBFA97CFB590B2093"
+        },
+        "fieldConfig": {
+          "defaults": {},
+          "overrides": [
             {
-              "key": "name",
-              "operator": "=~",
-              "value": "/^$container$/"
-            },
-            {
-              "condition": "AND",
-              "key": "hostname",
-              "operator": "=~",
-              "value": "/^$host$/"
+              "matcher": {
+                "id": "byName",
+                "options": "MEM"
+              },
+              "properties": [
+                {
+                  "id": "unit",
+                  "value": "decbytes"
+                }
+              ]
             }
           ]
+        },
+        "fill": 4,
+        "fillGradient": 0,
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 0,
+          "y": 31
+        },
+        "hiddenSeries": false,
+        "id": 25,
+        "legend": {
+          "avg": false,
+          "current": false,
+          "max": false,
+          "min": false,
+          "show": true,
+          "total": false,
+          "values": false
+        },
+        "lines": true,
+        "linewidth": 2,
+        "links": [],
+        "maxPerRow": 3,
+        "nullPointMode": "null",
+        "options": {
+          "alertThreshold": true
+        },
+        "percentage": false,
+        "pluginVersion": "9.0.5",
+        "pointradius": 5,
+        "points": false,
+        "renderer": "flot",
+        "repeat": "container",
+        "repeatDirection": "h",
+        "seriesOverrides": [
+          {
+            "$$hashKey": "object:3517",
+            "alias": "MEM",
+            "yaxis": 2
+          },
+          {
+            "$$hashKey": "object:3518",
+            "alias": "MEM",
+            "fill": 10,
+            "fillGradient": 8,
+            "steppedLine": true,
+            "zindex": -3
+          }
+        ],
+        "spaceLength": 10,
+        "stack": false,
+        "steppedLine": false,
+        "targets": [
+          {
+            "alias": "CPU%",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
+            },
+            "exemplar": true,
+            "expr": "glances_docker_${container}_cpu_percent{domain=\"$domain\"}",
+            "groupBy": [
+              {
+                "params": [
+                  "$__interval"
+                ],
+                "type": "time"
+              },
+              {
+                "params": [
+                  "none"
+                ],
+                "type": "fill"
+              }
+            ],
+            "hide": false,
+            "interval": "",
+            "legendFormat": "CPU%",
+            "measurement": "docker",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT mean(\"cpu_percent\") FROM \"$host.docker\" WHERE $timeFilter GROUP BY time($__interval) fill(none)",
+            "rawQuery": false,
+            "refId": "A",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "cpu_percent"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "mean"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "name",
+                "operator": "=~",
+                "value": "/^$container$/"
+              },
+              {
+                "condition": "AND",
+                "key": "hostname",
+                "operator": "=~",
+                "value": "/^$host$/"
+              }
+            ]
+          },
+          {
+            "alias": "MEM",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "PBFA97CFB590B2093"
+            },
+            "exemplar": true,
+            "expr": "glances_docker_${container}_memory_usage{domain=\"$domain\"}",
+            "groupBy": [
+              {
+                "params": [
+                  "$__interval"
+                ],
+                "type": "time"
+              },
+              {
+                "params": [
+                  "none"
+                ],
+                "type": "fill"
+              }
+            ],
+            "hide": false,
+            "interval": "",
+            "legendFormat": "MEM",
+            "measurement": "docker",
+            "orderByTime": "ASC",
+            "policy": "default",
+            "query": "SELECT mean(\"cpu_percent\") FROM \"$host.docker\" WHERE $timeFilter GROUP BY time($__interval) fill(none)",
+            "rawQuery": false,
+            "refId": "B",
+            "resultFormat": "time_series",
+            "select": [
+              [
+                {
+                  "params": [
+                    "memory_usage"
+                  ],
+                  "type": "field"
+                },
+                {
+                  "params": [],
+                  "type": "mean"
+                }
+              ]
+            ],
+            "tags": [
+              {
+                "key": "name",
+                "operator": "=~",
+                "value": "/^$container$/"
+              },
+              {
+                "condition": "AND",
+                "key": "hostname",
+                "operator": "=~",
+                "value": "/^$host$/"
+              }
+            ]
+          }
+        ],
+        "thresholds": [],
+        "timeRegions": [],
+        "title": "$container container",
+        "tooltip": {
+          "shared": true,
+          "sort": 0,
+          "value_type": "individual"
+        },
+        "type": "graph",
+        "xaxis": {
+          "mode": "time",
+          "show": true,
+          "values": []
+        },
+        "yaxes": [
+          {
+            "$$hashKey": "object:3541",
+            "format": "percent",
+            "logBase": 1,
+            "max": "100",
+            "min": "0",
+            "show": true
+          },
+          {
+            "$$hashKey": "object:3542",
+            "format": "decbytes",
+            "logBase": 1,
+            "min": "0",
+            "show": true
+          }
+        ],
+        "yaxis": {
+          "align": false
         }
-      ],
-      "thresholds": [],
-      "timeRegions": [],
-      "title": "$container container",
-      "tooltip": {
-        "shared": true,
-        "sort": 0,
-        "value_type": "individual"
-      },
-      "type": "graph",
-      "xaxis": {
-        "mode": "time",
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "$$hashKey": "object:3541",
-          "format": "percent",
-          "logBase": 1,
-          "max": "100",
-          "min": "0",
-          "show": true
-        },
-        {
-          "$$hashKey": "object:3542",
-          "format": "decbytes",
-          "logBase": 1,
-          "min": "0",
-          "show": true
-        }
-      ],
-      "yaxis": {
-        "align": false
       }
-    }
-  ],
-  "refresh": "5s",
-  "schemaVersion": 36,
-  "style": "dark",
-  "tags": [],
-  "templating": {
-    "list": [
-      {
-        "current": {
-          "selected": false,
-          "text": "server",
-          "value": "server"
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "PBFA97CFB590B2093"
-        },
-        "definition": "label_values(domain)",
-        "hide": 0,
-        "includeAll": false,
-        "multi": false,
-        "name": "domain",
-        "options": [],
-        "query": {
-          "query": "label_values(domain)",
-          "refId": "StandardVariableQuery"
-        },
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
-        "tagValuesQuery": "",
-        "tagsQuery": "",
-        "type": "query",
-        "useTags": false
-      },
-      {
-        "current": {
-          "selected": true,
-          "text": [
-            "All"
-          ],
-          "value": [
-            "$__all"
-          ]
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "PBFA97CFB590B2093"
-        },
-        "definition": "query_result({__name__=~\"glances_docker_(.*)_history_size\", domain=\"$domain\"})",
-        "hide": 0,
-        "includeAll": true,
-        "multi": true,
-        "name": "container",
-        "options": [],
-        "query": {
-          "query": "query_result({__name__=~\"glances_docker_(.*)_history_size\", domain=\"$domain\"})",
-          "refId": "StandardVariableQuery"
-        },
-        "refresh": 1,
-        "regex": "/glances_docker_(.*)_history_size/",
-        "skipUrlSync": false,
-        "sort": 1,
-        "tagValuesQuery": "",
-        "tagsQuery": "",
-        "type": "query",
-        "useTags": false
-      },
-      {
-        "current": {
-          "selected": false,
-          "text": "br_0dd9b5a90486",
-          "value": "br_0dd9b5a90486"
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "PBFA97CFB590B2093"
-        },
-        "definition": "query_result({__name__=~\"glances_network_(.*)_history_size\", domain=\"$domain\"})",
-        "hide": 0,
-        "includeAll": false,
-        "multi": false,
-        "name": "interface",
-        "options": [],
-        "query": {
-          "query": "query_result({__name__=~\"glances_network_(.*)_history_size\", domain=\"$domain\"})",
-          "refId": "StandardVariableQuery"
-        },
-        "refresh": 1,
-        "regex": "/glances_network_(.*)_history_size/",
-        "skipUrlSync": false,
-        "sort": 1,
-        "tagValuesQuery": "",
-        "tagsQuery": "",
-        "type": "query",
-        "useTags": false
-      },
-      {
-        "current": {
-          "selected": false,
-          "text": "dm_0",
-          "value": "dm_0"
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "PBFA97CFB590B2093"
-        },
-        "definition": "query_result({__name__=~\"glances_diskio_(.*)_history_size\", domain=\"$domain\"})",
-        "hide": 0,
-        "includeAll": false,
-        "multi": false,
-        "name": "disk",
-        "options": [],
-        "query": {
-          "query": "query_result({__name__=~\"glances_diskio_(.*)_history_size\", domain=\"$domain\"})",
-          "refId": "StandardVariableQuery"
-        },
-        "refresh": 1,
-        "regex": "/glances_diskio_(.*)_history_size/",
-        "skipUrlSync": false,
-        "sort": 1,
-        "tagValuesQuery": "",
-        "tagsQuery": "",
-        "type": "query",
-        "useTags": false
-      }
-    ]
-  },
-  "time": {
-    "from": "now-1h",
-    "to": "now"
-  },
-  "timepicker": {
-    "collapse": false,
-    "enable": true,
-    "notice": false,
-    "now": true,
-    "refresh_intervals": [
-      "5s",
-      "10s",
-      "30s",
-      "1m",
-      "5m",
-      "15m",
-      "30m",
-      "1h",
-      "2h",
-      "1d"
     ],
-    "status": "Stable",
-    "time_options": [
-      "5m",
-      "15m",
-      "1h",
-      "6h",
-      "12h",
-      "24h",
-      "2d",
-      "7d",
-      "30d"
-    ],
-    "type": "timepicker"
-  },
-  "timezone": "browser",
-  "title": "Servers Status",
-  "uid": "000000002",
-  "version": 1,
-  "weekStart": ""
+    "refresh": "5s",
+    "schemaVersion": 36,
+    "style": "dark",
+    "tags": [],
+    "templating": {
+      "list": [
+        {
+          "current": {
+            "selected": false,
+            "text": "localhost",
+            "value": "localhost"
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "definition": "label_values(domain)",
+          "hide": 0,
+          "includeAll": false,
+          "multi": false,
+          "name": "domain",
+          "options": [],
+          "query": {
+            "query": "label_values(domain)",
+            "refId": "StandardVariableQuery"
+          },
+          "refresh": 1,
+          "regex": "",
+          "skipUrlSync": false,
+          "sort": 0,
+          "tagValuesQuery": "",
+          "tagsQuery": "",
+          "type": "query",
+          "useTags": false
+        },
+        {
+          "current": {
+            "selected": true,
+            "text": [
+              "All"
+            ],
+            "value": [
+              "$__all"
+            ]
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "definition": "query_result({__name__=~\"glances_docker_(.*)_history_size\", domain=\"$domain\"})",
+          "hide": 0,
+          "includeAll": true,
+          "multi": true,
+          "name": "container",
+          "options": [],
+          "query": {
+            "query": "query_result({__name__=~\"glances_docker_(.*)_history_size\", domain=\"$domain\"})",
+            "refId": "StandardVariableQuery"
+          },
+          "refresh": 1,
+          "regex": "/glances_docker_(.*)_history_size/",
+          "skipUrlSync": false,
+          "sort": 1,
+          "tagValuesQuery": "",
+          "tagsQuery": "",
+          "type": "query",
+          "useTags": false
+        },
+        {
+          "current": {
+            "isNone": true,
+            "selected": false,
+            "text": "None",
+            "value": ""
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "definition": "query_result({__name__=~\"glances_network_(.*)_history_size\", domain=\"$domain\"})",
+          "hide": 0,
+          "includeAll": false,
+          "multi": false,
+          "name": "interface",
+          "options": [],
+          "query": {
+            "query": "query_result({__name__=~\"glances_network_(.*)_history_size\", domain=\"$domain\"})",
+            "refId": "StandardVariableQuery"
+          },
+          "refresh": 1,
+          "regex": "/glances_network_(.*)_history_size/",
+          "skipUrlSync": false,
+          "sort": 1,
+          "tagValuesQuery": "",
+          "tagsQuery": "",
+          "type": "query",
+          "useTags": false
+        },
+        {
+          "current": {
+            "isNone": true,
+            "selected": false,
+            "text": "None",
+            "value": ""
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "definition": "query_result({__name__=~\"glances_diskio_(.*)_history_size\", domain=\"$domain\"})",
+          "hide": 0,
+          "includeAll": false,
+          "multi": false,
+          "name": "disk",
+          "options": [],
+          "query": {
+            "query": "query_result({__name__=~\"glances_diskio_(.*)_history_size\", domain=\"$domain\"})",
+            "refId": "StandardVariableQuery"
+          },
+          "refresh": 1,
+          "regex": "/glances_diskio_(.*)_history_size/",
+          "skipUrlSync": false,
+          "sort": 1,
+          "tagValuesQuery": "",
+          "tagsQuery": "",
+          "type": "query",
+          "useTags": false
+        }
+      ]
+    },
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "timepicker": {
+      "collapse": false,
+      "enable": true,
+      "notice": false,
+      "now": true,
+      "refresh_intervals": [
+        "5s",
+        "10s",
+        "30s",
+        "1m",
+        "5m",
+        "15m",
+        "30m",
+        "1h",
+        "2h",
+        "1d"
+      ],
+      "status": "Stable",
+      "time_options": [
+        "5m",
+        "15m",
+        "1h",
+        "6h",
+        "12h",
+        "24h",
+        "2d",
+        "7d",
+        "30d"
+      ],
+      "type": "timepicker"
+    },
+    "timezone": "browser",
+    "title": "Servers Status",
+    "uid": "000000002",
+    "version": 1,
+    "weekStart": ""
 }

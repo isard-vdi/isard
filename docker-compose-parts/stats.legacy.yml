@@ -2,7 +2,7 @@ version: '3.5'
 services:
   isard-stats-go:
     restart: unless-stopped
-  isard-stats-glances:
+  isard-stats-node-exporter:
     restart: unless-stopped
   isard-grafana:
     restart: unless-stopped
