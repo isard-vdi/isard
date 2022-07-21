@@ -6,12 +6,11 @@
 import json
 import logging as log
 
-from flask import request
-
 #!flask/bin/python
 # coding=utf-8
 from api import app
 
+from ..libv2.api_exceptions import Error
 from ..libv2.isardVpn import isardVpn
 from .decorators import is_admin
 

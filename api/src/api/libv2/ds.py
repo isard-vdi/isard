@@ -1,23 +1,12 @@
-import pprint
-import time
 import traceback
-from datetime import datetime, timedelta
 
-# import rethinkdb as r
 from rethinkdb import RethinkDB
 
 from api import app
 
 from .api_exceptions import Error
 
-# import pem
-# from OpenSSL import crypto
-
-# ~ from contextlib import closing
-
-
 r = RethinkDB()
-# ~ from ..libv1.log import *
 import logging as log
 
 from rethinkdb.errors import ReqlTimeoutError

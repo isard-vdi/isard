@@ -1,6 +1,5 @@
 import json
 import logging as log
-import traceback
 
 from flask import request
 
@@ -11,8 +10,6 @@ from ...libv2.bookings.api_booking import Bookings
 from ..decorators import has_token, is_admin
 
 apib = Bookings()
-
-from dateutil import parser
 
 
 @app.route("/api/v3/bookings/priority/<item_type>/<item_id>", methods=["GET"])

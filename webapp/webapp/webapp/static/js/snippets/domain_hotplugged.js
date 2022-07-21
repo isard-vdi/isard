@@ -21,17 +21,5 @@ function setDomainHotplug(id,hardware){
                 ],
 			 "order": [[0, 'desc']],
     } );
-
-
-    $("#modalBulkEdit #send").on('click', function(e){
-            var form = $('#modalBulkEditForm');
-            //~ form.parsley().validate();
-            //~ if (form.parsley().isValid()){
-                    data=$('#modalBulkEditForm').serializeObject();
-                    socket.emit('domain_bulkedit',data)
-                    //~ console.log('is valid form')
-            //~ }
-        });
-            
 }
 

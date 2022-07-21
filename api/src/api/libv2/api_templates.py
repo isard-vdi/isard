@@ -4,10 +4,8 @@
 #      Josep Maria Viñolas Auquer
 #      Alberto Larraz Dalmases
 # License: AGPLv3
-import pprint
-import time
+
 import traceback
-from datetime import datetime, timedelta
 
 from rethinkdb import RethinkDB
 
@@ -18,14 +16,11 @@ from .api_cards import ApiCards
 r = RethinkDB()
 import logging as log
 
-from rethinkdb.errors import ReqlTimeoutError
-
 from .api_exceptions import Error
 from .flask_rethink import RDB
 
 db = RDB(app)
 db.init_app(app)
-
 
 from .ds import DS
 

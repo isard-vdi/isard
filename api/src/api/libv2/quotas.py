@@ -4,19 +4,13 @@
 #      Josep Maria Viñolas Auquer
 #      Alberto Larraz Dalmases
 # License: AGPLv3
-import pprint
-import time
-from datetime import datetime, timedelta
 
 from rethinkdb import RethinkDB
 
 from api import app
 
 r = RethinkDB()
-# ~ from ..libv1.log import *
 import logging as log
-
-from rethinkdb.errors import ReqlTimeoutError
 
 from .flask_rethink import RDB
 

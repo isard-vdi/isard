@@ -4,8 +4,7 @@
 #      Josep Maria Viñolas Auquer
 #      Alberto Larraz Dalmases
 # License: AGPLv3
-import logging as log
-import pprint
+
 import time
 from datetime import datetime, timedelta
 
@@ -19,27 +18,17 @@ from .quotas import Quotas
 quotas = Quotas()
 
 r = RethinkDB()
-import logging
+import logging as log
 import traceback
 from string import ascii_lowercase, digits
-
-from rethinkdb.errors import ReqlNonExistenceError
 
 from .flask_rethink import RDB
 
 db = RDB(app)
 db.init_app(app)
 
-
 from .ds import DS
-from .helpers import (
-    _check,
-    _disk_path,
-    _parse_desktop,
-    _parse_media_info,
-    _parse_string,
-    _random_password,
-)
+from .helpers import _check, _parse_desktop, _random_password
 
 ds = DS()
 
@@ -47,7 +36,6 @@ import os
 import secrets
 
 import bcrypt
-import requests
 from jose import jwt
 
 
@@ -71,7 +59,6 @@ def check_category_domain(category_id, domain):
 
 class ApiUsers:
     def Jwt(self, user_id, minutes=240):
-        # user_id = provider_id+'-'+category_id+'-'+id+'-'+id
         try:
             with app.app_context():
                 user = (
@@ -474,7 +461,6 @@ class ApiUsers:
         for desktop in todelete:
             ds.delete_desktop(desktop["id"], desktop["status"])
 
-        # self._delete_non_persistent(user_id)
         with app.app_context():
             if not _check(
                 r.table("users").get(user_id).delete().run(db.conn), "deleted"
@@ -673,8 +659,6 @@ class ApiUsers:
                     .filter(lambda derivates: derivates["parents"].contains(id))
                     .run(db.conn)
                 )
-                # templates = [t for t in derivated if t['kind'] != "desktop"]
-                # desktops = [d for d in derivated if d['kind'] == "desktop"]
         domains = (
             categories
             + groups
@@ -755,8 +739,6 @@ class ApiUsers:
                     .filter(lambda derivates: derivates["parents"].contains(id))
                     .run(db.conn)
                 )
-                # templates = [t for t in derivated if t['kind'] != "desktop"]
-                # desktops = [d for d in derivated if d['kind'] == "desktop"]
         domains = groups + users + desktops + group_templates + derivated
         return [i for n, i in enumerate(domains) if i not in domains[n + 1 :]]
 

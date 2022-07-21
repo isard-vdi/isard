@@ -97,19 +97,6 @@ def admin_multiple_actions_domains(payload):
     return json_data, http_code, {"Content-Type": "application/json"}
 
 
-@app.route("/api/v3/admin/getAllTemplates", methods=["POST"])
-@is_admin_or_manager
-def getAllTemplates(payload):
-
-    data = request.get_json()
-    templates = admins.TemplatesByTerm(data["term"])
-
-    if payload["role_id"] == "manager":
-        templates = [d for d in templates if d["category"] == payload["category_id"]]
-
-    return json.dumps(templates)
-
-
 @app.route("/api/v3/admin/domains", methods=["DELETE"])
 @is_admin_or_manager
 def api_v3_admin_domains_delete(payload):

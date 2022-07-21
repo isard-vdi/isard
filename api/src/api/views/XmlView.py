@@ -7,10 +7,6 @@
 # License: AGPLv3
 
 import json
-import traceback
-from uuid import uuid4
-
-from flask import request
 
 from api import app
 

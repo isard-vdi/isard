@@ -7,14 +7,9 @@
 
 import json
 import logging as log
-import os
-import sys
-import time
 import traceback
-from os.path import isfile
-from uuid import uuid4
 
-from flask import request, send_file
+from flask import request
 
 from api import app
 
@@ -26,7 +21,8 @@ from ..libv2.api_cards import ApiCards
 
 api_cards = ApiCards()
 
-from .decorators import has_token, is_admin, is_register
+from ..libv2.api_exceptions import Error
+from .decorators import has_token, is_admin
 
 
 @app.route("/api/v3/images/desktops", methods=["GET"])

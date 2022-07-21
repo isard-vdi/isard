@@ -28,12 +28,7 @@ db.init_app(app)
 
 from ..libv2.api_admin import admin_table_insert
 from ..libv2.validators import _validate_item
-from .decorators import (
-    has_token,
-    is_admin_or_manager_or_advanced,
-    ownsCategoryId,
-    ownsMediaId,
-)
+from .decorators import has_token, is_admin_or_manager_or_advanced, ownsMediaId
 
 
 # Add media

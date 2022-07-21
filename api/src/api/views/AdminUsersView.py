@@ -5,26 +5,18 @@
 
 import json
 import logging as log
-import os
 import time
 import traceback
-from uuid import uuid4
 
-from flask import jsonify, request
+from flask import request
 
 #!flask/bin/python
 # coding=utf-8
 from api import app
 
-from ..libv2.api_admin import (
-    admin_table_delete,
-    admin_table_insert,
-    admin_table_list,
-    admin_table_update,
-)
+from ..libv2.api_admin import admin_table_insert, admin_table_list, admin_table_update
 from ..libv2.api_exceptions import Error
-from ..libv2.api_users import ApiUsers, Password, check_category_domain
-from ..libv2.helpers import _check
+from ..libv2.api_users import ApiUsers, Password
 from ..libv2.quotas import Quotas
 from ..libv2.validators import _validate_item
 

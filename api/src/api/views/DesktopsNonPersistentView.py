@@ -5,11 +5,7 @@
 
 import json
 import logging as log
-import os
-import sys
-import time
 import traceback
-from uuid import uuid4
 
 from flask import request
 
@@ -26,7 +22,7 @@ from ..libv2.api_desktops_nonpersistent import ApiDesktopsNonPersistent
 
 desktops = ApiDesktopsNonPersistent()
 
-from .decorators import allowedTemplateId, has_token, is_admin, ownsDomainId
+from .decorators import allowedTemplateId, has_token
 
 
 @app.route("/api/v3/desktop", methods=["POST"])

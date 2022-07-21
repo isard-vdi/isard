@@ -4,9 +4,8 @@
 #      Josep Maria Viñolas Auquer
 #      Alberto Larraz Dalmases
 # License: AGPLv3
-import pprint
+
 import time
-from datetime import datetime, timedelta
 
 from rethinkdb import RethinkDB
 
@@ -26,12 +25,11 @@ from ..libv2.isardViewer import isardViewer
 
 isardviewer = isardViewer()
 
-
 from .ds import DS
 
 ds = DS()
 
-from .helpers import _check, _disk_path, _parse_media_info, _parse_string
+from .helpers import _check, _parse_media_info, _parse_string
 
 
 class ApiDesktopsNonPersistent:

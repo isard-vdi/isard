@@ -8,7 +8,6 @@
 import base64
 import json
 import os
-import sys
 import traceback
 
 from rethinkdb import RethinkDB
@@ -27,8 +26,6 @@ from .api_exceptions import Error
 
 db = RDB(app)
 db.init_app(app)
-
-# from netaddr import IPNetwork, IPAddress
 
 from datetime import datetime, timedelta
 
@@ -53,7 +50,6 @@ def default_guest_properties():
 
 
 def viewer_jwt(desktop_id, minutes=240):
-    # user_id = provider_id+'-'+category_id+'-'+id+'-'+id
     return jwt.encode(
         {
             "exp": datetime.utcnow() + timedelta(minutes=minutes),
@@ -409,41 +405,8 @@ smart sizing:i:1""" % (
                 traceback.format_exc(),
             )
 
-    # ~ def get_domain_vnc_data(self, domain, hostnames, viewer, port, tlsport, selfsigned, remote_addr=False):
-    # ~ try:
-    # ~ ''' VNC does not have ssl. Only in websockets is available '''
-    # ~ if viewer['defaultMode'] == "Secure" and domain['viewer']['port_spice_ssl'] is not False:
-    # ~ return {'host':hostname,
-    # ~ 'name': domain['name'],
-    # ~ 'port': port,
-    # ~ 'wsport': str(int(port)+500),
-    # ~ 'ca':viewer['certificate'],
-    # ~ 'domain':viewer['domain'],
-    # ~ 'host-subject':viewer['host-subject'],
-    # ~ 'passwd': domain['viewer']['passwd'],
-    # ~ 'uri': 'https://<domain>/wsviewer/novnclite'+selfsigned+'/?host='+hostname+'&port='+str(int(port))+'&password='+domain['viewer']['passwd'],
-    # ~ 'options': domain['options']['viewers']['vnc'] if 'vnc' in domain['options']['viewers'].keys() else False}
-    # ~ if viewer['defaultMode'] == "Insecure" and domain['viewer']['port_spice'] is not False:
-    # ~ return {'host':hostname,
-    # ~ 'name': domain['name'],
-    # ~ 'port': port,
-    # ~ 'wsport': str(int(port)+500),
-    # ~ 'ca':viewer['certificate'],
-    # ~ 'domain':viewer['domain'],
-    # ~ 'host-subject':viewer['host-subject'],
-    # ~ 'passwd': domain['viewer']['passwd'],
-    # ~ 'uri': 'http://<domain>/wsviewer/novnclite/?host='+hostname+'&port='+str(int(port))+'&password='+domain['viewer']['passwd'],
-    # ~ 'options': domain['options']['viewers']['vnc'] if 'vnc' in domain['options']['viewers'].keys() else False}
-    # ~ log.error('No available VNC Viewer for domain '+domain['name']+' exception:'+str(e))
-    # ~ return False
-    # ~ except Exception as e:
-    # ~ exc_type, exc_obj, exc_tb = sys.exc_info()
-    # ~ fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-    # ~ log.error(exc_type, fname, exc_tb.tb_lineno)
-    # ~ log.error('Viewer for domain '+domain['name']+' exception:'+str(e))
-    # ~ return False
-
     ##### VNC FILE VIEWER
+
     def get_vnc_file(self, dict, id, clientos, remote_addr=False):
         ## Should check if ssl in use: dict['tlsport']:
         hostname = dict["host"]

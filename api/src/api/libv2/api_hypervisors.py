@@ -8,7 +8,6 @@ import ipaddress
 import os
 import time
 import traceback
-from datetime import datetime, timedelta
 
 import requests
 from rethinkdb import RethinkDB
@@ -29,16 +28,9 @@ from .api_exceptions import Error
 isardVpn = isardVpn()
 
 import socket
-from subprocess import check_call, check_output
+from subprocess import check_output
 
-from .helpers import (
-    _check,
-    _disk_path,
-    _parse_media_info,
-    _parse_string,
-    _random_password,
-    generate_db_media,
-)
+from .helpers import _check, generate_db_media
 
 
 def get_hypervisors(status=None):
@@ -406,7 +398,6 @@ class ApiHypervisors:
 
         medias_paths = [m[0] for m in medias]
         new = list(set(medias_paths) - set(db_medias_paths))
-        # missing = list(set(db_medias_paths)-set(medias_paths))
 
         for n in new:
             for m in medias:
@@ -440,7 +431,6 @@ class ApiHypervisors:
 
         disks_paths = [d[0] for d in disks]
         new = list(set(disks_paths) - set(db_disks_paths))
-        # missing = list(set(db_medias_paths)-set(medias_paths))
 
         for n in new:
             for m in disks:

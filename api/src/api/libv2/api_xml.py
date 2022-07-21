@@ -5,6 +5,7 @@
 #      Josep Maria Viñolas Auquer
 #      Alberto Larraz Dalmases
 # License: AGPLv3
+
 from rethinkdb import RethinkDB
 
 from api import app

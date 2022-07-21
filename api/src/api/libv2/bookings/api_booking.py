@@ -17,8 +17,6 @@ from ..api_exceptions import Error
 
 r = RethinkDB()
 import logging as log
-import random
-from pprint import pformat, pprint
 
 from ..flask_rethink import RDB
 
@@ -27,7 +25,7 @@ db.init_app(app)
 
 import uuid
 
-from ..helpers import _check, _get_reservables, _random_password
+from ..helpers import _check, _get_reservables
 from .api_reservables import Reservables
 from .api_reservables_planner import ReservablesPlanner
 from .api_reservables_planner_compute import payload_priority
@@ -257,35 +255,6 @@ class Bookings:
             }
             for booking in bookings
         ]
-
-    def get_subitem_reservables_bookings(
-        self, reservables, fromDate, toDate, increment_units=0
-    ):
-        bookings = []
-
-        for k, v in reservables.items():
-            query = r.table("bookings")
-            query = query.get_all(v, index="reservables_" + k)
-            if fromDate and toDate:
-                query = query.filter(
-                    r.row["start"].during(
-                        datetime.strptime(fromDate, "%Y-%m-%dT%H:%M%z").astimezone(
-                            pytz.UTC
-                        ),
-                        datetime.strptime(toDate, "%Y-%m-%dT%H:%M%z").astimezone(
-                            pytz.UTC
-                        ),
-                    )
-                )
-            with app.app_context():
-                bookings += list(query.run(db.conn))
-
-        return bookings
-        # Add new item units so we can substract it from maximum units allowed
-        if increment_units:
-            for booking in bookings:
-                booking["units"] += increment_units
-        return bookings
 
     def get_total_user_bookings_count(self, user_id):
         start = datetime.now(pytz.utc)

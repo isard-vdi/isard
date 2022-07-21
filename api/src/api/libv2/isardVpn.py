@@ -3,13 +3,10 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
-import base64
-import json
-import os
-
 #!/usr/bin/env python
 # coding=utf-8
-import sys
+
+import os
 import traceback
 
 from rethinkdb import RethinkDB
@@ -20,9 +17,6 @@ from ..libv2.log import *
 from .api_exceptions import Error
 
 r = RethinkDB()
-import urllib
-
-from rethinkdb.errors import ReqlTimeoutError
 
 from ..libv2.flask_rethink import RDB
 
@@ -51,7 +45,6 @@ class isardVpn:
             postup = ":"
             endpoint = os.environ["DOMAIN"]
         elif vpn == "hypers":
-            # if itemid.role != 'admin': return False
             with app.app_context():
                 hyper = (
                     r.table("hypervisors")

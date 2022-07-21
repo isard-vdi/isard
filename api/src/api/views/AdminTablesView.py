@@ -7,7 +7,6 @@ import json
 import logging as log
 
 from flask import request
-from flask_login import current_user
 
 #!flask/bin/python
 # coding=utf-8

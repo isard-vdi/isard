@@ -19,7 +19,6 @@ from ..libv2.quotas import Quotas
 quotas = Quotas()
 
 from ..libv2.api_desktops_persistent import ApiDesktopsPersistent
-from ..libv2.api_hypervisors import get_hypervisors
 
 desktops = ApiDesktopsPersistent()
 
@@ -28,7 +27,7 @@ from ..libv2.api_cards import ApiCards
 api_cards = ApiCards()
 
 from ..libv2.validators import _validate_item
-from .decorators import allowedTemplateId, has_token, is_admin, ownsDomainId
+from .decorators import allowedTemplateId, has_token, ownsDomainId
 
 
 @app.route("/api/v3/desktop/start/<desktop_id>", methods=["GET"])

@@ -7,7 +7,6 @@
 import csv
 import io
 import os
-import traceback
 
 from rethinkdb import RethinkDB
 
@@ -23,7 +22,7 @@ db = RDB(app)
 db.init_app(app)
 
 from ..api_desktops_common import ApiDesktopsCommon
-from ..api_desktops_persistent import ApiDesktopsPersistent, api_jumperurl_gencode
+from ..api_desktops_persistent import ApiDesktopsPersistent
 from ..ds import DS
 from ..helpers import (
     _parse_deployment_booking,

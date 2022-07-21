@@ -4,20 +4,17 @@
 #      Josep Maria Viñolas Auquer
 #      Alberto Larraz Dalmases
 # License: AGPLv3
-import os
+
 import time
-from datetime import datetime, timedelta
-from pprint import pprint
 
 from rethinkdb import RethinkDB
 
 from api import app
 
 r = RethinkDB()
-import json
 import traceback
 
-from rethinkdb.errors import ReqlDriverError, ReqlTimeoutError
+from rethinkdb.errors import ReqlDriverError
 
 from .flask_rethink import RDB
 from .log import log
@@ -29,12 +26,7 @@ import threading
 
 threads = {}
 
-from flask import Flask, _request_ctx_stack, jsonify, request
 
-# from flask_cors import cross_origin
-
-
-## secrets Threading
 class SecretsThread(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
@@ -84,22 +76,3 @@ def start_secrets_thread():
         threads["secrets"].daemon = True
         threads["secrets"].start()
         log.info("SecretsThread Started")
-
-
-# secrets namespace
-# @socketio.on('connect', namespace='/userspace')
-# def socketio_secrets_connect():
-#     try:
-#         payload = get_token_payload(request.args.get('jwt'))
-#         join_room(payload['user_id'])
-#         log.debug('User '+payload['user_id']+' joined userspace ws')
-#     except:
-#         log.debug('Failed attempt to connect so socketio: '+traceback.format_exc())
-
-# @socketio.on('disconnect', namespace='/userspace')
-# def socketio_secrets_disconnect():
-#     try:
-#         payload = get_token_payload(request.args.get('jwt'))
-#         leave_room(payload['user_id'])
-#     except:
-#         pass

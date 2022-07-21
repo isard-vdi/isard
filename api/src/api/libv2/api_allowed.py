@@ -16,8 +16,6 @@ from .api_exceptions import Error
 from .flask_rethink import RDB
 
 r = RethinkDB()
-
-
 db = RDB(app)
 db.init_app(app)
 

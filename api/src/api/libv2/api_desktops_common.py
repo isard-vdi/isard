@@ -4,10 +4,8 @@
 #      Josep Maria Viñolas Auquer
 #      Alberto Larraz Dalmases
 # License: AGPLv3
-import pprint
-import time
+
 import traceback
-from datetime import datetime, timedelta
 
 from rethinkdb import RethinkDB
 
@@ -15,8 +13,6 @@ from api import app
 
 r = RethinkDB()
 import logging as log
-
-from rethinkdb.errors import ReqlTimeoutError
 
 from .flask_rethink import RDB
 
@@ -28,20 +24,11 @@ from .isardViewer import isardViewer, viewer_jwt
 
 isardviewer = isardViewer()
 
-
 from .ds import DS
 
 ds = DS()
 
 import secrets
-
-from .helpers import (
-    _check,
-    _disk_path,
-    _parse_desktop,
-    _parse_media_info,
-    _parse_string,
-)
 
 
 class ApiDesktopsCommon:

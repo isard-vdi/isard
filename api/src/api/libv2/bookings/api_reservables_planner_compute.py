@@ -17,22 +17,13 @@ from ..flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
-import json
-import os
-import random
-import traceback
-import uuid
 from datetime import datetime, timedelta
 from pprint import pformat
 
 import portion as P
 import pytz
-import requests
-from jose import jwt
 
 from ..api_exceptions import Error
-from ..helpers import _check, _get_reservables
-from .api_reservables import Reservables
 
 
 ## BOOKING PROVISIONING
@@ -131,25 +122,6 @@ def remove_existing_item_bookings(plans, item_type, item_id, start=None, end=Non
         start = datetime.now(pytz.utc)
 
     query = r.table("bookings").get_all(item_id, index="item_id")
-    # if start and end:
-    #     query = query.filter(
-    #         r.row["start"].during(
-    #             start,
-    #             end,
-    #         )
-    #     )
-    # if start:
-    #     query = query.filter(lambda plan: plan["end"] > start)
-    # query = query.filter(
-    #     r.row["end"].during(
-    #         start,
-    #         end,
-    #     )
-    # )
-    # if end:
-    #     query = query.filter(lambda plan: plan["start"] < end)
-    # else:
-    #     query = query.filter(lambda plan: plan["start"] > start)
 
     with app.app_context():
         bookings = list(query.run(db.conn))
@@ -507,7 +479,6 @@ def user_matches_priority_rule(payload, rules):
                     not in rule["allowed"][allowed_item[0]]
                 ):
                     log.debug("##### -> RULE DISCARDED, CONTINUE #####")
-                    # match = previous_match
                     continue
                 match = rule
             else:
@@ -561,8 +532,6 @@ def get_overridable_bookings(
             )
     total_overridable = 0
     for booking in bookings:
-        # if skip_booking_id and booking["id"] == skip_booking_id:
-        #     continue
         total_overridable += booking["units"]
     log.debug("TOTAL OVERRIDABLE BOOKINGS: " + str(total_overridable))
     return bookings
@@ -596,8 +565,6 @@ def get_nonoverridable_bookings(
             )
     total_nonoverridable = 0
     for booking in bookings:
-        # if skip_booking_id and booking["id"] == skip_booking_id:
-        #     continue
         total_nonoverridable += booking["units"]
     log.debug("TOTAL NONOVERRIDABLE BOOKINGS: " + str(total_nonoverridable))
     return bookings

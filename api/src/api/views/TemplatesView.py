@@ -5,11 +5,7 @@
 
 import json
 import logging as log
-import os
-import sys
-import time
 import traceback
-from uuid import uuid4
 
 from flask import request
 
@@ -26,15 +22,12 @@ from ..libv2.api_users import ApiUsers
 
 users = ApiUsers()
 
-# from ..libv2.api_desktops import ApiDesktops
-# desktops = ApiDesktops()
-
 from ..libv2.api_templates import ApiTemplates
 
 templates = ApiTemplates()
 
 from ..libv2.validators import _validate_item
-from .decorators import allowedTemplateId, has_token, is_admin, ownsDomainId
+from .decorators import allowedTemplateId, has_token, ownsDomainId
 
 
 @app.route("/api/v3/template", methods=["POST"])

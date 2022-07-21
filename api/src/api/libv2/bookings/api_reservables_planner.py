@@ -17,18 +17,13 @@ from ..flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
-import json
-import os
-import random
 import traceback
 import uuid
 from datetime import datetime, timedelta
-from pprint import pformat, pprint
+from pprint import pformat
 
 import portion as P
 import pytz
-import requests
-from jose import jwt
 
 from ..api_exceptions import Error
 from ..helpers import _check, _get_reservables
@@ -640,7 +635,7 @@ class ReservablesPlanner:
                     log.debug(pformat(start))
                 if len(end):
                     log.debug("------------------- END CONFLICTS")
-                    pprinlog.debug(pformat(plan))
+                    log.debug(pformat(plan))
                     log.debug(pformat(end))
 
         return conflicts

@@ -6,7 +6,7 @@
 import os
 
 import yaml
-from cerberus import Validator, rules_set_registry, schema_registry
+from cerberus import Validator, schema_registry
 
 from api import app
 
