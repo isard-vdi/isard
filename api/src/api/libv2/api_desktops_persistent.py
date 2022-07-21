@@ -36,13 +36,7 @@ from .ds import DS
 
 ds = DS()
 
-from .helpers import (
-    _check,
-    _disk_path,
-    _parse_media_info,
-    _parse_string,
-    default_guest_properties,
-)
+from .helpers import _check, _parse_media_info, _parse_string, default_guest_properties
 
 
 def api_jumperurl_gencode(length=32):
@@ -233,10 +227,9 @@ class ApiDesktopsPersistent:
                 )
 
         if data["hardware"]["disk_size"]:
-            dir_disk, disk_filename = _disk_path(user, _parse_string(data["name"]))
             disks = [
                 {
-                    "file": dir_disk + "/" + disk_filename,
+                    "extension": "qcow2",
                     "size": str(data["hardware"]["disk_size"]) + "G",
                 }
             ]

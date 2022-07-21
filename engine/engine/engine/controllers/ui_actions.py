@@ -668,9 +668,9 @@ class UiActions(object):
                 #     dict_to_create['hardware']['disks'][index_disk]['file'] = new_file
                 #     dict_to_create['hardware']['disks'][index_disk]['path_selected'] = path_selected
 
-                relative_path = dict_to_create["hardware"]["disks"][0]["file"]
                 path_new_disk, path_selected = get_path_to_disk(
-                    relative_path, pool=pool_id
+                    pool=pool_id,
+                    extension=dict_to_create["hardware"]["disks"][0]["extension"],
                 )
                 # UPDATE PATH IN DOMAIN
 
