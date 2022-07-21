@@ -32,6 +32,7 @@ from engine.services.db import (
 )
 from engine.services.db.downloads import get_media
 from engine.services.lib.functions import pop_key_if_zero, randomMAC
+from engine.services.lib.storage import insert_storage
 from engine.services.log import *
 from flatten_dict import flatten
 from lxml import etree
@@ -1296,6 +1297,7 @@ def update_xml_from_dict_domain(id_domain, xml=None):
             for i in range(num_remove_disks):
                 v.remove_disk()
         for i in range(len(hw["disks"])):
+            insert_storage(hw["disks"][i])
             s = hw["disks"][i]["file"]
             if s[s.rfind(".") :].lower().find("qcow") == 1:
                 type_disk = "qcow2"

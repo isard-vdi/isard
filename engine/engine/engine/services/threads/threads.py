@@ -46,6 +46,7 @@ from engine.services.lib.qcow import (
     verify_output_cmds2,
     verify_output_cmds3,
 )
+from engine.services.lib.storage import update_storage_status
 from engine.services.log import *
 
 # from pool_hypervisors. import PoolHypervisors
@@ -298,6 +299,7 @@ def launch_action_disk(action, hostname, user, port, from_scratch=False):
             )
         else:
             log.info("disk {} from domain {} erased".format(disk_path, id_domain))
+            update_storage_status(action.get("storage_id"), "deleted")
             update_disk_backing_chain(id_domain, index_disk, "DISK_ERASED", [])
             update_domain_status(
                 "DiskDeleted", id_domain, detail="delete disk operation run ok"
@@ -362,6 +364,7 @@ def launch_action_create_template_disk(action, hostname, user, port):
                 # update_domain to status: TemplateDiskCreated
                 #####  CREATED OK ######
 
+                update_storage_status(action.get("storage_id"), "ready")
                 update_disk_template_created(id_domain, disk_index)
                 update_disk_backing_chain(
                     id_domain,
