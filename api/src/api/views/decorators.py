@@ -267,6 +267,31 @@ def ownsDomainId(payload, domain_id):
     )
 
 
+def ownsMediaId(payload, media_id):
+    # User is admin
+    if payload.get("role_id", "") == "admin":
+        return True
+
+    with app.app_context():
+        media = r.table("media").get(media_id).pluck("user", "category").run(db.conn)
+
+    # User is owner
+    if media["user"] == payload["user_id"]:
+        return True
+
+    # User is manager and the media is from its categories
+    if payload["role_id"] == "manager":
+        with app.app_context():
+            if payload.get("category_id", "") == media["category"]:
+                return True
+
+    raise Error(
+        "forbidden",
+        "Not enough access rights to access this media_id " + str(media_id),
+        traceback.format_exc(),
+    )
+
+
 def ownsDeploymentId(payload, deployment_id):
     if payload["role_id"] == "admin":
         return True

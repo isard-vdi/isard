@@ -237,26 +237,21 @@ $(document).ready(function() {
         var data = table.row( $(this).parents('tr') ).data();
         switch($(this).attr('id')){
             case 'btn-delete':
-				new PNotify({
-						title: 'Confirmation Needed',
-							text: "Are you sure you want to delete this media: "+data.name+"?",
-							hide: false,
-							opacity: 0.9,
-							confirm: {
-								confirm: true
-							},
-							buttons: {
-								closer: false,
-								sticker: false
-							},
-							history: {
-								history: false
-							},
-							addclass: 'pnotify-center'
-						}).get().on('pnotify.confirm', function() {
-                            socket.emit('media_update',{'pk':data.id,'name':'status','value':'Deleting'})
-						}).on('pnotify.cancel', function() {
-				});
+				$("#modalDeleteMediaForm")[0];
+                $('#modalDeleteMediaForm #id').val(data['id']);
+                $('#modalDeleteMedia').modal({
+                    backdrop: 'static',
+                    keyboard: false
+                }).modal('show');
+                $.ajax({
+                    type: "GET",
+                    url: "/api/v3/media/desktops/"+data['id'],
+                }).done(function(domains) {
+                    $('#table_modal_media_delete tbody').empty()
+                    $.each(domains, function(key, value) {
+                        infoDomains(value, $('#table_modal_media_delete tbody'));
+                    });
+                });
                 break;
              case 'btn-abort':
                     //~ var pk=$(this).closest("div").attr("data-pk");
@@ -408,6 +403,47 @@ $(document).ready(function() {
         };
         
     });
+
+    $('#modalDeleteMedia #send').on('click', function(e) {
+        media_id = $('#modalDeleteMediaForm #id').val()
+
+        var notice = new PNotify({
+            text: 'Deleting media...',
+            hide: false,
+            opacity: 1,
+            icon: 'fa fa-spinner fa-pulse'
+        })
+
+        $.ajax({
+            type: 'DELETE',
+            url: '/api/v3/media/'+media_id,
+            error: function(data) {
+                notice.update({
+                    title: 'ERROR',
+                    text: 'Something went wrong',
+                    type: 'error',
+                    hide: true,
+                    icon: 'fa fa-warning',
+                    delay: 5000,
+                    opacity: 1
+                })
+            },
+            success: function(data) {
+                $('form').each(function() {
+                    this.reset()
+                })
+                $('.modal').modal('hide')
+                notice.update({
+                    text: 'Media deleted successfully',
+                    hide: true,
+                    delay: 2000,
+                    icon: '',
+                    opacity: 1,
+                    type: 'success'
+                })
+            }
+        })
+    });  
 
     $("#modalAddFromMedia #send").off('click');
     $("#modalAddMedia #send").on('click', function(e){
