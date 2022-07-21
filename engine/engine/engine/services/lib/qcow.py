@@ -581,8 +581,7 @@ def verify_output_cmds3(cmds_done, path_domain_disk, path_template_disk, id_doma
         log.error("cmd: {}, out: {}, err: {}".format(d["cmd"], d["out"], d["err"]))
         error = "Crashed"
     elif error is None:
-        # backing_chain_template = extract_list_backing_chain(d['out'])
-        backing_chain_template = d["out"]
+        backing_chain_template = extract_list_backing_chain(d["out"])
 
     return error, backing_chain_domain, backing_chain_template
 
