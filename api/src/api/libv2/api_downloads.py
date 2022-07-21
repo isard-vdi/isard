@@ -23,6 +23,7 @@ db = RDB(app)
 db.init_app(app)
 
 from .api_cards import get_domain_stock_card
+from .helpers import get_user_data
 
 
 class Downloads(object):
@@ -252,7 +253,7 @@ class Downloads(object):
             d["guest_properties"] = default_guest_properties()
             if d.get("options"):
                 d.pop("options")
-            d.update(self.get_user_data(user_id))
+            d.update(get_user_data(user_id))
             path = self.get_user_path(user_id)
             for disk in d["create_dict"]["hardware"]["disks"]:
                 if not disk["file"].startswith(path):
@@ -262,7 +263,7 @@ class Downloads(object):
     def formatMedias(self, data, user_id):
         new_data = data.copy()
         for d in new_data:
-            d.update(self.get_user_data(user_id))
+            d.update(get_user_data(user_id))
             d["progress"] = {}
             d["status"] = "DownloadStarting"
             d["accessed"] = time.time()
@@ -272,16 +273,6 @@ class Downloads(object):
             else:
                 d["path"] = path + d["url-isard"]
         return new_data
-
-    def get_user_data(self, user_id):
-        with app.app_context():
-            user = r.table("users").get(user_id).run(db.conn)
-        return {
-            "category": user["category"],
-            "group": user["group"],
-            "user": user["id"],
-            "username": user["username"],
-        }
 
     def get_user_path(self, user_id):
         with app.app_context():

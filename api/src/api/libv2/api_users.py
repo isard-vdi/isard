@@ -27,6 +27,11 @@ from .flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
+from .api_admin import (
+    change_category_items_owner,
+    change_group_items_owner,
+    change_user_items_owner,
+)
 from .ds import DS
 from .helpers import _check, _parse_desktop, _random_password
 
@@ -461,6 +466,7 @@ class ApiUsers:
         for desktop in todelete:
             ds.delete_desktop(desktop["id"], desktop["status"])
 
+        change_user_items_owner("media", user_id)
         with app.app_context():
             if not _check(
                 r.table("users").get(user_id).delete().run(db.conn), "deleted"
@@ -680,6 +686,7 @@ class ApiUsers:
                     r.table("categories").get(d["id"]).delete().run(db.conn)
                 else:
                     ds.delete_desktop(d["id"], d["status"])
+        change_category_items_owner("media", category_id)
 
     def GroupGet(self, group_id):
         with app.app_context():
@@ -774,6 +781,8 @@ class ApiUsers:
                     r.table("groups").get(d["id"]).delete().run(db.conn)
                 else:
                     ds.delete_desktop(d["id"], d["status"])
+
+        change_group_items_owner("media", group_id)
 
     def Secret(self, kid, description, role_id, category_id, domain):
         with app.app_context():

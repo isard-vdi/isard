@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 34
+release_version = 35
+# release 35: Fix media with missing owner
 # release 34: Fix missing media upload roles and categories keys
 # release 33: Fix missing media upload roles and categories keys
 # release 32: Remove reservables bug when updating desktop
@@ -1020,6 +1021,27 @@ class Upgrade(object):
             r.table(table).filter(
                 lambda media: r.not_(media.has_fields({"allowed": {"roles": True}}))
             ).update({"allowed": {"roles": False, "categories": False}}).run(self.conn)
+
+        if version == 35:
+            medias = r.table(table).run(self.conn)
+            admin_user = list(
+                r.table("users")
+                .filter({"uid": "admin", "provider": "local"})
+                .run(self.conn)
+            )[0]
+            user = {
+                "category": admin_user["category"],
+                "group": admin_user["group"],
+                "user": admin_user["id"],
+                "username": admin_user["username"],
+            }
+            for media in medias:
+                if (
+                    not r.table("categories").get(media["category"]).run(self.conn)
+                    or not r.table("groups").get(media["group"]).run(self.conn)
+                    or not r.table("users").get(media["user"]).run(self.conn)
+                ):
+                    r.table(table).get(media["id"]).update(user).run(self.conn)
 
         return True
 
