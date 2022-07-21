@@ -83,7 +83,7 @@ function initalize_modal_all_desktops_events(){
             $('#modalAddDesktop #template').val(rdata['id']);
             //if(user['role']!='user'){
                 $('#modalAddDesktop #btn-hardware').show();
-                setHardwareDomainDefaults('#modalAddDesktop',rdata['id'])
+                setHardwareDomainIdDefaults('#modalAddDesktop',rdata['id'])
             //}
         }
     } );	
