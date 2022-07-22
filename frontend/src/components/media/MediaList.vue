@@ -216,9 +216,6 @@ export default {
         }
       ]
     }
-  },
-  destroyed () {
-    this.$store.dispatch('resetMediaState')
   }
 }
 </script>
