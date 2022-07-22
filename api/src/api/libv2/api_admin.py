@@ -26,7 +26,7 @@ from ..auth.authentication import *
 from .api_desktops_persistent import ApiDesktopsPersistent
 from .api_exceptions import Error
 from .api_templates import ApiTemplates
-from .helpers import _check, _parse_string
+from .helpers import _check, _parse_string, get_user_data
 from .validators import _validate_item, _validate_table
 
 
@@ -139,6 +139,49 @@ def admin_table_delete(table, item_id):
 def admin_domains_delete(list):
     [ApiDesktopsPersistent().Delete(d["id"]) for d in list if d["kind"] == "desktop"]
     [ApiTemplates().Delete(d["id"]) for d in list if d["kind"] == "template"]
+
+
+## CHANGE ITEMS OWNER
+def change_user_items_owner(table, user_id, new_user_id="admin"):
+    if table not in ["media"]:
+        raise Error(
+            "forbidden", "Table not allowed to change owner", traceback.format_exc()
+        )
+    with app.app_context():
+        r.table(table).get_all(user_id, index="user").update(
+            get_user_data(new_user_id)
+        ).run(db.conn)
+
+
+def change_group_items_owner(table, group_id, new_user_id="admin"):
+    if table not in ["media"]:
+        raise Error(
+            "forbidden", "Table not allowed to change owner", traceback.format_exc()
+        )
+    with app.app_context():
+        r.table(table).get_all(group_id, index="group").update(
+            get_user_data(new_user_id)
+        ).run(db.conn)
+
+
+def change_category_items_owner(table, category_id, new_user_id="admin"):
+    if table not in ["media"]:
+        raise Error(
+            "forbidden", "Table not allowed to change owner", traceback.format_exc()
+        )
+    with app.app_context():
+        r.table(table).get_all(category_id, index="category").update(
+            get_user_data(new_user_id)
+        ).run(db.conn)
+
+
+def change_item_owner(table, item_id, new_user_id="admin"):
+    if table not in ["media"]:
+        raise Error(
+            "forbidden", "Table not allowed to change owner", traceback.format_exc()
+        )
+    with app.app_context():
+        r.table(table).get(item_id).update(get_user_data(new_user_id)).run(db.conn)
 
 
 class ApiAdmin:

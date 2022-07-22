@@ -480,3 +480,22 @@ def generate_db_media(path_downloaded, filesize):
         + parts[-2],  # "local-default-admin-admin" ,
         "username": username,
     }
+
+
+def get_user_data(user_id="admin"):
+    if user_id == "admin":
+        with app.app_context():
+            user = list(
+                r.table("users")
+                .filter({"uid": "admin", "provider": "local"})
+                .run(db.conn)
+            )[0]
+    else:
+        with app.app_context():
+            user = r.table("users").get(user_id).run(db.conn)
+    return {
+        "category": user["category"],
+        "group": user["group"],
+        "user": user["id"],
+        "username": user["username"],
+    }
