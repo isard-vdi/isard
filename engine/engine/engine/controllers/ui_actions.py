@@ -867,7 +867,9 @@ class UiActions(object):
             new_file, path_selected = get_path_to_disk(
                 pool=pool_id,
                 type_path=path_type,
-                extension=dict_to_create["hardware"]["disks"][index_disk]["extension"],
+                extension=dict_to_create["hardware"]["disks"][index_disk].pop(
+                    "extension"
+                ),
             )
             # UPDATE PATH IN DOMAIN
             dict_to_create["hardware"]["disks"][index_disk]["file"] = new_file
