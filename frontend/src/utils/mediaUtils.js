@@ -1,3 +1,5 @@
+import { mediaStatus } from '../shared/constants'
+
 export class MediaUtils {
   static parseMediaList (items) {
     return items.map((item) => {
@@ -26,7 +28,7 @@ export class MediaUtils {
       id,
       name,
       description,
-      status,
+      status: this.getMediaStatus(status),
       user,
       userName,
       category,
@@ -38,5 +40,9 @@ export class MediaUtils {
       kind,
       editable
     }
+  }
+
+  static getMediaStatus (status) {
+    return mediaStatus[status]
   }
 }
