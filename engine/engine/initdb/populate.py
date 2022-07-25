@@ -694,7 +694,7 @@ class Populate(object):
                         {
                             "id": "default",
                             "name": "Default",
-                            "description": "Spice viewer with compression and vlc",
+                            "description": "Spice viewer with compression and vnc",
                             "allowed": {
                                 "roles": [],
                                 "categories": [],
@@ -711,7 +711,7 @@ class Populate(object):
                                         "zlib": {"compression": "always"},
                                     },
                                 },
-                                "vlc": {"options": {}},
+                                "vnc": {"options": {}},
                             },
                         }
                     ]
