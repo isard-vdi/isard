@@ -645,6 +645,9 @@
             "buttons": {
                 "allowed": {
                     "title": "Cambiar permisos"
+                },
+                "delete": {
+                    "title": "Eliminar medio"
                 }
             },
             "status": {
@@ -652,6 +655,15 @@
                 "download-failed": "Descarga fallida",
                 "downloaded": "Descargado",
                 "deleting": "Borrando"
+            },
+            "delete-media": {
+                "title": "Borrar medio",
+                "warning": "Este medio se eliminará de los siguientes escritorios. En caso de estar iniciados se pararán.",
+                "table-header": {
+                    "name": "Nombre",
+                    "user": "Usuario",
+                    "kind": "Tipo"
+                }
             }
         }
     },
@@ -673,7 +685,8 @@
             "delete-event": "La reserva '{name}' se borrará, continuar?",
             "disable-template": "'{name}' será invisible para sus usuarios, ¿desea continuar?",
             "enable-template": "'{name}' será visible para sus usuarios, ¿desea continuar?",
-            "direct-viewer-reset": "Se descargará el fichero de visores directos. Reestablecer las direcciones de los visores?"
+            "direct-viewer-reset": "Se descargará el fichero de visores directos. Reestablecer las direcciones de los visores?",
+            "delete-media": "El medio '{name}' se borrará, continuar?"
         },
         "yes": "Si",
         "no": "No",

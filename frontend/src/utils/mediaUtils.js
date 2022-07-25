@@ -45,4 +45,29 @@ export class MediaUtils {
   static getMediaStatus (status) {
     return mediaStatus[status]
   }
+
+  static parseMediaDesktops (items) {
+    return items.map((item) => {
+      return MediaUtils.parseMediaDesktop(item)
+    }) || []
+  }
+
+  static parseMediaDesktop (item) {
+    const {
+      id,
+      name,
+      kind,
+      status,
+      user,
+      user_name: userName
+    } = item
+    return {
+      id,
+      name,
+      kind,
+      status,
+      user,
+      userName
+    }
+  }
 }
