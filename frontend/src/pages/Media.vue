@@ -55,27 +55,37 @@
           />
         </template>
       </b-tab>
+      <AllowedModal @updateAllowed="updateAllowed" />
     </b-tabs>
   </b-container>
 </template>
 <script>
 import MediaList from '@/components/media/MediaList.vue'
+import AllowedModal from '@/components/AllowedModal.vue'
 import { mapGetters, mapActions } from 'vuex'
 import { computed } from '@vue/composition-api'
 
 export default {
   components: {
-    MediaList
+    MediaList,
+    AllowedModal
   },
   setup (_, context) {
     const $store = context.root.$store
     $store.dispatch('fetchMedia')
     $store.dispatch('fetchSharedMedia')
 
+    const mediaId = computed(() => $store.getters.getId)
+
+    const updateAllowed = (allowed) => {
+      $store.dispatch('updateAllowed', { table: 'media', id: mediaId.value, allowed: allowed })
+    }
+
     const currentTab = computed(() => $store.getters.getCurrentTab)
 
     return {
-      currentTab
+      currentTab,
+      updateAllowed
     }
   },
   computed: {

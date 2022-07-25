@@ -88,18 +88,15 @@
           </b-col>
         </b-row>
       </b-skeleton-wrapper>
-      <AllowedModal @updateAllowed="updateAllowed" />
     </b-container>
   </div>
 </template>
 <script>
 import i18n from '@/i18n'
 import ListItemSkeleton from '@/components/ListItemSkeleton.vue'
-import AllowedModal from '@/components/AllowedModal.vue'
-import { computed } from '@vue/composition-api'
 
 export default {
-  components: { ListItemSkeleton, AllowedModal },
+  components: { ListItemSkeleton },
   props: {
     media: {
       required: true,
@@ -118,14 +115,8 @@ export default {
   setup (props, context) {
     const $store = context.root.$store
 
-    const mediaId = computed(() => $store.getters.getId)
-
     const showAllowedModal = (media) => {
       $store.dispatch('fetchAllowed', { table: 'media', id: media.id })
-    }
-
-    const updateAllowed = (allowed) => {
-      $store.dispatch('updateAllowed', { table: 'media', id: mediaId.value, allowed: allowed })
     }
 
     const mediaIcon = (media) => {
@@ -134,7 +125,6 @@ export default {
 
     return {
       showAllowedModal,
-      updateAllowed,
       mediaIcon
     }
   },
