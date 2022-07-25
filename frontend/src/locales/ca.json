@@ -529,6 +529,12 @@
                 "allowed": {
                     "title": "Canviar permissos"
                 }
+            },
+            "status": {
+                "downloading": "Descarregant",
+                "download-failed": "Descàrrega fallida",
+                "downloaded": "Descarregat",
+                "deleting": "Esborrant"
             }
         }
     },

@@ -622,6 +622,12 @@
                 "allowed": {
                     "title": "Change allowed"
                 }
+            },
+            "status": {
+                "downloading": "Downloading",
+                "download-failed": "Download failed",
+                "downloaded": "Downloaded",
+                "deleting": "Deleting"
             }
         }
     },

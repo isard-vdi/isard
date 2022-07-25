@@ -636,6 +636,12 @@
                 "allowed": {
                     "title": "Cambiar permisos"
                 }
+            },
+            "status": {
+                "downloading": "Descargando",
+                "download-failed": "Descarga fallida",
+                "downloaded": "Descargado",
+                "deleting": "Borrando"
             }
         }
     },

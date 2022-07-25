@@ -70,3 +70,10 @@ export const eventsTitles = {
   unavailable: i18n.t('components.bookings.item.event-titles.unavailable'),
   overridable: i18n.t('components.bookings.item.event-titles.overridable')
 }
+
+export const mediaStatus = {
+  DownloadFailed: i18n.t('views.media.status.download-failed'),
+  Downloaded: i18n.t('views.media.status.downloaded'),
+  Downloading: i18n.t('views.media.status.downloading'),
+  Deleting: i18n.t('views.media.status.deleting')
+}
