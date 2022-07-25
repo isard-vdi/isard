@@ -25,6 +25,7 @@ import Booking from '@/pages/Booking'
 import Planning from '@/pages/Planning'
 import Profile from '@/pages/Profile.vue'
 import Media from '@/pages/Media.vue'
+import MediaNew from '@/pages/MediaNew.vue'
 
 Vue.use(VueRouter)
 
@@ -189,6 +190,14 @@ const router = new VueRouter({
           component: Media,
           meta: {
             title: 'Media'
+          }
+        },
+        {
+          path: 'media/new',
+          name: 'medianew',
+          component: MediaNew,
+          meta: {
+            title: 'New Media'
           }
         }
       ],

@@ -35,6 +35,7 @@
             "checkbox-text-short": "Arrencats",
             "new-desktop": "Escriptori nou",
             "new-deployment": "Nou desplegament",
+            "new-media": "Nou mitjà",
             "upload-file": "Pujar Fitxer",
             "cancel": "Cancel·lar",
             "select": "Seleccionar",
@@ -543,7 +544,8 @@
         "sameAs": "El camp {property} ha de tenir el mateix valor que {property2}.",
         "minLengthValue": "El camp {property} té {model} caràcters, però ha de tenir com a mínim una llargada de {min}.",
         "maxLengthValue": "El camp {property} te {model} caràcters, però ha de tenir una com a màxim una llargada de {max}.",
-        "inputFormat": "Els caràcters vàlids són lletres, digits, coma, punt, - i _"
+        "inputFormat": "Els caràcters vàlids són lletres, digits, coma, punt, - i _",
+        "url": "El camp {property} ha de ser una adreça web."
     },
     "forms": {
         "allowed": {
@@ -626,6 +628,14 @@
                 "group": "Grup",
                 "user": "Usuari"
             }
+        },
+        "new-media": {
+            "title": "Crear un nou mitjà:",
+            "url": "Adreça web",
+            "type": "Tipus",
+            "name": "Nom del mitjà",
+            "description": "Descripció",
+            "select-type": "Si us plau, selecciona una opció"
         },
         "clear": "Neteja",
         "cancel": "Canceŀla",
@@ -735,7 +745,8 @@
             "enable-template": "Fent la plantilla visible",
             "creating-event": "Creant esdeveniment",
             "disable-template": "Fent la plantilla invisible",
-            "editing-event": "Editant esdeveniment"
+            "editing-event": "Editant esdeveniment",
+            "creating-media": "Creant mitjà"
         },
         "loading": "Carregant"
     }
