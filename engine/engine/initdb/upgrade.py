@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 36
+release_version = 37
+# release 37: Fix upgrade bug in version 36
 # release 36: Fix typo VLC for VNC
 # release 35: Fix media with missing owner
 # release 34: Fix missing media upload roles and categories keys
@@ -1176,11 +1177,6 @@ class Upgrade(object):
         table = "graphics"
         log.info("UPGRADING " + table + " VERSION " + str(version))
         # ~ data=list(r.table(table).run(self.conn))
-        if version == 36:
-            default = r.db("isard").table("graphics").get("default").run()
-            default["types"]["vnc"] = default["types"].pop("vlc")
-            default["description"] = "Spice viewer with compression and vnc"
-            r.db("isard").table("graphics").replace(default).run()
 
         if version == 7:
             r.table(table).delete().run(self.conn)
@@ -1212,6 +1208,14 @@ class Upgrade(object):
                 ]
             ).run(self.conn)
 
+        if version == 36:
+            None
+        if version == 37:
+            default = r.table(table).get("default").run(self.conn)
+            if default["types"].get("vlc"):
+                default["types"]["vnc"] = default["types"].pop("vlc")
+                default["description"] = "Spice viewer with compression and vnc"
+                r.table(table).replace(default).run(self.conn)
         return True
 
     """
