@@ -821,7 +821,7 @@ class DomainXML(object):
         metadata_etree = etree.parse(StringIO(xml_snippet)).getroot()
         self.add_to_domain(xpath_same, metadata_etree, xpath_next, xpath_previous)
 
-    def add_vlc_with_websockets(self):
+    def add_vnc_with_websockets(self):
         xpath_same = "/domain/devices/graphics"
         xpath_previous = "/domain/devices/interface"
         xpath_next = "/domain/devices/video"
@@ -829,27 +829,27 @@ class DomainXML(object):
         # https://qemu.readthedocs.io/en/latest/system/vnc-security.html#with-passwords
         passwd = self.viewer_passwd[:8]
 
-        xpath_vlc = '/domain/devices/graphics[@type="vnc"]'
+        xpath_vnc = '/domain/devices/graphics[@type="vnc"]'
 
-        # remove if exist vlc
+        # remove if exist vnc
         if self.tree.xpath("/domain/devices"):
-            if self.tree.xpath(xpath_vlc):
-                self.tree.xpath(xpath_vlc)[0].getparent().remove(
-                    self.tree.xpath(xpath_vlc)[0]
+            if self.tree.xpath(xpath_vnc):
+                self.tree.xpath(xpath_vnc)[0].getparent().remove(
+                    self.tree.xpath(xpath_vnc)[0]
                 )
         else:
             log.debug("element /domain/devices not found in xml_etree when adding disk")
             return False
 
-        # vlc_string_xml = "<graphics type='vnc' port=auto autoport='no' websocket='-1' listen='0.0.0.0'>. <listen type='address' address='0.0.0.0'/>"
+        # vnc_string_xml = "<graphics type='vnc' port=auto autoport='no' websocket='-1' listen='0.0.0.0'>. <listen type='address' address='0.0.0.0'/>"
 
-        vlc_string_xml = (
+        vnc_string_xml = (
             f"    <graphics type='vnc' passwd='{passwd}' autoport='yes' websocket='-1' listen='0.0.0.0' > \n"
             + "        <listen type='address' address='0.0.0.0'/> \n"
             + "    </graphics>"
         )
-        vlc = etree.parse(StringIO(vlc_string_xml)).getroot()
-        self.add_to_domain(xpath_same, vlc, xpath_next, xpath_previous)
+        vnc = etree.parse(StringIO(vnc_string_xml)).getroot()
+        self.add_to_domain(xpath_same, vnc, xpath_next, xpath_previous)
 
     def set_spice_video_options(self, id_graphics="default"):
         xpath_spice = '/domain/devices/graphics[@type="spice"]'
@@ -1625,8 +1625,8 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
         # only for test purposes, not use in production
         x.spice_remove_passwd_nossl()
 
-    # add vlc access
-    x.add_vlc_with_websockets()
+    # add vnc access
+    x.add_vnc_with_websockets()
 
     # recreate xml interfaces from create_dict
     recreate_xml_interfaces(dict_domain, x)
