@@ -1,15 +1,15 @@
-import * as cookies from 'tiny-cookie'
-import axios from 'axios'
 import i18n from '@/i18n'
 import router from '@/router'
+import axios from 'axios'
+import { get, orderBy } from 'lodash'
+import * as cookies from 'tiny-cookie'
 import { apiV3Segment } from '../../shared/constants'
 import { DesktopUtils } from '../../utils/desktopsUtils'
 import { ErrorUtils } from '../../utils/errorUtils'
-import { get, orderBy } from 'lodash'
 import { ImageUtils } from '../../utils/imageUtils'
 
-export default {
-  state: {
+const getDefaultState = () => {
+  return {
     viewers: localStorage.viewers ? JSON.parse(localStorage.viewers) : {},
     desktops: [],
     currentTab: 'desktops',
@@ -27,7 +27,13 @@ export default {
     filters: {
       desktops: ''
     }
-  },
+  }
+}
+
+const state = getDefaultState()
+
+export default {
+  state,
   getters: {
     getDesktops: state => {
       return state.desktops
@@ -61,6 +67,9 @@ export default {
     }
   },
   mutations: {
+    resetDesktopsState: (state) => {
+      Object.assign(state, getDefaultState())
+    },
     setDesktops: (state, desktops) => {
       state.desktops = desktops
       state.desktops_loaded = true
@@ -124,6 +133,9 @@ export default {
     }
   },
   actions: {
+    resetDesktopsState (context) {
+      context.commit('resetDesktopsState')
+    },
     socket_directviewerUpdate (context, data) {
       data = JSON.parse(data)
       const name = data.vmName

@@ -235,6 +235,9 @@ export default {
       'getProfileLoaded'
     ])
   },
+  destroyed () {
+    this.$store.dispatch('resetProfileState')
+  },
   methods: {
     ...mapActions([
       'showPasswordModal'

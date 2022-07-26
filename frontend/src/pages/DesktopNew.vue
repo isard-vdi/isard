@@ -195,7 +195,7 @@
 
 <script>
 import i18n from '@/i18n'
-import { reactive, ref, computed } from '@vue/composition-api'
+import { reactive, ref, computed, watch } from '@vue/composition-api'
 import { mapActions } from 'vuex'
 import useVuelidate from '@vuelidate/core'
 import { required, maxLength, minLength } from '@vuelidate/validators'
@@ -216,6 +216,7 @@ export default {
     const filterOn = reactive([])
     const selected = ref([])
     const selectedTemplateId = computed(() => selected.value[0] ? selected.value[0].id : '')
+    const totalRows = ref(1)
 
     const items = computed(() => $store.getters.getTemplates)
 
@@ -268,6 +269,10 @@ export default {
       }
     ])
 
+    watch(items, (newVal, prevVal) => {
+      totalRows.value = newVal.length
+    })
+
     return {
       desktopName,
       description,
@@ -279,7 +284,8 @@ export default {
       filterOn,
       selected,
       selectedTemplateId,
-      v$: useVuelidate()
+      v$: useVuelidate(),
+      totalRows
     }
   },
   validations () {
@@ -293,13 +299,8 @@ export default {
       selectedTemplateId: { required }
     }
   },
-  data () {
-    return {
-      totalRows: 1
-    }
-  },
-  mounted () {
-    this.totalRows = this.items.length
+  destroyed () {
+    this.$store.dispatch('resetTemplatesState')
   },
   methods: {
     ...mapActions([

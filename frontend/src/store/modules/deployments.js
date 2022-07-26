@@ -1,12 +1,12 @@
+import i18n from '@/i18n'
+import router from '@/router'
 import axios from 'axios'
 import { apiV3Segment } from '../../shared/constants'
 import { DeploymentsUtils } from '../../utils/deploymentsUtils'
 import { ErrorUtils } from '../../utils/errorUtils'
-import i18n from '@/i18n'
-import router from '@/router'
 
-export default {
-  state: {
+const getDefaultState = () => {
+  return {
     deployments: [],
     deployments_loaded: false,
     deployment: {
@@ -15,7 +15,13 @@ export default {
     deployment_loaded: false,
     selectedDesktop: {},
     deploymentsShowStarted: false
-  },
+  }
+}
+
+const state = getDefaultState()
+
+export default {
+  state,
   getters: {
     getDeployments: state => {
       return state.deployments
@@ -37,6 +43,9 @@ export default {
     }
   },
   mutations: {
+    resetDeploymentsState: (state) => {
+      Object.assign(state, getDefaultState())
+    },
     setDeployments: (state, deployments) => {
       state.deployments = deployments
       state.deployments_loaded = true
@@ -88,6 +97,9 @@ export default {
     }
   },
   actions: {
+    resetDeploymentsState (context) {
+      context.commit('resetDeploymentsState')
+    },
     socket_deploymentsAdd (context, data) {
       const deployment = DeploymentsUtils.parseDeploymentsItem(JSON.parse(data))
       context.commit('add_deployments', deployment)

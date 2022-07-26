@@ -258,7 +258,7 @@
 
 <script>
 import i18n from '@/i18n'
-import { reactive, ref, computed, onUnmounted } from '@vue/composition-api'
+import { reactive, ref, computed, onUnmounted, watch } from '@vue/composition-api'
 import { mapActions } from 'vuex'
 import useVuelidate from '@vuelidate/core'
 import { required, maxLength, minLength } from '@vuelidate/validators'
@@ -292,6 +292,12 @@ export default {
     const selectedGroups = computed(() => $store.getters.getSelectedGroups)
     const usersChecked = computed(() => $store.getters.getUsersChecked)
     const selectedUsers = computed(() => $store.getters.getSelectedUsers)
+
+    const totalRows = ref(1)
+
+    watch(items, (newVal, prevVal) => {
+      totalRows.value = newVal.length
+    })
 
     const fields = reactive([
       {
@@ -363,7 +369,8 @@ export default {
       filterOn,
       selected,
       selectedTemplateId,
-      v$: useVuelidate()
+      v$: useVuelidate(),
+      totalRows
     }
   },
   validations () {
@@ -383,13 +390,8 @@ export default {
       selectedTemplateId: { required }
     }
   },
-  data () {
-    return {
-      totalRows: 1
-    }
-  },
-  mounted () {
-    this.totalRows = this.items.length
+  destroyed () {
+    this.$store.dispatch('resetTemplatesState')
   },
   methods: {
     ...mapActions([
