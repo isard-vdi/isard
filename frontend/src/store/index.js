@@ -13,6 +13,7 @@ import booking from './modules/booking'
 import config from './modules/config'
 import deployment from './modules/deployment'
 import deployments from './modules/deployments'
+import desktop from './modules/desktop'
 import desktops from './modules/desktops'
 import media from './modules/media'
 import planning from './modules/planning'
@@ -205,6 +206,7 @@ export default new Vuex.Store({
     templates,
     template,
     desktops,
+    desktop,
     deployments,
     deployment,
     config,
