@@ -11,6 +11,7 @@ import allowed from './modules/allowed'
 import auth from './modules/auth'
 import booking from './modules/booking'
 import config from './modules/config'
+import deployment from './modules/deployment'
 import deployments from './modules/deployments'
 import desktops from './modules/desktops'
 import media from './modules/media'
@@ -205,6 +206,7 @@ export default new Vuex.Store({
     template,
     desktops,
     deployments,
+    deployment,
     config,
     vpn,
     sockets,

@@ -64,6 +64,9 @@ export default {
   },
   created () {
     this.$store.dispatch('fetchDeployment', { id: this.$route.params.id })
+  },
+  destroyed () {
+    this.$store.dispatch('resetDeploymentState')
   }
 }
 </script>
