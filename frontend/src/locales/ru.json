@@ -321,7 +321,25 @@
             "title": "Разрешено"
         },
         "new-deployment": {
-            "filter": "Фильтр"
+            "filter": "Фильтр",
+            "section-title-template": "Выберите шаблон:"
+        },
+        "new-template": {
+            "description": "Описание",
+            "enabled": "Включено",
+            "title": "Создайте новый шаблон"
+        },
+        "password": {
+            "modal": {
+                "title": "Изменить пароль",
+                "password": {
+                    "label": "Пароль",
+                    "placeholder": "Пароль"
+                },
+                "confirmation-password": {
+                    "label": "Подтверждение пароля"
+                }
+            }
         }
     },
     "messages": {
