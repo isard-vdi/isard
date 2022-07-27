@@ -13,6 +13,7 @@ from engine.services.db import (
 )
 from engine.services.db.db import close_rethink_connection, new_rethink_connection
 from engine.services.db.domains_status import stop_last_domain_status
+from engine.services.lib.storage import update_qemu_img_info
 from engine.services.log import logs
 from rethinkdb import r
 from rethinkdb.errors import ReqlNonExistenceError
@@ -467,7 +468,17 @@ def update_disk_backing_chain(
             domain["create_dict"]["template_dict"][
                 "disks_info"
             ] = list_backing_chain_template
+            update_qemu_img_info(
+                domain.get("create_dict", {})
+                .get("template_dict", {})
+                .get("create_dict", {}),
+                index_disk,
+                list_backing_chain_template,
+            )
         domain["disks_info"] = list_backing_chain
+        update_qemu_img_info(
+            domain.get("create_dict", {}), index_disk, list_backing_chain
+        )
         results = rtable.replace(domain).run(r_conn)
     else:
         logs.main.error(

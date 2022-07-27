@@ -26,6 +26,14 @@ from engine.services.db import (
 )
 
 
+def _get_filename(storage):
+    return str(
+        PurePath(storage.get("directory_path"))
+        .joinpath(storage.get("id"))
+        .with_suffix(f".{storage.get('type')}")
+    )
+
+
 def create_storage(disk, user):
     directory_path = disk.pop("path_selected")
     relative_path = PurePath(disk.pop("file")).relative_to(directory_path)
@@ -48,17 +56,22 @@ def insert_storage(disk):
     storage_id = disk.get("storage_id")
     if storage_id:
         storage = get_dict_from_item_in_table("storage", storage_id)
-        disk.update(
-            {
-                "file": str(
-                    PurePath(storage.get("directory_path"))
-                    .joinpath(storage.get("id"))
-                    .with_suffix(f".{storage.get('type')}")
-                )
-            }
-        )
+        disk.update({"file": _get_filename(storage)})
 
 
 def update_storage_status(storage_id, status):
     if storage_id:
         update_table_field("storage", storage_id, "status", status)
+
+
+def update_qemu_img_info(create_dict, disk_index, qemu_img_info):
+    storage_id = (
+        dict(enumerate(create_dict.get("hardware", {}).get("disks", [])))
+        .get(disk_index, {})
+        .get("storage_id")
+    )
+    if storage_id:
+        filename = _get_filename(get_dict_from_item_in_table("storage", storage_id))
+        for disk_info in qemu_img_info:
+            if disk_info.get("filename") == filename:
+                update_table_field("storage", storage_id, "qemu-img-info", disk_info)
