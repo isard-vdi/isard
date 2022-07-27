@@ -18,12 +18,13 @@
         <b-row class="scrollable-div">
           <b-col
             cols="12"
-            class="d-flex flex-row flex-wrap justify-content-start"
+            class="d-flex flex-row flex-wrap justify-content-start pb-4"
           >
             <b-table
               :items="desktops"
               :fields="fields"
               :responsive="true"
+              class="pb-5"
             >
               <template #cell(image)="data">
                 <!-- INFO -->
