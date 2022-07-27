@@ -150,10 +150,15 @@ export default {
       'getViewType'
     ])
   },
+  destroyed () {
+    this.$store.dispatch('resetDesktopsState')
+    this.$store.dispatch('resetTemplatesState')
+  },
   methods: {
     ...mapActions([
       'updateCurrentTab'
     ])
   }
+
 }
 </script>

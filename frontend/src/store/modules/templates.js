@@ -1,5 +1,4 @@
 import i18n from '@/i18n'
-import router from '@/router'
 import { DesktopUtils } from '@/utils/desktopsUtils'
 import axios from 'axios'
 import { orderBy } from 'lodash'
@@ -9,8 +8,7 @@ import { ErrorUtils } from '../../utils/errorUtils'
 const getDefaultState = () => {
   return {
     templates: [],
-    templates_loaded: false,
-    templateNewItemId: ''
+    templates_loaded: false
   }
 }
 
@@ -24,9 +22,6 @@ export default {
     },
     getTemplatesLoaded: state => {
       return state.templates_loaded
-    },
-    getTemplateNewItemId: state => {
-      return state.templateNewItemId
     }
   },
   mutations: {
@@ -36,9 +31,6 @@ export default {
     setTemplates: (state, templates) => {
       state.templates = templates
       state.templates_loaded = true
-    },
-    setTemplateNewItemId: (state, desktopId) => {
-      state.templateNewItemId = desktopId
     },
     update_templates: (state, template) => {
       const item = state.templates.find(t => t.id === template.id)
@@ -51,19 +43,6 @@ export default {
     }
   },
   actions: {
-    goToNewTemplate (context, desktopId) {
-      context.commit('setTemplateNewItemId', desktopId)
-      context.dispatch('navigate', 'templatenew')
-    },
-    createNewTemplate (_, payload) {
-      ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.creating-template'), '', true, 1000)
-
-      axios.post(`${apiV3Segment}/template`, payload).then(response => {
-        router.push({ name: 'desktops' })
-      }).catch(e => {
-        ErrorUtils.handleErrors(e, this._vm.$snotify)
-      })
-    },
     resetTemplatesState (context) {
       context.commit('resetTemplatesState')
     },

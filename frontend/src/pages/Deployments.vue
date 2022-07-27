@@ -37,6 +37,9 @@ export default {
   },
   created () {
     this.$store.dispatch('fetchDeployments')
+  },
+  destroyed () {
+    this.$store.dispatch('resetDeploymentsState')
   }
 }
 </script>

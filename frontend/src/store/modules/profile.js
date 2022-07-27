@@ -1,7 +1,7 @@
 import axios from 'axios'
-import { ProfileUtils } from '../../utils/profileUtils'
-import { ErrorUtils } from '../../utils/errorUtils'
 import { apiV3Segment } from '../../shared/constants'
+import { ErrorUtils } from '../../utils/errorUtils'
+import { ProfileUtils } from '../../utils/profileUtils'
 
 const getDefaultState = () => {
   return {
@@ -37,6 +37,9 @@ export default {
     }
   },
   mutations: {
+    resetProfileState: (state) => {
+      Object.assign(state, getDefaultState())
+    },
     resetPasswordState: state => {
       state.password = ''
       state.passwordConfirmation = ''
@@ -56,6 +59,9 @@ export default {
     }
   },
   actions: {
+    resetProfileState (context) {
+      context.commit('resetProfileState')
+    },
     fetchProfile (context) {
       axios
         .get(`${apiV3Segment}/user`)

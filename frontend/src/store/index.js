@@ -1,25 +1,28 @@
 import i18n from '@/i18n'
+import router from '@/router'
+import { apiAdminSegment, apiV3Segment, authenticationSegment } from '@/shared/constants'
+import store from '@/store/index.js'
+import axios from 'axios'
+import { getCookie } from 'tiny-cookie'
 import Vue from 'vue'
 import Vuex from 'vuex'
-import router from '@/router'
-import axios from 'axios'
-import auth from './modules/auth'
-import config from './modules/config'
-import desktops from './modules/desktops'
-import templates from './modules/templates'
-import sockets from './modules/sockets'
-import deployments from './modules/deployments'
-import vpn from './modules/vpn'
+import { ErrorUtils } from '../utils/errorUtils'
 import allowed from './modules/allowed'
+import auth from './modules/auth'
 import booking from './modules/booking'
-import snotify from './modules/snotify'
+import config from './modules/config'
+import deployment from './modules/deployment'
+import deployments from './modules/deployments'
+import desktop from './modules/desktop'
+import desktops from './modules/desktops'
+import media from './modules/media'
 import planning from './modules/planning'
 import profile from './modules/profile'
-import media from './modules/media'
-import store from '@/store/index.js'
-import { authenticationSegment, apiV3Segment, apiAdminSegment } from '@/shared/constants'
-import { getCookie } from 'tiny-cookie'
-import { ErrorUtils } from '../utils/errorUtils'
+import snotify from './modules/snotify'
+import sockets from './modules/sockets'
+import template from './modules/template'
+import templates from './modules/templates'
+import vpn from './modules/vpn'
 
 Vue.use(Vuex)
 
@@ -201,8 +204,11 @@ export default new Vuex.Store({
   modules: {
     auth,
     templates,
+    template,
     desktops,
+    desktop,
     deployments,
+    deployment,
     config,
     vpn,
     sockets,
