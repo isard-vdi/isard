@@ -12,6 +12,7 @@ import random
 import sys
 import time
 from threading import Thread
+from uuid import uuid4
 
 import rethinkdb as r
 from flask_login import current_user
@@ -832,13 +833,11 @@ class isard:
         parsed_name = self.parse_string(filename)
         if not parsed_name:
             return False
-        id = "_" + user + "-" + parsed_name
+        id = str(uuid4())
         # ~ Missing check if id already exists
-        dir_disk, disk_filename = self.get_disk_path(userObj, filename)
         return {
             "id": id,
             "name": filename,
-            "path": dir_disk + "/" + filename,
             "user": user,
             "username": userObj["username"],
             "category": userObj["category"],
@@ -1346,24 +1345,6 @@ class isard:
             )
         else:
             return self.parse_string(split[0]).lower()
-
-    def get_disk_path(self, user, parsed_name):
-        with app.app_context():
-            group_uid = r.table("groups").get(user["group"]).run(db.conn)["uid"]
-
-        dir_path = (
-            user["category"]
-            + "/"
-            + group_uid
-            + "/"
-            + user["provider"]
-            + "/"
-            + user["uid"]
-            + "-"
-            + user["username"]
-        )
-        filename = parsed_name + ".qcow2"
-        return dir_path, filename
 
     def human_size(self, size_bytes):
         """
