@@ -631,6 +631,9 @@
             "buttons": {
                 "allowed": {
                     "title": "Change allowed"
+                },
+                "delete": {
+                    "title": "Delete deployment"
                 }
             },
             "status": {
@@ -638,6 +641,15 @@
                 "download-failed": "Download failed",
                 "downloaded": "Downloaded",
                 "deleting": "Deleting"
+            },
+            "delete-media": {
+                "title": "Delete media",
+                "warning": "This media will be removed from the following desktops. All of these will be stopped in case they're running",
+                "table-header": {
+                    "name": "Name",
+                    "user": "User",
+                    "kind": "Kind"
+                }
             }
         }
     },
@@ -659,7 +671,8 @@
             "enable-template": "'{name}' will be visible for its users, continue?",
             "disable-template": "'{name}' will be invisible for its users, continue?",
             "delete-event": "'{name}' booking will be deleted, continue?",
-            "direct-viewer-reset": "The direct viewers file will be downloaded. Reset the viewers urls?"
+            "direct-viewer-reset": "The direct viewers file will be downloaded. Reset the viewers urls?",
+            "delete-media": "'{name}' media will be deleted, continue?"
         },
         "yes": "Yes",
         "no": "No",

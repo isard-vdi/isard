@@ -56,36 +56,45 @@
         </template>
       </b-tab>
       <AllowedModal @updateAllowed="updateAllowed" />
+      <DeleteMediaModal @deleteMedia="deleteMedia" />
     </b-tabs>
   </b-container>
 </template>
 <script>
 import MediaList from '@/components/media/MediaList.vue'
 import AllowedModal from '@/components/AllowedModal.vue'
+import DeleteMediaModal from '@/components/media/DeleteMediaModal.vue'
 import { mapGetters, mapActions } from 'vuex'
 import { computed } from '@vue/composition-api'
 
 export default {
   components: {
     MediaList,
-    AllowedModal
+    AllowedModal,
+    DeleteMediaModal
   },
   setup (_, context) {
     const $store = context.root.$store
     $store.dispatch('fetchMedia')
     $store.dispatch('fetchSharedMedia')
 
-    const mediaId = computed(() => $store.getters.getId)
+    const allowedId = computed(() => $store.getters.getId)
 
     const updateAllowed = (allowed) => {
-      $store.dispatch('updateAllowed', { table: 'media', id: mediaId.value, allowed: allowed })
+      $store.dispatch('updateAllowed', { table: 'media', id: allowedId.value, allowed: allowed })
     }
 
     const currentTab = computed(() => $store.getters.getCurrentTab)
+    const mediaId = computed(() => $store.getters.getMediaId)
+
+    const deleteMedia = () => {
+      $store.dispatch('deleteMedia', mediaId.value)
+    }
 
     return {
       currentTab,
-      updateAllowed
+      updateAllowed,
+      deleteMedia
     }
   },
   computed: {

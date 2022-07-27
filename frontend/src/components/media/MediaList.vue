@@ -84,7 +84,10 @@
                   </b-progress>
                 </div>
               </template>
-              <template #cell(actions)="data">
+              <template
+                v-if="!shared"
+                #cell(actions)="data"
+              >
                 <div class="d-flex justify-content-center align-items-center">
                   <b-button
                     v-if="data.item.editable"
@@ -94,6 +97,17 @@
                   >
                     <b-icon
                       icon="people-fill"
+                      scale="0.75"
+                    />
+                  </b-button>
+                  <b-button
+                    v-if="data.item.editable"
+                    class="rounded-circle px-2 mr-2 btn-red"
+                    :title="$t('views.media.buttons.delete.title')"
+                    @click="showDeleteModal(data.item)"
+                  >
+                    <b-icon
+                      icon="trash-fill"
                       scale="0.75"
                     />
                   </b-button>
@@ -143,10 +157,15 @@ export default {
       return MediaUtils.getMediaStatus(status)
     }
 
+    const showDeleteModal = (media) => {
+      $store.dispatch('fetchMediaDesktops', { mediaId: media.id, name: media.name })
+    }
+
     return {
       getMediaStatus,
       showAllowedModal,
-      mediaIcon
+      mediaIcon,
+      showDeleteModal
     }
   },
   data () {
@@ -167,6 +186,7 @@ export default {
         },
         {
           key: 'status',
+          sortable: true,
           label: i18n.t('views.media.table-header.status'),
           thStyle: { width: '5%' }
         },
@@ -197,32 +217,31 @@ export default {
         },
         {
           key: 'user',
+          sortable: true,
           label: i18n.t('views.media.table-header.user'),
           thStyle: { width: '5%' }
         },
         {
           key: 'category',
+          sortable: true,
           label: i18n.t('views.media.table-header.category'),
           thStyle: { width: '5%' }
         },
         {
           key: 'group',
+          sortable: true,
           label: i18n.t('views.media.table-header.group'),
           thStyle: { width: '5%' }
         },
         {
           key: 'status',
+          sortable: true,
           label: i18n.t('views.media.table-header.status'),
           thStyle: { width: '5%' }
         },
         {
           key: 'progressSize',
           label: i18n.t('views.media.table-header.progress-size'),
-          thStyle: { width: '5%' }
-        },
-        {
-          key: 'actions',
-          label: i18n.t('views.media.table-header.actions'),
           thStyle: { width: '5%' }
         }
       ]

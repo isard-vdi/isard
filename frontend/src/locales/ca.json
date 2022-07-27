@@ -529,6 +529,9 @@
             "buttons": {
                 "allowed": {
                     "title": "Canviar permissos"
+                },
+                "delete": {
+                    "title": "Esborrar mitjà"
                 }
             },
             "status": {
@@ -536,6 +539,15 @@
                 "download-failed": "Descàrrega fallida",
                 "downloaded": "Descarregat",
                 "deleting": "Esborrant"
+            },
+            "delete-media": {
+                "title": "Esborrar mitjà",
+                "warning": "Aquest mitjà s'esborrarà dels següents escriptoris. En cas d'estar iniciats es pararan.",
+                "table-header": {
+                    "name": "Nom",
+                    "user": "Usuari",
+                    "kind": "Tipus"
+                }
             }
         }
     },
@@ -720,7 +732,8 @@
             "delete-event": "La reserva '{name}' s'esborrarà, continuar?",
             "enable-template": "'{name}' serà visible pels seus usuaris, continuar?",
             "disable-template": "'{name}' serà invisible pels seus usuaris, continuar?",
-            "direct-viewer-reset": "Es descarregarà el fitxer de visors directes. Reestablir les adreces dels visors?"
+            "direct-viewer-reset": "Es descarregarà el fitxer de visors directes. Reestablir les adreces dels visors?",
+            "delete-media": "El mitjà '{name}' s'esborrarà, continuar?"
         },
         "yes": "Si",
         "no": "No",

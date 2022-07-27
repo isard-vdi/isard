@@ -11,7 +11,10 @@ const getDefaultState = () => {
     media: [],
     media_loaded: false,
     sharedMedia: [],
-    sharedMedia_loaded: false
+    sharedMedia_loaded: false,
+    modalDesktopsShow: false,
+    mediaId: '',
+    mediaDesktops: []
   }
 }
 
@@ -31,6 +34,15 @@ export default {
     },
     getSharedMediaLoaded: state => {
       return state.sharedMedia_loaded
+    },
+    getShowDeleteMediaModal: state => {
+      return state.modalDesktopsShow
+    },
+    getMediaId: state => {
+      return state.mediaId
+    },
+    getMediaDesktops: state => {
+      return state.mediaDesktops
     }
   },
   mutations: {
@@ -59,6 +71,15 @@ export default {
       if (mediaIndex !== -1) {
         state.media.splice(mediaIndex, 1)
       }
+    },
+    setShowDeleteMediaModal: (state, modalShow) => {
+      state.modalDesktopsShow = modalShow
+    },
+    setMediaId: (state, mediaId) => {
+      state.mediaId = mediaId
+    },
+    setMediaDesktops: (state, desktops) => {
+      state.mediaDesktops = desktops
     }
   },
   actions: {
@@ -102,6 +123,47 @@ export default {
 
       axios.post(`${apiV3Segment}/media`, payload).then(response => {
         router.push({ name: 'media' })
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    fetchMediaDesktops (context, data) {
+      axios.get(`${apiV3Segment}/media/desktops/${data.mediaId}`).then(response => {
+        if (response.data.length > 0) {
+          context.commit('setMediaDesktops', MediaUtils.parseMediaDesktops(response.data))
+          context.commit('setMediaId', data.mediaId)
+          context.dispatch('showDeleteMediaModal', true)
+        } else {
+          const yesAction = () => {
+            context.dispatch('deleteMedia', data.mediaId)
+            this._vm.$snotify.clear()
+          }
+
+          const noAction = (toast) => {
+            this._vm.$snotify.clear()
+          }
+
+          this._vm.$snotify.prompt(`${i18n.t('messages.confirmation.delete-media', { name: data.name })}`, {
+            position: 'centerTop',
+            buttons: [
+              { text: `${i18n.t('messages.yes')}`, action: yesAction, bold: true },
+              { text: `${i18n.t('messages.no')}`, action: noAction }
+            ],
+            placeholder: ''
+          })
+        }
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    showDeleteMediaModal (context, show) {
+      context.commit('setShowDeleteMediaModal', show)
+    },
+    deleteMedia (_, mediaId) {
+      ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deleting-media'))
+
+      axios.delete(`${apiV3Segment}/media/${mediaId}`).then(response => {
+        this._vm.$snotify.clear()
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })

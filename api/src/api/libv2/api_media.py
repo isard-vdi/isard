@@ -108,12 +108,14 @@ class ApiMedia:
                         lambda media: media["id"].eq(media_id)
                     )
                 )
+                .merge(lambda d: {"user_name": r.table("users").get(d["user"])["name"]})
                 .pluck(
                     "id",
                     "name",
                     "kind",
                     "status",
                     "user",
+                    "user_name",
                     {"create_dict": {"hardware": {"isos"}}},
                 )
                 .run(db.conn)
