@@ -98,6 +98,7 @@ class MediaThread(threading.Thread):
                             data = c["old_val"]
                             event = "delete"
                         elif c["old_val"] == None:
+                            data = c["new_val"]
                             event = "add"
                         else:
                             data = c["new_val"]
