@@ -390,17 +390,12 @@ function actionsDesktopDetail(){
             var pk=$(this).closest("[data-pk]").attr("data-pk");
             
             setDefaultsTemplate(pk);
-            setHardwareOptions('#modalTemplateDesktop');
-            setHardwareDomainIdDefaults('#modalTemplateDesktop',pk);
-            
+
             $('#modalTemplateDesktop').modal({
                 backdrop: 'static',
                 keyboard: false
             }).modal('show');
 
-            setDomainMediaDefaults('#modalTemplateDesktop',pk);
-            setMedia_add('#modalTemplateDesktop #media-block')  
-            
             setAlloweds_add('#modalTemplateDesktop #alloweds-add');          
             $('#modalTemplateDesktopForm').parsley().validate();
         }
@@ -847,17 +842,58 @@ function initalize_modal_all_desktops_events(){
 
     $("#modalTemplateDesktop #send").on('click', function(e){
             var form = $('#modalTemplateDesktopForm');
-
             form.parsley().validate();
-
             if (form.parsley().isValid()){
                 desktop_id=$('#modalTemplateDesktopForm #id').val();
                 if (desktop_id !=''){
                     data=$('#modalTemplateDesktopForm').serializeObject();
-                    data=replaceMedia_arrays('#modalTemplateDesktopForm',data);
                     data=replaceAlloweds_arrays('#modalTemplateDesktopForm #alloweds-add',data)
                     data['enabled']=$('#modalTemplateDesktop #enabled').prop('checked');
-                    socket.emit('domain_template_add',data)
+
+                    name=data["name"]
+                    allowed=data["allowed"]
+                    description=data["description"]
+                    enabled=data["enabled"]
+
+                    var notice = new PNotify({
+                        text: 'Creating desktop...',
+                        hide: false,
+                        opacity: 1,
+                        icon: 'fa fa-spinner fa-pulse'
+                    })
+                    $('form').each(function() {
+                        this.reset()
+                    })
+                    $('.modal').modal('hide');
+                    $.ajax({
+                        type: "POST",
+                        url:"/api/v3/template",
+                        data: JSON.stringify({name, desktop_id, allowed, description, enabled}),
+                        contentType: "application/json",
+                        error: function(data) {
+                            new PNotify({
+                                title: 'ERROR',
+                                text: 'Cannot create template ' + name,
+                                type: 'error',
+                                hide: true,
+                                icon: 'fa fa-warning',
+                                delay: 5000,
+                                opacity: 1
+                            })
+                        },
+                        success: function(data) {
+                            notice.update({
+                                title: 'New desktop',
+                                text: 'Template '+ name + ' created successfully',
+                                hide: true,
+                                delay: 2000,
+                                icon: 'fa fa-' + data.icon,
+                                opacity: 1,
+                                type: 'success'
+                            })
+                        }
+                    });
+    
                 }else{
                     $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
                     $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
