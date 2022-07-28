@@ -33,7 +33,7 @@ from ..libv2.isardVpn import isardVpn
 
 vpn = isardVpn()
 
-from .decorators import has_token, is_auto_register, is_register
+from .decorators import has_token, is_auto_register, is_register, ownsDomainId
 
 """
 Users jwt endpoints
@@ -192,9 +192,10 @@ def api_v3_user_templates(payload):
     return json.dumps(dropdown_templates), 200, {"Content-Type": "application/json"}
 
 
-@app.route("/api/v3/user/templates_allowed", methods=["GET"])
+@app.route("/api/v3/user/templates/<kind>", methods=["GET"])
+@app.route("/api/v3/user/templates/<kind>", methods=["GET"])
 @has_token
-def api_v3_user_templates_allowed(payload):
+def api_v3_user_templates_allowed(payload, kind="allowed"):
     templates = allowed.get_items_allowed(
         payload=payload,
         table="domains",
@@ -221,14 +222,23 @@ def api_v3_user_templates_allowed(payload):
     return json.dumps(templates), 200, {"Content-Type": "application/json"}
 
 
-@app.route("/api/v3/user/hardware_allowed", methods=["GET"])
+@app.route("/api/v3/user/hardware/allowed", methods=["GET"])
+@app.route("/api/v3/user/hardware/allowed/<domain_id>", methods=["GET"])
 @has_token
-def api_v3_user_hardware_allowed(payload):
-    return (
-        json.dumps(quotas.get_hardware_allowed(payload)),
-        200,
-        {"Content-Type": "application/json"},
-    )
+def api_v3_user_hardware_allowed(payload, domain_id=None):
+    if domain_id and ownsDomainId(payload, domain_id):
+        hardware_allowed = quotas.get_hardware_allowed(payload, domain_id)
+        return (
+            json.dumps(hardware_allowed),
+            200,
+            {"Content-Type": "application/json"},
+        )
+    else:
+        return (
+            json.dumps(quotas.get_hardware_allowed(payload)),
+            200,
+            {"Content-Type": "application/json"},
+        )
 
 
 @app.route("/api/v3/user/desktops", methods=["GET"])
@@ -259,3 +269,10 @@ def api_v3_user_vpn(payload, kind, os=False):
 
     vpn_data = vpn.vpn_data("users", kind, os, payload["user_id"])
     return json.dumps(vpn_data), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/user/webapp_desktops", methods=["GET"])
+@has_token
+def api_v3_user_webapp_desktops(payload):
+    desktops = users.WebappDesktops(payload["user_id"])
+    return json.dumps(desktops), 200, {"Content-Type": "application/json"}

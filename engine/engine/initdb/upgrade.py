@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 37
+release_version = 38
+# release 38: Replace create_dict diskbus to disk_bus
 # release 37: Fix upgrade bug in version 36
 # release 36: Fix typo VLC for VNC
 # release 35: Fix media with missing owner
@@ -938,6 +939,21 @@ class Upgrade(object):
             except Exception as e:
                 print(e)
                 None
+
+        if version == 38:
+            try:
+                r.table(table).update(
+                    {
+                        "create_dict": {
+                            "hardware": {
+                                "diskbus": r.literal(),
+                                "disk_bus": r.row["create_dict"]["hardware"]["diskbus"],
+                            }
+                        }
+                    }
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
         return True
 
     """

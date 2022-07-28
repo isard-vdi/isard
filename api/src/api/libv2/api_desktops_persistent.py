@@ -36,7 +36,13 @@ from .ds import DS
 
 ds = DS()
 
-from .helpers import _check, _parse_media_info, _parse_string, default_guest_properties
+from .helpers import (
+    _check,
+    _parse_media_info,
+    _parse_string,
+    default_guest_properties,
+    parse_domain_update,
+)
 
 
 def api_jumperurl_gencode(length=32):
@@ -274,7 +280,7 @@ class ApiDesktopsPersistent:
                     "isos": [{"id": media["id"]}],
                     "floppies": [],
                     "boot_order": data["hardware"]["boot_order"],
-                    "diskbus": data["hardware"]["disk_bus"],
+                    "disk_bus": data["hardware"]["disk_bus"],
                     "graphics": graphics,
                     "videos": videos,
                     "interfaces": interfaces,
@@ -343,10 +349,23 @@ class ApiDesktopsPersistent:
 
         return desktop_id
 
-    def Update(self, desktop_id, desktop_data):
+    def Update(self, desktop_id, desktop_data, admin_or_manager=False):
+        if desktop_data.get("image"):
+            image_data = desktop_data.pop("image")
+
+            if not image_data.get("file"):
+                img_uuid = api_cards.update(
+                    desktop_id, image_data["id"], image_data["type"]
+                )
+                card = api_cards.get_card(img_uuid, image_data["type"])
+            else:
+                img_uuid = api_cards.upload(desktop_id, image_data)
+                card = api_cards.get_card(img_uuid, image_data["type"])
+
+        desktop = parse_domain_update(desktop_id, desktop_data, admin_or_manager)
         with app.app_context():
             if not _check(
-                r.table("domains").get(desktop_id).update(desktop_data).run(db.conn),
+                r.table("domains").get(desktop_id).update(desktop).run(db.conn),
                 "replaced",
             ):
                 raise Error(

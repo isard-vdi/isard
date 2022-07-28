@@ -58,9 +58,9 @@ $(document).ready(function() {
     });
 
     //DataTable Main renderer
-    var table = $('#desktops').DataTable({
+    table = $('#desktops').DataTable({
             "ajax": {
-                "url": "/isard-admin/desktops/get/",
+                "url": "/api/v3/user/webapp_desktops",
                 "dataSrc": ""
             },
             "language": {
@@ -359,8 +359,8 @@ $(document).ready(function() {
 function actionsDesktopDetail(){
     $('.btn-edit').on('click', function () {
             var pk=$(this).closest("[data-pk]").attr("data-pk");
-            setHardwareOptions('#modalEditDesktop');
-            setReservablesOptions('#modalEditDesktop');
+            setHardwareOptions('#modalEditDesktop','hd',pk);
+            setReservablesOptions('#modalEditDesktop',pk);
             setReservablesDomainDefaults('#modalEditDesktop',pk);
             $("#modalEdit")[0].reset();
             $('#modalEditDesktop').modal({
@@ -768,7 +768,7 @@ function modal_add_desktop_datatables(){
 
     modal_add_desktops = $('#modal_add_desktops').DataTable({
             "ajax": {
-                "url": "/api/v3/user/templates_allowed",
+                "url": "/api/v3/user/templates/allowed",
                 "dataSrc": ""
             },
             "scrollY":        "350px",
@@ -887,25 +887,84 @@ function modal_edit_desktop_datatables(id){
 }
 
 $("#modalEditDesktop #send").on('click', function(e){
-        var form = $('#modalEdit');
-        form.parsley().validate();
-        if (form.parsley().isValid()){
-                data=$('#modalEdit').serializeObject();
-                if( ("viewers-file_rdpgw" in data || "viewers-file_rdpvpn" in data || "viewers-browser_rdp" in data) && ! data["hardware-interfaces"].includes("wireguard") ){
-                    new PNotify({
-                        title: "Incompatible options",
-                            text: "RDP viewers need the wireguard network. Please add wireguard network to this desktop or remove RDP viewers.",
-                            hide: true,
-                            delay: 6000,
-                            icon: 'fa fa-alert-sign',
-                            opacity: 1,
-                            type: 'error'
-                        });
-                    return
-                }
-                data=replaceMedia_arrays('#modalEditDesktop',data);
-                data=parseViewersOptions(data)
-                data["reservables-vgpus"]=[data["reservables-vgpus"]]
-                socket.emit('domain_edit',data)
+    var form = $('#modalEdit');
+    form.parsley().validate();
+    if (form.parsley().isValid()){
+        data=$('#modalEdit').serializeObject();
+        if( ("viewers-file_rdpgw" in data || "viewers-file_rdpvpn" in data || "viewers-browser_rdp" in data) && ! data["hardware-interfaces"].includes("wireguard") ){
+            new PNotify({
+                title: "Incompatible options",
+                    text: "RDP viewers need the wireguard network. Please add wireguard network to this desktop or remove RDP viewers.",
+                    hide: true,
+                    delay: 6000,
+                    icon: 'fa fa-alert-sign',
+                    opacity: 1,
+                    type: 'error'
+                });
+            return
         }
-    });
+        data['reservables-vgpus'] = [data['reservables-vgpus']]
+        data=replaceMedia_arrays('#modalEditDesktop',data);
+        data=parse_desktop(JSON.unflatten(parseViewersOptions(data)));
+        var notice = new PNotify({
+            text: 'Updating selected item...',
+            hide: false,
+            opacity: 1,
+            icon: 'fa fa-spinner fa-pulse'
+        })
+        $.ajax({
+            type: 'PUT',
+            url: '/api/v3/desktop/'+data["id"],
+            data: JSON.stringify(data),
+            contentType: 'application/json',
+            error: function(data) {
+                notice.update({
+                    title: 'ERROR',
+                    text: 'Something went wrong when updating',
+                    type: 'error',
+                    hide: true,
+                    icon: 'fa fa-warning',
+                    delay: 5000,
+                    opacity: 1
+                })
+            },
+            success: function(data) {
+                $("#modalEdit")[0].reset();
+                $("#modalEditDesktop").modal('hide');
+                table.ajax.reload()
+                notice.update({
+                    title: data.title,
+                    text: 'Item updated successfully',
+                    hide: true,
+                    delay: 2000,
+                    icon: 'fa fa-' + data.icon,
+                    opacity: 1,
+                    type: 'success'
+                })
+            }
+        })
+    }
+});
+
+function parse_desktop(data){
+    return {
+        "id": data["id"],
+        "name": data["name"],
+        "description": data["description"],
+        "guest_properties": data["guest_properties"],
+        "hardware": {
+            ...("vcpus" in data["hardware"]) && {"vcpus": parseInt(data["hardware"]["vcpus"])},
+            ...("memory" in data["hardware"]) && {"memory": parseFloat(data["hardware"]["memory"])},
+            ...("videos" in data["hardware"]) && {"videos": [data["hardware"]["videos"]]},
+            ...("graphics" in data["hardware"]) && {"graphics": [data["hardware"]["graphics"]]},
+            ...("boot_order" in data["hardware"]) && {"boot_order": [data["hardware"]["boot_order"]]},
+            ...("interfaces" in data["hardware"]) && {"interfaces": data["hardware"]["interfaces"]},
+            ...("disk_bus" in data["hardware"]) && {"disk_bus": data["hardware"]["disk_bus"]},
+            ...("disk_size" in data["hardware"]) && {"disk_size": parseInt(data["hardware"]["disk_size"])},
+            "reservables": {
+                ...(! data["reservables"]["vgpus"].includes(undefined) || data["reservables"]["vgpus"] == null ) && {"vgpus": data["reservables"]["vgpus"]},
+                ...(data["reservables"]["vgpus"].includes(undefined) ) && {"vgpus": null},
+            },
+          },
+        }
+}

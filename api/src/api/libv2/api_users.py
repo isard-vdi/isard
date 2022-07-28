@@ -874,6 +874,19 @@ class ApiUsers:
         with app.app_context():
             r.table(table).get(id).update({kind: quota}).run(db.conn)
 
+    def WebappDesktops(self, user_id):
+        self.Get(user_id)
+        with app.app_context():
+            desktops = list(
+                r.table("domains")
+                .get_all(user_id, index="user")
+                .filter({"kind": "desktop"})
+                .order_by("name")
+                .without("xml", "history_domain", "allowed")
+                .run(db.conn)
+            )
+        return [d for d in desktops if d.get("tag_visible", True)]
+
 
 """
 PASSWORDS MANAGER

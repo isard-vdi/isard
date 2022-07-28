@@ -7,20 +7,20 @@ name:
 description:
   type: string
 hardware:
-  schema: hardware
+  schema: hardware_update
 guest_properties:
   type: dict
-  schema: guest_properties
+  schema: guest_properties_update
 server:
   type: boolean
 forced_hyp:
   type:
     - boolean
     - list
-  required: false
+xml:
+  type: string
 image:
   type: dict
-  required: false
   schema:
     type:
       type: string

@@ -406,7 +406,7 @@ class Populate(object):
     #  'description': '',
     #  'forced_hyp': ['false'],
     #  'hardware': {'boot_order': ['disk'],
-    #               'diskbus': 'virtio',
+    #               'disk_bus': 'virtio',
     #               'graphics': ['default'],
     #               'interfaces': ['default'],
     #               'memory': 524288,

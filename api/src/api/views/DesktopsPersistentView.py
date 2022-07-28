@@ -22,11 +22,7 @@ from ..libv2.api_desktops_persistent import ApiDesktopsPersistent
 
 desktops = ApiDesktopsPersistent()
 
-from ..libv2.api_cards import ApiCards
-
-api_cards = ApiCards()
-
-from ..libv2.validators import _validate_item
+from ..libv2.validators import _validate_item, check_user_duplicated_domain_name
 from .decorators import allowedTemplateId, has_token, ownsDomainId
 
 
@@ -163,29 +159,13 @@ def api_v3_desktop_edit(payload, desktop_id):
             traceback.format_exc(),
         )
     data["id"] = desktop_id
-    _validate_item("desktop", data)
+    data = _validate_item("desktop_update", data)
     ownsDomainId(payload, desktop_id)
+    if data.get("name"):
+        check_user_duplicated_domain_name(data["id"], data["name"], payload["user_id"])
 
-    ## Server value
-    if data.get("server", None) != None:
-        data = {**data, **{"create_dict": {"server": data.get("server")}}}
-
-    ## Pop image from data if exists and process
-    if data.get("image"):
-        image_data = data.pop("image")
-
-        if not image_data.get("file"):
-            img_uuid = api_cards.update(
-                desktop_id, image_data["id"], image_data["type"]
-            )
-            card = api_cards.get_card(img_uuid, image_data["type"])
-            return json.dumps(card), 200, {"Content-Type": "application/json"}
-        else:
-            img_uuid = api_cards.upload(desktop_id, image_data)
-            card = api_cards.get_card(img_uuid, image_data["type"])
-            return json.dumps(card), 200, {"Content-Type": "application/json"}
-
-    desktops.Update(desktop_id, data)
+    admin_or_manager = True if payload["role_id"] in ["manager", "admin"] else False
+    desktops.Update(desktop_id, data, admin_or_manager)
     return (
         json.dumps(data),
         200,

@@ -364,9 +364,10 @@ def _parse_desktop_booking(desktop):
 
 
 def _parse_deployment_booking(deployment):
-    deployment_domains = list(
-        r.table("domains").get_all(deployment["id"], index="tag").run(db.conn)
-    )
+    with app.app_context():
+        deployment_domains = list(
+            r.table("domains").get_all(deployment["id"], index="tag").run(db.conn)
+        )
     if not len(deployment_domains):
         return {
             "needs_booking": False,
@@ -378,14 +379,82 @@ def _parse_deployment_booking(deployment):
     return _parse_desktop_booking(desktop)
 
 
-# suffixes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
-# def humansize(nbytes):
-#     i = 0
-#     while nbytes >= 1024 and i < len(suffixes)-1:
-#         nbytes /= 1024.
-#         i += 1
-#     f = ('%.2f' % nbytes).rstrip('0').rstrip('.')
-#     return '%s %s' % (f, suffixes[i])
+def parse_domain_update(domain_id, new_data, admin_or_manager=False):
+    with app.app_context():
+        domain = r.table("domains").get(domain_id).run(db.conn)
+    if not domain:
+        raise Error(
+            "not_found", "Not found domain to be updated", traceback.format_exc()
+        )
+    new_domain = {}
+
+    if admin_or_manager:
+        if "forced_hyp" in new_data and new_data.get("forced_hyp") != domain.get(
+            "forced_hyp"
+        ):
+            new_domain["forced_hyp"] = new_data.get("forced_hyp")
+        if "server" in new_data and new_data.get("server") != domain.get("server"):
+            new_domain["server"] = new_data.get("server")
+        if "xml" in new_data and new_data.get("xml") != domain.get("xml"):
+            new_domain = {
+                **new_domain,
+                **{"status": "Updating", "xml": new_data["xml"]},
+            }
+
+    if "name" in new_data and new_data.get("name") != domain.get("name"):
+        new_domain["name"] = new_data.get("name")
+    if "description" in new_data and new_data.get("description") != domain.get(
+        "description"
+    ):
+        new_domain["description"] = new_data.get("description")
+
+    if new_data.get("guest_properties") and new_data.get(
+        "guest_properties"
+    ) != domain.get("guest_properties"):
+        new_domain["guest_properties"] = {
+            **new_data["guest_properties"],
+            **{"viewers": r.literal(new_data["guest_properties"].pop("viewers"))},
+        }
+
+    if new_data.get("hardware") and new_data.get("hardware") != domain.get("hardware"):
+        if new_data["hardware"].get("memory"):
+            new_data["hardware"]["memory"] = int(
+                new_data["hardware"]["memory"] * 1048576
+            )
+        if new_data["hardware"].get("disk_bus"):
+            new_data["hardware"] = {
+                **new_data["hardware"],
+                **{
+                    "disks": [
+                        {
+                            **domain["create_dict"]["hardware"]["disks"][0],
+                            **{"bus": new_data["hardware"]["disk_bus"]},
+                        }
+                    ]
+                },
+            }
+        if new_data["hardware"].get("reservables"):
+            new_domain = {
+                **new_domain,
+                **{
+                    "status": "Updating",
+                    "create_dict": {
+                        "hardware": new_data["hardware"],
+                        "reservables": r.literal(
+                            new_data["hardware"].pop("reservables")
+                        ),
+                    },
+                },
+            }
+        else:
+            new_domain = {
+                **new_domain,
+                **{
+                    "status": "Updating",
+                    "create_dict": {"hardware": new_data["hardware"]},
+                },
+            }
+    return new_domain
 
 
 def generate_db_media(path_downloaded, filesize):

@@ -1,0 +1,27 @@
+credentials:
+  type: dict
+  default:
+    schema:
+  schema:
+    username:
+      type: string
+      default: ""
+    password:
+      type: string
+      default: ""
+fullscreen:
+  type: boolean
+  default: False
+viewers:
+  type: dict
+  schema:
+    browser_rdp:
+      type: dict
+    browser_vnc:
+      type: dict
+    file_rdpgw:
+      type: dict
+    file_rdpvpn:
+      type: dict
+    file_spice:
+      type: dict

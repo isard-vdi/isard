@@ -1,4 +1,4 @@
-	function setHardwareOptions(id,default_boot){
+	function setHardwareOptions(id,default_boot,domain_id){
         default_boot = typeof default_boot !== 'undefined' ? default_boot : 'hd' ;
 			// id is the main div id containing hardware.html
 			$(id+" #hardware-memory").find('option').remove();
@@ -8,8 +8,12 @@
             $(id+" #hardware-videos").find('option').remove();
 			$(id+" #hardware-boot_order").find('option').remove();
 			$(id+" #hardware-qos_id").find('option').remove();
-			
-			api.ajax_async('/api/v3/user/hardware_allowed','GET','').done(function(hardware) {
+			if (typeof domain_id !== 'undefined'){
+				url = '/api/v3/user/hardware/allowed/'+domain_id
+			}else{
+				url = '/api/v3/user/hardware/allowed'
+			}
+			api.ajax_async(url,'GET','').done(function(hardware) {
 				if(hardware.nets.length == 1){
 					$(id+" #hardware-interfaces").attr("disabled",true);
 				}else{
@@ -113,7 +117,7 @@
 		})
 		$(div_id+' #hardware-graphics option[value="'+domain.hardware.graphics[0].type+'"]').prop("selected",true);
 		$(div_id+' #hardware-videos option[value="'+domain.hardware.videos[0]+'"]').prop("selected",true);
-		$(div_id+' #hardware-diskbus option[value="'+domain.hardware.disks[0].bus+'"]').prop("selected",true);
+		$(div_id+' #hardware-disk_bus option[value="'+domain.hardware.disk_bus+'"]').prop("selected",true);
 		
 		// Need to talk with engine and change this
 		if(domain.hardware.boot_order[0]=='hd'){domain.hardware.boot_order[0]='disk'}

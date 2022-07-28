@@ -777,7 +777,15 @@ class QuotasProcess:
                 )
         return {"quota": user["quota"], "limits": limits}
 
-    def user_hardware_allowed(self, payload):
+    def user_hardware_allowed(self, payload, domain_id=None):
+        if domain_id:
+            with app.app_context():
+                domain = r.table("domains").get(domain_id)["create_dict"].run(db.conn)
+            if not domain:
+                raise Error("not_found", "Domain id not found", traceback.format_exc())
+        else:
+            domain = {}
+
         dict = {}
         dict["nets"] = allowed.get_items_allowed(
             payload,
@@ -785,6 +793,9 @@ class QuotasProcess:
             query_pluck=["id", "name", "description"],
             order="name",
             query_merge=False,
+            extra_ids_allowed=[]
+            if "interfaces" not in domain.get("hardware", [])
+            else domain["hardware"]["interfaces"],
         )
         dict["graphics"] = allowed.get_items_allowed(
             payload,
@@ -792,6 +803,9 @@ class QuotasProcess:
             query_pluck=["id", "name", "description"],
             order="name",
             query_merge=False,
+            extra_ids_allowed=[]
+            if "graphics" not in domain.get("hardware", [])
+            else domain["hardware"]["graphics"],
         )
         dict["videos"] = allowed.get_items_allowed(
             payload,
@@ -799,6 +813,9 @@ class QuotasProcess:
             query_pluck=["id", "name", "description"],
             order="name",
             query_merge=False,
+            extra_ids_allowed=[]
+            if "videos" not in domain.get("hardware", [])
+            else domain["hardware"]["videos"],
         )
         dict["boots"] = allowed.get_items_allowed(
             payload,
@@ -806,6 +823,9 @@ class QuotasProcess:
             query_pluck=["id", "name", "description"],
             order="name",
             query_merge=False,
+            extra_ids_allowed=[]
+            if "boots" not in domain.get("hardware", [])
+            else domain["hardware"]["boot_order"],
         )
         dict["qos_id"] = allowed.get_items_allowed(
             payload,
@@ -813,15 +833,11 @@ class QuotasProcess:
             query_pluck=["id", "name", "description"],
             order="name",
             query_merge=False,
+            extra_ids_allowed=[]
+            if "qos_disk" not in domain.get("hardware", [])
+            else domain["hardware"]["qos_disk"],
         )
 
-        dict["hypervisors_pools"] = allowed.get_items_allowed(
-            payload,
-            "hypervisors_pools",
-            query_pluck=["id", "name", "description"],
-            order="name",
-            query_merge=False,
-        )
         dict["forced_hyp"] = []
 
         quota = self.get_user(payload["user_id"])

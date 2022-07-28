@@ -51,8 +51,8 @@ columnDefs = [
     },{
         "targets": 2,
         "render": function (data, type, full, meta) {
-            if('server' in full['create_dict']){
-                return full['create_dict']['server']
+            if('server' in full){
+                return full['server']
             }else{
                 return false;
             }
@@ -611,7 +611,7 @@ function actionsDomainDetail(){
             var pk=$(this).closest("[data-pk]").attr("data-pk");
 			setHardwareOptions('#modalEditDesktop');
             setHardwareDomainIdDefaults('#modalEditDesktop',pk);
-            setReservablesOptions('#modalEditDesktop');
+            setReservablesOptions('#modalEditDesktop',pk);
             setReservablesDomainDefaults('#modalEditDesktop',pk);
             $("#modalEdit")[0].reset();
 			$('#modalEditDesktop').modal({
@@ -659,12 +659,12 @@ function actionsDomainDetail(){
             url:"/api/v3/admin/table/domains",
             data: JSON.stringify({
                 'id': pk,
-                'pluck': { 'create_dict': { 'server': true } }
+                'pluck': "server"
             }),
             contentType: 'application/json',
             success: function(data)
             {
-                if(data.create_dict.server == true){
+                if(data.server == true){
                     $('#modalServerForm #create_dict-server').iCheck('check').iCheck('update');
                 }else{
                     $('#modalServerForm #create_dict-server').iCheck('unckeck').iCheck('update');
@@ -880,38 +880,46 @@ function actionsDomainDetail(){
     }); 
 
     $("#modalForcedhyp #send").on('click', function(e){
+        var notice = new PNotify({
+            text: 'Updating selected item...',
+            hide: false,
+            opacity: 1,
+            icon: 'fa fa-spinner fa-pulse'
+        })
         data=$('#modalForcedhypForm').serializeObject();
-        if('forced_hyp' in data){
-            $.ajax({
-                type: "PUT",
-                url:"/api/v3/admin/table/update/domains",
-                data: JSON.stringify({
-                    'id': data.id,
-                    'forced_hyp': [data.forced_hyp]
-                }),
-                contentType: "application/json",
-                success: function(data)
-                {
-                    $('form').each(function() { this.reset() });
-                    $('.modal').modal('hide');
-                }
-            });
-        }else{
-            $.ajax({
-                type: "PUT",
-                url:"/api/v3/admin/table/update/domains",
-                data: JSON.stringify({
-                    'id': data.id,
-                    'forced_hyp': false
-                }),
-                contentType: "application/json",
-                success: function(data)
-                {
-                    $('form').each(function() { this.reset() });
-                    $('.modal').modal('hide');
-                }
-            });
-        }
+        $.ajax({
+            type: 'PUT',
+            url: '/api/v3/desktop/'+data["id"],
+            data: JSON.stringify({
+                ...( ! ("forced_hyp"  in data) && {"forced_hyp": false} ),
+                ...( "forced_hyp" in data && {"forced_hyp": [data.forced_hyp]} ),
+            }),
+            contentType: 'application/json',
+            error: function(data) {
+                notice.update({
+                    title: 'ERROR',
+                    text: 'Something went wrong when updating',
+                    type: 'error',
+                    hide: true,
+                    icon: 'fa fa-warning',
+                    delay: 5000,
+                    opacity: 1
+                })
+            },
+            success: function(data) {
+                $('form').each(function() { this.reset() });
+                $('.modal').modal('hide');
+                notice.update({
+                    title: data.title,
+                    text: 'Item updated successfully',
+                    hide: true,
+                    delay: 2000,
+                    icon: 'fa fa-' + data.icon,
+                    opacity: 1,
+                    type: 'success'
+                })
+            }
+        })
     });
 
     $("#modalServer #send").on('click', function(e){
@@ -1138,37 +1146,123 @@ function modal_edit_desktop_datatables(id){
             var form = $('#modalEdit');
             form.parsley().validate();
             if (form.parsley().isValid()){
-                    data=$('#modalEdit').serializeObject();
-                    if( ("viewers-file_rdpgw" in data || "viewers-file_rdpvpn" in data || "viewers-browser_rdp" in data) && ! data["hardware-interfaces"].includes("wireguard") ){
-                        new PNotify({
-                            title: "Incompatible options",
-                                text: "RDP viewers need the wireguard network. Please add wireguard network to this desktop or remove RDP viewers.",
-                                hide: true,
-                                delay: 6000,
-                                icon: 'fa fa-alert-sign',
-                                opacity: 1,
-                                type: 'error'
-                            });
-                        return
+                data=$('#modalEdit').serializeObject();
+                if( ("viewers-file_rdpgw" in data || "viewers-file_rdpvpn" in data || "viewers-browser_rdp" in data) && ! data["hardware-interfaces"].includes("wireguard") ){
+                    new PNotify({
+                        title: "Incompatible options",
+                            text: "RDP viewers need the wireguard network. Please add wireguard network to this desktop or remove RDP viewers.",
+                            hide: true,
+                            delay: 6000,
+                            icon: 'fa fa-alert-sign',
+                            opacity: 1,
+                            type: 'error'
+                        });
+                    return
+                }
+                data['reservables-vgpus'] = [data['reservables-vgpus']]
+                data=replaceMedia_arrays('#modalEditDesktop',data);
+                data=parse_desktop(JSON.unflatten(parseViewersOptions(data)));
+                var notice = new PNotify({
+                    text: 'Updating selected item...',
+                    hide: false,
+                    opacity: 1,
+                    icon: 'fa fa-spinner fa-pulse'
+                })
+                $.ajax({
+                    type: 'PUT',
+                    url: '/api/v3/desktop/'+data["id"],
+                    data: JSON.stringify(data),
+                    contentType: 'application/json',
+                    error: function(data) {
+                        notice.update({
+                            title: 'ERROR',
+                            text: 'Something went wrong when updating',
+                            type: 'error',
+                            hide: true,
+                            icon: 'fa fa-warning',
+                            delay: 5000,
+                            opacity: 1
+                        })
+                    },
+                    success: function(data) {
+                        $("#modalEdit")[0].reset();
+                        $("#modalEditDesktop").modal('hide');
+                        domains_table.ajax.reload()
+                        notice.update({
+                            title: data.title,
+                            text: 'Item updated successfully',
+                            hide: true,
+                            delay: 2000,
+                            icon: 'fa fa-' + data.icon,
+                            opacity: 1,
+                            type: 'success'
+                        })
                     }
-                    data['reservables-vgpus'] = [data['reservables-vgpus']]
-                    data=replaceMedia_arrays('#modalEditDesktop',data);
-                    data=parseViewersOptions(data)
-                    socket.emit('domain_edit',data)
+                })
             }
         });
 
     $("#modalEditXml #send").on('click', function(e){
-            var form = $('#modalEditXmlForm');
-            //~ form.parsley().validate();
-            //~ if (form.parsley().isValid()){
-                    id=$('#modalEditXmlForm #id').val();
-                    xml=$('#modalEditXmlForm #xml').val();
-                    api.ajax('/api/v3/admin/domains/xml/'+id,'POST',{'xml':xml}).done(function(data) {
-                        $("#modalEditXmlForm")[0].reset();
-                        $("#modalEditXml").modal('hide');
-                	}); 
-            //~ }
-        });
+        var notice = new PNotify({
+            text: 'Updating xml for selected item(s)...',
+            hide: false,
+            opacity: 1,
+            icon: 'fa fa-spinner fa-pulse'
+        })
+        var form = $('#modalEditXmlForm');
+        id=$('#modalEditXmlForm #id').val();
+        xml=$('#modalEditXmlForm #xml').val();
+        $.ajax({
+            type: 'PUT',
+            url: '/api/v3/desktop/'+id,
+            data: JSON.stringify({'xml':xml}),
+            contentType: 'application/json',
+            error: function(data) {
+                notice.update({
+                    title: 'ERROR',
+                    text: 'Something went wrong when updating xml',
+                    type: 'error',
+                    hide: true,
+                    icon: 'fa fa-warning',
+                    delay: 5000,
+                    opacity: 1
+                })
+            },
+            success: function(data) {
+                $("#modalEditXmlForm")[0].reset();
+                $("#modalEditXml").modal('hide');
+                notice.update({
+                    title: data.title,
+                    text: 'Item xml updated successfully',
+                    hide: true,
+                    delay: 2000,
+                    icon: 'fa fa-' + data.icon,
+                    opacity: 1,
+                    type: 'success'
+                })
+            }
+        })
+    });
 
-//~ }
+        function parse_desktop(data){
+            return {
+                "id": data["id"],
+                "name": data["name"],
+                "description": data["description"],
+                "guest_properties": data["guest_properties"],
+                "hardware": {
+                    ...("vcpus" in data["hardware"]) && {"vcpus": parseInt(data["hardware"]["vcpus"])},
+                    ...("memory" in data["hardware"]) && {"memory": parseFloat(data["hardware"]["memory"])},
+                    ...("videos" in data["hardware"]) && {"videos": [data["hardware"]["videos"]]},
+                    ...("graphics" in data["hardware"]) && {"graphics": [data["hardware"]["graphics"]]},
+                    ...("boot_order" in data["hardware"]) && {"boot_order": [data["hardware"]["boot_order"]]},
+                    ...("interfaces" in data["hardware"]) && {"interfaces": data["hardware"]["interfaces"]},
+                    ...("disk_bus" in data["hardware"]) && {"disk_bus": data["hardware"]["disk_bus"]},
+                    ...("disk_size" in data["hardware"]) && {"disk_size": parseInt(data["hardware"]["disk_size"])},
+                    "reservables": {
+                        ...(! data["reservables"]["vgpus"].includes(undefined) || data["reservables"]["vgpus"] == null ) && {"vgpus": data["reservables"]["vgpus"]},
+                        ...(data["reservables"]["vgpus"].includes(undefined) ) && {"vgpus": null},
+                    },
+                  },
+                }
+        }

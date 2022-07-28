@@ -591,7 +591,7 @@ function actionsDomainDetail(){
     
 	$('.btn-edit').on('click', function () {
             var pk=$(this).closest("[data-pk]").attr("data-pk");
-			setHardwareOptions('#modalEditDesktop');
+			setHardwareOptions('#modalEditDesktop','hd',pk);
             setHardwareDomainIdDefaults('#modalEditDesktop',pk);
             setReservablesOptions('#modalEditDesktop');
             setReservablesDomainDefaults('#modalEditDesktop',pk);

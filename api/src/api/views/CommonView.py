@@ -22,6 +22,7 @@ from ..libv2.api_allowed import ApiAllowed
 
 allowed = ApiAllowed()
 
+from ..libv2.helpers import _get_reservables
 from .decorators import has_token, ownsDomainId
 
 
@@ -55,18 +56,37 @@ def api_v2_desktop_viewers(payload, desktop_id=False, protocol=False):
 
 
 @app.route("/api/v3/domains/allowed/<kind>", methods=["GET"])
+@app.route("/api/v3/domains/allowed/<kind>/<domain_id>", methods=["GET"])
 @has_token
-def api_v3_domains_allowed_hardware_reservables(payload, kind):
+def api_v3_domains_allowed_hardware_reservables(payload, kind, domain_id=None):
     if kind == "reservables":
-        reservables = {}
-        reservables["vgpus"] = allowed.get_items_allowed(
-            payload,
-            "reservables_vgpus",
-            query_pluck=["id", "name", "description"],
-            order="name",
-            query_merge=False,
-        )
-        return json.dumps(reservables)
+        if domain_id and ownsDomainId(payload, domain_id):
+            try:
+                domain_reservables = _get_reservables("desktop", domain_id)
+            except:
+                domain_reservables = []
+
+            reservables = {
+                "vgpus": allowed.get_items_allowed(
+                    payload,
+                    "reservables_vgpus",
+                    query_pluck=["id", "name", "description"],
+                    order="name",
+                    query_merge=False,
+                    extra_ids_allowed=domain_reservables,
+                )
+            }
+            return json.dumps(reservables)
+        else:
+            reservables = {}
+            reservables["vgpus"] = allowed.get_items_allowed(
+                payload,
+                "reservables_vgpus",
+                query_pluck=["id", "name", "description"],
+                order="name",
+                query_merge=False,
+            )
+            return json.dumps(reservables)
     if kind == "hardware":
         return Error("bad_request", "Not implemented")
 
