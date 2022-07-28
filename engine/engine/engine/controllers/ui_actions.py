@@ -748,7 +748,7 @@ class UiActions(object):
                 except Exception as e:
                     logs.exception_id.debug("0013")
                     update_domain_status(
-                        status="FailedCreatingDomain",
+                        status="Failed",
                         id_domain=id_new,
                         hyp_id=False,
                         detail="Creating disk operation failed when insert action in queue for disk operations",
@@ -832,7 +832,7 @@ class UiActions(object):
         except Exception as e:
             logs.exception_id.debug("0014")
             update_domain_status(
-                status="FailedCreatingDomain",
+                status="Failed",
                 id_domain=id_new,
                 hyp_id=False,
                 detail="Creating disk operation failed when insert action in queue for disk operations",
@@ -931,7 +931,7 @@ class UiActions(object):
             except Exception as e:
                 logs.exception_id.debug("0015")
                 update_domain_status(
-                    status="FailedCreatingDomain",
+                    status="Failed",
                     id_domain=id_new,
                     hyp_id=False,
                     detail="Creating disk operation failed when insert action in queue for disk operations",
@@ -1098,7 +1098,7 @@ class UiActions(object):
             logs.exception_id.debug("0020")
             logs.main.info(f"Exception updating xml from dict_domain: {e}")
             update_domain_status(
-                status="FailedCreatingDomain",
+                status="Failed",
                 id_domain=id_domain,
                 detail="XML Parser Error, xml is not valid",
             )
@@ -1109,7 +1109,7 @@ class UiActions(object):
 
         if xml_raw is False:
             update_domain_status(
-                status="FailedCreatingDomain",
+                status="Failed",
                 id_domain=id_domain,
                 detail="XML Parser Error, xml is not valid",
             )
@@ -1204,7 +1204,7 @@ class UiActions(object):
         x = DomainXML(dict_domain_template["xml"])
         if x.parser is False:
             log.error("error when parsing xml")
-            dict_domain_new["status"] = "FailedCreatingDomain"
+            dict_domain_new["status"] = "Failed"
             dict_domain_new["detail"] = "XML Parser have failed, xml with errors"
             return False
 

@@ -508,18 +508,10 @@ class Engine(object):
                             #       format(domain_id,old_status,new_status,new_detail))
                             pass
 
-                    if (
-                        new_domain is True and new_status == "CreatingDiskFromScratch"
-                    ) or (
-                        old_status == "FailedCreatingDomain"
-                        and new_status == "CreatingDiskFromScratch"
-                    ):
+                    if new_domain is True and new_status == "CreatingDiskFromScratch":
                         ui.creating_disk_from_scratch(domain_id)
 
-                    if (new_domain is True and new_status == "Creating") or (
-                        old_status == "FailedCreatingDomain"
-                        and new_status == "Creating"
-                    ):
+                    if new_domain is True and new_status == "Creating":
                         ui.creating_disks_from_template(domain_id)
 
                     if new_domain is True and new_status == "CreatingAndStarting":
@@ -531,10 +523,7 @@ class Engine(object):
                         # verificar que realmente es una template
                         # hay que recoger ram?? cpu?? o si no hay nada copiamos de la template??
 
-                    if (new_domain is True and new_status == "CreatingFromBuilder") or (
-                        old_status == "FailedCreatingDomain"
-                        and new_status == "CreatingFromBuilder"
-                    ):
+                    if new_domain is True and new_status == "CreatingFromBuilder":
                         ui.creating_disk_from_virtbuilder(domain_id)
 
                     if (

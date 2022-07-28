@@ -22,7 +22,11 @@ from engine.services.db import (
     update_domains_started_in_hyp_to_unknown,
 )
 from engine.services.db.db import update_table_field
-from engine.services.db.domains import update_domain_parents, update_domain_status
+from engine.services.db.domains import (
+    get_domain_status,
+    update_domain_parents,
+    update_domain_status,
+)
 from engine.services.db.downloads import update_status_media_from_path
 from engine.services.db.hypervisors import (
     get_hyp,
@@ -230,12 +234,14 @@ def launch_action_disk(action, hostname, user, port, from_scratch=False):
             if id_domain is not False:
                 # update parents if have
                 # update_domain_parents(id_domain)
-                update_domain_status(
-                    "CreatingDomain",
-                    id_domain,
-                    None,
-                    detail="new disk created, now go to creating desktop and testing if desktop start",
-                )
+                # Only go to next step if status not changed while queuing
+                if get_domain_status(id_domain) == "CreatingDisk":
+                    update_domain_status(
+                        "CreatingDomain",
+                        id_domain,
+                        None,
+                        detail="new disk created, now go to creating desktop and testing if desktop start",
+                    )
         else:
 
             log.error(
