@@ -279,7 +279,9 @@
         "required": "{property} обязателен.",
         "inputFormat": "Допустимыми символами являются буквы, цифры, запятая, точка, -, _",
         "maxLengthValue": "Поле {property} содержит {model} символов, но оно должно иметь максимальную длину {max}.",
-        "minLengthValue": "Поле {property} содержит {model} символов, но оно должно иметь минимальную длину {min}."
+        "minLengthValue": "Поле {property} содержит {model} символов, но оно должно иметь минимальную длину {min}.",
+        "sameAs": "Поле {property} должно иметь то же значение, что и {property2}.",
+        "url": "Поле {property} должно быть ссылкой."
     },
     "forms": {
         "new-desktop": {
@@ -310,10 +312,35 @@
         "allowed": {
             "groups": "Группы:",
             "users": "Пользователи:",
-            "placeholder": "Введите не менее 2 символов для поиска."
+            "placeholder": "Введите не менее 2 символов для поиска.",
+            "modal": {
+                "title": "Обновление разрешено",
+                "buttons": {
+                    "update": "Обновление"
+                }
+            },
+            "title": "Разрешено"
         },
         "new-deployment": {
-            "filter": "Фильтр"
+            "filter": "Фильтр",
+            "section-title-template": "Выберите шаблон:"
+        },
+        "new-template": {
+            "description": "Описание",
+            "enabled": "Включено",
+            "title": "Создайте новый шаблон"
+        },
+        "password": {
+            "modal": {
+                "title": "Изменить пароль",
+                "password": {
+                    "label": "Пароль",
+                    "placeholder": "Пароль"
+                },
+                "confirmation-password": {
+                    "label": "Подтверждение пароля"
+                }
+            }
         }
     },
     "messages": {

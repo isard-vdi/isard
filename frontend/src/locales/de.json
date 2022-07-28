@@ -186,9 +186,7 @@
                 "title": "Es gibt keine Verteilungen von diesem Benutzer"
             }
         },
-        "cancel": "Abbrechen",
-        "direct-viewer": {
-        }
+        "cancel": "Abbrechen"
     },
     "components": {
         "navbar": {
@@ -313,7 +311,9 @@
         "maxLengthValue": "Das Feld {property} hat {model} Zeichen, darf aber maximal {max} lang sein.",
         "inputFormat": "Gültige Zeichen sind Buchstaben, Zahlen, Komma, Punkt, -, _",
         "required": "{property} ist erforderlich.",
-        "minLengthValue": "Das Feld {property} hat {model} Zeichen, muss aber eine Mindestlänge von {min} haben."
+        "minLengthValue": "Das Feld {property} hat {model} Zeichen, muss aber eine Mindestlänge von {min} haben.",
+        "sameAs": "Das Feld {property} muss den gleichen Wert wie {property2} haben.",
+        "url": "Das Feld {property} muss eine URL sein."
     },
     "messages": {
         "no": "Nein",
