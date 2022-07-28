@@ -873,9 +873,8 @@ class isard:
 
         parent_disk = desktop["hardware"]["disks"][0]["file"]
 
-        dir_disk, disk_filename = self.get_disk_path(user, parsed_name)
         form_data["create_dict"]["hardware"]["disks"] = [
-            {"file": dir_disk + "/" + disk_filename, "parent": parent_disk}
+            {"extension": "qcow2", "parent": parent_disk}
         ]
 
         hardware = self.parse_media_info(form_data["create_dict"])["hardware"]

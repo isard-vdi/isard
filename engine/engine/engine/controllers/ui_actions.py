@@ -476,32 +476,14 @@ class UiActions(object):
             for i in range(len(list_disk_template_path_relative)):
                 # for disk in dict_domain['hardware']['disks']:
                 path_domain_disk = dict_domain["hardware"]["disks"][i]["file"]
-
-                try:
-                    path_template_disk_relative = dict_new_template["create_dict"][
-                        "hardware"
-                    ]["disks"][i]["file"]
-                    # path_template_disk_relative = list_disk_template_path_relative[i]
-                except KeyError as e:
-                    update_domain_status(
-                        status="Stopped",
-                        id_domain=id_domain,
-                        hyp_id=False,
-                        detail="Action Creating Template from domain failed. No disks in template_json in domain dictionary",
-                    )
-                    log.error(
-                        "No disks in template_json in keys of domain dictionary, when creating template form domain {}. Exception: {}".format(
-                            id_domain, str(e)
-                        )
-                    )
-                    return False
-
                 type_path_selected = "templates"
 
                 new_file, path_selected = get_path_to_disk(
-                    path_template_disk_relative,
                     pool=pool_id,
                     type_path=type_path_selected,
+                    extension=dict_new_template["create_dict"]["hardware"]["disks"][i][
+                        "extension"
+                    ],
                 )
                 path_absolute_template_disk = new_file = new_file.replace("//", "/")
                 dict_new_template["create_dict"]["hardware"]["disks"][i][
