@@ -405,8 +405,8 @@ function parse_desktop(data){
             ...("disk_bus" in data["hardware"]) && {"disk_bus": data["hardware"]["disk_bus"]},
             ...("disk_size" in data["hardware"]) && {"disk_size": parseInt(data["hardware"]["disk_size"])},
             "reservables": {
-                ...(! data["reservables"]["vgpus"].includes(undefined) || data["reservables"]["vgpus"] == null ) && {"vgpus": data["reservables"]["vgpus"]},
-                ...(data["reservables"]["vgpus"].includes(undefined) ) && {"vgpus": null},
+                ...( true ) && {"vgpus":data["reservables"]["vgpus"]},
+                ...( data["reservables"]["vgpus"].includes(undefined) || data["reservables"]["vgpus"] == null || data["reservables"]["vgpus"].includes("None") ) &&  {"vgpus": null},
             },
           },
         }
