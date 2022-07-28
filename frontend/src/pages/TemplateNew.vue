@@ -29,13 +29,14 @@
             v-model="name"
             type="text"
             size="sm"
+            maxlength="40"
             @blur="v$.name.$touch"
           />
           <div
             v-if="v$.name.$error"
             class="isard-form-error"
           >
-            {{ $t(`validations.${v$.desktop.$errors[0].$validator}`, { property: $t('forms.new-template.name'), model: name.length, min: 4, max: 40 }) }}
+            {{ $t(`validations.${v$.name.$errors[0].$validator}`, { property: $t('forms.new-template.name'), model: name.length, min: 4, max: 40 }) }}
           </div>
         </b-col>
       </b-row>
