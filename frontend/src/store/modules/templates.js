@@ -54,7 +54,7 @@ export default {
       })
     },
     fetchAllowedTemplates ({ commit }) {
-      axios.get(`${apiV3Segment}/user/templates_allowed`).then(response => {
+      axios.get(`${apiV3Segment}/user/templates/allowed`).then(response => {
         commit('setTemplates', DesktopUtils.parseTemplates(orderBy(response.data, ['editable'], ['desc'])))
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
