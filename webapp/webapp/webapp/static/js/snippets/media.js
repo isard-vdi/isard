@@ -20,7 +20,15 @@
         });      
         return nd
     }
-	
+
+	function setMediaIds(isos){
+		nd=[]
+		isos.forEach(function(iso)
+		{
+			nd.push({'id':iso})
+		});
+		return nd
+	}
 
 
  	

@@ -12,6 +12,10 @@ interfaces:
   type: list
 disk_bus:
   type: string
+isos:
+  type: list
+floppies:
+  type: list
 reservables:
   type: dict
   schema:

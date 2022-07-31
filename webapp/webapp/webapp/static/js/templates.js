@@ -347,7 +347,6 @@ $("#modalEditDesktop #send").on('click', function(e){
             return
         }
         data['reservables-vgpus'] = [data['reservables-vgpus']]
-        data=replaceMedia_arrays('#modalEditDesktop',data);
         data=parse_desktop(JSON.unflatten(parseViewersOptions(data)));
         var notice = new PNotify({
             text: 'Updating selected item...',
@@ -404,6 +403,10 @@ function parse_desktop(data){
             ...("interfaces" in data["hardware"]) && {"interfaces": data["hardware"]["interfaces"]},
             ...("disk_bus" in data["hardware"]) && {"disk_bus": data["hardware"]["disk_bus"]},
             ...("disk_size" in data["hardware"]) && {"disk_size": parseInt(data["hardware"]["disk_size"])},
+            ...( true) && {"isos":[]},
+            ...("m" in data && "isos" in data["m"]) && {"isos": setMediaIds(data["m"]["isos"])},
+            ...( true) && {"floppies":[]},
+            ...("m" in data && "floppies" in data["m"]) && {"floppies": setMediaIds(data["m"]["floppies"])},
             "reservables": {
                 ...( true ) && {"vgpus":data["reservables"]["vgpus"]},
                 ...( data["reservables"]["vgpus"].includes(undefined) || data["reservables"]["vgpus"] == null || data["reservables"]["vgpus"].includes("None") ) &&  {"vgpus": null},

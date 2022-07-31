@@ -22,6 +22,12 @@ disk_size:
 disk_bus:
   type: string
   default: virtio
+isos:
+  type: list
+  default: []
+floppies:
+  type: list
+  default: []
 reservables:
   type: dict
   schema:
