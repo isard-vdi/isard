@@ -405,8 +405,8 @@ export default {
       const yesAction = () => {
         const data = new FormData()
         data.append('template', template)
-        this.createDesktop(data)
         this.$snotify.clear()
+        this.createDesktop(data)
       }
 
       const noAction = (toast) => {
