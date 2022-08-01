@@ -111,9 +111,14 @@ def api_v3_user_media_allowed(payload):
             "icon",
         ],
         order="name",
+        query_filter=lambda media: media["user"] != payload["user_id"],
         query_merge=True,
     )
-    return json.dumps(media), 200, {"Content-Type": "application/json"}
+    return (
+        json.dumps(media),
+        200,
+        {"Content-Type": "application/json"},
+    )
 
 
 @app.route("/api/v3/desktops/media_list", methods=["POST"])
