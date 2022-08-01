@@ -838,6 +838,19 @@ class QuotasProcess:
             else domain["hardware"]["qos_disk"],
         )
 
+        dict["reservables"] = {
+            "vgpus": allowed.get_items_allowed(
+                payload,
+                "reservables_vgpus",
+                query_pluck=["id", "name", "description"],
+                order="name",
+                query_merge=False,
+                extra_ids_allowed=[]
+                if not domain.get("reservables", {}).get("vgpus")
+                else domain["reservables"]["vgpus"],
+            )
+        }
+
         dict["forced_hyp"] = []
 
         quota = self.get_user(payload["user_id"])

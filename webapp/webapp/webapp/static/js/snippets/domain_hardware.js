@@ -95,7 +95,19 @@
 						}
 					}	
 				}
-				
+
+				$(id+" #reservables-vgpus").find('option').remove();
+				if("reservables" in hardware && "vgpus" in hardware.reservables){
+					if(hardware.reservables.vgpus.length == 1){
+						$(id+" #reservables-vgpus").attr("disabled",true);
+					}else{
+						$(id+" #reservables-vgpus").attr("disabled",false);
+					}
+					$.each(hardware.reservables.vgpus,function(key, value)
+					{
+						$(id+" #reservables-vgpus").append('<option value=' + value.id + '>' + value.name + ' - ' + value.description + '</option>');
+					});
+				}
 			}); 
 	}
     
@@ -106,7 +118,16 @@
 	}
 	
 	function setHardwareDomainDefaults(div_id,domain){
-		// id is the domain id
+
+		$(div_id+' #forced_hyp').closest("div").remove();
+		$(div_id+' #name_hidden').val(domain.name);
+		$(div_id+' #name').val(domain.name);
+		$(div_id+' #description').val(domain.description);
+		$(div_id+' #id').val(domain.id);
+		$(div_id+' #guest_properties-credentials-username').val(domain["guest_properties"]["credentials"]["username"]);
+		$(div_id+' #guest_properties-credentials-password').val(domain["guest_properties"]["credentials"]["password"]);
+		setViewers('#modalEditDesktop',domain)
+
 		$(div_id+' #hardware-interfaces option:selected').prop("selected", false);
 		$(div_id+' #hardware-graphics option:selected').prop("selected", false);
 		$(div_id+' #hardware-videos option:selected').prop("selected", false);
@@ -171,6 +192,16 @@
 				var newOption = new Option(data.name, data.id, true, true);
 					$(div_id+"  #m-floppies").append(newOption).trigger('change');
 			});
+		}
+
+		$(div_id+' #reservables-vgpus option:selected').prop("selected", false);
+		if(domain.hasOwnProperty("reservables") && "vgpus" in domain.reservables && domain.reservables.vgpus && domain.reservables.vgpus[0]){
+			if ($(div_id+' #reservables-vgpus option[value="'+domain.reservables.vgpus[0]+'"]').length == 0) {
+					$(div_id+" #reservables-vgpus").append('<option disabled value=' + domain.reservables.vgpus[0] + '>' + domain.reservables.vgpus[0] + '</option>')
+			}
+			$(div_id+' #reservables-vgpus option[value="'+domain.reservables.vgpus[0]+'"]').prop("selected",true);
+		}else{
+			$(div_id+' #reservables-vgpus option[value="None"]').prop("selected",true);
 		}
 	}
 

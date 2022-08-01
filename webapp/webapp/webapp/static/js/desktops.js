@@ -324,18 +324,15 @@ $(document).ready(function() {
 function actionsDesktopDetail(){
     $('.btn-edit').on('click', function () {
             var pk=$(this).closest("[data-pk]").attr("data-pk");
-            setHardwareOptions('#modalEditDesktop','hd',pk);
-            setReservablesOptions('#modalEditDesktop',pk);
-            setReservablesDomainDefaults('#modalEditDesktop',pk);
             $("#modalEdit")[0].reset();
+            setHardwareOptions('#modalEditDesktop','hd',pk);
+            setHardwareDomainIdDefaults('#modalEditDesktop',pk);
+            setMedia_add('#modalEditDesktop #media-block')
             $('#modalEditDesktop').modal({
                 backdrop: 'static',
                 keyboard: false
             }).modal('show');
-             $('#hardware-block').hide();
             $('#modalEdit').parsley();
-            modal_edit_desktop_datatables(pk);
-            setMedia_add('#modalEditDesktop #media-block')
     });
 
     $('.btn-template').on('click', function () {
