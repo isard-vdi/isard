@@ -22,41 +22,6 @@ $(document).ready(function() {
 
     $template = $(".template-detail-domain");
 
-    $('.btn-new').on('click', function () {
-        if($('.quota-desktops .perc').text() >=100){
-            new PNotify({
-                title: "Quota for creating desktops full.",
-                    text: "Can't create another desktop, user quota full.",
-                    hide: true,
-                    delay: 3000,
-                    icon: 'fa fa-alert-sign',
-                    opacity: 1,
-                    type: 'error'
-                });
-        }else if($('.limits-desktops-bar').attr('aria-valuenow') >=100){
-            new PNotify({
-                title: "Quota for creating desktops full.",
-                    text: "Can't create another desktop, category quota full.",
-                    hide: true,
-                    delay: 3000,
-                    icon: 'fa fa-alert-sign',
-                    opacity: 1,
-                    type: 'error'
-                });                
-        }else{
-            setHardwareOptions('#modalAddDesktop');
-            setReservablesOptions('#modalAddDesktop');
-            $("#modalAdd")[0].reset();
-            $('#modalAddDesktop').modal({
-                backdrop: 'static',
-                keyboard: false
-            }).modal('show');
-            $('#modalAddDesktop #hardware-block').hide();
-            $('#modalAdd').parsley();
-            modal_add_desktop_datatables();
-        }
-    });
-
     //DataTable Main renderer
     table = $('#desktops').DataTable({
             "ajax": {
@@ -821,29 +786,6 @@ function initalize_modal_all_desktops_events(){
             //}
         }
     } );    
-        
-    $("#modalAddDesktop #send").on('click', function(e){
-        var form = $('#modalAdd');
-
-        form.parsley().validate();
-
-        if (form.parsley().isValid()){
-            template=$('#modalAddDesktop #template').val();
-            if (template !=''){
-                data=$('#modalAdd').serializeObject();
-                socket.emit('domain_add',data)
-            }else{
-                $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
-                $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
-            }
-        }
-    });
-        
-        $("#modalAddDesktop #btn-hardware").on('click', function(e){
-                $('#modalAddDesktop #hardware-block').show();
-        });
-
-
 
     $("#modalTemplateDesktop #send").on('click', function(e){
             var form = $('#modalTemplateDesktopForm');
