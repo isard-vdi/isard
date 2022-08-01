@@ -12,7 +12,7 @@ $(document).ready(function() {
     $template = $(".template-detail");
     table = $('#templates').DataTable({
             "ajax": {
-                "url": "/isard-admin/template/get/",
+                "url": "/api/v3/user/webapp_templates",
                 "dataSrc": ""
             },
             "language": {

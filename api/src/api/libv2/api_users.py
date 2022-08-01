@@ -887,6 +887,17 @@ class ApiUsers:
             )
         return [d for d in desktops if d.get("tag_visible", True)]
 
+    def WebappTemplates(self, user_id):
+        with app.app_context():
+            templates = list(
+                r.table("domains")
+                .get_all(user_id, index="user")
+                .filter({"kind": "template"})
+                .without("viewer", "xml", "history_domain")
+                .run(db.conn)
+            )
+        return templates
+
 
 """
 PASSWORDS MANAGER

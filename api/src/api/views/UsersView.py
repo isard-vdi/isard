@@ -276,3 +276,10 @@ def api_v3_user_vpn(payload, kind, os=False):
 def api_v3_user_webapp_desktops(payload):
     desktops = users.WebappDesktops(payload["user_id"])
     return json.dumps(desktops), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/user/webapp_templates", methods=["GET"])
+@has_token
+def api_v3_user_webapp_templates(payload):
+    templates = users.WebappTemplates(payload["user_id"])
+    return json.dumps(templates), 200, {"Content-Type": "application/json"}
