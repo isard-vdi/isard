@@ -66,25 +66,6 @@
 		});
 	
 	}
-    
 
-	function setDomainMediaDefaults(div_id,domain_id){
-			// id is the domain id
-            api.ajax('/isard-admin/domain/media','POST',{'pk':domain_id}).done(function(kinds) {
-                $.each(kinds,function(key, value) 
-                {   
-                        $(div_id+"  #m-"+key).empty().trigger('change')
-                        if(value){
-                            value.forEach(function(data)
-                            {                                  
-                                var newOption = new Option(data.name, data.id, true, true);
-                                 $(div_id+"  #m-"+key).append(newOption).trigger('change');
-                            });
-                        }
-                });
-            });
-
-	}
-    
     
  

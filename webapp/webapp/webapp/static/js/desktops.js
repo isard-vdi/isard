@@ -335,8 +335,6 @@ function actionsDesktopDetail(){
              $('#hardware-block').hide();
             $('#modalEdit').parsley();
             modal_edit_desktop_datatables(pk);
-            
-            setDomainMediaDefaults('#modalEditDesktop',pk);
             setMedia_add('#modalEditDesktop #media-block')
     });
 

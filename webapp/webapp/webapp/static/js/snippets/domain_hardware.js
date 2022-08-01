@@ -100,7 +100,7 @@
 	}
     
 	function setHardwareDomainIdDefaults(div_id,domain_id){
-		api.ajax('/api/v3/domain/hardware/'+domain_id,'GET','').done(function(domain) {
+		api.ajax('/api/v3/domain/info/'+domain_id,'GET','').done(function(domain) {
 			setHardwareDomainDefaults(div_id,domain)
 		})
 	}
@@ -155,7 +155,23 @@
 			qos_id='unlimited'
 		}
 
-		$(div_id+' #hardware-qos_id option[value="'+qos_id+'"]').prop("selected",true);	  
+		$(div_id+' #hardware-qos_id option[value="'+qos_id+'"]').prop("selected",true);	
+
+		$(div_id+"  #m-isos").empty().trigger('change')
+		if("isos" in domain.hardware){
+			domain.hardware.isos.forEach(function(data){
+				var newOption = new Option(data.name, data.id, true, true);
+					$(div_id+"  #m-isos").append(newOption).trigger('change');
+			});
+		}
+
+		$(div_id+"  #m-floppies").empty().trigger('change')
+		if("floppies" in domain.hardware){
+			domain.hardware.floppies.forEach(function(data){
+				var newOption = new Option(data.name, data.id, true, true);
+					$(div_id+"  #m-floppies").append(newOption).trigger('change');
+			});
+		}
 	}
 
 
