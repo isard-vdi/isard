@@ -777,7 +777,20 @@ class QuotasProcess:
                 )
         return {"quota": user["quota"], "limits": limits}
 
-    def user_hardware_allowed(self, payload, domain_id=None):
+    def user_hardware_allowed(self, payload, kind=None, domain_id=None):
+        if kind and kind not in [
+            "nets",
+            "graphics",
+            "videos",
+            "boots",
+            "qos_id",
+            "reservables",
+            "forced_hyp",
+            "quota",
+        ]:
+            raise Error(
+                "bad_request", "Hardware kind not found", traceback.format_exc()
+            )
         if domain_id:
             with app.app_context():
                 domain = r.table("domains").get(domain_id)["create_dict"].run(db.conn)
@@ -787,73 +800,82 @@ class QuotasProcess:
             domain = {}
 
         dict = {}
-        dict["nets"] = allowed.get_items_allowed(
-            payload,
-            "interfaces",
-            query_pluck=["id", "name", "description"],
-            order="name",
-            query_merge=False,
-            extra_ids_allowed=[]
-            if "interfaces" not in domain.get("hardware", [])
-            else domain["hardware"]["interfaces"],
-        )
-        dict["graphics"] = allowed.get_items_allowed(
-            payload,
-            "graphics",
-            query_pluck=["id", "name", "description"],
-            order="name",
-            query_merge=False,
-            extra_ids_allowed=[]
-            if "graphics" not in domain.get("hardware", [])
-            else domain["hardware"]["graphics"],
-        )
-        dict["videos"] = allowed.get_items_allowed(
-            payload,
-            "videos",
-            query_pluck=["id", "name", "description"],
-            order="name",
-            query_merge=False,
-            extra_ids_allowed=[]
-            if "videos" not in domain.get("hardware", [])
-            else domain["hardware"]["videos"],
-        )
-        dict["boots"] = allowed.get_items_allowed(
-            payload,
-            "boots",
-            query_pluck=["id", "name", "description"],
-            order="name",
-            query_merge=False,
-            extra_ids_allowed=[]
-            if "boots" not in domain.get("hardware", [])
-            else domain["hardware"]["boot_order"],
-        )
-        dict["qos_id"] = allowed.get_items_allowed(
-            payload,
-            "qos_disk",
-            query_pluck=["id", "name", "description"],
-            order="name",
-            query_merge=False,
-            extra_ids_allowed=[]
-            if "qos_disk" not in domain.get("hardware", [])
-            else domain["hardware"]["qos_disk"],
-        )
-
-        dict["reservables"] = {
-            "vgpus": allowed.get_items_allowed(
+        if not kind or kind == "nets":
+            dict["nets"] = allowed.get_items_allowed(
                 payload,
-                "reservables_vgpus",
+                "interfaces",
                 query_pluck=["id", "name", "description"],
                 order="name",
                 query_merge=False,
                 extra_ids_allowed=[]
-                if not domain.get("reservables", {}).get("vgpus")
-                else domain["reservables"]["vgpus"],
+                if "interfaces" not in domain.get("hardware", [])
+                else domain["hardware"]["interfaces"],
             )
-        }
+        if not kind or kind == "graphics":
+            dict["graphics"] = allowed.get_items_allowed(
+                payload,
+                "graphics",
+                query_pluck=["id", "name", "description"],
+                order="name",
+                query_merge=False,
+                extra_ids_allowed=[]
+                if "graphics" not in domain.get("hardware", [])
+                else domain["hardware"]["graphics"],
+            )
+        if not kind or kind == "videos":
+            dict["videos"] = allowed.get_items_allowed(
+                payload,
+                "videos",
+                query_pluck=["id", "name", "description"],
+                order="name",
+                query_merge=False,
+                extra_ids_allowed=[]
+                if "videos" not in domain.get("hardware", [])
+                else domain["hardware"]["videos"],
+            )
+        if not kind or kind == "boots":
+            dict["boots"] = allowed.get_items_allowed(
+                payload,
+                "boots",
+                query_pluck=["id", "name", "description"],
+                order="name",
+                query_merge=False,
+                extra_ids_allowed=[]
+                if "boots" not in domain.get("hardware", [])
+                else domain["hardware"]["boot_order"],
+            )
+        if not kind or kind == "qos_id":
+            dict["qos_id"] = allowed.get_items_allowed(
+                payload,
+                "qos_disk",
+                query_pluck=["id", "name", "description"],
+                order="name",
+                query_merge=False,
+                extra_ids_allowed=[]
+                if "qos_disk" not in domain.get("hardware", [])
+                else domain["hardware"]["qos_disk"],
+            )
+        if not kind or kind == "reservables":
+            dict["reservables"] = {
+                "vgpus": allowed.get_items_allowed(
+                    payload,
+                    "reservables_vgpus",
+                    query_pluck=["id", "name", "description"],
+                    order="name",
+                    query_merge=False,
+                    extra_ids_allowed=[]
+                    if not domain.get("reservables", {}).get("vgpus")
+                    else domain["reservables"]["vgpus"],
+                )
+            }
 
-        dict["forced_hyp"] = []
+        if not kind or kind == "forced_hyp":
+            dict["forced_hyp"] = []
 
-        quota = self.get_user(payload["user_id"])
+        if not kind or kind == "quota":
+            quota = self.get_user(payload["user_id"])
+        else:
+            quota = {}
         dict = {**dict, **quota}
         return dict
 

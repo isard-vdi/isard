@@ -310,24 +310,6 @@ function formatPanel ( d ) {
         return $newPanel
 }
 
-function modal_edit_desktop_datatables(id){
-    $.ajax({
-        type: "GET",
-        url:"/api/v3/domain/info/" + id,
-        success: function(data)
-        {
-            $('#modalEditDesktop #forced_hyp').closest("div").remove();
-            $('#modalEditDesktop #name_hidden').val(data.name);
-            $('#modalEditDesktop #name').val(data.name);
-            $('#modalEditDesktop #description').val(data.description);
-            $('#modalEditDesktop #id').val(data.id);
-            $('#modalEditDesktop #guest_properties-credentials-username').val(data["guest_properties"]["credentials"]["username"]);
-            $('#modalEditDesktop #guest_properties-credentials-password').val(data["guest_properties"]["credentials"]["password"]);
-            setHardwareDomainDefaults('#modalEditDesktop', data);
-            setViewers('#modalEditDesktop',data)
-        }
-    });
-}
 
 $("#modalEditDesktop #send").on('click', function(e){
     var form = $('#modalEdit');
@@ -418,20 +400,15 @@ function parse_desktop(data){
 function actionsTmplDetail(){
     $('.btn-edit').on('click', function () {
         var pk=$(this).closest("[data-pk]").attr("data-pk");
-        setHardwareOptions('#modalEditDesktop');
-        setReservablesOptions('#modalEditDesktop',pk);
-        setReservablesDomainDefaults('#modalEditDesktop',pk);
         $("#modalEdit")[0].reset();
+        setHardwareOptions('#modalEditDesktop','hd',pk);
+        setHardwareDomainIdDefaults('#modalEditDesktop',pk);
+        setMedia_add('#modalEditDesktop #media-block')
         $('#modalEditDesktop').modal({
             backdrop: 'static',
             keyboard: false
         }).modal('show');
-         $('#hardware-block').hide();
         $('#modalEdit').parsley();
-        modal_edit_desktop_datatables(pk);
-        
-        setDomainMediaDefaults('#modalEditDesktop',pk);
-        setMedia_add('#modalEditDesktop #media-block')
     });
 }
 

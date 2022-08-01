@@ -679,8 +679,6 @@ function actionsDomainDetail(){
                     $('#modalEditXmlForm #xml').val(data);
                 }				
             });
-            //~ $('#modalEdit').parsley();
-            //~ modal_edit_desktop_datatables(pk);
 	});
 
     $('.btn-server').on('click', function () {
@@ -708,8 +706,6 @@ function actionsDomainDetail(){
                 } 
             }				
         });
-        //~ $('#modalEdit').parsley();
-        //~ modal_edit_desktop_datatables(pk);
 });
 
     if(kind=="desktop"){
@@ -1156,24 +1152,6 @@ function populate_tree_template_delete(id){
     });
 }
 
-// MODAL EDIT DESKTOP
-function modal_edit_desktop_datatables(id){
-	$.ajax({
-		type: "GET",
-		url:"/api/v3/domain/info/" + id,
-		success: function(data)
-		{
-			$('#modalEditDesktop #name_hidden').val(data.name);
-            $('#modalEditDesktop #name').val(data.name);
-			$('#modalEditDesktop #description').val(data.description);
-            $('#modalEditDesktop #id').val(data.id);
-            $('#modalEditDesktop #guest_properties-credentials-username').val(data["guest_properties"]["credentials"]["username"]);
-            $('#modalEditDesktop #guest_properties-credentials-password').val(data["guest_properties"]["credentials"]["password"]);
-            setHardwareDomainDefaults('#modalEditDesktop', data);
-            setViewers('#modalEditDesktop',data)
-		}
-	});
-}
     $("#modalEditDesktop #send").on('click', function(e){
             var form = $('#modalEdit');
             form.parsley().validate();

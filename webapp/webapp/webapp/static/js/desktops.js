@@ -407,8 +407,6 @@ function actionsDesktopDetail(){
                     $('#xml').val(data);
                 }               
             });
-            //~ $('#modalEdit').parsley();
-            //~ modal_edit_desktop_datatables(pk);
     });
 
     $('.btn-jumperurl').on('click', function () {
@@ -838,25 +836,6 @@ function initalize_modal_all_desktops_events(){
             }
         });
 
-}
-
-function modal_edit_desktop_datatables(id){
-    $.ajax({
-        type: "GET",
-        url:"/api/v3/domain/info/" + id,
-        success: function(data)
-        {
-            $('#modalEditDesktop #forced_hyp').closest("div").remove();
-            $('#modalEditDesktop #name_hidden').val(data.name);
-            $('#modalEditDesktop #name').val(data.name);
-            $('#modalEditDesktop #description').val(data.description);
-            $('#modalEditDesktop #id').val(data.id);
-            $('#modalEditDesktop #guest_properties-credentials-username').val(data["guest_properties"]["credentials"]["username"]);
-            $('#modalEditDesktop #guest_properties-credentials-password').val(data["guest_properties"]["credentials"]["password"]);
-            setHardwareDomainDefaults('#modalEditDesktop', data);
-            setViewers('#modalEditDesktop',data)
-        }
-    });
 }
 
 $("#modalEditDesktop #send").on('click', function(e){
