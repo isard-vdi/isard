@@ -47,7 +47,9 @@ def alloweds_table_term(payload, table):
                 "name",
                 data["term"],
                 pluck=data["pluck"],
-                query_filter={"kind": kind},
+                query_filter={"status": "Downloaded"},
+                index_key="kind",
+                index_value=kind,
             )
         else:
             result = alloweds.get_table_term(
@@ -86,7 +88,9 @@ def alloweds_table_term(payload, table):
                 "name",
                 data["term"],
                 pluck=data["pluck"] + ["allowed"],
-                query_filter={"kind": kind},
+                query_filter={"status": "Downloaded"},
+                index_key="kind",
+                index_value=kind,
             )
             # Filter if the user is allowed to see said resource
             result = []
