@@ -1,162 +1,209 @@
-	function setHardwareOptions(id,default_boot,domain_id){
-        default_boot = typeof default_boot !== 'undefined' ? default_boot : 'hd' ;
-			// id is the main div id containing hardware.html
-			$(id+" #hardware-memory").find('option').remove();
-			$(id+" #hardware-vcpus").find('option').remove();
-			$(id+" #hardware-interfaces").find('option').remove();
-			$(id+" #hardware-graphics").find('option').remove();
-            $(id+" #hardware-videos").find('option').remove();
-			$(id+" #hardware-boot_order").find('option').remove();
-			$(id+" #hardware-qos_id").find('option').remove();
-			if (typeof domain_id !== 'undefined'){
-				url = '/api/v3/user/hardware/allowed/'+domain_id
+function setHardwareOptions(id,default_boot,domain_id){
+	default_boot = typeof default_boot !== 'undefined' ? default_boot : 'hd' ;
+		// id is the main div id containing hardware.html
+		$(id+" #hardware-memory").find('option').remove();
+		$(id+" #hardware-vcpus").find('option').remove();
+		$(id+" #hardware-interfaces").find('option').remove();
+		$(id+" #hardware-graphics").find('option').remove();
+		$(id+" #hardware-videos").find('option').remove();
+		$(id+" #hardware-boot_order").find('option').remove();
+		$(id+" #hardware-qos_id").find('option').remove();
+		if (typeof domain_id !== 'undefined'){
+			url = '/api/v3/user/hardware/allowed/'+domain_id
+		}else{
+			url = '/api/v3/user/hardware/allowed'
+		}
+		api.ajax_async(url,'GET','').done(function(hardware) {
+			if(hardware.nets.length == 1){
+				$(id+" #hardware-interfaces").attr("disabled",true);
 			}else{
-				url = '/api/v3/user/hardware/allowed'
+				$(id+" #hardware-interfaces").attr("disabled",false);
 			}
-			api.ajax_async(url,'GET','').done(function(hardware) {
-				if(hardware.nets.length == 1){
-					$(id+" #hardware-interfaces").attr("disabled",true);
-				}else{
-					$(id+" #hardware-interfaces").attr("disabled",false);
-				}
-				$.each(hardware.nets,function(key, value) 
+			$.each(hardware.nets,function(key, value) 
+			{
+				$(id+" #hardware-interfaces").append('<option value=' + value.id + '>' + value.name + ' - ' + value.description + '</option>');
+			});
+
+			if(hardware.graphics.length == 1){
+				$(id+" #hardware-graphics").attr("disabled",true);
+			}else{
+				$(id+" #hardware-graphics").attr("disabled",false);
+			}
+			$.each(hardware.graphics,function(key, value) 
+			{
+				$(id+" #hardware-graphics").append('<option value=' + value.id + '>' + value.name + '</option>');
+			});
+
+			if(hardware.videos.length == 1){
+				$(id+" #hardware-videos").attr("disabled",true);
+			}else{
+				$(id+" #hardware-videos").attr("disabled",false);
+			}
+			$.each(hardware.videos,function(key, value) 
+			{
+				$(id+" #hardware-videos").append('<option value=' + value.id + '>' + value.name + '</option>');
+			});
+
+			if(hardware.boots.length == 1){
+				$(id+" #hardware-boot_order").attr("disabled",true);
+			}else{
+				$(id+" #hardware-boot_order").attr("disabled",false);
+			}
+			$.each(hardware.boots,function(key, value) 
+			{   
+				$(id+" #hardware-boot_order").append('<option value=' + value.id + '>' + value.name + '</option>');
+			});
+			$(id+' #hardware-boot_order option[value="'+default_boot+'"]').prop("selected",true);
+
+			if(hardware.qos_id.length <= 1 || !('qos_id' in hardware)){
+				$(id+" #hardware-qos_id").attr("disabled",true);
+			}else{
+				$(id+" #hardware-qos_id").attr("disabled",false);
+			}
+			if(hardware.qos_id.length == 0){
+				$(id+" #hardware-qos_id").append('<option value="unlimited">Unlimited</option>');
+			}else{
+				$.each(hardware.qos_id,function(key, value) 
 				{
-					$(id+" #hardware-interfaces").append('<option value=' + value.id + '>' + value.name + ' - ' + value.description + '</option>');
+					$(id+" #hardware-qos_id").append('<option value=' + value.id + '>' + value.name + '</option>');
 				});
+			}
 
-				if(hardware.graphics.length == 1){
-					$(id+" #hardware-graphics").attr("disabled",true);
+			if(hardware.quota == false){
+				hardware.quota={'memory':128, 'vcpus':128, 'desktops_disk_size':500}
+			}
+
+			for (var i = 0.5; i <= hardware.quota.memory; i += 0.5) {
+				$(id+" #hardware-memory").append('<option value='+i+'>' + i +'</option>');
+			}
+
+			for (var i = 1; i <= hardware.quota.vcpus; i += 1) {
+				$(id+" #hardware-vcpus").append('<option value='+i+'>' + i +' vCPU</option>');
+			}	
+
+			if($(id+" #disk_size").length != 0) {
+				$(id+" #disk_size").find('option').remove();
+				if(hardware.quota.desktops_disk_size <= 10){
+					for (var i = 1; i <= hardware.quota.desktops_disk_size; i += 1) {
+						$(id+" #disk_size").append('<option value='+i+'>' + i +' GB</option>');
+					}
 				}else{
-					$(id+" #hardware-graphics").attr("disabled",false);
-				}
-				$.each(hardware.graphics,function(key, value) 
-				{
-					$(id+" #hardware-graphics").append('<option value=' + value.id + '>' + value.name + '</option>');
-				});
-
-				if(hardware.videos.length == 1){
-					$(id+" #hardware-videos").attr("disabled",true);
-				}else{
-					$(id+" #hardware-videos").attr("disabled",false);
-				}
-				$.each(hardware.videos,function(key, value) 
-				{
-					$(id+" #hardware-videos").append('<option value=' + value.id + '>' + value.name + '</option>');
-				});
-
-				if(hardware.boots.length == 1){
-					$(id+" #hardware-boot_order").attr("disabled",true);
-				}else{
-					$(id+" #hardware-boot_order").attr("disabled",false);
-				}
-				$.each(hardware.boots,function(key, value) 
-				{   
-					$(id+" #hardware-boot_order").append('<option value=' + value.id + '>' + value.name + '</option>');
-				});
-                $(id+' #hardware-boot_order option[value="'+default_boot+'"]').prop("selected",true);
-
-				if(hardware.qos_id.length <= 1 || !('qos_id' in hardware)){
-					$(id+" #hardware-qos_id").attr("disabled",true);
-				}else{
-					$(id+" #hardware-qos_id").attr("disabled",false);
-				}
-				if(hardware.qos_id.length == 0){
-					$(id+" #hardware-qos_id").append('<option value="unlimited">Unlimited</option>');
-				}else{
-					$.each(hardware.qos_id,function(key, value) 
-					{
-						$(id+" #hardware-qos_id").append('<option value=' + value.id + '>' + value.name + '</option>');
-					});
-				}
-
-				if(hardware.quota == false){
-					hardware.quota={'memory':128, 'vcpus':128, 'desktops_disk_size':500}
-				}
-	
-				for (var i = 0.5; i <= hardware.quota.memory; i += 0.5) {
-					$(id+" #hardware-memory").append('<option value='+i+'>' + i +'</option>');
-				}
-
-				for (var i = 1; i <= hardware.quota.vcpus; i += 1) {
-					$(id+" #hardware-vcpus").append('<option value='+i+'>' + i +' vCPU</option>');
+					$(id+" #disk_size").append('<option value=1>1 GB</option>');
+					$(id+" #disk_size").append('<option value=5>5 GB</option>');
+					for (var i = 10; i <= hardware.quota.desktops_disk_size; i += 5) {
+						$(id+" #disk_size").append('<option value='+i+'>' + i +' GB</option>');
+					}
 				}	
+			}
 
-				if($(id+" #disk_size").length != 0) {
-					$(id+" #disk_size").find('option').remove();
-					if(hardware.quota.desktops_disk_size <= 10){
-						for (var i = 1; i <= hardware.quota.desktops_disk_size; i += 1) {
-							$(id+" #disk_size").append('<option value='+i+'>' + i +' GB</option>');
-						}
-					}else{
-						$(id+" #disk_size").append('<option value=1>1 GB</option>');
-						$(id+" #disk_size").append('<option value=5>5 GB</option>');
-						for (var i = 10; i <= hardware.quota.desktops_disk_size; i += 5) {
-							$(id+" #disk_size").append('<option value='+i+'>' + i +' GB</option>');
-						}
-					}	
+			$(id+" #reservables-vgpus").find('option').remove();
+			if("reservables" in hardware && "vgpus" in hardware.reservables){
+				if(hardware.reservables.vgpus.length == 1){
+					$(id+" #reservables-vgpus").attr("disabled",true);
+				}else{
+					$(id+" #reservables-vgpus").attr("disabled",false);
 				}
-				
-			}); 
+				$.each(hardware.reservables.vgpus,function(key, value)
+				{
+					$(id+" #reservables-vgpus").append('<option value=' + value.id + '>' + value.name + ' - ' + value.description + '</option>');
+				});
+			}
+		}); 
+}
+
+function setHardwareDomainIdDefaults(div_id,domain_id){
+	api.ajax('/api/v3/domain/info/'+domain_id,'GET','').done(function(domain) {
+		setHardwareDomainDefaults(div_id,domain)
+	})
+}
+
+function setHardwareDomainDefaults(div_id,domain){
+
+	$(div_id+' #forced_hyp').closest("div").remove();
+	$(div_id+' #name_hidden').val(domain.name);
+	$(div_id+' #name').val(domain.name);
+	$(div_id+' #description').val(domain.description);
+	$(div_id+' #id').val(domain.id);
+	$(div_id+' #guest_properties-credentials-username').val(domain["guest_properties"]["credentials"]["username"]);
+	$(div_id+' #guest_properties-credentials-password').val(domain["guest_properties"]["credentials"]["password"]);
+	setViewers('#modalEditDesktop',domain)
+
+	$(div_id+' #hardware-interfaces option:selected').prop("selected", false);
+	$(div_id+' #hardware-graphics option:selected').prop("selected", false);
+	$(div_id+' #hardware-videos option:selected').prop("selected", false);
+	$(div_id+' #hardware-boot_order option:selected').prop("selected", false);
+
+	$.each(domain.hardware.interfaces, function(k,value){
+		$(div_id+' #hardware-interfaces option[value="'+value+'"]').prop("selected",true);
+	})
+	$(div_id+' #hardware-graphics option[value="'+domain.hardware.graphics[0].type+'"]').prop("selected",true);
+	$(div_id+' #hardware-videos option[value="'+domain.hardware.videos[0]+'"]').prop("selected",true);
+	$(div_id+' #hardware-disk_bus option[value="'+domain.hardware.disk_bus+'"]').prop("selected",true);
+	
+	// Need to talk with engine and change this
+	if(domain.hardware.boot_order[0]=='hd'){domain.hardware.boot_order[0]='disk'}
+	if(domain.hardware.boot_order[0]=='cdrom'){domain.hardware.boot_order[0]='iso'}
+	if(domain.hardware.boot_order[0]=='network'){domain.hardware.boot_order[0]='pxe'}
+	$(div_id+' #hardware-boot_order option[value="'+domain.hardware.boot_order[0]+'"]').prop("selected",true);
+
+	if(domain.hardware.memory > $(div_id+' #hardware-memory option:last-child').val()){
+		$(div_id+' #hardware-memory option:last-child').prop("selected",true);
+	}else{
+		if($(div_id+' #hardware-memory option[value="'+domain.hardware.memory+'"]').length > 0){
+			$(div_id+' #hardware-memory option[value="'+domain.hardware.memory+'"]').prop("selected",true);
+		}else{
+			$(div_id+' #hardware-memory option:first').prop("selected",true);
+		}
 	}
-    
-	function setHardwareDomainIdDefaults(div_id,domain_id){
-		api.ajax('/api/v3/domain/hardware/'+domain_id,'GET','').done(function(domain) {
-			setHardwareDomainDefaults(div_id,domain)
-		})
+
+	if(domain.hardware.vcpus > $(div_id+' #hardware-vcpus option:last-child').val()){
+		$(div_id+' #hardware-vcpus option:last-child').prop("selected",true);
+	}else{
+		if($(div_id+' #hardware-vcpus option[value="'+domain.hardware.vcpus+'"]').length > 0){
+			$(div_id+' #hardware-vcpus option[value="'+domain.hardware.vcpus+'"]').prop("selected",true);
+		}else{
+			$(div_id+' #hardware-vcpus option:first').prop("selected",true);
+		}
 	}
 	
-	function setHardwareDomainDefaults(div_id,domain){
-		// id is the domain id
-		$(div_id+' #hardware-interfaces option:selected').prop("selected", false);
-		$(div_id+' #hardware-graphics option:selected').prop("selected", false);
-		$(div_id+' #hardware-videos option:selected').prop("selected", false);
-		$(div_id+' #hardware-boot_order option:selected').prop("selected", false);
-
-		$.each(domain.hardware.interfaces, function(k,value){
-			$(div_id+' #hardware-interfaces option[value="'+value+'"]').prop("selected",true);
-		})
-		$(div_id+' #hardware-graphics option[value="'+domain.hardware.graphics[0].type+'"]').prop("selected",true);
-		$(div_id+' #hardware-videos option[value="'+domain.hardware.videos[0]+'"]').prop("selected",true);
-		$(div_id+' #hardware-disk_bus option[value="'+domain.hardware.disk_bus+'"]').prop("selected",true);
-		
-		// Need to talk with engine and change this
-		if(domain.hardware.boot_order[0]=='hd'){domain.hardware.boot_order[0]='disk'}
-		if(domain.hardware.boot_order[0]=='cdrom'){domain.hardware.boot_order[0]='iso'}
-		if(domain.hardware.boot_order[0]=='network'){domain.hardware.boot_order[0]='pxe'}
-		$(div_id+' #hardware-boot_order option[value="'+domain.hardware.boot_order[0]+'"]').prop("selected",true);
-
-		if(domain.hardware.memory > $(div_id+' #hardware-memory option:last-child').val()){
-			$(div_id+' #hardware-memory option:last-child').prop("selected",true);
-		}else{
-			if($(div_id+' #hardware-memory option[value="'+domain.hardware.memory+'"]').length > 0){
-				$(div_id+' #hardware-memory option[value="'+domain.hardware.memory+'"]').prop("selected",true);
-			}else{
-				$(div_id+' #hardware-memory option:first').prop("selected",true);
-			}
-		}
-
-		if(domain.hardware.vcpus > $(div_id+' #hardware-vcpus option:last-child').val()){
-			$(div_id+' #hardware-vcpus option:last-child').prop("selected",true);
-		}else{
-			if($(div_id+' #hardware-vcpus option[value="'+domain.hardware.vcpus+'"]').length > 0){
-				$(div_id+' #hardware-vcpus option[value="'+domain.hardware.vcpus+'"]').prop("selected",true);
-			}else{
-				$(div_id+' #hardware-vcpus option:first').prop("selected",true);
-			}
-		}
-		
-		if('qos_id' in domain.hardware.disks[0]){
-			if(domain.hardware.disks[0]['qos_id']==false){
-				qos_id='unlimited'
-			}else{
-				qos_id=domain.hardware.disks[0]['qos_id']
-			}
-		}else{
+	if('qos_id' in domain.hardware.disks[0]){
+		if(domain.hardware.disks[0]['qos_id']==false){
 			qos_id='unlimited'
+		}else{
+			qos_id=domain.hardware.disks[0]['qos_id']
 		}
-
-		$(div_id+' #hardware-qos_id option[value="'+qos_id+'"]').prop("selected",true);	  
+	}else{
+		qos_id='unlimited'
 	}
+
+	$(div_id+' #hardware-qos_id option[value="'+qos_id+'"]').prop("selected",true);	
+
+	$(div_id+"  #m-isos").empty().trigger('change')
+	if("isos" in domain.hardware){
+		domain.hardware.isos.forEach(function(data){
+			var newOption = new Option(data.name, data.id, true, true);
+				$(div_id+"  #m-isos").append(newOption).trigger('change');
+		});
+	}
+
+	$(div_id+"  #m-floppies").empty().trigger('change')
+	if("floppies" in domain.hardware){
+		domain.hardware.floppies.forEach(function(data){
+			var newOption = new Option(data.name, data.id, true, true);
+				$(div_id+"  #m-floppies").append(newOption).trigger('change');
+		});
+	}
+
+	$(div_id+' #reservables-vgpus option:selected').prop("selected", false);
+	if(domain.hasOwnProperty("reservables") && "vgpus" in domain.reservables && domain.reservables.vgpus && domain.reservables.vgpus[0]){
+		if ($(div_id+' #reservables-vgpus option[value="'+domain.reservables.vgpus[0]+'"]').length == 0) {
+				$(div_id+" #reservables-vgpus").append('<option disabled value=' + domain.reservables.vgpus[0] + '>' + domain.reservables.vgpus[0] + '</option>')
+		}
+		$(div_id+' #reservables-vgpus option[value="'+domain.reservables.vgpus[0]+'"]').prop("selected",true);
+	}else{
+		$(div_id+' #reservables-vgpus option[value="None"]').prop("selected",true);
+	}
+}
 
 
 function populate_tree_template(id){
@@ -193,29 +240,27 @@ function populate_tree_template(id){
   
 }
 
-	function setHardwareDomainDefaults_viewer(div_id,data){
-		data['hardware']=data['create_dict']['hardware']
-		$(div_id+" #vcpu").html(data.hardware.vcpus+' CPU(s)');
-		$(div_id+" #ram").html((data.hardware.memory/1048576).toFixed(2)+'GB');
-		if(data.create_dict.reservables){
-			$(div_id+" #gpu").html(data.create_dict.reservables.vgpus);
-			$(div_id+" #gpu").closest("tr").show();
-		}else{
-			$(div_id+" #gpu").closest("tr").hide();
-		}
-		$(div_id+" #net").html(data.hardware.interfaces.join(' '));
-	    $(div_id+" #graphics").html(data.hardware.graphics);
-		$(div_id+" #video").html(data.hardware.videos);
-		$(div_id+" #boot").html(data.hardware['boot_order']);
-		if(data['forced_hyp']){
-			$(div_id+" #forced_hyp").html(data['forced_hyp']);
-			$(div_id+" #forced_hyp").closest("tr").show();
-		}else{
-			$(div_id+" #forced_hyp").closest("tr").hide(); //.closest("tr").remove();
-		}
-		// console.log(data)
-		// console.log('Disabled template tree. The endpoint is filtering managers and admins. It is that needed?')
-		if (data.kind == 'desktop') {
-			populate_tree_template(data.create_dict.origin ? data.create_dict.origin : data.id);
-		}
+function setHardwareDomainDefaults_viewer(div_id,data){
+	data['hardware']=data['create_dict']['hardware']
+	$(div_id+" #vcpu").html(data.hardware.vcpus+' CPU(s)');
+	$(div_id+" #ram").html((data.hardware.memory/1048576).toFixed(2)+'GB');
+	if(data.create_dict.reservables){
+		$(div_id+" #gpu").html(data.create_dict.reservables.vgpus);
+		$(div_id+" #gpu").closest("tr").show();
+	}else{
+		$(div_id+" #gpu").closest("tr").hide();
 	}
+	$(div_id+" #net").html(data.hardware.interfaces.join(' '));
+	$(div_id+" #graphics").html(data.hardware.graphics);
+	$(div_id+" #video").html(data.hardware.videos);
+	$(div_id+" #boot").html(data.hardware['boot_order']);
+	if(data['forced_hyp']){
+		$(div_id+" #forced_hyp").html(data['forced_hyp']);
+		$(div_id+" #forced_hyp").closest("tr").show();
+	}else{
+		$(div_id+" #forced_hyp").closest("tr").hide(); //.closest("tr").remove();
+	}
+	if (data.kind == 'desktop') {
+		populate_tree_template(data.create_dict.origin ? data.create_dict.origin : data.id);
+	}
+}

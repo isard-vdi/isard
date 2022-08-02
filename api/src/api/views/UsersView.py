@@ -241,6 +241,16 @@ def api_v3_user_hardware_allowed(payload, domain_id=None):
         )
 
 
+@app.route("/api/v3/user/hardware/<kind>/allowed", methods=["GET"])
+@has_token
+def api_v3_user_hardware_allowed_kind(payload, kind):
+    return (
+        json.dumps(quotas.get_hardware_kind_allowed(payload, kind)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
 @app.route("/api/v3/user/desktops", methods=["GET"])
 @has_token
 def api_v3_user_desktops(payload):

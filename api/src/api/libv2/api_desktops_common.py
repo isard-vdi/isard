@@ -160,8 +160,30 @@ class ApiDesktopsCommon:
             hardware = (
                 r.table("domains")
                 .get(domain_id)
-                .pluck({"create_dict": "hardware"})
+                .pluck({"create_dict": {"hardware", "reservables"}})
                 .run(db.conn)["create_dict"]
             )
-            hardware["hardware"]["memory"] = hardware["hardware"]["memory"] / 1048576
-            return hardware
+        if "isos" in hardware["hardware"]:
+            with app.app_context():
+                hardware["hardware"]["isos"] = list(
+                    r.table("media")
+                    .get_all(
+                        r.args([i["id"] for i in hardware["hardware"]["isos"]]),
+                        index="id",
+                    )
+                    .pluck("id", "name")
+                    .run(db.conn)
+                )
+        if "floppies" in hardware["hardware"]:
+            with app.app_context():
+                hardware["hardware"]["floppies"] = list(
+                    r.table("media")
+                    .get_all(
+                        r.args([i["id"] for i in hardware["hardware"]["floppies"]]),
+                        index="id",
+                    )
+                    .pluck("id", "name")
+                    .run(db.conn)
+                )
+        hardware["hardware"]["memory"] = hardware["hardware"]["memory"] / 1048576
+        return hardware

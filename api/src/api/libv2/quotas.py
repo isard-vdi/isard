@@ -61,4 +61,7 @@ class Quotas:
         qp.check("NewDesktop", user_id)
 
     def get_hardware_allowed(self, user_id, domain_id=None):
-        return qp.user_hardware_allowed(user_id, domain_id)
+        return qp.user_hardware_allowed(user_id, kind=None, domain_id=domain_id)
+
+    def get_hardware_kind_allowed(self, user_id, kind):
+        return qp.user_hardware_allowed(user_id, kind, None)
