@@ -21,9 +21,20 @@ db.init_app(app)
 
 
 class ApiAllowed:
-    def get_table_term(self, table, field, value, pluck=False, query_filter={}):
+    def get_table_term(
+        self,
+        table,
+        field,
+        value,
+        pluck=False,
+        query_filter={},
+        index_key=None,
+        index_value=None,
+    ):
         with app.app_context():
             query = r.table(table)
+            if index_key and index_value:
+                query = query.get_all(index_value, index=index_key)
             if query_filter:
                 query = query.filter(query_filter)
             return list(
