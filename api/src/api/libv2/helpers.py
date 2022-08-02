@@ -79,17 +79,20 @@ class InternalUsers(object):
 
 def _get_reservables(item_type, item_id, tolist=False):
     if item_type == "desktop":
-        data = r.table("domains").get(item_id).run(db.conn)
+        with app.app_context():
+            data = r.table("domains").get(item_id).run(db.conn)
         units = 1
         item_name = data["name"]
     elif item_type == "deployment":
-        deployment = r.table("deployments").get(item_id).run(db.conn)
+        with app.app_context():
+            deployment = r.table("deployments").get(item_id).run(db.conn)
         if not deployment:
             raise Error("not_found", "Deployment id not found")
         item_name = deployment["name"]
-        deployment_domains = list(
-            r.table("domains").get_all(item_id, index="tag").run(db.conn)
-        )
+        with app.app_context():
+            deployment_domains = list(
+                r.table("domains").get_all(item_id, index="tag").run(db.conn)
+            )
         if not len(deployment_domains):
             ## Now there is no desktop at the deployment. No reservation will be done.
             raise (
@@ -106,7 +109,6 @@ def _get_reservables(item_type, item_id, tolist=False):
     ):
         raise Error("precondition_required", "Item has no reservables")
     data = data["create_dict"]["reservables"]
-    log.debug("GET RESERVABLES: " + str(data))
     data_without_falses = {k: v for k, v in data.items() if v}
     if tolist:
         return (
@@ -114,6 +116,20 @@ def _get_reservables(item_type, item_id, tolist=False):
             units,
         )
     return (data_without_falses, units, item_name)
+
+
+def _get_domain_reservables(domain_id, toList=False):
+    with app.app_context():
+        data = r.table("domains").get(domain_id).run(db.conn)
+    if not data["create_dict"].get("reservables") or not any(
+        list(data["create_dict"]["reservables"].values())
+    ):
+        return {"vgpus": []}
+    data = data["create_dict"]["reservables"]
+    data_without_falses = {k: v for k, v in data.items() if v}
+    if toList:
+        return [item for sublist in list(reservables.values()) for item in sublist]
+    return data_without_falses
 
 
 def _parse_string(txt):
