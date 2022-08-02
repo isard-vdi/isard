@@ -82,14 +82,14 @@ class ApiDesktopsPersistent:
         desktop_name,
         desktop_description,
         template_id,
-        payload,
+        user_id,
         deployment_tag_dict=False,
     ):
         with app.app_context():
             template = r.table("domains").get(template_id).run(db.conn)
             if not template:
                 raise Error("not_found", "Template not found", traceback.format_exc())
-            user = r.table("users").get(payload["user_id"]).run(db.conn)
+            user = r.table("users").get(user_id).run(db.conn)
             if not user:
                 raise Error("not_found", "NewFromTemplate: user id not found.")
             group = r.table("groups").get(user["group"]).run(db.conn)
@@ -97,7 +97,7 @@ class ApiDesktopsPersistent:
                 raise Error("not_found", "NewFromTemplate: group id not found.")
 
         parsed_name = _parse_string(desktop_name)
-        new_desktop_id = "_" + payload["user_id"] + "-" + parsed_name
+        new_desktop_id = "_" + user_id + "-" + parsed_name
         with app.app_context():
             if r.table("domains").get(new_desktop_id).run(db.conn):
                 raise Error(
@@ -125,12 +125,12 @@ class ApiDesktopsPersistent:
             "name": desktop_name,
             "description": desktop_description,
             "kind": "desktop",
-            "user": payload["user_id"],
+            "user": user_id,
             "username": user["username"],
             "status": "Creating",
             "detail": None,
-            "category": payload["category_id"],
-            "group": payload["group_id"],
+            "category": user["category"],
+            "group": user["group"],
             "xml": None,
             "icon": template["icon"],
             "image": template["image"],
