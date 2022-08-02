@@ -50,16 +50,16 @@ class ApiAllowed:
         table,
         query_pluck=[],
         query_filter={},
-        index="",
-        index_value="",
-        order=False,
+        index_key=None,
+        index_value=None,
+        order=None,
         query_merge=True,
         extra_ids_allowed=[],
     ):
         try:
             query = r.table(table)
-            if index and index_value:
-                query = query.get_all(index_value, index=index)
+            if index_key and index_value:
+                query = query.get_all(index_value, index=index_key)
             if query_filter:
                 query = query.filter(query_filter)
             if query_merge:
