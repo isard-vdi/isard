@@ -192,10 +192,9 @@ def api_v3_user_templates(payload):
     return json.dumps(dropdown_templates), 200, {"Content-Type": "application/json"}
 
 
-@app.route("/api/v3/user/templates/<kind>", methods=["GET"])
-@app.route("/api/v3/user/templates/<kind>", methods=["GET"])
+@app.route("/api/v3/user/templates/allowed", methods=["GET"])
 @has_token
-def api_v3_user_templates_allowed(payload, kind="allowed"):
+def api_v3_user_templates_allowed(payload):
     templates = allowed.get_items_allowed(
         payload=payload,
         table="domains",
@@ -213,8 +212,8 @@ def api_v3_user_templates_allowed(payload, kind="allowed"):
             "user",
             "description",
         ],
-        query_filter={"enabled": True},
-        index="kind",
+        query_filter={"enabled": True, "status": "Stopped"},
+        index_key="kind",
         index_value="template",
         order="name",
         query_merge=True,
