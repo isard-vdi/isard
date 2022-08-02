@@ -178,7 +178,10 @@ class ApiDesktopsCommon:
             with app.app_context():
                 hardware["hardware"]["floppies"] = list(
                     r.table("media")
-                    .get_all(r.args(hardware["hardware"]["floppies"]), index="id")
+                    .get_all(
+                        r.args([i["id"] for i in hardware["hardware"]["floppies"]]),
+                        index="id",
+                    )
                     .pluck("id", "name")
                     .run(db.conn)
                 )
