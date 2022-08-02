@@ -587,7 +587,7 @@ class DomainXML(object):
         )
         self.index_disks["ide"] += 1
 
-    def add_cdrom(self, index=0, path_cdrom="/path/to/cdrom"):
+    def add_cdrom(self, path_cdrom="/path/to/cdrom"):
         global index_to_char_suffix_disks
         # default bus sata
 
@@ -1336,7 +1336,7 @@ def update_xml_from_dict_domain(id_domain, xml=None):
                 v.remove_cdrom()
         for i in range(len(hw["isos"])):
             if i >= total_cdroms_in_xml:
-                v.add_cdrom(index=i, path_cdrom=hw["isos"][i]["path"])
+                v.add_cdrom(path_cdrom=hw["isos"][i]["path"])
             else:
                 v.set_cdrom(hw["isos"][i]["path"], index=i)
     elif total_cdroms_in_xml > 0:
@@ -1356,7 +1356,7 @@ def update_xml_from_dict_domain(id_domain, xml=None):
                 v.remove_floppy()
         for i in range(len(hw["floppies"])):
             if i >= total_floppies_in_xml:
-                v.add_floppy(index=i, path_floppy=hw["floppies"][i]["path"])
+                v.add_floppy(path_floppy=hw["floppies"][i]["path"])
             else:
                 v.set_floppy(hw["floppies"][i]["path"], index=i)
     elif total_floppies_in_xml > 0:
