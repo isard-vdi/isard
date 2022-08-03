@@ -250,16 +250,11 @@ def new(
 
     """Create desktops for each user found"""
     for user in users:
-        payload = {
-            "category_id": user["category"],
-            "group_id": user["group"],
-            "user_id": user["id"],
-        }
         ApiDesktopsPersistent().NewFromTemplate(
             desktop_name,
             description,
             template_id,
-            payload,
+            user_id=user["id"],
             deployment_tag_dict=deployment_tag,
         )
     return deployment["id"]

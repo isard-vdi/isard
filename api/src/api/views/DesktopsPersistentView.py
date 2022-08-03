@@ -123,7 +123,7 @@ def api_v3_persistent_desktop_new(payload):
         desktop_name=data["name"],
         desktop_description=data["description"],
         template_id=data["template_id"],
-        payload=payload,
+        user_id=payload["user_id"],
     )
     return json.dumps({"id": desktop_id}), 200, {"Content-Type": "application/json"}
 
