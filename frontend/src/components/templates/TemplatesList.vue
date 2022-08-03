@@ -16,16 +16,48 @@
             <list-item-skeleton class="mb-2" />
           </b-col>
         </template>
+        <!-- Filter -->
+        <b-row class="mt-2">
+          <b-col
+            cols="8"
+            md="6"
+            lg="4"
+            xl="4"
+          >
+            <b-input-group size="sm">
+              <b-form-input
+                id="filter-input"
+                v-model="filter"
+                type="search"
+                :placeholder="$t('forms.filter-placeholder')"
+              />
+              <b-input-group-append>
+                <b-button
+                  :disabled="!filter"
+                  @click="filter = ''"
+                >
+                  {{ $t('forms.clear') }}
+                </b-button>
+              </b-input-group-append>
+            </b-input-group>
+          </b-col>
+        </b-row>
+
         <b-row class="scrollable-div">
           <b-col
             cols="12"
             class="d-flex flex-row flex-wrap justify-content-start"
           >
             <b-table
+              id="template-table"
               :items="templates"
               :fields="fields"
-              tbody-tr-class="cursor-pointer"
               :responsive="true"
+              :per-page="perPage"
+              :current-page="currentPage"
+              :filter="filter"
+              :filter-included-fields="filterOn"
+              @filtered="onFiltered"
             >
               <template #cell(image)="data">
                 <!-- IMAGE -->
@@ -67,9 +99,21 @@
                       scale="0.75"
                     />
                   </b-button>
+                  <!-- Pagination -->
                 </div>
               </template>
             </b-table>
+            <b-row>
+              <b-col>
+                <b-pagination
+                  v-model="currentPage"
+                  :total-rows="totalRows"
+                  :per-page="perPage"
+                  aria-controls="template-table"
+                  size="sm"
+                />
+              </b-col>
+            </b-row>
           </b-col>
         </b-row>
       </b-skeleton-wrapper>
@@ -79,6 +123,7 @@
 <script>
 import i18n from '@/i18n'
 import ListItemSkeleton from '@/components/ListItemSkeleton.vue'
+import { ref, reactive, watch } from '@vue/composition-api'
 
 export default {
   components: { ListItemSkeleton },
@@ -94,6 +139,12 @@ export default {
   },
   setup (props, context) {
     const $store = context.root.$store
+
+    const perPage = ref(6)
+    const currentPage = ref(1)
+    const totalRows = ref(1)
+    const filter = ref('')
+    const filterOn = reactive(['name', 'description'])
 
     const showAllowedModal = (template) => {
       $store.dispatch('fetchAllowed', { table: 'domains', id: template.id })
@@ -129,11 +180,28 @@ export default {
       })
     }
 
+    const onFiltered = (filteredItems) => {
+      console.log(filteredItems)
+      // Trigger pagination to update the number of buttons/pages due to filtering
+      totalRows.value = filteredItems.length
+      currentPage.value = 1
+    }
+
+    watch(() => props.templates, (newVal, prevVal) => {
+      totalRows.value = newVal.length
+    })
+
     return {
       showAllowedModal,
       enabledClass,
       toggleEnabledIcon,
-      toggleEnabled
+      toggleEnabled,
+      onFiltered,
+      filter,
+      filterOn,
+      perPage,
+      currentPage,
+      totalRows
     }
   },
   data () {
