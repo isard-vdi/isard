@@ -16,16 +16,49 @@
             <list-item-skeleton class="mb-2" />
           </b-col>
         </template>
-        <b-row class="scrollable-div">
+        <!-- Filter -->
+        <b-row class="mt-4">
+          <b-col
+            cols="8"
+            md="6"
+            lg="4"
+            xl="4"
+          >
+            <b-input-group size="sm">
+              <b-form-input
+                id="filter-input"
+                v-model="filter"
+                type="search"
+                :placeholder="$t('forms.filter-placeholder')"
+              />
+              <b-input-group-append>
+                <b-button
+                  :disabled="!filter"
+                  @click="filter = ''"
+                >
+                  {{ $t('forms.clear') }}
+                </b-button>
+              </b-input-group-append>
+            </b-input-group>
+          </b-col>
+        </b-row>
+
+        <b-row>
           <b-col
             cols="12"
             class="d-flex flex-row flex-wrap justify-content-start"
           >
             <b-table
+              id="media-table"
               :items="media"
               :fields="shared ? sharedFields : fields"
               tbody-tr-class="cursor-pointer"
               :responsive="true"
+              :per-page="perPage"
+              :current-page="currentPage"
+              :filter="filter"
+              :filter-included-fields="filterOn"
+              @filtered="onFiltered"
             >
               <template #cell(name)="data">
                 <p class="m-0 font-weight-bold">
@@ -114,6 +147,17 @@
                 </div>
               </template>
             </b-table>
+            <b-row>
+              <b-col>
+                <b-pagination
+                  v-model="currentPage"
+                  :total-rows="totalRows"
+                  :per-page="perPage"
+                  aria-controls="media-table"
+                  size="sm"
+                />
+              </b-col>
+            </b-row>
           </b-col>
         </b-row>
       </b-skeleton-wrapper>
@@ -124,6 +168,7 @@
 import i18n from '@/i18n'
 import ListItemSkeleton from '@/components/ListItemSkeleton.vue'
 import { MediaUtils } from '@/utils/mediaUtils'
+import { ref, reactive, watch } from '@vue/composition-api'
 
 export default {
   components: { ListItemSkeleton },
@@ -145,6 +190,12 @@ export default {
   setup (props, context) {
     const $store = context.root.$store
 
+    const perPage = ref(7)
+    const currentPage = ref(1)
+    const totalRows = ref(1)
+    const filter = ref('')
+    const filterOn = reactive(['name', 'description'])
+
     const showAllowedModal = (media) => {
       $store.dispatch('fetchAllowed', { table: 'media', id: media.id })
     }
@@ -161,11 +212,27 @@ export default {
       $store.dispatch('fetchMediaDesktops', { mediaId: media.id, name: media.name })
     }
 
+    const onFiltered = (filteredItems) => {
+      // Trigger pagination to update the number of buttons/pages due to filtering
+      totalRows.value = filteredItems.length
+      currentPage.value = 1
+    }
+
+    watch(() => props.media, (newVal, prevVal) => {
+      totalRows.value = newVal.length
+    })
+
     return {
       getMediaStatus,
       showAllowedModal,
       mediaIcon,
-      showDeleteModal
+      showDeleteModal,
+      onFiltered,
+      filter,
+      filterOn,
+      perPage,
+      currentPage,
+      totalRows
     }
   },
   data () {
