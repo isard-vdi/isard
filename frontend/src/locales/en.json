@@ -303,7 +303,9 @@
                 "category": "Category",
                 "group": "Group"
             },
+            "language": "Language",
             "quota": {
+                "title": "Quota",
                 "d": "Created desktops / Total desktops",
                 "i": "Created isos / Total isos",
                 "m": "Used memory / Total memory (GB)",

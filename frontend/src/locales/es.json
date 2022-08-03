@@ -303,7 +303,9 @@
                 "category": "Categoría",
                 "group": "Grupo"
             },
+            "language": "Idioma",
             "quota": {
+                "title": "Cuota",
                 "d": "Escritorios creados / Total de escritorios",
                 "i": "Isos creadas / Total de isos",
                 "m": "Memoria utilizada / Total de memoria (GB)",

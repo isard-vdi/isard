@@ -200,7 +200,9 @@
                 "category": "Categoria",
                 "group": "Grup"
             },
+            "language": "Idioma",
             "quota": {
+                "title": "Quota",
                 "d": "Escriptoris creats / Total d'escriptoris",
                 "i": "Isos creades / Total d'isos",
                 "m": "Memòria utilitzada / Total de memòria (GB)",

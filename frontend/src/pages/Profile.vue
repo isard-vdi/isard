@@ -150,7 +150,7 @@
                         <!-- User quota -->
                         <b-col xl="6">
                           <h5 class="font-weight-bold mt-4">
-                            Language
+                            {{ $t('components.profile.language') }}
                           </h5>
                           <b-row class="justify-content-center text-center">
                             <b-col cols="12">
@@ -158,7 +158,7 @@
                             </b-col>
                           </b-row>
                           <h5 class="font-weight-bold mt-4">
-                            Quota
+                            {{ $t('components.profile.quota.title') }}
                           </h5>
                           <b-row class="justify-content-center text-center pb-4">
                             <b-col cols="12">
