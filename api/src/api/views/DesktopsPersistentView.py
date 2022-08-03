@@ -23,7 +23,7 @@ from ..libv2.api_desktops_persistent import ApiDesktopsPersistent
 desktops = ApiDesktopsPersistent()
 
 from ..libv2.validators import _validate_item, check_user_duplicated_domain_name
-from .decorators import allowedTemplateId, has_token, ownsDomainId
+from .decorators import allowedTemplateId, has_token, is_admin_or_manager, ownsDomainId
 
 
 @app.route("/api/v3/desktop/start/<desktop_id>", methods=["GET"])
@@ -126,6 +126,25 @@ def api_v3_persistent_desktop_new(payload):
         user_id=payload["user_id"],
     )
     return json.dumps({"id": desktop_id}), 200, {"Content-Type": "application/json"}
+
+
+# Bulk desktops action
+@app.route("/api/v3/persistent_desktop/bulk", methods=["POST"])
+@is_admin_or_manager
+def api_v3_persistent_desktop_bulk_new(payload):
+    try:
+        data = request.get_json(force=True)
+    except:
+        Error(
+            "bad_request",
+            "Desktop persistent add incorrect body data",
+            traceback.format_exc(),
+        )
+    data = _validate_item("desktops_from_template", data)
+    allowedTemplateId(payload, data["template_id"])
+    desktops.BulkDesktops(payload, data)
+
+    return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/api/v3/desktop/from/media", methods=["POST"])

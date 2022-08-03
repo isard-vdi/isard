@@ -121,7 +121,9 @@ function setHardwareDomainDefaults(div_id,domain){
 
 	$(div_id+' #forced_hyp').closest("div").remove();
 	$(div_id+' #name_hidden').val(domain.name);
-	$(div_id+' #name').val(domain.name);
+	if (div_id != '#modalAddDesktop') {
+		$(div_id+' #name').val(domain.name);
+	}
 	$(div_id+' #description').val(domain.description);
 	$(div_id+' #id').val(domain.id);
 	$(div_id+' #guest_properties-credentials-username').val(domain["guest_properties"]["credentials"]["username"]);

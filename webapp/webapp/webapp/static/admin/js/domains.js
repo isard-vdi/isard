@@ -138,11 +138,54 @@ $(document).ready(function() {
             form.parsley().validate();
     
             if (form.parsley().isValid()){
-                template=$('#modalAddDesktop #template').val();
-                if (template !=''){
+                template_id=$('#modalAddDesktop #template').val();
+                if (template_id !=''){
                     data=$('#modalAdd').serializeObject();
                     data=replaceAlloweds_arrays('#modalAddDesktop #alloweds-block',data)
-                    socket.emit('domain_add',data)
+                    name = data["name"]
+                    description = data["description"]
+                    allowed = data["allowed"]
+                    
+                    var notice = new PNotify({
+                        text: 'Creating desktops...',
+                        hide: true,
+                        opacity: 1,
+                        icon: 'fa fa-spinner fa-pulse'
+                    })
+                    
+                    $('form').each(function() {
+                        this.reset()
+                    })
+                    $('.modal').modal('hide')
+    
+                    $.ajax({
+                        type: "POST",
+                        url:"/api/v3/persistent_desktop/bulk",
+                        data: JSON.stringify({name, template_id, description, allowed}),
+                        contentType: "application/json",
+                        error: function(data) {
+                            notice.update({
+                                title: 'ERROR',
+                                text: data.responseJSON.description,
+                                type: 'error',
+                                hide: true,
+                                icon: 'fa fa-warning',
+                                delay: 5000,
+                                opacity: 1
+                            })
+                        },
+                        success: function(data) {
+                            notice.update({
+                                title: 'New desktops',
+                                text: 'Desktops created successfully',
+                                hide: true,
+                                delay: 2000,
+                                icon: 'fa fa-' + data.icon,
+                                opacity: 1,
+                                type: 'success'
+                            })
+                        }
+                    });
                 }else{
                     $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
                     $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');

@@ -9,10 +9,15 @@ import secrets
 import time
 import traceback
 
+from ..libv2.quotas import Quotas
+
+quotas = Quotas()
+
 from rethinkdb import RethinkDB
 
 from api import app
 
+from ..libv2.validators import _validate_item, check_user_duplicated_domain_name
 from .api_exceptions import Error
 
 r = RethinkDB()
@@ -173,6 +178,88 @@ class ApiDesktopsPersistent:
                 )
             else:
                 return new_desktop_id
+
+    def BulkDesktops(self, payload, data):
+        selected = data["allowed"]
+        users = []
+
+        if payload["role_id"] == "admin":
+            if selected["roles"] is not False:
+                if not selected["roles"]:
+                    with app.app_context():
+                        selected["roles"] = [
+                            r["id"]
+                            for r in list(r.table("roles").pluck("id").run(db.conn))
+                        ]
+                for role in selected["roles"]:
+                    # Can't use get_all as has no index in database
+                    with app.app_context():
+                        roles = list(
+                            r.table("users")
+                            .filter({"role": role})
+                            .pluck("id")
+                            .run(db.conn)
+                        )
+                    users = users + [r["id"] for r in roles]
+
+            if selected["categories"] is not False:
+                if not selected["categories"]:
+                    with app.app_context():
+                        selected["categories"] = [
+                            c["id"]
+                            for c in list(
+                                r.table("categories").pluck("id").run(db.conn)
+                            )
+                        ]
+                with app.app_context():
+                    categories = list(
+                        r.table("users")
+                        .get_all(r.args(selected["categories"]), index="category")
+                        .pluck("id")
+                        .run(db.conn)
+                    )
+                users = users + [c["id"] for c in categories]
+
+        if selected["groups"] is not False:
+            if not selected["groups"]:
+                query = r.table("groups")
+                if payload["role_id"] == "manager":
+                    query = query.get_all(
+                        payload["category_id"], index="parent_category"
+                    )
+                with app.app_context():
+                    selected["groups"] = [
+                        g["id"] for g in list(query.pluck("id").run(db.conn))
+                    ]
+            with app.app_context():
+                groups = list(
+                    r.table("users")
+                    .get_all(r.args(selected["groups"]), index="group")
+                    .pluck("id")
+                    .run(db.conn)
+                )
+            users = users + [g["id"] for g in groups]
+
+        if selected["users"] is not False:
+            if not selected["users"]:
+                query = r.table("users")
+                if payload["role_id"] == "manager":
+                    query = query.get_all(payload["category_id"], index="category")
+                with app.app_context():
+                    selected["users"] = [
+                        u["id"] for u in list(query.pluck("id").run(db.conn))
+                    ]
+            users = users + selected["users"]
+
+        users = list(set(users))
+        for user_id in users:
+            check_user_duplicated_domain_name("", data["name"], user_id)
+            quotas.DesktopCreate(user_id)
+
+        for user_id in users:
+            self.NewFromTemplate(
+                data["name"], data["description"], data["template_id"], user_id
+            )
 
     def NewFromMedia(self, payload, data):
         with app.app_context():
