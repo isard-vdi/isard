@@ -36,6 +36,9 @@ from ..libv2.api_cards import ApiCards, get_domain_stock_card
 
 api_cards = ApiCards()
 
+from ..libv2.quotas import Quotas
+
+quotas = Quotas()
 
 from .ds import DS
 
@@ -46,6 +49,7 @@ from .helpers import (
     _parse_media_info,
     _parse_string,
     default_guest_properties,
+    gen_payload_from_user,
     parse_domain_update,
 )
 
@@ -132,6 +136,9 @@ class ApiDesktopsPersistent:
         if "interfaces_mac" in create_dict["hardware"].keys():
             create_dict["hardware"].pop("interfaces_mac")
 
+        if not deployment_tag_dict:
+            payload = gen_payload_from_user(user)
+            create_dict = quotas.limit_user_hardware_allowed(payload, create_dict)
         new_desktop = {
             "id": new_desktop_id,
             "name": desktop_name,
