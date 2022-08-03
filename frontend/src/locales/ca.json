@@ -649,6 +649,7 @@
             "description": "Descripció",
             "select-type": "Si us plau, selecciona una opció"
         },
+        "filter-placeholder": "Escriu per cercar",
         "clear": "Neteja",
         "cancel": "Canceŀla",
         "submit": "Envia",

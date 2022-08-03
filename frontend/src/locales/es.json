@@ -97,6 +97,7 @@
             "description": "Descripció",
             "select-type": "Por favor, seleccione una opción"
         },
+        "filter-placeholder": "Escribe para buscar",
         "clear": "Limpia",
         "cancel": "Cancela",
         "submit": "Envía",

@@ -97,6 +97,7 @@
             "description": "Description",
             "select-type": "Please, select an option"
         },
+        "filter-placeholder": "Type to search",
         "clear": "Clear",
         "cancel": "Cancel",
         "submit": "Submit",
