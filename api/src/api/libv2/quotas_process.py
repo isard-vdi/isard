@@ -779,10 +779,10 @@ class QuotasProcess:
 
     def user_hardware_allowed(self, payload, kind=None, domain_id=None):
         if kind and kind not in [
-            "nets",
+            "interfaces",
             "graphics",
             "videos",
-            "boots",
+            "boot_order",
             "qos_id",
             "reservables",
             "forced_hyp",
@@ -800,8 +800,8 @@ class QuotasProcess:
             domain = {}
 
         dict = {}
-        if not kind or kind == "nets":
-            dict["nets"] = allowed.get_items_allowed(
+        if not kind or kind == "interfaces":
+            dict["interfaces"] = allowed.get_items_allowed(
                 payload,
                 "interfaces",
                 query_pluck=["id", "name", "description"],
@@ -833,15 +833,15 @@ class QuotasProcess:
                 if "videos" not in domain.get("hardware", [])
                 else domain["hardware"]["videos"],
             )
-        if not kind or kind == "boots":
-            dict["boots"] = allowed.get_items_allowed(
+        if not kind or kind == "boot_order":
+            dict["boot_order"] = allowed.get_items_allowed(
                 payload,
                 "boots",
                 query_pluck=["id", "name", "description"],
                 order="name",
                 query_merge=False,
                 extra_ids_allowed=[]
-                if "boots" not in domain.get("hardware", [])
+                if "boot_order" not in domain.get("hardware", [])
                 else domain["hardware"]["boot_order"],
             )
         if not kind or kind == "qos_id":
@@ -905,7 +905,7 @@ class QuotasProcess:
             create_dict["hardware"].get("interfaces")
             and len(create_dict["hardware"].get("interfaces", []))
             and create_dict["hardware"]["interfaces"][0]
-            not in [uh["id"] for uh in user_hardware["nets"]]
+            not in [uh["id"] for uh in user_hardware["interfaces"]]
         ):
             create_dict["hardware"]["interfaces"] = ["default"]
 
@@ -921,7 +921,7 @@ class QuotasProcess:
             create_dict["hardware"].get("boot_order")
             and len(create_dict["hardware"].get("boot_order", []))
             and create_dict["hardware"]["boot_order"][0]
-            not in [uh["id"] for uh in user_hardware["boots"]]
+            not in [uh["id"] for uh in user_hardware["boot_order"]]
         ):
             create_dict["hardware"]["boot_order"] = ["hd"]
 

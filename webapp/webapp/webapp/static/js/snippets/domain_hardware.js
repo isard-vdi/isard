@@ -14,12 +14,12 @@ function setHardwareOptions(id,default_boot,domain_id){
 			url = '/api/v3/user/hardware/allowed'
 		}
 		api.ajax_async(url,'GET','').done(function(hardware) {
-			if(hardware.nets.length == 1){
+			if(hardware.interfaces.length == 1){
 				$(id+" #hardware-interfaces").attr("disabled",true);
 			}else{
 				$(id+" #hardware-interfaces").attr("disabled",false);
 			}
-			$.each(hardware.nets,function(key, value) 
+			$.each(hardware.interfaces,function(key, value)
 			{
 				$(id+" #hardware-interfaces").append('<option value=' + value.id + '>' + value.name + ' - ' + value.description + '</option>');
 			});
@@ -44,12 +44,12 @@ function setHardwareOptions(id,default_boot,domain_id){
 				$(id+" #hardware-videos").append('<option value=' + value.id + '>' + value.name + '</option>');
 			});
 
-			if(hardware.boots.length == 1){
+			if(hardware.boot_order.length == 1){
 				$(id+" #hardware-boot_order").attr("disabled",true);
 			}else{
 				$(id+" #hardware-boot_order").attr("disabled",false);
 			}
-			$.each(hardware.boots,function(key, value) 
+			$.each(hardware.boot_order,function(key, value)
 			{   
 				$(id+" #hardware-boot_order").append('<option value=' + value.id + '>' + value.name + '</option>');
 			});
@@ -63,7 +63,7 @@ function setHardwareOptions(id,default_boot,domain_id){
 			if(hardware.qos_id.length == 0){
 				$(id+" #hardware-qos_id").append('<option value="unlimited">Unlimited</option>');
 			}else{
-				$.each(hardware.qos_id,function(key, value) 
+				$.each(hardware.qos_disk,function(key, value)
 				{
 					$(id+" #hardware-qos_id").append('<option value=' + value.id + '>' + value.name + '</option>');
 				});
