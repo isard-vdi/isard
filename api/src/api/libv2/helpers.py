@@ -450,6 +450,8 @@ def parse_domain_update(domain_id, new_data, admin_or_manager=False):
                 },
             }
         if new_data["hardware"].get("reservables"):
+            if new_data["hardware"]["reservables"].get("vgpus") == ["None"]:
+                new_data["hardware"]["reservables"]["vgpus"] = None
             new_domain = {
                 **new_domain,
                 **{
