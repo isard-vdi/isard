@@ -104,7 +104,12 @@ class DS:
         result = future.result()
 
     def _wait_for_domain_status(
-        self, desktop_id, original_status, transition_status, final_status, wait_seconds
+        self,
+        desktop_id,
+        original_status,
+        transition_status,
+        final_status,
+        wait_seconds=10,
     ):
         with app.app_context():
             # Prepare changes

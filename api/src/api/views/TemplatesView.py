@@ -21,6 +21,7 @@ db = RDB(app)
 db.init_app(app)
 
 from ..libv2.api_exceptions import Error
+from ..libv2.helpers import gen_payload_from_user
 from ..libv2.quotas import Quotas
 
 quotas = Quotas()
@@ -37,7 +38,7 @@ from ..libv2.api_allowed import ApiAllowed
 
 allowed = ApiAllowed()
 
-from ..libv2.validators import _validate_item
+from ..libv2.validators import _validate_item, check_user_duplicated_domain_name
 from .decorators import allowedTemplateId, has_token, ownsDomainId
 
 
@@ -66,6 +67,38 @@ def api_v3_template_new(payload):
     )
     return (
         json.dumps({"id": template_id}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/template/duplicate/<template_id>", methods=["POST"])
+@has_token
+def api_v3_template_duplicate(payload, template_id):
+    ownsDomainId(payload, template_id)
+    data = request.get_json(force=True)
+    if data.get("user_id"):
+        payload = gen_payload_from_user(user_id=data["user_id"])
+    data["user_id"] = payload["user_id"]
+    data = _validate_item("template_duplicate", data)
+
+    check_user_duplicated_domain_name(
+        template_id,
+        data["name"],
+        payload["user_id"],
+        kind="template",
+    )
+
+    new_template_id = templates.Duplicate(
+        payload,
+        template_id,
+        data["name"],
+        data["allowed"],
+        description=data.get("description", ""),
+        enabled=data.get("enabled", False),
+    )
+    return (
+        json.dumps({"id": new_template_id}),
         200,
         {"Content-Type": "application/json"},
     )

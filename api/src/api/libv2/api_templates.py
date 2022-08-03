@@ -5,6 +5,7 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
+import time
 import traceback
 
 from rethinkdb import RethinkDB
@@ -26,7 +27,7 @@ from .ds import DS
 
 ds = DS()
 
-from .helpers import _check, _parse_media_info, _parse_string
+from .helpers import _check, _parse_media_info, _parse_string, get_user_data
 
 
 class ApiTemplates:
@@ -126,6 +127,50 @@ class ApiTemplates:
                     "conflict", "Template id already exists: " + str(template_id)
                 )
 
+    def Duplicate(
+        self,
+        payload,
+        template_id,
+        name,
+        allowed={"roles": False, "categories": False, "groups": False, "users": False},
+        description="",
+        enabled=False,
+    ):
+        with app.app_context():
+            template = (
+                r.table("domains")
+                .get(template_id)
+                .without("id", "history_domain")
+                .run(db.conn)
+            )
+        if not template:
+            raise Error("not_found", "Template id not found", traceback.format_exc())
+
+        template["id"] = "_" + payload["user_id"] + "-" + _parse_string(name)
+        template = {**template, **get_user_data(payload["user_id"])}
+        template["name"] = name
+        template["description"] = description
+        template["allowed"] = allowed
+        template["enabled"] = enabled
+        template["status"] = "Stopped"
+        template["accessed"] = time.time()
+
+        try:
+            with app.app_context():
+                new_template_id = (
+                    r.table("domains")
+                    .insert(template, return_changes=True)["changes"]["new_val"]["id"]
+                    .run(db.conn)
+                )
+        except:
+            raise Error(
+                "internal_server",
+                "Unable to insert duplicate template",
+                traceback.format_exc(),
+            )
+        ds._wait_for_domain_status(new_template_id, "Stopped", "Updating", "Stopped")
+        return new_template_id
+
     def Get(self, template_id):
         with app.app_context():
             try:
@@ -136,7 +181,9 @@ class ApiTemplates:
                     .run(db.conn)
                 )
             except:
-                raise UserTemplatesError
+                raise Error(
+                    "not_found", "Template id not found", traceback.format_exc()
+                )
 
     def Delete(self, template_id):
         ## TODO: Delete all related desktops!!!

@@ -610,3 +610,82 @@
 </div>
 
 
+<div class="modal fade" id="modalDuplicateTemplate" tabindex="-1" role="dialog" aria-labelledby="modalTemplateDesktop" aria-hidden="true">
+   <div class="modal-dialog modal-lg">
+       <div class="modal-content">
+           <!-- Modal Header -->
+           <div class="modal-header">
+               <button type="button" class="close" data-dismiss="modal">
+                   <span aria-hidden="true">&times;</span>
+                   <span class="sr-only">Close</span>
+               </button>
+               <h4 class="modal-title" id="myModalLabel">
+                   <i class="fa fa-desktop"> </i> <i class="fa fa-long-arrow-right fa-1x"> </i> <i class="fa fa-cube"> </i> Duplicate template only in database
+               </h4>
+           </div>
+
+           <!-- Modal Body -->
+           <div class="modal-body">
+               <form id="modalDuplicateTemplateForm" class="form-horizontal form-label-left" novalidate>
+                   <div class="x_panel">
+                       <div class="x_title">
+                           <h4><i class="fa fa-cubes"></i> Template Properties</h4>
+                           <div class="clearfix"></div>
+                       </div>
+                       <div class="x_content">
+                           <input id="id" name="id" class="template-id" hidden ></input>
+                           <div class="row">
+                               <div class="col-md-12 col-xs-12">
+                                   <label class="control-label" for="name">Template name <span class="required">*</span>
+                                   </label>
+                                   <input id="template-name" class="form-control template-name" maxlength="60" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 60]" name="name" placeholder="New template name" data-parsley-trigger="change" required type="text">
+                               </div>
+                               <input id="kind" name="kind" class="template-kind" hidden value="template" ></input>
+                           </div>
+                           <div class="row">
+                               <div class="col-md-12 col-xs-12">
+                                   <label class="control-label" for="description">Template description
+                                   </label>
+                                   <textarea id="description" name="description" class="form-control col-md-7 col-xs-12 template-description"></textarea>
+                               </div>
+                           </div>
+                       </div>
+                   </div>
+                   <div class="x_panel">
+                       <div class="x_title">
+                           <h4>Options</h4>
+                           <div class="clearfix"></div>
+                       </div>
+                       <div class="x_content">
+                           <div class="row">
+                               <div class="col-md-2 col-xs-2">
+                                   <label class="control-label" for="enabled-template">
+                                       Enabled
+                                       <div class="icheckbox_flat-green" style="position: relative;">
+                                           <input type="checkbox" id="enabled" name="enabled" class="flat" style="position: absolute; opacity: 0;">
+                                           <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                           </ins>
+                                       </div>
+                                   </label>
+                               </div>
+                               <input id="kind" name="kind" class="template-kind" hidden value="template" ></input>
+                           </div>
+                       </div>
+                   </div>
+                   <div id="alloweds-add">
+                   {% include '/snippets/alloweds_add.html' %}
+                   </div>
+               </form>
+           </div>
+           <!-- Modal Footer -->
+           <div class="modal-footer">
+               <ul class="nav navbar-left panel_toolbox">
+                   <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+               </ul>
+               <ul class="nav navbar-right panel_toolbox">
+                   <li><button id="send" type="button" class="btn btn-success">Duplicate template in database</button></li>
+               </ul>
+           </div>
+       </div>
+   </div>
+</div>

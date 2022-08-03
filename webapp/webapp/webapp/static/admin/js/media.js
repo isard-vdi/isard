@@ -7,6 +7,7 @@
 
 
 $(document).ready(function() {
+    $template = $(".template-media-detail");
     $('.admin-status').show()
     modal_add_install = $('#modal_add_install').DataTable()
 	initialize_modal_all_install_events()
@@ -72,39 +73,47 @@ $(document).ready(function() {
 			"rowId": "id",
 			"deferRender": true,
         "columns": [
+            {
+                "className":      'details-control',
+                "orderable":      false,
+                "data":           null,
+                "width": "10px",
+                "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
+            },
             { "data": "icon", "width": "10px"},
-            { "data": "name", "width": "100px"},
+            { "data": "name",},
             { "data": "status", "width": "10px"},
             { "data": null, "width": "10px"},
             { "data": "category", "width": "10px"},
             { "data": "group", "width": "10px"},          
             { "data": null,"width": "150px", "className": "text-center"},
-            {"data": null, 'defaultContent': '',"width": "80px"},  
+            { "data": "domains", 'defaultContent': 0,"width": "80px"},
+            { "data": null, 'defaultContent': ''},
         ],
         "columnDefs": [ 
 							{
-							"targets": 0,
+							"targets": 1,
 							"render": function ( data, type, full, meta ) {
 							  return renderIcon(full);
 							}},
 							{
-							"targets": 1,
+							"targets": 2,
 							"render": function ( data, type, full, meta ) {
 							  return renderName(full);
                             }},
 							{
-                                "targets": 2,
+                                "targets": 3,
                                 "render": function ( data, type, full, meta ) {
                                   return full.status;
                                 }},                               
 							{
-							"targets": 3,
+							"targets": 4,
 							"render": function ( data, type, full, meta ) {
                                 if(!('username' in full)){return full.user;}
 							  return full.username;
 							}},
                             {
-                                "targets": 6,
+                                "targets": 7,
                                 "render": function ( data, type, full, meta ) {
                                     if(full.status == 'Downloading'){
                                         return renderProgress(full);
@@ -117,7 +126,7 @@ $(document).ready(function() {
                                     }
                                 }},
                             {
-							"targets": 7,
+							"targets": 9,
 							"render": function ( data, type, full, meta ) { 
                                     if(full.status == 'Available' || full.status == "DownloadFailed"){
                                         return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button> \
@@ -137,6 +146,50 @@ $(document).ready(function() {
                                     } 
                                 }
                                 }}],
+    } );
+
+    $('#media tbody').on('click', 'td.details-control', function () {
+        var tr = $(this).closest("tr");
+        var row = table.row(tr);
+        var rowData = row.data();
+
+        if (row.child.isShown()) {
+          // This row is already open - close it
+          row.child.hide();
+          tr.removeClass("shown");
+        //   table.ajax.reload();
+
+          // Destroy the Child Datatable
+          $("#cl" + rowData.clientID)
+            .DataTable()
+            .destroy();
+        } else {
+            // Open this row
+            row.child(format(rowData)).show();
+            var id = rowData.id;
+
+            childTable = $("#cl" + id).DataTable({
+              dom: "t",
+              ajax: {
+                url: "/admin/media/domains/" + id,
+                contentType: "application/json",
+                type: "GET",
+              },
+              sAjaxDataProp: "",
+              language: {
+                loadingRecords:
+                  '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
+              },
+              columns: [
+                { data: "kind" },
+                { data: "name" },
+              ],
+              columnDefs: [
+              ],
+              select: false,
+            });
+            tr.addClass("shown");
+          }
     } );
 
     $('#media').find(' tbody').on( 'click', 'button', function () {
@@ -325,6 +378,29 @@ $(document).ready(function() {
                 }
             })
         });  
+
+        if( $("#media_physical").length != 0){
+            var media_physical=$('#media_physical').DataTable( {
+              "ajax": {
+              "url": "/api/v3/admin/storage/physical/media",
+                      "contentType": "application/json",
+                      "type": 'GET',
+              },
+              "sAjaxDataProp": "",
+              "language": {
+                "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+              },
+              "rowId": "id",
+              "deferRender": true,
+                "columns": [
+                    { "data": "path",},
+                    { "data": "kind",},
+                    { "data": "size"},
+                    { "data": "hyper",},
+              ],
+              "columnDefs": [],
+            });
+          }
 
     // SocketIO
     socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/administrators', {
@@ -597,3 +673,12 @@ function parse_media(data){
               },
             }
 }
+
+function format(rowData) {
+    var childTable =
+      '<table id="cl' +
+      rowData.id +
+      '" class="display compact nowrap w-100" width="100%">' +
+      "</table>";
+    return $(childTable).toArray();
+  }

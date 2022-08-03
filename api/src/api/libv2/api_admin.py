@@ -36,6 +36,15 @@ def admin_table_list(table, order_by=None, pluck=None, without=None, id=None):
     with app.app_context():
         query = r.table(table)
 
+    if table == "media":
+        query = query.merge(
+            lambda media: {
+                "domains": r.table("domains")
+                .get_all(media["id"], index="media_ids")
+                .count()
+            }
+        )
+
     if pluck:
         query = query.pluck(pluck)
 
@@ -104,6 +113,14 @@ def admin_table_update(table, data):
 def admin_table_get(table, id, pluck=None):
     _validate_table(table)
     query = r.table(table).get(id)
+    if table == "media":
+        query = query.merge(
+            lambda media: {
+                "domains": r.table("domains")
+                .get_all(media["id"], index="media_ids")
+                .count()
+            }
+        )
     if pluck:
         query = query.pluck(pluck)
     with app.app_context():

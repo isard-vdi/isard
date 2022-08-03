@@ -327,6 +327,58 @@ $(document).ready(function() {
         })
     });
 
+    $("#modalDuplicateTemplate #send").on('click', function(e){
+        var form = $('#modalDuplicateTemplateForm');
+        form.parsley().validate();
+        if (form.parsley().isValid()){
+            data=$('#modalDuplicateTemplateForm').serializeObject();
+            data=replaceAlloweds_arrays('#modalDuplicateTemplateForm #alloweds-add',data)
+            sent_data = {"name": data.name,
+                        "description": data.description,
+                        "enabled": $('#modalDuplicateTemplateForm #enabled').prop('checked'),
+                        "allowed": data.allowed}
+            var notice = new PNotify({
+                text: 'Creating duplicate template...',
+                hide: false,
+                opacity: 1,
+                icon: 'fa fa-spinner fa-pulse'
+            })
+            $.ajax({
+                type: 'POST',
+                url: '/api/v3/template/duplicate/'+data.id,
+                data: JSON.stringify(sent_data),
+                contentType: 'application/json',
+                error: function(data) {
+                    new PNotify({
+                        title: 'ERROR',
+                        text: 'Something went wrong',
+                        type: 'error',
+                        hide: true,
+                        icon: 'fa fa-warning',
+                        delay: 5000,
+                        opacity: 1
+                    })
+                },
+                success: function(data) {
+                    domains_table.ajax.reload()
+                    notice.update({
+                        title: data.title,
+                        text: 'Template duplicated',
+                        hide: true,
+                        delay: 2000,
+                        icon: 'fa fa-' + data.icon,
+                        opacity: 1,
+                        type: 'success'
+                    })
+                }
+            })
+        }
+        $('form').each(function() {
+            this.reset()
+        })
+        $('.modal').modal('hide')
+    });
+
     // Setup - add a text input to each footer cell
     $('#domains tfoot th').each( function () {
         var title = $(this).text();
@@ -773,8 +825,8 @@ function actionsDomainDetail(){
             setAlloweds_add('#modalTemplateDesktop #alloweds-add');
         }
 	});
-    
-        $('.btn-delete').on('click', function () {
+
+    $('.btn-delete').on('click', function () {
                     var pk=$(this).closest("[data-pk]").attr("data-pk");
                     var name=$(this).closest("[data-pk]").attr("data-name");
                     new PNotify({
@@ -810,7 +862,31 @@ function actionsDomainDetail(){
             }).modal('show');
             populate_tree_template_delete(pk);
         });
+
+    $('.btn-duplicate-template').on('click', function () {
+		if($('.quota-templates .perc').text() >=100){
+            new PNotify({
+                title: "Quota for creating templates full.",
+                text: "Can't create another template, quota full.",
+                hide: true,
+                delay: 3000,
+                icon: 'fa fa-alert-sign',
+                opacity: 1,
+                type: 'error'
+            });
+		}else{	
+			var pk=$(this).closest("[data-pk]").attr("data-pk");
+			setDefaultsTemplate(pk);
+			$('#modalDuplicateTemplate').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');
+
+            setAlloweds_add('#modalDuplicateTemplate #alloweds-add');
+        }
+	});
     }
+
 
     $('.btn-jumperurl').on('click', function () {
         var pk=$(this).closest("[data-pk]").attr("data-pk");

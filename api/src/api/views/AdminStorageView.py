@@ -12,9 +12,9 @@ from flask import request
 from api import app
 
 from ..libv2.api_exceptions import Error
-from ..libv2.api_storage import get_disks, get_storage_domains
+from ..libv2.api_storage import get_disks, get_media_domains, get_storage_domains
 from ..libv2.helpers import get_user_data
-from .decorators import is_admin_or_manager, ownsStorageId
+from .decorators import is_admin_or_manager, ownsMediaId, ownsStorageId
 
 
 @app.route("/api/v3/admin/storage", methods=["GET"])
@@ -37,6 +37,17 @@ def api_v3_admin_storage_domains(payload, storage_id):
     ownsStorageId(payload, storage_id)
     return (
         json.dumps(get_storage_domains(storage_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/media/domains/<storage_id>", methods=["GET"])
+@is_admin_or_manager
+def api_v3_admin_media_domains(payload, storage_id):
+    ownsMediaId(payload, storage_id)
+    return (
+        json.dumps(get_media_domains(storage_id)),
         200,
         {"Content-Type": "application/json"},
     )
