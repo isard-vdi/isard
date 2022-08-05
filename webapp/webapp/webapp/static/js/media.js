@@ -150,87 +150,80 @@ $(document).ready(function() {
 
     var table_share=$('#media_share').DataTable( {
         "ajax": {
-                "url": "/api/v3/media_allowed",
-                "dataSrc": ""
-				//~ "url": "/isard-admin/admin/load/media/post",
-                //~ "contentType": "application/json",
-                //~ "type": 'POST',
-                //~ "data": function(d){return JSON.stringify({'flatten':false})}            
+            "url": "/api/v3/media_allowed",
+            "dataSrc": ""         
         },
-			"language": {
-				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
-			},
-			"rowId": "id",
-			"deferRender": true,
+        "language": {
+            "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+        },
+        "rowId": "id",
+        "deferRender": true,
         "columns": [
-				//~ {
-                //~ "className":      'details-control',
-                //~ "orderable":      false,
-                //~ "data":           null,
-                //~ "width": "10px",
-                //~ "defaultContent": '' //'<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
-				//~ },
-                { "data": "icon", "width": "10px"},
-                { "data": "name", "width": "10px"},
-                { "data": "status", "width": "10px"},
-                { "data": null, "width": "10px"},
-                { "data": "category", "width": "10px"},
-                { "data": "group", "width": "10px"},          
-                { "data": null,"width": "150px", "className": "text-center"},
-                {"data": null, 'defaultContent': '',"width": "80px"},  
-            ],
-            "columnDefs": [ 
-                                {
-                                "targets": 0,
-                                "render": function ( data, type, full, meta ) {
-                                  return renderIcon(full);
-                                }},
-                                {
-                                "targets": 1,
-                                "render": function ( data, type, full, meta ) {
-                                  return renderName(full);
-                                }},
-                                {
-                                    "targets": 2,
-                                    "render": function ( data, type, full, meta ) {
-                                      return full.status;
-                                    }},                               
-                                {
-                                "targets": 3,
-                                "render": function ( data, type, full, meta ) {
-                                    if(!('username' in full)){return full.user;}
-                                  return full.username;
-                                }},
-                                {
-                                "targets": 6,
-                                "render": function ( data, type, full, meta ) {
-                                    if(full.status == 'Downloading'){
-                                        return renderProgress(full);
-                                    }else{
-                                        if('progress' in data && 'total' in data.progress){
-                                            return data.progress.total;
-                                        }else{
-                                            return '';
-                                        }
-                                    }
-                                }},
-                            {
-							"targets": 7,
-							"render": function ( data, type, full, meta ) { 
-                                    if(full.status == 'Available' || full.status == "DownloadFailed"){
-                                        return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
-                                    }
-                                    if(full.status == 'Downloading'){
-                                        return '<button id="btn-abort" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-stop" style="color:darkred"></i></button>'
-                                    }
-                                    else{
-                                            return '<button id="btn-createfromiso" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-desktop" style="color:darkgreen"></i></button>'
-                                    }                                
-                                }}],
-        "initComplete": function() {
-                                //~ $('.progress .progress-bar').progressbar();
-                                //~ $('.progress-bar').progressbar();
-                              }
+            { "data": "icon", "width": "10px"},
+            { "data": "name", "width": "10px"},
+            { "data": "status", "width": "10px"},
+            { "data": null, "width": "10px"},
+            { "data": "category", "width": "10px"},
+            { "data": "group", "width": "10px"},          
+            { "data": null,"width": "150px", "className": "text-center"},
+            {"data": null, 'defaultContent': '',"width": "80px"},  
+        ],
+        "columnDefs": [ 
+            {
+                "targets": 0,
+                "render": function ( data, type, full, meta ) {
+                    return renderIcon(full);
+                }
+            },
+            {
+                "targets": 1,
+                "render": function ( data, type, full, meta ) {
+                    return renderName(full);
+                }
+            },
+            {
+                "targets": 2,
+                "render": function ( data, type, full, meta ) {
+                    return full.status;
+                }
+            },                               
+            {
+                "targets": 3,
+                "render": function ( data, type, full, meta ) {
+                    if(!('username' in full)){return full.user;}
+                    return full.username;
+                }
+            },
+            {
+                "targets": 6,
+                "render": function ( data, type, full, meta ) {
+                    if(full.status == 'Downloading'){
+                        return renderProgress(full);
+                    }else{
+                        if('progress' in data && 'total' in data.progress){
+                            return data.progress.total;
+                        }else{
+                            return '';
+                        }
+                    }
+                }
+            },
+            {
+                "targets": 7,
+                "render": function ( data, type, full, meta ) { 
+                    if(full.status == 'Available' || full.status == "DownloadFailed"){
+                        return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
+                    }
+                    if(full.status == 'Downloading'){
+                        return '<button id="btn-abort" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-stop" style="color:darkred"></i></button>'
+                    }
+                    else{
+                            return '<button id="btn-createfromiso" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-desktop" style="color:darkgreen"></i></button>'
+                    }                                
+                }
+            }
+        ],
+        "initComplete": function() {}
     } );
 
     $('#media').find(' tbody').on( 'click', 'button', function () {
