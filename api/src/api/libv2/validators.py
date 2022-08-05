@@ -59,6 +59,7 @@ def check_user_duplicated_domain_name(item_id, name, user_id, kind="desktop"):
     ):
         raise Error(
             "conflict",
+            "User " + user_id + " already has desktop with name " + name,
             "Desktop with name " + name + " already exists",
             traceback.format_exc(),
         )
