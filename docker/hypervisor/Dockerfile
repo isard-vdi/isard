@@ -1,3 +1,15 @@
+FROM alpine:3.16 as build
+
+RUN apk add --no-cache cargo uuidgen py3-docutils make git
+
+RUN cd /opt && git clone https://github.com/mdevctl/mdevctl
+
+WORKDIR /opt/mdevctl
+RUN CARGO_INCREMENTAL=0 cargo build --release
+RUN make install || true
+
+
+
 FROM alpine:3.15 as production
 MAINTAINER isard <info@isardvdi.com>
 
@@ -154,15 +166,13 @@ RUN apk add --no-cache nfs-utils
 RUN apk add --no-cache cifs-utils
 
 ## MDEVCTL
-RUN echo "@edge-community http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
-RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories
-RUN apk add --no-cache libstdc++@edge llvm14-libs@edge cargo@edge-community uuidgen py3-docutils make git
-RUN cd /opt && git clone https://github.com/mdevctl/mdevctl
-RUN cd /opt/mdevctl && cargo build
-RUN cd /opt/mdevctl && make install || true
-RUN mkdir -p /etc/mdevctl.d/scripts.d/callouts
-RUN mkdir -p /etc/mdevctl.d/scripts.d/notifiers
-RUN apk del --no-cache cargo py3-docutils make git
+RUN mkdir -p \
+    /etc/mdevctl.d \
+    /usr/sbin \
+    /etc/mdevctl.d/scripts.d/callouts \
+    /etc/mdevctl.d/scripts.d/notifiers
+
+COPY --from=build /usr/sbin/mdevctl /usr/sbin/mdevctl
 
 # RUNTIME
 COPY docker/hypervisor/src /src

@@ -44,8 +44,9 @@ COPY docker/vpn/requirements.pip3 /requirements.pip3
 RUN pip3 install --no-cache-dir -r requirements.pip3
 RUN apk del .build_deps
 
+RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories
 RUN echo "@testing http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
-RUN apk add guacamole-server@testing guacamole-server-dev@testing freerdp freerdp-plugins
+RUN apk add libcrypto3@edge libssl3@edge guacamole-server@testing guacamole-server-dev@testing freerdp freerdp-plugins
 
 RUN apk add openvswitch
 RUN /usr/bin/ovsdb-tool create /etc/openvswitch/conf.db
