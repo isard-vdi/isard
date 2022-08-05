@@ -86,8 +86,7 @@ class Error(Exception):
     ):
         # NOTE: Description codes are defined at https://gitlab.com/isard/isardvdi/-/blob/main/frontend/src/locales/en.json#L340
         self.error = ex[error]["error"].copy()
-        if description_code:
-            self.error["error"] = description_code
+        self.error["description_code"] = description_code if description_code else error
         self.error["function"] = (
             inspect.stack()[1][1].split(os.sep)[-1]
             + ":"

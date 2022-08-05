@@ -25,7 +25,7 @@ export class ErrorUtils {
   }
 
   static showErrorMessage (snotify, error, message = '', title = '', position = 'centerTop') {
-    const errorMessage = message.length > 0 ? message : ErrorUtils.getErrorMessageText(get(error, 'response.data.error'))
+    const errorMessage = message.length > 0 ? message : ErrorUtils.getErrorMessageText(get(error, 'response.data.description_code'))
 
     this.showErrorNotification(snotify, errorMessage, position)
   }
@@ -49,14 +49,6 @@ export class ErrorUtils {
       router.push({ name: 'Maintenance' })
     } else if (error.response.status === 401) {
       router.push({ name: 'ExpiredSession' })
-    } else if (error.response.status === 400) {
-      ErrorUtils.showErrorMessage(snotify, error,
-        i18n.t('errors.bad_request'),
-        i18n.t('errors.bad_request_title'))
-    } else if (error.response.status === 409) {
-      ErrorUtils.showErrorMessage(snotify, error,
-        i18n.t('errors.conflict'),
-        i18n.t('errors.conflict_title'))
     } else {
       ErrorUtils.showErrorMessage(snotify, error)
     }
