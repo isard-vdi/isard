@@ -17,7 +17,7 @@
           </b-col>
         </template>
         <!-- Filter -->
-        <b-row class="mt-2">
+        <b-row class="mt-4">
           <b-col
             cols="8"
             md="6"
@@ -43,7 +43,7 @@
           </b-col>
         </b-row>
 
-        <b-row class="scrollable-div">
+        <b-row>
           <b-col
             cols="12"
             class="d-flex flex-row flex-wrap justify-content-start"
@@ -51,7 +51,7 @@
             <b-table
               id="template-table"
               :items="templates"
-              :fields="fields"
+              :fields="shared ? sharedFields : fields"
               :responsive="true"
               :per-page="perPage"
               :current-page="currentPage"
@@ -135,6 +135,11 @@ export default {
     loading: {
       required: true,
       type: Boolean
+    },
+    shared: {
+      required: false,
+      type: Boolean,
+      default: false
     }
   },
   setup (props, context) {
@@ -230,6 +235,28 @@ export default {
           key: 'actions',
           label: i18n.t('views.templates.table-header.actions'),
           thStyle: { width: '5%' }
+        }
+      ],
+      sharedFields: [
+        {
+          key: 'image',
+          sortable: false,
+          label: '',
+          thStyle: { width: '5%' },
+          tdClass: 'image position-relative'
+        },
+        {
+          key: 'name',
+          sortable: true,
+          label: i18n.t('views.templates.table-header.name'),
+          thStyle: { width: '25%' },
+          tdClass: 'name'
+        },
+        {
+          key: 'description',
+          sortable: true,
+          label: i18n.t('views.templates.table-header.description'),
+          thStyle: { width: '35%' }
         }
       ]
     }

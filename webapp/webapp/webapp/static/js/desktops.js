@@ -721,7 +721,7 @@ function modal_add_desktop_datatables(){
 
     modal_add_desktops = $('#modal_add_desktops').DataTable({
             "ajax": {
-                "url": "/api/v3/user/templates/allowed",
+                "url": "/api/v3/user/templates/allowed/all",
                 "dataSrc": ""
             },
             "scrollY":        "350px",

@@ -274,7 +274,7 @@ export default {
   },
   setup (props, context) {
     const $store = context.root.$store
-    $store.dispatch('fetchAllowedTemplates')
+    $store.dispatch('fetchAllowedTemplates', 'all')
 
     const deploymentName = ref('')
     const desktopName = ref('')

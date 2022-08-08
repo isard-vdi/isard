@@ -206,7 +206,7 @@ const inputFormat = value => /^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑ
 export default {
   setup (props, context) {
     const $store = context.root.$store
-    $store.dispatch('fetchAllowedTemplates')
+    $store.dispatch('fetchAllowedTemplates', 'all')
 
     const desktopName = ref('')
     const description = ref('')

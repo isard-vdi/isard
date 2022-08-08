@@ -599,8 +599,18 @@
             }
         },
         "templates": {
+            "tabs": {
+                "templates": "Tus plantillas",
+                "templates-compact": "Tuyas",
+                "shared-templates": "Plantillas compartidas contigo",
+                "shared-templates-compact": "Compartido"
+            },
             "no-templates": {
                 "title": "No hay plantillas para este usuario",
+                "subtitle": "Si crees que se trata de un error, contacta con el administrador"
+            },
+            "no-shared-templates": {
+                "title": "No hay plantillas compartidas con este usuario",
                 "subtitle": "Si crees que se trata de un error, contacta con el administrador"
             },
             "table-header": {
