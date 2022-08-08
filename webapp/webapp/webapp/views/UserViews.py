@@ -3,8 +3,6 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
-import requests
-
 #!flask/bin/python
 # coding=utf-8
 from flask import flash, jsonify, make_response, redirect, render_template, request
@@ -14,11 +12,70 @@ from webapp import app
 
 from ..auth.authentication import *
 from ..lib.log import *
+from .decorators import checkRole, maintenance
+
+
+@app.route("/isard-admin/about", methods=["GET"])
+@maintenance
+def about():
+    return render_template(
+        "pages/about.html",
+        title="About",
+        header="About",
+        nav="About",
+    )
+
+
+@app.route("/isard-admin/healthcheck", methods=["GET"])
+def healthcheck():
+    return ""
+
+
+"""
+LANDING PAGE
+"""
+
+
+@app.route("/isard-admin/desktops")
+@login_required
+@maintenance
+def desktops():
+    return render_template("pages/desktops.html", title="Desktops", nav="Desktops")
+
+
+"""
+TEMPLATES PAGE
+"""
+
+
+@app.route("/isard-admin/templates")
+@login_required
+@maintenance
+@checkRole
+def templates():
+    return render_template("pages/templates.html", nav="Templates")
+
+
+"""
+MEDIA PAGE
+"""
+
+
+@app.route("/isard-admin/media", methods=["GET"])
+@login_required
+@maintenance
+def media():
+    return render_template("pages/media.html", nav="Media")
 
 
 @app.route("/isard-admin", methods=["POST", "GET"])
 def redirect_to_login():
     return redirect("/")
+
+
+"""
+LOGIN PAGE
+"""
 
 
 @app.route("/isard-admin/login", methods=["POST", "GET"])

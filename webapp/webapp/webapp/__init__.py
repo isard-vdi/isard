@@ -109,19 +109,5 @@ def internal_error(error):
 """
 Import all views
 """
-from .admin.views import (
-    AdminDomainsViews,
-    AdminHypersViews,
-    AdminMediaViews,
-    AdminUsersViews,
-    AdminViews,
-    UpdatesViews,
-)
-from .views import (
-    AboutViews,
-    AllowedsViews,
-    DesktopViews,
-    LoginViews,
-    MediaViews,
-    TemplateViews,
-)
+from .views import UserViews
+from .views.admin import AdminViews

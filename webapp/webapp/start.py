@@ -17,16 +17,18 @@ socketio = SocketIO(app)
 
 app.isardapi = api.isard()
 
-from webapp.lib import isardSocketio
 
 ## Main
 if __name__ == "__main__":
     import logging
 
     logger = logging.getLogger("socketio")
-    # level = logging.getLevelName('ERROR')
     logger.setLevel("ERROR")
     engineio_logger = logging.getLogger("engineio")
     engineio_logger.setLevel("ERROR")
 
     debug = os.environ.get("USAGE", "production") == "devel"
+
+    socketio.run(
+        app, host="0.0.0.0", port=5000, debug=debug
+    )  # , logger=logger, engineio_logger=engineio_logger)

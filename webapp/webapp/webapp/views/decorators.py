@@ -16,7 +16,6 @@ from webapp import app
 
 from ..lib.api_client import ApiClient
 from ..lib.flask_rethink import RethinkDB
-from .LoginViews import logout
 
 # from ..lib.log import *
 
@@ -24,71 +23,6 @@ _MAINTENANCE_API_ENDPOINT = "maintenance"
 
 db = RethinkDB(app)
 db.init_app(app)
-
-
-def ownsid(fn):
-    @wraps(fn)
-    def decorated_view(*args, **kwargs):
-        if current_user.role == "admin":
-            return fn(*args, **kwargs)
-        try:
-            myargs = request.get_json(force=True)
-        except:
-            myargs = request.form.to_dict()
-        try:
-            id = kwargs["id"]
-        except:
-            try:
-                id = myargs["pk"]
-            except:
-                id = myargs["id"]
-        if id.startswith("_" + current_user.id):
-
-            with app.app_context():
-                category = r.table("users").get(id)["category"].run(db.conn)
-
-            if current_user.role == "manager" and current_user.category == category:
-                return fn(*args, **kwargs)
-
-        logout_user()
-        return render_template("login_category.html", category=False)
-
-    return decorated_view
-
-
-def ownsidortag(fn):
-    @wraps(fn)
-    def decorated_view(*args, **kwargs):
-        if current_user.role == "admin":
-            return fn(*args, **kwargs)
-        try:
-            myargs = request.get_json(force=True)
-        except:
-            myargs = request.form.to_dict()
-        try:
-            id = kwargs["id"]
-        except:
-            try:
-                id = myargs["pk"]
-            except:
-                id = myargs["id"]
-        with app.app_context():
-            category = r.table("users").get(id)["category"].run(db.conn)
-        if current_user.role == "manager" and current_user.category == category:
-            return fn(*args, **kwargs)
-        with app.app_context():
-            domain = r.table("domains").get(id).pluck("id", "tag").run(db.conn)
-        if domain != None:
-            if domain.get("id", "").startswith("_" + current_user.id):
-                return fn(*args, **kwargs)
-            if current_user.role == "advanced" and str(
-                domain.get("tag", "")
-            ).startswith(current_user.id):
-                return fn(*args, **kwargs)
-        logout_user()
-        return render_template("login_category.html", category=False)
-
-    return decorated_view
 
 
 def checkRole(fn):
@@ -103,10 +37,21 @@ def checkRole(fn):
     return decorated_view
 
 
-def isAdvanced(fn):
+def isAdmin(fn):
     @wraps(fn)
     def decorated_view(*args, **kwargs):
-        if current_user.role == "advanced":
+        if current_user.is_admin:
+            return fn(*args, **kwargs)
+        logout_user()
+        return render_template("login_category.html")
+
+    return decorated_view
+
+
+def isAdminManager(fn):
+    @wraps(fn)
+    def decorated_view(*args, **kwargs):
+        if current_user.is_admin or current_user.role == "manager":
             return fn(*args, **kwargs)
         logout_user()
         return render_template("login_category.html", category=False)
