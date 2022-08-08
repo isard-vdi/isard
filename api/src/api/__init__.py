@@ -108,6 +108,7 @@ from .views import (
     JumperViewerView,
     MediaViews,
     PublicView,
+    Stats,
     TemplatesView,
     UsersView,
     VpnViews,
