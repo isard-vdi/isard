@@ -585,8 +585,18 @@
             }
         },
         "templates": {
+            "tabs": {
+                "templates": "Your templates",
+                "templates-compact": "Yours",
+                "shared-templates": "Templates shared with you",
+                "shared-templates-compact": "Shared"
+            },
             "no-templates": {
                 "title": "There are no templates from this user",
+                "subtitle": "If you think this is an error, please contact the administrator"
+            },
+            "no-shared-templates": {
+                "title": "There are no shared templates for this user",
                 "subtitle": "If you think this is an error, please contact the administrator"
             },
             "table-header": {

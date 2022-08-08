@@ -8,10 +8,17 @@ import logging as log
 import traceback
 
 from flask import request
+from rethinkdb import RethinkDB
 
 #!flask/bin/python
 # coding=utf-8
 from api import app
+
+from ..libv2.flask_rethink import RDB
+
+r = RethinkDB()
+db = RDB(app)
+db.init_app(app)
 
 from ..libv2.api_exceptions import Error
 from ..libv2.quotas import Quotas
@@ -25,6 +32,10 @@ users = ApiUsers()
 from ..libv2.api_templates import ApiTemplates
 
 templates = ApiTemplates()
+
+from ..libv2.api_allowed import ApiAllowed
+
+allowed = ApiAllowed()
 
 from ..libv2.validators import _validate_item
 from .decorators import allowedTemplateId, has_token, ownsDomainId
@@ -88,6 +99,70 @@ def api_v3_template_update(payload):
     ownsDomainId(payload, template_id)
     return (
         json.dumps(templates.UpdateTemplate(template_id, data)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/user/templates", methods=["GET"])
+@has_token
+def api_v3_user_templates(payload):
+    with app.app_context():
+        group = r.table("groups").get(payload["group_id"])["uid"].run(db.conn)
+    if group == None:
+        raise Error("not_found", "Group not found", traceback.format_exc())
+    dropdown_templates = [
+        {
+            "id": t["id"],
+            "name": t["name"],
+            "category": t["category"],
+            "group": group,
+            "user_id": t["user"],
+            "icon": t["icon"],
+            "image": t["image"],
+            "allowed": t["allowed"],
+            "description": t["description"],
+            "enabled": t["enabled"],
+        }
+        for t in users.Templates(payload)
+    ]
+    return json.dumps(dropdown_templates), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/user/templates/allowed/<kind>", methods=["GET"])
+@has_token
+def api_v3_user_templates_allowed(payload, kind):
+    if kind == "shared":
+        query_filter = (
+            lambda templates: r.not_(templates["user"] == payload["user_id"])
+            & templates["enabled"]
+        )
+    elif kind == "all":
+        query_filter = {"enabled": True, "status": "Stopped"}
+    templates = allowed.get_items_allowed(
+        payload=payload,
+        table="domains",
+        query_pluck=[
+            "id",
+            "name",
+            "kind",
+            "category",
+            "category_name",
+            "group",
+            "group_name",
+            "icon",
+            "image",
+            "user",
+            "description",
+        ],
+        query_filter=query_filter,
+        index_key="kind",
+        index_value="template",
+        order="name",
+        query_merge=True,
+    )
+    return (
+        json.dumps(templates),
         200,
         {"Content-Type": "application/json"},
     )

@@ -482,8 +482,18 @@
             "waitingip": "Esperant que s'arrenqui l'escriptori"
         },
         "templates": {
+            "tabs": {
+                "templates": "Les teves plantilles",
+                "templates-compact": "Teves",
+                "shared-templates": "Plantilles compartides amb tu",
+                "shared-templates-compact": "Compartit"
+            },
             "no-templates": {
                 "title": "No hi ha cap plantilla de l'usuari actual",
+                "subtitle": "Si creus que es tracta d'un error, contacta a l'administrador"
+            },
+            "no-shared-templates": {
+                "title": "No hi ha cap platilla compartida amb l'usuari actual",
                 "subtitle": "Si creus que es tracta d'un error, contacta a l'administrador"
             },
             "table-header": {

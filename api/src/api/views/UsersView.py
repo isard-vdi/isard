@@ -167,60 +167,6 @@ def api_v3_user_delete(payload):
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
-@app.route("/api/v3/user/templates", methods=["GET"])
-@has_token
-def api_v3_user_templates(payload):
-    with app.app_context():
-        group = r.table("groups").get(payload["group_id"])["uid"].run(db.conn)
-    if group == None:
-        raise Error("not_found", "Group not found", traceback.format_exc())
-    dropdown_templates = [
-        {
-            "id": t["id"],
-            "name": t["name"],
-            "category": t["category"],
-            "group": group,
-            "user_id": t["user"],
-            "icon": t["icon"],
-            "image": t["image"],
-            "allowed": t["allowed"],
-            "description": t["description"],
-            "enabled": t["enabled"],
-        }
-        for t in users.Templates(payload)
-    ]
-    return json.dumps(dropdown_templates), 200, {"Content-Type": "application/json"}
-
-
-@app.route("/api/v3/user/templates/allowed", methods=["GET"])
-@has_token
-def api_v3_user_templates_allowed(payload):
-    templates = allowed.get_items_allowed(
-        payload=payload,
-        table="domains",
-        query_pluck=[
-            "id",
-            "name",
-            "allowed",
-            "kind",
-            "category",
-            "category_name",
-            "group",
-            "group_name",
-            "icon",
-            "image",
-            "user",
-            "description",
-        ],
-        query_filter={"enabled": True, "status": "Stopped"},
-        index_key="kind",
-        index_value="template",
-        order="name",
-        query_merge=True,
-    )
-    return json.dumps(templates), 200, {"Content-Type": "application/json"}
-
-
 @app.route("/api/v3/user/hardware/allowed", methods=["GET"])
 @app.route("/api/v3/user/hardware/allowed/<domain_id>", methods=["GET"])
 @has_token

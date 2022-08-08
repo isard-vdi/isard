@@ -112,7 +112,7 @@ export default {
 
     watch(config, (newVal, prevVal) => {
       if (newVal.showTemporalTab) {
-        $store.dispatch('fetchAllowedTemplates')
+        $store.dispatch('fetchAllowedTemplates', 'all')
       } else {
         $store.dispatch('setTemplatesLoaded', true)
       }

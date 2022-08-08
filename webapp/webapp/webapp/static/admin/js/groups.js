@@ -142,7 +142,7 @@ $(document).ready(function() {
                 multiple: true,
                 ajax: {
                     type: "GET",
-                    url: '/api/v3/user/templates/allowed',
+                    url: '/api/v3/user/templates/allowed/all',
                     dataType: 'json',
                     contentType: "application/json",
                     delay: 250,
