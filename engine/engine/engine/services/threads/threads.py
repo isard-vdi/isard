@@ -235,7 +235,10 @@ def launch_action_disk(action, hostname, user, port, from_scratch=False):
                 # update parents if have
                 # update_domain_parents(id_domain)
                 # Only go to next step if status not changed while queuing
-                if get_domain_status(id_domain) == "CreatingDisk":
+                if get_domain_status(id_domain) in [
+                    "CreatingDisk",
+                    "CreatingDiskFromScratch",
+                ]:
                     update_domain_status(
                         "CreatingDomain",
                         id_domain,
