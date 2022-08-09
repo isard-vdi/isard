@@ -86,14 +86,14 @@ $(document).ready(function () {
       { data: "model", width: "10px" },
       { data: "architecture" },
       { data: "memory" },
-      {
-        className: "actions-control",
-        orderable: false,
-        data: null,
-        width: "150px",
-        defaultContent:
-          '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-times" style="color:darkred"></i></button>'
-      },
+      // {
+      //   className: "actions-control",
+      //   orderable: false,
+      //   data: null,
+      //   width: "150px",
+      //   defaultContent:
+      //     '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-times" style="color:darkred"></i></button>'
+      // },
     ],
     order: [[7, "desc"]],
     "columnDefs": [ {

@@ -98,10 +98,6 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
     }; 
 
 	function setLimitsMax(parentid,kind,id,disabled){
-		if(kind=='group'){
-			setGroupLimitsMax(parentid,kind,id,disabled);
-			return
-		}
 
 		disabled = typeof disabled !== 'undefined' ? disabled : false;
 		id = typeof id !== 'undefined' ? id : false;
@@ -133,99 +129,6 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
 			}
 
 			unlimited_show_hide(parentid, parentid + ' #limits-', !disabled, !enable)
-
-			$(parentid+"#unlimited").unbind('ifChecked').on('ifChecked', function(event){
-				quotaDisable('#'+$(event.target).closest('form').attr('id')+' #limits-')
-			  }); 	
-			$(parentid+"#unlimited").unbind('ifUnchecked').on('ifUnchecked', function(event){
-				quotaEnable('#'+$(event.target).closest('form').attr('id')+' #limits-')
-			}); 
-
-        });
-	}; 
-
-	function setGroupLimitsMax(parentid,kind,id,disabled){
-		disabled = typeof disabled !== 'undefined' ? disabled : false;
-		id = typeof id !== 'undefined' ? id : false;
-		if(id == false){
-			url='/isard-admin/'+kind+'/quotamax';
-		}else{
-			url='/isard-admin/'+kind+'/quotamax/'+id;
-		}
-        api.ajax(url,'GET','').done(function(usrquota) {
-			parentid=parentid+' ';
-
-			$(parentid+"#limits-users").removeAttr("max");
-			$(parentid+"#limits-desktops").removeAttr("max");
-			$(parentid+"#limits-desktops_disk_size").removeAttr("max");
-			$(parentid+"#limits-running").removeAttr("max");
-			$(parentid+"#limits-templates").removeAttr("max");
-			$(parentid+"#limits-templates_disk_size").removeAttr("max");		
-			$(parentid+"#limits-isos").removeAttr("max");
-			$(parentid+"#limits-isos_disk_size").removeAttr("max");	
-			$(parentid+"#limits-memory").removeAttr("max");
-			$(parentid+"#limits-vcpus").removeAttr("max");
-
-			// if limits are defined for user set as max value
-			if(usrquota.limits != false){
-				$(parentid+"#limits-users").attr("title", "Limited by parent category: "+usrquota.limits.users);
-				$(parentid+"#limits-desktops").attr("title", "Limited by parent category: "+usrquota.limits.desktops);
-				$(parentid+"#limits-desktops_disk_size").attr("title", "Limited by parent category: "+usrquota.limits.desktops_disk_size);
-				$(parentid+"#limits-running").attr("title", "Limited by parent category: "+usrquota.limits.running);	
-				$(parentid+"#limits-templates").attr("title", "Limited by parent category: "+usrquota.limits.templates);	
-				$(parentid+"#limits-templates_disk_size").attr("title", "Limited by parent category: "+usrquota.limits.templates_disk_size);	
-				$(parentid+"#limits-isos").attr("title", "Limited by parent category: "+usrquota.limits.isos);
-				$(parentid+"#limits-isos_disk_size").attr("title", "Limited by parent category: "+usrquota.limits.isos_disk_size);	
-				$(parentid+"#limits-memory").attr("title", "Limited by parent category: "+usrquota.limits.memory);
-				$(parentid+"#limits-vcpus").attr("title", "Limited by parent category: "+usrquota.limits.vcpus);
-
-				$(parentid+"#limits-users").attr("max", usrquota.limits.users);
-				$(parentid+"#limits-desktops").attr("max", usrquota.limits.desktops);
-				$(parentid+"#limits-desktops_disk_size").attr("max", usrquota.limits.desktops_disk_size);
-				$(parentid+"#limits-running").attr("max", usrquota.limits.running);	
-				$(parentid+"#limits-templates").attr("max", usrquota.limits.templates);	
-				$(parentid+"#limits-templates_disk_size").attr("max", usrquota.limits.templates_disk_size);	
-				$(parentid+"#limits-isos").attr("max", usrquota.limits.isos);
-				$(parentid+"#limits-isos_disk_size").attr("max", usrquota.limits.isos_disk_size);	
-				$(parentid+"#limits-memory").attr("max", usrquota.limits.memory);
-				$(parentid+"#limits-vcpus").attr("max", usrquota.limits.vcpus);
-			}
-
-
-			if(usrquota.grouplimits != false){
-				$(parentid+"#unlimited").removeAttr('checked').iCheck('update');
-				disabled=false
-				$(parentid+"#limits-users").val(usrquota.grouplimits.users);	
-				$(parentid+"#limits-desktops").val(usrquota.grouplimits.desktops);
-				$(parentid+"#limits-desktops_disk_size").val(usrquota.grouplimits.desktops_disk_size);				
-				$(parentid+"#limits-running").val(usrquota.grouplimits.running);	
-				$(parentid+"#limits-templates").val(usrquota.grouplimits.templates);		
-				$(parentid+"#limits-templates_disk_size").val(usrquota.grouplimits.templates_disk_size);	
-				$(parentid+"#limits-isos").val(usrquota.grouplimits.isos);	
-				$(parentid+"#limits-isos_disk_size").val(usrquota.grouplimits.isos_disk_size);					
-				$(parentid+"#limits-memory").val(usrquota.grouplimits.memory);
-				$(parentid+"#limits-vcpus").val( usrquota.grouplimits.vcpus);	
-
-				$(parentid+"#limits-users").attr("max", usrquota.grouplimits.users);
-				$(parentid+"#limits-desktops").attr("max", usrquota.grouplimits.desktops);
-				$(parentid+"#limits-desktops_disk_size").attr("max", usrquota.grouplimits.desktops_disk_size);
-				$(parentid+"#limits-running").attr("max", usrquota.grouplimits.running);	
-				$(parentid+"#limits-templates").attr("max", usrquota.grouplimits.templates);	
-				$(parentid+"#limits-templates_disk_size").attr("max", usrquota.grouplimits.templates_disk_size);	
-				$(parentid+"#limits-isos").attr("max", usrquota.grouplimits.isos);
-				$(parentid+"#limits-isos_disk_size").attr("max", usrquota.grouplimits.isos_disk_size);	
-				$(parentid+"#limits-memory").attr("max", usrquota.grouplimits.memory);
-				$(parentid+"#limits-vcpus").attr("max", usrquota.grouplimits.vcpus);				
-			}else{
-				$(parentid+"#unlimited").iCheck('check');  
-				disabled=true
-			}
-
-			if(disabled == false){
-				quotaEnable(parentid+' #limits-')
-			}else{
-				quotaDisable(parentid+' #limits-')
-			}
 
 			$(parentid+"#unlimited").unbind('ifChecked').on('ifChecked', function(event){
 				quotaDisable('#'+$(event.target).closest('form').attr('id')+' #limits-')

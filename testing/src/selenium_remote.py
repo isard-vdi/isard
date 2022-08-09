@@ -150,45 +150,6 @@ class IsardSelenium:
         ).click()
         return True
 
-    def adminLogin(self):
-        try:
-            self.wd.get(self.url + "/isard-admin/login")
-            sleep(1)
-            WebDriverWait(self.wd, 10).until(
-                EC.presence_of_element_located((By.ID, "login-form"))
-            )
-        except Exception as e:
-            print("!!!!ERROR: The login page isn't available")
-        # Put username
-        print("Introducing username.")
-        username = self.wd.find_element("xpath", "//input[@placeholder='Username']")
-        username.send_keys(self.username)
-        # Put password
-        print("Introducing password.")
-        passwd = self.wd.find_element("xpath", "//input[@placeholder='Password']")
-        passwd.send_keys(self.password)
-        try:
-            # Click login button
-            print("Login in.")
-            self.wd.find_element("xpath", "//button[contains(text(),'Login')]").click()
-            self.wd.find_element("xpath", "//a[@href='/isard-admin/desktops']").click()
-            return True
-        except Exception as e:
-            print("Error while loggin in.")
-
-    def adminLogout(self):
-        try:
-            # Checking that the page is loaded by looking for the sidebar
-            WebDriverWait(self.wd, 10).until(
-                EC.presence_of_element_located((By.ID, "sidebar-menu"))
-            )
-        except Exception as e:
-            print("ERROR: The sidebar isn't available")
-        # Logout
-        self.wd.find_element("xpath", "//div[@class='nav_menu']//ul//li").click()
-        self.wd.find_element("xpath", "//a[@href='/isard-admin/logout']").click()
-        return True
-
     def goToAdmin(self):
         try:
             # Checking that the page is loaded by looking for the navbar

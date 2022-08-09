@@ -17,22 +17,12 @@ socketio = SocketIO(app)
 
 app.isardapi = api.isard()
 
-from webapp.lib import isardSocketio
 
 ## Main
 if __name__ == "__main__":
-    # Start socketio threads
-    isardSocketio.start_domains_thread()
-    isardSocketio.start_users_thread()
-    isardSocketio.start_media_thread()
-    isardSocketio.start_hypervisors_thread()
-    isardSocketio.start_config_thread()
-    isardSocketio.start_resources_thread()
-
     import logging
 
     logger = logging.getLogger("socketio")
-    # level = logging.getLevelName('ERROR')
     logger.setLevel("ERROR")
     engineio_logger = logging.getLogger("engineio")
     engineio_logger.setLevel("ERROR")

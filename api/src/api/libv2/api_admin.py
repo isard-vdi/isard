@@ -243,6 +243,64 @@ class ApiAdmin:
                 traceback.format_exc(),
             )
 
+    def GetTemplate(self, template_id):
+        try:
+            with app.app_context():
+                return (
+                    r.table("domains")
+                    .get(template_id)
+                    .pluck(
+                        "id",
+                        "icon",
+                        "image",
+                        "server",
+                        "hyp_started",
+                        "name",
+                        "kind",
+                        "description",
+                        "username",
+                        "category",
+                        "group",
+                        "enabled",
+                        "derivates",
+                        "accessed",
+                        "detail",
+                        {
+                            "create_dict": {
+                                "hardware": {
+                                    "video": True,
+                                    "vcpus": True,
+                                    "memory": True,
+                                    "interfaces": True,
+                                    "graphics": True,
+                                    "videos": True,
+                                    "boot_order": True,
+                                    "forced_hyp": True,
+                                },
+                                "origin": True,
+                                "reservables": True,
+                            }
+                        },
+                    )
+                    .merge(
+                        lambda domain: {
+                            "derivates": r.db("isard")
+                            .table("domains")
+                            .get_all([1, template_id], index="parents")
+                            .distinct()
+                            .count()
+                        }
+                    )
+                    .order_by("name")
+                    .run(db.conn)
+                )
+        except Exception:
+            raise Error(
+                "internal_server",
+                "Internal server error " + user_id,
+                traceback.format_exc(),
+            )
+
     def ListTemplates(self, user_id):
         with app.app_context():
             if r.table("users").get(user_id).run(db.conn) == None:

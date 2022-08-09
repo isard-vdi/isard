@@ -94,9 +94,6 @@ class DomainsThread(threading.Thread):
                             break
 
                         if c["new_val"] == None:
-                            # Delete
-                            if not c["old_val"]["id"].startswith("_"):
-                                continue
                             event = "delete"
                             try:
                                 if c["old_val"]["image"]["type"] == "user":
@@ -112,8 +109,6 @@ class DomainsThread(threading.Thread):
                                 item = "desktop"
                             data = c["old_val"]
                         else:
-                            if not c["new_val"]["id"].startswith("_"):
-                                continue
                             if not _is_frontend_desktop_status(c["new_val"]["status"]):
                                 continue
 

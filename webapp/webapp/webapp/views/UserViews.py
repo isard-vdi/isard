@@ -3,8 +3,6 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
-import requests
-
 #!flask/bin/python
 # coding=utf-8
 from flask import flash, jsonify, make_response, redirect, render_template, request
@@ -14,6 +12,60 @@ from webapp import app
 
 from ..auth.authentication import *
 from ..lib.log import *
+from .decorators import checkRole, maintenance
+
+
+@app.route("/isard-admin/about", methods=["GET"])
+@maintenance
+def about():
+    return render_template(
+        "pages/about.html",
+        title="About",
+        header="About",
+        nav="About",
+    )
+
+
+@app.route("/isard-admin/healthcheck", methods=["GET"])
+def healthcheck():
+    return ""
+
+
+"""
+LANDING PAGE
+"""
+
+
+@app.route("/isard-admin/desktops")
+@login_required
+@maintenance
+def desktops():
+    return render_template("pages/desktops.html", title="Desktops", nav="Desktops")
+
+
+"""
+TEMPLATES PAGE
+"""
+
+
+@app.route("/isard-admin/templates")
+@login_required
+@maintenance
+@checkRole
+def templates():
+    return render_template("pages/templates.html", nav="Templates")
+
+
+"""
+MEDIA PAGE
+"""
+
+
+@app.route("/isard-admin/media", methods=["GET"])
+@login_required
+@maintenance
+def media():
+    return render_template("pages/media.html", nav="Media")
 
 
 @app.route("/isard-admin", methods=["POST", "GET"])
@@ -21,45 +73,20 @@ def redirect_to_login():
     return redirect("/")
 
 
+"""
+LOGIN PAGE
+"""
+
+
 @app.route("/isard-admin/login", methods=["POST", "GET"])
 @app.route("/isard-admin/login/<category>", methods=["POST", "GET"])
 def login(category="default"):
-    if request.method == "POST":
-        if request.form["user"] == "" or request.form["password"] == "":
-            flash("Can't leave it blank", "danger")
-        elif request.form["user"].startswith(" "):
-            flash("Username not found or incorrect password.", "warning")
-        else:
-            au = auth()
-            if "category" in request.form:
-                id = (
-                    "local-"
-                    + request.form["category"]
-                    + "-"
-                    + request.form["user"]
-                    + "-"
-                    + request.form["user"]
-                )
-            user = au.check(id, request.form["password"])
-            if user:
-                if user.auto != False:
-                    app.isardapi.new_domains_auto_user(user.id, user.auto)
-                login_user(user)
-                flash("Logged in successfully.", "success")
-                return render_template(
-                    "pages/desktops.html", title="Desktops", nav="Desktops"
-                )
-            else:
-                flash("Username not found or incorrect password.", "warning")
     user = get_authenticated_user()
     if user:
         login_user(user)
         flash("Authenticated via backend.", "success")
         return render_template("pages/desktops.html", title="Desktops", nav="Desktops")
-    category = app.isardapi.get_category(category)
-    if category != False:
-        return render_template("login_category.html", category=category)
-    return render_template("login_category.html", category=False)
+    return redirect("/login")
 
 
 @app.route("/isard-admin/logout/remote")

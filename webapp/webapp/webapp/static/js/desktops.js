@@ -206,8 +206,9 @@ $(document).ready(function() {
         }
     });
 
-    socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/isard-admin/sio_users', {
-        'path': '/isard-admin/socket.io/',
+    socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/administrators', {
+        'query': {'jwt': localStorage.getItem("token")},
+        'path': '/api/v3/socket.io/',
         'transports': ['websocket']
     });
 

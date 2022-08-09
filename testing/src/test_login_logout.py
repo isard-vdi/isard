@@ -55,23 +55,3 @@ class Test_Frontend_Login_Logout(BasicTest):
             self.isard_selenium.url + GLOBAL["frontend_login_url_suffix"]
             == self.isard_selenium.wd.current_url
         )
-
-
-class Test_Admin_Login_Logout(BasicTest):
-    def test_admin_login(self):
-        assert self.isard_selenium.adminLogin() == True
-        time.sleep(1)
-        assert GLOBAL["admin_desktops_title"] == self.isard_selenium.wd.title
-        assert (
-            self.isard_selenium.url + GLOBAL["admin_desktops_url_suffix"]
-            == self.isard_selenium.wd.current_url
-        )
-
-    @pytest.mark.skip(reason="test in development")
-    def test_admin_logout(self):
-        assert self.isard_selenium.adminLogout() == True
-        time.sleep(1)
-        assert (
-            self.isard_selenium.url + GLOBAL["frontend_login_url_suffix"] + "/"
-            == self.isard_selenium.wd.current_url
-        )
