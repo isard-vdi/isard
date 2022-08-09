@@ -82,6 +82,13 @@ class ApiDesktopsPersistent:
                 ["desktop", desktop_id], index="item_type-id"
             ).delete().run(db.conn)
 
+    def Get(self, desktop_id):
+        with app.app_context():
+            desktop = r.table("domains").get(desktop_id).run(db.conn)
+            if not desktop:
+                raise Error("not_found", "Desktop not found", traceback.format_exc())
+            return desktop
+
     def NewFromTemplate(
         self,
         desktop_name,
