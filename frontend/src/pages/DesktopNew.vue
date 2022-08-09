@@ -117,47 +117,55 @@
       </b-row>
 
       <!-- Table -->
-      <b-row class="mt-4">
-        <b-col>
-          <b-table
-            id="desktops-table"
-            striped
-            hover
-            :items="items"
-            :per-page="perPage"
-            :current-page="currentPage"
-            :filter="filter"
-            :filter-included-fields="filterOn"
-            :fields="fields"
-            :responsive="true"
-            small
-            select-mode="single"
-            selected-variant="primary"
-            selectable
-            @filtered="onFiltered"
-            @row-selected="onRowSelected"
-          >
-            <!-- Scoped slot for line selected column -->
-            <template #cell(selected)="{ rowSelected }">
-              <template v-if="rowSelected">
-                <span aria-hidden="true">&check;</span>
+      <b-skeleton-wrapper
+        :loading="!getTemplatesLoaded"
+        class="card-body pt-4 d-flex flex-row flex-wrap justify-content-center"
+      >
+        <template #loading>
+          <DesktopNewSkeleton />
+        </template>
+        <b-row class="mt-4">
+          <b-col>
+            <b-table
+              id="desktops-table"
+              striped
+              hover
+              :items="items"
+              :per-page="perPage"
+              :current-page="currentPage"
+              :filter="filter"
+              :filter-included-fields="filterOn"
+              :fields="fields"
+              :responsive="true"
+              small
+              select-mode="single"
+              selected-variant="primary"
+              selectable
+              @filtered="onFiltered"
+              @row-selected="onRowSelected"
+            >
+              <!-- Scoped slot for line selected column -->
+              <template #cell(selected)="{ rowSelected }">
+                <template v-if="rowSelected">
+                  <span aria-hidden="true">&check;</span>
+                </template>
+                <template v-else>
+                  <span aria-hidden="true">&nbsp;</span>
+                </template>
               </template>
-              <template v-else>
-                <span aria-hidden="true">&nbsp;</span>
-              </template>
-            </template>
 
-            <!-- Scoped slot for image -->
-            <template #cell(image)="data">
-              <img
-                :src="`..${data.item.image.url}`"
-                alt=""
-                style="height: 2rem; border: 1px solid #555;"
-              >
-            </template>
-          </b-table>
-        </b-col>
-      </b-row>
+              <!-- Scoped slot for image -->
+              <template #cell(image)="data">
+                <img
+                  :src="`..${data.item.image.url}`"
+                  alt=""
+                  style="height: 2rem; border: 1px solid #555;"
+                >
+              </template>
+            </b-table>
+          </b-col>
+        </b-row>
+      </b-skeleton-wrapper>
 
       <!-- Pagination -->
       <b-row>
@@ -195,6 +203,7 @@
 
 <script>
 import i18n from '@/i18n'
+import DesktopNewSkeleton from '@/components/desktops/DesktopNewSkeleton.vue'
 import { reactive, ref, computed, watch } from '@vue/composition-api'
 import { mapActions } from 'vuex'
 import useVuelidate from '@vuelidate/core'
@@ -204,6 +213,9 @@ import { required, maxLength, minLength } from '@vuelidate/validators'
 const inputFormat = value => /^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$/.test(value)
 
 export default {
+  components: {
+    DesktopNewSkeleton
+  },
   setup (props, context) {
     const $store = context.root.$store
     $store.dispatch('fetchAllowedTemplates', 'all')
@@ -217,6 +229,7 @@ export default {
     const selected = ref([])
     const selectedTemplateId = computed(() => selected.value[0] ? selected.value[0].id : '')
     const totalRows = ref(1)
+    const getTemplatesLoaded = computed(() => $store.getters.getTemplatesLoaded)
 
     const items = computed(() => $store.getters.getTemplates)
 
@@ -285,7 +298,8 @@ export default {
       selected,
       selectedTemplateId,
       v$: useVuelidate(),
-      totalRows
+      totalRows,
+      getTemplatesLoaded
     }
   },
   validations () {
