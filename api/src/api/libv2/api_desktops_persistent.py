@@ -485,8 +485,8 @@ class ApiDesktopsPersistent:
                         "Unable to reset jumperurl as domain not exists",
                         traceback.format_exc(),
                     )
-
-        code = api_jumperurl_gencode()
-        with app.app_context():
-            r.table("domains").get(id).update({"jumperurl": code}).run(db.conn)
-        return code
+        else:
+            code = api_jumperurl_gencode()
+            with app.app_context():
+                r.table("domains").get(id).update({"jumperurl": code}).run(db.conn)
+            return code
