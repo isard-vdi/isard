@@ -21,7 +21,7 @@ disk_size:
   default: 40
 disk_bus:
   type: string
-  default: virtio
+  default: default
 isos:
   type: list
   default: []

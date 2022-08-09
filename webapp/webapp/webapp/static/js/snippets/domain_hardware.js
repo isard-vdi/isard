@@ -8,6 +8,7 @@ function setHardwareOptions(id,default_boot,domain_id){
 		$(id+" #hardware-videos").find('option').remove();
 		$(id+" #hardware-boot_order").find('option').remove();
 		$(id+" #hardware-qos_id").find('option').remove();
+		$(id+" #hardware-disk_bus").find('option').remove();
 		if (typeof domain_id !== 'undefined'){
 			url = '/api/v3/user/hardware/allowed/'+domain_id
 		}else{
@@ -68,6 +69,16 @@ function setHardwareOptions(id,default_boot,domain_id){
 					$(id+" #hardware-qos_id").append('<option value=' + value.id + '>' + value.name + '</option>');
 				});
 			}
+
+			if(hardware.disk_bus.length == 1){
+				$(id+" #hardware-disk_bus").attr("disabled",true);
+			}else{
+				$(id+" #hardware-disk_bus").attr("disabled",false);
+			}
+			$.each(hardware.disk_bus,function(key, value) 
+			{
+				$(id+" #hardware-disk_bus").append('<option value=' + value.id + '>' + value.name + '</option>');
+			});
 
 			if(hardware.quota == false){
 				hardware.quota={'memory':128, 'vcpus':128, 'desktops_disk_size':500}
@@ -134,6 +145,7 @@ function setHardwareDomainDefaults(div_id,domain){
 	$(div_id+' #hardware-graphics option:selected').prop("selected", false);
 	$(div_id+' #hardware-videos option:selected').prop("selected", false);
 	$(div_id+' #hardware-boot_order option:selected').prop("selected", false);
+	$(div_id+' #hardware-disk_bus option:selected').prop("selected", false);
 
 	$.each(domain.hardware.interfaces, function(k,value){
 		$(div_id+' #hardware-interfaces option[value="'+value+'"]').prop("selected",true);
@@ -256,6 +268,7 @@ function setHardwareDomainDefaults_viewer(div_id,data){
 	$(div_id+" #graphics").html(data.hardware.graphics);
 	$(div_id+" #video").html(data.hardware.videos);
 	$(div_id+" #boot").html(data.hardware['boot_order']);
+	$(div_id+" #disk_bus").html(data.hardware.disk_bus);
 	if(data['forced_hyp']){
 		$(div_id+" #forced_hyp").html(data['forced_hyp']);
 		$(div_id+" #forced_hyp").closest("tr").show();

@@ -360,4 +360,17 @@ def parseHardwareFromIso(create_dict, payload):
     else:
         create_dict["hardware"]["vcpus"] = int(create_dict["hardware"]["vcpus"])
 
+    for disk in create_dict["hardware"]["disks"]:
+        if not disk.get("bus"):
+            try:
+                disk["bus"] = [
+                    api_allowed.get_items_allowed(
+                        payload, "disk_bus", query_pluck=["id"]
+                    )[0]["id"]
+                ]
+            except:
+                disk["bus"] = ["virtio"]
+        else:
+            disk["bus"] = [disk["bus"]]
+
     return create_dict

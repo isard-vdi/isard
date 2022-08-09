@@ -790,6 +790,7 @@ class QuotasProcess:
             "quota",
             "isos",
             "floppies",
+            "disk_bus",
         ]:
             raise Error(
                 "bad_request", "Hardware kind not found", traceback.format_exc()
@@ -871,7 +872,17 @@ class QuotasProcess:
                     else domain["reservables"]["vgpus"],
                 )
             }
-
+        if not kind or kind == "disk_bus":
+            dict["disk_bus"] = allowed.get_items_allowed(
+                payload,
+                "disk_bus",
+                query_pluck=["id", "name", "description"],
+                order="name",
+                query_merge=False,
+                extra_ids_allowed=[]
+                if "disk_bus" not in domain.get("hardware", [])
+                else domain["hardware"]["disk_bus"],
+            )
         if not kind or kind == "forced_hyp":
             dict["forced_hyp"] = []
 
@@ -879,6 +890,7 @@ class QuotasProcess:
             quota = self.get_user(payload["user_id"])
         else:
             quota = {}
+
         dict = {**dict, **quota}
         return dict
 
