@@ -771,5 +771,30 @@
         "booking_new_event_overlap_error": "The event overlaps",
         "conflict": "Conflict",
         "conflict_title": "Conflict"
+    },
+    "router": {
+        "titles": {
+            "desktops": "Desktops",
+            "new_desktop": "New desktop",
+            "images": "Images",
+            "booking": "Booking",
+            "planning": "Planning",
+            "templates": "Templates",
+            "new_template": "New template",
+            "deployments": "Deployments",
+            "new_deployment": "New deployment",
+            "deployment_videowall": "Deployment videowall",
+            "deployment": "Deployment",
+            "profile": "Profile",
+            "media": "Media",
+            "new_media": "New media",
+            "login": "Login",
+            "register": "Register",
+            "error": "Error",
+            "not_found": "Not found",
+            "maintenance": "Maintenance",
+            "expired_session": "Expired session",
+            "direct_viewer": "Direct viewer"
+        }
     }
 }

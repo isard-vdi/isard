@@ -788,5 +788,30 @@
         "booking_new_event_start_error": "La hora de inicio no es válida",
         "booking_new_event_end_error": "La hora de finalización no es válida",
         "booking_new_event_overlap_error": "El evento se solapa"
+    },
+    "router": {
+        "titles": {
+            "desktops": "Escritorios",
+            "new_desktop": "Nuevo escritorio",
+            "images": "Imágenes",
+            "booking": "Reservas",
+            "planning": "Planificación",
+            "templates": "Plantillas",
+            "new_template": "Nueva plantilla",
+            "deployments": "Despliegues",
+            "new_deployment": "Nuevo despliegue",
+            "deployment_videowall": "Videowall de despliegues",
+            "deployment": "Despliegue",
+            "profile": "Perfil",
+            "media": "Medios",
+            "new_media": "Nuevo medio",
+            "login": "Iniciar sesión",
+            "register": "Registrar",
+            "error": "Error",
+            "not_found": "No encontrado",
+            "maintenance": "Mantenimiento",
+            "expired_session": "Sesión caducada",
+            "direct_viewer": "Visor directo"
+        }
     }
 }

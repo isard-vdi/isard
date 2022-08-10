@@ -775,5 +775,30 @@
             "creating-media": "Creant mitjà"
         },
         "loading": "Carregant"
+    },
+    "router": {
+        "titles": {
+            "desktops": "Escriptoris",
+            "new_desktop": "Nou escriptori",
+            "images": "Imatges",
+            "booking": "Reserves",
+            "planning": "Planificació",
+            "templates": "Plantilles",
+            "new_template": "Nova plantilla",
+            "deployments": "Desplegaments",
+            "new_deployment": "Nou desplegament",
+            "deployment_videowall": "Videowall de desplegaments",
+            "deployment": "Desplegament",
+            "profile": "Perfil",
+            "media": "Mitjans",
+            "new_media": "Nou mitjà",
+            "login": "Iniciar sessió",
+            "register": "Registrar",
+            "error": "Error",
+            "not_found": "No trobat",
+            "maintenance": "Manteniment",
+            "expired_session": "Sessió caducada",
+            "direct_viewer": "Visor directe"
+        }
     }
 }
