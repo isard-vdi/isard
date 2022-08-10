@@ -26,6 +26,7 @@ import Planning from '@/pages/Planning'
 import Profile from '@/pages/Profile.vue'
 import Media from '@/pages/Media.vue'
 import MediaNew from '@/pages/MediaNew.vue'
+import i18n from '@/i18n'
 
 Vue.use(VueRouter)
 
@@ -42,7 +43,7 @@ const router = new VueRouter({
           name: 'desktops',
           component: Desktops,
           meta: {
-            title: 'Desktops'
+            title: i18n.t('router.titles.desktops')
           }
         },
         {
@@ -50,7 +51,7 @@ const router = new VueRouter({
           name: 'desktopsnew',
           component: DesktopNew,
           meta: {
-            title: 'New Desktop'
+            title: i18n.t('router.titles.new_desktop')
           }
         },
         {
@@ -58,7 +59,7 @@ const router = new VueRouter({
           name: 'images',
           component: ImagesList,
           meta: {
-            title: 'Images'
+            title: i18n.t('router.titles.images')
           }
         },
         {
@@ -66,7 +67,7 @@ const router = new VueRouter({
           name: 'booking',
           component: Booking,
           meta: {
-            title: 'Booking'
+            title: i18n.t('router.titles.booking')
           }
         },
         {
@@ -74,7 +75,7 @@ const router = new VueRouter({
           name: 'Planning',
           component: Planning,
           meta: {
-            title: 'Planning'
+            title: i18n.t('router.titles.planning')
           }
         }
       ],
@@ -93,7 +94,7 @@ const router = new VueRouter({
           name: 'templates',
           component: Templates,
           meta: {
-            title: 'Templates'
+            title: i18n.t('router.titles.templates')
           }
         },
         {
@@ -101,7 +102,7 @@ const router = new VueRouter({
           name: 'templatenew',
           component: TemplateNew,
           meta: {
-            title: 'New Template'
+            title: i18n.t('router.titles.new_template')
           }
         }
       ],
@@ -127,7 +128,7 @@ const router = new VueRouter({
           name: 'deployments',
           component: Deployments,
           meta: {
-            title: 'Deployments'
+            title: i18n.t('router.titles.deployment')
           }
         },
         {
@@ -135,7 +136,7 @@ const router = new VueRouter({
           name: 'deploymentsnew',
           component: DeploymentNew,
           meta: {
-            title: 'New Deployment'
+            title: i18n.t('router.titles.new_deployment')
           }
         },
         {
@@ -143,7 +144,7 @@ const router = new VueRouter({
           name: 'deployment_videowall',
           component: DeploymentVideowall,
           meta: {
-            title: 'Deployment videowall'
+            title: i18n.t('router.titles.deployment_videowall')
           }
         },
         {
@@ -151,7 +152,7 @@ const router = new VueRouter({
           name: 'deployment_desktops',
           component: Deployment,
           meta: {
-            title: 'Deployment'
+            title: i18n.t('router.titles.deployment')
           }
         }
       ],
@@ -170,7 +171,7 @@ const router = new VueRouter({
           name: 'profile',
           component: Profile,
           meta: {
-            title: 'Profile'
+            title: i18n.t('router.titles.profile')
           }
         }
       ],
@@ -189,7 +190,7 @@ const router = new VueRouter({
           name: 'media',
           component: Media,
           meta: {
-            title: 'Media'
+            title: i18n.t('router.titles.media')
           }
         },
         {
@@ -197,7 +198,7 @@ const router = new VueRouter({
           name: 'medianew',
           component: MediaNew,
           meta: {
-            title: 'New Media'
+            title: i18n.t('router.titles.new_media')
           }
         }
       ],
@@ -208,37 +209,58 @@ const router = new VueRouter({
     {
       path: '/login/:category?',
       name: 'Login',
-      component: Login
+      component: Login,
+      meta: {
+        title: i18n.t('router.titles.login')
+      }
     },
     {
       path: '/register',
       name: 'Register',
-      component: Register
+      component: Register,
+      meta: {
+        title: i18n.t('router.titles.register')
+      }
     },
     {
       path: '/error/:code',
       name: 'Error',
-      component: ErrorPage
+      component: ErrorPage,
+      meta: {
+        title: i18n.t('router.titles.error')
+      }
     },
     {
       path: '*',
       name: 'NotFound',
-      component: NotFound
+      component: NotFound,
+      meta: {
+        title: i18n.t('router.titles.not_found')
+      }
     },
     {
       path: '/maintenance',
       name: 'Maintenance',
-      component: Maintenance
+      component: Maintenance,
+      meta: {
+        title: i18n.t('router.titles.maintenance')
+      }
     },
     {
       path: '/expired_session',
       name: 'ExpiredSession',
-      component: ExpiredSession
+      component: ExpiredSession,
+      meta: {
+        title: i18n.t('router.titles.expired_session')
+      }
     },
     {
       path: '/vw/*',
       name: 'DirectViewer',
-      component: DirectViewer
+      component: DirectViewer,
+      meta: {
+        title: i18n.t('router.titles.direct_viewer')
+      }
     }
   ],
   mode: 'history'
