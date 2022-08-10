@@ -261,7 +261,7 @@ $(document).ready(function() {
                         },
                         success: function(data) {
                             notice.update({
-                                title: 'New desktop',
+                                title: 'New template',
                                 text: 'Template '+ name + ' created successfully',
                                 hide: true,
                                 delay: 2000,
