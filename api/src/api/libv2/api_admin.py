@@ -232,6 +232,7 @@ class ApiAdmin:
                         },
                         "forced_hyp",
                         "os",
+                        "guest_properties",
                     )
                     .run(db.conn)
                 )
