@@ -410,7 +410,13 @@ def parse_domain_update(domain_id, new_data, admin_or_manager=False):
         ):
             new_domain["forced_hyp"] = new_data.get("forced_hyp")
         if "server" in new_data and new_data.get("server") != domain.get("server"):
-            new_domain["server"] = new_data.get("server")
+            new_domain = {
+                **new_domain,
+                **{
+                    "server": new_data.get("server"),
+                    "create_dict": {"server": new_data.get("server")},
+                },
+            }
         if "xml" in new_data and new_data.get("xml") != domain.get("xml"):
             new_domain = {
                 **new_domain,
