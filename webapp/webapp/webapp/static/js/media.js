@@ -438,8 +438,7 @@ $(document).ready(function() {
         })
     });  
 
-    $("#modalAddFromMedia #send").off('click');
-    $("#modalAddMedia #send").on('click', function(e){
+    $("#modalAddMedia #send").off('click').on('click', function(e){
             var form = $('#modalAddMediaForm');
 
             form.parsley().validate();
