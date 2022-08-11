@@ -668,41 +668,57 @@ function modal_add_install_datatables(){
 
     $("#modalAddFromMedia #send").off('click');
     $("#modalAddFromMedia #send").on('click', function(e){
-            var form = $('#modalAddFromMedia #modalAdd');
-            form.parsley().validate();
-            
-            if (form.parsley().isValid()){
-                install=$('#modalAddFromMedia #install').val();
-                if (install !=''){
-                    data=$('#modalAddFromMedia  #modalAdd').serializeObject();
-                    data=parse_media(JSON.unflatten(data));
-                    $.ajax({
-                        type: "POST",
-                        url:"/api/v3/desktop/from/media",
-                        contentType: "application/json",
-                        data: JSON.stringify(data),
-                        success: function(data)
-                        {
-                            $('form').each(function() { this.reset() });
-                            $('.modal').modal('hide');
-                        },
-                        error: function(data){
-                            var error = new PNotify({
-                                title: "ERROR",
-                                text: data.responseJSON.description,
-                                type: 'error',
-                                hide: true,
-                                icon: 'fa fa-warning',
-                                delay: 15000,
-                                opacity: 1
-                            });
-                        }
-                    });
-                }else{
-                    show_no_os_hardware_template_selected()
-                }
-            }        
-        });    
+        var form = $('#modalAddFromMedia #modalAdd');
+        form.parsley().validate();
+        
+        if (form.parsley().isValid()){
+            install=$('#modalAddFromMedia #install').val();
+            if (install !=''){
+                data=$('#modalAddFromMedia  #modalAdd').serializeObject();
+                data=parse_media(JSON.unflatten(data));
+                var notice = new PNotify({
+                    text: 'Creating desktop...',
+                    hide: true,
+                    opacity: 1,
+                    icon: 'fa fa-spinner fa-pulse'
+                })
+                $.ajax({
+                    type: "POST",
+                    url:"/api/v3/desktop/from/media",
+                    contentType: "application/json",
+                    data: JSON.stringify(data),
+                    error: function(data){
+                        $('form').each(function() { this.reset() });
+                        $('.modal').modal('hide');
+                        var error = new PNotify({
+                            title: "ERROR",
+                            text: data.responseJSON.description,
+                            type: 'error',
+                            hide: true,
+                            icon: 'fa fa-warning',
+                            delay: 15000,
+                            opacity: 1
+                        });
+                    },
+                    success: function(data) {
+                        $('form').each(function() { this.reset() });
+                        $('.modal').modal('hide');
+                        notice.update({
+                            title: "New desktop",
+                            text: 'Desktop created successfully',
+                            hide: true,
+                            delay: 2000,
+                            icon: 'fa fa-' + data.icon,
+                            opacity: 1,
+                            type: 'success'
+                        })
+                    }
+                });
+            }else{
+                show_no_os_hardware_template_selected()
+            }
+        }
+    });
 }
 
 function parse_media(data){
