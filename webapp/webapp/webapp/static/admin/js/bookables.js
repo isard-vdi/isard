@@ -48,6 +48,20 @@ $(document).ready(function () {
                                  <button id="btn-edit" class="btn btn-xs btn-edit-interface" type="button"  data-placement="top" ><i class="fa fa-pencil" style="color:darkblue"></i></button>',
       },
     ],
+    "columnDefs": [
+      {
+          "targets": 3,
+          "render": function ( data, type, full, meta ) {
+              return full.priority_id ? full.priority_id: '-';
+          }
+      },
+      {
+        "targets": 8,
+        "render": function ( data, type, full, meta ) {
+            return full.total_units ? full.total_units: '-';
+        }
+      },
+    ],
     order: [[1, "asc"]],
   });
 
@@ -152,6 +166,11 @@ $(document).ready(function () {
 
   socket.on("connect_error", function (data) {
     connection_lost();
+  });
+
+  socket.on('user_quota', function(data) {
+    var data = JSON.parse(data);
+    drawUserQuota(data);
   });
 
   socket.on("add_form_result", function (data) {
