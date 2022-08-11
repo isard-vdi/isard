@@ -66,6 +66,7 @@ $(document).ready(function() {
         form.append('port', $('#modalAddHyper #modalAdd #port').val())
         form.append('cap_hyper', $('#modalAddHyper #modalAdd #capabilities-hypervisor').prop('checked'))
         form.append('cap_disk', $('#modalAddHyper #modalAdd #capabilities-disk_operations').prop('checked'))
+        form.append('only_forced', $('#modalAddHyper #modalAdd #only_forced').prop('checked'))
         form.append('isard_static_url', $('#modalAddHyper #modalAdd #viewer-static').val())
         form.append('isard_video_url', $('#modalAddHyper #modalAdd #viewer-proxy_video').val())
         form.append('spice_port', $('#modalAddHyper #modalAdd #viewer-spice_ext_port').val())
@@ -575,6 +576,7 @@ function actionsHyperDetail(){
                         data['capabilities'] = {}
                         data['capabilities']['hypervisor'] = $('#modalEditHyper #modalEdit #capabilities-hypervisor').prop('checked')
                         data['capabilities']['disk_operations'] = $('#modalEditHyper #modalEdit #capabilities-disk_operations').prop('checked')
+                        data['only_forced'] = $('#modalEditHyper #modalEdit #only_forced').prop('checked')
                         data['hypervisors_pools'] = [$('#modalEditHyper #hypervisors_pools_dropdown').val()];
                             $.ajax({
                                 type: "PUT",
