@@ -295,6 +295,11 @@ $(document).ready(function () {
     connection_lost();
   });
 
+  socket.on('user_quota', function(data) {
+    var data = JSON.parse(data);
+    drawUserQuota(data);
+  });
+
   socket.on("add_form_result", function (data) {
     console.log("received result");
     var data = JSON.parse(data);
