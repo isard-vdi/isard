@@ -391,6 +391,7 @@ WG_GUESTS_RESERVED_HOSTS=20
 
 # ------ Prometheus -----------------------------------------------------
 #PROMETHEUS_ADDRESS=http://isard-prometheus:9090
+#PROMETHEUS_RETENTION_TIME=40d
 
 # ------ Stats -----------------------------------------------------
 #STATS_DIRECTORY=/opt/isard/stats
