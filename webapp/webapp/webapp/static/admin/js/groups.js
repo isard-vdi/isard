@@ -237,7 +237,7 @@ function renderGroupsDetailPannel ( d ) {
 
 
 function actionsGroupDetail(){
-    $('.btn-edit-quotas').unbind().on('click', function () {
+    $('.btn-edit-quotas').off('click').on('click', function () {
         var pk=$(this).closest("div").attr("data-pk");
 
         $("#modalEditQuotaForm")[0].reset();
@@ -250,7 +250,7 @@ function actionsGroupDetail(){
         setQuotaMax('#modalEditQuotaForm',kind='group',id=pk,disabled=false);        
 	});
 
-    $("#modalEditQuota #send").unbind().on('click', function(e){
+    $("#modalEditQuota #send").off('click').on('click', function(e){
         form = $('#modalEditQuotaForm')
         pk=$('#modalEditQuotaForm #id').val();
         form.parsley().validate();
@@ -311,7 +311,7 @@ function actionsGroupDetail(){
         }
     });
 
-    $('.btn-edit-limits').unbind().on('click', function () {
+    $('.btn-edit-limits').off('click').on('click', function () {
         var pk=$(this).closest("div").attr("data-pk");
         $("#modalEditLimitsForm")[0].reset();
         $('#modalEditLimitsForm #id').val(pk);
@@ -323,7 +323,7 @@ function actionsGroupDetail(){
         setLimitsMax('#modalEditLimitsForm',kind='group',id=pk,disabled=false);         
     });
 
-    $("#modalEditLimits #send").unbind().on('click', function(e){
+    $("#modalEditLimits #send").off('click').on('click', function(e){
         form = $('#modalEditLimitsForm')
         pk=$('#modalEditLimitsForm #id').val();
 

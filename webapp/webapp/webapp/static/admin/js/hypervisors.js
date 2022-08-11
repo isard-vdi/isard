@@ -566,7 +566,7 @@ function actionsHyperDetail(){
                     $('#modalEditHyper #viewer-proxy_hyper_host').val('');                
             });
             
-            $('#modalEditHyper #send').on('click', function(e){
+            $('#modalEditHyper #send').off('click').on('click', function(e){
                     var form = $('#modalEditHyper #modalEdit');
                     form.parsley().validate();
                     if (form.parsley().isValid()){

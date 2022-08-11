@@ -466,7 +466,7 @@ function actionsDesktopDetail(){
         });
     });
 
-    $("#modalServer #send").on('click', function(e){
+    $("#modalServer #send").off('click').on('click', function(e){
         data=$('#modalServerForm').serializeObject();
         let pk=$('#modalServerForm #id').val()
         let server=$('#modalServerForm #create_dict-server').prop('checked')

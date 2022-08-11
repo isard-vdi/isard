@@ -524,8 +524,7 @@ function modal_add_install_datatables(){
         } );
     } );
     
-    $("#modalAddFromMedia #send").off('click');
-    $("#modalAddFromMedia #send").on('click', function(e){
+    $("#modalAddFromMedia #send").off('click').on('click', function(e){
             var form = $('#modalAddFromMedia #modalAdd');
             form.parsley().validate();
             

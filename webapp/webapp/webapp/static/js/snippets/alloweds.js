@@ -202,8 +202,7 @@
         });
 
 
-        socket.off('allowed_result');
-        socket.on('allowed_result', function (data) {
+        socket.off('allowed_result').on('allowed_result', function (data) {
             var data = JSON.parse(data);
             if(data.result){
                 $("#modalAlloweds").modal('hide');       
@@ -219,8 +218,7 @@
             });
         });	                    
 
-        $("#modalAlloweds #send").off('click');
-        $("#modalAlloweds #send").on('click', function(e){
+        $("#modalAlloweds #send").off('click').on('click', function(e){
                 var form = $('#modalAllowedsForm');
 
                 form.parsley().validate();
