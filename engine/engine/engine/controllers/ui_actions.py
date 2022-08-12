@@ -25,6 +25,7 @@ from engine.models.domain_xml import (
 from engine.services.db import (
     create_disk_template_created_list_in_domain,
     delete_domain,
+    domains_with_attached_disk,
     get_custom_dict_from_domain,
     get_dict_from_item_in_table,
     get_domain,
@@ -335,18 +336,26 @@ class UiActions(object):
             dict_domain = get_domain(id_domain)
             if dict_domain is None:
                 log.error(
-                    f"The domain {id_domain} is deleted from the database and deleting_disk function is called."
+                    f"The domain {id_domain} has already been deleted from database. Now will call deleting_disk function."
                 )
                 return False
 
             if dict_domain["kind"] != "desktop" and force is False:
                 log.info(f"{id_domain} is a template, disks will be deleted")
 
-            if "hardware" in dict_domain.keys():
+            wait_for_disks_to_be_deleted = False
+            if dict_domain.get("hardware"):
                 if len(dict_domain["hardware"]["disks"]) > 0:
                     index_disk = 0
+
                     for d in dict_domain["hardware"]["disks"]:
                         disk_path = d["file"]
+                        if domains_with_attached_disk(disk_path) != [id_domain]:
+                            log.debug(
+                                "Others than this domain have this disk attached. Skipping deleting disk."
+                            )
+                            index_disk += 1
+                            continue
                         pool_id = dict_domain["hypervisors_pools"][0]
                         if pool_id not in self.manager.pools.keys():
                             log.error(
@@ -365,7 +374,7 @@ class UiActions(object):
                                 next_hyp = forced_hyp
                             else:
                                 log.error(
-                                    "force hypervisor failed for doomain {}: {}  not in hypervisors pool {}".format(
+                                    "force hypervisor failed for domain {}: {} not in hypervisors pool {}".format(
                                         id_domain, forced_hyp, pool_id
                                     )
                                 )
@@ -397,7 +406,6 @@ class UiActions(object):
                         action["storage_id"] = d.get("storage_id")
 
                         try:
-
                             update_domain_status(
                                 status="DeletingDomainDisk",
                                 id_domain=id_domain,
@@ -406,38 +414,38 @@ class UiActions(object):
                                     disk_path, id_domain, next_hyp
                                 ),
                             )
-
                             self.manager.q.workers[next_hyp].put(action)
+                            wait_for_disks_to_be_deleted = True
                         except Exception as e:
                             logs.exception_id.debug("0011")
                             update_domain_status(
                                 status="Stopped",
                                 id_domain=id_domain,
                                 hyp_id=False,
-                                detail="Creating template operation failed when insert action in queue for disk operations",
+                                detail="Creating delete disk operation failed when insert action in queue for disk operations",
                             )
                             log.error(
-                                "Creating disk operation failed when insert action in queue for disk operations in host {}. Exception: {}".format(
+                                "Creating delete disk operation failed when insert action in queue for disk operations in host {}. Exception: {}".format(
                                     next_hyp, e
                                 )
                             )
                             return False
-
                         index_disk += 1
                 else:
-                    log.debug("no disk to delete in domain {}".format(id_domain))
+                    log.debug("No disk to delete in domain {}".format(id_domain))
             else:
                 log.error(
-                    "no hardware dict in domain to delete {}, deleting domain but not deleted disks".format(
+                    "No hardware dict in domain to delete {}, deleting domain but no disks to be deleted".format(
                         id_domain
                     )
                 )
+            if not wait_for_disks_to_be_deleted:
                 delete_domain(id_domain)
 
             return True
         except Exception as e:
             logs.exception_id.debug("0071")
-            log.error("deleting_disks_from_domain with domain {}".format(id_domain))
+            log.error("Deleting_disks_from_domain with domain {}".format(id_domain))
             log.error("Traceback: \n .{}".format(traceback.format_exc()))
             log.error("Exception message: {}".format(e))
             return False
