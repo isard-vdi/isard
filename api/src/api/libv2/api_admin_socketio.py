@@ -68,7 +68,13 @@ class DomainsThread(threading.Thread):
                 with app.app_context():
                     for c in (
                         r.table("domains")
-                        .without("xml", "history_domain")
+                        .without(
+                            "xml",
+                            "xml_to_start",
+                            "hardware",
+                            "hardware_from_xml",
+                            "history_domain",
+                        )
                         .changes(include_initial=False)
                         .run(db.conn)
                     ):
