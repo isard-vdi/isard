@@ -148,8 +148,6 @@ docker-image:
           - portal
           - squid
           - static
-          # - stats
-          - stats-glances
           - stats-go
           - webapp
           - websockify
@@ -229,7 +227,6 @@ docker-tag:
           - squid
           - static
           - monitor-proxy
-          - stats-glances
           - stats-go
           - vpn
           - webapp

@@ -26,7 +26,6 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 2,
-  "iteration": 1654250746360,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -50,7 +49,7 @@
         "showStarred": false,
         "tags": []
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "tags": [],
       "targets": [
         {
@@ -110,7 +109,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "datasource": {
@@ -205,7 +204,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"viewers\")\n  |> filter(fn: (r) => r[\"viewer_type\"] == \"viewer_port_spice\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
@@ -265,7 +264,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"viewers\")\n  |> filter(fn: (r) => r[\"viewer_type\"] == \"viewer_port_spice_tls\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
@@ -323,7 +322,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "datasource": {
@@ -391,7 +390,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "query": "",
@@ -451,7 +450,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "query": "",
@@ -477,7 +476,7 @@
         "content": "[Loki Query Explorer](/monitor/explore?orgId=1&left=%5B%22now-1h%22,%22now%22,%22Loki%22,%7B%22refId%22:%22A%22%7D%5D)\n           ",
         "mode": "markdown"
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "title": "Logs",
       "transparent": true,
       "type": "text"
@@ -530,7 +529,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "datasource": {
@@ -593,7 +592,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "datasource": {
@@ -689,7 +688,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "datasource": {
@@ -754,7 +753,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "datasource": {
@@ -822,7 +821,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "datasource": {
@@ -886,7 +885,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "datasource": {
@@ -952,7 +951,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "datasource": {
@@ -1038,7 +1037,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "datasource": {
@@ -1114,7 +1113,7 @@
           "valueSize": 22
         }
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "datasource": {
@@ -1231,7 +1230,7 @@
           "valueSize": 22
         }
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "datasource": {
@@ -1348,7 +1347,7 @@
           "valueSize": 22
         }
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "datasource": {
@@ -1469,7 +1468,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "cpu_usage"
+              "options": "Value"
             },
             "properties": [
               {
@@ -1510,12 +1509,14 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
+          "editorMode": "code",
           "exemplar": true,
-          "expr": "glances_cpu_total{domain=\"$domain\"}",
+          "expr": "count without(cpu, mode) (node_cpu_seconds_total{mode=\"idle\", domain=\"$domain\"})",
           "hide": false,
           "interval": "",
           "legendFormat": "",
           "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"system\")\n  |> filter(fn: (r) => r[\"_field\"] == \"cpu_usage\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
+          "range": true,
           "refId": "A"
         }
       ],
@@ -1570,7 +1571,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "datasource": {
@@ -1602,7 +1603,7 @@
         "content": "",
         "mode": "markdown"
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "title": "Hypervisor Hardware",
       "type": "text"
     },
@@ -1663,7 +1664,7 @@
           "valueSize": 22
         }
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "datasource": {
@@ -1780,7 +1781,7 @@
           "valueSize": 22
         }
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "datasource": {
@@ -1942,12 +1943,14 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
+          "editorMode": "code",
           "exemplar": true,
-          "expr": "glances_mem_percent{domain=\"$domain\"}",
+          "expr": "100 * (1 - ((avg_over_time(node_memory_MemFree_bytes{domain=\"$domain\"}[10m]) + avg_over_time(node_memory_Cached_bytes{domain=\"$domain\"}[10m]) + avg_over_time(node_memory_Buffers_bytes{domain=\"$domain\"}[10m])) / avg_over_time(node_memory_MemTotal_bytes{domain=\"$domain\"}[10m])))",
           "hide": false,
           "interval": "",
           "legendFormat": "",
           "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"system\")\n  |> filter(fn: (r) => r[\"_field\"] == \"ram_usage\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
+          "range": true,
           "refId": "A"
         }
       ],
@@ -2016,7 +2019,7 @@
         "text": {},
         "textMode": "value"
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "datasource": {
@@ -2097,7 +2100,7 @@
         "text": {},
         "textMode": "value"
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "datasource": {
@@ -2175,7 +2178,7 @@
         "text": {},
         "textMode": "value"
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "datasource": {
@@ -2250,7 +2253,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "datasource": {
@@ -2258,7 +2261,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "exemplar": true,
-          "expr": "glances_mem_total{domain=\"$domain\"}",
+          "expr": "node_memory_MemTotal_bytes{domain=\"$domain\"}",
           "hide": false,
           "interval": "",
           "legendFormat": "",
@@ -2318,7 +2321,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "datasource": {
@@ -2402,7 +2405,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "datasource": {
@@ -2492,7 +2495,7 @@
           "valueSize": 22
         }
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "datasource": {
@@ -2501,7 +2504,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "glances_cpu_total{domain=\"$domain\"}",
+          "expr": "count without(cpu, mode) (node_cpu_seconds_total{mode=\"idle\", domain=\"$domain\"})",
           "hide": false,
           "instant": true,
           "legendFormat": "__auto",
@@ -2583,7 +2586,7 @@
           "valueSize": 22
         }
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "datasource": {
@@ -2592,7 +2595,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "glances_mem_percent{domain=\"$domain\"}",
+          "expr": "100 * (1 - ((avg_over_time(node_memory_MemFree_bytes{domain=\"$domain\"}[10m]) + avg_over_time(node_memory_Cached_bytes{domain=\"$domain\"}[10m]) + avg_over_time(node_memory_Buffers_bytes{domain=\"$domain\"}[10m])) / avg_over_time(node_memory_MemTotal_bytes{domain=\"$domain\"}[10m])))",
           "instant": true,
           "legendFormat": "__auto",
           "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] =~ /mem_(total|free|cached)/)\n  |> filter(fn: (r) =>  r[\"hypervisor\"] == \"${hypers}\" )\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> map(fn: (r) => ({\n    _time: r[\"_time\"],\n    _value: 100.0 - (float(v: r[\"mem_free\"] + r[\"mem_cached\"]) / float(v: r[\"mem_total\"]) * 100.0)\n  }))\n  |> last()\n  |> yield()",
@@ -2800,7 +2803,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "datasource": {
@@ -2879,7 +2882,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "datasource": {
@@ -2951,7 +2954,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"viewers\")\n  |> filter(fn: (r) => r[\"viewer_type\"] == \"viewer_port_spice\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
@@ -3011,7 +3014,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"viewers\")\n  |> filter(fn: (r) => r[\"viewer_type\"] == \"viewer_port_spice_tls\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
@@ -3070,7 +3073,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "query": "",
@@ -3130,7 +3133,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "targets": [
         {
           "query": "",
@@ -3181,8 +3184,8 @@
       {
         "current": {
           "selected": false,
-          "text": "server",
-          "value": "server"
+          "text": "localhost",
+          "value": "localhost"
         },
         "datasource": {
           "type": "prometheus",

@@ -1,20 +1,5 @@
 version: "3.5"
 services:
-  # This is kept until isard-stats is fixed, then it will be comented out
-  # isard-stats:
-  #   image: ${DOCKER_IMAGE_PREFIX}stats:${DOCKER_IMAGE_TAG-latest}
-  #   container_name: isard-stats
-  #   logging:
-  #     options:
-  #       max-size: "100m"
-  #   env_file:
-  #     - .env
-  #   networks:
-  #     isard-network: {}
-  #   restart: "no"
-  #   depends_on:
-  #     - isard-hypervisor
-
   isard-stats-go:
     image: ${DOCKER_IMAGE_PREFIX}stats-go:${DOCKER_IMAGE_TAG-latest}
     container_name: isard-stats-go
@@ -31,29 +16,21 @@ services:
     environment:
       - FLAVOUR=${FLAVOUR:-all-in-one}
 
-  isard-stats-glances:
-    image: ${DOCKER_IMAGE_PREFIX}stats-glances:${DOCKER_IMAGE_TAG-latest}
-    container_name: isard-stats-glances
+  isard-stats-node-exporter:
+    image: prom/node-exporter
+    container_name: isard-stats-node-exporter
     logging:
       driver: "json-file"
       options:
         max-size: "100m"
         tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
     restart: "no"
+    command:
+      - '--path.rootfs=/host'
     network_mode: host
-    privileged: true
     pid: host
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /opt/isard:/opt/isard:ro
-      - /opt/isard/templates:/opt/isard/templates:ro
-      - /opt/isard/groups:/opt/isard/groups:ro
-      - /opt/isard/media:/opt/isard/media:ro
-      - /:/disk:ro
-    env_file:
-      - .env
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - '/:/host:ro,rslave'
 
   isard-grafana-agent:
     container_name: isard-grafana-agent

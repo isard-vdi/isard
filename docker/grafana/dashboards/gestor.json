@@ -24,8 +24,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 3,
-  "iteration": 1654250213159,
+  "id": 1,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -100,6 +99,10 @@
                   "fixedColor": "#2fe0d4",
                   "mode": "fixed"
                 }
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
               }
             ]
           },
@@ -347,7 +350,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.5.2",
+      "pluginVersion": "9.0.5",
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -377,7 +380,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "exemplar": true,
-          "expr": "glances_cpu_total{domain=\"$domain\"}",
+          "expr": "count without(cpu, mode) (node_cpu_seconds_total{mode=\"idle\", domain=\"$domain\"})",
           "groupBy": [
             {
               "params": [
@@ -437,7 +440,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "exemplar": true,
-          "expr": "glances_mem_percent{domain=\"$domain\"}",
+          "expr": "100 * (1 - ((avg_over_time(node_memory_MemFree_bytes{domain=\"$domain\"}[10m]) + avg_over_time(node_memory_Cached_bytes{domain=\"$domain\"}[10m]) + avg_over_time(node_memory_Buffers_bytes{domain=\"$domain\"}[10m])) / avg_over_time(node_memory_MemTotal_bytes{domain=\"$domain\"}[10m])))",
           "groupBy": [
             {
               "params": [
@@ -1134,8 +1137,8 @@
       {
         "current": {
           "selected": false,
-          "text": "server",
-          "value": "server"
+          "text": "localhost",
+          "value": "localhost"
         },
         "datasource": {
           "type": "prometheus",
@@ -1167,6 +1170,6 @@
   "timezone": "",
   "title": "Paneles Gestor",
   "uid": "zB9noB9nk",
-  "version": 42,
+  "version": 1,
   "weekStart": ""
 }
