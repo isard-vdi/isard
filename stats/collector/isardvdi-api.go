@@ -15,12 +15,16 @@ type IsardVDIAPI struct {
 	cli    *client.Client
 	secret string
 
-	descScrapeDuration *prometheus.Desc
-	descScrapeSuccess  *prometheus.Desc
-	descUserInfo       *prometheus.Desc
-	descDesktopNumber  *prometheus.Desc
-	descDesktopInfo    *prometheus.Desc
-	descTemplateNumber *prometheus.Desc
+	descScrapeDuration               *prometheus.Desc
+	descScrapeSuccess                *prometheus.Desc
+	descUserInfo                     *prometheus.Desc
+	descDesktopNumber                *prometheus.Desc
+	descDesktopNumberStarted         *prometheus.Desc
+	descDesktopNumberCategory        *prometheus.Desc
+	descDesktopNumberCategoryStarted *prometheus.Desc
+	descDesktopInfo                  *prometheus.Desc
+	descTemplateNumber               *prometheus.Desc
+	descTemplateNumberCategory       *prometheus.Desc
 }
 
 func NewIsardVDIAPI(log *zerolog.Logger, cli *client.Client, secret string) *IsardVDIAPI {
@@ -45,13 +49,31 @@ func NewIsardVDIAPI(log *zerolog.Logger, cli *client.Client, secret string) *Isa
 	a.descUserInfo = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, a.String(), "user_info"),
 		"Information of the user (such as the category and the group)",
-		[]string{"id", "category", "group"},
+		[]string{"id", "role", "category", "group"},
 		prometheus.Labels{},
 	)
 	a.descDesktopNumber = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, a.String(), "desktop_number"),
 		"The number of desktops",
 		[]string{},
+		prometheus.Labels{},
+	)
+	a.descDesktopNumberStarted = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, a.String(), "desktop_number_started"),
+		"The number of desktops started",
+		[]string{},
+		prometheus.Labels{},
+	)
+	a.descDesktopNumberCategory = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, a.String(), "desktop_number_category"),
+		"The number of desktops of a category",
+		[]string{"category"},
+		prometheus.Labels{},
+	)
+	a.descDesktopNumberCategoryStarted = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, a.String(), "desktop_number_category_started"),
+		"The number of desktops of a category started",
+		[]string{"category"},
 		prometheus.Labels{},
 	)
 	a.descDesktopInfo = prometheus.NewDesc(
@@ -64,6 +86,12 @@ func NewIsardVDIAPI(log *zerolog.Logger, cli *client.Client, secret string) *Isa
 		prometheus.BuildFQName(namespace, a.String(), "template_number"),
 		"The number of templates",
 		[]string{},
+		prometheus.Labels{},
+	)
+	a.descTemplateNumberCategory = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, a.String(), "template_number_category"),
+		"The number of templates of a category",
+		[]string{"category"},
 		prometheus.Labels{},
 	)
 
@@ -79,8 +107,11 @@ func (a *IsardVDIAPI) Describe(ch chan<- *prometheus.Desc) {
 	ch <- a.descScrapeSuccess
 	ch <- a.descUserInfo
 	ch <- a.descDesktopNumber
+	ch <- a.descDesktopNumberStarted
+	ch <- a.descDesktopNumberCategory
 	ch <- a.descDesktopInfo
 	ch <- a.descTemplateNumber
+	ch <- a.descTemplateNumberCategory
 }
 
 func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
@@ -112,7 +143,7 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	for _, u := range usr {
-		ch <- prometheus.MustNewConstMetric(a.descUserInfo, prometheus.GaugeValue, 1, client.GetString(u.ID), client.GetString(u.Category), client.GetString(u.Group))
+		ch <- prometheus.MustNewConstMetric(a.descUserInfo, prometheus.GaugeValue, 1, client.GetString(u.ID), client.GetString(u.Role), client.GetString(u.Category), client.GetString(u.Group))
 	}
 
 	dsk, err := a.cli.AdminDesktopList(context.Background())
@@ -124,6 +155,17 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(a.descDesktopNumber, prometheus.GaugeValue, float64(len(dsk)))
 	for _, d := range dsk {
 		ch <- prometheus.MustNewConstMetric(a.descDesktopInfo, prometheus.GaugeValue, 1, client.GetString(d.ID), client.GetString(d.User))
+	}
+
+	cat, err := a.cli.StatsCategoryList(context.Background())
+	if err != nil {
+		a.Log.Info().Str("collector", a.String()).Err(err).Msg("get category statistics")
+		success = 0
+	}
+
+	for _, c := range cat {
+		ch <- prometheus.MustNewConstMetric(a.descDesktopNumberCategory, prometheus.GaugeValue, float64(client.GetInt(c.DesktopNum)), client.GetString(c.ID))
+		ch <- prometheus.MustNewConstMetric(a.descTemplateNumberCategory, prometheus.GaugeValue, float64(client.GetInt(c.TemplateNum)), client.GetString(c.ID))
 	}
 
 	tmpl, err := a.cli.AdminTemplateList(context.Background())
