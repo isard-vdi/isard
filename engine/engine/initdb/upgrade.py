@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 39
+release_version = 40
+# release 40: Added linked groups to groups
 # release 39: Added secondary groups to users
 # release 38: Replace create_dict diskbus to disk_bus
 # release 37: Fix upgrade bug in version 36
@@ -1111,6 +1112,9 @@ class Upgrade(object):
             # ~ except Exception as e:
             # ~ log.error('Could not update table '+table+' remove fields for db version '+str(version)+'!')
             # ~ log.error('Error detail: '+str(e))
+
+        if version == 40:
+            r.table(table).update({"linked_groups": []}).run(self.conn)
 
         return True
 

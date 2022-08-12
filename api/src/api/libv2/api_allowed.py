@@ -20,6 +20,19 @@ db = RDB(app)
 db.init_app(app)
 
 
+def get_all_linked_groups(groups):
+    with app.app_context():
+        linked_groups = list(
+            r.table("groups")
+            .get_all(r.args(groups), index="id")
+            .pluck("linked_groups")
+            .run(db.conn)
+        )
+    for lg in linked_groups:
+        groups += lg.get("linked_groups", [])
+    return list(dict.fromkeys(groups))
+
+
 class ApiAllowed:
     def get_table_term(
         self,
@@ -162,8 +175,8 @@ class ApiAllowed:
                     .pluck("secondary_groups")
                     .run(db.conn)
                 )
-                for group in payload["group_id"] + secondary_groups.get(
-                    "secondary_groups", []
+                for group in get_all_linked_groups(
+                    [payload["group_id"]] + secondary_groups.get("secondary_groups", [])
                 ):
                     if group in item["allowed"]["groups"]:
                         return True
