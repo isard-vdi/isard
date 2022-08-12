@@ -14,6 +14,9 @@ parent_category:
   required: true
   empty: false
   type: string
+linked_groups:
+  type: list
+  default: []
 uid:
   required: true
   empty: false
