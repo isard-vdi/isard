@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 38
+release_version = 39
+# release 39: Added secondary groups to users
 # release 38: Replace create_dict diskbus to disk_bus
 # release 37: Fix upgrade bug in version 36
 # release 36: Fix typo VLC for VNC
@@ -1322,6 +1323,9 @@ class Upgrade(object):
                     + "!"
                 )
                 log.error("Error detail: " + str(e))
+
+        if version == 39:
+            r.table(table).update({"secondary_groups": []}).run(self.conn)
 
         return True
 
