@@ -351,8 +351,8 @@ $(document).ready(function() {
 			 "order": [[7, 'asc']],
         "columnDefs": columnDefs,
         "rowCallback": function (row, data) {
-            if('server' in data['create_dict']){
-                if(data['create_dict']['server'] == true){
+            if('server' in data){
+                if(data['server'] == true){
                     $(row).css("background-color", "#f7eac6");
                 }else{
                     $(row).css("background-color", "#ffffff");
@@ -738,9 +738,9 @@ function actionsDomainDetail(){
             success: function(data)
             {
                 if(data.server == true){
-                    $('#modalServerForm #create_dict-server').iCheck('check').iCheck('update');
+                    $('#modalServerForm #server').iCheck('check').iCheck('update');
                 }else{
-                    $('#modalServerForm #create_dict-server').iCheck('unckeck').iCheck('update');
+                    $('#modalServerForm #server').iCheck('unckeck').iCheck('update');
                 } 
             }				
         });
@@ -991,7 +991,7 @@ function actionsDomainDetail(){
     $("#modalServer #send").off('click').on('click', function(e){
         data=$('#modalServerForm').serializeObject();
         let pk=$('#modalServerForm #id').val()
-        let server=$('#modalServerForm #create_dict-server').prop('checked')
+        let server=$('#modalServerForm #server').prop('checked')
         $.ajax({
             type: "PUT",
             url: "/api/v3/desktop/" + pk,
