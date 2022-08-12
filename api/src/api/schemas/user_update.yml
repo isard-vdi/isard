@@ -12,6 +12,8 @@ role:
     - user
     - admin
     - advanced
+secondary_groups:
+  type: list
 quota:
   type: 
     - dict

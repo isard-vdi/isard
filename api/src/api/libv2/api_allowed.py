@@ -156,8 +156,17 @@ class ApiAllowed:
                 else:
                     return True
             else:
-                if payload["group_id"] in item["allowed"]["groups"]:
-                    return True
+                secondary_groups = (
+                    r.table("users")
+                    .get(payload["user_id"])
+                    .pluck("secondary_groups")
+                    .run(db.conn)
+                )
+                for group in payload["group_id"] + secondary_groups.get(
+                    "secondary_groups", []
+                ):
+                    if group in item["allowed"]["groups"]:
+                        return True
         if item["allowed"]["users"] is not False:
             if len(item["allowed"]["users"]) == 0:
                 if table in ["domains", "media"]:
