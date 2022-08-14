@@ -44,7 +44,7 @@
                     "text": "Warten auf IP"
                 },
                 "shutting-down": {
-                    "action": "Wird gestoppt",
+                    "action": "Stopp erzwingen",
                     "text": "Wird gestoppt"
                 },
                 "working": {
