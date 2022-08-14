@@ -127,17 +127,17 @@ def user_quota_max(payload, kind, item_id=None):
         return json.dumps(quotas.GetGroupQuota(item_id))
 
 
-@app.route("/api/v3/domain/info/<desktop_id>", methods=["GET"])
+@app.route("/api/v3/domain/info/<domain_id>", methods=["GET"])
 @has_token
-def api_v3_desktop_info(payload, desktop_id):
-    ownsDomainId(payload, desktop_id)
+def api_v3_desktop_info(payload, domain_id):
+    ownsDomainId(payload, domain_id)
     domain = {
         **admin_table_get(
             "domains",
+            domain_id,
             pluck=["id", "name", "description", "guest_properties"],
-            id=desktop_id,
         ),
-        **common.get_domain_hardware(desktop_id),
+        **common.get_domain_hardware(domain_id),
     }
     return (
         json.dumps(domain),

@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 40
+release_version = 41
+# release 41: Added user_id and status indexes to storage table
 # release 40: Added linked groups to groups
 # release 39: Added secondary groups to users
 # release 38: Replace create_dict diskbus to disk_bus
@@ -59,6 +60,7 @@ tables = [
     "interfaces",
     "deployments",
     "remotevpn",
+    "storage",
 ]
 
 
@@ -1513,6 +1515,19 @@ class Upgrade(object):
             r.table(table).filter({"qos_id": False}).update(
                 {"qos_id": "unlimited"}
             ).run(self.conn)
+
+        return True
+
+    """
+    STORAGE TABLE UPGRADES
+    """
+
+    def storage(self, version):
+        table = "storage"
+        log.info("UPGRADING " + table + " VERSION " + str(version))
+        if version == 41:
+            self.index_create(table, ["user_id"])
+            self.index_create(table, ["status"])
 
         return True
 

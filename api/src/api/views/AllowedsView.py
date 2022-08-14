@@ -108,7 +108,7 @@ def admin_allowed_update(payload, table):
     data.update(_validate_item("allowed", data))
     admin_table_update(
         table,
-        dict(admin_table_get(table, id=data["id"]), allowed=data["allowed"]),
+        dict(admin_table_get(table, data["id"]), allowed=data["allowed"]),
     )
     return (json.dumps({}), 200, {"Content-Type": "application/json"})
 
@@ -119,6 +119,6 @@ def admin_allowed_update(payload, table):
 def allowed_table(payload, table):
     data = request.get_json(force=True)
     result = alloweds.get_allowed(
-        admin_table_get(table, id=data["id"], pluck=["allowed"])["allowed"]
+        admin_table_get(table, data["id"], pluck=["allowed"])["allowed"]
     )
     return json.dumps(result), 200, {"Content-Type": "application/json"}

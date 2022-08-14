@@ -110,12 +110,12 @@ def admin_table_update(table, data):
             )
 
 
-def admin_table_get(table, pluck=False, id=False):
+def admin_table_get(table, id, pluck=None):
     _validate_table(table)
+    query = r.table(table).get(id)
+    if pluck:
+        query = query.pluck(pluck)
     with app.app_context():
-        query = r.table(table).get(id)
-        if pluck:
-            query = query.pluck(pluck)
         return query.run(db.conn)
 
 
