@@ -44,16 +44,16 @@ def api_v3_admin_domains(payload):
     )
 
 
-@app.route("/api/v3/admin/domains/xml/<id>", methods=["POST", "GET"])
+@app.route("/api/v3/admin/domains/xml/<domain_id>", methods=["POST", "GET"])
 @is_admin_or_manager
-def api_v3_admin_domains_xml(payload, id):
+def api_v3_admin_domains_xml(payload, domain_id):
     if request.method == "POST":
         data = request.get_json(force=True)
         data["status"] = "Updating"
-        data["id"] = id
+        data["id"] = domain_id
         admin_table_update("domains", data)
     return (
-        json.dumps(admin_table_get("domains", pluck="xml", id=id)["xml"]),
+        json.dumps(admin_table_get("domains", domain_id, pluck="xml")["xml"]),
         200,
         {"Content-Type": "application/json"},
     )

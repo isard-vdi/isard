@@ -27,9 +27,7 @@ from .decorators import is_admin, is_admin_or_manager
 def api_v3_admin_table(payload, table):
     options = request.get_json(force=True)
     if options.get("id"):
-        result = admin_table_get(
-            table, pluck=options.get("pluck"), id=options.get("id")
-        )
+        result = admin_table_get(table, options.get("id"), pluck=options.get("pluck"))
     else:
         result = admin_table_list(
             table,

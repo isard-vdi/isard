@@ -312,6 +312,32 @@ def ownsDeploymentId(payload, deployment_id):
     )
 
 
+def ownsStorageId(payload, storage_id):
+    if payload["role_id"] == "admin":
+        return True
+
+    with app.app_context():
+        storage_user_id = (
+            r.table("storage").get(storage_id).pluck("user_id")["user_id"].run(db.conn)
+        )
+    if storage_user_id == payload["user_id"]:
+        return True
+
+    if payload["role_id"] == "manager":
+        with app.app_context():
+            storage_category_id = (
+                r.table("users").get(storage_user_id).pluck("id")["id"].run(db.conn)
+            )
+        if storage_category_id == payload["category_id"]:
+            return True
+
+    raise Error(
+        "forbidden",
+        "Not enough access rights for this user_id " + payload["user_id"],
+        traceback.format_exc(),
+    )
+
+
 def itemExists(item_table, item_id):
     item = r.table(item_table).get(item_id).run(db.conn)
     if not item:

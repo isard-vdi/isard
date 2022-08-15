@@ -1,0 +1,69 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+{% block css %}
+{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="x_panel">
+    <div class="x_title">
+      <h3><i class="fa fa-folder-open"></i> Storage files <small>Desktop and template files</small></h3>
+      <ul class="nav navbar-right panel_toolbox">
+        <!-- <li><a class="btn-new"><span style="color: #5499c7; "><i class="fa fa-link"></i> Upload from URL</span></a> -->
+        <!-- <li><a class="btn-new-local"><span style="color: #5499c7; "><i class="fa fa-plus"></i><i class="fa fa-hdd-o"></i>  Upload from local</span></a></li>-->
+      </ul>
+      <div class="clearfix"></div>
+    </div>
+    <div class="x_content">
+      <table id="storage" class="table" width="100%">
+          <thead>
+          <tr>
+            <th></th>
+            <th>Id</th>
+            <th>Format</th>
+            <th>Status</th>
+            <th>Size</th>
+            <th>Used</th>
+            <th>Parent</th>
+            <th>User</th>
+          </tr>
+          </thead>
+          <tbody>
+          </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<div class="row">
+  <div class="x_panel">
+    <div class="x_title">
+      <h3><i class="fa fa-times"></i> Deleted storage files <small>Desktop and template files already deleted</small></h3>
+      <ul class="nav navbar-right panel_toolbox">
+        <!-- <li><a class="btn-new"><span style="color: #5499c7; "><i class="fa fa-link"></i> Upload from URL</span></a> -->
+        <!-- <li><a class="btn-new-local"><span style="color: #5499c7; "><i class="fa fa-plus"></i><i class="fa fa-hdd-o"></i>  Upload from local</span></a></li>-->
+      </ul>
+      <div class="clearfix"></div>
+    </div>
+    <div class="x_content">
+      <table id="storage_deleted" class="table" width="100%">
+          <thead>
+          <tr>
+            <th>Id</th>
+            <th>Format</th>
+            <th>Status</th>
+            <th>Size</th>
+            <th>User</th>
+          </tr>
+          </thead>
+          <tbody>
+          </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+{% include 'admin/pages/storage_modals.html' %}
+{% include '/admin/pages/storage_detail.html' %}
+{% endblock %}
+{% block pagescript %}
+    <script src="/isard-admin/static/admin/js/storage.js"></script>
+{% endblock %}
