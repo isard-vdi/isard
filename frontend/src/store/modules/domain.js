@@ -194,13 +194,6 @@ export default {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
-    fetchMedia (context) {
-      axios.get(`${apiV3Segment}/domain/media`).then(response => {
-        context.commit('setMedia', response.data)
-      }).catch(e => {
-        ErrorUtils.handleErrors(e, this._vm.$snotify)
-      })
-    },
     editDomain (context, data) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.editing'))
       axios.put(`${apiV3Segment}/domain/${data.id}`, data).then(response => {
