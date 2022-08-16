@@ -1,0 +1,71 @@
+import { diskBus } from '../shared/constants'
+import { AllowedUtils } from './allowedUtils'
+
+export class DomainsUtils {
+  static parseEditDomain (item) {
+    const { id, name, description, guest_properties: guestProperties, hardware, reservables, image, limited_hardware: limitedHardware } = item
+    return {
+      id,
+      name,
+      description,
+      guestProperties: {
+        fullscreen: guestProperties.fullscreen,
+        credentials: {
+          username: guestProperties.credentials.username,
+          password: guestProperties.credentials.password
+        },
+        viewers: Object.entries(guestProperties.viewers).map(([key, value]) => ({ [key]: value }))
+      },
+      hardware: {
+        bootOrder: hardware.boot_order,
+        diskBus: hardware.disk_bus ? hardware.disk_bus : 'default',
+        disks: hardware.disks,
+        floppies: AllowedUtils.parseItems(hardware.floppies),
+        graphics: hardware.graphics,
+        interfaces: hardware.interfaces,
+        interfacesMac: hardware.interfaces_mac,
+        isos: AllowedUtils.parseItems(hardware.isos),
+        memory: parseFloat(hardware.memory),
+        vcpus: parseInt(hardware.vcpus),
+        videos: hardware.videos,
+        quota: !hardware.quota ? { memory: 128, vcpus: 128, desktopsDiskSize: 500 } : hardware.quota
+      },
+      limitedHardware,
+      reservables: {
+        vgpus: reservables && reservables.vgpus && reservables.vgpus.length > 0 ? reservables.vgpus[0] : ['None']
+      },
+      image
+    }
+  }
+
+  static parseAvailableHardware (hardware) {
+    const { boot_order: bootOrder, disks, floppies, graphics, interfaces, interfaces_mac: interfacesMac, isos, videos } = hardware
+    let quota = hardware.quota
+    if (quota === false) {
+      quota = { memory: 128, vcpus: 128 }
+    }
+    const memory = []
+    for (let i = 0.5; i <= quota.memory; i += 0.5) {
+      memory.push(i)
+    }
+    const vcpus = []
+    for (let i = 1; i <= quota.vcpus; i += 1) {
+      vcpus.push(i)
+    }
+
+    return {
+      bootOrder,
+      diskBus: diskBus,
+      disks,
+      floppies,
+      graphics,
+      interfaces,
+      interfacesMac,
+      isos,
+      memory,
+      vcpus,
+      videos,
+      quota
+    }
+  }
+}

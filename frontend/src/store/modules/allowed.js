@@ -81,7 +81,11 @@ export default {
     },
     fetchAllowedTerm (context, data) {
       return axios.post(`${apiV3Segment}/admin/alloweds/term/${data.table}`, data).then(response => {
-        context.commit(tablesConfig[data.table].mutations.set, AllowedUtils.parseAllowed(data.table, response.data))
+        if (data.table === 'media') {
+          context.commit(tablesConfig[data.kind].mutations.set, AllowedUtils.parseAllowed(data.kind, response.data))
+        } else {
+          context.commit(tablesConfig[data.table].mutations.set, AllowedUtils.parseAllowed(data.table, response.data))
+        }
       })
     },
     fetchAllowed (context, data) {

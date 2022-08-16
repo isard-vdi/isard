@@ -42,6 +42,25 @@ export class AllowedUtils {
       uid
     }
   }
+
+  static parseItems (items) {
+    if (items) {
+      return items.map((item) => {
+        return AllowedUtils.parseItem(item)
+      }) || []
+    } else {
+      return []
+    }
+  }
+
+  static parseItem (media) {
+    const { id, name } = media
+    return {
+      id,
+      label: name,
+      name
+    }
+  }
 }
 
 export const tablesConfig = {
@@ -59,6 +78,20 @@ export const tablesConfig = {
       set: 'setUsers',
       setSelected: 'setSelectedUsers',
       setChecked: 'setUsersChecked'
+    }
+  },
+  isos: {
+    parser: AllowedUtils.parseItems,
+    mutations: {
+      set: 'setIsos',
+      setSelected: 'setSelectedIsos'
+    }
+  },
+  floppies: {
+    parser: AllowedUtils.parseItems,
+    mutations: {
+      set: 'setFloppies',
+      setSelected: 'setSelectedFloppies'
     }
   }
 }

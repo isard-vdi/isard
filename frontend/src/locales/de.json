@@ -322,8 +322,7 @@
             "delete": "Löschen"
         },
         "confirmation": {
-            "delete-desktop": "'{name}' wird gelöscht werden, fortfahren?",
-            "change-image": "Das neue Bild als Bild für den Desktop auswählen?"
+            "delete-desktop": "'{name}' wird gelöscht werden, fortfahren?"
         }
     }
 }

@@ -14,9 +14,6 @@ export const sectionConfig = {
   deployments: {
     statusBar: 'StatusBar'
   },
-  images: {
-    statusBar: 'ImagesStatusBar'
-  },
   booking: {
     statusBar: 'BookingStatusBar'
   },

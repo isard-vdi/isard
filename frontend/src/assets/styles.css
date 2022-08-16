@@ -604,3 +604,9 @@
   background-color: #0c8ac5 !important;
   cursor: pointer;
 }
+
+.image-wrapper .selected-image {
+  filter: brightness(100%);
+  background-color: #0cc528 !important;
+  cursor: pointer;
+}

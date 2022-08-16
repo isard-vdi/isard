@@ -79,6 +79,16 @@
               <template #cell(actions)="data">
                 <div class="d-flex justify-content-center align-items-center">
                   <b-button
+                    class="rounded-circle px-2 mr-2 btn-blue"
+                    :title="$t('views.templates.buttons.edit.title')"
+                    @click="onClickGoToEditTemplate(data.item.id)"
+                  >
+                    <b-icon
+                      icon="pencil-fill"
+                      scale="0.75"
+                    />
+                  </b-button>
+                  <b-button
                     class="rounded-circle px-2 mr-2 btn-dark-blue"
                     :title="$t('views.templates.buttons.allowed.title')"
                     @click="showAllowedModal(data.item)"
@@ -191,6 +201,10 @@ export default {
       currentPage.value = 1
     }
 
+    const onClickGoToEditTemplate = (templateId) => {
+      $store.dispatch('goToEditDomain', templateId)
+    }
+
     watch(() => props.templates, (newVal, prevVal) => {
       totalRows.value = newVal.length
     })
@@ -201,6 +215,7 @@ export default {
       toggleEnabledIcon,
       toggleEnabled,
       onFiltered,
+      onClickGoToEditTemplate,
       filter,
       filterOn,
       perPage,

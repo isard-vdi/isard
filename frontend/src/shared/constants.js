@@ -77,3 +77,75 @@ export const mediaStatus = {
   Downloading: i18n.t('views.media.status.downloading'),
   Deleting: i18n.t('views.media.status.deleting')
 }
+
+export const availableViewers = {
+  rdp: {
+    id: 'rdp',
+    key: 'browser_rdp',
+    name: i18n.t('views.select-template.viewer-name.browser-rdp'),
+    type: 'browser',
+    order: 3,
+    needsWireguard: true
+  },
+  vnc: {
+    id: 'vnc',
+    key: 'browser_vnc',
+    name: i18n.t('views.select-template.viewer-name.browser-vnc'),
+    type: 'browser',
+    order: 1,
+    needsWireguard: false
+  },
+  rdpgw: {
+    id: 'rdpgw',
+    key: 'file_rdpgw',
+    name: i18n.t('views.select-template.viewer-name.file-rdpgw'),
+    type: 'file',
+    order: 4,
+    needsWireguard: true
+  },
+  rdpvpn: {
+    id: 'rdpvpn',
+    key: 'file_rdpvpn',
+    name: i18n.t('views.select-template.viewer-name.file-rdpvpn'),
+    type: 'file',
+    order: 5,
+    needsWireguard: true
+  },
+  spice: {
+    id: 'spice',
+    key: 'file_spice',
+    name: i18n.t('views.select-template.viewer-name.file-spice'),
+    type: 'file',
+    order: 2,
+    needsWireguard: false
+  }
+}
+
+export const diskBus = [
+  {
+    id: 'default',
+    name: 'Default'
+  },
+  {
+    id: 'virtio',
+    name: 'Virtio'
+  },
+  {
+    id: 'ide',
+    name: 'IDE'
+  },
+  {
+    id: 'sata',
+    name: 'SATA'
+  }
+]
+
+export const hardwareWarningTitle = {
+  videos: i18n.t('forms.domain.hardware.videos'),
+  vcpus: i18n.t('forms.domain.hardware.vcpus'),
+  memory: i18n.t('forms.domain.hardware.memory'),
+  isos: i18n.t('forms.domain.media.isos'),
+  floppies: i18n.t('forms.domain.media.floppies'),
+  boot_order: i18n.t('forms.domain.hardware.boot'),
+  vgpus: i18n.t('forms.domain.bookables.vgpus')
+}
