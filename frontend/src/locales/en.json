@@ -759,7 +759,8 @@
             "missing-data": "Missing data",
             "creating-media": "Creating media",
             "image-uploaded": "Image uploaded correctly",
-            "editing": "Editing"
+            "editing": "Editing",
+            "edit-desktop-stop": "To edit a desktop it must be stopped"
         },
         "loading": "Loading"
     },

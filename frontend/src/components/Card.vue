@@ -436,7 +436,7 @@ export default {
       if (this.desktopState === desktopStates.stopped) {
         this.goToEditDomain(payload.itemId)
       } else {
-        ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.edit-stop'), '', true, 2000)
+        ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.edit-desktop-stop'), '', true, 2000)
       }
     },
     onClickDeleteDesktop (toast) {
