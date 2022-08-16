@@ -773,7 +773,8 @@
             "enable-template": "Visibilizando la plantilla",
             "creating-media": "Creando media",
             "image-uploaded": "Imagen subida correctamente",
-            "editing": "Editando"
+            "editing": "Editando",
+            "edit-desktop-stop": "Para editar un escritorio es necesario que esté parado"
         },
         "loading": "Cargando"
     },

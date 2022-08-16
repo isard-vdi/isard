@@ -810,7 +810,7 @@
             "starting-desktops": "Iniciant els escriptoris del desplegament",
             "stopping-desktops": "Parant els escriptoris del desplegament",
             "creating-template": "Creant plantilla",
-            "new-template-stop": "Per crear una template és necessari que el escriptori estigui parat",
+            "new-template-stop": "Per crear una plantilla és necessari que el escriptori estigui parat",
             "no-availability-event": "No hi ha disponibilitat al rang seleccionat",
             "not-created-event": "No s'ha pogut crear l'esdeveniment",
             "missing-data": "Falten dades",
@@ -820,7 +820,8 @@
             "disable-template": "Fent la plantilla invisible",
             "editing-event": "Editant esdeveniment",
             "creating-media": "Creant mitjà",
-            "editing": "Editant"
+            "editing": "Editant",
+            "edit-desktop-stop": "Per editar un escriptori és necessari que estigui parat"
         },
         "loading": "Carregant"
     },
