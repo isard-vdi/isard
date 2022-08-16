@@ -417,7 +417,7 @@ function setHypervisorDetailButtonsStatus(id,status){
 }
 
 function actionsHyperDetail(){
-        $('.btn-enable').on('click', function () {
+        $('.btn-enable').off('click').on('click', function () {
                 var closest=$(this).closest("div");
                 var pk=closest.attr("data-pk");
                 var data = table.row("#"+pk).data();
