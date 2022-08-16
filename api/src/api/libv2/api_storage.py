@@ -46,7 +46,10 @@ def get_disks(user_id=None, status=None):
         ]
     )
     query = query.merge(
-        lambda disk: {"user_name": r.table("users").get(disk["user_id"])["name"]}
+        lambda disk: {
+            "user_name": r.table("users").get(disk["user_id"])["name"],
+            "category": r.table("users").get(disk["user_id"])["category"],
+        }
     )
     with app.app_context():
         return list(query.run(db.conn))
