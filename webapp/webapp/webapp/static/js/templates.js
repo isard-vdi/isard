@@ -339,7 +339,7 @@ $("#modalEditDesktop #send").on('click', function(e){
         })
         $.ajax({
             type: 'PUT',
-            url: '/api/v3/desktop/'+data["id"],
+            url: '/api/v3/domain/'+data["id"],
             data: JSON.stringify(data),
             contentType: 'application/json',
             error: function(data) {

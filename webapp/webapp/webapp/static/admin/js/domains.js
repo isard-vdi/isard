@@ -955,7 +955,7 @@ function actionsDomainDetail(){
         data=$('#modalForcedhypForm').serializeObject();
         $.ajax({
             type: 'PUT',
-            url: '/api/v3/desktop/'+data["id"],
+            url: '/api/v3/domain/'+data["id"],
             data: JSON.stringify({
                 ...( ! ("forced_hyp"  in data) && {"forced_hyp": false} ),
                 ...( "forced_hyp" in data && {"forced_hyp": [data.forced_hyp]} ),
@@ -994,7 +994,7 @@ function actionsDomainDetail(){
         let server=$('#modalServerForm #server').prop('checked')
         $.ajax({
             type: "PUT",
-            url: "/api/v3/desktop/" + pk,
+            url: "/api/v3/domain/" + pk,
             data: JSON.stringify({
                 'id': pk,
                 'server': server
@@ -1217,7 +1217,7 @@ function populate_tree_template_delete(id){
                 })
                 $.ajax({
                     type: 'PUT',
-                    url: '/api/v3/desktop/'+data["id"],
+                    url: '/api/v3/domain/'+data["id"],
                     data: JSON.stringify(data),
                     contentType: 'application/json',
                     error: function(data) {
@@ -1261,7 +1261,7 @@ function populate_tree_template_delete(id){
         xml=$('#modalEditXmlForm #xml').val();
         $.ajax({
             type: 'PUT',
-            url: '/api/v3/desktop/'+id,
+            url: '/api/v3/domain/'+id,
             data: JSON.stringify({'xml':xml}),
             contentType: 'application/json',
             error: function(data) {

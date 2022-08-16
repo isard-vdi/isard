@@ -472,7 +472,7 @@ function actionsDesktopDetail(){
         let server=$('#modalServerForm #server').prop('checked')
         $.ajax({
             type: "PUT",
-            url: "/api/v3/desktop/" + pk,
+            url: "/api/v3/domain/" + pk,
             data: JSON.stringify({
                 'id': pk,
                 'server': server
@@ -866,7 +866,7 @@ $("#modalEditDesktop #send").on('click', function(e){
         })
         $.ajax({
             type: 'PUT',
-            url: '/api/v3/desktop/'+data["id"],
+            url: '/api/v3/domain/'+data["id"],
             data: JSON.stringify(data),
             contentType: 'application/json',
             error: function(data) {
