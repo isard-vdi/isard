@@ -1,7 +1,7 @@
 import axios from 'axios'
 import i18n from '@/i18n'
 import router from '@/router'
-import { orderBy, flow } from 'lodash'
+import { orderBy } from 'lodash'
 import { apiV3Segment, availableViewers } from '../../shared/constants'
 import { DomainsUtils } from '../../utils/domainsUtils'
 import { ErrorUtils } from '../../utils/errorUtils'
@@ -18,8 +18,8 @@ const getDefaultState = () => {
       description: '',
       guestProperties: {
         credentials: {
-          password: '',
-          username: ''
+          password: 'isard',
+          username: 'pirineus'
         },
         fullscreen: false,
         viewers: [],
@@ -112,12 +112,8 @@ export default {
     },
     removeWireguardViewers: (state) => {
       // Get viewers that require the wireguard network
-      const viewers = flow([
-        Object.entries,
-        arr => arr.filter(([key, value]) => value.needsWireguard),
-        Object.fromEntries
-      ])(availableViewers)
-      for (const value of Object.values(viewers)) {
+      const wireguardViewers = availableViewers.filter(viewer => viewer.needsWireguard)
+      for (const value of wireguardViewers) {
         // Remove each one of them from the domain selected viewers
         const viewerIndex = state.domain.guestProperties.viewers.findIndex(v => Object.keys(v)[0] === value.key)
         if (viewerIndex !== -1) {
@@ -126,8 +122,8 @@ export default {
       }
     },
     removeGuestProperties: (state) => {
-      state.domain.guestProperties.credentials.password = ''
-      state.domain.guestProperties.credentials.username = ''
+      state.domain.guestProperties.credentials.password = 'isard'
+      state.domain.guestProperties.credentials.username = 'pirineus'
     }
   },
   actions: {

@@ -4,6 +4,31 @@
     <h4 class="my-4">
       <strong>{{ $t('forms.domain.viewers.title') }}</strong>
     </h4>
+    <b-row>
+      <b-col cols="12">
+        <div class="d-flex">
+          <label
+            for="switch_1"
+            class="mr-2"
+          ><b-icon
+            icon="fullscreen-exit"
+            class="mr-2"
+            variant="danger"
+          />{{ $t('forms.domain.viewers.fullscreen-disabled') }}</label>
+          <b-form-checkbox
+            id="checkbox-1"
+            v-model="fullscreen"
+            switch
+          >
+            <b-icon
+              class="mr-2"
+              icon="fullscreen"
+              variant="success"
+            />{{ $t('forms.domain.viewers.fullscreen-enabled') }}
+          </b-form-checkbox>
+        </div>
+      </b-col>
+    </b-row>
     <b-form-group
       v-slot="{ ariaDescribedby }"
     >
@@ -15,7 +40,7 @@
       >
         <b-row class="justify-content-center text-center">
           <b-form-checkbox
-            v-for="viewer in orderBy(selectableViewers, 'order')"
+            v-for="viewer of orderBy(availableViewers, 'order')"
             :key="viewer.id"
             :value="{ [viewer.key]: {options: null} }"
           >
@@ -43,7 +68,7 @@
       </b-form-checkbox-group>
     </b-form-group>
     <!-- Guest username -->
-    <span v-if="wireguard">
+    <span v-if="showRDPLogin">
       <h4>
         <strong>{{ $t('forms.domain.viewers.guest.title') }}</strong>
       </h4>
@@ -100,14 +125,22 @@
 </template>
 
 <script>
-import { computed, watch } from '@vue/composition-api'
+import { computed, watch, ref } from '@vue/composition-api'
 import { availableViewers } from '@/shared/constants'
-import { orderBy, flow } from 'lodash'
+import { orderBy } from 'lodash'
 
 export default {
   setup (props, context) {
     const $store = context.root.$store
     const domain = computed(() => $store.getters.getDomain)
+    const showRDPLogin = ref(false)
+    const fullscreen = computed({
+      get: () => $store.getters.getDomain.guestProperties.fullscreen,
+      set: (value) => {
+        domain.value.guestProperties.fullscreen = value
+        $store.commit('setDomain', domain.value)
+      }
+    })
     const viewers = computed({
       get: () => $store.getters.getDomain.guestProperties.viewers,
       set: (value) => {
@@ -136,21 +169,33 @@ export default {
         $store.dispatch('removeWireguardViewers')
       }
     })
-    const selectableViewers = computed(() => wireguard.value
-      ? availableViewers
-      : flow([
-        Object.entries,
-        arr => arr.filter(([key, value]) => !value.needsWireguard),
-        Object.fromEntries
-      ])(availableViewers))
+
+    watch(viewers, (newVal, prevVal) => {
+      // Get viewers that require the wireguard network and the currently selected viewers
+      const wireguardViewers = availableViewers.filter(viewer => viewer.needsWireguard).map((viewer) => viewer.key)
+      const currentViewers = newVal.map((viewer) => Object.keys(viewer)[0])
+      // If has selected any wireguard viewer
+      if (currentViewers.some(viewer => wireguardViewers.includes(viewer))) {
+        showRDPLogin.value = true
+        // Add the wireguard network
+        if (!wireguard.value) {
+          domain.value.hardware.interfaces = [...domain.value.hardware.interfaces, 'wireguard']
+          $store.commit('setDomain', domain.value)
+        }
+      } else {
+        showRDPLogin.value = false
+      }
+    })
 
     return {
       viewers,
-      selectableViewers,
       username,
       password,
       orderBy,
-      wireguard
+      wireguard,
+      fullscreen,
+      availableViewers,
+      showRDPLogin
     }
   }
 }

@@ -78,8 +78,8 @@ export const mediaStatus = {
   Deleting: i18n.t('views.media.status.deleting')
 }
 
-export const availableViewers = {
-  rdp: {
+export const availableViewers = [
+  {
     id: 'rdp',
     key: 'browser_rdp',
     name: i18n.t('views.select-template.viewer-name.browser-rdp'),
@@ -87,7 +87,7 @@ export const availableViewers = {
     order: 3,
     needsWireguard: true
   },
-  vnc: {
+  {
     id: 'vnc',
     key: 'browser_vnc',
     name: i18n.t('views.select-template.viewer-name.browser-vnc'),
@@ -95,7 +95,7 @@ export const availableViewers = {
     order: 1,
     needsWireguard: false
   },
-  rdpgw: {
+  {
     id: 'rdpgw',
     key: 'file_rdpgw',
     name: i18n.t('views.select-template.viewer-name.file-rdpgw'),
@@ -103,7 +103,7 @@ export const availableViewers = {
     order: 4,
     needsWireguard: true
   },
-  rdpvpn: {
+  {
     id: 'rdpvpn',
     key: 'file_rdpvpn',
     name: i18n.t('views.select-template.viewer-name.file-rdpvpn'),
@@ -111,7 +111,7 @@ export const availableViewers = {
     order: 5,
     needsWireguard: true
   },
-  spice: {
+  {
     id: 'spice',
     key: 'file_spice',
     name: i18n.t('views.select-template.viewer-name.file-spice'),
@@ -119,7 +119,7 @@ export const availableViewers = {
     order: 2,
     needsWireguard: false
   }
-}
+]
 
 export const diskBus = [
   {
