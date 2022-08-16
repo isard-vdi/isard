@@ -1,0 +1,19 @@
+type:
+  type: string
+  required: true
+  allowed:
+    - user
+    - stock
+id:
+  type: string
+  required: false
+file:
+  type: dict
+  required: false
+  schema:
+    data:
+      type: string
+      required: true
+    filename:
+      type: string
+      required: true

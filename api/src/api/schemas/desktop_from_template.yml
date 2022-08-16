@@ -8,3 +8,10 @@ description:
 template_id:
   type: string
   required: true
+hardware:
+  schema: hardware_update
+guest_properties:
+  type: dict
+  schema: guest_properties_update
+image:
+  schema: image_update

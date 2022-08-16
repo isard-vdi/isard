@@ -50,6 +50,7 @@ from .helpers import (
     _parse_string,
     default_guest_properties,
     gen_payload_from_user,
+    parse_domain_insert,
     parse_domain_update,
 )
 
@@ -100,6 +101,8 @@ class ApiDesktopsPersistent:
         template_id,
         user_id,
         deployment_tag_dict=False,
+        new_data=None,
+        image=None,
     ):
         with app.app_context():
             template = r.table("domains").get(template_id).run(db.conn)
@@ -120,6 +123,18 @@ class ApiDesktopsPersistent:
                     "conflict",
                     "NewFromTemplate: user already has a desktop with the same id.",
                 )
+
+        if new_data:
+            template["create_dict"]["hardware"] = {
+                **template["create_dict"]["hardware"],
+                **parse_domain_insert(new_data)["hardware"],
+            }
+            template["create_dict"]["reservables"] = new_data["hardware"]["reservables"]
+            template["create_dict"]["hardware"].pop("reservables")
+        else:
+            template["create_dict"]["hardware"]["memory"] = (
+                template["create_dict"]["hardware"]["memory"] / 1048576
+            )
 
         parent_disk = template["hardware"]["disks"][0]["file"]
         create_dict = template["create_dict"]
@@ -155,7 +170,9 @@ class ApiDesktopsPersistent:
             "image": template["image"],
             "server": template["server"],
             "os": template["os"],
-            "guest_properties": template["guest_properties"],
+            "guest_properties": new_data.get("guest_properties")
+            if new_data
+            else template["guest_properties"],
             "create_dict": {
                 "hardware": create_dict["hardware"],
                 "origin": template["id"],
@@ -175,6 +192,12 @@ class ApiDesktopsPersistent:
         if deployment_tag_dict:
             new_desktop = {**new_desktop, **deployment_tag_dict}
 
+        new_desktop["create_dict"]["hardware"]["memory"] = (
+            int(new_data["hardware"]["memory"] * 1048576)
+            if new_data and new_data.get("hardware", {}).get("memory")
+            else int(template["create_dict"]["hardware"]["memory"] * 1048576)
+        )
+
         if create_dict.get("reservables"):
             new_desktop["create_dict"] = {
                 **new_desktop["create_dict"],
@@ -191,6 +214,16 @@ class ApiDesktopsPersistent:
                     "NewFromTemplate: unable to insert new desktop in database",
                 )
             else:
+                if image:
+                    image_data = image
+                    if not image_data.get("file"):
+                        img_uuid = api_cards.update(
+                            new_desktop_id, image_data["id"], image_data["type"]
+                        )
+                        card = api_cards.get_card(img_uuid, image_data["type"])
+                    else:
+                        img_uuid = api_cards.upload(new_desktop_id, image_data)
+                        card = api_cards.get_card(img_uuid, image_data["type"])
                 return new_desktop_id
 
     def BulkDesktops(self, payload, data):
