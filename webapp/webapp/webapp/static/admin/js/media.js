@@ -531,7 +531,7 @@ function modal_add_install_datatables(){
         if (form.parsley().isValid()){
             install=$('#modalAddFromMedia #install').val();
             if (install !=''){
-                data=$('#modalAddFromMedia  #modalAdd').serializeObject();
+                data=$('#modalAddFromMedia #modalAdd').serializeObject();
                 data=parse_media(JSON.unflatten(data));
                 var notice = new PNotify({
                     text: 'Creating desktop...',
