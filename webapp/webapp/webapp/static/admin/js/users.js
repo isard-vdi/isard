@@ -14,6 +14,34 @@ $(document).ready(function() {
         setQuotaMax('#users-quota',kind='category',id=false,disabled=false);
         $('#modalAddUser').modal({backdrop: 'static', keyboard: false}).modal('show');
         $('#modalAddUserForm')[0].reset();
+
+        $('#modalAddUserForm #secondary_groups').select2({
+            minimumInputLength: 2,
+            multiple: true,
+            ajax: {
+                type: "POST",
+                url: '/api/v3/admin/alloweds/term/groups/',
+                dataType: 'json',
+                contentType: "application/json",
+                delay: 250,
+                data: function (params) {
+                    return  JSON.stringify({
+                        term: params.term,
+                    });
+                },
+                processResults: function (data) {
+                    return {
+                        results: $.map(data, function (item, i) {
+                            return {
+                                text: item.name,
+                                id: item.id
+                            }
+                        })
+                    };
+                }
+            },
+        });   
+
         setModalUser();
 	});
 
@@ -503,10 +531,37 @@ function actionsUserDetail(){
 	$('.btn-edit').on('click', function () {            
             var pk=$(this).closest("div").attr("data-pk");
             $("#modalEditUserForm")[0].reset();
+            $("#modalEditUserForm #secondary_groups").empty().trigger('change')
 			$('#modalEditUser').modal({
 				backdrop: 'static',
 				keyboard: false
             }).modal('show');
+            $('#modalEditUserForm #secondary_groups').select2({
+                minimumInputLength: 2,
+                multiple: true,
+                ajax: {
+                    type: "POST",
+                    url: '/api/v3/admin/alloweds/term/groups/',
+                    dataType: 'json',
+                    contentType: "application/json",
+                    delay: 250,
+                    data: function (params) {
+                        return  JSON.stringify({
+                            term: params.term,
+                        });
+                    },
+                    processResults: function (data) {
+                        return {
+                            results: $.map(data, function (item, i) {
+                                return {
+                                    text: item.name,
+                                    id: item.id
+                                }
+                            })
+                        };
+                    }
+                },
+            });   
             setModalUser();
             api.ajax('/api/v3/admin/table/users','POST',{'id':pk}).done(function(user) {
                 $('#modalEditUserForm #name').val(user.name);
@@ -520,6 +575,10 @@ function actionsUserDetail(){
                 $('#modalEditUserForm #group option:selected').prop("selected", false);
                 $('#modalEditUserForm #group option[value="'+user.group+'"]').prop("selected",true);                
                 $('#modalEditUserForm').parsley().validate();
+                $.each(user.secondary_groups, function(i, group) {
+                    var newOption = new Option(group, group, true, true);
+                    $("#modalEditUserForm #secondary_groups").append(newOption).trigger('change');
+                })
             });
             setQuotaMax('#edit-users-quota',kind='user',id=pk,disabled=false);
 	});

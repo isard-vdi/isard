@@ -14,6 +14,7 @@ role:
     - advanced
 secondary_groups:
   type: list
+  default: []
 quota:
   type: 
     - dict
