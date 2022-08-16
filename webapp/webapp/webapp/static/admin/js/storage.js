@@ -27,14 +27,14 @@ $(document).ready(function() {
                 "width": "10px",
                 "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
             },
+            { "data": "directory_path",},
             { "data": "id",},
             { "data": "type",},
-            { "data": "status",},
             { "data": null},
             { "data": null},
             { "data": "parent",},
             { "data": "user_name",},
-
+            { "data": "category",},
         ],
         "columnDefs": [ 
             {
@@ -118,13 +118,13 @@ $(document).ready(function() {
         "columns": [
             { "data": "id",},
             { "data": "type",},
-            { "data": "status",},
             { "data": null},
             { "data": "user_name",},
+            { "data": "category",},
         ],
         "columnDefs": [
           {
-          "targets": 3,
+          "targets": 2,
           "render": function ( data, type, full, meta ) {
               if( 'qemu-img-info' in full ){
                   return full["qemu-img-info"]["virtual-size"]
