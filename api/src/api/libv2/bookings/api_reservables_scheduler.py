@@ -27,11 +27,12 @@ import requests
 from jose import jwt
 
 from ..api_exceptions import Error
+from ..api_rest import ApiRest
 
 
 class ResourceScheduler:
     def __init__(self):
-        self.base_url = "http://isard-scheduler:5000/scheduler"
+        self.api_rest = ApiRest("http://isard-scheduler:5000/scheduler")
 
     def schedule_subitem(self, plan_id, item_type, item_id, subitem_id, on_date):
         if isinstance(on_date, datetime):
@@ -55,7 +56,7 @@ class ResourceScheduler:
         data["date"] = data["date"].astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
         data["message"] = "This desktop will be stopped in 15 minutes"
         try:
-            self._post("/advanced/date/gpu_desktops_notify", data)
+            self.api_rest.post("/advanced/date/gpu_desktops_notify", data)
         except:
             log.error(
                 "could not contact scheduler service at /advanced/date/gpu_desktops_notify"
@@ -67,7 +68,7 @@ class ResourceScheduler:
         data["date"] = data["date"].astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
         data["message"] = "This desktop will be stopped in 5 minutes"
         try:
-            self._post("/advanced/date/gpu_desktops_notify", data)
+            self.api_rest.post("/advanced/date/gpu_desktops_notify", data)
         except:
             log.error(
                 "could not contact scheduler service at /advanced/date/gpu_desktops_notify"
@@ -78,7 +79,7 @@ class ResourceScheduler:
         data["date"] = start_date - timedelta(0, 2 * 60)
         data["date"] = data["date"].astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
         try:
-            self._post("/advanced/date/gpu_desktops_destroy", data)
+            self.api_rest.post("/advanced/date/gpu_desktops_destroy", data)
         except:
             log.error(
                 "could not contact scheduler service at /advanced/date/gpu_desktops_destroy"
@@ -89,7 +90,7 @@ class ResourceScheduler:
         data["date"] = start_date - timedelta(0, 60)
         data["date"] = data["date"].astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
         try:
-            self._post("/advanced/date/gpu_profile_set", data)
+            self.api_rest.post("/advanced/date/gpu_profile_set", data)
         except:
             log.error(
                 "could not contact scheduler service at /advanced/date/gpu_profile_set"
@@ -118,7 +119,7 @@ class ResourceScheduler:
         data["date"] = start_date - timedelta(0, 1 * 60)
         data["date"] = data["date"].astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
         try:
-            self._post("/advanced/date/domain_reservable_set", data)
+            self.api_rest.post("/advanced/date/domain_reservable_set", data)
         except:
             log.error(
                 "could not contact scheduler service at /advanced/date/domain_reservable_set"
@@ -130,7 +131,7 @@ class ResourceScheduler:
         data["date"] = data["date"].astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
         data["kwargs"]["booking_id"] = False
         try:
-            self._post("/advanced/date/domain_reservable_set", data)
+            self.api_rest.post("/advanced/date/domain_reservable_set", data)
         except:
             log.error(
                 "could not contact scheduler service at /advanced/date/domain_reservable_set"
@@ -144,7 +145,7 @@ class ResourceScheduler:
 
     def remove_scheduler_id(self, id):
         try:
-            self._delete("/startswith/" + id, {})
+            self.api_rest.delete("/startswith/" + id)
         except:
             log.error(
                 "Could not contact scheduler service at /" + id + " method DELETE"
@@ -167,33 +168,3 @@ class ResourceScheduler:
             algorithm="HS256",
         )
         return {"Authorization": "Bearer " + token}
-
-    def _post(self, url, data):
-        try:
-            resp = requests.post(
-                self.base_url + url, json=data, headers=self.header_auth()
-            )
-            if resp.status_code == 200:
-                return json.loads(resp.text)
-            raise Error("bad_request", "Bad request while contacting scheduler service")
-        except:
-            raise Error(
-                "internal_server",
-                "Could not contact scheduler service",
-                traceback.format_exc(),
-            )
-
-    def _delete(self, url, data={}):
-        try:
-            resp = requests.delete(
-                self.base_url + url, json=data, headers=self.header_auth()
-            )
-            if resp.status_code == 200:
-                return json.loads(resp.text)
-            raise Error("bad_request", "Bad request while contacting scheduler service")
-        except:
-            raise Error(
-                "internal_server",
-                "Could not contact scheduler service",
-                traceback.format_exc(),
-            )
