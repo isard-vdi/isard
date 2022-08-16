@@ -56,7 +56,13 @@ def insert_storage(disk):
     storage_id = disk.get("storage_id")
     if storage_id:
         storage = get_dict_from_item_in_table("storage", storage_id)
-        disk.update({"file": _get_filename(storage)})
+        disk.update(
+            {
+                "file": _get_filename(storage),
+                "parent": storage.get("parent"),
+                "path_selected": storage.get("directory_path"),
+            }
+        )
 
 
 def update_storage_status(storage_id, status):
