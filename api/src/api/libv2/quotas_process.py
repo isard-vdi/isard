@@ -1063,13 +1063,13 @@ class QuotasProcess:
                 ]
                 create_dict["hardware"]["boot_order"] = ["disk"]
 
-        if create_dict["hardware"].get("qos_id"):
-            if "qos_id" not in [uh["id"] for uh in user_hardware["qos_id"]]:
-                limited["qos_id"] = {
-                    "old_value": create_dict["hardware"]["qos_id"],
-                    "new_value": "unlimited",
-                }
-                create_dict["hardware"]["qos_id"] = "unlimited"
+        # if create_dict["hardware"].get("qos_id"):
+        #     if "qos_id" not in [uh["id"] for uh in user_hardware["qos_id"]]:
+        #         limited["qos_id"] = {
+        #             "old_value": create_dict["hardware"]["qos_id"],
+        #             "new_value": "unlimited",
+        #         }
+        #         create_dict["hardware"]["qos_id"] = "unlimited"
 
         if create_dict.get("reservables", {}).get("vgpus") and len(
             create_dict.get("reservables", {}).get("vgpus", [])
