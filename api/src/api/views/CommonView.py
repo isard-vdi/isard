@@ -134,11 +134,12 @@ def api_v3_desktop_info(payload, domain_id):
     domain = {
         **admin_table_get(
             "domains",
-            domain_id,
-            pluck=["id", "name", "description", "guest_properties"],
+            pluck=["id", "name", "description", "image", "guest_properties"],
+            id=domain_id,
         ),
         **common.get_domain_hardware(domain_id),
     }
+    domain = quotas.limit_user_hardware_allowed(payload, domain)
     return (
         json.dumps(domain),
         200,

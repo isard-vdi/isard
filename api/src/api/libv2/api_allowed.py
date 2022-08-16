@@ -191,6 +191,7 @@ class ApiAllowed:
             else:
                 if payload["user_id"] in item["allowed"]["users"]:
                     return True
+        return False
 
     def get_domain_reservables(self, domain_id):
         with app.app_context():

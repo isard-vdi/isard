@@ -573,3 +573,14 @@ def get_user_data(user_id="admin"):
         "user": user["id"],
         "username": user["username"],
     }
+
+
+def gen_payload_from_user(user):
+    return {
+        "provider": user["provider"],
+        "user_id": user["id"],
+        "role_id": user["role"],
+        "category_id": user["category"],
+        "group_id": user["group"],
+        "name": user["name"],
+    }

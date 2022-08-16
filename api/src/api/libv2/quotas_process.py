@@ -788,6 +788,8 @@ class QuotasProcess:
             "reservables",
             "forced_hyp",
             "quota",
+            "isos",
+            "floppies",
         ]:
             raise Error(
                 "bad_request", "Hardware kind not found", traceback.format_exc()
@@ -880,58 +882,228 @@ class QuotasProcess:
         dict = {**dict, **quota}
         return dict
 
-    def limit_user_hardware_allowed(self, create_dict, user_id):
-        user_hardware = self.user_hardware_allowed(user_id)
+    def limit_user_hardware_allowed(self, payload, create_dict):
+        user_hardware = self.user_hardware_allowed(payload)
+        limited = {}
         ## Limit the resources to the ones allowed to user
         if user_hardware["quota"] != False:
             if create_dict["hardware"]["vcpus"] > user_hardware["quota"]["vcpus"]:
+                limited["vcpus"] = {
+                    "old_value": create_dict["hardware"]["vcpus"],
+                    "new_value": user_hardware["quota"]["vcpus"],
+                }
                 create_dict["hardware"]["vcpus"] = user_hardware["quota"]["vcpus"]
-            if (
-                create_dict["hardware"]["memory"]
-                > user_hardware["quota"]["memory"] * 1048576
-            ):
-                create_dict["hardware"]["memory"] = (
-                    user_hardware["quota"]["memory"] * 1048576
-                )
+            if create_dict["hardware"]["memory"] > user_hardware["quota"]["memory"]:
+                limited["memory"] = {
+                    "old_value": create_dict["hardware"]["memory"],
+                    "new_value": user_hardware["quota"]["memory"],
+                }
+                create_dict["hardware"]["memory"] = user_hardware["quota"]["memory"]
 
-        if (
-            create_dict["hardware"].get("videos")
-            and len(create_dict["hardware"].get("videos", []))
-            and create_dict["hardware"]["videos"][0]
-            not in [uh["id"] for uh in user_hardware["videos"]]
+        if len(create_dict["hardware"].get("interfaces", [])):
+            interfaces = [uh["id"] for uh in user_hardware["interfaces"]]
+            for interface in create_dict["hardware"]["interfaces"]:
+                if interface not in interfaces:
+                    if "interfaces" not in limited:
+                        limited["interfaces"] = {
+                            "old_value": [
+                                {
+                                    "id": interface,
+                                    "name": r.table("interfaces")
+                                    .get(interface)
+                                    .pluck("name")
+                                    .run(db.conn)["name"],
+                                }
+                            ],
+                            "new_value": [],
+                        }
+                    else:
+                        limited["interfaces"]["old_value"].append(interface)
+                    create_dict["hardware"]["interfaces"].remove(interface)
+            if not len(create_dict["hardware"]["interfaces"]):
+                limited["interfaces"]["new_value"] = [
+                    r.table("interfaces")
+                    .get("default")
+                    .pluck("id", "name")
+                    .run(db.conn),
+                ]
+                create_dict["hardware"]["interfaces"] = ["default"]
+
+        if len(create_dict["hardware"].get("videos", [])):
+            videos = [uh["id"] for uh in user_hardware["videos"]]
+            for video in create_dict["hardware"]["videos"]:
+                if video not in videos:
+                    if "videos" not in limited:
+                        limited["videos"] = {
+                            "old_value": [
+                                {
+                                    "id": video,
+                                    "name": r.table("videos")
+                                    .get(video)
+                                    .pluck("name")
+                                    .run(db.conn)["name"],
+                                }
+                            ],
+                            "new_value": [],
+                        }
+                    else:
+                        limited["videos"]["old_value"].append(video)
+                    create_dict["hardware"]["videos"].remove(video)
+            if not len(create_dict["hardware"]["videos"]):
+                limited["videos"]["new_value"] = [
+                    r.table("videos").get("default").pluck("id", "name").run(db.conn),
+                ]
+                create_dict["hardware"]["videos"] = ["default"]
+
+        if len(create_dict["hardware"].get("graphics", [])):
+            graphics = [uh["id"] for uh in user_hardware["graphics"]]
+            for graphic in create_dict["hardware"]["graphics"]:
+                if graphic not in graphics:
+                    if "graphics" not in limited:
+                        limited["graphics"] = {
+                            "old_value": [
+                                {
+                                    "id": graphic,
+                                    "name": r.table("graphics")
+                                    .get(graphic)
+                                    .pluck("name")
+                                    .run(db.conn)["name"],
+                                }
+                            ],
+                            "new_value": [],
+                        }
+                    else:
+                        limited["graphics"]["old_value"].append(graphic)
+                    create_dict["hardware"]["graphics"].remove(graphic)
+            if not len(create_dict["hardware"]["graphics"]):
+                limited["graphics"]["new_value"] = [
+                    r.table("graphics").get("default").pluck("id", "name").run(db.conn),
+                ]
+                create_dict["hardware"]["graphics"] = ["default"]
+
+        if len(create_dict["hardware"].get("isos", [])):
+            isos = allowed.get_items_allowed(
+                payload,
+                "media",
+                query_pluck=["id", "name", "description"],
+                query_filter={"status": "Downloaded"},
+                index_key="kind",
+                index_value="iso",
+            )
+            for iso in create_dict["hardware"]["isos"]:
+                if iso["id"] not in [i["id"] for i in isos]:
+                    if "isos" not in limited:
+                        limited["isos"] = {
+                            "old_value": [
+                                {
+                                    "id": iso["id"],
+                                    "name": r.table("media")
+                                    .get(iso["id"])
+                                    .pluck("name")
+                                    .run(db.conn)["name"],
+                                }
+                            ],
+                            "new_value": [],
+                        }
+                    else:
+                        limited["isos"]["old_value"].append(iso)
+                    create_dict["hardware"]["isos"].remove(iso)
+
+        if len(create_dict["hardware"].get("floppies", [])):
+            floppies = allowed.get_items_allowed(
+                payload,
+                "media",
+                query_pluck=["id", "name", "description"],
+                query_filter={"status": "Downloaded"},
+                index_key="kind",
+                index_value="floppy",
+            )
+            for floppy in create_dict["hardware"]["floppies"]:
+                if floppy["id"] not in [f["id"] for f in floppies]:
+                    if "floppies" not in limited:
+                        limited["floppies"] = {
+                            "old_value": [
+                                {
+                                    "id": floppy["id"],
+                                    "name": r.table("media")
+                                    .get(floppy["id"])
+                                    .pluck("name")
+                                    .run(db.conn)["name"],
+                                }
+                            ],
+                            "new_value": [],
+                        }
+                    else:
+                        limited["floppies"]["old_value"].append(floppy)
+                    create_dict["hardware"]["floppies"].remove(floppy)
+
+        if len(create_dict["hardware"].get("boot_order", [])):
+            boot_orders = [uh["id"] for uh in user_hardware["boot_order"]]
+            for boot_order in create_dict["hardware"]["boot_order"]:
+                if boot_order not in boot_orders:
+                    if "boot_order" not in limited:
+                        limited["boot_order"] = {
+                            "old_value": [
+                                {
+                                    "id": boot_order,
+                                    "name": r.table("boots")
+                                    .get(boot_order)
+                                    .pluck("name")
+                                    .run(db.conn)["name"],
+                                }
+                            ],
+                            "new_value": [],
+                        }
+                    else:
+                        limited["boot_order"]["old_value"].append(boot_order)
+                    create_dict["hardware"]["boot_order"].remove(boot_order)
+            if not len(create_dict["hardware"]["boot_order"]):
+                limited["boot_order"]["new_value"] = [
+                    r.table("boots").get("disk").pluck("id", "name").run(db.conn),
+                ]
+                create_dict["hardware"]["boot_order"] = ["disk"]
+
+        if create_dict["hardware"].get("qos_id"):
+            if "qos_id" not in [uh["id"] for uh in user_hardware["qos_id"]]:
+                limited["qos_id"] = {
+                    "old_value": create_dict["hardware"]["qos_id"],
+                    "new_value": "unlimited",
+                }
+                create_dict["hardware"]["qos_id"] = "unlimited"
+
+        if create_dict.get("reservables", {}).get("vgpus") and len(
+            create_dict.get("reservables", {}).get("vgpus", [])
         ):
-            create_dict["hardware"]["videos"] = ["default"]
+            reservables_vgpus = [
+                uh["id"] for uh in user_hardware["reservables"]["vgpus"]
+            ]
+            for reservables_vgpu in create_dict["reservables"]["vgpus"]:
+                if reservables_vgpu not in reservables_vgpus:
+                    if "vgpus" not in limited:
+                        limited["vgpus"] = {
+                            "old_value": [
+                                {
+                                    "id": reservables_vgpu,
+                                    "name": r.table("reservables_vgpus")
+                                    .get(reservables_vgpu)
+                                    .pluck("name")
+                                    .run(db.conn)["name"],
+                                }
+                            ],
+                            "new_value": [],
+                        }
+                    else:
+                        limited["vgpus"]["old_value"].append(reservables_vgpu)
+                    create_dict["reservables"]["vgpus"].remove(reservables_vgpu)
+            if not len(create_dict["reservables"]["vgpus"]):
+                limited["vgpus"]["new_value"] = [
+                    r.table("reservables_vgpus")
+                    .get("None")
+                    .pluck("id", "name")
+                    .run(db.conn),
+                ]
+                create_dict["reservables"]["vgpus"] = None
 
-        if (
-            create_dict["hardware"].get("interfaces")
-            and len(create_dict["hardware"].get("interfaces", []))
-            and create_dict["hardware"]["interfaces"][0]
-            not in [uh["id"] for uh in user_hardware["interfaces"]]
-        ):
-            create_dict["hardware"]["interfaces"] = ["default"]
-
-        if (
-            create_dict["hardware"].get("graphics")
-            and len(create_dict["hardware"].get("graphics", []))
-            and create_dict["hardware"]["graphics"][0]
-            not in [uh["id"] for uh in user_hardware["graphics"]]
-        ):
-            create_dict["hardware"]["graphics"] = ["default"]
-
-        if (
-            create_dict["hardware"].get("boot_order")
-            and len(create_dict["hardware"].get("boot_order", []))
-            and create_dict["hardware"]["boot_order"][0]
-            not in [uh["id"] for uh in user_hardware["boot_order"]]
-        ):
-            create_dict["hardware"]["boot_order"] = ["hd"]
-
-        if (
-            create_dict["hardware"].get("qos_id")
-            and len(create_dict["hardware"].get("qos_id", []))
-            and create_dict["hardware"]["qos_id"]
-            not in [uh["id"] for uh in user_hardware["qos_id"]]
-        ):
-            create_dict["hardware"]["qos_id"] = "unlimited"
-
-        return create_dict
+        if limited == {}:
+            limited = None
+        return {**create_dict, **{"limited_hardware": limited}}
