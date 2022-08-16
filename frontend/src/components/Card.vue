@@ -21,16 +21,6 @@
         :scroll-auto-hide="false"
       >
         <fab-item
-          v-b-tooltip="{ title: 'Change Image',
-                         placement: 'top',
-                         customClass: 'isard-tooltip',
-                         trigger: 'hover' }"
-          :idx="0"
-          icon="image"
-          color="#318bb5"
-          @clickItem="goToImagesList({itemId: desktop.id, returnPage: currentRouteName})"
-        />
-        <fab-item
           v-if="getUser.role_id != 'user' && desktop.type === 'persistent'"
           v-b-tooltip="{ title: `${$t('components.desktop-cards.actions.template')}`,
                          placement: 'top',
@@ -51,6 +41,16 @@
           icon="delete"
           color="#e34934"
           @clickItem="onClickDeleteDesktop"
+        />
+        <fab-item
+          v-b-tooltip="{ title: `${$t('components.desktop-cards.actions.edit')}`,
+                         placement: 'top',
+                         customClass: 'isard-tooltip',
+                         trigger: 'hover' }"
+          :idx="0"
+          icon="edit"
+          color="#318bb5"
+          @clickItem="onClickGoToEditDesktop({itemId: desktop.id, returnPage: currentRouteName})"
         />
       </vue-fab>
 
@@ -388,9 +388,9 @@ export default {
       'changeDesktopStatus',
       'createDesktop',
       'navigate',
-      'goToImagesList',
       'goToNewTemplate',
-      'goToItemBooking'
+      'goToItemBooking',
+      'goToEditDomain'
     ]),
     getBookingNotificationBar (date) {
       if (date) {
@@ -430,6 +430,13 @@ export default {
         this.goToNewTemplate(desktopId)
       } else {
         ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.new-template-stop'), '', true, 2000)
+      }
+    },
+    onClickGoToEditDesktop (payload) {
+      if (this.desktopState === desktopStates.stopped) {
+        this.goToEditDomain(payload.itemId)
+      } else {
+        ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.edit-stop'), '', true, 2000)
       }
     },
     onClickDeleteDesktop (toast) {

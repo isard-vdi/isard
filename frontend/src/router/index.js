@@ -1,31 +1,31 @@
+import MainLayout from '@/layouts/MainLayout.vue'
+import Booking from '@/pages/Booking'
+import Deployment from '@/pages/Deployment.vue'
+import DeploymentNew from '@/pages/DeploymentNew.vue'
+import Deployments from '@/pages/Deployments.vue'
+import DeploymentVideowall from '@/pages/DeploymentVideowall.vue'
+import DomainEdit from '@/pages/DomainEdit.vue'
+import DesktopNew from '@/pages/DesktopNew.vue'
+import Desktops from '@/pages/Desktops.vue'
+import Media from '@/pages/Media.vue'
+import MediaNew from '@/pages/MediaNew.vue'
+import Planning from '@/pages/Planning'
+import Profile from '@/pages/Profile.vue'
+import TemplateNew from '@/pages/TemplateNew.vue'
+import Templates from '@/pages/Templates.vue'
 import store from '@/store/index.js'
+import DirectViewer from '@/views/DirectViewer.vue'
 import ErrorPage from '@/views/ErrorPage.vue'
 import ExpiredSession from '@/views/ExpiredSession.vue'
 import Login from '@/views/Login.vue'
 import Maintenance from '@/views/Maintenance.vue'
 import NotFound from '@/views/NotFound.vue'
-import Register from '@/views/Register.vue'
 import Rdp from '@/views/Rdp.vue'
-import Deployments from '@/pages/Deployments.vue'
-import DeploymentVideowall from '@/pages/DeploymentVideowall.vue'
-import Deployment from '@/pages/Deployment.vue'
-import DeploymentNew from '@/pages/DeploymentNew.vue'
-import DirectViewer from '@/views/DirectViewer.vue'
+import Register from '@/views/Register.vue'
 import Vue from 'vue'
 import VueRouter from 'vue-router'
-import { auth, checkRdpToken } from './auth'
-import MainLayout from '@/layouts/MainLayout.vue'
-import Desktops from '@/pages/Desktops.vue'
-import DesktopNew from '@/pages/DesktopNew.vue'
 import { appTitle } from '../shared/constants'
-import ImagesList from '@/views/ImagesList.vue'
-import TemplateNew from '@/pages/TemplateNew.vue'
-import Templates from '@/pages/Templates.vue'
-import Booking from '@/pages/Booking'
-import Planning from '@/pages/Planning'
-import Profile from '@/pages/Profile.vue'
-import Media from '@/pages/Media.vue'
-import MediaNew from '@/pages/MediaNew.vue'
+import { auth, checkRdpToken } from './auth'
 import i18n from '@/i18n'
 
 Vue.use(VueRouter)
@@ -55,11 +55,11 @@ const router = new VueRouter({
           }
         },
         {
-          path: 'images',
-          name: 'images',
-          component: ImagesList,
+          path: 'domain/edit',
+          name: 'domainedit',
+          component: DomainEdit,
           meta: {
-            title: i18n.t('router.titles.images')
+            title: i18n.t('router.titles.edit-domain')
           }
         },
         {

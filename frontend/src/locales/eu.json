@@ -314,8 +314,7 @@
     },
     "messages": {
         "confirmation": {
-            "delete-desktop": "'{name}' ezabatu egingo da, jarraituko duzu?",
-            "change-image": "Mahaigainerako irudi berria hautatu nahi duzu?"
+            "delete-desktop": "'{name}' ezabatu egingo da, jarraituko duzu?"
         },
         "title": {
             "delete": "Ezabatu"

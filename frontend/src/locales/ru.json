@@ -356,8 +356,7 @@
             "deleting-desktop": "Удаление рабочего стола"
         },
         "confirmation": {
-            "delete-desktop": "'{name}' будет удален, продолжить?",
-            "change-image": "Выбрать новое изображение для рабочего стола?"
+            "delete-desktop": "'{name}' будет удален, продолжить?"
         },
         "loading": "Загрузка"
     },

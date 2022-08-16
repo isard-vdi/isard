@@ -466,8 +466,7 @@
             "delete": "Supprimer"
         },
         "confirmation": {
-            "delete-desktop": "'{name}' sera supprimé, voulez-vous continuer ?",
-            "change-image": "Sélectionner une nouvelle image pour le bureau ?"
+            "delete-desktop": "'{name}' sera supprimé, voulez-vous continuer ?"
         },
         "info": {
             "deleting-desktop": "Suppression du bureau",

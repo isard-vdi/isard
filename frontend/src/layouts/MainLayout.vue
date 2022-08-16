@@ -13,7 +13,6 @@ import { computed } from '@vue/composition-api'
 import { sectionConfig } from '@/utils/section-config.js'
 import NewNavBar from '@/components/NewNavBar.vue'
 import StatusBar from '@/components/StatusBar.vue'
-import ImagesStatusBar from '@/components/images/ImagesStatusBar.vue'
 import DeploymentVideowallStatusBar from '@/components/deployments/DeploymentVideowallStatusBar.vue'
 import BookingStatusBar from '@/components/booking/BookingStatusBar.vue'
 
@@ -21,7 +20,6 @@ export default {
   components: {
     StatusBar,
     NewNavBar,
-    ImagesStatusBar,
     DeploymentVideowallStatusBar,
     BookingStatusBar
   },

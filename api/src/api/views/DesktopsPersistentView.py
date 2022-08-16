@@ -166,9 +166,9 @@ def api_v3_desktop_from_media(payload):
     return json.dumps({"id": desktop_id}), 200, {"Content-Type": "application/json"}
 
 
-@app.route("/api/v3/desktop/<desktop_id>", methods=["PUT"])
+@app.route("/api/v3/domain/<domain_id>", methods=["PUT"])
 @has_token
-def api_v3_desktop_edit(payload, desktop_id):
+def api_v3_domain_edit(payload, domain_id):
     try:
         data = request.get_json(force=True)
     except:
@@ -177,15 +177,15 @@ def api_v3_desktop_edit(payload, desktop_id):
             "Desktop edit incorrect body data",
             traceback.format_exc(),
         )
-    data["id"] = desktop_id
+    data["id"] = domain_id
     data = _validate_item("desktop_update", data)
-    ownsDomainId(payload, desktop_id)
-    desktop = desktops.Get(desktop_id=desktop_id)
+    ownsDomainId(payload, domain_id)
+    desktop = desktops.Get(desktop_id=domain_id)
     if data.get("name"):
         check_user_duplicated_domain_name(data["id"], data["name"], desktop["user"])
 
     admin_or_manager = True if payload["role_id"] in ["manager", "admin"] else False
-    desktops.Update(desktop_id, data, admin_or_manager)
+    desktops.Update(domain_id, data, admin_or_manager)
     return (
         json.dumps(data),
         200,

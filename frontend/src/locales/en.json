@@ -97,6 +97,48 @@
             "description": "Description",
             "select-type": "Please, select an option"
         },
+        "edit": {
+            "title": "Edit '{name}'"
+        },
+        "domain": {
+            "info": {
+                "title": "Info",
+                "name": "Name",
+                "description": "Description"
+            },
+            "viewers": {
+                "title": "Viewers",
+                "guest": {
+                    "title": "RDP Login",
+                    "warning": "WARNING: Guest password will be stored in plain text!!",
+                    "username": "Username",
+                    "password": "Password"
+                }
+            },
+            "hardware": {
+                "warning": "WARNING: This hardware was modified due to user permissions:",
+                "title": "Hardware",
+                "vcpus": "vCPUS",
+                "memory": "Memory (GB)",
+                "graphics": "Graphics",
+                "videos": "Videos",
+                "boot": "Boot",
+                "disk-bus": "Disk Bus",
+                "interfaces": "Networks"
+            },
+            "bookables": {
+                "title": "Bookables",
+                "vgpus": "GPU"
+            },
+            "media": {
+                "title": "Media",
+                "isos": "Isos",
+                "floppies": "Floppies"
+            },
+            "image": {
+                "title": "Image"
+            }
+        },
         "filter-placeholder": "Type to search",
         "clear": "Clear",
         "cancel": "Cancel",
@@ -177,7 +219,8 @@
             "actions": {
                 "delete": "Delete",
                 "template": "Template it",
-                "booking": "Schedule"
+                "booking": "Schedule",
+                "edit": "Edit"
             },
             "table-header": {
                 "name": "Name",
@@ -613,6 +656,9 @@
                 },
                 "disable": {
                     "title": "Disable"
+                },
+                "edit": {
+                    "title": "Edit"
                 }
             }
         },
@@ -672,7 +718,6 @@
         },
         "confirmation": {
             "delete-desktop": "'{name}' will be deleted, continue?",
-            "change-image": "Select the new image for the desktop?",
             "create-nonpersistent": "WARNING! This desktop is temporal. When stopping it all data will be deleted. Create desktop?",
             "visible-deployment": "'{name}' will be visible for its users, continue?",
             "not-visible-deployment": "'{name}' will be invisible for its users, continue?",
@@ -685,7 +730,8 @@
             "disable-template": "'{name}' will be invisible for its users, continue?",
             "delete-event": "'{name}' booking will be deleted, continue?",
             "direct-viewer-reset": "The direct viewers file will be downloaded. Reset the viewers urls?",
-            "delete-media": "'{name}' media will be deleted, continue?"
+            "delete-media": "'{name}' media will be deleted, continue?",
+            "edit-domain": "'{name}' hardware will be limited and its data will be changed, continue?"
         },
         "yes": "Yes",
         "no": "No",
@@ -711,7 +757,9 @@
             "no-availability-event": "There's no availability in the selected range",
             "not-created-event": "Couldn't create the event",
             "missing-data": "Missing data",
-            "creating-media": "Creating media"
+            "creating-media": "Creating media",
+            "image-uploaded": "Image uploaded correctly",
+            "editing": "Editing"
         },
         "loading": "Loading"
     },
@@ -794,7 +842,8 @@
             "not_found": "Not found",
             "maintenance": "Maintenance",
             "expired_session": "Expired session",
-            "direct_viewer": "Direct viewer"
+            "direct_viewer": "Direct viewer",
+            "edit-domain": "Edit domain"
         }
     }
 }
