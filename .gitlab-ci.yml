@@ -133,7 +133,7 @@ docker-image:
   parallel:
     matrix:
       - DOCKER_COMPOSE: build
-        IMAGE:
+        IMAGE: &containers
           - api
           - scheduler
           - authentication
@@ -153,8 +153,7 @@ docker-image:
           - websockify
       - DOCKER_COMPOSE: build
         IMAGE_DEPENDENCY: isard-rdpgw
-        IMAGE:
-          - vpn
+        IMAGE: vpn
       - DOCKER_COMPOSE: video-standalone.build
         IMAGE: video
       - DOCKER_COMPOSE: monitor.build
@@ -212,26 +211,12 @@ docker-tag:
   parallel:
     matrix:
       - IMAGE:
+          *containers
+      - IMAGE:
           - check
-          - api
-          - scheduler
-          - authentication
-          - backupninja
-          - cypress
-          - db
-          - engine
-          - grafana
-          - guac
-          - hypervisor
-          - portal
-          - squid
-          - static
-          - monitor-proxy
-          - stats-go
           - vpn
-          - webapp
-          - websockify
           - video
+          - monitor-proxy
           - toolbox
   script:
     - test "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" -a ! -e ".VERSION" && exit 0
