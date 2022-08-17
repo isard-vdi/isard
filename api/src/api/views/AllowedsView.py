@@ -87,7 +87,7 @@ def alloweds_table_term(payload, table):
                 table,
                 "name",
                 data["term"],
-                pluck=data["pluck"] + ["allowed"],
+                pluck=data["pluck"] + ["user", "allowed"],
                 query_filter={"status": "Downloaded"},
                 index_key="kind",
                 index_value=kind,
