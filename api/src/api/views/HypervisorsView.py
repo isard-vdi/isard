@@ -208,3 +208,10 @@ def api_v3_hypervisor_media_delete():
 def api_v3_hypervisors_gpus(payload):
     api_hypervisors.assign_gpus()
     return json.dumps(True), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/hypervisor/status/<hyper_id>", methods=["GET"])
+@is_admin
+def api_v3_hypervisors_status(payload, hyper_id):
+    status = api_hypervisors.get_hyper_status(hyper_id)
+    return json.dumps(status), 200, {"Content-Type": "application/json"}

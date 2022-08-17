@@ -548,3 +548,13 @@ class ApiHypervisors:
                     r.table("gpus").get(gpus[0]["id"]).update(
                         {"physical_device": pd["id"]}
                     ).run(db.conn)
+
+    def get_hyper_status(self, hyper_id):
+        with app.app_context():
+            status = (
+                r.table("hypervisors")
+                .get(hyper_id)
+                .pluck("status", "only_forced")
+                .run(db.conn)
+            )
+        return status
