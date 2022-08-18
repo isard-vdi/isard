@@ -444,13 +444,18 @@ def parse_domain_update(domain_id, new_data, admin_or_manager=False):
                 new_data["hardware"]["memory"] * 1048576
             )
         if new_data["hardware"].get("disk_bus"):
+            disk_bus = (
+                new_data["hardware"]["disk_bus"]
+                if new_data["hardware"]["disk_bus"] != "default"
+                else "virtio"
+            )
             new_data["hardware"] = {
                 **new_data["hardware"],
                 **{
                     "disks": [
                         {
                             **domain["create_dict"]["hardware"]["disks"][0],
-                            **{"bus": new_data["hardware"]["disk_bus"]},
+                            **{"bus": disk_bus},
                         }
                     ]
                 },
