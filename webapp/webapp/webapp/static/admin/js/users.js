@@ -420,7 +420,7 @@ $(document).ready(function() {
         });
     //~ });
 
-    users_table.on( 'click', 'tr', function (e) { 
+    users_table.on( 'click', 'tr[role="row"]', function (e) { 
         toggleRow(this, e);
      });
 
@@ -691,7 +691,11 @@ function renderUsersDetailPannel ( d ) {
 
 		$newPanel = $template.clone();
 		$newPanel.html(function(i, oldHtml){
-			return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name).replace(/d.username/g, d.username);
+            var secondary_groups_names = []
+            $.each(d.secondary_groups_data, function(i, group) {
+                secondary_groups_names.push(group.name)
+            })
+			return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name).replace(/d.username/g, d.username).replace(/d.secondary_groups/g, secondary_groups_names);
         });
 		return $newPanel
 }

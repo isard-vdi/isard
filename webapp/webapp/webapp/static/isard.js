@@ -373,7 +373,7 @@ function dtUpdateOnly(table, data){
 }
 
 function toggleRow(table_row, e) {
-    if (e.target.className==='' || e.target.className=='sorting_1' || e.target.className=='form-check-input') {
+    if (['','sorting_1','form-check-input'].includes(e.target.className)) {
         $(table_row).toggleClass('active');
         if ($(table_row).hasClass('active')) {
             $(table_row).find('input').prop('checked', true);

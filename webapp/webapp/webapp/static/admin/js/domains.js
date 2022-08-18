@@ -374,7 +374,7 @@ $(document).ready(function() {
         } );
     } );
 
-    domains_table.on( 'click', 'tr', function (e) { 
+    domains_table.on( 'click', 'tr[role="row"]', function (e) { 
         if (kind =='desktop') {
             toggleRow(this, e);
         }

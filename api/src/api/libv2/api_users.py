@@ -208,6 +208,10 @@ class ApiUsers:
                         .get_all(user["id"], index="user")
                         .filter({"kind": "template"})
                         .count(),
+                        "secondary_groups_data": r.table("groups")
+                        .get_all(r.args(user["secondary_groups"]))
+                        .pluck("id", "name")
+                        .coerce_to("array"),
                     }
                 )
                 .run(db.conn)
