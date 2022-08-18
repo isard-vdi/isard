@@ -465,7 +465,7 @@ func NewDomain(libvirtMux *sync.Mutex, sshMux *sync.Mutex, cfg cfg.Cfg, log *zer
 	d.descPortSpice = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "port_spice"),
 		"SPICE port",
-		[]string{"desktop"},
+		[]string{"desktop", "port"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -473,7 +473,7 @@ func NewDomain(libvirtMux *sync.Mutex, sshMux *sync.Mutex, cfg cfg.Cfg, log *zer
 	d.descPortSpiceTLS = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "port_spice_tls"),
 		"SPICE TLS port",
-		[]string{"desktop"},
+		[]string{"desktop", "port"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -481,7 +481,7 @@ func NewDomain(libvirtMux *sync.Mutex, sshMux *sync.Mutex, cfg cfg.Cfg, log *zer
 	d.descPortWebsocket = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "port_websocket"),
 		"Websocket port",
-		[]string{"desktop"},
+		[]string{"desktop", "port"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -658,9 +658,17 @@ func (d *Domain) Collect(ch chan<- prometheus.Metric) {
 			d.Log.Info().Str("collector", d.String()).Str("desktop", id).Err(err).Msg("collect desktop ports")
 		}
 
-		ch <- prometheus.MustNewConstMetric(d.descPortSpice, prometheus.GaugeValue, ports["spice"], id)
-		ch <- prometheus.MustNewConstMetric(d.descPortSpiceTLS, prometheus.GaugeValue, ports["spice_tls"], id)
-		ch <- prometheus.MustNewConstMetric(d.descPortWebsocket, prometheus.GaugeValue, ports["websocket"], id)
+		if port, ok := ports["spice"]; ok {
+			ch <- prometheus.MustNewConstMetric(d.descPortSpice, prometheus.GaugeValue, 1, id, strconv.Itoa(port))
+		}
+
+		if port, ok := ports["spice_tls"]; ok {
+			ch <- prometheus.MustNewConstMetric(d.descPortSpiceTLS, prometheus.GaugeValue, 1, id, strconv.Itoa(port))
+		}
+
+		if port, ok := ports["websocket"]; ok {
+			ch <- prometheus.MustNewConstMetric(d.descPortWebsocket, prometheus.GaugeValue, 1, id, strconv.Itoa(port))
+		}
 	}
 
 	duration := time.Since(start)
@@ -706,7 +714,7 @@ func (d *Domain) collectMemStats(dom *libvirt.Domain) (map[string]float64, error
 	return res, nil
 }
 
-func (d *Domain) collectDomainPorts(id string) (map[string]float64, error) {
+func (d *Domain) collectDomainPorts(id string) (map[string]int, error) {
 	d.sshMux.Lock()
 	defer d.sshMux.Unlock()
 
@@ -721,7 +729,7 @@ func (d *Domain) collectDomainPorts(id string) (map[string]float64, error) {
 		return nil, fmt.Errorf("collect domain ports: %w: %s", err, b)
 	}
 
-	ports := map[string]float64{}
+	ports := map[string]int{}
 
 	// split the different options
 	for _, s := range strings.Split(string(b), ",") {
@@ -735,7 +743,7 @@ func (d *Domain) collectDomainPorts(id string) (map[string]float64, error) {
 					return nil, fmt.Errorf("convert '%s' to number: %w", opts[1], err)
 				}
 
-				ports["spice"] = float64(i)
+				ports["spice"] = i
 
 			case "tls-port":
 				i, err := strconv.Atoi(opts[1])
@@ -743,7 +751,7 @@ func (d *Domain) collectDomainPorts(id string) (map[string]float64, error) {
 					return nil, fmt.Errorf("convert '%s' to number: %w", opts[1], err)
 				}
 
-				ports["spice_tls"] = float64(i)
+				ports["spice_tls"] = i
 
 			case "websocket":
 				i, err := strconv.Atoi(opts[1])
@@ -751,7 +759,7 @@ func (d *Domain) collectDomainPorts(id string) (map[string]float64, error) {
 					return nil, fmt.Errorf("convert '%s' to number: %w", opts[1], err)
 				}
 
-				ports["websocket"] = float64(i)
+				ports["websocket"] = i
 			default:
 			}
 		}
