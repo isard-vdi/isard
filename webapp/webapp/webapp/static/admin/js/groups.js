@@ -123,6 +123,35 @@ $(document).ready(function() {
 			}).modal('show');
             removeError($('#modalAddGroup'))
             $('#modalAddGroupForm')[0].reset();
+
+            $('#modalAddGroupForm #linked_groups').select2({
+                minimumInputLength: 2,
+                multiple: true,
+                ajax: {
+                    type: "POST",
+                    url: '/api/v3/admin/alloweds/term/groups/',
+                    dataType: 'json',
+                    contentType: "application/json",
+                    delay: 250,
+                    data: function (params) {
+                        return  JSON.stringify({
+                            term: params.term,
+                        });
+                    },
+                    processResults: function (data) {
+                        return {
+                            results: $.map(data, function (item, i) {
+                                return {
+                                    text: item.name,
+                                    id: item.id
+                                }
+                            })
+                        };
+                    }
+                },
+            });   
+    
+
             //~ setModalAddUser();
 
             api.ajax_async('/api/v3/admin/userschema','POST','').done(function(d) {
