@@ -33,41 +33,22 @@ from .validators import _validate_item, _validate_table
 def admin_table_list(table, order_by=None, pluck=None, without=None, id=None):
     _validate_table(table)
 
-    if not pluck and not without:
-        with app.app_context():
-            if not id:
-                return list(r.table(table).order_by(order_by).run(db.conn))
-            else:
-                return r.table(table).get(id).run(db.conn)
+    with app.app_context():
+        query = r.table(table)
 
-    if pluck and not without:
-        with app.app_context():
-            if not id:
-                return list(r.table(table).pluck(pluck).order_by(order_by).run(db.conn))
-            else:
-                r.table(table).get(id).pluck(pluck).run(db.conn)
+    if pluck:
+        query = query.pluck(pluck)
 
-    if not pluck and without:
-        with app.app_context():
-            if not id:
-                return list(
-                    r.table(table).without(without).order_by(order_by).run(db.conn)
-                )
-            else:
-                return r.table(table).get(id).without(without).run(db.conn)
+    if without:
+        query = query.without(without)
 
-    if pluck and without:
-        with app.app_context():
-            if not id:
-                return list(
-                    r.table(table)
-                    .pluck(pluck)
-                    .without(without)
-                    .order_by(order_by)
-                    .run(db.conn)
-                )
-            else:
-                return r.table(table).get(id).pluck(pluck).without(without).run(db.conn)
+    if order_by:
+        query = query.order_by(order_by)
+
+    if id:
+        return query.get(id).run(db.conn)
+    else:
+        return list(query.run(db.conn))
 
 
 def admin_table_insert(table, data):
