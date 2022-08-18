@@ -2,6 +2,7 @@ package cfg
 
 import (
 	"os"
+	"time"
 
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/pkg/cfg"
@@ -17,12 +18,13 @@ type Cfg struct {
 }
 
 type Authentication struct {
-	Host   string
-	Secret string
-	Local  AuthenticationLocal
-	LDAP   AuthenticationLDAP
-	SAML   AuthenticationSAML
-	Google AuthenticationGoogle
+	Host          string
+	Secret        string
+	TokenDuration time.Duration `mapstructure:"token_duration"`
+	Local         AuthenticationLocal
+	LDAP          AuthenticationLDAP
+	SAML          AuthenticationSAML
+	Google        AuthenticationGoogle
 }
 
 type AuthenticationLocal struct {
@@ -109,8 +111,9 @@ func setDefaults() {
 	viper.BindEnv("authentication.secret", "API_ISARDVDI_SECRET")
 
 	viper.SetDefault("authentication", map[string]interface{}{
-		"host":   getEnv("AUTHENTICATION_AUTHENTICATION_HOST", os.Getenv("DOMAIN")),
-		"secret": "",
+		"host":           getEnv("AUTHENTICATION_AUTHENTICATION_HOST", os.Getenv("DOMAIN")),
+		"secret":         "",
+		"token_duration": "4h",
 		"local": map[string]interface{}{
 			"enabled": true,
 		},

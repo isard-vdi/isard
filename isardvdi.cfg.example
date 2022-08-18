@@ -82,6 +82,9 @@ API_HYPERVISORS_SECRET=B5/bUEUzIC+AjNQRmFh3vxR3VeIKirwdeL/xuHPVO+E=
 
 # ------ Authentication ------------------------------------------------------
 
+# The format is the Go time duration: https://pkg.go.dev/time#ParseDuration
+#AUTHENTICATION_AUTHENTICATION_TOKEN_DURATION=4h
+
 ## Local
 ### Local authentication against isard database
 #AUTHENTICATION_AUTHENTICATION_LOCAL_ENABLED=true

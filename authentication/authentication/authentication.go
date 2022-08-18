@@ -32,6 +32,7 @@ type Interface interface {
 type Authentication struct {
 	Log       *zerolog.Logger
 	Secret    string
+	Duration  time.Duration
 	DB        r.QueryExecutor
 	providers map[string]provider.Provider
 	saml      *samlsp.Middleware
@@ -39,9 +40,10 @@ type Authentication struct {
 
 func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor) *Authentication {
 	a := &Authentication{
-		Log:    log,
-		Secret: cfg.Authentication.Secret,
-		DB:     db,
+		Log:      log,
+		Secret:   cfg.Authentication.Secret,
+		Duration: cfg.Authentication.TokenDuration,
+		DB:       db,
 	}
 
 	providers := map[string]provider.Provider{
@@ -127,7 +129,7 @@ func (a *Authentication) signToken(u *model.User) (string, error) {
 	tkn := jwt.NewWithClaims(jwt.SigningMethodHS256, &LoginClaims{
 		&jwt.StandardClaims{
 			Issuer:    "isard-authentication",
-			ExpiresAt: time.Now().Add(4 * time.Hour).Unix(),
+			ExpiresAt: time.Now().Add(a.Duration).Unix(),
 		},
 		// TODO: Other signing keys
 		"isardvdi",
@@ -202,7 +204,7 @@ func (a *Authentication) signRegister(u *model.User) (string, error) {
 	tkn := jwt.NewWithClaims(jwt.SigningMethodHS256, &RegisterClaims{
 		&jwt.StandardClaims{
 			Issuer:    "isard-authentication",
-			ExpiresAt: time.Now().Add(4 * time.Hour).Unix(),
+			ExpiresAt: time.Now().Add(a.Duration).Unix(),
 		},
 		// TODO: Other signing keys
 		"isardvdi",
