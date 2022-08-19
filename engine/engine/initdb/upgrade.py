@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 41
+release_version = 42
+# release 42: Added disk_paths and storage_ids domains index
 # release 41: Added user_id and status indexes to storage table
 # release 40: Added linked groups to groups
 # release 39: Added secondary groups to users
@@ -955,6 +956,28 @@ class Upgrade(object):
                             }
                         }
                     }
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 42:
+            try:
+                r.table(table).index_create(
+                    "disk_paths",
+                    lambda domain: domain["create_dict"]["hardware"][
+                        "disks"
+                    ].concat_map(lambda data: [data["file"]]),
+                    multi=True,
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+            try:
+                r.table(table).index_create(
+                    "storage_ids",
+                    lambda domain: domain["create_dict"]["hardware"][
+                        "disks"
+                    ].concat_map(lambda data: [data["storage_id"]]),
+                    multi=True,
                 ).run(self.conn)
             except Exception as e:
                 print(e)
