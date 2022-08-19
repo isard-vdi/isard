@@ -35,6 +35,7 @@ $(document).ready(function() {
             { "data": "parent",},
             { "data": "user_name",},
             { "data": "category",},
+            { "data": "domains",},
         ],
         "columnDefs": [ 
             {

@@ -1411,18 +1411,14 @@ def remove_fieds_when_stopped(id_domain, conn=False):
 
 def domains_with_attached_disk(disk_path):
     r_conn = new_rethink_connection()
-    domains = (
+    domains = list(
         r.table("domains")
-        .concat_map(
-            lambda doc: doc["hardware"]["disks"].concat_map(
-                lambda data: [{"id": doc["id"], "disk": data}]
-            )
-        )
-        .filter(lambda doc: doc["disk"]["file"].match(disk_path))
-        .run(r_conn)
+        .get_all(disk_path, index="disk_paths")
+        .pluck("id")["id"]
+        .run(r.conn)
     )
     close_rethink_connection(r_conn)
-    return [d["id"] for d in domains]
+    return domains
 
 
 def get_and_update_personal_vlan_id_from_domain_id(

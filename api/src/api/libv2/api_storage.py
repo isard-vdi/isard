@@ -50,6 +50,9 @@ def get_disks(user_id=None, status=None):
         lambda disk: {
             "user_name": r.table("users").get(disk["user_id"])["name"],
             "category": r.table("users").get(disk["user_id"])["category"],
+            "domains": r.table("domains")
+            .get_all(disk["id"], index="storage_ids")
+            .count(),
         }
     )
     with app.app_context():
@@ -58,21 +61,9 @@ def get_disks(user_id=None, status=None):
 
 def get_storage_domains(storage_id):
     with app.app_context():
-        domains = list(
+        return list(
             r.table("domains")
-            .concat_map(
-                lambda doc: doc["hardware"]["disks"].concat_map(
-                    lambda data: [
-                        {
-                            "id": doc["id"],
-                            "kind": doc["kind"],
-                            "name": doc["name"],
-                            "disk": data,
-                        }
-                    ]
-                )
-            )
-            .filter(lambda doc: doc["disk"]["file"].match(storage_id))
+            .get_all(storage_id, index="storage_ids")
+            .pluck("id", "kind", "name")
             .run(db.conn)
         )
-    return [{"id": d["id"], "kind": d["kind"], "name": d["name"]} for d in domains]
