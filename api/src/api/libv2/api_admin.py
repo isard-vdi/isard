@@ -45,6 +45,16 @@ def admin_table_list(table, order_by=None, pluck=None, without=None, id=None):
     if order_by:
         query = query.order_by(order_by)
 
+    if table == "groups":
+        query = query.merge(
+            lambda group: {
+                "linked_groups_data": r.table("groups")
+                .get_all(r.args(group["linked_groups"]))
+                .pluck("id", "name")
+                .coerce_to("array"),
+            }
+        )
+
     if id:
         return query.get(id).run(db.conn)
     else:

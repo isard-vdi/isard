@@ -259,7 +259,11 @@ $(document).ready(function() {
 function renderGroupsDetailPannel ( d ) {
     $newPanel = $template_group.clone();
     $newPanel.html(function(i, oldHtml){
-        return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name).replace(/d.description/g, d.description);
+        var linked_groups_names = []
+            $.each(d.linked_groups_data, function(i, group) {
+                linked_groups_names.push(group.name)
+            })
+        return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name).replace(/d.description/g, d.description).replace(/d.linked_groups/g, linked_groups_names);
     });
     return $newPanel
 }

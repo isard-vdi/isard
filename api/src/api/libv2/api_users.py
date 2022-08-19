@@ -704,7 +704,19 @@ class ApiUsers:
         return group
 
     def GroupsGet(self):
-        return list(r.table("groups").order_by("name").run(db.conn))
+        return list(
+            r.table("groups")
+            .order_by("name")
+            .merge(
+                lambda group: {
+                    "linked_groups_data": r.table("groups")
+                    .get_all(r.args(group["linked_groups"]))
+                    .pluck("id", "name")
+                    .coerce_to("array"),
+                }
+            )
+            .run(db.conn)
+        )
 
     def group_delete_checks(self, group_id):
         with app.app_context():
