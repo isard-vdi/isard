@@ -264,7 +264,7 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]str
 			u.Role = l.cfg.RoleDefault
 		}
 
-		u.Group = grp.ID()
+		u.Group = grp.JoinID()
 	}
 
 	return u, "", nil

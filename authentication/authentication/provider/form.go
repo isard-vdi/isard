@@ -85,3 +85,12 @@ func (f *Form) AutoRegister() bool {
 func (f *Form) String() string {
 	return FormString
 }
+
+func (f *Form) Providers() []string {
+	providers := []string{}
+	for k := range f.providers {
+		providers = append(providers, k)
+	}
+
+	return providers
+}

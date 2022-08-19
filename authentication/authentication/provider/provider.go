@@ -17,6 +17,7 @@ const (
 	ProviderArgsKey    = "provider"
 	CategoryIDArgsKey  = "category_id"
 	RequestBodyArgsKey = "request_body"
+	RedirectArgsKey    = "redirect"
 )
 
 var ErrInvalidCredentials = errors.New("invalid credentials")

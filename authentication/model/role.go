@@ -19,3 +19,11 @@ var rolePrivileges = map[Role]int{
 func (r Role) HasMorePrivileges(r2 Role) bool {
 	return rolePrivileges[r] > rolePrivileges[r2]
 }
+
+func (r Role) HasEqualOrMorePrivileges(r2 Role) bool {
+	if r == r2 {
+		return true
+	}
+
+	return r.HasMorePrivileges(r2)
+}

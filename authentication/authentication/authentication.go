@@ -13,10 +13,13 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/model"
 
 	"github.com/crewjam/saml/samlsp"
-	"github.com/golang-jwt/jwt"
 	"github.com/rs/zerolog"
+	cliCfg "gitlab.com/isard/isardvdi-cli/pkg/cfg"
+	"gitlab.com/isard/isardvdi-cli/pkg/client"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
+
+const adminUsr = "local-default-admin-admin"
 
 type Interface interface {
 	Providers() []string
@@ -47,8 +50,9 @@ func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor) *Authentication 
 	}
 
 	providers := map[string]provider.Provider{
-		provider.UnknownString: &provider.Unknown{},
-		provider.FormString:    provider.InitForm(cfg.Authentication, db),
+		provider.UnknownString:  &provider.Unknown{},
+		provider.FormString:     provider.InitForm(cfg.Authentication, db),
+		provider.ExternalString: &provider.External{},
 	}
 
 	if cfg.Authentication.SAML.Enabled {
@@ -69,8 +73,13 @@ func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor) *Authentication 
 
 func (a *Authentication) Providers() []string {
 	providers := []string{}
-	for k := range a.providers {
-		if k == provider.UnknownString || k == provider.FormString {
+	for k, v := range a.providers {
+		if k == provider.UnknownString || k == provider.ExternalString {
+			continue
+		}
+
+		if k == provider.FormString {
+			providers = append(providers, v.(*provider.Form).Providers()...)
 			continue
 		}
 
@@ -89,154 +98,17 @@ func (a *Authentication) Provider(p string) provider.Provider {
 	return prv
 }
 
-type tokenType string
-
-const (
-	tokenTypeUnknown  tokenType = "unknown"
-	tokenTypeLogin    tokenType = "login"
-	tokenTypeRegister tokenType = "register"
-)
-
-type LoginClaims struct {
-	*jwt.StandardClaims
-	KeyID string          `json:"kid"`
-	Data  LoginClaimsData `json:"data"`
-}
-
-type LoginClaimsData struct {
-	Provider   string `json:"provider"`
-	ID         string `json:"user_id"`
-	RoleID     string `json:"role_id"`
-	CategoryID string `json:"category_id"`
-	GroupID    string `json:"group_id"`
-	Name       string `json:"name"`
-}
-
-type RegisterClaims struct {
-	*jwt.StandardClaims
-	KeyID      string `json:"kid"`
-	Type       string `json:"type"`
-	Provider   string `json:"provider"`
-	UserID     string `json:"user_id"`
-	Username   string `json:"username"`
-	CategoryID string `json:"category_id"`
-	Name       string `json:"name"`
-	Email      string `json:"email"`
-	Photo      string `json:"photo"`
-}
-
-func (a *Authentication) signToken(u *model.User) (string, error) {
-	tkn := jwt.NewWithClaims(jwt.SigningMethodHS256, &LoginClaims{
-		&jwt.StandardClaims{
-			Issuer:    "isard-authentication",
-			ExpiresAt: time.Now().Add(a.Duration).Unix(),
-		},
-		// TODO: Other signing keys
-		"isardvdi",
-		LoginClaimsData{
-			u.Provider,
-			u.ID,
-			string(u.Role),
-			u.Category,
-			u.Group,
-			u.Name,
-		},
-	})
-
-	ss, err := tkn.SignedString([]byte(a.Secret))
-	if err != nil {
-		return "", fmt.Errorf("sign the token: %w", err)
-	}
-
-	return ss, nil
-}
-
-func (a *Authentication) parseToken(ss string, claims jwt.Claims) (*jwt.Token, error) {
-	tkn, err := jwt.ParseWithClaims(ss, claims, func(tkn *jwt.Token) (interface{}, error) {
-		if _, ok := tkn.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", tkn.Header["alg"])
-		}
-
-		return []byte(a.Secret), nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("error parsing the JWT token: %w", err)
-	}
-
-	if !tkn.Valid {
-		return nil, errors.New("invalid JWT token")
-	}
-
-	return tkn, nil
-}
-
-func (a *Authentication) getTokenType(ss string) (*jwt.Token, tokenType, error) {
-	// Register token
-	tkn, err := a.parseToken(ss, &RegisterClaims{})
-	if err == nil {
-		claims, ok := tkn.Claims.(*RegisterClaims)
-		if ok && claims.Type == string(tokenTypeRegister) {
-			return tkn, tokenTypeRegister, nil
-		}
-
-	} else {
-		var e *jwt.ValidationError
-		if !errors.As(err, &e) || e.Errors != jwt.ValidationErrorClaimsInvalid {
-			return nil, tokenTypeUnknown, err
-		}
-	}
-
-	// Login token
-	tkn, err = a.parseToken(ss, &LoginClaims{})
-	if err == nil {
-		return tkn, tokenTypeLogin, nil
-	} else {
-		var e *jwt.ValidationError
-		if !errors.As(err, &e) || e.Errors != jwt.ValidationErrorClaimsInvalid {
-			return nil, tokenTypeUnknown, err
-		}
-	}
-
-	return nil, tokenTypeUnknown, errors.New("unknown token type")
-}
-
-func (a *Authentication) signRegister(u *model.User) (string, error) {
-	tkn := jwt.NewWithClaims(jwt.SigningMethodHS256, &RegisterClaims{
-		&jwt.StandardClaims{
-			Issuer:    "isard-authentication",
-			ExpiresAt: time.Now().Add(a.Duration).Unix(),
-		},
-		// TODO: Other signing keys
-		"isardvdi",
-		string(tokenTypeRegister),
-		u.Provider,
-		u.UID,
-		u.Username,
-		u.Category,
-		u.Name,
-		u.Email,
-		u.Photo,
-	})
-
-	ss, err := tkn.SignedString([]byte(a.Secret))
-	if err != nil {
-		return "", fmt.Errorf("sign the register token: %w", err)
-	}
-
-	return ss, nil
-}
-
 type apiRegisterUserRsp struct {
 	ID string `json:"id"`
 }
 
 func (a *Authentication) registerUser(u *model.User) error {
-	tkn, err := a.signRegister(u)
+	tkn, err := a.signRegisterToken(u)
 	if err != nil {
 		return err
 	}
 
-	login, err := a.signToken(u)
+	login, err := a.signLoginToken(u)
 	if err != nil {
 		return err
 	}
@@ -269,6 +141,45 @@ func (a *Authentication) registerUser(u *model.User) error {
 	return nil
 }
 
+func (a *Authentication) registerGroup(g *model.Group) error {
+	cli, err := client.NewClient(&cliCfg.Cfg{
+		Host: "http://isard-api:5000",
+	})
+	if err != nil {
+		return fmt.Errorf("create API client: %w", err)
+	}
+
+	u := &model.User{ID: adminUsr}
+	if err := u.Load(context.Background(), a.DB); err != nil {
+		return fmt.Errorf("load the admin user from the DB: %w", err)
+	}
+
+	tkn, err := a.signLoginToken(u)
+	if err != nil {
+		return fmt.Errorf("sign the admin token to register the group: %w", err)
+	}
+	cli.Token = tkn
+
+	grp, err := cli.AdminGroupCreate(
+		context.Background(),
+		g.Category,
+		// TODO: When UUIDs arrive, this g.Name has to be removed and the dependency has to be updated to v0.14.1
+		g.Name,
+		g.Name,
+		g.Description,
+		g.ExternalAppID,
+		g.ExternalGID,
+	)
+	if err != nil {
+		return fmt.Errorf("register the group: %w", err)
+	}
+
+	g.ID = client.GetString(grp.ID)
+	g.UID = client.GetString(grp.UID)
+
+	return nil
+}
+
 func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args map[string]string) (string, string, error) {
 	var u *model.User
 	var redirect string
@@ -276,14 +187,11 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 
 	// Check if the user sends a token
 	if args[provider.TokenArgsKey] != "" {
-		tkn, tknType, err := a.getTokenType(args[provider.TokenArgsKey])
+		tkn, tknType, err := a.verifyToken(args[provider.TokenArgsKey])
 		if err == nil {
 			switch tknType {
 			case tokenTypeRegister:
-				register, ok := tkn.Claims.(*RegisterClaims)
-				if !ok {
-					return "", "", errors.New("invalid register token")
-				}
+				register := tkn.Claims.(*RegisterClaims)
 
 				u = &model.User{
 					Provider: register.Provider,
@@ -298,7 +206,7 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 					return "", "", fmt.Errorf("load user from db: %w", err)
 				}
 
-				ss, err := a.signToken(u)
+				ss, err := a.signLoginToken(u)
 				if err != nil {
 					return "", "", err
 				}
@@ -306,7 +214,47 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 				a.Log.Info().Str("usr", u.ID).Str("tkn", ss).Msg("register succeeded")
 
 				return ss, redirect, nil
+
+			case tokenTypeExternal:
+				claims := tkn.Claims.(*ExternalClaims)
+
+				grp := &model.Group{
+					Category:      claims.CategoryID,
+					ExternalAppID: claims.KeyID,
+					ExternalGID:   claims.GroupID,
+				}
+				if err := grp.LoadExternal(ctx, a.DB); err != nil {
+					if !errors.Is(err, model.ErrNotFound) {
+						return "", "", fmt.Errorf("load the group from the DB: %w", err)
+					}
+
+					grp.Name = fmt.Sprintf("%s_%s_%s", provider.ExternalString, claims.KeyID, claims.GroupID)
+					grp.Description = "This is a auto register created by the authentication service. This group maps a group of an external app"
+
+					if err := a.registerGroup(grp); err != nil {
+						return "", "", fmt.Errorf("register group for the user: %w", err)
+					}
+				}
+
+				args["user_id"] = claims.UserID
+				args["username"] = claims.Username
+				args["kid"] = claims.KeyID
+				args["category_id"] = claims.CategoryID
+				args["role"] = claims.Role
+				args["group_id"] = grp.ID
+				args["name"] = claims.Name
+				args["email"] = claims.Email
+				args["photo"] = claims.Photo
 			}
+		} else {
+			return "", "", fmt.Errorf("verify the JWT token: %w", err)
+		}
+
+	} else {
+		// There are some login providers that require a token
+
+		if prv == provider.ExternalString {
+			return "", "", errors.New("missing JWT token")
 		}
 	}
 
@@ -331,7 +279,7 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 		// Manual registration
 		if !p.AutoRegister() {
 			// If the user has logged in correctly, but doesn't exist in the DB, they have to register first!
-			ss, err := a.signRegister(u)
+			ss, err := a.signRegisterToken(u)
 
 			a.Log.Info().Err(err).Str("usr", u.UID).Str("tkn", ss).Msg("register token signed")
 
@@ -361,12 +309,16 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 		return "", "", fmt.Errorf("update user in the DB: %w", err)
 	}
 
-	ss, err := a.signToken(u)
+	ss, err := a.signLoginToken(u)
 	if err != nil {
 		return "", "", err
 	}
 
-	a.Log.Info().Str("usr", u.ID).Str("tkn", ss).Msg("login succeeded")
+	if redirect == "" && args[provider.RedirectArgsKey] != "" {
+		redirect = args[provider.RedirectArgsKey]
+	}
+
+	a.Log.Info().Str("usr", u.ID).Str("tkn", ss).Str("redirect", redirect).Msg("login succeeded")
 
 	return ss, redirect, nil
 }
@@ -377,7 +329,7 @@ func (a *Authentication) Callback(ctx context.Context, args map[string]string) (
 		return "", "", errors.New("callback state not provided")
 	}
 
-	tkn, err := a.parseToken(ss, &provider.CallbackClaims{})
+	tkn, err := a.parseAuthenticationToken(ss, &provider.CallbackClaims{})
 	if err != nil {
 		return "", "", fmt.Errorf("parse callback state: %w", err)
 	}
@@ -417,12 +369,12 @@ func (a *Authentication) Callback(ctx context.Context, args map[string]string) (
 			return "", "", fmt.Errorf("update user in the DB: %w", err)
 		}
 
-		ss, err = a.signToken(u)
+		ss, err = a.signLoginToken(u)
 		if err != nil {
 			return "", "", err
 		}
 	} else {
-		ss, err = a.signRegister(u)
+		ss, err = a.signRegisterToken(u)
 		if err != nil {
 			return "", "", err
 		}
@@ -436,7 +388,7 @@ func (a *Authentication) Callback(ctx context.Context, args map[string]string) (
 }
 
 func (a *Authentication) Check(ctx context.Context, ss string) error {
-	tkn, err := a.parseToken(ss, &LoginClaims{})
+	tkn, err := a.parseAuthenticationToken(ss, &LoginClaims{})
 	if err != nil {
 		return err
 	}

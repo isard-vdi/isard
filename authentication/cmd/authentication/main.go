@@ -39,6 +39,8 @@ func main() {
 	go http.Serve(ctx)
 	wg.Add(1)
 
+	log.Info().Strs("providers", authentication.Providers()).Msg("service started")
+
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 

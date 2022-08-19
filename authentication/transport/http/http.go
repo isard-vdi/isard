@@ -63,9 +63,7 @@ func (a *AuthenticationServer) login(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(err.Error()))
 	}
 
-	tkn := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-
-	if tkn == "" {
+	if args[provider.TokenArgsKey] == "" {
 		if err := requiredArgs([]string{provider.ProviderArgsKey, provider.CategoryIDArgsKey}, args); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(err.Error()))
@@ -73,7 +71,6 @@ func (a *AuthenticationServer) login(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	args[provider.TokenArgsKey] = tkn
 	prv := args[provider.ProviderArgsKey]
 	cID := args[provider.CategoryIDArgsKey]
 
@@ -196,8 +193,17 @@ type configJSON struct {
 }
 
 func (a *AuthenticationServer) providers(w http.ResponseWriter, r *http.Request) {
+	providers := []string{}
+	for _, p := range a.Authentication.Providers() {
+		if p == provider.LocalString || p == provider.LDAPString {
+			continue
+		}
+
+		providers = append(providers, p)
+	}
+
 	cfg := &configJSON{
-		Providers: a.Authentication.Providers(),
+		Providers: providers,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
