@@ -147,7 +147,7 @@ class ApiAllowed:
     def is_allowed(self, payload, item, table):
         if not payload.get("user_id", False):
             return False
-        if item.get("user") == payload["user_id"]:
+        if payload["role_id"] == "admin" or item.get("user") == payload["user_id"]:
             return True
         if item["allowed"]["roles"] is not False:
             if len(item["allowed"]["roles"]) == 0:
