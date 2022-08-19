@@ -395,6 +395,13 @@ def _parse_deployment_booking(deployment):
     return _parse_desktop_booking(desktop)
 
 
+def parse_domain_insert(new_data):
+    if new_data.get("hardware", {}).get("reservables", {}).get("vgpus") == ["None"]:
+        new_data["hardware"]["reservables"]["vgpus"] = None
+
+    return new_data
+
+
 def parse_domain_update(domain_id, new_data, admin_or_manager=False):
     with app.app_context():
         domain = r.table("domains").get(domain_id).run(db.conn)
