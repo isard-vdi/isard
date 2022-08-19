@@ -43,6 +43,7 @@
         "new-desktop": {
             "title": "Create new desktop:",
             "section-title-template": "Select a template:",
+            "section-title-advanced": "Advanced options",
             "name": "Name",
             "description": "Description",
             "desktop-template": "Template",
@@ -108,6 +109,8 @@
             },
             "viewers": {
                 "title": "Viewers",
+                "fullscreen-disabled": "Fullscreen disabled",
+                "fullscreen-enabled": "Fullscreen enabled",
                 "guest": {
                     "title": "RDP Login",
                     "warning": "WARNING: Guest password will be stored in plain text!!",

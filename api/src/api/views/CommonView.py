@@ -23,7 +23,7 @@ from ..libv2.api_allowed import ApiAllowed
 allowed = ApiAllowed()
 
 from ..libv2.helpers import _get_domain_reservables
-from .decorators import has_token, ownsDomainId
+from .decorators import allowedTemplateId, has_token, ownsDomainId
 
 
 @app.route("/api/v3/desktop/<desktop_id>/viewer/<protocol>", methods=["GET"])
@@ -130,15 +130,18 @@ def user_quota_max(payload, kind, item_id=None):
 @app.route("/api/v3/domain/info/<domain_id>", methods=["GET"])
 @has_token
 def api_v3_desktop_info(payload, domain_id):
-    ownsDomainId(payload, domain_id)
     domain = {
         **admin_table_get(
             "domains",
-            pluck=["id", "name", "description", "image", "guest_properties"],
+            pluck=["id", "kind", "name", "description", "image", "guest_properties"],
             id=domain_id,
         ),
         **common.get_domain_hardware(domain_id),
     }
+    if domain["kind"] == "template":
+        allowedTemplateId(payload, domain_id)
+    else:
+        ownsDomainId(payload, domain_id)
     domain = quotas.limit_user_hardware_allowed(payload, domain)
     return (
         json.dumps(domain),

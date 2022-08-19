@@ -4,7 +4,7 @@
     <h4 class="my-4">
       <strong>{{ $t('forms.domain.image.title') }}</strong>
     </h4>
-    <b-row>
+    <b-row v-if="domain.image.id">
       <b-col
         cols="12"
         xl="4"

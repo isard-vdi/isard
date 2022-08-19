@@ -180,6 +180,44 @@
         </b-col>
       </b-row>
 
+      <!-- Advanced options section title -->
+      <b-row class="mt-2 mt-xl-5">
+        <h5
+          class="p-2 mt-2 cursor-pointer"
+          @click="collapseVisible = !collapseVisible"
+        >
+          <strong>{{ $t('forms.new-desktop.section-title-advanced') }}</strong>
+          <b-icon
+            class="ml-2"
+            :icon="collapseVisible ? 'chevron-up' : 'chevron-down'"
+          />
+        </h5>
+      </b-row>
+
+      <div>
+        <b-collapse
+          id="collapse-advanced"
+          v-model="collapseVisible"
+          class="mt-2"
+        >
+          <div id="viewers">
+            <DomainViewers />
+          </div>
+          <div id="hardware">
+            <DomainHardware />
+          </div>
+          <div id="bookables">
+            <DomainBookables />
+          </div>
+          <div id="media">
+            <DomainMedia />
+          </div>
+          <div id="image">
+            <DomainImage />
+          </div>
+        </b-collapse>
+      </div>
+
       <!-- Buttons -->
       <b-row align-h="end">
         <b-button
@@ -204,22 +242,35 @@
 <script>
 import i18n from '@/i18n'
 import DesktopNewSkeleton from '@/components/desktops/DesktopNewSkeleton.vue'
-import { reactive, ref, computed, watch } from '@vue/composition-api'
+import { reactive, ref, computed, watch, onUnmounted } from '@vue/composition-api'
 import { mapActions } from 'vuex'
 import useVuelidate from '@vuelidate/core'
 import { required, maxLength, minLength } from '@vuelidate/validators'
+import DomainViewers from '@/components/domain/DomainViewers.vue'
+import DomainHardware from '@/components/domain/DomainHardware.vue'
+import DomainMedia from '@/components/domain/DomainMedia.vue'
+import DomainBookables from '@/components/domain/DomainBookables.vue'
+import DomainImage from '@/components/domain/DomainImage.vue'
 
 // const inputFormat = helpers.regex('inputFormat', /^1(3|4|5|7|8)\d{9}$/) // /^\D*7(\D*\d){12}\D*$'
 const inputFormat = value => /^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$/.test(value)
 
 export default {
   components: {
-    DesktopNewSkeleton
+    DesktopNewSkeleton,
+    DomainViewers,
+    DomainHardware,
+    DomainMedia,
+    DomainBookables,
+    DomainImage
   },
   setup (props, context) {
+    const collapseVisible = ref(false)
     const $store = context.root.$store
     $store.dispatch('fetchAllowedTemplates', 'all')
+    $store.dispatch('fetchDesktopImages')
 
+    const domain = computed(() => $store.getters.getDomain)
     const desktopName = ref('')
     const description = ref('')
     const perPage = ref(5)
@@ -230,6 +281,13 @@ export default {
     const selectedTemplateId = computed(() => selected.value[0] ? selected.value[0].id : '')
     const totalRows = ref(1)
     const getTemplatesLoaded = computed(() => $store.getters.getTemplatesLoaded)
+
+    watch(selectedTemplateId, (newVal, prevVal) => {
+      console.log(newVal)
+      if (newVal) {
+        $store.dispatch('fetchDomain', newVal)
+      }
+    })
 
     const items = computed(() => $store.getters.getTemplates)
 
@@ -286,7 +344,13 @@ export default {
       totalRows.value = newVal.length
     })
 
+    onUnmounted(() => {
+      $store.dispatch('resetDomainState')
+      $store.dispatch('resetTemplatesState')
+    })
+
     return {
+      collapseVisible,
       desktopName,
       description,
       items,
@@ -299,7 +363,8 @@ export default {
       selectedTemplateId,
       v$: useVuelidate(),
       totalRows,
-      getTemplatesLoaded
+      getTemplatesLoaded,
+      domain
     }
   },
   validations () {
@@ -312,9 +377,6 @@ export default {
       },
       selectedTemplateId: { required }
     }
-  },
-  destroyed () {
-    this.$store.dispatch('resetTemplatesState')
   },
   methods: {
     ...mapActions([
@@ -333,7 +395,41 @@ export default {
       const isFormCorrect = await this.v$.$validate()
 
       if (isFormCorrect) {
-        this.createNewDesktop({ template_id: this.selected[0].id, name: this.desktopName, description: this.description })
+        const viewers = {}
+        for (let i = 0; i < this.domain.guestProperties.viewers.length; i++) {
+          Object.assign(viewers, this.domain.guestProperties.viewers[i])
+        }
+        const isos = this.domain.hardware.isos.map((value) => {
+          return { id: value.id }
+        })
+        // Create the data object that will be send
+        const domainData = {
+          template_id: this.selected[0].id,
+          name: this.desktopName,
+          description: this.description,
+          guest_properties: {
+            credentials: {
+              username: this.domain.guestProperties.credentials.username,
+              password: this.domain.guestProperties.credentials.password
+            },
+            fullscreen: this.domain.guestProperties.fullscreen,
+            viewers: viewers
+          },
+          hardware: {
+            boot_order: this.domain.hardware.bootOrder,
+            disk_bus: this.domain.hardware.diskBus,
+            disks: this.domain.hardware.disks,
+            floppies: this.domain.hardware.floppies,
+            interfaces: this.domain.hardware.interfaces,
+            isos: isos,
+            memory: this.domain.hardware.memory,
+            vcpus: this.domain.hardware.vcpus,
+            videos: this.domain.hardware.videos,
+            reservables: this.domain.reservables
+          },
+          image: this.domain.image
+        }
+        this.createNewDesktop(domainData)
       }
     }
   }

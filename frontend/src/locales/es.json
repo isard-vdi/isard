@@ -43,6 +43,7 @@
         "new-desktop": {
             "title": "Nuevo escritorio:",
             "section-title-template": "Selecciona una plantilla:",
+            "section-title-advanced": "Opciones avanzadas",
             "name": "Nombre",
             "description": "Descripción",
             "desktop-template": "Plantilla",
@@ -108,6 +109,8 @@
             },
             "viewers": {
                 "title": "Visores",
+                "fullscreen-disabled": "Pantalla completa desactivada",
+                "fullscreen-enabled": "Pantalla completa activada",
                 "guest": {
                     "title": "Login RDP",
                     "warning": "ATENCIÓN: La contraseña se guardará como texto plano!!",
