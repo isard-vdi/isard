@@ -1415,7 +1415,7 @@ def domains_with_attached_disk(disk_path):
         r.table("domains")
         .get_all(disk_path, index="disk_paths")
         .pluck("id")["id"]
-        .run(r.conn)
+        .run(r_conn)
     )
     close_rethink_connection(r_conn)
     return domains
