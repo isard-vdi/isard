@@ -27,10 +27,14 @@
                          customClass: 'isard-tooltip',
                          trigger: 'hover' }"
           :idx="2"
-          icon="content_copy"
           color="#97c277"
           @clickItem="onClickGoToNewTemplate(desktop.id)"
-        />
+        >
+          <font-awesome-icon
+            :icon="['fas', 'cubes']"
+            class="ml-1 mt-1 text-white"
+          />
+        </fab-item>
         <fab-item
           v-if="desktop.type === 'persistent'"
           v-b-tooltip="{ title: `${$t('components.desktop-cards.actions.delete')}`,
