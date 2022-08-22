@@ -350,7 +350,7 @@ class UiActions(object):
 
                     for d in dict_domain["hardware"]["disks"]:
                         disk_path = d["file"]
-                        if domains_with_attached_disk(disk_path) != [id_domain]:
+                        if len(domains_with_attached_disk(disk_path)):
                             log.debug(
                                 "Others than this domain have this disk attached. Skipping deleting disk."
                             )
