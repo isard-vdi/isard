@@ -128,7 +128,7 @@ class ReservablesPlanner:
                 ),
                 "start": start,
                 "end": end,
-                "user_id": data["user_id"],
+                "user_id": payload["user_id"],
                 "event_type": "available",
             }
         except:

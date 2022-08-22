@@ -127,7 +127,6 @@ def api_v3_reservables_planner_get_subitem(payload, subitem_id, start=None, end=
 @is_admin
 def api_v3_reservables_planner_event(payload):
     data = request.get_json()
-    payload = {"user_id": "admin"}
     return json.dumps(api_rp.add_plan(payload, data))
 
 
