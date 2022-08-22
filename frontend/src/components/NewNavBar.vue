@@ -29,30 +29,62 @@
             class="mt-5 mt-lg-0"
           >
             <b-nav-item :to="{ name: 'desktops' }">
+              <font-awesome-icon
+                :icon="['fas', 'desktop']"
+                class="mr-1 text-white"
+              />
               {{ $t("components.navbar.desktops") }}
             </b-nav-item>
             <b-nav-item
               v-if="getUser.role_id !== 'user'"
               :to="{ name: 'templates' }"
             >
+              <font-awesome-icon
+                :icon="['fas', 'cubes']"
+                class="mr-1 text-white"
+              />
               {{ $t("components.navbar.templates") }}
             </b-nav-item>
             <b-nav-item
               v-if="getUser.role_id !== 'user'"
               :to="{ name: 'media' }"
             >
+              <font-awesome-icon
+                :icon="['fas', 'compact-disc']"
+                class="mr-1 text-white"
+              />
               {{ $t("components.navbar.media") }}
             </b-nav-item>
             <b-nav-item
               v-if="getUser.role_id === 'advanced'"
               :to="{ name: 'deployments' }"
             >
+              <b-iconstack
+                class="pt-1 text-white"
+              >
+                <b-icon
+                  stacked
+                  icon="tv"
+                  shift-v="4"
+                  shift-h="-4"
+                />
+                <b-icon
+                  stacked
+                  icon="tv-fill"
+                />
+              </b-iconstack>
               {{ $t("components.navbar.deployments") }}
             </b-nav-item>
             <b-nav-item-dropdown
               v-if="getConfig.showBookingsButton"
-              :text="$t('components.navbar.bookings.text')"
             >
+              <template #button-content>
+                <font-awesome-icon
+                  :icon="['fas', 'calendar']"
+                  class="mr-1 text-white"
+                />
+                {{ $t('components.navbar.bookings.text') }}
+              </template>
               <b-dropdown-item @click="menuGoToBookingSummary()">
                 {{ $t("components.navbar.bookings.summary") }}
               </b-dropdown-item>
@@ -67,6 +99,10 @@
               v-if="getConfig.showAdminButton"
               @click="loginAdmin()"
             >
+              <font-awesome-icon
+                :icon="['fas', 'user-cog']"
+                class="mr-1 text-white"
+              />
               {{ $t("components.navbar.admin") }}
             </b-nav-item>
           </b-navbar-nav>
