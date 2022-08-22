@@ -20,6 +20,7 @@ export class DomainsUtils {
         bootOrder: hardware.boot_order,
         diskBus: hardware.disk_bus ? hardware.disk_bus : 'default',
         disks: hardware.disks,
+        diskSize: hardware.disk_size,
         floppies: AllowedUtils.parseItems(hardware.floppies),
         graphics: hardware.graphics,
         interfaces: hardware.interfaces,
@@ -28,7 +29,7 @@ export class DomainsUtils {
         memory: parseFloat(hardware.memory),
         vcpus: parseInt(hardware.vcpus),
         videos: hardware.videos,
-        quota: !hardware.quota ? { memory: 128, vcpus: 128, desktopsDiskSize: 500 } : hardware.quota
+        quota: !hardware.quota ? { memory: 128, vcpus: 128, desktopDiskSizes: 500 } : hardware.quota
       },
       limitedHardware,
       reservables: {
@@ -42,7 +43,7 @@ export class DomainsUtils {
     const { boot_order: bootOrder, disks, floppies, graphics, interfaces, interfaces_mac: interfacesMac, isos, videos } = hardware
     let quota = hardware.quota
     if (quota === false) {
-      quota = { memory: 128, vcpus: 128 }
+      quota = { memory: 128, vcpus: 128, desktopDiskSizes: 500 }
     }
     const memory = []
     for (let i = 0.5; i <= quota.memory; i += 0.5) {
@@ -53,10 +54,16 @@ export class DomainsUtils {
       vcpus.push(i)
     }
 
+    const desktopDiskSizes = []
+    for (let i = 1; i <= quota.desktopDiskSizes; i += 1) {
+      desktopDiskSizes.push(i)
+    }
+
     return {
       bootOrder,
       diskBus: diskBus,
       disks,
+      diskSize: desktopDiskSizes,
       floppies,
       graphics,
       interfaces,

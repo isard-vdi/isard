@@ -548,6 +548,9 @@
                 },
                 "delete": {
                     "title": "Esborrar mitjà"
+                },
+                "new-desktop": {
+                    "title": "Crear nou escriptori"
                 }
             },
             "status": {
@@ -693,7 +696,8 @@
                 "videos": "Videos",
                 "boot": "Boot",
                 "disk-bus": "Disk Bus",
-                "interfaces": "Xarxes"
+                "interfaces": "Xarxes",
+                "disk-size": "Mida del disc (GB)"
             },
             "bookables": {
                 "title": "Reservables",

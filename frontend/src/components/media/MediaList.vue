@@ -118,32 +118,44 @@
                 </div>
               </template>
               <template
-                v-if="!shared"
                 #cell(actions)="data"
               >
                 <div class="d-flex justify-content-center align-items-center">
                   <b-button
-                    v-if="data.item.editable"
-                    class="rounded-circle px-2 mr-2 btn-dark-blue"
-                    :title="$t('views.media.buttons.allowed.title')"
-                    @click="showAllowedModal(data.item)"
+                    v-if="data.item.kind === 'iso'"
+                    class="rounded-circle px-2 mr-2 btn-green"
+                    :title="$t('views.media.buttons.new-desktop')"
+                    @click="onClickGoToNewFromMedia(data.item)"
                   >
                     <b-icon
-                      icon="people-fill"
+                      icon="tv"
                       scale="0.75"
                     />
                   </b-button>
-                  <b-button
-                    v-if="data.item.editable"
-                    class="rounded-circle px-2 mr-2 btn-red"
-                    :title="$t('views.media.buttons.delete.title')"
-                    @click="showDeleteModal(data.item)"
-                  >
-                    <b-icon
-                      icon="trash-fill"
-                      scale="0.75"
-                    />
-                  </b-button>
+                  <span v-if="!shared">
+                    <b-button
+                      v-if="data.item.editable"
+                      class="rounded-circle px-2 mr-2 btn-dark-blue"
+                      :title="$t('views.media.buttons.allowed.title')"
+                      @click="showAllowedModal(data.item)"
+                    >
+                      <b-icon
+                        icon="people-fill"
+                        scale="0.75"
+                      />
+                    </b-button>
+                    <b-button
+                      v-if="data.item.editable"
+                      class="rounded-circle px-2 mr-2 btn-red"
+                      :title="$t('views.media.buttons.delete.title')"
+                      @click="showDeleteModal(data.item)"
+                    >
+                      <b-icon
+                        icon="trash-fill"
+                        scale="0.75"
+                      />
+                    </b-button>
+                  </span>
                 </div>
               </template>
             </b-table>
@@ -218,6 +230,10 @@ export default {
       currentPage.value = 1
     }
 
+    const onClickGoToNewFromMedia = (media) => {
+      $store.dispatch('goToNewFromMedia', media)
+    }
+
     watch(() => props.media, (newVal, prevVal) => {
       totalRows.value = newVal.length
     })
@@ -232,7 +248,8 @@ export default {
       filterOn,
       perPage,
       currentPage,
-      totalRows
+      totalRows,
+      onClickGoToNewFromMedia
     }
   },
   data () {
@@ -309,6 +326,11 @@ export default {
         {
           key: 'progressSize',
           label: i18n.t('views.media.table-header.progress-size'),
+          thStyle: { width: '10%' }
+        },
+        {
+          key: 'actions',
+          label: i18n.t('views.media.table-header.actions'),
           thStyle: { width: '5%' }
         }
       ]

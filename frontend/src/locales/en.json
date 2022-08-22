@@ -125,7 +125,8 @@
                 "videos": "Videos",
                 "boot": "Boot",
                 "disk-bus": "Disk Bus",
-                "interfaces": "Networks"
+                "interfaces": "Networks",
+                "disk-size": "Disk size (GB)"
             },
             "bookables": {
                 "title": "Bookables",
@@ -693,7 +694,10 @@
                     "title": "Change allowed"
                 },
                 "delete": {
-                    "title": "Delete deployment"
+                    "title": "Delete media"
+                },
+                "new-desktop": {
+                    "title": "Create new desktop"
                 }
             },
             "status": {

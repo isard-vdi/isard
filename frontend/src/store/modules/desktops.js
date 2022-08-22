@@ -209,7 +209,15 @@ export default {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.creating-desktop'), '', true, 1000)
 
       axios.post(`${apiV3Segment}/persistent_desktop`, data).then(response => {
-        // this._vm.$snotify.clear()
+        router.push({ name: 'desktops' })
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    createNewDesktopFromMedia (_, data) {
+      ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.creating-desktop'), '', true, 1000)
+
+      axios.post(`${apiV3Segment}/desktop/from/media`, data).then(response => {
         router.push({ name: 'desktops' })
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)

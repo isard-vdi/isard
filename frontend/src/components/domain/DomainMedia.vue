@@ -4,24 +4,38 @@
     <h4 class="my-4">
       <strong>{{ $t('forms.domain.media.title') }}</strong>
     </h4>
-    {{ $t(`forms.domain.media.isos`) }}
-    <IsardSearchSelect
-      :options="isos"
-      :close-on-select="false"
-      :deselect-from-dropdown="true"
-      :selected-values="selectedIsos"
-      @search="fetchIsoAllowedTerm"
-      @updateSelected="updateIsosSelected"
-    />
-    {{ $t(`forms.domain.media.floppies`) }}
-    <IsardSearchSelect
-      :options="floppies"
-      :close-on-select="false"
-      :deselect-from-dropdown="true"
-      :selected-values="selectedFloppies"
-      @search="fetchFloppyAllowedTerm"
-      @updateSelected="updateFloppiesSelected"
-    />
+    <b-row>
+      <b-col
+        cols="12"
+        xl="6"
+        class="mb-2"
+      >
+        {{ $t(`forms.domain.media.isos`) }}
+        <IsardSearchSelect
+          :options="isos"
+          :close-on-select="false"
+          :deselect-from-dropdown="true"
+          :selected-values="selectedIsos"
+          @search="fetchIsoAllowedTerm"
+          @updateSelected="updateIsosSelected"
+        />
+      </b-col>
+      <b-col
+        cols="12"
+        xl="6"
+        class="mb-2"
+      >
+        {{ $t(`forms.domain.media.floppies`) }}
+        <IsardSearchSelect
+          :options="floppies"
+          :close-on-select="false"
+          :deselect-from-dropdown="true"
+          :selected-values="selectedFloppies"
+          @search="fetchFloppyAllowedTerm"
+          @updateSelected="updateFloppiesSelected"
+        />
+      </b-col>
+    </b-row>
   </div>
 </template>
 

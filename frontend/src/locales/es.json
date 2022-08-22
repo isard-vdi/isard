@@ -125,7 +125,8 @@
                 "videos": "Videos",
                 "boot": "Boot",
                 "disk-bus": "Disk Bus",
-                "interfaces": "Redes"
+                "interfaces": "Redes",
+                "disk-size": "Tamaño del disco (GB)"
             },
             "bookables": {
                 "title": "Reservables",
@@ -708,6 +709,9 @@
                 },
                 "delete": {
                     "title": "Eliminar medio"
+                },
+                "new-desktop": {
+                    "title": "Crear nuevo escritorio"
                 }
             },
             "status": {

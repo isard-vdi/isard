@@ -136,7 +136,6 @@ export default {
       })
       // Create the data object that will be send
       const domainData = {
-        id: domain.value.id,
         name: domain.value.name,
         description: domain.value.description,
         guest_properties: {
