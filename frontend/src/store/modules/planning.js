@@ -203,8 +203,7 @@ export default {
         item_id: payload.itemId,
         subitem_id: payload.subitemId,
         start: DateUtils.formatAsUTC(payload.date),
-        end: DateUtils.formatAsUTC(payload.end),
-        user_id: 'local-default-admin-admin'
+        end: DateUtils.formatAsUTC(payload.end)
       }
 
       if (PlanningUtils.checkModalData(payload, events)) {
@@ -225,8 +224,7 @@ export default {
       const data = {
         subitem_id: payload.subitemId,
         start: DateUtils.formatAsUTC(payload.date),
-        end: DateUtils.formatAsUTC(payload.end),
-        user_id: 'local-default-admin-admin'
+        end: DateUtils.formatAsUTC(payload.end)
       }
 
       if (PlanningUtils.checkModalData(payload, events)) {

@@ -182,10 +182,10 @@ export default {
     const onCalendarEventClicked = (event, e) => {
       if (!eventClickActive.value) { return }
 
-      let type = 'view'
-      if (DateUtils.dateToMoment(new Date()).isBefore(event.start)) {
-        type = 'edit'
-      }
+      const type = 'view'
+      // if (DateUtils.dateToMoment(new Date()).isBefore(event.start)) {
+      //   type = 'edit' // Endpoint pending
+      // }
       $store.dispatch('showPlanningModal', true)
       $store.dispatch('eventPlanningModalData', {
         type: type,
