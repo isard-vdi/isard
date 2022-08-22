@@ -6,6 +6,7 @@
 # License: AGPLv3
 
 import time
+import uuid
 
 from rethinkdb import RethinkDB
 
@@ -494,10 +495,8 @@ def parse_domain_update(domain_id, new_data, admin_or_manager=False):
 
 
 def generate_db_media(path_downloaded, filesize):
-    parts = path_downloaded.split("/")
-    # /isard/media/default/default/local/admin-admin/dsl-4.4.10.iso
-    media_id = "_" + parts[-3] + "-" + parts[-5] + "-" + parts[-2] + "-" + parts[-1]
-    group_id = parts[-5] + "-" + parts[-4]
+    media_id = str(uuid.uuid4())
+    admin_data = get_user_data()
 
     icon = False
     if path_downloaded.split(".")[-1] == "iso":
@@ -516,11 +515,6 @@ def generate_db_media(path_downloaded, filesize):
             traceback.format_exc(),
         )
 
-    with app.app_context():
-        username = r.table("users").get(parts[-2])["username"].run(db.conn)
-    if username == None:
-        raise Error("not_found", "Username not found", traceback.format_exc())
-
     return {
         "accessed": time.time(),
         "allowed": {
@@ -529,15 +523,15 @@ def generate_db_media(path_downloaded, filesize):
             "roles": False,
             "users": False,
         },
-        "category": parts[-5],
+        "category": admin_data["category"],
         "description": "Scanned from storage.",
         "detail": "",
-        "group": group_id,
+        "group": admin_data["group"],
         "hypervisors_pools": ["default"],
         "icon": icon,
         "id": media_id,
         "kind": kind,
-        "name": parts[-1],
+        "name": path_downloaded.split("/")[-1],
         "path": "/".join(
             path_downloaded.rsplit("/", 6)[2:]
         ),  # "default/default/local/admin-admin/dsl-4.4.10.iso" ,
@@ -559,12 +553,8 @@ def generate_db_media(path_downloaded, filesize):
         "status": "Downloaded",
         "url-isard": False,
         "url-web": False,
-        "user": parts[-3]
-        + "-"
-        + parts[-5]
-        + "-"
-        + parts[-2],  # "local-default-admin-admin" ,
-        "username": username,
+        "user": admin_data["user"],  # "local-default-admin-admin" ,
+        "username": admin_data["username"],
     }
 
 
