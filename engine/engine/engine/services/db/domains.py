@@ -1421,6 +1421,18 @@ def domains_with_attached_disk(disk_path):
     return domains
 
 
+def domains_with_attached_storage_id(storage_id):
+    r_conn = new_rethink_connection()
+    domains = list(
+        r.table("domains")
+        .get_all(storage_id, index="storage_ids")
+        .pluck("id")["id"]
+        .run(r_conn)
+    )
+    close_rethink_connection(r_conn)
+    return domains
+
+
 def get_and_update_personal_vlan_id_from_domain_id(
     id_domain, id_interface, range_start, range_end
 ):

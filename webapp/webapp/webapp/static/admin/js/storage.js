@@ -134,6 +134,30 @@ $(document).ready(function() {
               }
           }},],
     });
+
+    if( $("#storage_physical").length != 0){
+      var storage_physical=$('#storage_physical').DataTable( {
+        "ajax": {
+        "url": "/api/v3/admin/storage/physical/domains",
+                "contentType": "application/json",
+                "type": 'GET',
+        },
+        "sAjaxDataProp": "",
+        "language": {
+          "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+        },
+        "rowId": "id",
+        "deferRender": true,
+          "columns": [
+              { "data": "path",},
+              { "data": "kind",},
+              { "data": "size"},
+              { "data": "hyper"},
+              { "data": "domains"},
+        ],
+        "columnDefs": [],
+      });
+    }
 })
 
 function format(rowData) {

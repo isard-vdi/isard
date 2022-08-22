@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 42
+release_version = 43
+# release 43: Added media_ids domains index
 # release 42: Added disk_paths and storage_ids domains index
 # release 41: Added user_id and status indexes to storage table
 # release 40: Added linked groups to groups
@@ -981,6 +982,19 @@ class Upgrade(object):
                 ).run(self.conn)
             except Exception as e:
                 print(e)
+
+        if version == 43:
+            try:
+                r.table(table).index_create(
+                    "media_ids",
+                    lambda domain: domain["create_dict"]["hardware"]["isos"].concat_map(
+                        lambda data: [data["id"]]
+                    ),
+                    multi=True,
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
         return True
 
     """

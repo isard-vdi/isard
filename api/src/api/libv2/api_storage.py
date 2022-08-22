@@ -67,3 +67,13 @@ def get_storage_domains(storage_id):
             .pluck("id", "kind", "name")
             .run(db.conn)
         )
+
+
+def get_media_domains(storage_id):
+    with app.app_context():
+        return list(
+            r.table("domains")
+            .get_all(storage_id, index="media_ids")
+            .pluck("id", "kind", "name")
+            .run(db.conn)
+        )

@@ -587,7 +587,10 @@ def get_user_data(user_id="admin"):
     }
 
 
-def gen_payload_from_user(user):
+def gen_payload_from_user(user=None, user_id=None):
+    if not user:
+        with app.app_context():
+            user = r.table("users").get(user_id).run(db.conn)
     return {
         "provider": user["provider"],
         "user_id": user["id"],

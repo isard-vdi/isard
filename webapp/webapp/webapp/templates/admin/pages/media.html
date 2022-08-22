@@ -20,23 +20,58 @@
           <thead>
           <tr>
             <th></th>
+            <th></th>
             <th>Name</th>
             <th>Status</th>
             <th>Owner</th>
             <th>Category</th>
             <th>Group</th>
             <th>Progress/Size</th>
-          <th>Actions</th>
+            <th>Domains</th>
+            <th>Actions</th>
           </tr>
           </thead>
           <tbody>
           </tbody>
       </table>
     </div>
+
+    {% if current_user.role == 'admin' %}
+    <div class="row">
+      <div class="x_panel">
+        <div class="x_title">
+          <h3><i class="fa fa-times"></i> Physical media files <small>Scanned from disk</small></h3>
+          <ul class="nav navbar-right panel_toolbox">
+            <!-- <li><a class="btn-new"><span style="color: #5499c7; "><i class="fa fa-link"></i> Upload from URL</span></a> -->
+            <!-- <li><a class="btn-new-local"><span style="color: #5499c7; "><i class="fa fa-plus"></i><i class="fa fa-hdd-o"></i>  Upload from local</span></a></li>-->
+          </ul>
+          <div class="clearfix"></div>
+        </div>
+        <div class="x_content">
+          <table id="media_physical" class="table" width="100%">
+              <thead>
+              <tr>
+                <th>Path</th>
+                <th>Kind</th>
+                <th>Size</th>
+                <th>Hyper</th>
+              </tr>
+              </thead>
+              <tbody>
+              </tbody>
+          </table>
+        </div>
+    
+      </div>
+    </div>
+    {% endif %}
+
     {% include 'admin/pages/media_modals.html' %}
     {% include '/snippets/alloweds_form.html' %}
+    {% include '/admin/pages/media_detail.html' %}
   </div>
 </div>
+
 {% endblock %}
 {% block pagescript %}
     <script src="/isard-admin/static/js/restful.js"></script>

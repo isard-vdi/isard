@@ -38,4 +38,8 @@ done
 
 
 # Server
-/filebrowser --root=/isard --address=0.0.0.0 --port=8080 --database=/config/filebrowser.db
+/filebrowser --root=/isard --address=0.0.0.0 --port=8080 --database=/config/filebrowser.db &
+
+# api
+export PYTHONWARNINGS="ignore:Unverified HTTPS request"
+cd /api && python3 start.py

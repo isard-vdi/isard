@@ -26,6 +26,7 @@ from engine.services.db import (
     create_disk_template_created_list_in_domain,
     delete_domain,
     domains_with_attached_disk,
+    domains_with_attached_storage_id,
     get_custom_dict_from_domain,
     get_dict_from_item_in_table,
     get_domain,
@@ -350,7 +351,11 @@ class UiActions(object):
 
                     for d in dict_domain["hardware"]["disks"]:
                         disk_path = d["file"]
-                        if len(domains_with_attached_disk(disk_path)):
+                        if len(domains_with_attached_disk(disk_path)) > 1 or (
+                            d.get("storage_id")
+                            and len(domains_with_attached_storage_id(d["storage_id"]))
+                            > 1
+                        ):
                             log.debug(
                                 "Others than this domain have this disk attached. Skipping deleting disk."
                             )

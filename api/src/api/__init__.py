@@ -97,6 +97,7 @@ from .views import (
     AdminDomainsView,
     AdminDownloadsView,
     AdminResourcesView,
+    AdminStoragePhysicalView,
     AdminStorageView,
     AdminTablesView,
     AdminUsersView,

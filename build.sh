@@ -53,6 +53,7 @@ ALLINONE_PARTS="
 	guac
 	toolbox
 	backupninja
+	redis
 "
 HYPERVISOR_KEY="hypervisor"
 HYPERVISOR_PARTS="
@@ -102,6 +103,7 @@ WEB_PARTS="
 	vpn
 	stats
 	guac
+	redis
 "
 MONITOR_STANDALONE_KEY="monitor"
 MONITOR_STANDALONE_PARTS="
