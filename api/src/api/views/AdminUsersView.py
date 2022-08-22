@@ -545,7 +545,7 @@ def admin_userschema(payload):
 
     dict["group"] = admin_table_list(
         "groups",
-        pluck=["id", "name", "description", "parent_category"],
+        pluck=["id", "name", "description", "parent_category", "linked_groups"],
         order_by="name",
         without=False,
     )
