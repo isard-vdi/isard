@@ -30,6 +30,38 @@
   "panels": [
     {
       "datasource": {
+        "uid": "Graphite"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 4,
+        "x": 0,
+        "y": 0
+      },
+      "id": 18,
+      "options": {
+        "maxItems": 10,
+        "query": "",
+        "showHeadings": false,
+        "showRecentlyViewed": false,
+        "showSearch": true,
+        "showStarred": false,
+        "tags": []
+      },
+      "pluginVersion": "9.0.7",
+      "tags": [],
+      "targets": [
+        {
+          "refId": "A",
+          "target": ""
+        }
+      ],
+      "title": "Dashboards",
+      "transparent": true,
+      "type": "dashlist"
+    },
+    {
+      "datasource": {
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
@@ -125,8 +157,8 @@
       },
       "gridPos": {
         "h": 10,
-        "w": 12,
-        "x": 0,
+        "w": 8,
+        "x": 4,
         "y": 0
       },
       "id": 8,
@@ -982,25 +1014,9 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "currencyEUR"
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Cost Diari (€)"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "#69aaea",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "gridPos": {
         "h": 10,
@@ -1014,7 +1030,7 @@
           "calcs": [
             "lastNotNull"
           ],
-          "displayMode": "list",
+          "displayMode": "table",
           "placement": "bottom"
         },
         "tooltip": {
@@ -1029,7 +1045,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "editorMode": "code",
+          "editorMode": "builder",
           "exemplar": false,
           "expr": "isardvdi_oci_daily_cost",
           "hide": false,
@@ -1052,8 +1068,8 @@
       {
         "current": {
           "selected": false,
-          "text": "localhost",
-          "value": "localhost"
+          "text": "10.100.1.206",
+          "value": "10.100.1.206"
         },
         "datasource": {
           "type": "prometheus",
