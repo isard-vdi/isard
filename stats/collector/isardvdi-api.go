@@ -2,6 +2,7 @@ package collector
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt"
@@ -25,6 +26,7 @@ type IsardVDIAPI struct {
 	descDesktopInfo                  *prometheus.Desc
 	descTemplateNumber               *prometheus.Desc
 	descTemplateNumberCategory       *prometheus.Desc
+	descHypervisorInfo               *prometheus.Desc
 }
 
 func NewIsardVDIAPI(log *zerolog.Logger, cli *client.Client, secret string) *IsardVDIAPI {
@@ -94,6 +96,12 @@ func NewIsardVDIAPI(log *zerolog.Logger, cli *client.Client, secret string) *Isa
 		[]string{"category"},
 		prometheus.Labels{},
 	)
+	a.descHypervisorInfo = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, a.String(), "hypervisor_info"),
+		"Information of the hypervisor",
+		[]string{"id", "status", "only_forced"},
+		prometheus.Labels{},
+	)
 
 	return a
 }
@@ -112,6 +120,7 @@ func (a *IsardVDIAPI) Describe(ch chan<- *prometheus.Desc) {
 	ch <- a.descDesktopInfo
 	ch <- a.descTemplateNumber
 	ch <- a.descTemplateNumberCategory
+	ch <- a.descHypervisorInfo
 }
 
 func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
@@ -174,6 +183,16 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 		success = 0
 	}
 	ch <- prometheus.MustNewConstMetric(a.descTemplateNumber, prometheus.GaugeValue, float64(len(tmpl)))
+
+	hyp, err := a.cli.HypervisorList(context.Background())
+	if err != nil {
+		a.Log.Info().Str("collector", a.String()).Err(err).Msg("list hypervisors")
+		success = 0
+	}
+
+	for _, h := range hyp {
+		ch <- prometheus.MustNewConstMetric(a.descHypervisorInfo, prometheus.GaugeValue, 1, client.GetString(h.ID), client.GetString(h.Status), strconv.FormatBool(client.GetBool(h.OnlyForced)))
+	}
 
 	duration := time.Since(start)
 
