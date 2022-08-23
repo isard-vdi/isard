@@ -293,7 +293,7 @@ $(document).ready(function() {
                         $('.modal').modal('hide');      
                     notice.update({
                             title: "Adding users",
-                            text: "Added user (" + ( usersAdded ) + "/" + users.length + ").",
+                            text: "Added user (" + ( usersAdded ) + "/" + users.length + "): ",
                             hide: true,
                             delay: 4000,
                             opacity: 1
@@ -303,7 +303,7 @@ $(document).ready(function() {
                      error: function(data){
                         var error = new PNotify({
                             title: "ERROR",
-                            text: "Error adding user in line " + (index + 2),
+                            text: "Error adding user in line " + (index + 2) + ": " + data.responseJSON.description,
                             type: 'error',
                             hide: true,
                             icon: 'fa fa-warning',
