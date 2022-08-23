@@ -21,7 +21,6 @@ from ..libv2.validators import _validate_item, check_user_duplicated_domain_name
 from .api_exceptions import Error
 
 r = RethinkDB()
-import logging as log
 
 from .flask_rethink import RDB
 
@@ -39,6 +38,10 @@ api_cards = ApiCards()
 from ..libv2.quotas import Quotas
 
 quotas = Quotas()
+
+from ..libv2.quotas_process import QuotasProcess
+
+qp = QuotasProcess()
 
 from .ds import DS
 
@@ -313,8 +316,6 @@ class ApiDesktopsPersistent:
             user = r.table("users").get(payload["user_id"]).run(db.conn)
 
         with app.app_context():
-
-            log.info(data["id"])
             if r.table("domains").get(data["id"]).run(db.conn):
                 raise Error(
                     "conflict",
@@ -424,6 +425,13 @@ class ApiDesktopsPersistent:
             },
         }
 
+        res = qp.limit_user_hardware_allowed(payload, domain["create_dict"])
+        if res["limited_hardware"]:
+            raise Error(
+                "bad_request",
+                "Unauthorized hardware items: " + str(res["limited_hardware"]),
+                traceback.format_exc(),
+            )
         with app.app_context():
             r.table("domains").insert(domain).run(db.conn)
         return domain["id"]
