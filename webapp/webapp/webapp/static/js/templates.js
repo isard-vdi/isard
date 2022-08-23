@@ -345,7 +345,7 @@ $("#modalEditDesktop #send").on('click', function(e){
             error: function(data) {
                 notice.update({
                     title: 'ERROR',
-                    text: 'Something went wrong when updating',
+                    text: data.responseJSON.description,
                     type: 'error',
                     hide: true,
                     icon: 'fa fa-warning',

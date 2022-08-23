@@ -302,7 +302,7 @@ def api_v3_admin_quota(payload):
         users.UpdateQuota(quota["id"], toUpdate, quota["table"], kind)
 
     except:
-        raise Error("bad_request")
+        raise Error("bad_request", "Unable to parse body data")
 
     if propagate:
         if quota["table"] == "categories":

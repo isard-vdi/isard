@@ -354,7 +354,7 @@ $(document).ready(function() {
                 error: function(data) {
                     notice.update({
                         title: 'ERROR',
-                        text: 'Something went wrong',
+                        text: data.responseJSON.description,
                         type: 'error',
                         hide: true,
                         icon: 'fa fa-warning',
@@ -623,7 +623,7 @@ function modal_add_install_datatables(){
                     error: function(data){
                         $('form').each(function() { this.reset() });
                         $('.modal').modal('hide');
-                        var error = new PNotify({
+                        notice.update = new PNotify({
                             title: "ERROR",
                             text: data.responseJSON.description,
                             type: 'error',

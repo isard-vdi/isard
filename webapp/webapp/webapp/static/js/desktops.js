@@ -807,7 +807,7 @@ function initalize_modal_all_desktops_events(){
                         data: JSON.stringify({name, desktop_id, allowed, description, enabled}),
                         contentType: "application/json",
                         error: function(data) {
-                            new PNotify({
+                            notice.update({
                                 title: 'ERROR',
                                 text: 'Cannot create template ' + name,
                                 type: 'error',

@@ -249,7 +249,7 @@ $(document).ready(function() {
                         data: JSON.stringify({name, desktop_id, allowed, description, enabled}),
                         contentType: "application/json",
                         error: function(data) {
-                            new PNotify({
+                            notice.update({
                                 title: 'ERROR',
                                 text: 'Cannot create template ' + name,
                                 type: 'error',
@@ -302,9 +302,9 @@ $(document).ready(function() {
             data: JSON.stringify(todelete),
             contentType: 'application/json',
             error: function(data) {
-                new PNotify({
+                notice.update({
                     title: 'ERROR',
-                    text: 'Something went wrong',
+                    text: data.responseJSON.description,
                     type: 'error',
                     hide: true,
                     icon: 'fa fa-warning',
@@ -349,9 +349,9 @@ $(document).ready(function() {
                 data: JSON.stringify(sent_data),
                 contentType: 'application/json',
                 error: function(data) {
-                    new PNotify({
+                    notice.update({
                         title: 'ERROR',
-                        text: 'Something went wrong',
+                        text: data.responseJSON.description,
                         type: 'error',
                         hide: true,
                         icon: 'fa fa-warning',
