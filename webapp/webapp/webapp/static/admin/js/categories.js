@@ -106,7 +106,7 @@ $(document).ready(function() {
             error: function(data) {
                 notice.update({
                     title: 'ERROR',
-                    text: 'Something went wrong',
+                    text: data.responseJSON.description,
                     type: 'error',
                     hide: true,
                     icon: 'fa fa-warning',
@@ -465,7 +465,7 @@ function actionsCategoryDetail(){
                 error: function(data) {
                     notice.update({
                         title: 'ERROR',
-                        text: 'Something went wrong',
+                        text: data.responseJSON.description,
                         type: 'error',
                         hide: true,
                         icon: 'fa fa-warning',
@@ -536,7 +536,7 @@ function actionsCategoryDetail(){
                 error: function(data){ 
                     notice.update({
                         title: 'ERROR',
-                        text: 'Something went wrong',
+                        text: data.responseJSON.description,
                         type: 'error',
                         hide: true,
                         icon: 'fa fa-warning',
