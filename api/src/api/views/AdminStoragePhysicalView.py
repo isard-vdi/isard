@@ -85,7 +85,7 @@ def api_v3_admin_init_storage_physical(payload, table):
 @app.route("/api/v3/admin/storage/physical/<table>/<path_id>", methods=["DELETE"])
 @is_admin
 def api_v3_admin_delete_storage_physical(payload, table, path_id):
-    phy_storage_delete(table, hash_id)
+    phy_storage_delete(table, path_id)
     return (
         json.dumps({}),
         200,
