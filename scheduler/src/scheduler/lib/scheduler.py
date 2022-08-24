@@ -1,12 +1,26 @@
-# Copyright 2017 the Isard-vdi project authors:
-#      Josep Maria Viñolas Auquer
-#      Alberto Larraz Dalmases
-# License: AGPLv3
+#
+#   Copyright © 2022 Josep Maria Viñolas Auquer
+#
+#   This file is part of IsardVDI.
+#
+#   IsardVDI is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or (at your
+#   option) any later version.
+#
+#   IsardVDI is distributed in the hope that it will be useful, but WITHOUT ANY
+#   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+#   FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+#   details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
 
-import time
+from uuid import uuid4
 
 import pytz
-from flask import current_app
 from rethinkdb import RethinkDB
 
 from scheduler import app
@@ -14,10 +28,6 @@ from scheduler import app
 from .log import log
 
 r = RethinkDB()
-
-import traceback
-
-from rethinkdb.errors import ReqlTimeoutError
 
 from .flask_rethink import RDB
 
@@ -32,9 +42,6 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from .actions import Actions
 from .exceptions import Error
-
-# class apscheduler.jobstores.rethinkdb.RethinkDBJobStore(database='apscheduler',
-# table='jobs', client=None, pickle_protocol=pickle.HIGHEST_PROTOCOL, **connect_args)
 
 
 class Scheduler:
@@ -96,7 +103,9 @@ class Scheduler:
     def list_actions(self):
         return [f[0] for f in getmembers(Actions, isfunction)]
 
-    def add_job(self, kind, action, hour, minute, id=None, kwargs=None):
+    def add_job(self, type, kind, action, hour, minute, id=None, kwargs=None):
+        if type not in ["system", "bookings", "alerts"]:
+            raise Error("bad_request", "Type not in system, bookings or alerts")
         if kind not in ["cron", "interval", "date"]:
             raise Error("bad_request", "Kind not in cron, interval or date")
         if int(hour) not in range(0, 23):
@@ -104,11 +113,9 @@ class Scheduler:
         if int(minute) not in range(0, 59):
             raise Error("bad_request", "Minute range must be within 0-60")
         if not id:
-            id = kind + "_" + action + "_" + str(hour) + "_" + str(minute)
-        else:
-            id = kind + "_" + action + "." + id + "_" + str(hour) + "_" + str(minute)
+            id = str(uuid4())
         if r.table("scheduler_jobs").get(id).run(db.conn):
-            raise Error("conflict", "Same job already exists")
+            raise Error("conflict", "Same job id already exists")
         try:
             function = getattr(Actions, action)
         except:
@@ -151,6 +158,7 @@ class Scheduler:
         with app.app_context():
             r.table("scheduler_jobs").get(id).update(
                 {
+                    "type": type,
                     "kind": kind,
                     "action": action,
                     "name": action.replace("_", " "),
@@ -160,15 +168,15 @@ class Scheduler:
                 }
             ).run(db.conn)
 
-    def add_advanced_interval_job(self, action, data, id=None, kwargs=None):
+    def add_advanced_interval_job(self, type, action, data, id=None, kwargs=None):
         try:
             function = getattr(Actions, action)
         except:
             raise Error("bad_request", "Action not implemented")
+        if type not in ["system", "bookings", "alerts"]:
+            raise Error("bad_request", "Type not in system, bookings or alerts")
         if not id:
-            id = id = (
-                "interval_" + action + "." + id + "_" + str(hour) + "_" + str(minute)
-            )
+            id = str(uuid4())
 
         self.scheduler.add_job(
             function,
@@ -182,28 +190,30 @@ class Scheduler:
             end_date=data["end_date"],
             timezone=data["timezone"],
             jitter=data["jitter"],
+            id=id,
             kwargs=kwargs,
         )
         with app.app_context():
             r.table("scheduler_jobs").get(id).update(
                 {
-                    "kind": kind,
+                    "type": type,
+                    "kind": "interval",
                     "action": action,
                     "name": action.replace("_", " "),
-                    "hour": hour,
-                    "minute": minute,
+                    "hour": "interval",
+                    "minute": "interval",
                     "kwargs": kwargs,
                 }
             ).run(db.conn)
 
-    def add_advanced_date_job(self, action, date, id=None, kwargs=None):
+    def add_advanced_date_job(self, type, action, date, id=None, kwargs=None):
         try:
             function = getattr(Actions, action)
         except:
             raise Error("bad_request", "Action not implemented")
 
         if not id:
-            id = "date_" + action + "." + str(date)
+            id = str(uuid4())
         date = datetime.strptime(date, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
         self.scheduler.add_job(
             function,
@@ -217,6 +227,7 @@ class Scheduler:
         with app.app_context():
             r.table("scheduler_jobs").get(id).update(
                 {
+                    "type": type,
                     "kind": "date",
                     "action": action,
                     "name": action.replace("_", " "),

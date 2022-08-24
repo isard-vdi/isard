@@ -1,20 +1,29 @@
-# Copyright 2017 the Isard-vdi project authors:
-#      Josep Maria Viñolas Auquer
-#      Alberto Larraz Dalmases
-# License: AGPLv3
+#
+#   Copyright © 2022 Josep Maria Viñolas Auquer
+#
+#   This file is part of IsardVDI.
+#
+#   IsardVDI is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or (at your
+#   option) any later version.
+#
+#   IsardVDI is distributed in the hope that it will be useful, but WITHOUT ANY
+#   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+#   FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+#   details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
 
 import json
-import logging as log
-from datetime import datetime, timedelta
 
-import pytz
 from flask import request
 
-#!flask/bin/python
-# coding=utf-8
 from scheduler import app
 
-from ..lib.scheduler import Scheduler
 from .decorators import is_admin
 
 
@@ -71,42 +80,43 @@ def get_not_date(payload):
     )
 
 
-@app.route("/scheduler/<kind>/<action>/<hour>/<minute>", methods=["POST"])
+@app.route("/scheduler/<type>/<kind>/<action>/<hour>/<minute>", methods=["POST"])
 @is_admin
-def add(payload, kind, action, hour, minute):
-    log.debug("inside")
+def add(payload, type, kind, action, hour, minute):
     try:
         custom_parameters = request.get_json()
     except:
         custom_parameters = None
     return (
         json.dumps(
-            app.scheduler.add_job(kind, action, hour, minute, kwargs=custom_parameters)
+            app.scheduler.add_job(
+                type, kind, action, hour, minute, kwargs=custom_parameters
+            )
         ),
         200,
         {"Content-Type": "application/json"},
     )
 
 
-@app.route("/scheduler/advanced/interval/<action>", methods=["POST"])
+@app.route("/scheduler/advanced/interval/<type>/<action>", methods=["POST"])
 @is_admin
-def add_advanced_interval(payload, action):
+def add_advanced_interval(payload, type, action):
     data = request.get_json()
     # id=None, weeks=0, days=0, hours=0, minutes=0, seconds=0, start_date=None, end_date=None, timezone=None, jitter=None, kwargs=None
     return json.dumps(
         app.scheduler.add_advanced_interval_job(
-            action, data, data.pop("id", None), data.pop("kwargs", None)
+            type, action, data, data.pop("id", None), data.pop("kwargs", None)
         )
     )
 
 
-@app.route("/scheduler/advanced/date/<action>", methods=["POST"])
+@app.route("/scheduler/advanced/date/<type>/<action>", methods=["POST"])
 @is_admin
-def add_advanced_date(payload, action):
+def add_advanced_date(payload, type, action):
     data = request.get_json()
     return json.dumps(
         app.scheduler.add_advanced_date_job(
-            action, data["date"], data.pop("id", None), data.pop("kwargs", None)
+            type, action, data["date"], data.pop("id", None), data.pop("kwargs", None)
         )
     )
 
