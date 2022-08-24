@@ -16,7 +16,7 @@ $(document).ready(function() {
     $("#modalScheduler #send").on('click', function(e){
             var form = $('#modalAddScheduler');
             data=$('#modalAddScheduler').serializeObject();
-            api.ajax('/scheduler/'+data["kind"]+"/"+data["action"]+"/"+data["hour"]+"/"+data["minute"]+"/",'POST',{}).done(function(data) {
+            api.ajax('/scheduler/system/'+data["kind"]+"/"+data["action"]+"/"+data["hour"]+"/"+data["minute"],'POST',{}).done(function(data) {
             });
             $("#modalAddScheduler")[0].reset();
             $("#modalScheduler").modal('hide');

@@ -56,10 +56,10 @@ class ResourceScheduler:
         data["date"] = data["date"].astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
         data["message"] = "This desktop will be stopped in 15 minutes"
         try:
-            self.api_rest.post("/advanced/date/gpu_desktops_notify", data)
+            self.api_rest.post("/advanced/date/bookings/gpu_desktops_notify", data)
         except:
             log.error(
-                "could not contact scheduler service at /advanced/date/gpu_desktops_notify"
+                "could not contact scheduler service at /advanced/date/bookings/gpu_desktops_notify"
             )
 
         ## end -5m: user message, immediate shutdown
@@ -68,10 +68,10 @@ class ResourceScheduler:
         data["date"] = data["date"].astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
         data["message"] = "This desktop will be stopped in 5 minutes"
         try:
-            self.api_rest.post("/advanced/date/gpu_desktops_notify", data)
+            self.api_rest.post("/advanced/date/bookings/gpu_desktops_notify", data)
         except:
             log.error(
-                "could not contact scheduler service at /advanced/date/gpu_desktops_notify"
+                "could not contact scheduler service at /advanced/date/bookings/gpu_desktops_notify"
             )
 
         ## end -2m: shutdown desktops
@@ -79,10 +79,10 @@ class ResourceScheduler:
         data["date"] = start_date - timedelta(0, 2 * 60)
         data["date"] = data["date"].astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
         try:
-            self.api_rest.post("/advanced/date/gpu_desktops_destroy", data)
+            self.api_rest.post("/advanced/date/bookings/gpu_desktops_destroy", data)
         except:
             log.error(
-                "could not contact scheduler service at /advanced/date/gpu_desktops_destroy"
+                "could not contact scheduler service at /advanced/date/bookings/gpu_desktops_destroy"
             )
 
         ## end -1m: call engine to set item_id (gpu card) to profile data["profile"]
@@ -90,10 +90,10 @@ class ResourceScheduler:
         data["date"] = start_date - timedelta(0, 60)
         data["date"] = data["date"].astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
         try:
-            self.api_rest.post("/advanced/date/gpu_profile_set", data)
+            self.api_rest.post("/advanced/date/bookings/gpu_profile_set", data)
         except:
             log.error(
-                "could not contact scheduler service at /advanced/date/gpu_profile_set"
+                "could not contact scheduler service at /advanced/date/bookings/gpu_profile_set"
             )
 
     def schedule_booking(self, booking_id, item_type, item_id, start, end):
@@ -119,10 +119,10 @@ class ResourceScheduler:
         data["date"] = start_date - timedelta(0, 1 * 60)
         data["date"] = data["date"].astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
         try:
-            self.api_rest.post("/advanced/date/domain_reservable_set", data)
+            self.api_rest.post("/advanced/date/bookings/domain_reservable_set", data)
         except:
             log.error(
-                "could not contact scheduler service at /advanced/date/domain_reservable_set"
+                "could not contact scheduler service at /advanced/date/bookings/domain_reservable_set"
             )
 
         ## end -1s: set in_reservable
@@ -131,10 +131,10 @@ class ResourceScheduler:
         data["date"] = data["date"].astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
         data["kwargs"]["booking_id"] = False
         try:
-            self.api_rest.post("/advanced/date/domain_reservable_set", data)
+            self.api_rest.post("/advanced/date/bookings/domain_reservable_set", data)
         except:
             log.error(
-                "could not contact scheduler service at /advanced/date/domain_reservable_set"
+                "could not contact scheduler service at /advanced/date/bookings/domain_reservable_set"
             )
 
     def reschedule_id(self, id, on_date):

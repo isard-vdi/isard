@@ -71,42 +71,43 @@ def get_not_date(payload):
     )
 
 
-@app.route("/scheduler/<kind>/<action>/<hour>/<minute>", methods=["POST"])
+@app.route("/scheduler/<type>/<kind>/<action>/<hour>/<minute>", methods=["POST"])
 @is_admin
-def add(payload, kind, action, hour, minute):
-    log.debug("inside")
+def add(payload, type, kind, action, hour, minute):
     try:
         custom_parameters = request.get_json()
     except:
         custom_parameters = None
     return (
         json.dumps(
-            app.scheduler.add_job(kind, action, hour, minute, kwargs=custom_parameters)
+            app.scheduler.add_job(
+                type, kind, action, hour, minute, kwargs=custom_parameters
+            )
         ),
         200,
         {"Content-Type": "application/json"},
     )
 
 
-@app.route("/scheduler/advanced/interval/<action>", methods=["POST"])
+@app.route("/scheduler/advanced/interval/<type>/<action>", methods=["POST"])
 @is_admin
-def add_advanced_interval(payload, action):
+def add_advanced_interval(payload, type, action):
     data = request.get_json()
     # id=None, weeks=0, days=0, hours=0, minutes=0, seconds=0, start_date=None, end_date=None, timezone=None, jitter=None, kwargs=None
     return json.dumps(
         app.scheduler.add_advanced_interval_job(
-            action, data, data.pop("id", None), data.pop("kwargs", None)
+            type, action, data, data.pop("id", None), data.pop("kwargs", None)
         )
     )
 
 
-@app.route("/scheduler/advanced/date/<action>", methods=["POST"])
+@app.route("/scheduler/advanced/date/<type>/<action>", methods=["POST"])
 @is_admin
-def add_advanced_date(payload, action):
+def add_advanced_date(payload, type, action):
     data = request.get_json()
     return json.dumps(
         app.scheduler.add_advanced_date_job(
-            action, data["date"], data.pop("id", None), data.pop("kwargs", None)
+            type, action, data["date"], data.pop("id", None), data.pop("kwargs", None)
         )
     )
 
