@@ -30,11 +30,17 @@ from .helpers import _check, _parse_string, get_user_data
 from .validators import _validate_item, _validate_table
 
 
-def admin_table_list(table, order_by=None, pluck=None, without=None, id=None):
+def admin_table_list(
+    table, order_by=None, pluck=None, without=None, id=None, index=None
+):
     _validate_table(table)
 
-    with app.app_context():
-        query = r.table(table)
+    query = r.table(table)
+
+    if id and not index:
+        query = query.get(id).run(db.conn)
+    elif id and index:
+        query = query.get_all(id, index=index)
 
     if table == "media":
         query = query.merge(
@@ -64,10 +70,11 @@ def admin_table_list(table, order_by=None, pluck=None, without=None, id=None):
             }
         )
 
-    if id:
-        return query.get(id).run(db.conn)
-    else:
-        return list(query.run(db.conn))
+    with app.app_context():
+        if id and not index:
+            return query.run(db.conn)
+        else:
+            return list(query.run(db.conn))
 
 
 def admin_table_insert(table, data):

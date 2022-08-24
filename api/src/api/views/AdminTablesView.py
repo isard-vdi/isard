@@ -26,7 +26,7 @@ from .decorators import is_admin, is_admin_or_manager
 @is_admin_or_manager
 def api_v3_admin_table(payload, table):
     options = request.get_json(force=True)
-    if options.get("id"):
+    if options.get("id") and not options.get("index"):
         result = admin_table_get(table, options.get("id"), pluck=options.get("pluck"))
     else:
         result = admin_table_list(
@@ -34,7 +34,10 @@ def api_v3_admin_table(payload, table):
             options.get("order_by"),
             options.get("pluck"),
             options.get("without"),
+            options.get("id"),
+            options.get("index"),
         )
+
     if payload["role_id"] == "manager":
         if table == "categories":
             result = [
@@ -53,6 +56,7 @@ def api_v3_admin_table(payload, table):
             result = [r for r in result if r["id"] != "admin"]
         if table == "media":
             result = [r for r in result if r["category"] == payload["category_id"]]
+
     return (
         json.dumps(result),
         200,
