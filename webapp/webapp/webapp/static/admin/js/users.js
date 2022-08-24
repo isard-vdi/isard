@@ -52,6 +52,33 @@ $(document).ready(function() {
         $('#modalAddBulkUsers').modal({backdrop: 'static', keyboard: false}).modal('show');
         $('#modalAddBulkUsersForm')[0].reset();
         setModalUser();
+
+        $('#modalAddBulkUsersForm #bulk_secondary_groups').select2({
+            minimumInputLength: 2,
+            multiple: true,
+            ajax: {
+                type: "POST",
+                url: '/api/v3/admin/alloweds/term/groups/',
+                dataType: 'json',
+                contentType: "application/json",
+                delay: 250,
+                data: function (params) {
+                    return  JSON.stringify({
+                        term: params.term,
+                    });
+                },
+                processResults: function (data) {
+                    return {
+                        results: $.map(data, function (item, i) {
+                            return {
+                                text: item.name,
+                                id: item.id
+                            }
+                        })
+                    };
+                }
+            },
+        });   
 	});
 
     $('.btn-bulkdelete').on('click', function () {
@@ -268,6 +295,7 @@ $(document).ready(function() {
         
     $("#modalAddBulkUsers #send").on('click', function(e){
         var form = $('#modalAddBulkUsersForm');
+        $("#modalAddBulkUserForm #bulk_secondary_groups").empty().trigger('change')
         formdata = form.serializeObject()
         form.parsley().validate();
         if (form.parsley().isValid()){     // || 'unlimited' in formdata){   
