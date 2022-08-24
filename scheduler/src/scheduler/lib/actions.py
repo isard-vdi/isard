@@ -1,18 +1,27 @@
-# Copyright 2017 the Isard-vdi project authors:
-#      Josep Maria Viñolas Auquer
-#      Alberto Larraz Dalmases
-# License: AGPLv3
+#
+#   Copyright © 2022 Josep Maria Viñolas Auquer
+#
+#   This file is part of IsardVDI.
+#
+#   IsardVDI is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or (at your
+#   option) any later version.
+#
+#   IsardVDI is distributed in the hope that it will be useful, but WITHOUT ANY
+#   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+#   FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+#   details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
 
 import json
-import queue
-import random
 import time
-from decimal import Decimal
-from threading import Thread
 
-import pytz
 import requests
-from flask import current_app
 from rethinkdb import RethinkDB
 
 from scheduler import app
@@ -25,15 +34,13 @@ import pickle
 import tarfile
 import traceback
 
-from rethinkdb.errors import ReqlTimeoutError
-
 from .flask_rethink import RDB
 from .log import log
 
 db = RDB(app)
 db.init_app(app)
 
-from datetime import datetime, timedelta
+from datetime import datetime
 
 
 def _put(url, data):
