@@ -72,6 +72,11 @@ def admin_domains(nav="Domains"):
         return render_template(
             "admin/pages/bookables.html", title=nav, nav=nav, icon=icon
         )
+    if nav == "BookablesEvents":
+        icon = "history"
+        return render_template(
+            "admin/pages/bookables_events.html", title=nav, nav=nav, icon=icon
+        )
     if nav == "Priority":
         icon = "briefcase"
         return render_template(

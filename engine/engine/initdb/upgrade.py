@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 43
+release_version = 44
+# release 44: Added type index to scheduler_jobs
 # release 43: Added media_ids domains index
 # release 42: Added disk_paths and storage_ids domains index
 # release 41: Added user_id and status indexes to storage table
@@ -63,6 +64,7 @@ tables = [
     "deployments",
     "remotevpn",
     "storage",
+    "scheduler_jobs",
 ]
 
 
@@ -1579,6 +1581,26 @@ class Upgrade(object):
                 ).run(self.conn)
             except:
                 None
+
+    """
+    SCHEDULER_JOBS TABLE UPGRADES
+    """
+
+    def scheduler_jobs(self, version):
+        table = "scheduler_jobs"
+        log.info("UPGRADING " + table + " VERSION " + str(version))
+        if version == 44:
+            self.index_create(table, ["type"])
+            r.table(table).filter({"kind": "cron"}).update({"type": "system"}).run(
+                self.conn
+            )
+            r.table(table).filter({"kind": "interval"}).update({"type": "system"}).run(
+                self.conn
+            )
+            r.table(table).filter({"kind": "date"}).update({"type": "bookings"}).run(
+                self.conn
+            )
+        return True
 
     """
     Upgrade general actions
