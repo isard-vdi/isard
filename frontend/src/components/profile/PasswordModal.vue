@@ -15,14 +15,15 @@
           v-model="password"
           type="password"
           :placeholder="$t(`forms.password.modal.password.placeholder`)"
+          :state="v$.password.$error ? false : null"
           @blur="v$.password.$touch"
         />
-        <div
+        <b-form-invalid-feedback
           v-if="v$.password.$error"
-          class="isard-form-error"
+          id="passwordError"
         >
           {{ $t(`validations.${v$.password.$errors[0].$validator}`, { property: $t('forms.password.modal.password.label'), model: password.length, min: 4 }) }}
-        </div>
+        </b-form-invalid-feedback>
       </b-col>
       <b-col
         cols="12"
@@ -30,17 +31,19 @@
       >
         <label for="confirmation-password">{{ $t(`forms.password.modal.confirmation-password.label`) }}</label>
         <b-form-input
-          id="confirmation-password"
+          id="passwordConfirmation"
           v-model="passwordConfirmation"
           type="password"
           :placeholder="$t(`forms.password.modal.confirmation-password.placeholder`)"
+          :state="v$.passwordConfirmation.$error ? false : null"
+          @blur="v$.passwordConfirmation.$touch"
         />
-        <div
+        <b-form-invalid-feedback
           v-if="v$.passwordConfirmation.$error"
-          class="isard-form-error"
+          id="passwordConfirmationError"
         >
           {{ $t(`validations.${v$.passwordConfirmation.$errors[0].$validator}`, { property: `${$t("forms.password.modal.confirmation-password.label")}`, property2: `${$t("forms.password.modal.password.label")}` }) }}
-        </div>
+        </b-form-invalid-feedback>
       </b-col>
     </b-row>
     <template #modal-footer>
@@ -48,7 +51,7 @@
         <b-button
           variant="primary"
           class="float-right"
-          @click="checkForm"
+          @click="submitForm"
         >
           {{ $t(`forms.password.modal.buttons.update`) }}
         </b-button>
@@ -77,6 +80,18 @@ export default {
       set: (value) => $store.commit('setPasswordConfirmation', value)
     })
 
+    const v$ = useVuelidate({
+      password: {
+        required,
+        minLengthValue: minLength(4),
+        inputFormat
+      },
+      passwordConfirmation: {
+        required,
+        sameAs: sameAs(password)
+      }
+    }, { password, passwordConfirmation })
+
     const showPasswordModal = computed({
       get: () => $store.getters.getShowPasswordModal,
       set: (value) => $store.commit('setShowPasswordModal', value)
@@ -87,35 +102,19 @@ export default {
       $store.dispatch('showPasswordModal', false)
     }
 
-    const updatePassword = () => {
+    const submitForm = () => {
+      // Check if the form is valid
+      v$.value.$touch()
+      if (v$.value.$invalid) {
+        document.getElementById(v$.value.$errors[0].$property).focus()
+        return
+      }
       $store.dispatch('updatePassword', { password: password.value }).then(() => {
         closePasswordModal()
       })
     }
 
-    return { password, passwordConfirmation, showPasswordModal, closePasswordModal, updatePassword, v$: useVuelidate() }
-  },
-  validations () {
-    return {
-      password: {
-        required,
-        minLengthValue: minLength(4),
-        inputFormat
-      },
-      passwordConfirmation: {
-        required,
-        sameAs: sameAs(this.password)
-      }
-    }
-  },
-  methods: {
-    async checkForm () {
-      const isFormCorrect = await this.v$.$validate()
-
-      if (isFormCorrect) {
-        this.updatePassword()
-      }
-    }
+    return { password, passwordConfirmation, showPasswordModal, closePasswordModal, v$, submitForm }
   }
 }
 </script>

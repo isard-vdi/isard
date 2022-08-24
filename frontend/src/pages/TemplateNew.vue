@@ -17,7 +17,7 @@
           cols="4"
           xl="2"
         >
-          <label for="nameField">{{ $t('forms.new-template.name') }}</label>
+          <label for="name">{{ $t('forms.new-template.name') }}</label>
         </b-col>
         <b-col
           cols="6"
@@ -25,19 +25,20 @@
           class="mb-4"
         >
           <b-form-input
-            id="nameField"
+            id="name"
             v-model="name"
             type="text"
             size="sm"
             maxlength="40"
+            :state="v$.name.$error ? false : null"
             @blur="v$.name.$touch"
           />
-          <div
+          <b-form-invalid-feedback
             v-if="v$.name.$error"
-            class="isard-form-error"
+            id="nameError"
           >
             {{ $t(`validations.${v$.name.$errors[0].$validator}`, { property: $t('forms.new-template.name'), model: name.length, min: 4, max: 40 }) }}
-          </div>
+          </b-form-invalid-feedback>
         </b-col>
       </b-row>
 
@@ -47,14 +48,14 @@
           cols="4"
           xl="2"
         >
-          <label for="descriptionField">{{ $t('forms.new-template.description') }}</label>
+          <label for="description">{{ $t('forms.new-template.description') }}</label>
         </b-col>
         <b-col
           cols="6"
           xl="4"
         >
           <b-form-input
-            id="descriptionField"
+            id="description"
             v-model="description"
             type="text"
             size="sm"
@@ -120,8 +121,7 @@
 </template>
 
 <script>
-import { ref, computed, onUnmounted } from '@vue/composition-api'
-import { mapActions, mapGetters } from 'vuex'
+import { ref, computed, onUnmounted, onMounted } from '@vue/composition-api'
 import useVuelidate from '@vuelidate/core'
 import { required, maxLength, minLength } from '@vuelidate/validators'
 import AllowedForm from '@/components/AllowedForm.vue'
@@ -135,6 +135,14 @@ export default {
   },
   setup (props, context) {
     const $store = context.root.$store
+    const navigate = (path) => {
+      $store.dispatch('navigate', path)
+    }
+    onMounted(() => {
+      if (templateNewItemId.value.length < 1) {
+        $store.dispatch('navigate', 'desktops')
+      }
+    })
 
     const name = ref('')
     const description = ref('')
@@ -144,6 +152,38 @@ export default {
     const selectedGroups = computed(() => $store.getters.getSelectedGroups)
     const usersChecked = computed(() => $store.getters.getUsersChecked)
     const selectedUsers = computed(() => $store.getters.getSelectedUsers)
+    const templateNewItemId = computed(() => $store.getters.getTemplateNewItemId)
+    const v$ = useVuelidate({
+      name: {
+        required,
+        maxLengthValue: maxLength(40),
+        minLengthValue: minLength(4),
+        inputFormat
+      }
+    }, { name })
+
+    const submitForm = () => {
+      // Check if the form is valid
+      v$.value.$touch()
+      if (v$.value.$invalid) {
+        document.getElementById(v$.value.$errors[0].$property).focus()
+        return
+      }
+      const groups = groupsChecked.value ? map(selectedGroups.value, 'id') : false
+      const users = usersChecked.value ? map(selectedUsers.value, 'id') : false
+      $store.dispatch('createNewTemplate',
+        {
+          desktop_id: templateNewItemId.value,
+          name: name.value,
+          description: description.value,
+          allowed: {
+            users,
+            groups
+          },
+          enabled: enabled.value
+        }
+      )
+    }
 
     onUnmounted(() => {
       $store.dispatch('resetAllowedState')
@@ -157,53 +197,9 @@ export default {
       selectedGroups,
       usersChecked,
       selectedUsers,
-      v$: useVuelidate()
-    }
-  },
-  validations () {
-    return {
-      name: {
-        required,
-        maxLengthValue: maxLength(40),
-        minLengthValue: minLength(4),
-        inputFormat
-      }
-    }
-  },
-  computed: {
-    ...mapGetters([
-      'getTemplateNewItemId'
-    ])
-  },
-  mounted () {
-    if (this.getTemplateNewItemId.length < 1) {
-      this.navigate('desktops')
-    }
-  },
-  methods: {
-    ...mapActions([
-      'createNewTemplate',
-      'navigate'
-    ]),
-    async submitForm () {
-      const isFormCorrect = await this.v$.$validate()
-
-      if (isFormCorrect) {
-        const groups = this.groupsChecked ? map(this.selectedGroups, 'id') : false
-        const users = this.usersChecked ? map(this.selectedUsers, 'id') : false
-        this.createNewTemplate(
-          {
-            desktop_id: this.getTemplateNewItemId,
-            name: this.name,
-            description: this.description,
-            allowed: {
-              users,
-              groups
-            },
-            enabled: this.enabled
-          }
-        )
-      }
+      v$,
+      submitForm,
+      navigate
     }
   }
 }

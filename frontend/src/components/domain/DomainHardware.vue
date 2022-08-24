@@ -57,33 +57,72 @@
         </b-col>
       </b-row>
     </p>
-    <!-- Boots -->
+    <!-- vCPUS -->
     <b-row>
       <b-col
         cols="12"
         xl="4"
+        class="mb-2"
       >
         {{ $t(`forms.domain.hardware.vcpus`) }}
         <v-select
           v-model="vcpus"
           :options="availableHardware.vcpus"
           label="name"
-        />
+          @search:blur="v$.vcpus.$touch"
+        >
+          <template #search="{ attributes, events }">
+            <input
+              id="vcpus"
+              class="vs__search"
+              v-bind="attributes"
+              v-on="events"
+            >
+          </template>
+        </v-select>
+        <div
+          v-if="v$.vcpus.$error"
+          id="vcpusError"
+          class="text-danger"
+        >
+          {{ $t(`validations.${v$.vcpus.$errors[0].$validator}`, { property: `${$t("forms.domain.hardware.vcpus")}` }) }}
+        </div>
       </b-col>
+      <!-- Memory -->
       <b-col
         cols="12"
         xl="4"
+        class="mb-2"
       >
         {{ $t(`forms.domain.hardware.memory`) }}
         <v-select
           v-model="memory"
           :options="availableHardware.memory"
           label="name"
-        />
+          @search:blur="v$.vcpus.$touch"
+        >
+          <template #search="{ attributes, events }">
+            <input
+              id="memory"
+              class="vs__search"
+              v-bind="attributes"
+              v-on="events"
+            >
+          </template>
+        </v-select>
+        <div
+          v-if="v$.memory.$error"
+          id="memoryError"
+          class="text-danger"
+        >
+          {{ $t(`validations.${v$.memory.$errors[0].$validator}`, { property: `${$t("forms.domain.hardware.memory")}` }) }}
+        </div>
       </b-col>
+      <!-- Graphics -->
       <b-col
         cols="12"
         xl="4"
+        class="mb-2"
       >
         {{ $t(`forms.domain.hardware.graphics`) }}
         <v-select
@@ -91,11 +130,31 @@
           :options="availableHardware.graphics"
           label="name"
           :reduce="element => element.id"
-        />
+          @search:blur="v$.vcpus.$touch"
+        >
+          <template #search="{ attributes, events }">
+            <input
+              id="graphics"
+              class="vs__search"
+              v-bind="attributes"
+              v-on="events"
+            >
+          </template>
+        </v-select>
+        <div
+          v-if="v$.graphics.$error"
+          id="graphicsError"
+          class="text-danger"
+          @search:blur="v$.vcpus.$touch"
+        >
+          {{ $t(`validations.${v$.graphics.$errors[0].$validator}`, { property: `${$t("forms.domain.hardware.graphics")}` }) }}
+        </div>
       </b-col>
+      <!-- Videos -->
       <b-col
         cols="12"
         xl="4"
+        class="mb-2"
       >
         {{ $t(`forms.domain.hardware.videos`) }}
         <v-select
@@ -103,11 +162,30 @@
           :options="availableHardware.videos"
           label="name"
           :reduce="element => element.id"
-        />
+          @search:blur="v$.vcpus.$touch"
+        >
+          <template #search="{ attributes, events }">
+            <input
+              id="videos"
+              class="vs__search"
+              v-bind="attributes"
+              v-on="events"
+            >
+          </template>
+        </v-select>
+        <div
+          v-if="v$.videos.$error"
+          id="videosError"
+          class="text-danger"
+        >
+          {{ $t(`validations.${v$.videos.$errors[0].$validator}`, { property: `${$t("forms.domain.hardware.videos")}` }) }}
+        </div>
       </b-col>
+      <!-- Boot -->
       <b-col
         cols="12"
         xl="4"
+        class="mb-2"
       >
         {{ $t(`forms.domain.hardware.boot`) }}
         <v-select
@@ -115,11 +193,30 @@
           :options="availableHardware.bootOrder"
           label="name"
           :reduce="element => element.id"
-        />
+          @search:blur="v$.vcpus.$touch"
+        >
+          <template #search="{ attributes, events }">
+            <input
+              id="bootOrder"
+              class="vs__search"
+              v-bind="attributes"
+              v-on="events"
+            >
+          </template>
+        </v-select>
+        <div
+          v-if="v$.bootOrder.$error"
+          id="bootOrderError"
+          class="text-danger"
+        >
+          {{ $t(`validations.${v$.bootOrder.$errors[0].$validator}`, { property: `${$t("forms.domain.hardware.boot")}` }) }}
+        </div>
       </b-col>
+      <!-- Disk Bus -->
       <b-col
         cols="12"
         xl="4"
+        class="mb-2"
       >
         {{ $t(`forms.domain.hardware.disk-bus`) }}
         <v-select
@@ -127,11 +224,30 @@
           :options="availableHardware.diskBus"
           label="name"
           :reduce="element => element.id"
-        />
+          @search:blur="v$.vcpus.$touch"
+        >
+          <template #search="{ attributes, events }">
+            <input
+              id="diskBus"
+              class="vs__search"
+              v-bind="attributes"
+              v-on="events"
+            >
+          </template>
+        </v-select>
+        <div
+          v-if="v$.diskBus.$error"
+          id="diskBusError"
+          class="text-danger"
+        >
+          {{ $t(`validations.${v$.diskBus.$errors[0].$validator}`, { property: `${$t("forms.domain.hardware.disk-bus")}` }) }}
+        </div>
       </b-col>
+      <!-- Interfaces -->
       <b-col
         cols="12"
         xl="12"
+        class="mb-2"
       >
         {{ $t(`forms.domain.hardware.interfaces`) }}
         <v-select
@@ -141,7 +257,24 @@
           :close-on-select="false"
           :multiple="true"
           :reduce="element => element.id"
-        />
+          @search:blur="v$.vcpus.$touch"
+        >
+          <template #search="{ attributes, events }">
+            <input
+              id="interfaces"
+              class="vs__search"
+              v-bind="attributes"
+              v-on="events"
+            >
+          </template>
+        </v-select>
+        <div
+          v-if="v$.interfaces.$error"
+          id="interfacesError"
+          class="text-danger"
+        >
+          {{ $t(`validations.${v$.interfaces.$errors[0].$validator}`, { property: `${$t("forms.domain.hardware.interfaces")}` }) }}
+        </div>
       </b-col>
     </b-row>
   </div>
@@ -150,11 +283,16 @@
 <script>
 import { computed, onMounted } from '@vue/composition-api'
 import { hardwareWarningTitle } from '@/shared/constants'
+import useVuelidate from '@vuelidate/core'
+import { required } from '@vuelidate/validators'
 
 export default {
   setup (props, context) {
     const $store = context.root.$store
     const domain = computed(() => $store.getters.getDomain)
+    onMounted(() => {
+      $store.dispatch('fetchHardware')
+    })
     const availableHardware = computed(() => $store.getters.getHardware)
     const vcpus = computed({
       get: () => $store.getters.getDomain.hardware.vcpus,
@@ -173,21 +311,21 @@ export default {
     const graphics = computed({
       get: () => $store.getters.getDomain.hardware.graphics,
       set: (value) => {
-        domain.value.hardware.graphics = [value]
+        domain.value.hardware.graphics = value ? [value] : []
         $store.commit('setDomain', domain.value)
       }
     })
     const videos = computed({
       get: () => $store.getters.getDomain.hardware.videos,
       set: (value) => {
-        domain.value.hardware.videos = [value]
+        domain.value.hardware.videos = value ? [value] : []
         $store.commit('setDomain', domain.value)
       }
     })
     const bootOrder = computed({
       get: () => $store.getters.getDomain.hardware.bootOrder,
       set: (value) => {
-        domain.value.hardware.bootOrder = [value]
+        domain.value.hardware.bootOrder = value ? [value] : []
         $store.commit('setDomain', domain.value)
       }
     })
@@ -205,9 +343,7 @@ export default {
         $store.commit('setDomain', domain.value)
       }
     })
-    onMounted(() => {
-      $store.dispatch('fetchHardware')
-    })
+
     return {
       vcpus,
       memory,
@@ -218,7 +354,30 @@ export default {
       interfaces,
       availableHardware,
       domain,
-      hardwareWarningTitle
+      hardwareWarningTitle,
+      v$: useVuelidate({
+        vcpus: {
+          required
+        },
+        memory: {
+          required
+        },
+        graphics: {
+          required
+        },
+        videos: {
+          required
+        },
+        bootOrder: {
+          required
+        },
+        diskBus: {
+          required
+        },
+        interfaces: {
+          required
+        }
+      }, { vcpus, memory, graphics, videos, bootOrder, diskBus, interfaces })
     }
   }
 }

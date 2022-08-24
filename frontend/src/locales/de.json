@@ -289,9 +289,13 @@
             "desktop-template": "Vorlage",
             "filter": "Filter",
             "desktop-name": "Arbeitoberflächename",
-            "desktop-description": "Arbeitoberflächenbeschreibung",
-            "description": "Beschreibung",
-            "name": "Name"
+            "desktop-description": "Arbeitoberflächenbeschreibung"
+        },
+        "domain": {
+            "info": {
+                "description": "Beschreibung",
+                "name": "Name"
+            }
         },
         "create": "Erstellen",
         "submit": "Einreichen",

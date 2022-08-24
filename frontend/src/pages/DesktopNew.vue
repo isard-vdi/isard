@@ -11,54 +11,7 @@
         </h4>
       </b-row>
 
-      <!-- Name -->
-      <b-row>
-        <b-col
-          cols="4"
-          xl="2"
-        >
-          <label for="desktopNameField">{{ $t('forms.new-desktop.name') }}</label>
-        </b-col>
-        <b-col
-          cols="6"
-          xl="4"
-        >
-          <b-form-input
-            id="desktopNameField"
-            v-model="desktopName"
-            type="text"
-            size="sm"
-            @blur="v$.desktopName.$touch"
-          />
-          <div
-            v-if="v$.desktopName.$error"
-            class="isard-form-error"
-          >
-            {{ $t(`validations.${v$.desktopName.$errors[0].$validator}`, { property: $t('forms.new-desktop.name'), model: desktopName.length, min: 4, max: 40 }) }}
-          </div>
-        </b-col>
-      </b-row>
-
-      <!-- Description -->
-      <b-row class="mt-4">
-        <b-col
-          cols="4"
-          xl="2"
-        >
-          <label for="desktopDescriptionField">{{ $t('forms.new-desktop.description') }}</label>
-        </b-col>
-        <b-col
-          cols="6"
-          xl="4"
-        >
-          <b-form-input
-            id="desktopDescriptionField"
-            v-model="description"
-            type="text"
-            size="sm"
-          />
-        </b-col>
-      </b-row>
+      <DomainInfo />
 
       <!-- Template section title -->
       <b-row class="mt-2 mt-xl-5">
@@ -71,7 +24,6 @@
       <b-row>
         <b-col cols="4">
           <b-form-input
-            id="tableValidationField"
             v-model="selectedTemplateId"
             type="text"
             class="d-none"
@@ -79,7 +31,8 @@
           />
           <div
             v-if="v$.selectedTemplateId.$error"
-            class="isard-form-error"
+            id="selectedTemplateIdError"
+            class="text-danger"
           >
             {{ $t(`validations.${v$.selectedTemplateId.$errors[0].$validator}`, { property: `${$t("forms.new-desktop.desktop-template")}` }) }}
           </div>
@@ -127,7 +80,7 @@
         <b-row class="mt-4">
           <b-col>
             <b-table
-              id="desktops-table"
+              id="selectedTemplateId"
               striped
               hover
               :items="items"
@@ -137,10 +90,12 @@
               :filter-included-fields="filterOn"
               :fields="fields"
               :responsive="true"
+              :head-row-variant="v$.selectedTemplateId.$error ? 'danger' : ''"
               small
               select-mode="single"
               selected-variant="primary"
               selectable
+              tabindex="0"
               @filtered="onFiltered"
               @row-selected="onRowSelected"
             >
@@ -174,7 +129,7 @@
             v-model="currentPage"
             :total-rows="totalRows"
             :per-page="perPage"
-            aria-controls="desktops-table"
+            aria-controls="selectedTemplateId"
             size="sm"
           />
         </b-col>
@@ -200,21 +155,11 @@
           v-model="collapseVisible"
           class="mt-2"
         >
-          <div id="viewers">
-            <DomainViewers />
-          </div>
-          <div id="hardware">
-            <DomainHardware />
-          </div>
-          <div id="bookables">
-            <DomainBookables />
-          </div>
-          <div id="media">
-            <DomainMedia />
-          </div>
-          <div id="image">
-            <DomainImage />
-          </div>
+          <DomainViewers />
+          <DomainHardware />
+          <DomainBookables />
+          <DomainMedia />
+          <DomainImage />
         </b-collapse>
       </div>
 
@@ -243,17 +188,14 @@
 import i18n from '@/i18n'
 import DesktopNewSkeleton from '@/components/desktops/DesktopNewSkeleton.vue'
 import { reactive, ref, computed, watch, onUnmounted } from '@vue/composition-api'
-import { mapActions } from 'vuex'
 import useVuelidate from '@vuelidate/core'
-import { required, maxLength, minLength } from '@vuelidate/validators'
+import { required } from '@vuelidate/validators'
 import DomainViewers from '@/components/domain/DomainViewers.vue'
 import DomainHardware from '@/components/domain/DomainHardware.vue'
 import DomainMedia from '@/components/domain/DomainMedia.vue'
 import DomainBookables from '@/components/domain/DomainBookables.vue'
 import DomainImage from '@/components/domain/DomainImage.vue'
-
-// const inputFormat = helpers.regex('inputFormat', /^1(3|4|5|7|8)\d{9}$/) // /^\D*7(\D*\d){12}\D*$'
-const inputFormat = value => /^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$/.test(value)
+import DomainInfo from '@/components/domain/DomainInfo.vue'
 
 export default {
   components: {
@@ -262,7 +204,8 @@ export default {
     DomainHardware,
     DomainMedia,
     DomainBookables,
-    DomainImage
+    DomainImage,
+    DomainInfo
   },
   setup (props, context) {
     const collapseVisible = ref(false)
@@ -270,9 +213,12 @@ export default {
     $store.dispatch('fetchAllowedTemplates', 'all')
     $store.dispatch('fetchDesktopImages')
 
+    const navigate = (path) => {
+      $store.dispatch('navigate', path)
+    }
+
     const domain = computed(() => $store.getters.getDomain)
-    const desktopName = ref('')
-    const description = ref('')
+    // Templates table
     const perPage = ref(5)
     const currentPage = ref(1)
     const filter = ref('')
@@ -281,13 +227,15 @@ export default {
     const selectedTemplateId = computed(() => selected.value[0] ? selected.value[0].id : '')
     const totalRows = ref(1)
     const getTemplatesLoaded = computed(() => $store.getters.getTemplatesLoaded)
+    const onFiltered = (filteredItems) => {
+      // Trigger pagination to update the number of buttons/pages due to filtering
+      totalRows.value = filteredItems.length
+      currentPage.value = 1
+    }
 
-    watch(selectedTemplateId, (newVal, prevVal) => {
-      console.log(newVal)
-      if (newVal) {
-        $store.dispatch('fetchDomain', newVal)
-      }
-    })
+    const onRowSelected = (items) => {
+      selected.value = items
+    }
 
     const items = computed(() => $store.getters.getTemplates)
 
@@ -344,6 +292,65 @@ export default {
       totalRows.value = newVal.length
     })
 
+    // Set the advanced data when selecting a template
+    watch(selectedTemplateId, (newVal, prevVal) => {
+      if (newVal) {
+        $store.dispatch('fetchDomain', newVal)
+      }
+    })
+
+    // Selected template validation
+    const v$ = useVuelidate({
+      selectedTemplateId: { required }
+    }, { selectedTemplateId })
+
+    // Send data to api
+    const submitForm = () => {
+      // Check if the form is valid
+      v$.value.$touch()
+      if (v$.value.$invalid) {
+        document.getElementById(v$.value.$errors[0].$property).focus()
+        return
+      }
+      // Parse viewers data
+      const viewers = {}
+      for (let i = 0; i < domain.value.guestProperties.viewers.length; i++) {
+        Object.assign(viewers, domain.value.guestProperties.viewers[i])
+      }
+      // Parse isos data
+      const isos = domain.value.hardware.isos.map((value) => {
+        return { id: value.id }
+      })
+      // Create the data object that will be send
+      const domainData = {
+        template_id: selected.value[0].id,
+        name: domain.value.name,
+        description: domain.value.description,
+        guest_properties: {
+          credentials: {
+            username: domain.value.guestProperties.credentials.username,
+            password: domain.value.guestProperties.credentials.password
+          },
+          fullscreen: domain.value.guestProperties.fullscreen,
+          viewers: viewers
+        },
+        hardware: {
+          boot_order: domain.value.hardware.bootOrder,
+          disk_bus: domain.value.hardware.diskBus,
+          disks: domain.value.hardware.disks,
+          floppies: domain.value.hardware.floppies,
+          interfaces: domain.value.hardware.interfaces,
+          isos: isos,
+          memory: domain.value.hardware.memory,
+          vcpus: domain.value.hardware.vcpus,
+          videos: domain.value.hardware.videos,
+          reservables: domain.value.reservables
+        },
+        image: domain.value.image
+      }
+      $store.dispatch('createNewDesktop', domainData)
+    }
+
     onUnmounted(() => {
       $store.dispatch('resetDomainState')
       $store.dispatch('resetTemplatesState')
@@ -351,8 +358,6 @@ export default {
 
     return {
       collapseVisible,
-      desktopName,
-      description,
       items,
       fields,
       perPage,
@@ -361,76 +366,14 @@ export default {
       filterOn,
       selected,
       selectedTemplateId,
-      v$: useVuelidate(),
       totalRows,
       getTemplatesLoaded,
-      domain
-    }
-  },
-  validations () {
-    return {
-      desktopName: {
-        required,
-        maxLengthValue: maxLength(40),
-        minLengthValue: minLength(4),
-        inputFormat
-      },
-      selectedTemplateId: { required }
-    }
-  },
-  methods: {
-    ...mapActions([
-      'createNewDesktop',
-      'navigate'
-    ]),
-    onFiltered (filteredItems) {
-      // Trigger pagination to update the number of buttons/pages due to filtering
-      this.totalRows = filteredItems.length
-      this.currentPage = 1
-    },
-    onRowSelected (items) {
-      this.selected = items
-    },
-    async submitForm () {
-      const isFormCorrect = await this.v$.$validate()
-
-      if (isFormCorrect) {
-        const viewers = {}
-        for (let i = 0; i < this.domain.guestProperties.viewers.length; i++) {
-          Object.assign(viewers, this.domain.guestProperties.viewers[i])
-        }
-        const isos = this.domain.hardware.isos.map((value) => {
-          return { id: value.id }
-        })
-        // Create the data object that will be send
-        const domainData = {
-          template_id: this.selected[0].id,
-          name: this.desktopName,
-          description: this.description,
-          guest_properties: {
-            credentials: {
-              username: this.domain.guestProperties.credentials.username,
-              password: this.domain.guestProperties.credentials.password
-            },
-            fullscreen: this.domain.guestProperties.fullscreen,
-            viewers: viewers
-          },
-          hardware: {
-            boot_order: this.domain.hardware.bootOrder,
-            disk_bus: this.domain.hardware.diskBus,
-            disks: this.domain.hardware.disks,
-            floppies: this.domain.hardware.floppies,
-            interfaces: this.domain.hardware.interfaces,
-            isos: isos,
-            memory: this.domain.hardware.memory,
-            vcpus: this.domain.hardware.vcpus,
-            videos: this.domain.hardware.videos,
-            reservables: this.domain.reservables
-          },
-          image: this.domain.image
-        }
-        this.createNewDesktop(domainData)
-      }
+      domain,
+      submitForm,
+      navigate,
+      onRowSelected,
+      onFiltered,
+      v$
     }
   }
 }

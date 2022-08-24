@@ -44,8 +44,6 @@
             "title": "Nuevo escritorio:",
             "section-title-template": "Selecciona una plantilla:",
             "section-title-advanced": "Opciones avanzadas",
-            "name": "Nombre",
-            "description": "Descripción",
             "desktop-template": "Plantilla",
             "filter": "Filtrar",
             "filter-placeholder": "Escribe para buscar",

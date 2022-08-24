@@ -17,7 +17,7 @@
           cols="4"
           xl="2"
         >
-          <label for="deploymentNameField">{{ $t('forms.new-deployment.name') }}</label>
+          <label for="deploymentName">{{ $t('forms.new-deployment.name') }}</label>
         </b-col>
         <b-col
           cols="6"
@@ -25,18 +25,19 @@
           class="mb-4"
         >
           <b-form-input
-            id="deploymentNameField"
+            id="deploymentName"
             v-model="deploymentName"
             type="text"
             size="sm"
+            :state="v$.deploymentName.$error ? false : null"
             @blur="v$.deploymentName.$touch"
           />
-          <div
+          <b-form-invalid-feedback
             v-if="v$.deploymentName.$error"
-            class="isard-form-error"
+            id="deploymentNameError"
           >
             {{ $t(`validations.${v$.deploymentName.$errors[0].$validator}`, { property: $t('forms.new-deployment.name'), model: deploymentName.length, min: 4, max: 40 }) }}
-          </div>
+          </b-form-invalid-feedback>
         </b-col>
       </b-row>
 
@@ -72,53 +73,7 @@
         </h4>
       </b-row>
 
-      <b-row>
-        <b-col
-          cols="4"
-          xl="2"
-        >
-          <label for="desktopNameField">{{ $t('forms.new-deployment.desktop.name') }}</label>
-        </b-col>
-        <b-col
-          cols="6"
-          xl="4"
-        >
-          <b-form-input
-            id="desktopNameField"
-            v-model="desktopName"
-            type="text"
-            size="sm"
-            @blur="v$.desktopName.$touch"
-          />
-          <div
-            v-if="v$.desktopName.$error"
-            class="isard-form-error"
-          >
-            {{ $t(`validations.${v$.desktopName.$errors[0].$validator}`, { property: $t('forms.new-deployment.desktop.name'), model: desktopName.length, min: 4, max: 40 }) }}
-          </div>
-        </b-col>
-      </b-row>
-
-      <!-- Description -->
-      <b-row class="mt-4">
-        <b-col
-          cols="4"
-          xl="2"
-        >
-          <label for="desktopDescriptionField">{{ $t('forms.new-deployment.desktop.description') }}</label>
-        </b-col>
-        <b-col
-          cols="6"
-          xl="4"
-        >
-          <b-form-input
-            id="desktopDescriptionField"
-            v-model="description"
-            type="text"
-            size="sm"
-          />
-        </b-col>
-      </b-row>
+      <DomainInfo />
 
       <!-- Template section title -->
       <b-row class="mt-2 mt-xl-5">
@@ -131,7 +86,6 @@
       <b-row>
         <b-col cols="4">
           <b-form-input
-            id="tableValidationField"
             v-model="selectedTemplateId"
             type="text"
             class="d-none"
@@ -139,7 +93,8 @@
           />
           <div
             v-if="v$.selectedTemplateId.$error"
-            class="isard-form-error"
+            id="selectedTemplateIdError"
+            class="text-danger"
           >
             {{ $t(`validations.${v$.selectedTemplateId.$errors[0].$validator}`, { property: `${$t("forms.new-desktop.desktop-template")}` }) }}
           </div>
@@ -177,47 +132,57 @@
       </b-row>
 
       <!-- Table -->
-      <b-row class="mt-4">
-        <b-col>
-          <b-table
-            id="desktops-table"
-            striped
-            hover
-            :items="items"
-            :per-page="perPage"
-            :current-page="currentPage"
-            :filter="filter"
-            :filter-included-fields="filterOn"
-            :fields="fields"
-            :responsive="true"
-            small
-            select-mode="single"
-            selected-variant="primary"
-            selectable
-            @filtered="onFiltered"
-            @row-selected="onRowSelected"
-          >
-            <!-- Scoped slot for line selected column -->
-            <template #cell(selected)="{ rowSelected }">
-              <template v-if="rowSelected">
-                <span aria-hidden="true">&check;</span>
+      <b-skeleton-wrapper
+        :loading="!getTemplatesLoaded"
+        class="card-body pt-4 d-flex flex-row flex-wrap justify-content-center"
+      >
+        <template #loading>
+          <DesktopNewSkeleton />
+        </template>
+        <b-row class="mt-4">
+          <b-col>
+            <b-table
+              id="selectedTemplateId"
+              striped
+              hover
+              :items="items"
+              :per-page="perPage"
+              :current-page="currentPage"
+              :filter="filter"
+              :filter-included-fields="filterOn"
+              :fields="fields"
+              :responsive="true"
+              :head-row-variant="v$.selectedTemplateId.$error ? 'danger' : ''"
+              small
+              select-mode="single"
+              selected-variant="primary"
+              selectable
+              tabindex="0"
+              @filtered="onFiltered"
+              @row-selected="onRowSelected"
+            >
+              <!-- Scoped slot for line selected column -->
+              <template #cell(selected)="{ rowSelected }">
+                <template v-if="rowSelected">
+                  <span aria-hidden="true">&check;</span>
+                </template>
+                <template v-else>
+                  <span aria-hidden="true">&nbsp;</span>
+                </template>
               </template>
-              <template v-else>
-                <span aria-hidden="true">&nbsp;</span>
-              </template>
-            </template>
 
-            <!-- Scoped slot for image -->
-            <template #cell(image)="data">
-              <img
-                :src="`..${data.item.image.url}`"
-                alt=""
-                style="height: 2rem; border: 1px solid #555;"
-              >
-            </template>
-          </b-table>
-        </b-col>
-      </b-row>
+              <!-- Scoped slot for image -->
+              <template #cell(image)="data">
+                <img
+                  :src="`..${data.item.image.url}`"
+                  alt=""
+                  style="height: 2rem; border: 1px solid #555;"
+                >
+              </template>
+            </b-table>
+          </b-col>
+        </b-row>
+      </b-skeleton-wrapper>
 
       <!-- Pagination -->
       <b-row>
@@ -226,7 +191,7 @@
             v-model="currentPage"
             :total-rows="totalRows"
             :per-page="perPage"
-            aria-controls="desktops-table"
+            aria-controls="selectedTemplateId"
             size="sm"
           />
         </b-col>
@@ -259,10 +224,11 @@
 <script>
 import i18n from '@/i18n'
 import { reactive, ref, computed, onUnmounted, watch } from '@vue/composition-api'
-import { mapActions } from 'vuex'
 import useVuelidate from '@vuelidate/core'
 import { required, maxLength, minLength } from '@vuelidate/validators'
 import AllowedForm from '@/components/AllowedForm.vue'
+import DomainInfo from '@/components/domain/DomainInfo.vue'
+import DesktopNewSkeleton from '@/components/desktops/DesktopNewSkeleton.vue'
 import { map } from 'lodash'
 
 // const inputFormat = helpers.regex('inputFormat', /^1(3|4|5|7|8)\d{9}$/) // /^\D*7(\D*\d){12}\D*$'
@@ -270,30 +236,56 @@ const inputFormat = value => /^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑ
 
 export default {
   components: {
-    AllowedForm
+    AllowedForm,
+    DomainInfo,
+    DesktopNewSkeleton
   },
   setup (props, context) {
     const $store = context.root.$store
     $store.dispatch('fetchAllowedTemplates', 'all')
 
+    const navigate = (path) => {
+      $store.dispatch('navigate', path)
+    }
+
     const deploymentName = ref('')
-    const desktopName = ref('')
-    const description = ref('')
     const visible = ref(false)
+
+    const domain = computed(() => $store.getters.getDomain)
+    const groupsChecked = computed(() => $store.getters.getGroupsChecked)
+    const selectedGroups = computed(() => $store.getters.getSelectedGroups)
+    const usersChecked = computed(() => $store.getters.getUsersChecked)
+    const selectedUsers = computed(() => $store.getters.getSelectedUsers)
+    // Templates table
+    const items = computed(() => $store.getters.getTemplates)
     const perPage = ref(5)
     const currentPage = ref(1)
     const filter = ref('')
     const filterOn = reactive([])
     const selected = ref([])
     const selectedTemplateId = computed(() => selected.value[0] ? selected.value[0].id : '')
-
-    const items = computed(() => $store.getters.getTemplates)
-    const groupsChecked = computed(() => $store.getters.getGroupsChecked)
-    const selectedGroups = computed(() => $store.getters.getSelectedGroups)
-    const usersChecked = computed(() => $store.getters.getUsersChecked)
-    const selectedUsers = computed(() => $store.getters.getSelectedUsers)
-
     const totalRows = ref(1)
+    const getTemplatesLoaded = computed(() => $store.getters.getTemplatesLoaded)
+    const onFiltered = (filteredItems) => {
+      // Trigger pagination to update the number of buttons/pages due to filtering
+      totalRows.value = filteredItems.length
+      currentPage.value = 1
+    }
+
+    const onRowSelected = (items) => {
+      selected.value = items
+    }
+
+    // Selected template validation
+    const v$ = useVuelidate({
+      deploymentName: {
+        required,
+        maxLengthValue: maxLength(40),
+        minLengthValue: minLength(4),
+        inputFormat
+      },
+      selectedTemplateId: { required }
+    }, { selectedTemplateId, deploymentName })
 
     watch(items, (newVal, prevVal) => {
       totalRows.value = newVal.length
@@ -348,15 +340,40 @@ export default {
       }
     ])
 
+    const submitForm = () => {
+      // Check if the form is valid
+      v$.value.$touch()
+      if (v$.value.$invalid) {
+        document.getElementById(v$.value.$errors[0].$property).focus()
+        return
+      }
+      const groups = groupsChecked.value ? map(selectedGroups.value, 'id') : false
+      const users = usersChecked.value ? map(selectedUsers.value, 'id') : false
+      $store.dispatch('createNewDeployment',
+        {
+          visible: visible.value,
+          template_id: selected.value[0].id,
+          name: deploymentName.value,
+          desktop_name: domain.value.name,
+          description: domain.value.description,
+          allowed: {
+            users,
+            groups
+          }
+        }
+      )
+    }
+
     onUnmounted(() => {
+      $store.dispatch('resetDomainState')
       $store.dispatch('resetAllowedState')
+      $store.dispatch('resetTemplatesState')
     })
 
     return {
       deploymentName,
       visible,
-      desktopName,
-      description,
+      getTemplatesLoaded,
       groupsChecked,
       selectedGroups,
       usersChecked,
@@ -369,63 +386,12 @@ export default {
       filterOn,
       selected,
       selectedTemplateId,
-      v$: useVuelidate(),
-      totalRows
-    }
-  },
-  validations () {
-    return {
-      deploymentName: {
-        required,
-        maxLengthValue: maxLength(40),
-        minLengthValue: minLength(4),
-        inputFormat
-      },
-      desktopName: {
-        required,
-        maxLengthValue: maxLength(40),
-        minLengthValue: minLength(4),
-        inputFormat
-      },
-      selectedTemplateId: { required }
-    }
-  },
-  destroyed () {
-    this.$store.dispatch('resetTemplatesState')
-  },
-  methods: {
-    ...mapActions([
-      'createNewDeployment',
-      'navigate'
-    ]),
-    onFiltered (filteredItems) {
-      // Trigger pagination to update the number of buttons/pages due to filtering
-      this.totalRows = filteredItems.length
-      this.currentPage = 1
-    },
-    onRowSelected (items) {
-      this.selected = items
-    },
-    async submitForm () {
-      const isFormCorrect = await this.v$.$validate()
-
-      if (isFormCorrect) {
-        const groups = this.groupsChecked ? map(this.selectedGroups, 'id') : false
-        const users = this.usersChecked ? map(this.selectedUsers, 'id') : false
-        this.createNewDeployment(
-          {
-            visible: this.visible,
-            template_id: this.selected[0].id,
-            name: this.deploymentName,
-            desktop_name: this.desktopName,
-            description: this.description,
-            allowed: {
-              users: users,
-              groups: groups
-            }
-          }
-        )
-      }
+      v$,
+      totalRows,
+      submitForm,
+      navigate,
+      onFiltered,
+      onRowSelected
     }
   }
 }

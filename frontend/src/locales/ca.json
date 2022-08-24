@@ -612,8 +612,6 @@
             "title": "Crear un nou escriptori:",
             "section-title-template": "Seleccionar una plantilla:",
             "section-title-advanced": "Opcions avançades",
-            "name": "Nom",
-            "description": "Descripció",
             "desktop-template": "Plantilla",
             "filter": "Filtrar",
             "filter-placeholder": "Escriu per cercar",

@@ -296,11 +296,15 @@
                 "description": "Описание",
                 "image": "Изображение"
             },
-            "name": "Имя",
-            "description": "Описание",
             "desktop-template": "Шаблон",
             "filter": "Фильтр",
             "filter-placeholder": "Введите для поиска"
+        },
+        "domain": {
+            "info": {
+                "name": "Имя",
+                "description": "Описание"
+            }
         },
         "create": "Создать",
         "clear": "Очистить",

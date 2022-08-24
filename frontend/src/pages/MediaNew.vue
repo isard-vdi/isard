@@ -16,7 +16,7 @@
           cols="4"
           xl="2"
         >
-          <label for="urlField">{{ $t('forms.new-media.url') }}</label>
+          <label for="mediaUrl">{{ $t('forms.new-media.url') }}</label>
         </b-col>
         <b-col
           cols="6"
@@ -24,18 +24,19 @@
           class="mb-4"
         >
           <b-form-input
-            id="urlField"
-            v-model="url"
+            id="mediaUrl"
+            v-model="mediaUrl"
             type="text"
             size="sm"
-            @blur="v$.url.$touch"
+            :state="v$.mediaUrl.$error ? false : null"
+            @blur="v$.mediaUrl.$touch"
           />
-          <div
-            v-if="v$.url.$error"
-            class="isard-form-error"
+          <b-form-invalid-feedback
+            v-if="v$.mediaUrl.$error"
+            id="mediaUrlError"
           >
-            {{ $t(`validations.${v$.url.$errors[0].$validator}`, { property: $t('forms.new-media.url') }) }}
-          </div>
+            {{ $t(`validations.${v$.mediaUrl.$errors[0].$validator}`, { property: $t('forms.new-media.url') }) }}
+          </b-form-invalid-feedback>
         </b-col>
       </b-row>
       <!-- Name -->
@@ -44,7 +45,7 @@
           cols="4"
           xl="2"
         >
-          <label for="nameField">{{ $t('forms.new-media.name') }}</label>
+          <label for="name">{{ $t('forms.new-media.name') }}</label>
         </b-col>
         <b-col
           cols="6"
@@ -52,18 +53,19 @@
           class="mb-4"
         >
           <b-form-input
-            id="nameField"
+            id="name"
             v-model="name"
             type="text"
             size="sm"
+            :state="v$.name.$error ? false : null"
             @blur="v$.name.$touch"
           />
-          <div
+          <b-form-invalid-feedback
             v-if="v$.name.$error"
-            class="isard-form-error"
+            id="nameError"
           >
             {{ $t(`validations.${v$.name.$errors[0].$validator}`, { property: $t('forms.new-media.name'), model: name.length, min: 4, max: 40 }) }}
-          </div>
+          </b-form-invalid-feedback>
         </b-col>
       </b-row>
       <!-- Description -->
@@ -72,7 +74,7 @@
           cols="4"
           xl="2"
         >
-          <label for="descriptionField">{{ $t('forms.new-media.description') }}</label>
+          <label for="description">{{ $t('forms.new-media.description') }}</label>
         </b-col>
         <b-col
           cols="6"
@@ -80,7 +82,7 @@
           class="mb-4"
         >
           <b-form-input
-            id="descriptionField"
+            id="description"
             v-model="description"
             type="text"
             size="sm"
@@ -93,7 +95,7 @@
           cols="4"
           xl="2"
         >
-          <label for="typeField">{{ $t('forms.new-media.type') }}</label>
+          <label for="type">{{ $t('forms.new-media.type') }}</label>
         </b-col>
         <b-col
           cols="6"
@@ -101,18 +103,19 @@
           class="mb-4"
         >
           <b-form-select
-            id="typeField"
+            id="type"
             v-model="type"
             :options="mediaTypes"
             size="sm"
+            :state="v$.type.$error ? false : null"
             @blur="v$.type.$touch"
           />
-          <div
+          <b-form-invalid-feedback
             v-if="v$.type.$error"
-            class="isard-form-error"
+            id="typeError"
           >
             {{ $t(`validations.${v$.type.$errors[0].$validator}`, { property: $t('forms.new-media.type') }) }}
-          </div>
+          </b-form-invalid-feedback>
         </b-col>
       </b-row>
       <b-row clas="mt-2">
@@ -147,8 +150,7 @@
 import AllowedForm from '@/components/AllowedForm.vue'
 
 import useVuelidate from '@vuelidate/core'
-import { mapActions } from 'vuex'
-import { ref, onUnmounted } from '@vue/composition-api'
+import { ref, onUnmounted, computed } from '@vue/composition-api'
 import { required, minLength, maxLength, url } from '@vuelidate/validators'
 import { map } from 'lodash'
 import i18n from '@/i18n'
@@ -160,6 +162,9 @@ export default {
   },
   setup (props, context) {
     const $store = context.root.$store
+    const navigate = (path) => {
+      $store.dispatch('navigate', path)
+    }
 
     const mediaTypes = ref([
       { value: null, text: i18n.t('forms.new-media.select-type'), disabled: true },
@@ -167,27 +172,17 @@ export default {
       { value: 'floppy', text: 'Floppy' },
       { value: 'qcow2', text: 'Qcow2' }
     ])
-    const url = ref('')
+    const mediaUrl = ref('')
     const name = ref('')
     const description = ref('')
     const type = ref(null)
+    const groupsChecked = computed(() => $store.getters.getGroupsChecked)
+    const selectedGroups = computed(() => $store.getters.getSelectedGroups)
+    const usersChecked = computed(() => $store.getters.getUsersChecked)
+    const selectedUsers = computed(() => $store.getters.getSelectedUsers)
 
-    onUnmounted(() => {
-      $store.dispatch('resetMediaState')
-    })
-
-    return {
-      url,
-      name,
-      description,
-      type,
-      mediaTypes,
-      v$: useVuelidate()
-    }
-  },
-  validations () {
-    return {
-      url: {
+    const v$ = useVuelidate({
+      mediaUrl: {
         required,
         url
       },
@@ -200,35 +195,47 @@ export default {
         minLengthValue: minLength(4),
         inputFormat
       }
-    }
-  },
-  methods: {
-    ...mapActions([
-      'createNewMedia',
-      'navigate'
-    ]),
-    async submitForm () {
-      const isFormCorrect = await this.v$.$validate()
+    }, { mediaUrl, type, name })
 
-      if (isFormCorrect) {
-        const groups = this.groupsChecked ? map(this.selectedGroups, 'id') : false
-        const users = this.usersChecked ? map(this.selectedUsers, 'id') : false
-        this.createNewMedia(
-          {
-            name: this.name,
-            description: this.description,
-            allowed: {
-              users,
-              groups
-            },
-            kind: this.type,
-            url: this.url,
-            hypervisors_pools: ['default'] // TODO: Change harcoded
-          }
-        )
+    const submitForm = () => {
+      // Check if the form is valid
+      v$.value.$touch()
+      if (v$.value.$invalid) {
+        document.getElementById(v$.value.$errors[0].$property).focus()
+        return
       }
+      const groups = groupsChecked.value ? map(selectedGroups.value, 'id') : false
+      const users = usersChecked.value ? map(selectedUsers.value, 'id') : false
+      $store.dispatch('createNewMedia',
+        {
+          name: name.value,
+          description: description.value,
+          allowed: {
+            users,
+            groups
+          },
+          kind: type.value,
+          url: mediaUrl.value,
+          hypervisors_pools: ['default'] // TODO: Change harcoded
+        }
+      )
+    }
+
+    onUnmounted(() => {
+      $store.dispatch('resetMediaState')
+      $store.dispatch('resetAllowedState')
+    })
+
+    return {
+      mediaUrl,
+      name,
+      description,
+      type,
+      mediaTypes,
+      v$,
+      submitForm,
+      navigate
     }
   }
 }
-
 </script>

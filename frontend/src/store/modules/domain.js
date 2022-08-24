@@ -171,7 +171,10 @@ export default {
     },
     fetchDomain (context, domainId) {
       axios.get(`${apiV3Segment}/domain/info/${domainId}`).then(response => {
-        context.commit('setDomain', DomainsUtils.parseEditDomain(response.data))
+        if (!context.getters.getEditDomainId) { // Only keep the domain name when editing
+          response.data.name = context.getters.getDomain.name
+        }
+        context.commit('setDomain', DomainsUtils.parseDomain(response.data))
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
