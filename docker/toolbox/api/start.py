@@ -20,15 +20,13 @@
 
 import os
 
+from api.libv2 import api_disks_watchdog
 from flask import Flask
 
 from api import app
 
-app = Flask(__name__)
-
-from api.libv2 import api_disks_watchdog
-
 if __name__ == "__main__":
+    app.logger.info("Starting application")
     api_disks_watchdog.start_disks_watchdog()
     debug = True if os.environ["LOG_LEVEL"] == "DEBUG" else False
     app.run(host="0.0.0.0", debug=debug, port=5000)

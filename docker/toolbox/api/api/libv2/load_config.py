@@ -25,21 +25,36 @@ import traceback
 
 from api import app
 
+from .api_rest import ApiRest
 
-class loadConfig:
-    def __init__(self, app=None):
-        None
 
-    def init_app(self, app):
+def wait_for_api(app):
+    api_domain = os.environ.get("API_DOMAIN", False)
+    if api_domain and api_domain != "isard-api":
+        url = "https://" + api_domain + "/api/v3"
+    else:
+        url = "http://isard-api:5000/api/v3"
+    api_rest = ApiRest(url)
+    app.logger.info("Check connection to api at " + url)
+    api_conection = False
+    while not api_conection:
         try:
-            app.config.setdefault("LOG_LEVEL", os.environ.get("LOG_LEVEL", "INFO"))
-            app.config.setdefault("LOG_FILE", "isard-toolbox.log")
-            app.debug = True if os.environ["LOG_LEVEL"] == "DEBUG" else False
-
+            api_rest.get("")
+            api_conection = True
         except:
-            log.error(traceback.format_exc())
-            log.error("Missing parameters!")
-            print("Missing parameters!")
-            return False
-        print("Initial configuration loaded...")
-        return True
+            app.logger.debug(traceback.format_exc())
+            time.sleep(1)
+
+
+def setup_app(app):
+    try:
+        app.config.setdefault("LOG_LEVEL", os.environ.get("LOG_LEVEL", "INFO"))
+        app.config.setdefault("LOG_FILE", "isard-toolbox.log")
+        app.debug = True if os.environ["LOG_LEVEL"] == "DEBUG" else False
+
+    except:
+        app.logger.error(traceback.format_exc())
+        app.logger.error("Missing parameters!")
+        return False
+    app.logger.info("Initial configuration loaded...")
+    return True
