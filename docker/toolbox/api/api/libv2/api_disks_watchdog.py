@@ -18,14 +18,15 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-import logging as log
 import os
 import time
-from pathlib import Path, PurePath
+from pathlib import Path
 from urllib.parse import quote
 
 import watchdog.events
 import watchdog.observers
+
+from api import app
 
 from .api_rest import ApiRest
 
@@ -49,7 +50,7 @@ class Handler(watchdog.events.PatternMatchingEventHandler):
             self.hostname = os.environ.get("DOMAIN")
         api_domain = os.environ.get("API_DOMAIN", False)
         if api_domain and api_domain != "isard-api":
-            self.api_rest = ApiRest("https://" + api_domain + "/api/v3/")
+            self.api_rest = ApiRest("https://" + api_domain + "/api/v3/admin")
         else:
             self.api_rest = ApiRest("http://isard-api:5000/api/v3/admin")
 
@@ -107,8 +108,10 @@ class Handler(watchdog.events.PatternMatchingEventHandler):
             "/storage/physical/init/media",
             self.media_files,
         )
+        app.logger.info("- updated disks to api")
 
     def on_created(self, event):
+        app.logger.info("- received created event - % s." % event.src_path)
         p = Path(event.src_path)
         kind = _get_path_kind(event.src_path)
         self.api_rest.put(
@@ -123,12 +126,13 @@ class Handler(watchdog.events.PatternMatchingEventHandler):
         )
 
     def on_deleted(self, event):
+        app.logger.info("- received delete event - % s." % event.src_path)
         p = Path(event.src_path)
         kind = _get_path_kind(event.src_path)
         self.api_rest.delete("/storage/physical/" + kind + "/{}".format(quote(str(p))))
 
     def on_moved(self, event):
-        print("Watchdog received moved event - % s." % event.src_path)
+        app.logger.info("- received moved event - % s." % event.src_path)
         # Event is moved, you can process it now
 
 
@@ -138,6 +142,7 @@ def start_disks_watchdog():
     observer = watchdog.observers.Observer()
     observer.schedule(event_handler, path=src_path, recursive=True)
     observer.start()
+    app.logger.info("- started disks watchdog")
     try:
         while True:
             time.sleep(1)

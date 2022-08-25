@@ -19,9 +19,29 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import os
-import shutil
+from logging.config import dictConfig
 
-from flask import Flask, render_template, send_from_directory
+from flask import Flask
+
+dictConfig(
+    {
+        "version": 1,
+        "formatters": {
+            "default": {
+                "format": "%(asctime)s.%(msecs)03d, %(levelname)s, %(message)s",
+                "datefmt": "%Y-%m-%dT%H:%M:%S",
+            },
+        },
+        "handlers": {
+            "stdout": {
+                "class": "logging.StreamHandler",
+                "stream": "ext://sys.stdout",
+                "formatter": "default",
+            }
+        },
+        "root": {"handlers": ["stdout"], "level": os.getenv("LOG_LEVEL", "INFO")},
+    }
+)
 
 app = Flask(__name__, static_url_path="")
 app.url_map.strict_slashes = False
@@ -31,18 +51,16 @@ app.config["MAX_CONTENT_LENGTH"] = 1 * 1000 * 1000  # 1 MB
 
 print("Starting toolbox api...")
 
-from api.libv2.load_config import loadConfig
+from api.libv2.load_config import setup_app, wait_for_api
 
-cfg = loadConfig(app)
-if not cfg.init_app(app):
+wait_for_api(app)
+if not setup_app(app):
+    app.logger.error("Unable to initialize app config. Exitting.")
     exit(0)
 
 from api.libv2.load_validator_schemas import load_validators
 
 app.validators = load_validators()
-
-
-import logging as log
 
 """'
 Import all views
