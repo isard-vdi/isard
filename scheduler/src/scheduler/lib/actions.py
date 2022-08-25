@@ -203,7 +203,7 @@ class Actions:
         #     "message": "Test"
         # } ,
         base_url = "http://isard-engine:5000"
-        deployment = r.table("deployments").get(item_id).run(db.conn)
+        deployment = r.table("deployments").get(kwargs["deployment_id"]).run(db.conn)
         if not deployment:
             log.error("Deployment id " + kwargs["deployment_id"] + " not found")
             raise Error(
