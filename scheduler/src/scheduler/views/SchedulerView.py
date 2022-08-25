@@ -42,6 +42,16 @@ def actions(payload):
     )
 
 
+@app.route("/scheduler/action/<action_id>", methods=["GET"])
+@is_admin
+def actions(payload, action_id):
+    return (
+        json.dumps(app.scheduler.get_action_kwargs(action_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
 @app.route("/scheduler", methods=["GET"])
 @app.route("/scheduler/<job_id>", methods=["GET"])
 @is_admin
