@@ -56,7 +56,7 @@
               v-model="showAlert"
               variant="danger"
             >
-              {{ getPageErrorMessage }}
+              {{ pageErrorMessage }}
             </b-alert>
           </b-row>
           <b-row
@@ -64,21 +64,24 @@
             class="justify-content-center"
           >
             <b-form-input
+              id="code"
               v-model="code"
               type="text"
-              class="py-4 mt-3 mb-3"
+              class="py-4 mt-3 mb-2"
+              :state="v$.code.$error ? false : null"
               :placeholder="$t('views.register.code')"
+              @blur="v$.code.$touch"
             />
-            <div
+            <b-form-invalid-feedback
               v-if="v$.code.$error"
-              class="isard-form-error"
+              id="codeError"
             >
               {{
                 $t(`validations.${v$.code.$errors[0].$validator}`, {
                   property: `${$t("forms.registration.code")}`,
                 })
               }}
-            </div>
+            </b-form-invalid-feedback>
           </b-row>
           <b-row
             align-h="center"
@@ -118,9 +121,10 @@
 <script>
 import PoweredBy from '@/components/shared/PoweredBy.vue'
 import Logo from '@/components/Logo.vue'
-import { mapActions, mapGetters } from 'vuex'
+import { ref, computed } from '@vue/composition-api'
 import useVuelidate from '@vuelidate/core'
 import { required } from '@vuelidate/validators'
+import * as cookies from 'tiny-cookie'
 
 export default {
   name: 'Register',
@@ -129,36 +133,41 @@ export default {
     PoweredBy
   },
   setup (props, context) {
-    return {
-      v$: useVuelidate()
+    const $store = context.root.$store
+    const pageErrorMessage = computed(() => $store.getters.getPageErrorMessage)
+    const deleteSessionAndGoToLogin = () => {
+      $store.dispatch('deleteSessionAndGoToLogin')
     }
-  },
-  validations () {
-    return {
+
+    if (!cookies.getCookie('authorization')) {
+      deleteSessionAndGoToLogin()
+    }
+    const code = ref('')
+    const v$ = useVuelidate({
       code: {
         required
       }
+    }, { code })
+    const submitForm = () => {
+      // Check if the form is valid
+      v$.value.$touch()
+      if (v$.value.$invalid) {
+        document.getElementById(v$.value.$errors[0].$property).focus()
+        return
+      }
+      $store.dispatch('register', code.value)
     }
-  },
-  data () {
     return {
-      code: ''
+      v$,
+      submitForm,
+      code,
+      deleteSessionAndGoToLogin,
+      pageErrorMessage
     }
   },
   computed: {
-    ...mapGetters(['getPageErrorMessage']),
     showAlert () {
-      return this.getPageErrorMessage !== ''
-    }
-  },
-  methods: {
-    ...mapActions(['register', 'deleteSessionAndGoToLogin']),
-    async submitForm () {
-      const isFormCorrect = await this.v$.$validate()
-
-      if (isFormCorrect) {
-        this.register(this.code)
-      }
+      return this.pageErrorMessage !== ''
     }
   }
 }

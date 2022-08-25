@@ -419,9 +419,13 @@
             },
             "desktop-template": "Modèle",
             "section-title-template": "Sélectionnez un modèle :",
-            "name": "Nom",
-            "description": "Description",
             "filter-placeholder": "Tapez pour rechercher"
+        },
+        "domain": {
+            "info": {
+                "name": "Nom",
+                "description": "Description"
+            }
         },
         "clear": "Effacer",
         "cancel": "Annuler",

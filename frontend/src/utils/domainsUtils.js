@@ -2,7 +2,7 @@ import { diskBus } from '../shared/constants'
 import { AllowedUtils } from './allowedUtils'
 
 export class DomainsUtils {
-  static parseEditDomain (item) {
+  static parseDomain (item) {
     const { id, name, description, guest_properties: guestProperties, hardware, reservables, image, limited_hardware: limitedHardware } = item
     return {
       id,

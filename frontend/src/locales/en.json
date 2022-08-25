@@ -44,8 +44,6 @@
             "title": "Create new desktop:",
             "section-title-template": "Select a template:",
             "section-title-advanced": "Advanced options",
-            "name": "Name",
-            "description": "Description",
             "desktop-template": "Template",
             "filter": "Filter",
             "filter-placeholder": "Type to search",

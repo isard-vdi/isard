@@ -11,25 +11,26 @@
         cols="4"
         xl="2"
       >
-        <label for="nameField">{{ $t('forms.domain.info.name') }}</label>
+        <label for="name">{{ $t('forms.domain.info.name') }}</label>
       </b-col>
       <b-col
         cols="6"
         xl="4"
       >
         <b-form-input
-          id="nameField"
+          id="name"
           v-model="name"
           type="text"
           size="sm"
+          :state="v$.name.$error ? false : null"
           @blur="v$.name.$touch"
         />
-        <div
+        <b-form-invalid-feedback
           v-if="v$.name.$error"
-          class="isard-form-error"
+          id="nameError"
         >
           {{ $t(`validations.${v$.name.$errors[0].$validator}`, { property: $t('forms.domain.info.name'), model: name.length, min: 4, max: 40 }) }}
-        </div>
+        </b-form-invalid-feedback>
       </b-col>
     </b-row>
 
@@ -39,14 +40,14 @@
         cols="4"
         xl="2"
       >
-        <label for="domainDescriptionField">{{ $t('forms.domain.info.description') }}</label>
+        <label for="description">{{ $t('forms.domain.info.description') }}</label>
       </b-col>
       <b-col
         cols="6"
         xl="4"
       >
         <b-form-input
-          id="domainDescriptionField"
+          id="description"
           v-model="description"
           type="text"
           size="sm"
@@ -85,17 +86,14 @@ export default {
     return {
       name,
       description,
-      v$: useVuelidate()
-    }
-  },
-  validations () {
-    return {
-      name: {
-        required,
-        maxLengthValue: maxLength(40),
-        minLengthValue: minLength(4),
-        inputFormat
-      }
+      v$: useVuelidate({
+        name: {
+          required,
+          maxLengthValue: maxLength(40),
+          minLengthValue: minLength(4),
+          inputFormat
+        }
+      }, { name })
     }
   }
 }

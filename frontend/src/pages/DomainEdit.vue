@@ -12,27 +12,13 @@
           class="px-4"
           cols="12"
         >
-          <div
-            id="scrollspy-nested"
-          >
-            <div id="info">
-              <DomainInfo />
-            </div>
-            <div id="viewers">
-              <DomainViewers />
-            </div>
-            <div id="hardware">
-              <DomainHardware />
-            </div>
-            <div id="bookables">
-              <DomainBookables />
-            </div>
-            <div id="media">
-              <DomainMedia />
-            </div>
-            <div id="image">
-              <DomainImage />
-            </div>
+          <div>
+            <DomainInfo />
+            <DomainViewers />
+            <DomainHardware />
+            <DomainBookables />
+            <DomainMedia />
+            <DomainImage />
           </div>
         </b-col>
       </b-row>
@@ -67,6 +53,7 @@ import DomainMedia from '@/components/domain/DomainMedia.vue'
 import DomainBookables from '@/components/domain/DomainBookables.vue'
 import DomainImage from '@/components/domain/DomainImage.vue'
 import i18n from '@/i18n'
+import useVuelidate from '@vuelidate/core'
 
 export default {
   components: {
@@ -79,6 +66,8 @@ export default {
   },
   setup (props, context) {
     const $store = context.root.$store
+
+    const v$ = useVuelidate()
 
     const domainId = computed(() => $store.getters.getEditDomainId)
     const domain = computed(() => $store.getters.getDomain)
@@ -105,6 +94,12 @@ export default {
     })
 
     const submitForm = (toast) => {
+      // Check if the form is valid
+      v$.value.$touch()
+      if (v$.value.$invalid) {
+        document.getElementById(v$.value.$errors[0].$property).focus()
+        return
+      }
       if (domain.value.limitedHardware) {
         context.root.$snotify.clear()
 

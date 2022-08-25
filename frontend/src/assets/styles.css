@@ -47,6 +47,7 @@
 .separator-50 {
   height: 50px;
 }
+
 .rounded-top-30 {
   border-top-left-radius: 30px;
   border-top-right-radius: 30px;
@@ -81,7 +82,7 @@
   top: 15px;
   background-size: cover;
   background-repeat: no-repeat;
-  background-position:center;
+  background-position: center;
   background-color: #918e91;
   border-radius: 50%;
   overflow: hidden;
@@ -95,11 +96,12 @@
 }
 
 #logo-wrapper img {
-  height:85%;
-} 
+  height: 85%;
+}
 
 /* STATUS BAR  */
-#statusbar button[class^='btn-']:hover, #statusbar button[class*=' btn-']:hover {
+#statusbar button[class^='btn-']:hover,
+#statusbar button[class*=' btn-']:hover {
   color: #fff;
   filter: brightness(115%);
   border-color: #ffffff !important;
@@ -107,7 +109,7 @@
 }
 
 #statusbar {
-  box-shadow: 0 2px 2px 0 rgba(0,0,0, 0.1);
+  box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.1);
   background-color: #fbfbfb;
 }
 
@@ -128,7 +130,7 @@
 
 #logo-wrapper img {
   margin: auto;
-  height:90%;
+  height: 90%;
 }
 
 /* CARD LIST */
@@ -168,7 +170,7 @@
 }
 
 .card-list .viewers-dropdown {
-    width: 50%;
+  width: 50%;
 }
 
 .card-list .card-button {
@@ -229,7 +231,7 @@
 }
 
 .blink button {
-  animation:  1s alternate 4 blink-animation;
+  animation: 1s alternate 4 blink-animation;
   -webkit-animation: 1s alternate 4 blink-animation;
 }
 
@@ -238,6 +240,7 @@
     background-color: #97c277;
   }
 }
+
 @-webkit-keyframes blink-animation {
   to {
     background-color: #97c277;
@@ -258,7 +261,7 @@
   background: #f7f7f7;
   margin-bottom: 1.5rem !important;
   line-height: 1;
-  }
+}
 
 .card-list .card .booking-notification {
   background-color: #eead47 !important;
@@ -548,7 +551,7 @@
   height: 70px;
   background-size: cover;
   background-repeat: no-repeat;
-  background-position:center;
+  background-position: center;
   background-color: #d5d5cd;
   border-radius: 50%;
 }
@@ -558,11 +561,6 @@
   margin-top: 7rem !important;
   height: calc(100vh - 120px);
   overflow-y: auto;
-}
-
-.isard-form-error {
-  color: red;
-  margin-top: 0.5rem;
 }
 
 .tab-content {
