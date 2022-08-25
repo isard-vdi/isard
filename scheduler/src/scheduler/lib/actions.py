@@ -297,7 +297,19 @@ class Actions:
 
         log.debug("-> We got " + str(domains_ids) + " domains id to be destroyed")
         for domain_id in domains_ids:
-            self.apic.put("/desktop/stop/" + domain_id)
+            try:
+                answer = _put(
+                    base_url + "/desktop/stop/" + domain_id,
+                    {},
+                )
+                log.debug("-> Stopping domain " + domain_id + ": " + str(answer))
+            except:
+                log.error(
+                    "Exception when stopping domain "
+                    + domain_id
+                    + ": "
+                    + traceback.format_exc()
+                )
 
     def gpu_profile_set(**kwargs):
         # Will set profile_id on selected card.
