@@ -102,7 +102,7 @@ class Scheduler:
 
     def list_actions(self):
         return [
-            f[0]
+            {"id": f[0], "name": f[0].replace("_", " ")}
             for f in getmembers(Actions, isfunction)
             if not f[0].endswith("_kwargs")
         ]

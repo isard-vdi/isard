@@ -47,7 +47,7 @@ engine_client = ApiClient("engine")
 
 class Actions:
     def stop_domains_kwargs():
-        return {}
+        return []
 
     def stop_domains():
         with app.app_context():
@@ -56,7 +56,7 @@ class Actions:
             ).run(db.conn)
 
     def stop_domains_without_viewer_kwargs():
-        return {}
+        return []
 
     def stop_domains_without_viewer():
         with app.app_context():
@@ -65,7 +65,7 @@ class Actions:
             ).update({"status": "Stopping"}).run(db.conn)
 
     def stop_shutting_down_desktops_kwargs():
-        return {}
+        return []
 
     def stop_shutting_down_desktops():
         with app.app_context():
@@ -83,7 +83,7 @@ class Actions:
                     ).run(db.conn)
 
     def check_ephimeral_status_kwargs():
-        return {}
+        return []
 
     def check_ephimeral_status():
         with app.app_context():
@@ -105,7 +105,7 @@ class Actions:
                     ).run(db.conn)
 
     def backup_database_kwargs():
-        return {}
+        return []
 
     def backup_database():
         id = "isard_backup_" + datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -174,10 +174,10 @@ class Actions:
                 "id": "domain_id",
                 "name": "Domain ID",
                 "placeholder": "Domain to be notified",
-                "element": "select",
+                "element": "select2",
                 "ajax": {
                     "type": "POST",
-                    "url": "/api/v3/admin/table/domains",
+                    "url": "/admin/alloweds/term/domains",
                     "url_id": None,
                     "data": {"pluck": ["id", "name"]},
                     "ids": "id",
@@ -207,7 +207,7 @@ class Actions:
                 "element": "select",
                 "ajax": {
                     "type": "POST",
-                    "url": "/api/v3/admin/table/deployments",
+                    "url": "/admin/table/deployments",
                     "url_id": None,
                     "data": {"pluck": ["id", "name"]},
                     "ids": "id",
@@ -251,7 +251,7 @@ class Actions:
                 "element": "input",
                 "ajax": {
                     "type": "GET",
-                    "url": "/api/v3/admin/reservables/gpus",
+                    "url": "/admin/reservables/gpus",
                     "url_id": None,
                     "data": {},
                     "ids": "physical_device",
@@ -295,15 +295,15 @@ class Actions:
         return [
             {
                 "id": "item_id",
-                "name": "GPU phy id",
+                "name": "GPU name",
                 "placeholder": "gpu physical_device to destroy domains using it",
                 "element": "select",
                 "ajax": {
                     "type": "GET",
-                    "url": "/api/v3/admin/reservables/gpus",
+                    "url": "/admin/reservables/gpus",
                     "url_id": None,
                     "data": {},
-                    "ids": "physical_device",
+                    "ids": "id",
                     "values": "name",
                 },
             },
@@ -350,7 +350,7 @@ class Actions:
                 "element": "select",
                 "ajax": {
                     "type": "GET",
-                    "url": "/api/v3/admin/reservables/gpus",
+                    "url": "/admin/reservables/gpus",
                     "url_id": None,
                     "data": {},
                     "ids": "physical_device",
@@ -364,7 +364,7 @@ class Actions:
                 "element": "select",
                 "ajax": {
                     "type": "GET",
-                    "url": "/api/v3/admin/reservables/enabled/gpus",
+                    "url": "/admin/reservables/enabled/gpus",
                     "url_id": "item_id",
                     "data": {},
                     "ids": "id",

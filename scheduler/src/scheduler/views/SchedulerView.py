@@ -44,7 +44,7 @@ def actions(payload):
 
 @app.route("/scheduler/action/<action_id>", methods=["GET"])
 @is_admin
-def actions(payload, action_id):
+def action(payload, action_id):
     return (
         json.dumps(app.scheduler.get_action_kwargs(action_id)),
         200,
