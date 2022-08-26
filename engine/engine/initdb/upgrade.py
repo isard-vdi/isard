@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 47
+release_version = 48
+# release 48: Replace bookings_priority table null value to false
 # release 47: resolve parent error in storage table for templates
 # release 46: Upgraded users secondary_groups field
 # release 45: Remove physical storage domains and media data to use uuid as id
@@ -70,6 +71,7 @@ tables = [
     "storage_physical_domains",
     "storage_physical_media",
     "scheduler_jobs",
+    "bookings_priority",
 ]
 
 
@@ -1641,6 +1643,57 @@ class Upgrade(object):
                 self.conn
             )
         return True
+
+    """
+    BOOKINGS TABLE UPGRADES
+    """
+
+    def bookings_priority(self, version):
+        table = "bookings_priority"
+        log.info("UPGRADING " + table + " VERSION " + str(version))
+        if version == 48:
+            default = (
+                r.table(table).get("default").pluck("allowed")["allowed"].run(self.conn)
+            )
+
+            new_allowed = {
+                "categories": False
+                if default["categories"] == None
+                else default["categories"],
+                "groups": False if default["groups"] == None else default["groups"],
+                "roles": False if default["roles"] == None else default["roles"],
+                "users": False if default["users"] == None else default["users"],
+            }
+
+            r.table(table).get("default").update({"allowed": new_allowed}).run(
+                self.conn
+            )
+
+            default_admins = (
+                r.table(table)
+                .get("default admins")
+                .pluck("allowed")["allowed"]
+                .run(self.conn)
+            )
+
+            new_allowed = {
+                "categories": False
+                if default_admins["categories"] == None
+                else default_admins["categories"],
+                "groups": False
+                if default_admins["groups"] == None
+                else default_admins["groups"],
+                "roles": False
+                if default_admins["roles"] == None
+                else default_admins["roles"],
+                "users": False
+                if default_admins["users"] == None
+                else default_admins["users"],
+            }
+
+            r.table(table).get("default admins").update({"allowed": new_allowed}).run(
+                self.conn
+            )
 
     """
     Upgrade general actions
