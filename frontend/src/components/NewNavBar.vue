@@ -56,7 +56,7 @@
               {{ $t("components.navbar.media") }}
             </b-nav-item>
             <b-nav-item
-              v-if="getUser.role_id === 'advanced'"
+              v-if="getUser.role_id !== 'user'"
               :to="{ name: 'deployments' }"
             >
               <b-iconstack
