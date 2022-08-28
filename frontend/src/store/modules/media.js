@@ -167,6 +167,24 @@ export default {
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
+    },
+    downloadMedia (_, mediaId) {
+      ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.downloading-media'))
+
+      axios.post(`${apiV3Segment}/media/download/${mediaId}`).then(response => {
+        this._vm.$snotify.clear()
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    stopMediaDownload (_, mediaId) {
+      ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.stopping-download'))
+
+      axios.post(`${apiV3Segment}/media/abort/${mediaId}`).then(response => {
+        this._vm.$snotify.clear()
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
     }
   }
 }

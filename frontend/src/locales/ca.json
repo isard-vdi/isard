@@ -551,6 +551,12 @@
                 },
                 "new-desktop": {
                     "title": "Crear nou escriptori"
+                },
+                "download": {
+                    "title": "Descarregar mitjà"
+                },
+                "stop-download": {
+                    "title": "Parar descàrrega"
                 }
             },
             "status": {
@@ -826,7 +832,10 @@
             "editing-event": "Editant esdeveniment",
             "creating-media": "Creant mitjà",
             "editing": "Editant",
-            "edit-desktop-stop": "Per editar un escriptori és necessari que estigui parat"
+            "edit-desktop-stop": "Per editar un escriptori és necessari que estigui parat",
+            "deleting-media": "Esborrant mitjà",
+            "downloading-media": "Descarregant mitjà",
+            "stopping-download": "Parant la descàrrega"
         },
         "loading": "Carregant"
     },

@@ -120,9 +120,12 @@
               <template
                 #cell(actions)="data"
               >
-                <div class="d-flex justify-content-center align-items-center">
+                <div
+                  v-if="data.item.status !== 'Downloading'"
+                  class="d-flex"
+                >
                   <b-button
-                    v-if="data.item.kind === 'iso'"
+                    v-if="data.item.status !== 'DownloadFailed' && data.item.kind === 'iso'"
                     class="rounded-circle px-2 mr-2 btn-green"
                     :title="$t('views.media.buttons.new-desktop')"
                     @click="onClickGoToNewFromMedia(data.item)"
@@ -132,9 +135,20 @@
                       scale="0.75"
                     />
                   </b-button>
+                  <b-button
+                    v-if="data.item.status === 'DownloadFailed'"
+                    class="rounded-circle px-2 mr-2 btn-blue"
+                    :title="$t('views.media.buttons.download')"
+                    @click="onClickDownloadMedia(data.item.id)"
+                  >
+                    <b-icon
+                      icon="download"
+                      scale="0.75"
+                    />
+                  </b-button>
                   <span v-if="!shared">
                     <b-button
-                      v-if="data.item.editable"
+                      v-if="data.item.status !== 'DownloadFailed' && data.item.editable"
                       class="rounded-circle px-2 mr-2 btn-dark-blue"
                       :title="$t('views.media.buttons.allowed.title')"
                       @click="showAllowedModal(data.item)"
@@ -157,6 +171,17 @@
                     </b-button>
                   </span>
                 </div>
+                <b-button
+                  v-else
+                  class="rounded-circle px-2 mr-2 btn-red"
+                  :title="$t('views.media.buttons.stop-download.title')"
+                  @click="onClickStopDownload(data.item.id)"
+                >
+                  <b-icon
+                    icon="stop"
+                    scale="0.75"
+                  />
+                </b-button>
               </template>
             </b-table>
             <b-row>
@@ -234,6 +259,14 @@ export default {
       $store.dispatch('goToNewFromMedia', media)
     }
 
+    const onClickDownloadMedia = (mediaId) => {
+      $store.dispatch('downloadMedia', mediaId)
+    }
+
+    const onClickStopDownload = (mediaId) => {
+      $store.dispatch('stopMediaDownload', mediaId)
+    }
+
     watch(() => props.media, (newVal, prevVal) => {
       totalRows.value = newVal.length
     })
@@ -249,7 +282,9 @@ export default {
       perPage,
       currentPage,
       totalRows,
-      onClickGoToNewFromMedia
+      onClickGoToNewFromMedia,
+      onClickDownloadMedia,
+      onClickStopDownload
     }
   },
   data () {

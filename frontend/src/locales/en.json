@@ -698,6 +698,12 @@
                 },
                 "new-desktop": {
                     "title": "Create new desktop"
+                },
+                "download": {
+                    "title": "Download media"
+                },
+                "stop-download": {
+                    "title": "Stop download"
                 }
             },
             "status": {
@@ -765,7 +771,10 @@
             "creating-media": "Creating media",
             "image-uploaded": "Image uploaded correctly",
             "editing": "Editing",
-            "edit-desktop-stop": "To edit a desktop it must be stopped"
+            "edit-desktop-stop": "To edit a desktop it must be stopped",
+            "deleting-media": "Deleting media",
+            "downloading-media": "Downloading media",
+            "stopping-download": "Stopping download"
         },
         "loading": "Loading"
     },
