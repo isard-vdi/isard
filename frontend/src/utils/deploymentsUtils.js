@@ -46,7 +46,7 @@ export class DeploymentsUtils {
       state,
       viewer,
       viewers,
-      buttonIconName: DesktopUtils.buttonIconName(desktop)
+      buttonIconName: desktop.state ? DesktopUtils.buttonIconName(desktop) : ''
     }
   }
 }
