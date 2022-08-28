@@ -62,8 +62,8 @@ export default {
     }
   },
   actions: {
-    resetDeploymentState (context) {
-      context.commit('resetDeploymentState')
+    resetDeploymentsState (context) {
+      context.commit('resetDeploymentsState')
     },
     socket_deploymentUpdate (context, data) {
       const deployment = DeploymentsUtils.parseDeployment(JSON.parse(data))

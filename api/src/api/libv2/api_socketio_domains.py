@@ -239,6 +239,13 @@ class DomainsThread(threading.Thread):
                                 )
                                 .run(db.conn)
                             )
+                            # Event to deployment view (list of desktops)
+                            socketio.emit(
+                                "deployments_update",
+                                json.dumps(deployment),
+                                namespace="/userspace",
+                                room=deployment_user,
+                            )
 
             except ReqlDriverError:
                 print("DomainsThread: Rethink db connection lost!")
