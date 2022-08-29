@@ -127,6 +127,12 @@ def api_v3_admin_user_insert(payload):
     data["id"] = None
     data["accessed"] = time.time()
 
+    if data["bulk"]:
+        data["category"] = users.CategoryGetByName(data["category"])[0]["id"]
+        data["group"] = users.GroupGetByNameCategory(data["group"], data["category"])[
+            0
+        ]["id"]
+
     data = _validate_item("user", data)
 
     ownsUserId(payload, data["id"])
