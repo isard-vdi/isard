@@ -397,7 +397,9 @@ class ApiDesktopsPersistent:
             else "fa-floppy-o",
             "image": get_domain_stock_card(data["id"]),
             "os": "win",
-            "guest_properties": default_guest_properties(),
+            "guest_properties": data.get(
+                "guest_properties", default_guest_properties()
+            ),
             "hypervisors_pools": ["default"],
             "accessed": time.time(),
             "persistent": True,
@@ -419,7 +421,7 @@ class ApiDesktopsPersistent:
                     "graphics": graphics,
                     "videos": videos,
                     "interfaces": interfaces,
-                    "memory": int(data["hardware"]["memory"] * 1048576),
+                    "memory": int(data["hardware"]["memory"]),
                     "vcpus": int(data["hardware"]["vcpus"]),
                 },
             },
@@ -432,6 +434,9 @@ class ApiDesktopsPersistent:
                 "Unauthorized hardware items: " + str(res["limited_hardware"]),
                 traceback.format_exc(),
             )
+        domain["create_dict"]["hardware"]["memory"] = int(
+            data["hardware"]["memory"] * 1048576
+        )
         with app.app_context():
             r.table("domains").insert(domain).run(db.conn)
         return domain["id"]

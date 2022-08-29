@@ -9,6 +9,7 @@ import DesktopNew from '@/pages/DesktopNew.vue'
 import Desktops from '@/pages/Desktops.vue'
 import Media from '@/pages/Media.vue'
 import MediaNew from '@/pages/MediaNew.vue'
+import NewFromMedia from '@/pages/NewFromMedia.vue'
 import Planning from '@/pages/Planning'
 import Profile from '@/pages/Profile.vue'
 import TemplateNew from '@/pages/TemplateNew.vue'
@@ -199,6 +200,14 @@ const router = new VueRouter({
           component: MediaNew,
           meta: {
             title: i18n.t('router.titles.new_media')
+          }
+        },
+        {
+          path: 'media/desktop/new',
+          name: 'newfrommedia',
+          component: NewFromMedia,
+          meta: {
+            title: i18n.t('router.titles.new_desktop')
           }
         }
       ],

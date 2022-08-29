@@ -61,7 +61,7 @@
     <b-row>
       <b-col
         cols="12"
-        xl="4"
+        xl="2"
         class="mb-2"
       >
         {{ $t(`forms.domain.hardware.vcpus`) }}
@@ -91,7 +91,7 @@
       <!-- Memory -->
       <b-col
         cols="12"
-        xl="4"
+        xl="2"
         class="mb-2"
       >
         {{ $t(`forms.domain.hardware.memory`) }}
@@ -121,7 +121,7 @@
       <!-- Graphics -->
       <b-col
         cols="12"
-        xl="4"
+        xl="2"
         class="mb-2"
       >
         {{ $t(`forms.domain.hardware.graphics`) }}
@@ -153,7 +153,7 @@
       <!-- Videos -->
       <b-col
         cols="12"
-        xl="4"
+        xl="2"
         class="mb-2"
       >
         {{ $t(`forms.domain.hardware.videos`) }}
@@ -184,7 +184,7 @@
       <!-- Boot -->
       <b-col
         cols="12"
-        xl="4"
+        xl="2"
         class="mb-2"
       >
         {{ $t(`forms.domain.hardware.boot`) }}
@@ -215,7 +215,7 @@
       <!-- Disk Bus -->
       <b-col
         cols="12"
-        xl="4"
+        xl="2"
         class="mb-2"
       >
         {{ $t(`forms.domain.hardware.disk-bus`) }}
@@ -243,10 +243,41 @@
           {{ $t(`validations.${v$.diskBus.$errors[0].$validator}`, { property: `${$t("forms.domain.hardware.disk-bus")}` }) }}
         </div>
       </b-col>
+      <!-- Disk Size -->
+      <b-col
+        v-if="showDiskSize"
+        cols="12"
+        xl="2"
+        class="mb-2"
+      >
+        {{ $t(`forms.domain.hardware.disk-size`) }}
+        <v-select
+          v-model="diskSize"
+          :options="availableHardware.diskSize"
+          label="name"
+          @search:blur="v$.diskSize.$touch"
+        >
+          <template #search="{ attributes, events }">
+            <input
+              id="diskSize"
+              class="vs__search"
+              v-bind="attributes"
+              v-on="events"
+            >
+          </template>
+        </v-select>
+        <div
+          v-if="v$.diskSize.$error"
+          id="diskSizeError"
+          class="text-danger"
+        >
+          {{ $t(`validations.${v$.diskSize.$errors[0].$validator}`, { property: `${$t("forms.domain.hardware.disk-size")}` }) }}
+        </div>
+      </b-col>
       <!-- Interfaces -->
       <b-col
         cols="12"
-        xl="12"
+        :xl="showDiskSize ? '10' : '12'"
         class="mb-2"
       >
         {{ $t(`forms.domain.hardware.interfaces`) }}
@@ -284,9 +315,16 @@
 import { computed, onMounted } from '@vue/composition-api'
 import { hardwareWarningTitle } from '@/shared/constants'
 import useVuelidate from '@vuelidate/core'
-import { required } from '@vuelidate/validators'
+import { required, requiredIf } from '@vuelidate/validators'
 
 export default {
+  props: {
+    showDiskSize: {
+      required: false,
+      type: Boolean,
+      default: false
+    }
+  },
   setup (props, context) {
     const $store = context.root.$store
     const domain = computed(() => $store.getters.getDomain)
@@ -305,6 +343,13 @@ export default {
       get: () => $store.getters.getDomain.hardware.memory,
       set: (value) => {
         domain.value.hardware.memory = value
+        $store.commit('setDomain', domain.value)
+      }
+    })
+    const diskSize = computed({
+      get: () => $store.getters.getDomain.hardware.diskSize,
+      set: (value) => {
+        domain.value.hardware.diskSize = value
         $store.commit('setDomain', domain.value)
       }
     })
@@ -347,6 +392,7 @@ export default {
     return {
       vcpus,
       memory,
+      diskSize,
       graphics,
       videos,
       bootOrder,
@@ -376,8 +422,22 @@ export default {
         },
         interfaces: {
           required
+        },
+        diskSize: {
+          required: requiredIf(function () {
+            return !!props.showDiskSize
+          })
         }
-      }, { vcpus, memory, graphics, videos, bootOrder, diskBus, interfaces })
+      }, {
+        vcpus,
+        memory,
+        graphics,
+        videos,
+        bootOrder,
+        diskBus,
+        interfaces,
+        diskSize
+      })
     }
   }
 }

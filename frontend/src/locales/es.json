@@ -125,7 +125,8 @@
                 "videos": "Videos",
                 "boot": "Boot",
                 "disk-bus": "Disk Bus",
-                "interfaces": "Redes"
+                "interfaces": "Redes",
+                "disk-size": "Tamaño del disco (GB)"
             },
             "bookables": {
                 "title": "Reservables",
@@ -708,6 +709,15 @@
                 },
                 "delete": {
                     "title": "Eliminar medio"
+                },
+                "new-desktop": {
+                    "title": "Crear nuevo escritorio"
+                },
+                "download": {
+                    "title": "Descargar medio"
+                },
+                "stop-download": {
+                    "title": "Parar descarga"
                 }
             },
             "status": {
@@ -772,10 +782,13 @@
             "creating-event": "Creando el evento",
             "editing-event": "Editando el evento",
             "enable-template": "Visibilizando la plantilla",
-            "creating-media": "Creando media",
+            "creating-media": "Creando medio",
             "image-uploaded": "Imagen subida correctamente",
             "editing": "Editando",
-            "edit-desktop-stop": "Para editar un escritorio es necesario que esté parado"
+            "edit-desktop-stop": "Para editar un escritorio es necesario que esté parado",
+            "deleting-media": "Borrando medio",
+            "downloading-media": "Descargando medio",
+            "stopping-download": "Parando la descarga"
         },
         "loading": "Cargando"
     },

@@ -32,3 +32,8 @@ forced_hyp:
   default: false
 user_id:
   type: string
+guest_properties:
+  type: dict
+  schema: guest_properties_update
+image:
+  schema: image_update

@@ -118,33 +118,70 @@
                 </div>
               </template>
               <template
-                v-if="!shared"
                 #cell(actions)="data"
               >
-                <div class="d-flex justify-content-center align-items-center">
+                <div
+                  v-if="data.item.status !== 'Downloading'"
+                  class="d-flex"
+                >
                   <b-button
-                    v-if="data.item.editable"
-                    class="rounded-circle px-2 mr-2 btn-dark-blue"
-                    :title="$t('views.media.buttons.allowed.title')"
-                    @click="showAllowedModal(data.item)"
+                    v-if="data.item.status !== 'DownloadFailed' && data.item.kind === 'iso'"
+                    class="rounded-circle px-2 mr-2 btn-green"
+                    :title="$t('views.media.buttons.new-desktop')"
+                    @click="onClickGoToNewFromMedia(data.item)"
                   >
                     <b-icon
-                      icon="people-fill"
+                      icon="tv"
                       scale="0.75"
                     />
                   </b-button>
                   <b-button
-                    v-if="data.item.editable"
-                    class="rounded-circle px-2 mr-2 btn-red"
-                    :title="$t('views.media.buttons.delete.title')"
-                    @click="showDeleteModal(data.item)"
+                    v-if="data.item.status === 'DownloadFailed'"
+                    class="rounded-circle px-2 mr-2 btn-blue"
+                    :title="$t('views.media.buttons.download')"
+                    @click="onClickDownloadMedia(data.item.id)"
                   >
                     <b-icon
-                      icon="trash-fill"
+                      icon="download"
                       scale="0.75"
                     />
                   </b-button>
+                  <span v-if="!shared">
+                    <b-button
+                      v-if="data.item.status !== 'DownloadFailed' && data.item.editable"
+                      class="rounded-circle px-2 mr-2 btn-dark-blue"
+                      :title="$t('views.media.buttons.allowed.title')"
+                      @click="showAllowedModal(data.item)"
+                    >
+                      <b-icon
+                        icon="people-fill"
+                        scale="0.75"
+                      />
+                    </b-button>
+                    <b-button
+                      v-if="data.item.editable"
+                      class="rounded-circle px-2 mr-2 btn-red"
+                      :title="$t('views.media.buttons.delete.title')"
+                      @click="showDeleteModal(data.item)"
+                    >
+                      <b-icon
+                        icon="trash-fill"
+                        scale="0.75"
+                      />
+                    </b-button>
+                  </span>
                 </div>
+                <b-button
+                  v-else
+                  class="rounded-circle px-2 mr-2 btn-red"
+                  :title="$t('views.media.buttons.stop-download.title')"
+                  @click="onClickStopDownload(data.item.id)"
+                >
+                  <b-icon
+                    icon="stop"
+                    scale="0.75"
+                  />
+                </b-button>
               </template>
             </b-table>
             <b-row>
@@ -218,6 +255,18 @@ export default {
       currentPage.value = 1
     }
 
+    const onClickGoToNewFromMedia = (media) => {
+      $store.dispatch('goToNewFromMedia', media)
+    }
+
+    const onClickDownloadMedia = (mediaId) => {
+      $store.dispatch('downloadMedia', mediaId)
+    }
+
+    const onClickStopDownload = (mediaId) => {
+      $store.dispatch('stopMediaDownload', mediaId)
+    }
+
     watch(() => props.media, (newVal, prevVal) => {
       totalRows.value = newVal.length
     })
@@ -232,7 +281,10 @@ export default {
       filterOn,
       perPage,
       currentPage,
-      totalRows
+      totalRows,
+      onClickGoToNewFromMedia,
+      onClickDownloadMedia,
+      onClickStopDownload
     }
   },
   data () {
@@ -309,6 +361,11 @@ export default {
         {
           key: 'progressSize',
           label: i18n.t('views.media.table-header.progress-size'),
+          thStyle: { width: '10%' }
+        },
+        {
+          key: 'actions',
+          label: i18n.t('views.media.table-header.actions'),
           thStyle: { width: '5%' }
         }
       ]

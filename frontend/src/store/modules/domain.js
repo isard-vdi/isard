@@ -12,6 +12,10 @@ const getDefaultState = () => {
     images: [],
     domainLoaded: false,
     editDomainId: '',
+    newFromMedia: {
+      id: '',
+      kind: ''
+    },
     domain: {
       id: '',
       name: '',
@@ -26,28 +30,32 @@ const getDefaultState = () => {
         limits: false
       },
       hardware: {
-        boots: [],
+        bootOrder: ['disk'],
         diskBus: 'default',
         disks: [],
+        diskSize: '1',
         floppies: [],
-        graphics: [],
-        interfaces: [],
+        graphics: ['default'],
+        interfaces: ['default'],
         interfacesMac: [],
         isos: [],
-        memory: 0,
-        vcpus: 0,
-        videos: []
+        memory: 1,
+        vcpus: 1,
+        videos: ['default']
       },
       reservables: {
-        vgpus: []
+        vgpus: ['None']
       },
       image: {
-      }
+      },
+      OSTemplateId: ''
     },
     hardware: [], // Available hardware
     bookables: [], // Available bookables
     isos: [], // Available isos
-    floppies: [] // Available floppires
+    floppies: [], // Available floppires
+    mediaInstalls: [],
+    mediaInstallsLoaded: false
   }
 }
 
@@ -61,6 +69,9 @@ export default {
     },
     getEditDomainId: state => {
       return state.editDomainId
+    },
+    getNewFromMedia: state => {
+      return state.newFromMedia
     },
     getDomain: state => {
       return state.domain
@@ -76,6 +87,15 @@ export default {
     },
     getFloppies: state => {
       return state.floppies
+    },
+    getSelectedOSTemplateId: state => {
+      return state.OSTemplateId
+    },
+    getMediaInstalls: state => {
+      return state.mediaInstalls
+    },
+    getMediaInstallsLoaded: state => {
+      return state.mediaInstalls
     }
   },
   mutations: {
@@ -87,6 +107,10 @@ export default {
     },
     setEditDomainId: (state, domainId) => {
       state.editDomainId = domainId
+    },
+    setNewFromMedia: (state, newFromMedia) => {
+      state.newFromMedia.id = newFromMedia.id
+      state.newFromMedia.kind = newFromMedia.kind
     },
     setSelectedIsos: (state, selectedIsos) => {
       state.domain.hardware.isos = selectedIsos
@@ -124,6 +148,13 @@ export default {
     removeGuestProperties: (state) => {
       state.domain.guestProperties.credentials.password = 'isard'
       state.domain.guestProperties.credentials.username = 'pirineus'
+    },
+    setSelectedOSTemplateId: (state, selectedOSTemplateId) => {
+      state.domain.OSTemplateId = selectedOSTemplateId
+    },
+    setMediaInstalls: (state, installs) => {
+      state.mediaInstalls = installs
+      state.mediaInstallsLoaded = true
     }
   },
   actions: {
@@ -169,6 +200,10 @@ export default {
       context.commit('setEditDomainId', domainId)
       context.dispatch('navigate', 'domainedit')
     },
+    goToNewFromMedia (context, media) {
+      context.commit('setNewFromMedia', media)
+      context.dispatch('navigate', 'newfrommedia')
+    },
     fetchDomain (context, domainId) {
       axios.get(`${apiV3Segment}/domain/info/${domainId}`).then(response => {
         if (!context.getters.getEditDomainId) { // Only keep the domain name when editing
@@ -204,6 +239,18 @@ export default {
     removeWireguardViewers (context, wireguard) {
       context.commit('removeWireguardViewers')
       context.commit('removeGuestProperties')
+    },
+    fetchMediaInstalls ({ commit }) {
+      axios.get(`${apiV3Segment}/media/installs`).then(response => {
+        commit(
+          'setMediaInstalls', response.data, ['desc']
+        )
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    setSelectedOSTemplateId (context, selectedOSTemplateId) {
+      context.commit('setSelectedOSTemplateId', selectedOSTemplateId)
     }
   }
 }
