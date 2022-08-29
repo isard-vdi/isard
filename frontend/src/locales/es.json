@@ -141,6 +141,12 @@
                 "title": "Imagen"
             }
         },
+        "direct-link": {
+            "modal": {
+                "title": "Enlace al visor directo",
+                "enable": "Habilitar acceso mediante visor directo"
+            }
+        },
         "filter-placeholder": "Escribe para buscar",
         "clear": "Limpia",
         "cancel": "Cancela",
@@ -222,7 +228,8 @@
                 "delete": "Borrar",
                 "template": "Convertir en plantilla",
                 "booking": "Reservar",
-                "edit": "Editar"
+                "edit": "Editar",
+                "direct-link": "Enlace directo"
             },
             "table-header": {
                 "name": "Nombre",

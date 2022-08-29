@@ -87,7 +87,8 @@
                 "delete": "Esborrar",
                 "template": "Convertir en plantilla",
                 "booking": "Reservar",
-                "edit": "Editar"
+                "edit": "Editar",
+                "direct-link": "Link directe"
             },
             "filter-label": "Filtre"
         },
@@ -716,6 +717,12 @@
             },
             "image": {
                 "title": "Imatge"
+            }
+        },
+        "direct-link": {
+            "modal": {
+                "title": "Enllaç al visor directe",
+                "enable": "Habilitar l'accés mitjançant el visor directe"
             }
         },
         "filter-placeholder": "Escriu per cercar",
