@@ -1,6 +1,8 @@
 package cfg
 
 import (
+	"os"
+
 	"gitlab.com/isard/isardvdi/pkg/cfg"
 
 	"github.com/spf13/viper"
@@ -67,6 +69,12 @@ func New() Cfg {
 	config := &Cfg{}
 
 	cfg.New("stats", setDefaults, config)
+
+	// If $VIDEO_DOMAIN is set, use it instead of $DOMAIN
+	vDom := os.Getenv("VIDEO_DOMAIN")
+	if vDom != "" {
+		config.Domain = vDom
+	}
 
 	return *config
 }
