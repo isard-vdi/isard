@@ -85,7 +85,7 @@ export default {
     })
 
     watch(linkEnabled, (newVal, prevVal) => {
-      if (prevVal !== null) {
+      if (prevVal !== null && newVal !== null) {
         $store.dispatch('toggleDirectLink', { disabled: !newVal, domainId: directLinkDomainId.value })
       }
     })
