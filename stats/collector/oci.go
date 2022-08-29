@@ -72,7 +72,7 @@ func (o *OCI) Collect(ch chan<- prometheus.Metric) {
 	start := time.Now()
 	success := 1
 
-	if o.lastQuery.Before(time.Now().Add(-24 * time.Hour)) {
+	if o.lastQuery.Before(time.Now().Add(-1 * time.Hour)) {
 		end := time.Now().Add(-24 * time.Hour)
 		// Yesterday usage
 		items, err := o.getUsage(end.Add(-24*time.Hour), end)
