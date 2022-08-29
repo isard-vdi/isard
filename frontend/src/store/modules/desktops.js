@@ -23,6 +23,12 @@ const getDefaultState = () => {
     showStarted: false,
     filters: {
       desktops: ''
+    },
+    directLink: {
+      modalShow: false,
+      link: '',
+      domainId: '',
+      enabled: null
     }
   }
 }
@@ -55,11 +61,29 @@ export default {
     },
     getCurrentTab: state => {
       return state.currentTab
+    },
+    getDirectLinkModalShow: state => {
+      return state.directLink.modalShow
+    },
+    getDirectLink: state => {
+      return state.directLink.link
+    },
+    getDirectLinkDomainId: state => {
+      return state.directLink.domainId
+    },
+    getDirectLinkEnabled: state => {
+      return state.directLink.enabled
     }
   },
   mutations: {
     resetDesktopsState: (state) => {
       Object.assign(state, getDefaultState())
+    },
+    resetDirectLinkState: (state) => {
+      state.directLink.modalShow = false
+      state.directLink.link = ''
+      state.directLink.domainId = false
+      state.directLink.enabled = null
     },
     setDesktops: (state, desktops) => {
       state.desktops = desktops
@@ -114,11 +138,26 @@ export default {
     },
     setCurrentTab: (state, currentTab) => {
       state.currentTab = currentTab
+    },
+    setDirectLinkModalShow: (state, directLinkModalShow) => {
+      state.directLink.modalShow = directLinkModalShow
+    },
+    setDirectLink: (state, directLink) => {
+      state.directLink.link = directLink
+    },
+    setDirectLinkDomainId: (state, domainId) => {
+      state.directLink.domainId = domainId
+    },
+    setDirectLinkEnabled: (state, enabled) => {
+      state.directLink.enabled = enabled
     }
   },
   actions: {
     resetDesktopsState (context) {
       context.commit('resetDesktopsState')
+    },
+    resetDirectLinkState (context) {
+      context.commit('resetDirectLinkState')
     },
     socket_directviewerUpdate (context, data) {
       data = JSON.parse(data)
@@ -280,6 +319,26 @@ export default {
     },
     updateCurrentTab (context, currentTab) {
       context.commit('setCurrentTab', currentTab)
+    },
+    fetchDirectLink (context, domainId) {
+      axios.get(`${apiV3Segment}/desktop/jumperurl/${domainId}`).then(response => {
+        context.commit('setDirectLinkDomainId', domainId)
+        context.commit('setDirectLinkEnabled', !!response.data.jumperurl)
+        context.commit('setDirectLink', response.data.jumperurl ? `${location.protocol}//${location.host}/vw/${response.data.jumperurl}` : '')
+        context.dispatch('directLinkModalShow', true)
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    directLinkModalShow (context, show) {
+      context.commit('setDirectLinkModalShow', show)
+    },
+    toggleDirectLink (context, data) {
+      axios.put(`${apiV3Segment}/desktop/jumperurl_reset/${data.domainId}`, { disabled: data.disabled }).then(response => {
+        context.commit('setDirectLink', response.data ? `${location.protocol}//${location.host}/vw/${response.data}` : '')
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
     }
   }
 }

@@ -21,6 +21,17 @@
         :scroll-auto-hide="false"
       >
         <fab-item
+          v-if="getUser.role_id != 'user'"
+          v-b-tooltip="{ title: `${$t('components.desktop-cards.actions.direct-link')}`,
+                         placement: 'top',
+                         customClass: 'isard-tooltip',
+                         trigger: 'hover' }"
+          :idx="3"
+          icon="link"
+          color="#ab3ed1"
+          @clickItem="onClickOpenDirectViewerModal({itemId: desktop.id})"
+        />
+        <fab-item
           v-if="getUser.role_id != 'user' && desktop.type === 'persistent'"
           v-b-tooltip="{ title: `${$t('components.desktop-cards.actions.template')}`,
                          placement: 'top',
@@ -394,7 +405,8 @@ export default {
       'navigate',
       'goToNewTemplate',
       'goToItemBooking',
-      'goToEditDomain'
+      'goToEditDomain',
+      'fetchDirectLink'
     ]),
     getBookingNotificationBar (date) {
       if (date) {
@@ -468,6 +480,9 @@ export default {
     onClickBookingDesktop () {
       const data = { id: this.desktop.id, type: 'desktop', name: this.desktop.name }
       this.goToItemBooking(data)
+    },
+    onClickOpenDirectViewerModal () {
+      this.fetchDirectLink(this.desktop.id)
     }
   }
 }

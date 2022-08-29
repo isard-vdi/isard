@@ -141,6 +141,12 @@
                 "title": "Image"
             }
         },
+        "direct-link": {
+            "modal": {
+                "title": "Direct viewer link",
+                "enable": "Enable direct viewer access"
+            }
+        },
         "filter-placeholder": "Type to search",
         "clear": "Clear",
         "cancel": "Cancel",
@@ -222,7 +228,8 @@
                 "delete": "Delete",
                 "template": "Template it",
                 "booking": "Schedule",
-                "edit": "Edit"
+                "edit": "Edit",
+                "direct-link": "Direct Link"
             },
             "table-header": {
                 "name": "Name",

@@ -8,6 +8,7 @@
         :active="currentTab === 'desktops'"
         @click="updateCurrentTab('desktops')"
       >
+        <DirectLinkModal />
         <template #title>
           <b-spinner
             v-if="!getDesktopsLoaded"
@@ -100,11 +101,13 @@ import CardList from '@/components/CardList.vue'
 import TableList from '@/components/TableList.vue'
 import { computed, watch } from '@vue/composition-api'
 import { desktopStates } from '@/shared/constants'
+import DirectLinkModal from '../components/directViewer/DirectLinkModal.vue'
 
 export default {
   components: {
     CardList,
-    TableList
+    TableList,
+    DirectLinkModal
   },
   setup (_, context) {
     const $store = context.root.$store
