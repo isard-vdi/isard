@@ -33,6 +33,27 @@ from .decorators import is_admin
 api_storage = Storage()
 
 
+@app.route("/toolbox/api/storage/disk/info", methods=["POST"])
+@is_admin
+def storage_disk_info(payload):
+    data = request.get_json(force=True)
+    return (
+        json.dumps(api_storage.get_file_info(data["path_id"])),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/toolbox/api/storage/disks", methods=["PUT"])
+@is_admin
+def storage_disk_update(payload):
+    return (
+        json.dumps(api_storage.update_disks()),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
 # @app.route("/toolbox/api/storage/disks", methods=["GET"])
 # @is_admin
 # def storage_list(payload=None):

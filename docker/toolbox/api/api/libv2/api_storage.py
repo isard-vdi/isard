@@ -18,22 +18,97 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-import csv
-import io
-import pathlib
-import traceback
+import os
 from pathlib import Path
+from subprocess import check_output
 
 from api import app
 
 from ..libv2.storage.isard_qcow import IsardStorageQcow
 from .api_exceptions import Error
+from .api_rest import ApiRest
 from .validators import _validate_item
+
+
+def ff(path_id):
+    # file_format = check_output(
+    #     ("file", "-F", "','", path_id), text=True
+    # ).strip().split(",")[1]
+    # if "QCOW" in file_format:
+    #     return "qcow2"
+    return "qcow2"
 
 
 class Storage:
     def __init__(self):
-        pass
+        app.logger.info("Instantiating storage")
+        self.storage = {"qcow2": IsardStorageQcow()}
+        self.init_api()
 
-    def scan_files(self, kind="domains"):
-        pass
+    def init_api(self):
+        flavour = os.environ.get("FLAVOUR", False)
+        if str(flavour) == "all-in-one" or not flavour:
+            self.hostname = "isard-hypervisor"
+        else:
+            self.hostname = os.environ.get("DOMAIN")
+        api_domain = os.environ.get("API_DOMAIN", False)
+        if api_domain and api_domain != "isard-api":
+            self.api_rest = ApiRest("https://" + api_domain + "/api/v3/admin")
+        else:
+            self.api_rest = ApiRest("http://isard-api:5000/api/v3/admin")
+
+        self.templates_path = "/isard/templates"
+        self.desktops_path = "/isard/groups"
+        self.media_path = "/isard/media"
+
+    def get_file_info(self, path_id):
+        return self.storage[ff(path_id)].get_file_info(path_id)
+
+    def update_disks(self):
+        self.template_files = [
+            {
+                "id": str(p),
+                "path": str(p),
+                "hyper": self.hostname,
+                "kind": "template",
+                "size": p.stat().st_size,
+            }
+            for p in Path(self.templates_path).rglob("*")
+            if p.is_file()
+        ]
+        self.desktop_files = [
+            {
+                "id": str(p),
+                "path": str(p),
+                "hyper": self.hostname,
+                "kind": "desktop",
+                "size": p.stat().st_size,
+            }
+            for p in Path(self.desktops_path).rglob("*")
+            if p.is_file()
+        ]
+        self.api_rest.put(
+            "/storage/physical/init/domains",
+            self.template_files + self.desktop_files,
+        )
+        self.media_files = [
+            {
+                "id": str(hash(p.stat())),
+                "path": str(p),
+                "hyper": self.hostname,
+                "kind": "media",
+                "size": p.stat().st_size,
+            }
+            for p in Path(self.media_path).rglob("*")
+            if p.is_file()
+        ]
+        self.api_rest.put(
+            "/storage/physical/init/media",
+            self.media_files,
+        )
+        app.logger.info("- updated disks to api")
+        return {
+            "templates": len(self.template_files),
+            "desktops": len(self.desktop_files),
+            "media": len(self.media_files),
+        }

@@ -51,6 +51,19 @@ app.config["MAX_CONTENT_LENGTH"] = 1 * 1000 * 1000  # 1 MB
 
 print("Starting toolbox api...")
 
+app.ram = {
+    "secrets": {
+        "isardvdi": {
+            "id": "isardvdi",
+            "secret": os.environ["API_ISARDVDI_SECRET"],
+            "description": "isardvdi",
+            "domain": "localhost",
+            "category_id": "default",
+            "role_id": "admin",
+        }
+    }
+}
+
 from api.libv2.load_config import setup_app, wait_for_api
 
 wait_for_api(app)
@@ -65,5 +78,4 @@ app.validators = load_validators()
 """'
 Import all views
 """
-# from .views import XmlView
 from .views import StorageView
