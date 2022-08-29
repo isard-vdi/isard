@@ -400,6 +400,47 @@ $(document).ready(function() {
               ],
               "columnDefs": [],
             });
+
+            $(".btn-phy-update").on("click", function () {
+                new PNotify({
+                  title: "Rescan physical media on storage",
+                  text: "Do you really want to rescan all them?",
+                  hide: false,
+                  opacity: 0.9,
+                  confirm: { confirm: true },
+                  buttons: { closer: false, sticker: false },
+                  history: { history: false },
+                  addclass: "pnotify-center",
+                })
+                  .get()
+                  .on("pnotify.confirm", function () {
+                    $.ajax({
+                      type: "GET",
+                      url:
+                        "/api/v3/admin/storage/physical/toolbox_host",
+                      contentType: "application/json",
+                      success: function (toolbox_host) {
+                        $.ajax({
+                          type: "PUT",
+                          url: toolbox_host+"/storage/media",
+                          contentType: "application/json",
+                          success: function (data) {
+                            media_physical.ajax.reload();
+                            new PNotify({
+                              title: "Physical storage",
+                              text:  "Updated "+data.media+" media from "+toolbox_host,
+                              hide: true,
+                              delay: 5000,
+                              opacity: 1,
+                              type: 'success'
+                          });
+                          },
+                        });
+                      },
+                    });
+                  })
+                  .on("pnotify.cancel", function () {});
+              });
           }
 
     // SocketIO

@@ -149,15 +149,128 @@ $(document).ready(function() {
         "rowId": "id",
         "deferRender": true,
           "columns": [
-              { "data": "path",},
-              { "data": "kind",},
-              { "data": "size"},
-              { "data": "hyper"},
-              { "data": "domains"},
+            { "data": "path",},
+            { "data": "kind",},
+            { "data": "size"},
+            { "data": "hyper"},
+            { "data": "domains"},
+            {
+              "className": 'text-center',
+              "data": null,
+              "orderable": false,
+              "defaultContent": '<input type="checkbox" class="form-check-input"></input>'
+            }
         ],
         "columnDefs": [],
       });
-    }
+
+      storage_physical.on( 'click', 'tr[role="row"]', function (e) {
+        toggleRow(this, e);
+      });
+
+      $(".btn-phy-update").on("click", function () {
+        new PNotify({
+          title: "Rescan physical disks on storage",
+          text: "Do you really want to rescan all them?",
+          hide: false,
+          opacity: 0.9,
+          confirm: { confirm: true },
+          buttons: { closer: false, sticker: false },
+          history: { history: false },
+          addclass: "pnotify-center",
+        })
+          .get()
+          .on("pnotify.confirm", function () {
+            $.ajax({
+              type: "GET",
+              url:
+                "/api/v3/admin/storage/physical/toolbox_host",
+              contentType: "application/json",
+              success: function (toolbox_host) {
+                $.ajax({
+                  type: "PUT",
+                  url: toolbox_host+"/storage/disks",
+                  contentType: "application/json",
+                  success: function (data) {
+                    storage_physical.ajax.reload();
+                    new PNotify({
+                      title: "Physical storage",
+                      text:  "Updated "+data.templates+" templates and "+data.desktops+" desktop disksfrom "+toolbox_host,
+                      hide: true,
+                      delay: 5000,
+                      opacity: 1,
+                      type: 'success'
+                  });
+                  },
+                });
+              },
+            });
+          })
+          .on("pnotify.cancel", function () {});
+      });
+
+      $('#mactions').on('change', function () {
+        action=$(this).val();
+        names=''
+        ids=[]
+
+        if(storage_physical.rows('.active').data().length){
+            $.each(storage_physical.rows('.active').data(),function(key, value){
+                names+=value['path']+'\n';
+                ids.push(value['id']);
+            });
+            var text = "You are about to "+action+" these physical disks:\n\n "+names
+        }else{ 
+            $.each(storage_physical.rows({filter: 'applied'}).data(),function(key, value){
+              ids.push(value['id']);
+            });
+            var text = "You are about to "+action+" "+storage_physical.rows({filter: 'applied'}).data().length+" disks!\n All the disks in list!"
+        }
+
+        $.ajax({
+          type: "POST",
+          url:"/toolbox/api/storage/disk/info",
+          headers: {"Authorization": "Bearer " +localStorage.getItem("token")},
+          data: JSON.stringify({
+              'path_id': ids[0]
+          }),
+          contentType: 'application/json',
+          success: function(data)
+          {
+            console.log(data)
+          }
+        });
+
+				new PNotify({
+						title: 'Warning!',
+							text: text,
+							hide: false,
+							opacity: 0.9,
+							confirm: {
+								confirm: true
+							},
+							buttons: {
+								closer: false,
+								sticker: false
+							},
+							history: {
+								history: false
+							},
+							addclass: 'pnotify-center'
+						}).get().on('pnotify.confirm', function() {
+                api.ajax('/api/v3/admin/storage/multiple_actions', 'POST', {'ids':ids, 'action':action}).done(function(data) {
+                    notify(data)
+                }).fail(function(jqXHR) {
+                    notify(jqXHR.responseJSON)
+                }).always(function() {
+                    $('#mactions option[value="none"]').prop("selected", true);
+                    $('#domains tr.active').removeClass('active')
+                })
+                    }).on('pnotify.cancel', function() {
+                        $('#mactions option[value="none"]').prop("selected",true);
+				});
+    } );
+    } // if storage physical is present (admin)
 })
 
 function format(rowData) {

@@ -30,8 +30,10 @@ from ..libv2.api_exceptions import Error
 from ..libv2.api_storage_physical import (
     phy_storage_delete,
     phy_storage_list,
-    phy_storage_reset,
+    phy_storage_reset_domains,
+    phy_storage_reset_media,
     phy_storage_update,
+    phy_toolbox_host,
 )
 from ..libv2.helpers import get_user_data
 from .decorators import is_admin, ownsStorageId
@@ -74,7 +76,10 @@ def api_v3_admin_put_storage_physical(payload, table):
 def api_v3_admin_init_storage_physical(payload, table):
     data = request.get_json()
     # validate item
-    phy_storage_reset(table, data)
+    if table == "domains":
+        phy_storage_reset_domains(data)
+    if table == "media":
+        phy_storage_reset_media(data)
     return (
         json.dumps({}),
         200,
@@ -88,6 +93,16 @@ def api_v3_admin_delete_storage_physical(payload, table, path_id):
     phy_storage_delete(table, path_id)
     return (
         json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/storage/physical/toolbox_host", methods=["GET"])
+@is_admin
+def api_v3_admin_storage_physical_host(payload):
+    return (
+        json.dumps(phy_toolbox_host()),
         200,
         {"Content-Type": "application/json"},
     )

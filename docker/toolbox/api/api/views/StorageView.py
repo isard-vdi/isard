@@ -54,6 +54,16 @@ def storage_disk_update(payload):
     )
 
 
+@app.route("/toolbox/api/storage/media", methods=["PUT"])
+@is_admin
+def storage_media_update(payload):
+    return (
+        json.dumps(api_storage.update_media()),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
 # @app.route("/toolbox/api/storage/disks", methods=["GET"])
 # @is_admin
 # def storage_list(payload=None):

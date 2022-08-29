@@ -91,9 +91,16 @@ class Storage:
             "/storage/physical/init/domains",
             self.template_files + self.desktop_files,
         )
+        app.logger.info("- updated disks to api")
+        return {
+            "templates": len(self.template_files),
+            "desktops": len(self.desktop_files),
+        }
+
+    def update_media(self):
         self.media_files = [
             {
-                "id": str(hash(p.stat())),
+                "id": str(p),
                 "path": str(p),
                 "hyper": self.hostname,
                 "kind": "media",
@@ -106,9 +113,7 @@ class Storage:
             "/storage/physical/init/media",
             self.media_files,
         )
-        app.logger.info("- updated disks to api")
+        app.logger.info("- updated media to api")
         return {
-            "templates": len(self.template_files),
-            "desktops": len(self.desktop_files),
             "media": len(self.media_files),
         }

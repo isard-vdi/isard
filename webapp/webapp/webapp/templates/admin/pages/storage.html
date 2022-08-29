@@ -67,14 +67,27 @@
 <div class="row">
   <div class="x_panel">
     <div class="x_title">
-      <h3><i class="fa fa-times"></i> Physical storage files <small>Scanned from disk</small></h3>
+      <h3><i class="fa fa-times"></i> Physical storage files <small>Unknown system files scanned from disk</small></h3>
       <ul class="nav navbar-right panel_toolbox">
-        <!-- <li><a class="btn-new"><span style="color: #5499c7; "><i class="fa fa-link"></i> Upload from URL</span></a> -->
-        <!-- <li><a class="btn-new-local"><span style="color: #5499c7; "><i class="fa fa-plus"></i><i class="fa fa-hdd-o"></i>  Upload from local</span></a></li>-->
+        <li><a class="btn-phy-update" data-panel="storage_physical"><span style="color: #5499c7; "><i class="fa fa-spinner"></i> Read from remote</span></a>
       </ul>
       <div class="clearfix"></div>
     </div>
     <div class="x_content">
+      <p class="text-muted font-13 m-b-30"></p>
+      <div id="global_actions" width: 15cm;">
+         <label class="control-label col-md-3 col-sm-3 col-xs-12 pull-left" for="mactions">
+            <h4>
+               Global actions:
+            </h4>
+         </label>
+         <div class="col-md-5 col-sm-5 col-xs-12" style="margin-bottom: 20px;">
+            <select class="form-control" id="mactions" name="mactions" >
+               <option value="none">Select action</option>
+               <option value="add_to_storage">Add to storage table</option>
+            </select>
+         </div>
+      </div>
       <table id="storage_physical" class="table" width="100%">
           <thead>
           <tr>
@@ -83,6 +96,7 @@
             <th>Size</th>
             <th>Hyper</th>
             <th>Domains</th>
+            <th>Selected</th>
           </tr>
           </thead>
           <tbody>
