@@ -19,12 +19,14 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import random
+import uuid
 
 from rethinkdb import RethinkDB
 
 from api import app
 
 from .api_exceptions import Error
+from .api_rest import ApiRest
 
 r = RethinkDB()
 
@@ -89,6 +91,91 @@ def phy_storage_update(table, data):
 def phy_storage_delete(table, path_id):
     with app.app_context():
         return r.table("storage_physical_" + table).get(path_id).delete().run(db.conn)
+
+
+def phy_add_to_storage(path_id, user_id):
+    qemu_img_info = ApiRest(_phy_internal_toolbox_host()).post(
+        "/storage/disk/info", {"path_id": path_id}
+    )
+    if qemu_img_info.get("format") in ["qcow2"]:
+        new_disk = {
+            "directory_path": "/".join(path_id.split("/")[:3]),
+            "id": str(uuid.uuid4()),
+            "parent": qemu_img_info.get("backing-filename"),
+            "qemu-img-info": qemu_img_info,
+            "status": "ready",
+            "type": qemu_img_info.get("format"),
+            "user_id": user_id,
+        }
+        with app.app_context():
+            r.table("storage").insert(new_disk).run(db.conn)
+        return new_disk
+    else:
+        return None
+
+
+def phy_storage_upgrade_to_storage(data, user_id):
+    errors = []
+    for path_id in data["ids"]:
+        new_disk = phy_add_to_storage(path_id, user_id)
+        if not new_disk:
+            errors.append("disk path " + str(path_id) + ": bad format.")
+            continue
+        with app.app_context():
+            domains_to_be_updated = (
+                r.table("domains")
+                .get_all(path_id, index="disk_paths")
+                .pluck("id", "create_dict", "hardware")
+                .run(db.conn)
+            )
+        for domain in domains_to_be_updated:
+            disks = []
+            hardware_disks = []
+            for disk in domain["create_dict"]["hardware"]["disks"]:
+                if disk["file"] == path_id:
+                    disk = {
+                        "extension": new_disk.get("qemu-img-info", {}).get("format"),
+                        "storage_id": new_disk["id"],
+                    }
+                    hardware_disk = {
+                        "extension": new_disk.get("qemu-img-info", {}).get("format"),
+                        "file": new_disk["directory_path"]
+                        + "/"
+                        + new_disk["id"]
+                        + "."
+                        + new_disk["type"],
+                        "parent": new_disk.get("qemu-img-info", {}).get(
+                            "backing-filename"
+                        ),
+                        "path_selected": new_disk["directory_path"],
+                        "storage_id": new_disk["id"],
+                    }
+                disks.append(disk)
+                hardware_disks.append(hardware_disk)
+            domain["create_dict"]["hardware"]["disks"] = disks
+            domain["hardware"]["disks"] = hardware_disks
+            with app.app_context():
+                r.table("domains").get(domain["id"]).update(domain).run(db.conn)
+        phy_storage_delete("domains", path_id)
+    return errors
+
+
+def _phy_internal_toolbox_host():
+    with app.app_context():
+        viewers = list(
+            r.table("hypervisors")
+            .filter({"status": "Online"})
+            .pluck("viewer")["viewer"]
+            .run(db.conn)
+        )
+    if not len(viewers):
+        raise Error("precondition_required", "No hypervisors currently online")
+    if "isard-hypervisor" in [v["proxy_hyper_host"] for v in viewers]:
+        return "http://isard-toolbox:5000/toolbox/api"
+    data = viewers[random.randint(0, len(viewers) - 1)]
+    return (
+        "https://" + data["proxy_video"] + ":" + data["html5_ext_port"] + "/toolbox/api"
+    )
 
 
 def phy_toolbox_host():

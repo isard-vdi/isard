@@ -149,6 +149,7 @@ $(document).ready(function() {
         "rowId": "id",
         "deferRender": true,
           "columns": [
+            { "data": ""},
             { "data": "path",},
             { "data": "kind",},
             { "data": "size"},
@@ -161,8 +162,44 @@ $(document).ready(function() {
               "defaultContent": '<input type="checkbox" class="form-check-input"></input>'
             }
         ],
-        "columnDefs": [],
+        "columnDefs": [
+          {
+            "targets": 0,
+            "render": function ( data, type, full, meta ) {
+              return '<button type="button" id="btn-info" class="btn btn-pill-right btn-success btn-xs"><i class="fa fa-info"></i></button>';
+            }
+        }
+        ],
       });
+
+      $('#storage_physical tbody').on( 'click', 'button', function () {
+        var data = storage_physical.row( $(this).parents('tr') ).data();
+        switch($(this).attr('id')){
+          case 'btn-info':
+            $.ajax({
+              type: "POST",
+              url:"/toolbox/api/storage/disk/info",
+              headers: {"Authorization": "Bearer " +localStorage.getItem("token")},
+              data: JSON.stringify({
+                  'path_id': data.id
+              }),
+              contentType: 'application/json',
+              success: function(disk_info)
+              {
+                new PNotify({
+                  title: "Disk info.",
+                    text: JSON.stringify(disk_info),
+                    hide: true,
+                    delay: 10000,
+                    icon: 'fa fa-info',
+                    opacity: 1,
+                    type: 'info'
+                });
+              }
+            });
+        break;
+      }
+      })
 
       storage_physical.on( 'click', 'tr[role="row"]', function (e) {
         toggleRow(this, e);
@@ -227,20 +264,6 @@ $(document).ready(function() {
             var text = "You are about to "+action+" "+storage_physical.rows({filter: 'applied'}).data().length+" disks!\n All the disks in list!"
         }
 
-        $.ajax({
-          type: "POST",
-          url:"/toolbox/api/storage/disk/info",
-          headers: {"Authorization": "Bearer " +localStorage.getItem("token")},
-          data: JSON.stringify({
-              'path_id': ids[0]
-          }),
-          contentType: 'application/json',
-          success: function(data)
-          {
-            console.log(data)
-          }
-        });
-
 				new PNotify({
 						title: 'Warning!',
 							text: text,
@@ -258,19 +281,25 @@ $(document).ready(function() {
 							},
 							addclass: 'pnotify-center'
 						}).get().on('pnotify.confirm', function() {
-                api.ajax('/api/v3/admin/storage/multiple_actions', 'POST', {'ids':ids, 'action':action}).done(function(data) {
-                    notify(data)
-                }).fail(function(jqXHR) {
-                    notify(jqXHR.responseJSON)
-                }).always(function() {
-                    $('#mactions option[value="none"]').prop("selected", true);
-                    $('#domains tr.active').removeClass('active')
-                })
-                    }).on('pnotify.cancel', function() {
-                        $('#mactions option[value="none"]').prop("selected",true);
-				});
-    } );
-    } // if storage physical is present (admin)
+              $.ajax({
+                type: "POST",
+                url:"/api/v3/admin/storage/physical/multiple_actions/"+action,
+                data: JSON.stringify({'ids':ids}),
+                contentType: 'application/json',
+                success: function(data)
+                {
+                  console.log(data)
+                },
+                always: function(data)
+                {
+                  $('#mactions option[value="none"]').prop("selected", true);
+                  $('#domains tr.active').removeClass('active')
+                  $('#mactions option[value="none"]').prop("selected",true);
+                }
+              });
+    } )
+      })
+    }
 })
 
 function format(rowData) {
