@@ -471,3 +471,50 @@ def CategoriesKindState(kind, state=False):
                         .run(db.conn)
                     )
                     return query
+
+
+def CategoriesLimitsHardware():
+    with app.app_context():
+        query = {}
+        categories = r.table("categories").pluck("id", "limits").run(db.conn)
+
+        for category in categories:
+            query[category["id"]] = {
+                "Started desktops": "",
+                "vCPUs": {"Limit": "", "Running": ""},
+                "Memory": {"Limit": "", "Running": ""},
+            }
+            query[category["id"]]["Started desktops"] = (
+                r.table("domains")
+                .filter(
+                    {"kind": "desktop", "category": category["id"], "status": "Started"}
+                )
+                .count()
+                .run(db.conn)
+            )
+
+            # If unlimited
+            if category["limits"] == False:
+                query[category["id"]]["vCPUs"]["Limit"] = 0
+                query[category["id"]]["Memory"]["Limit"] = 0
+            else:
+                query[category["id"]]["vCPUs"]["Limit"] = category["limits"]["vcpus"]
+                query[category["id"]]["Memory"]["Limit"] = category["limits"]["memory"]
+
+            query[category["id"]]["vCPUs"]["Running"] = (
+                r.table("domains")
+                .filter(
+                    {"kind": "desktop", "category": category["id"], "status": "Started"}
+                )["create_dict"]["hardware"]["vcpus"]
+                .sum()
+                .run(db.conn)
+            )
+            query[category["id"]]["Memory"]["Running"] = (
+                r.table("domains")
+                .filter(
+                    {"kind": "desktop", "category": category["id"], "status": "Started"}
+                )["create_dict"]["hardware"]["memory"]
+                .sum()
+                .run(db.conn)
+            )
+    return query
