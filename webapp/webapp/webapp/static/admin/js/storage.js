@@ -149,14 +149,156 @@ $(document).ready(function() {
         "rowId": "id",
         "deferRender": true,
           "columns": [
-              { "data": "path",},
-              { "data": "kind",},
-              { "data": "size"},
-              { "data": "hyper"},
-              { "data": "domains"},
+            { "data": ""},
+            { "data": "path",},
+            { "data": "kind",},
+            { "data": "size"},
+            { "data": "hyper"},
+            { "data": "domains"},
+            {
+              "className": 'text-center',
+              "data": null,
+              "orderable": false,
+              "defaultContent": '<input type="checkbox" class="form-check-input"></input>'
+            }
         ],
-        "columnDefs": [],
+        "columnDefs": [
+          {
+            "targets": 0,
+            "render": function ( data, type, full, meta ) {
+              return '<button type="button" id="btn-info" class="btn btn-pill-right btn-success btn-xs"><i class="fa fa-info"></i></button>';
+            }
+        }
+        ],
       });
+
+      $('#storage_physical tbody').on( 'click', 'button', function () {
+        var data = storage_physical.row( $(this).parents('tr') ).data();
+        switch($(this).attr('id')){
+          case 'btn-info':
+            $.ajax({
+              type: "POST",
+              url:"/toolbox/api/storage/disk/info",
+              headers: {"Authorization": "Bearer " +localStorage.getItem("token")},
+              data: JSON.stringify({
+                  'path_id': data.path
+              }),
+              contentType: 'application/json',
+              success: function(disk_info)
+              {
+                new PNotify({
+                  title: "Disk info.",
+                    text: JSON.stringify(disk_info),
+                    hide: true,
+                    delay: 10000,
+                    icon: 'fa fa-info',
+                    opacity: 1,
+                    type: 'info'
+                });
+              }
+            });
+        break;
+      }
+      })
+
+      storage_physical.on( 'click', 'tr[role="row"]', function (e) {
+        toggleRow(this, e);
+      });
+
+      $(".btn-phy-update").on("click", function () {
+        new PNotify({
+          title: "Rescan physical disks on storage",
+          text: "Do you really want to rescan all them?",
+          hide: false,
+          opacity: 0.9,
+          confirm: { confirm: true },
+          buttons: { closer: false, sticker: false },
+          history: { history: false },
+          addclass: "pnotify-center",
+        })
+          .get()
+          .on("pnotify.confirm", function () {
+            $.ajax({
+              type: "GET",
+              url:
+                "/api/v3/admin/storage/physical/toolbox_host",
+              contentType: "application/json",
+              success: function (toolbox_host) {
+                $.ajax({
+                  type: "PUT",
+                  url: toolbox_host+"/storage/disks",
+                  contentType: "application/json",
+                  success: function (data) {
+                    storage_physical.ajax.reload();
+                    new PNotify({
+                      title: "Physical storage",
+                      text:  "Updated "+data.templates+" templates and "+data.desktops+" desktop disksfrom "+toolbox_host,
+                      hide: true,
+                      delay: 5000,
+                      opacity: 1,
+                      type: 'success'
+                  });
+                  },
+                });
+              },
+            });
+          })
+          .on("pnotify.cancel", function () {});
+      });
+
+      $('#mactions').on('change', function () {
+        action=$(this).val();
+        names=''
+        ids=[]
+
+        if(storage_physical.rows('.active').data().length){
+            $.each(storage_physical.rows('.active').data(),function(key, value){
+                names+=value['path']+'\n';
+                ids.push(value['path']);
+            });
+            var text = "You are about to "+action+" these physical disks:\n\n "+names
+        }else{ 
+            $.each(storage_physical.rows({filter: 'applied'}).data(),function(key, value){
+              ids.push(value['path']);
+            });
+            var text = "You are about to "+action+" "+storage_physical.rows({filter: 'applied'}).data().length+" disks!\n All the disks in list!"
+        }
+
+				new PNotify({
+						title: 'Warning!',
+							text: text,
+							hide: false,
+							opacity: 0.9,
+							confirm: {
+								confirm: true
+							},
+							buttons: {
+								closer: false,
+								sticker: false
+							},
+							history: {
+								history: false
+							},
+							addclass: 'pnotify-center'
+						}).get().on('pnotify.confirm', function() {
+              $.ajax({
+                type: "POST",
+                url:"/api/v3/admin/storage/physical/multiple_actions/"+action,
+                data: JSON.stringify({'paths':ids}),
+                contentType: 'application/json',
+                success: function(data)
+                {
+                  console.log(data)
+                },
+                always: function(data)
+                {
+                  $('#mactions option[value="none"]').prop("selected", true);
+                  $('#domains tr.active').removeClass('active')
+                  $('#mactions option[value="none"]').prop("selected",true);
+                }
+              });
+    } )
+      })
     }
 })
 

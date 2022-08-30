@@ -20,9 +20,8 @@
 
 import contextlib
 import json
-import os
-import time
 import traceback
+from subprocess import check_output
 
 import guestfs
 import pyqcow
@@ -60,6 +59,13 @@ def Guestfs(file_path, readonly=1):
 
 
 class IsardStorageQcow:
+    def get_file_info(self, file_path):
+        return json.loads(
+            check_output(
+                ("qemu-img", "info", "--output", "json", file_path), text=True
+            ).strip()
+        )
+
     def get_file_size(self, file_path):
         with Qcow(file_path) as q:
             return q.get_media_size()

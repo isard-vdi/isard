@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 44
+release_version = 45
+# release 45: Remove physical storage domains and media data to use uuid as id
 # release 44: Added type index to scheduler_jobs
 # release 43: Added media_ids domains index
 # release 42: Added disk_paths and storage_ids domains index
@@ -64,6 +65,8 @@ tables = [
     "deployments",
     "remotevpn",
     "storage",
+    "storage_physical_domains",
+    "storage_physical_media",
     "scheduler_jobs",
 ]
 
@@ -1104,8 +1107,6 @@ class Upgrade(object):
                 ):
                     r.table(table).get(media["id"]).update(user).run(self.conn)
 
-        return True
-
     """
     GROUPS TABLE UPGRADES
     """
@@ -1568,6 +1569,20 @@ class Upgrade(object):
             self.index_create(table, ["user_id"])
             self.index_create(table, ["status"])
 
+        return True
+
+    def storage_physical_domains(self, version):
+        table = "storage_physical_domains"
+        log.info("UPGRADING " + table + " VERSION " + str(version))
+        if version == 45:
+            r.table(table).delete().run(self.conn)
+        return True
+
+    def storage_physical_media(self, version):
+        table = "storage_physical_media"
+        log.info("UPGRADING " + table + " VERSION " + str(version))
+        if version == 45:
+            r.table(table).delete().run(self.conn)
         return True
 
     def remotevpn(self, version):
