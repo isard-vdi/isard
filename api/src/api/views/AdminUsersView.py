@@ -376,6 +376,7 @@ def api_v3_admin_group_insert(payload):
     data["description"] = "[" + data["parent_category"] + "] " + data["description"]
 
     ownsCategoryId(payload, data["parent_category"])
+    itemExists("categories", data["parent_category"])
 
     data = _validate_item("group", data)
 
