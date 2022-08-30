@@ -181,7 +181,7 @@ $(document).ready(function() {
               url:"/toolbox/api/storage/disk/info",
               headers: {"Authorization": "Bearer " +localStorage.getItem("token")},
               data: JSON.stringify({
-                  'path_id': data.id
+                  'path_id': data.path
               }),
               contentType: 'application/json',
               success: function(disk_info)
@@ -254,12 +254,12 @@ $(document).ready(function() {
         if(storage_physical.rows('.active').data().length){
             $.each(storage_physical.rows('.active').data(),function(key, value){
                 names+=value['path']+'\n';
-                ids.push(value['id']);
+                ids.push(value['path']);
             });
             var text = "You are about to "+action+" these physical disks:\n\n "+names
         }else{ 
             $.each(storage_physical.rows({filter: 'applied'}).data(),function(key, value){
-              ids.push(value['id']);
+              ids.push(value['path']);
             });
             var text = "You are about to "+action+" "+storage_physical.rows({filter: 'applied'}).data().length+" disks!\n All the disks in list!"
         }
@@ -284,7 +284,7 @@ $(document).ready(function() {
               $.ajax({
                 type: "POST",
                 url:"/api/v3/admin/storage/physical/multiple_actions/"+action,
-                data: JSON.stringify({'ids':ids}),
+                data: JSON.stringify({'paths':ids}),
                 contentType: 'application/json',
                 success: function(data)
                 {

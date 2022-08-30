@@ -57,29 +57,33 @@ def phy_storage_list(table, kind=None):
 
 def phy_storage_reset_domains(data):
     with app.app_context():
-        indb = list(r.table("storage_physical_domains")["id"].run(db.conn))
+        indb = list(r.table("storage_physical_domains")["path"].run(db.conn))
         instorage = list(r.table("storage")["qemu-img-info"]["filename"].run(db.conn))
-    new = [d["id"] for d in data]
+    new = [d["path"] for d in data]
     new = list(set(new) ^ set(instorage))
     deleted_items = list(set(indb) ^ (set(new)))
     with app.app_context():
         for item in deleted_items:
-            r.table("storage_physical_domains").get(item).delete().run(db.conn)
-    data = [d for d in data if d["id"] in new]
+            r.table("storage_physical_domains").filter({"path": item}).delete().run(
+                db.conn
+            )
+    data = [d for d in data if d["path"] in new]
     return phy_storage_update("domains", data)
 
 
 def phy_storage_reset_media(data):
     with app.app_context():
-        indb = list(r.table("storage_physical_media")["id"].run(db.conn))
+        indb = list(r.table("storage_physical_media")["path"].run(db.conn))
         instorage = list(r.table("media")["path_downloaded"].run(db.conn))
-    new = [d["id"] for d in data]
+    new = [d["path"] for d in data]
     new = list(set(new) ^ set(instorage))
     deleted_items = list(set(indb) ^ (set(new)))
     with app.app_context():
         for item in deleted_items:
-            r.table("storage_physical_media").get(item).delete().run(db.conn)
-    data = [d for d in data if d["id"] in new]
+            r.table("storage_physical_media").filter({"path": item}).delete().run(
+                db.conn
+            )
+    data = [d for d in data if d["path"] in new]
     return phy_storage_update("media", data)
 
 
@@ -90,7 +94,12 @@ def phy_storage_update(table, data):
 
 def phy_storage_delete(table, path_id):
     with app.app_context():
-        return r.table("storage_physical_" + table).get(path_id).delete().run(db.conn)
+        return (
+            r.table("storage_physical_" + table)
+            .filter({"path": path_id})
+            .delete()
+            .run(db.conn)
+        )
 
 
 def phy_add_to_storage(path_id, user_id):
@@ -116,7 +125,7 @@ def phy_add_to_storage(path_id, user_id):
 
 def phy_storage_upgrade_to_storage(data, user_id):
     errors = []
-    for path_id in data["ids"]:
+    for path_id in data["paths"]:
         new_disk = phy_add_to_storage(path_id, user_id)
         if not new_disk:
             errors.append("disk path " + str(path_id) + ": bad format.")

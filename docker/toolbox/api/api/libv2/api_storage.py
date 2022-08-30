@@ -21,6 +21,7 @@
 import os
 from pathlib import Path
 from subprocess import check_output
+from uuid import uuid4
 
 from api import app
 
@@ -67,7 +68,7 @@ class Storage:
     def update_disks(self):
         self.template_files = [
             {
-                "id": str(p),
+                "id": str(uuid4()),
                 "path": str(p),
                 "hyper": self.hostname,
                 "kind": "template",
@@ -78,7 +79,7 @@ class Storage:
         ]
         self.desktop_files = [
             {
-                "id": str(p),
+                "id": str(uuid4()),
                 "path": str(p),
                 "hyper": self.hostname,
                 "kind": "desktop",
@@ -100,7 +101,7 @@ class Storage:
     def update_media(self):
         self.media_files = [
             {
-                "id": str(p),
+                "id": str(uuid4()),
                 "path": str(p),
                 "hyper": self.hostname,
                 "kind": "media",
