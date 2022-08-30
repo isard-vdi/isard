@@ -31,12 +31,15 @@ def header_auth():
 
 
 class ApiRest:
-    def __init__(self, base_url):
+    def __init__(self, base_url, verify_cert=False):
         self.base_url = base_url
+        self.verify_cert = verify_cert
 
     def get(self, url):
         try:
-            resp = requests.get(self.base_url + url, headers=header_auth())
+            resp = requests.get(
+                self.base_url + url, headers=header_auth(), verify=self.verify_cert
+            )
             if resp.status_code == 200:
                 return json.loads(resp.text)
             raise Error(
@@ -52,7 +55,12 @@ class ApiRest:
 
     def post(self, url, data):
         try:
-            resp = requests.post(self.base_url + url, json=data, headers=header_auth())
+            resp = requests.post(
+                self.base_url + url,
+                json=data,
+                headers=header_auth(),
+                verify=self.verify_cert,
+            )
             if resp.status_code == 200:
                 return json.loads(resp.text)
             raise Error(
@@ -68,7 +76,12 @@ class ApiRest:
 
     def put(self, url, data):
         try:
-            resp = requests.put(self.base_url + url, json=data, headers=header_auth())
+            resp = requests.put(
+                self.base_url + url,
+                json=data,
+                headers=header_auth(),
+                verify=self.verify_cert,
+            )
             if resp.status_code == 200:
                 return json.loads(resp.text)
             raise Error(
@@ -84,7 +97,9 @@ class ApiRest:
 
     def delete(self, url):
         try:
-            resp = requests.delete(self.base_url + url, headers=header_auth())
+            resp = requests.delete(
+                self.base_url + url, headers=header_auth(), verify=self.verify_cert
+            )
             if resp.status_code == 200:
                 return json.loads(resp.text)
             raise Error(
