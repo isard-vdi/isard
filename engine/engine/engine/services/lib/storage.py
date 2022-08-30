@@ -21,6 +21,7 @@ from pathlib import PurePath
 
 from engine.services.db import (
     get_dict_from_item_in_table,
+    get_table_field,
     insert_table_dict,
     update_table_field,
 )
@@ -34,17 +35,21 @@ def _get_filename(storage):
     )
 
 
-def create_storage(disk, user):
+def create_storage(disk, user, force_parent=False):
     directory_path = disk.pop("path_selected")
     relative_path = PurePath(disk.pop("file")).relative_to(directory_path)
     storage_id = str(relative_path).removesuffix(relative_path.suffix)
+    if force_parent == False:
+        parent = disk.pop("parent")
+    else:
+        parent = force_parent
     insert_table_dict(
         "storage",
         {
             "id": storage_id,
             "type": relative_path.suffix[1:],
             "directory_path": directory_path,
-            "parent": disk.pop("parent"),
+            "parent": parent,
             "user_id": user,
             "status": "non_existing",
         },
@@ -81,3 +86,28 @@ def update_qemu_img_info(create_dict, disk_index, qemu_img_info):
         for disk_info in qemu_img_info:
             if disk_info.get("filename") == filename:
                 update_table_field("storage", storage_id, "qemu-img-info", disk_info)
+                if type(qemu_img_info) is list:
+                    d_qemu_img_info = qemu_img_info[0]
+                elif type(qemu_img_info) is dict:
+                    d_qemu_img_info = qemu_img_info
+                else:
+                    return False
+                if "backing-filename" not in d_qemu_img_info.keys():
+                    update_table_field("storage", storage_id, "parent", None)
+                else:
+                    parent_path = d_qemu_img_info["backing-filename"]
+                    try:
+                        uuid_parent = parent_path[: parent_path.rfind(".")].split("/")[
+                            -1
+                        ]
+                        # if id doesn't exist get_table_field is None
+                        parent_id = get_table_field("storage", uuid_parent, "id")
+
+                    except Exception as e:
+                        parent_id = None
+
+                    if parent_id is None:
+                        update_table_field("storage", storage_id, "status", "orphan")
+
+                    update_table_field("storage", storage_id, "parent", parent_id)
+    return True

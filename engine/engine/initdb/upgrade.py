@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 46
+release_version = 47
+# release 47: resolve parent error in storage table for templates
 # release 46: Upgraded users secondary_groups field
 # release 45: Remove physical storage domains and media data to use uuid as id
 # release 44: Added type index to scheduler_jobs
@@ -1574,6 +1575,24 @@ class Upgrade(object):
         if version == 41:
             self.index_create(table, ["user_id"])
             self.index_create(table, ["status"])
+        if version == 47:
+            data = list(
+                r.table("storage")
+                .has_fields({"qemu-img-info": {"backing-filename": True}})
+                .merge(
+                    lambda store: {
+                        "parent": r.table("storage")
+                        .get(
+                            store["qemu-img-info"]["backing-filename"]
+                            .split("/")[-1]
+                            .split(".")[0]
+                        )
+                        .default({"id": None})["id"]
+                    }
+                )
+                .run(self.conn)
+            )
+            r.table("storage").insert(data, conflict="update").run(self.conn)
 
         return True
 
