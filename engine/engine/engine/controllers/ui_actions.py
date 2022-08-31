@@ -38,6 +38,7 @@ from engine.services.db import (
     get_if_delete_after_stop,
     get_interface,
     get_pool_from_domain,
+    get_table_field,
     insert_domain,
     remove_dict_new_template_from_domain,
     remove_disk_template_created_list_in_domain,
@@ -90,6 +91,20 @@ class UiActions(object):
         # INFO TO DEVELOPER, QUE DE UN ERROR SI EL ID NO EXISTE
 
         id_domain = id
+
+        kind = get_table_field("domains", id_domain, "kind")
+        if kind != "desktop":
+            domain_name = get_table_field("domains", id_domain, "name")
+            log.error(
+                f"DANGER, domain {id_domain} ({domain_name}) is a template and can't be started"
+            )
+            update_domain_status(
+                "Stopped",
+                id_domain,
+                detail="Template can not be started",
+            )
+            return False
+
         pool_id = get_pool_from_domain(id_domain)
         cpu_host_model = self.manager.pools[pool_id].conf.get(
             "cpu_host_model", DEFAULT_HOST_MODE
