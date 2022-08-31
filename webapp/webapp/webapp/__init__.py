@@ -109,5 +109,4 @@ def internal_error(error):
 """
 Import all views
 """
-from .views import UserViews
-from .views.admin import AdminViews
+from .views import AdminViews

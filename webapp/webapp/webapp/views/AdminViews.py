@@ -8,20 +8,90 @@
 import json
 import logging as log
 
-from flask import flash, render_template, request
-from flask_login import login_required
+from flask import flash, jsonify, make_response, redirect, render_template, request
+from flask_login import current_user, login_required, login_user, logout_user
 
 from webapp import app
 
-from ...lib import admin_api
+from ..auth.authentication import *
+from ..lib import admin_api
 
 app.adminapi = admin_api.isardAdmin()
 
-
-from ...lib.isardUpdates import Updates
-from ..decorators import isAdmin, isAdminManager
+from ..lib.isardUpdates import Updates
+from ..lib.log import *
+from .decorators import isAdmin, isAdminManager, maintenance
 
 u = Updates()
+
+
+@app.route("/isard-admin/about", methods=["GET"])
+@maintenance
+def about():
+    return render_template(
+        "pages/about.html",
+        title="About",
+        header="About",
+        nav="About",
+    )
+
+
+@app.route("/isard-admin/healthcheck", methods=["GET"])
+def healthcheck():
+    return ""
+
+
+"""
+LOGIN PAGE
+"""
+
+
+@app.route("/isard-admin/login", methods=["POST", "GET"])
+@app.route("/isard-admin/login/<category>", methods=["POST", "GET"])
+def login(category="default"):
+    user = get_authenticated_user()
+    if user:
+        login_user(user)
+        flash("Authenticated via backend.", "success")
+        return render_template(
+            "admin/pages/domains.html",
+            title="Desktops",
+            nav="Desktops",
+            icon="desktops",
+        )
+    return redirect("/login")
+
+
+@app.route("/isard-admin/logout/remote")
+def remote_logout():
+    try:
+        logout_ram_user(current_user.id)
+    except:
+        # The user does not exist already
+        None
+    logout_user()
+    return jsonify(success=True)
+
+
+@app.route("/isard-admin/logout")
+@login_required
+def logout():
+    login_path = app.isardapi.__class__.get_login_path()
+    response = make_response(
+        f"""
+            <!DOCTYPE html>
+            <html>
+                <body>
+                    <script>
+                        localStorage.removeItem('token');
+                        window.location = '{login_path}';
+                    </script>
+                </body>
+            </html>
+        """
+    )
+    remote_logout()
+    return response
 
 
 """
@@ -97,7 +167,7 @@ MEDIA
 @login_required
 @isAdminManager
 def admin_media():
-    return render_template("admin/pages/media.html", nav="Media")
+    return render_template("admin/pages/media.html", nav="Media", title="Media")
 
 
 """
@@ -109,7 +179,7 @@ USERS
 @login_required
 @isAdminManager
 def admin_users():
-    return render_template("admin/pages/users.html", nav="Users")
+    return render_template("admin/pages/users.html", nav="Users", title="Users")
 
 
 """
@@ -241,7 +311,7 @@ def admin_config():
             200,
             {"Content-Type": "application/json"},
         )
-    return render_template("admin/pages/config.html", nav="Config")
+    return render_template("admin/pages/config.html", nav="Config", title="Config")
 
 
 """
