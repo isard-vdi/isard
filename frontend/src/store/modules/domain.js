@@ -33,7 +33,7 @@ const getDefaultState = () => {
         bootOrder: ['disk'],
         diskBus: 'default',
         disks: [],
-        diskSize: '1',
+        diskSize: 1,
         floppies: [],
         graphics: ['default'],
         interfaces: ['default'],
