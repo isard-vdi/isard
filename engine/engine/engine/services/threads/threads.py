@@ -50,7 +50,7 @@ from engine.services.lib.qcow import (
     verify_output_cmds2,
     verify_output_cmds3,
 )
-from engine.services.lib.storage import update_storage_status
+from engine.services.lib.storage import update_qemu_img_info, update_storage_status
 from engine.services.log import *
 
 # from pool_hypervisors. import PoolHypervisors
@@ -220,17 +220,17 @@ def launch_action_disk(action, hostname, user, port, from_scratch=False):
                     disk_path, id_domain
                 )
             )
-            if from_scratch is False:
-                out_cmd_backing_chain = array_out_err[-1]["out"]
+            out_cmd_backing_chain = array_out_err[-1]["out"]
 
-                list_backing_chain = extract_list_backing_chain(out_cmd_backing_chain)
-                if id_domain is not False:
+            list_backing_chain = extract_list_backing_chain(out_cmd_backing_chain)
+            if id_domain is not False:
+                if from_scratch is False:
                     update_domain_parents(id_domain)
-                    update_disk_backing_chain(
-                        id_domain, index_disk, disk_path, list_backing_chain
-                    )
-                update_storage_status(action.get("storage_id"), "ready")
-                ##INFO TO DEVELOPER
+                update_disk_backing_chain(
+                    id_domain, index_disk, disk_path, list_backing_chain
+                )
+            update_storage_status(action.get("storage_id"), "ready")
+            ##INFO TO DEVELOPER
             # ahora ya se puede llamar a starting paused
             if id_domain is not False:
                 # update parents if have
@@ -379,11 +379,13 @@ def launch_action_create_template_disk(action, hostname, user, port):
                 update_disk_backing_chain(
                     id_domain,
                     disk_index,
-                    path_template_disk,
-                    backing_chain_template,
+                    path_domain_disk,
+                    extract_list_backing_chain(backing_chain_domain),
                     new_template=True,
                     list_backing_chain_template=backing_chain_template,
                 )
+                # uuid_template = path_template_disk[: path_template_disk.rfind(".")].split("/")[-1]
+                # update_qemu_img_info({},disk_index,backing_chain_template,force_storage_id=uuid_template)
 
                 # disk created, update parents and status
                 # update_domain_parents(id_domain)
