@@ -159,15 +159,41 @@ $(document).ready(function() {
             data['provider']='local';
             data['username']=$('#modalAddUserForm #id').val();
             data['uid'] = data['username'];
+            var notice = new PNotify({
+                text: 'Creating user...',
+                hide: true,
+                opacity: 1,
+                icon: 'fa fa-spinner fa-pulse'
+            })
             $.ajax({
                 type: "POST",
                 url:"/api/v3/admin/user" ,
                 data: JSON.stringify(data),
                 contentType: "application/json",
+                error: function (data) {
+                    notice.update({
+                        title: "ERROR",
+                        text: "Couldn't create user",
+                        type: 'error',
+                        hide: true,
+                        icon: 'fa fa-warning',
+                        delay: 15000,
+                        opacity: 1
+                    });
+                },
                 success: function(data)
                 {
                     $('form').each(function() { this.reset() });
                     $('.modal').modal('hide');
+                    notice.update({
+                        title: "Created",
+                        text: 'User created successfully',
+                        hide: true,
+                        delay: 2000,
+                        icon: 'fa fa-' + data.icon,
+                        opacity: 1,
+                        type: 'success'
+                    })
                 }
             });
         }
@@ -182,15 +208,41 @@ $(document).ready(function() {
         if (form.parsley().isValid()){     // || 'unlimited' in formdata){   
             data=userQuota2dict(formdata);
             delete data['unlimited']
+            var notice = new PNotify({
+                text: 'Updating user...',
+                hide: true,
+                opacity: 1,
+                icon: 'fa fa-spinner fa-pulse'
+            })
             $.ajax({
                 type: "PUT",
                 url:"/api/v3/admin/user/" + data['id'],
                 data: JSON.stringify(data),
                 contentType: "application/json",
+                error: function(data) {
+                    notice.update({
+                        title: 'ERROR',
+                        text: 'Cannot update user',
+                        type: 'error',
+                        hide: true,
+                        icon: 'fa fa-warning',
+                        delay: 5000,
+                        opacity: 1
+                    })
+                },
                 success: function(data)
                 {
                     $('form').each(function() { this.reset() });
                     $('.modal').modal('hide');
+                    notice.update({
+                        title: 'Updated',
+                        text: 'User updated successfully',
+                        hide: true,
+                        delay: 2000,
+                        icon: 'fa fa-' + data.icon,
+                        opacity: 1,
+                        type: 'success'
+                    })
                 }
             });     
         }

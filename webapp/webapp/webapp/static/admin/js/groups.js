@@ -236,6 +236,12 @@ $(document).ready(function() {
                 delete data['ephimeral-enabled'];
                 delete data['auto-desktops-enabled'];
                 data=JSON.unflatten(data);
+                var notice = new PNotify({
+                    text: 'Creating group...',
+                    hide: false,
+                    opacity: 1,
+                    icon: 'fa fa-spinner fa-pulse'
+                })
                 $.ajax({ 
                     type: "POST",
                     url:"/api/v3/admin/group",
@@ -245,9 +251,26 @@ $(document).ready(function() {
                     {
                         $('form').each(function() { this.reset() });
                         $('.modal').modal('hide');
+                        notice.update({
+                            title: "Created",
+                            text: 'Group created successfully',
+                            hide: true,
+                            delay: 2000,
+                            icon: 'fa fa-' + data.icon,
+                            opacity: 1,
+                            type: 'success'
+                        })
                     },
-                    error: function (jqXHR, exception) {
-                        processError(jqXHR,form)
+                    error: function (data) {
+                        notice.update({
+                            title: 'ERROR',
+                            text: "Couldn't create group",
+                            type: 'error',
+                            hide: true,
+                            icon: 'fa fa-warning',
+                            delay: 5000,
+                            opacity: 1
+                        })
                     }
 
                 });  
@@ -319,7 +342,6 @@ function actionsGroupDetail(){
                     $('form').each(function() { this.reset() });
                     $('.modal').modal('hide');
                     notice.update({
-                        title: data.title,
                         text: 'Quota updated successfully',
                         hide: true,
                         delay: 1000,
@@ -392,7 +414,6 @@ function actionsGroupDetail(){
                     $('form').each(function() { this.reset() });
                     $('.modal').modal('hide');
                     notice.update({
-                        title: data.title,
                         text: 'Limits updated successfully',
                         hide: true,
                         delay: 1000,

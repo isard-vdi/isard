@@ -208,6 +208,12 @@ $(document).ready(function() {
                     delete data['auto-desktops'];
                 }
                 data=JSON.unflatten(data);
+                var notice = new PNotify({
+                    text: 'Creating...',
+                    hide: false,
+                    opacity: 1,
+                    icon: 'fa fa-spinner fa-pulse'
+                })
                 $.ajax({
                     type: "POST",
                     url:"/api/v3/admin/category" ,
@@ -217,6 +223,15 @@ $(document).ready(function() {
                     {
                         $('form').each(function() { this.reset() });
                         $('.modal').modal('hide');
+                        notice.update({
+                            title: 'Created',
+                            text: 'Category created successfully',
+                            hide: true,
+                            delay: 2000,
+                            icon: '',
+                            opacity: 1,
+                            type: 'success'
+                        })
                     },
                     error: function (jqXHR, exception) {
                         processError(jqXHR,form)

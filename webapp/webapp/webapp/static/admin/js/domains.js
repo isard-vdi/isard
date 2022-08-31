@@ -1052,7 +1052,7 @@ function actionsDomainDetail(){
                 $('form').each(function() { this.reset() });
                 $('.modal').modal('hide');
                 notice.update({
-                    title: data.title,
+                    title: 'Updated',
                     text: 'Item updated successfully',
                     hide: true,
                     delay: 2000,
@@ -1312,7 +1312,7 @@ function populate_tree_template_delete(id){
                         $("#modalEditDesktop").modal('hide');
                         domains_table.ajax.reload()
                         notice.update({
-                            title: data.title,
+                            title: 'Updated',
                             text: 'Item updated successfully',
                             hide: true,
                             delay: 2000,

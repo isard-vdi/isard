@@ -354,6 +354,15 @@ function initalize_bookables_modal_events() {
               this.reset();
             });
             $(".modal").modal("hide");
+            var notice = new PNotify({
+              title: "Created",
+              text: 'GPU created successfully. Please, reassing physical devices',
+              hide: true,
+              delay: 2000,
+              icon: 'fa fa-' + data.icon,
+              opacity: 1,
+              type: 'success'
+          })
           },
         });
       } else {

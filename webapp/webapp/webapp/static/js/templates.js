@@ -358,7 +358,7 @@ $("#modalEditDesktop #send").on('click', function(e){
                 $("#modalEditDesktop").modal('hide');
                 table.ajax.reload()
                 notice.update({
-                    title: data.title,
+                    title: 'Updated',
                     text: 'Item updated successfully',
                     hide: true,
                     delay: 2000,

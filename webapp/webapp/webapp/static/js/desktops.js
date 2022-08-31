@@ -819,7 +819,7 @@ function initalize_modal_all_desktops_events(){
                         },
                         success: function(data) {
                             notice.update({
-                                title: 'New desktop',
+                                title: 'New template',
                                 text: 'Template '+ name + ' created successfully',
                                 hide: true,
                                 delay: 2000,
@@ -885,7 +885,7 @@ $("#modalEditDesktop #send").on('click', function(e){
                 $("#modalEditDesktop").modal('hide');
                 table.ajax.reload()
                 notice.update({
-                    title: data.title,
+                    title: 'Updated',
                     text: 'Item updated successfully',
                     hide: true,
                     delay: 2000,
