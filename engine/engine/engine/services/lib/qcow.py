@@ -167,6 +167,11 @@ def create_cmd_disk_from_scratch(
     cmds1.append(
         {"title": "test_if_qcow_exists", "cmd": "stat -c '%d' {}".format(path_new_disk)}
     )
+    cmds1.append(
+        {"title": "test_if_qcow_exists", "cmd": "stat -c '%d' {}".format(path_new_disk)}
+    )
+
+    cmds1.append({"title": "qemu-img-info", "cmd": backing_chain_cmd(path_new_disk)})
 
     return cmds1
 

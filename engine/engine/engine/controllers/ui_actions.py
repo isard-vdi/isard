@@ -570,6 +570,11 @@ class UiActions(object):
         template_dict = domain_dict["create_dict"]["template_dict"]
         template_dict["status"] = "CreatingNewTemplateInDB"
         template_id = template_dict["id"]
+        for d_disk in template_dict["create_dict"]["hardware"].get("disks", {}):
+            if "storage_id" in d_disk.keys():
+                for k in list(d_disk.keys()):
+                    if k != "storage_id":
+                        d_disk.pop(k)
         if insert_domain(template_dict)["inserted"] == 1:
             hw_dict = domain_dict["hardware"].copy()
             for i in range(len(hw_dict["disks"])):
@@ -718,7 +723,13 @@ class UiActions(object):
                             "hardware"
                         ]["disks"][0]["bus"]
                 update_domain_dict_hardware(id_new, d_update_domain)
-                update_domain_dict_create_dict(id_new, d_update_domain)
+                # update_domain_dict_create_dict(id_new, d_update_domain)
+                storage_id = create_storage(
+                    d_update_domain["hardware"]["disks"][0],
+                    dict_domain.get("user"),
+                    force_parent=None,
+                )
+                update_table_field("domains", id_new, "create_dict", d_update_domain)
 
                 size_str = dict_to_create["hardware"]["disks"][0]["size"]
 
@@ -736,6 +747,7 @@ class UiActions(object):
                 action["index_disk"] = 0
                 action["domain"] = id_new
                 action["ssh_commands"] = cmds
+                action["storage_id"] = storage_id
                 try:
                     update_domain_status(
                         status="CreatingDiskFromScratch",
