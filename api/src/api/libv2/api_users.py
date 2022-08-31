@@ -292,6 +292,7 @@ class ApiUsers:
                 "photo": photo,
                 "default_templates": [],
                 "quota": group["quota"],  # 10GB
+                "secondary_groups": [],
             }
             if not _check(r.table("users").insert(user).run(db.conn), "inserted"):
                 raise Error(

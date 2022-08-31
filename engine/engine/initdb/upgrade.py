@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 45
+release_version = 46
+# release 46: Upgraded users secondary_groups field
 # release 45: Remove physical storage domains and media data to use uuid as id
 # release 44: Added type index to scheduler_jobs
 # release 43: Added media_ids domains index
@@ -1372,6 +1373,11 @@ class Upgrade(object):
 
         if version == 39:
             r.table(table).update({"secondary_groups": []}).run(self.conn)
+
+        if version == 46:
+            r.table(table).filter(~r.row.has_fields("secondary_groups")).update(
+                {"secondary_groups": []}
+            ).run(self.conn)
 
         return True
 
