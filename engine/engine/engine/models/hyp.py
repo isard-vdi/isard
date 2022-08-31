@@ -1120,8 +1120,7 @@ class hyp(object):
                             "unkown domain fail when trying to get his name, power off??"
                         )
                         continue
-                    if domain_name[0] == "_":
-                        self.domains[domain_name] = d
+                    self.domains[domain_name] = d
             except:
                 log.error(
                     "error when try to list domain in hypervisor {}".format(
@@ -1235,12 +1234,6 @@ class hyp(object):
                 }
 
                 raw_stats["time_utc"] = time.time()
-
-                # remove stats from domains not started with _ (all domains in isard start with _)
-                if exclude_domains_not_isard is True:
-                    for domain_name in list(raw_stats["domains"].keys()):
-                        if domain_name[0] != "_":
-                            del raw_stats["domains"][domain_name]
 
             except:
                 log.error(
