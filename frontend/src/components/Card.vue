@@ -12,7 +12,7 @@
       no-body
     >
       <vue-fab
-        v-if="desktop.editable && !(desktop.state && desktop.type === 'nonpersistent')"
+        v-if="desktop.editable && desktop.type === 'persistent'"
         icon="more_vert"
         main-btn-color="#bcc6cc"
         class="info-icon position-absolute"
