@@ -26,7 +26,15 @@ const getDefaultState = () => {
           username: 'pirineus'
         },
         fullscreen: false,
-        viewers: [],
+        viewers: [{
+          browser_vnc: {
+            options: null
+          }
+        }, {
+          file_spice: {
+            options: null
+          }
+        }],
         limits: false
       },
       hardware: {
