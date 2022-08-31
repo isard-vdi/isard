@@ -57,39 +57,29 @@ def phy_storage_list(table, kind=None):
 
 def phy_storage_reset_domains(data):
     with app.app_context():
-        indb = list(r.table("storage_physical_domains")["path"].run(db.conn))
         instorage = list(r.table("storage")["qemu-img-info"]["filename"].run(db.conn))
-    new = [d["path"] for d in data]
-    new = list(set(new) ^ set(instorage))
-    deleted_items = list(set(indb) ^ (set(new)))
+    data = [d for d in data if d["path"] not in instorage]
     with app.app_context():
-        for item in deleted_items:
-            r.table("storage_physical_domains").filter({"path": item}).delete().run(
-                db.conn
-            )
-    data = [d for d in data if d["path"] in new]
-    return phy_storage_update("domains", data)
+        r.table("storage_physical_domains").delete().run(db.conn)
+        r.table("storage_physical_domains").insert(data).run(db.conn)
 
 
 def phy_storage_reset_media(data):
     with app.app_context():
-        indb = list(r.table("storage_physical_media")["path"].run(db.conn))
         instorage = list(r.table("media")["path_downloaded"].run(db.conn))
-    new = [d["path"] for d in data]
-    new = list(set(new) ^ set(instorage))
-    deleted_items = list(set(indb) ^ (set(new)))
+    data = [d for d in data if d["path"] not in instorage]
     with app.app_context():
-        for item in deleted_items:
-            r.table("storage_physical_media").filter({"path": item}).delete().run(
-                db.conn
-            )
-    data = [d for d in data if d["path"] in new]
-    return phy_storage_update("media", data)
+        r.table("storage_physical_media").delete().run(db.conn)
+        r.table("storage_physical_media").insert(data).run(db.conn)
 
 
 def phy_storage_update(table, data):
     with app.app_context():
-        return r.table("storage_physical_" + table).insert(data).run(db.conn)
+        return (
+            r.table("storage_physical_" + table)
+            .insert(data, conflict="update")
+            .run(db.conn)
+        )
 
 
 def phy_storage_delete(table, path_id):
