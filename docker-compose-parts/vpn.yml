@@ -26,6 +26,7 @@ services:
       - /sys:/sys:rw
       - /opt/isard/wireguard/certs:/certs
       - /opt/isard/certs/default:/portal-certs:ro
+      - /opt/isard-local/conntrack:/conntrack
     env_file:
       - .env  
 

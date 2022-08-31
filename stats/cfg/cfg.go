@@ -32,6 +32,7 @@ type Collectors struct {
 	IsardVDIAPI            IsardVDIAPI            `mapstructure:"isardvdi_api"`
 	IsardVDIAuthentication IsardvdiAuthentication `mapstructure:"isardvdi_authentication"`
 	OCI                    OCI
+	Conntrack              Conntrack
 }
 
 type Hypervisor struct {
@@ -62,6 +63,10 @@ type IsardvdiAuthentication struct {
 }
 
 type OCI struct {
+	Enable bool
+}
+
+type Conntrack struct {
 	Enable bool
 }
 
@@ -126,6 +131,9 @@ func setDefaults() {
 		},
 		"oci": map[string]interface{}{
 			"enable": false,
+		},
+		"conntrack": map[string]interface{}{
+			"enable": true,
 		},
 	})
 }

@@ -46,14 +46,16 @@ RUN apk del .build_deps
 
 RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories
 RUN echo "@testing http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
-RUN apk add libcrypto3@edge libssl3@edge guacamole-server@testing guacamole-server-dev@testing freerdp freerdp-plugins
+RUN echo "@community http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
+
+RUN apk add libcrypto3@edge libssl3@edge guacamole-server@testing guacamole-server-dev@testing freerdp@community freerdp-libs@community freerdp-plugins@community
 
 RUN apk add openvswitch
 RUN /usr/bin/ovsdb-tool create /etc/openvswitch/conf.db
 RUN mkdir -pv /var/run/openvswitch/
 COPY docker/vpn/ovs /ovs
 
-RUN apk add dnsmasq
+RUN apk add dnsmasq conntrack-tools
 COPY docker/vpn/dnsmasq-hook /dnsmasq-hook
 COPY docker/vpn/src /src
 COPY docker/vpn/run.sh /
@@ -62,4 +64,3 @@ COPY docker/vpn/run.sh /
 COPY --from=rdpgw /rdpgw /rdpgw
 
 CMD [ "sh", "run.sh"]
-
