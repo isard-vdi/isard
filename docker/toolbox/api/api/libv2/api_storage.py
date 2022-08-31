@@ -18,17 +18,15 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+# from subprocess import check_output
+import hashlib
 import os
 from pathlib import Path
-from subprocess import check_output
-from uuid import uuid4
 
 from api import app
 
 from ..libv2.storage.isard_qcow import IsardStorageQcow
-from .api_exceptions import Error
 from .api_rest import ApiRest
-from .validators import _validate_item
 
 
 def ff(path_id):
@@ -68,7 +66,7 @@ class Storage:
     def update_disks(self):
         self.template_files = [
             {
-                "id": str(uuid4()),
+                "id": hashlib.md5(str(p).encode("utf-8")).hexdigest(),
                 "path": str(p),
                 "hyper": self.hostname,
                 "kind": "template",
@@ -79,7 +77,7 @@ class Storage:
         ]
         self.desktop_files = [
             {
-                "id": str(uuid4()),
+                "id": hashlib.md5(str(p).encode("utf-8")).hexdigest(),
                 "path": str(p),
                 "hyper": self.hostname,
                 "kind": "desktop",
@@ -101,7 +99,7 @@ class Storage:
     def update_media(self):
         self.media_files = [
             {
-                "id": str(uuid4()),
+                "id": hashlib.md5(str(p).encode("utf-8")).hexdigest(),
                 "path": str(p),
                 "hyper": self.hostname,
                 "kind": "media",
