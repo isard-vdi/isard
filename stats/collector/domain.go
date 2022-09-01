@@ -3,6 +3,7 @@ package collector
 import (
 	"fmt"
 	"log"
+	"net"
 	"strconv"
 	"strings"
 	"sync"
@@ -15,6 +16,8 @@ import (
 	"golang.org/x/crypto/ssh"
 	"libvirt.org/go/libvirt"
 )
+
+const viewersBasePort = 5900
 
 type Domain struct {
 	hyp         string
@@ -73,7 +76,8 @@ type Domain struct {
 	descMemTotal              *prometheus.Desc
 	descPortSpice             *prometheus.Desc
 	descPortSpiceTLS          *prometheus.Desc
-	descPortWebsocket         *prometheus.Desc
+	descPortVNC               *prometheus.Desc
+	descPortVNCWebsocket      *prometheus.Desc
 }
 
 func NewDomain(libvirtMux *sync.Mutex, sshMux *sync.Mutex, cfg cfg.Cfg, log *zerolog.Logger, libvirtConn *libvirt.Connect, sshConn *ssh.Client) *Domain {
@@ -478,9 +482,17 @@ func NewDomain(libvirtMux *sync.Mutex, sshMux *sync.Mutex, cfg cfg.Cfg, log *zer
 			"hypervisor": cfg.Domain,
 		},
 	)
-	d.descPortWebsocket = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, d.String(), "port_websocket"),
-		"Websocket port",
+	d.descPortVNC = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, d.String(), "port_vnc"),
+		"VNC port",
+		[]string{"desktop", "port"},
+		prometheus.Labels{
+			"hypervisor": cfg.Domain,
+		},
+	)
+	d.descPortVNCWebsocket = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, d.String(), "port_vnc_websocket"),
+		"VNC Websocket port",
 		[]string{"desktop", "port"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
@@ -544,7 +556,8 @@ func (d *Domain) Describe(ch chan<- *prometheus.Desc) {
 	ch <- d.descMemTotal
 	ch <- d.descPortSpice
 	ch <- d.descPortSpiceTLS
-	ch <- d.descPortWebsocket
+	ch <- d.descPortVNC
+	ch <- d.descPortVNCWebsocket
 }
 
 func (d *Domain) Collect(ch chan<- prometheus.Metric) {
@@ -666,8 +679,12 @@ func (d *Domain) Collect(ch chan<- prometheus.Metric) {
 			ch <- prometheus.MustNewConstMetric(d.descPortSpiceTLS, prometheus.GaugeValue, 1, id, strconv.Itoa(port))
 		}
 
-		if port, ok := ports["websocket"]; ok {
-			ch <- prometheus.MustNewConstMetric(d.descPortWebsocket, prometheus.GaugeValue, 1, id, strconv.Itoa(port))
+		if port, ok := ports["vnc"]; ok {
+			ch <- prometheus.MustNewConstMetric(d.descPortVNC, prometheus.GaugeValue, 1, id, strconv.Itoa(port))
+		}
+
+		if port, ok := ports["vnc_websocket"]; ok {
+			ch <- prometheus.MustNewConstMetric(d.descPortVNCWebsocket, prometheus.GaugeValue, 1, id, strconv.Itoa(port))
 		}
 	}
 
@@ -732,12 +749,12 @@ func (d *Domain) collectDomainPorts(id string) (map[string]int, error) {
 	ports := map[string]int{}
 
 	// split the different options
-	for _, s := range strings.Split(string(b), ",") {
+	for _, s := range strings.Split(strings.Replace(string(b), "\\\n", ",", -1), ",") {
 		// split the key and value
 		opts := strings.Split(s, "=")
 		if len(opts) == 2 {
 			switch opts[0] {
-			case "port":
+			case "-spice port":
 				i, err := strconv.Atoi(opts[1])
 				if err != nil {
 					return nil, fmt.Errorf("convert '%s' to number: %w", opts[1], err)
@@ -759,9 +776,23 @@ func (d *Domain) collectDomainPorts(id string) (map[string]int, error) {
 					return nil, fmt.Errorf("convert '%s' to number: %w", opts[1], err)
 				}
 
-				ports["websocket"] = i
+				ports["vnc_websocket"] = i
 			default:
 			}
+		}
+
+		if strings.HasPrefix(s, "-vnc ") {
+			_, port, err := net.SplitHostPort(strings.TrimPrefix(s, "-vnc "))
+			if err != nil {
+				return nil, fmt.Errorf("parse VNC port: %w", err)
+			}
+
+			i, err := strconv.Atoi(port)
+			if err != nil {
+				return nil, fmt.Errorf("convert '%s' to number: %w", err)
+			}
+
+			ports["vnc"] = viewersBasePort + i
 		}
 	}
 

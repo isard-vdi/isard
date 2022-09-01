@@ -1,3 +1,15 @@
+# Start conntrackd
+conntrackd &
+
+function extract_conntrack () {
+    while : ; do
+        conntrack -L -p udp --dport 3389 -p tcp --dport 3389 -o xml 1> /conntrack/rdp.xml
+        ip -j neigh show 1> /conntrack/arp.json
+        sleep 10
+    done
+}
+extract_conntrack &
+
 # Start guacd
 echo "$(date): INFO: Starting guacd server"
 guacd -b 0.0.0.0 -L info -f >> /var/log/guacd 2>&1 &

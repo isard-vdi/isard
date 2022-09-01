@@ -95,6 +95,7 @@ func startCollectors(cfg cfg.Cfg, log *zerolog.Logger) ([]collector.Collector, *
 	isardvdiAPI := hasWeb(cfg.Flavour) && cfg.Collectors.IsardVDIAPI.Enable
 	isardvdiAuthentication := hasWeb(cfg.Flavour) && cfg.Collectors.IsardVDIAuthentication.Enable
 	oci := hasWeb(cfg.Flavour) && cfg.Collectors.OCI.Enable
+	conntrack := hasWeb(cfg.Flavour) && cfg.Collectors.Conntrack.Enable
 
 	var sshConn *ssh.Client
 	var sshMux sync.Mutex
@@ -198,6 +199,11 @@ func startCollectors(cfg cfg.Cfg, log *zerolog.Logger) ([]collector.Collector, *
 
 		o := collector.NewOCI(log, cli, tenancy)
 		collectors = append(collectors, o)
+	}
+
+	if conntrack {
+		c := collector.NewConntrack(log)
+		collectors = append(collectors, c)
 	}
 
 	return collectors, libvirtConn, sshConn
