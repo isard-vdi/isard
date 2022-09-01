@@ -203,7 +203,8 @@
                 "download": "VPN"
             },
             "help": "Hilfe",
-            "deployments": "Verteilungen"
+            "deployments": "Verteilungen",
+            "desktops": "Desktops"
         },
         "not-found": {
             "title": "Die angeforderte Adresse wurde nicht gefunden",
@@ -303,7 +304,14 @@
         "cancel": "Abbrechen",
         "registration": {
             "code": "Registrierungs-Code"
-        }
+        },
+        "new-deployment": {
+            "desktop": {
+                "name": "Name des Desktops",
+                "description": "Beschreibung des Desktops"
+            }
+        },
+        "filter-placeholder": "Tippe zum suchen"
     },
     "errors": {
         "create_desktop_user_quota": "Benutzerquote für die Erstellung von Arbeitoberflächen überschritten",
