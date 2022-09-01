@@ -66,6 +66,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
+      "description": "Total Desktops per categoria",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -116,7 +117,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "isardvdi_isardvdi_api_desktop_number",
+          "expr": "isardvdi_isardvdi_api_desktop_number_category{category=\"$category\"}",
           "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"isardvdi-api\")\n  |> filter(fn: (r) => r[\"_field\"] == \"desktops\")\n  |> yield()",
           "refId": "A"
         }
@@ -129,6 +130,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
+      "description": "Total Users per categoria",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -179,7 +181,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "count(count by(id) (count_over_time(isardvdi_isardvdi_authentication_login_success[10y]))) or vector(0)",
+          "expr": "sum(count_values by(role) (\"tipo\", isardvdi_isardvdi_api_user_info{category=\"$category\"}))",
           "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: -100000000000000s)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"isardvdi-authentication\")\n  |> filter(fn: (r) => r[\"_field\"] == \"login\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> count(column: \"_value\")\n  |> unique(column: \"id\")\n  |> keep(columns: [\"_value\"])\n  |> count(column: \"_value\")\n  |> yield()",
           "refId": "A"
         }
@@ -192,6 +194,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
+      "description": "Total Templates per categoria",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -243,12 +246,12 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "isardvdi_isardvdi_api_template_number",
+          "expr": "isardvdi_isardvdi_api_template_number_category{category=\"$category\"}",
           "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"isardvdi-api\")\n  |> filter(fn: (r) => r[\"_field\"] == \"templates\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield()",
           "refId": "A"
         }
       ],
-      "title": "Templates Created",
+      "title": "Total Templates",
       "type": "stat"
     },
     {
@@ -649,7 +652,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "count(count_over_time(isardvdi_domain_vcpu_current[1m]))",
+          "expr": "count(isardvdi_domain_vcpu_current * on (desktop) label_replace(isardvdi_isardvdi_api_desktop_info * on (user) group_left label_replace(isardvdi_isardvdi_api_user_info{category=\"$category\"}, \"user\", \"$1\", \"id\", \"(.*)\"), \"desktop\", \"$1\", \"id\", \"(.*)\")) or vector(0)",
           "instant": true,
           "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\"\n  )\n  |> keep(columns: [\"_time\", \"id\"])\n  |> group()\n  |> unique(column: \"id\")\n  |> count(column: \"id\")\n  |> yield()",
           "range": false,
@@ -822,12 +825,12 @@
         "colorMode": "none",
         "graphMode": "none",
         "justifyMode": "auto",
-        "orientation": "horizontal",
+        "orientation": "auto",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "/^sum\\(isardvdi_domain_vcpu_current\\)$/",
+          "fields": "/^sum\\(isardvdi_domain_vcpu_current \\* on \\(desktop\\) label_replace\\(isardvdi_isardvdi_api_desktop_info \\* on \\(user\\) group_left label_replace\\(isardvdi_isardvdi_api_user_info\\{category=\"default\"\\}, \"user\", \"\\$1\", \"id\", \"\\(\\.\\*\\)\"\\), \"desktop\", \"\\$1\", \"id\", \"\\(\\.\\*\\)\"\\)\\)$/",
           "values": false
         },
         "text": {},
@@ -842,11 +845,12 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(isardvdi_domain_vcpu_current)",
+          "expr": "sum(isardvdi_domain_vcpu_current * on (desktop) label_replace(isardvdi_isardvdi_api_desktop_info * on (user) group_left label_replace(isardvdi_isardvdi_api_user_info{category=\"$category\"}, \"user\", \"$1\", \"id\", \"(.*)\"), \"desktop\", \"$1\", \"id\", \"(.*)\"))",
+          "format": "time_series",
           "hide": false,
-          "instant": true,
+          "instant": false,
           "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) => \n    r[\"_measurement\"] == \"domain\" and\n    r[\"hypervisor\"] == \"${hypers}\" and\n    r[\"_field\"] == \"vcpu_current\"\n  )\n  |> group(columns: [\"id\"])\n  |> sort(columns: [\"_time\"])\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> sum()",
-          "range": false,
+          "range": true,
           "refId": "A"
         }
       ],
@@ -1007,6 +1011,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
+      "description": "Escriptoris Arrancats per categoria",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1064,7 +1069,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Escritorios"
+              "options": "Escriptoris"
             },
             "properties": [
               {
@@ -1106,14 +1111,11 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "exemplar": false,
-          "expr": "count(count by (desktop)(isardvdi_domain_vcpu_current)) or vector(0)",
+          "expr": "count(isardvdi_domain_vcpu_current * on (desktop) label_replace(isardvdi_isardvdi_api_desktop_info * on (user) group_left label_replace(isardvdi_isardvdi_api_user_info{category=\"$category\"}, \"user\", \"$1\", \"id\", \"(.*)\"), \"desktop\", \"$1\", \"id\", \"(.*)\")) or vector(0)",
           "hide": false,
-          "instant": false,
-          "legendFormat": "Escritorios",
-          "query": " Desktops = from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\" \n  )\n  |> keep(columns: [\"_time\", \"id\"])\n  |> group()\n  |> aggregateWindow(every: 30s, column: \"id\", fn:(column, tables=<-) => tables \n    |> unique(column: column)\n    |> count(column:column),)\n  |> rename(columns: {id: \"_value\"})\n  |> map(fn: (r) => ({ Desktops:r._value, _time:r._time }))\n  |> yield()\nVisors = from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"visors_started\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n    |> map(fn: (r) => ({ Visors:r._value, _time:r._time  }))\n  |> yield(name: \"mean\")\n\n",
+          "legendFormat": "Escriptoris",
           "range": true,
-          "refId": "A"
+          "refId": "B"
         }
       ],
       "title": "Escriptoris Arrencats",
@@ -1124,6 +1126,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
+      "description": "Usuaris Totals i Tipus per categoria",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1240,9 +1243,9 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "editorMode": "code",
+          "editorMode": "builder",
           "exemplar": true,
-          "expr": "count(count by(id) (count_over_time(isardvdi_isardvdi_authentication_login_success[10y]))) or vector(0)",
+          "expr": "sum(count_values by(role) (\"tipo\", isardvdi_isardvdi_api_user_info{category=\"$category\"}))",
           "groupBy": [
             {
               "params": [
@@ -1301,7 +1304,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "editorMode": "code",
+          "editorMode": "builder",
           "expr": "count_values by(role) (\"categoria\", isardvdi_isardvdi_api_user_info{category=\"$category\"})",
           "hide": false,
           "legendFormat": "{{role}}",
@@ -1317,7 +1320,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
-      "description": "",
+      "description": "Usuaris dels últims mesos per categoria",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1422,9 +1425,9 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "editorMode": "code",
-          "exemplar": true,
-          "expr": "count(count by(id) (count_over_time(isardvdi_isardvdi_authentication_login_success[60d]))) or vector(0)",
+          "editorMode": "builder",
+          "exemplar": false,
+          "expr": "sum(count_values by(role) (\"tipo\", count_over_time(isardvdi_isardvdi_api_user_info{category=\"$category\"}[60d]))) or vector(0)",
           "groupBy": [
             {
               "params": [
@@ -1440,6 +1443,7 @@
             }
           ],
           "hide": false,
+          "instant": false,
           "interval": "",
           "legendFormat": "Usuaris dels últims mesos",
           "measurement": "docker",
@@ -1487,6 +1491,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
+      "description": "vCPU per categoria",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1583,7 +1588,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(isardvdi_domain_vcpu_current)",
+          "expr": "sum(isardvdi_domain_vcpu_current * on (desktop) label_replace(isardvdi_isardvdi_api_desktop_info * on (user) group_left label_replace(isardvdi_isardvdi_api_user_info{category=\"$category\"}, \"user\", \"$1\", \"id\", \"(.*)\"), \"desktop\", \"$1\", \"id\", \"(.*)\"))",
           "hide": false,
           "instant": false,
           "legendFormat": "vCPU",
@@ -1754,8 +1759,8 @@
       {
         "current": {
           "selected": false,
-          "text": "localhost",
-          "value": "localhost"
+          "text": "server",
+          "value": "server"
         },
         "datasource": {
           "type": "prometheus",
@@ -1779,7 +1784,7 @@
       },
       {
         "current": {
-          "selected": true,
+          "selected": false,
           "text": "default",
           "value": "default"
         },
@@ -1805,7 +1810,7 @@
       },
       {
         "current": {
-          "selected": true,
+          "selected": false,
           "text": "default-default",
           "value": "default-default"
         },

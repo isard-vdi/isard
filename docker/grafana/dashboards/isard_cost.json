@@ -25,7 +25,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 9,
+  "id": 4,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -280,7 +280,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "count(count by(id) (count_over_time(isardvdi_isardvdi_authentication_login_success[10y]))) or vector(0)",
+          "expr": "sum(count_values by(role) (\"tipo\", isardvdi_isardvdi_api_user_info))",
           "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: -100000000000000s)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"isardvdi-authentication\")\n  |> filter(fn: (r) => r[\"_field\"] == \"login\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> count(column: \"_value\")\n  |> unique(column: \"id\")\n  |> keep(columns: [\"_value\"])\n  |> count(column: \"_value\")\n  |> yield()",
           "refId": "A"
         }
@@ -701,6 +701,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
+      "description": "Usuaris Totals i Tipus per categoria",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -738,7 +739,6 @@
             }
           },
           "mappings": [],
-          "max": 2,
           "min": 0,
           "thresholds": {
             "mode": "absolute",
@@ -795,7 +795,7 @@
         "x": 0,
         "y": 20
       },
-      "id": 222,
+      "id": 232,
       "links": [],
       "options": {
         "legend": {
@@ -818,9 +818,9 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "editorMode": "code",
+          "editorMode": "builder",
           "exemplar": true,
-          "expr": "count(count by(id) (count_over_time(isardvdi_isardvdi_authentication_login_success[10y]))) or vector(0)",
+          "expr": "sum(count_values by(role) (\"tipo\", isardvdi_isardvdi_api_user_info))",
           "groupBy": [
             {
               "params": [
@@ -879,16 +879,15 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "editorMode": "code",
-          "exemplar": true,
-          "expr": "count_values by(role) (\"tipo\", isardvdi_isardvdi_api_user_info)",
+          "editorMode": "builder",
+          "expr": "count_values by(role) (\"categoria\", isardvdi_isardvdi_api_user_info)",
           "hide": false,
-          "legendFormat": "{{role}} ",
+          "legendFormat": "{{role}}",
           "range": true,
-          "refId": "B"
+          "refId": "C"
         }
       ],
-      "title": "Usuaris Totals i Online",
+      "title": "Usuaris Totals i Tipus",
       "type": "timeseries"
     }
   ],
