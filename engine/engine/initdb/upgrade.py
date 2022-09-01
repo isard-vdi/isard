@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 48
+release_version = 49
+# release 49: Replace dots in media ids
 # release 48: Replace bookings_priority table null value to false
 # release 47: resolve parent error in storage table for templates
 # release 46: Upgraded users secondary_groups field
@@ -1110,6 +1111,24 @@ class Upgrade(object):
                     or not r.table("users").get(media["user"]).run(self.conn)
                 ):
                     r.table(table).get(media["id"]).update(user).run(self.conn)
+
+        if version == 49:
+            medias = list(r.table("media").run(self.conn))
+            for media in medias:
+                if "." in media["id"]:
+                    r.table("domains").get_all(media["id"], index="media_ids").update(
+                        {
+                            "create_dict": {
+                                "hardware": {
+                                    "isos": [{"id": media["id"].replace(".", "_")}]
+                                }
+                            }
+                        }
+                    ).run(self.conn)
+                    old_id = media["id"]
+                    media["id"] = media["id"].replace(".", "_")
+                    r.table("media").insert(media).run(self.conn)
+                    r.table("media").get(old_id).delete().run(self.conn)
 
     """
     GROUPS TABLE UPGRADES
