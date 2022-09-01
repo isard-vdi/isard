@@ -28,39 +28,45 @@
             id="left-side"
             class="mt-5 mt-lg-0"
           >
-            <b-nav-item :to="{ name: 'desktops' }">
+            <b-nav-item
+              :to="{ name: 'desktops' }"
+              active-class="active"
+            >
               <font-awesome-icon
                 :icon="['fas', 'desktop']"
-                class="mr-1 text-white"
+                class="mr-1 d-lg-none d-xl-inline"
               />
               {{ $t("components.navbar.desktops") }}
             </b-nav-item>
             <b-nav-item
               v-if="getUser.role_id !== 'user'"
               :to="{ name: 'templates' }"
+              active-class="active"
             >
               <font-awesome-icon
                 :icon="['fas', 'cubes']"
-                class="mr-1 text-white"
+                class="mr-1 d-lg-none d-xl-inline"
               />
               {{ $t("components.navbar.templates") }}
             </b-nav-item>
             <b-nav-item
               v-if="getUser.role_id !== 'user'"
               :to="{ name: 'media' }"
+              active-class="active"
             >
               <font-awesome-icon
                 :icon="['fas', 'compact-disc']"
-                class="mr-1 text-white"
+                class="mr-1 d-lg-none d-xl-inline"
               />
               {{ $t("components.navbar.media") }}
             </b-nav-item>
             <b-nav-item
               v-if="getUser.role_id !== 'user'"
               :to="{ name: 'deployments' }"
+              active-class="active"
             >
               <b-iconstack
-                class="pt-1 text-white"
+                class="pt-1 d-lg-none d-xl-inline"
               >
                 <b-icon
                   stacked
@@ -75,13 +81,25 @@
               </b-iconstack>
               {{ $t("components.navbar.deployments") }}
             </b-nav-item>
+            <b-nav-item
+              v-if="getConfig.showBookingsButton && getUser.role_id !== 'admin'"
+              active-class="active"
+              @click="menuGoToBookingSummary()"
+            >
+              <font-awesome-icon
+                :icon="['fas', 'calendar']"
+                class="mr-1 d-lg-none d-xl-inline"
+              />
+              {{ $t('components.navbar.bookings.text') }}
+            </b-nav-item>
             <b-nav-item-dropdown
-              v-if="getConfig.showBookingsButton"
+              v-if="getConfig.showBookingsButton && getUser.role_id === 'admin'"
+              active-class="active"
             >
               <template #button-content>
                 <font-awesome-icon
                   :icon="['fas', 'calendar']"
-                  class="mr-1 text-white"
+                  class="mr-1 d-lg-none d-xl-inline"
                 />
                 {{ $t('components.navbar.bookings.text') }}
               </template>
@@ -89,7 +107,6 @@
                 {{ $t("components.navbar.bookings.summary") }}
               </b-dropdown-item>
               <b-dropdown-item
-                v-if="getUser.role_id === 'admin'"
                 @click="menuGoToPlanning()"
               >
                 {{ $t("components.navbar.bookings.planning") }}
@@ -101,7 +118,7 @@
             >
               <font-awesome-icon
                 :icon="['fas', 'user-cog']"
-                class="mr-1 text-white"
+                class="mr-1 d-lg-none d-xl-inline"
               />
               {{ $t("components.navbar.admin") }}
             </b-nav-item>
@@ -124,7 +141,7 @@
               >
                 <b-icon
                   icon="person-fill"
-                  class="mr-2"
+                  class="mr-2 d-lg-none d-xl-inline"
                   scale="0.75"
                 />
                 {{ $t("components.navbar.profile") }}
@@ -135,7 +152,7 @@
               >
                 <b-icon
                   icon="journal-text"
-                  class="mr-2"
+                  class="mr-2 d-lg-none d-xl-inline"
                   scale="0.75"
                 />
                 {{ $t("components.navbar.help") }}
@@ -146,7 +163,7 @@
               >
                 <b-icon
                   icon="download"
-                  class="mr-2"
+                  class="mr-2 d-lg-none d-xl-inline"
                   scale="0.75"
                 />
                 {{ $t("components.navbar.vpn.download") }}
@@ -157,7 +174,7 @@
               >
                 <b-icon
                   icon="box-arrow-in-right"
-                  class="mr-2"
+                  class="mr-2 d-lg-none d-xl-inline"
                   scale="0.75"
                 />
                 {{ $t("components.navbar.logout") }}

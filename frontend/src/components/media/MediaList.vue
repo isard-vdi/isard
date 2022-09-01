@@ -122,7 +122,7 @@
               >
                 <div
                   v-if="data.item.status !== 'Downloading'"
-                  class="d-flex"
+                  class="d-flex align-items-center"
                 >
                   <b-button
                     v-if="data.item.status !== 'DownloadFailed' && data.item.kind === 'iso'"
@@ -146,30 +146,28 @@
                       scale="0.75"
                     />
                   </b-button>
-                  <span v-if="!shared">
-                    <b-button
-                      v-if="data.item.status !== 'DownloadFailed' && data.item.editable"
-                      class="rounded-circle px-2 mr-2 btn-dark-blue"
-                      :title="$t('views.media.buttons.allowed.title')"
-                      @click="showAllowedModal(data.item)"
-                    >
-                      <b-icon
-                        icon="people-fill"
-                        scale="0.75"
-                      />
-                    </b-button>
-                    <b-button
-                      v-if="data.item.editable"
-                      class="rounded-circle px-2 mr-2 btn-red"
-                      :title="$t('views.media.buttons.delete.title')"
-                      @click="showDeleteModal(data.item)"
-                    >
-                      <b-icon
-                        icon="trash-fill"
-                        scale="0.75"
-                      />
-                    </b-button>
-                  </span>
+                  <b-button
+                    v-if="!shared && data.item.status !== 'DownloadFailed' && data.item.editable"
+                    class="rounded-circle px-2 mr-2 btn-dark-blue"
+                    :title="$t('views.media.buttons.allowed.title')"
+                    @click="showAllowedModal(data.item)"
+                  >
+                    <b-icon
+                      icon="people-fill"
+                      scale="0.75"
+                    />
+                  </b-button>
+                  <b-button
+                    v-if="!shared && data.item.editable"
+                    class="rounded-circle px-2 mr-2 btn-red"
+                    :title="$t('views.media.buttons.delete.title')"
+                    @click="showDeleteModal(data.item)"
+                  >
+                    <b-icon
+                      icon="trash-fill"
+                      scale="0.75"
+                    />
+                  </b-button>
                 </div>
                 <b-button
                   v-else

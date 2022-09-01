@@ -23,7 +23,7 @@
         <fab-item
           v-if="getUser.role_id != 'user'"
           v-b-tooltip="{ title: `${$t('components.desktop-cards.actions.direct-link')}`,
-                         placement: 'top',
+                         placement: 'right',
                          customClass: 'isard-tooltip',
                          trigger: 'hover' }"
           :idx="3"
@@ -34,7 +34,7 @@
         <fab-item
           v-if="getUser.role_id != 'user' && desktop.type === 'persistent'"
           v-b-tooltip="{ title: `${$t('components.desktop-cards.actions.template')}`,
-                         placement: 'top',
+                         placement: 'right',
                          customClass: 'isard-tooltip',
                          trigger: 'hover' }"
           :idx="2"
@@ -49,7 +49,7 @@
         <fab-item
           v-if="desktop.type === 'persistent'"
           v-b-tooltip="{ title: `${$t('components.desktop-cards.actions.delete')}`,
-                         placement: 'top',
+                         placement: 'right',
                          customClass: 'isard-tooltip',
                          trigger: 'hover' }"
           :idx="1"
@@ -59,7 +59,7 @@
         />
         <fab-item
           v-b-tooltip="{ title: `${$t('components.desktop-cards.actions.edit')}`,
-                         placement: 'top',
+                         placement: 'right',
                          customClass: 'isard-tooltip',
                          trigger: 'hover' }"
           :idx="0"
