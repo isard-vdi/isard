@@ -426,14 +426,7 @@ $(document).ready(function() {
                     this.reset()
                 })
                 $('.modal').modal('hide')
-                notice.update({
-                    text: 'Media deleted successfully',
-                    hide: true,
-                    delay: 2000,
-                    icon: '',
-                    opacity: 1,
-                    type: 'success'
-                })
+                notice.remove()
             }
         })
     });  
@@ -448,20 +441,42 @@ $(document).ready(function() {
                 data=replaceAlloweds_arrays('#modalAddMediaForm #alloweds-add',data)
                 data["detail"] = "Downloaded from website"
                 data["hypervisors_pools"] = [data["hypervisors_pools"]]
+                var notice = new PNotify({
+                    text: 'Downloading...',
+                    hide: true,
+                    opacity: 1,
+                    icon: 'fa fa-spinner fa-pulse'
+                })
                 $.ajax({
                     type: "POST",
                     url:"/api/v3/media",
                     data: JSON.stringify(data),
                     contentType: "application/json",
+                    error: function (data) {
+                        notice.update({
+                            title: "ERROR",
+                            text: "Couldn't add media from URL",
+                            type: 'error',
+                            hide: true,
+                            icon: 'fa fa-warning',
+                            delay: 15000,
+                            opacity: 1
+                        });
+                    },
                     success: function(data)
                     {
                         $('form').each(function() { this.reset() });
                         $('.modal').modal('hide');
-                    },
-                    error: function (jqXHR, exception) {
-                        processError(jqXHR,form)
+                        notice.update({
+                            title: "New media",
+                            text: 'Media added successfully',
+                            hide: true,
+                            delay: 2000,
+                            icon: 'fa fa-' + data.icon,
+                            opacity: 1,
+                            type: 'success'
+                        })
                     }
-
                 });
             }
         });

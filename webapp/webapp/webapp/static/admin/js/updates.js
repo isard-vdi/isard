@@ -410,10 +410,28 @@ $(document).ready(function() {
 
     $('.update-all').on( 'click', function () {
         id=$(this).attr('id')
-        $.ajax({
-            type: "POST",
-            url:"/api/v3/admin/downloads/download/" + id,
-            success: function(data){table[id].ajax.reload();}
+        new PNotify({
+            title: 'Warning!',
+            text: 'You are about to download all items in list!',
+            hide: false,
+            opacity: 0.9,
+            confirm: {
+                confirm: true
+            },
+            buttons: {
+                closer: false,
+                sticker: false
+            },
+            history: {
+                history: false
+            },
+            addclass: 'pnotify-center'
+        }).get().on('pnotify.confirm', function(){
+            $.ajax({
+                type: "POST",
+                url:"/api/v3/admin/downloads/download/" + id,
+                success: function(data){table[id].ajax.reload();}
+            }).on('pnotify.cancel', function() {});
         })
     })
 
