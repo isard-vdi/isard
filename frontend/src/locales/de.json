@@ -204,7 +204,16 @@
             },
             "help": "Hilfe",
             "deployments": "Verteilungen",
-            "desktops": "Desktops"
+            "desktops": "Desktops",
+            "bookings": {
+                "text": "Buchungen",
+                "summary": "Zusammenfassung",
+                "planning": "Planung"
+            },
+            "logout": "Ausloggen",
+            "profile": "Profil",
+            "media": "Medien",
+            "templates": "Vorlagen"
         },
         "not-found": {
             "title": "Die angeforderte Adresse wurde nicht gefunden",
@@ -271,6 +280,9 @@
             "upload-file": "Datei hochladen",
             "cancel": "Abbrechen",
             "select": "Auswählen"
+        },
+        "select-search": {
+            "empty": "Keine Optionen verfügbar"
         }
     },
     "forms": {
@@ -308,10 +320,69 @@
         "new-deployment": {
             "desktop": {
                 "name": "Name des Desktops",
-                "description": "Beschreibung des Desktops"
+                "description": "Beschreibung des Desktops",
+                "title": "Neue Desktop-Daten:",
+                "template": "Vorlage"
+            },
+            "not-visible": "Nicht sichtbar für Nutzer",
+            "section-title-template": "Wähle eine Vorlage aus:",
+            "filter": "Filter",
+            "template-table-column-headers": {
+                "selected": "Ausgewählt",
+                "category": "Kategorie",
+                "group": "Gruppe",
+                "user": "Nutzer",
+                "image": "Bild",
+                "name": "Name",
+                "description": "Beschreibung"
+            },
+            "visible": "Sichtbar für Nutzer",
+            "filter-placeholder": "Zum Suchen Text eintippen"
+        },
+        "filter-placeholder": "Tippe zum suchen",
+        "allowed": {
+            "title": "Erlaubt",
+            "modal": {
+                "title": "Aktualisierung erlaubt",
+                "buttons": {
+                    "update": "Aktualisierung"
+                }
+            },
+            "groups": "Gruppen:",
+            "users": "Benutzer:",
+            "placeholder": "Gib zum Suchen mindestens 2 Buchstaben ein."
+        },
+        "new-template": {
+            "title": "Neue Vorlage erstellen",
+            "name": "Name",
+            "description": "Beschreibung",
+            "enabled": "Aktiviert",
+            "disabled": "Deaktiviert"
+        },
+        "password": {
+            "modal": {
+                "title": "Passwort ändern",
+                "password": {
+                    "label": "Passwort",
+                    "placeholder": "Passwort"
+                },
+                "buttons": {
+                    "update": "Aktualisieren"
+                },
+                "confirmation-password": {
+                    "label": "Passwortbestätigung",
+                    "placeholder": "Bestätige das Passwort"
+                }
             }
         },
-        "filter-placeholder": "Tippe zum suchen"
+        "new-media": {
+            "title": "Neues Medium erstellen:",
+            "url": "URL",
+            "type": "Typ",
+            "name": "Medienname",
+            "description": "Beschreibung",
+            "select-type": "Bitte eine Option auswählen"
+        }
     },
     "errors": {
         "create_desktop_user_quota": "Benutzerquote für die Erstellung von Arbeitoberflächen überschritten",
