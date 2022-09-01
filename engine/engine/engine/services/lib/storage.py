@@ -89,6 +89,9 @@ def update_qemu_img_info(
         )
     else:
         storage_id = force_storage_id
+    if storage_id is None:
+        print("storage_id is None")
+        return False
     d_storage = get_dict_from_item_in_table("storage", storage_id)
     if d_storage:
         filename = _get_filename(d_storage)
