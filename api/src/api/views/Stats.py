@@ -6,6 +6,7 @@ from api import app
 
 from ..libv2.api_stats import (
     CategoriesKindState,
+    CategoriesLimitsHardware,
     Desktops,
     GroupByCategories,
     KindState,
@@ -66,6 +67,16 @@ def stats_categories_kind_state(payload, kind, state=False):
         CategoriesKindState(kind, state)
     return (
         json.dumps({"category": CategoriesKindState(kind, state=False)}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/stats/categories/limits", methods=["GET"])
+@is_admin
+def stats_categories_limits(payload):
+    return (
+        json.dumps({"category": CategoriesLimitsHardware()}),
         200,
         {"Content-Type": "application/json"},
     )
