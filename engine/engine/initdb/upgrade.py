@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 49
+release_version = 50
+# release 50: Added secondary indices for domains and users tables
 # release 49: Replace dots in media ids
 # release 48: Replace bookings_priority table null value to false
 # release 47: resolve parent error in storage table for templates
@@ -1005,6 +1006,29 @@ class Upgrade(object):
             except Exception as e:
                 print(e)
 
+        if version == 50:
+            try:
+                r.table(table).index_create(
+                    "kind_status", [r.row["kind"], r.row["status"]]
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).index_create(
+                    "kind_category", [r.row["kind"], r.row["category"]]
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).index_create(
+                    "kind_status_category",
+                    [r.row["kind"], r.row["status"], r.row["category"]],
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
         return True
 
     """
@@ -1400,6 +1424,12 @@ class Upgrade(object):
             r.table(table).filter(~r.row.has_fields("secondary_groups")).update(
                 {"secondary_groups": []}
             ).run(self.conn)
+
+        if version == 50:
+            try:
+                r.table(table).index_create("active").run(self.conn)
+            except Exception as e:
+                print(e)
 
         return True
 
