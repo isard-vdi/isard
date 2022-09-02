@@ -31,7 +31,9 @@ class IsardValidator(Validator):
         )
 
     def _normalize_default_setter_genmediaid(self, document):
-        return _parse_string("_" + document["user"] + "-" + document["name"])
+        return _parse_string("_" + document["user"] + "-" + document["name"]).replace(
+            ".", "_"
+        )
 
     def _normalize_default_setter_genuserid(self, document):
         return _parse_string(
