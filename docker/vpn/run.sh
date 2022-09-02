@@ -1,4 +1,5 @@
 # Start conntrackd
+echo "1" > /host-proc/sys/net/netfilter/nf_conntrack_acct
 conntrackd &
 
 function extract_conntrack () {
