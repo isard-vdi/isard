@@ -116,7 +116,7 @@ $(document).ready(function() {
     });
 
 	$('#btn-download-bulkusers').on('click', function () {
-        var viewerFile = new Blob(["username,name,email,password\njdoe,John Doe,jdoe@isardvdi.com,sup3rs3cr3t\nauser,Another User,auser@domain.com,a1sera1ser"], {type: "text/csv"});
+        var viewerFile = new Blob(["username,name,email,password,group,category,role\njdoe,John Doe,jdoe@isardvdi.com,sup3rs3cr3t,default,default,advanced\nauser,Another User,auser@domain.com,a1sera1ser,anothergroup,anothercategory,user"], {type: "text/csv"});
         var a = document.createElement('a');
             a.download = 'bulk-users-template.csv';
             a.href = window.URL.createObjectURL(viewerFile);
@@ -157,6 +157,7 @@ $(document).ready(function() {
             delete data['unlimited'];
             delete data['id'];
             data['provider']='local';
+            data['bulk']=false;
             data['username']=$('#modalAddUserForm #id').val();
             data['uid'] = data['username'];
             var notice = new PNotify({
@@ -362,6 +363,7 @@ $(document).ready(function() {
             
             users.forEach(function (value, index) {
                 data['uid'] = value['username'];
+                data['bulk'] = true
                 $.ajax({
                     type: "POST",
                     url:"/api/v3/admin/user" ,

@@ -595,6 +595,20 @@ class ApiUsers:
         else:
             return category
 
+    def CategoryGetByName(self, category_name):
+        with app.app_context():
+            category = list(
+                r.table("categories").filter({"name": category_name}).run(db.conn)
+            )
+        if not category:
+            raise Error(
+                "not_found",
+                "Category not found category_name:" + category_name,
+                traceback.format_exc(),
+            )
+        else:
+            return category
+
     ### USER Schema
 
     def CategoriesGet(self):
@@ -700,6 +714,22 @@ class ApiUsers:
             raise Error(
                 "not_found",
                 "Not found group_id " + group_id,
+                traceback.format_exc(),
+            )
+        return group
+
+    def GroupGetByNameCategory(self, group_name, category_id):
+        with app.app_context():
+            group = list(
+                r.table("groups")
+                .get_all(category_id, index="parent_category")
+                .filter({"name": group_name})
+                .run(db.conn)
+            )
+        if not group:
+            raise Error(
+                "not_found",
+                "Not found group_id " + group_name,
                 traceback.format_exc(),
             )
         return group
