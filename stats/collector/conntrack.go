@@ -78,8 +78,8 @@ func (c *Conntrack) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	for _, r := range rdp {
-		ch <- prometheus.MustNewConstMetric(c.descRDPSent, prometheus.GaugeValue, float64(r.Sent), r.Host, strconv.Itoa(r.Port), r.Mac)
-		ch <- prometheus.MustNewConstMetric(c.descRDPRecv, prometheus.GaugeValue, float64(r.Recv), r.Host, strconv.Itoa(r.Port), r.Mac)
+		ch <- prometheus.MustNewConstMetric(c.descRDPSent, prometheus.GaugeValue, float64(r.Sent), r.Host, r.Mac, strconv.Itoa(r.Port))
+		ch <- prometheus.MustNewConstMetric(c.descRDPRecv, prometheus.GaugeValue, float64(r.Recv), r.Host, r.Mac, strconv.Itoa(r.Port))
 	}
 
 	duration := time.Since(start)

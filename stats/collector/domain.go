@@ -11,10 +11,12 @@ import (
 
 	"gitlab.com/isard/isardvdi/stats/cfg"
 
+	"github.com/patrickmn/go-cache"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog"
 	"golang.org/x/crypto/ssh"
 	"libvirt.org/go/libvirt"
+	"libvirt.org/go/libvirtxml"
 )
 
 const viewersBasePort = 5900
@@ -26,6 +28,7 @@ type Domain struct {
 	libvirtConn *libvirt.Connect
 	sshMux      *sync.Mutex
 	sshConn     *ssh.Client
+	cache       *cache.Cache
 
 	descScrapeDuration        *prometheus.Desc
 	descScrapeSuccess         *prometheus.Desc
@@ -86,6 +89,7 @@ func NewDomain(libvirtMux *sync.Mutex, sshMux *sync.Mutex, cfg cfg.Cfg, log *zer
 		libvirtConn: libvirtConn,
 		sshMux:      sshMux,
 		sshConn:     sshConn,
+		cache:       cache.New(6*time.Hour, time.Hour),
 		Log:         log,
 		hyp:         cfg.Domain,
 	}
@@ -293,7 +297,7 @@ func NewDomain(libvirtMux *sync.Mutex, sshMux *sync.Mutex, cfg cfg.Cfg, log *zer
 	d.descNetRxBytes = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "net_rx_bytes"),
 		"Network Rx bytes",
-		[]string{"desktop", "net"},
+		[]string{"desktop", "net", "mac"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -301,7 +305,7 @@ func NewDomain(libvirtMux *sync.Mutex, sshMux *sync.Mutex, cfg cfg.Cfg, log *zer
 	d.descNetRxPkts = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "net_rx_pkts"),
 		"Network Rx packets",
-		[]string{"desktop", "net"},
+		[]string{"desktop", "net", "mac"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -309,7 +313,7 @@ func NewDomain(libvirtMux *sync.Mutex, sshMux *sync.Mutex, cfg cfg.Cfg, log *zer
 	d.descNetRxErrs = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "net_rx_errors"),
 		"Network Rx errors",
-		[]string{"desktop", "net"},
+		[]string{"desktop", "net", "mac"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -317,7 +321,7 @@ func NewDomain(libvirtMux *sync.Mutex, sshMux *sync.Mutex, cfg cfg.Cfg, log *zer
 	d.descNetRxDrop = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "net_rx_drop"),
 		"Network Rx drop",
-		[]string{"desktop", "net"},
+		[]string{"desktop", "net", "mac"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -325,7 +329,7 @@ func NewDomain(libvirtMux *sync.Mutex, sshMux *sync.Mutex, cfg cfg.Cfg, log *zer
 	d.descNetTxBytes = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "net_tx_bytes"),
 		"Network Tx bytes",
-		[]string{"desktop", "net"},
+		[]string{"desktop", "net", "mac"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -333,7 +337,7 @@ func NewDomain(libvirtMux *sync.Mutex, sshMux *sync.Mutex, cfg cfg.Cfg, log *zer
 	d.descNetTxPkts = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "net_tx_pkts"),
 		"Network Tx packets",
-		[]string{"desktop", "net"},
+		[]string{"desktop", "net", "mac"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -341,7 +345,7 @@ func NewDomain(libvirtMux *sync.Mutex, sshMux *sync.Mutex, cfg cfg.Cfg, log *zer
 	d.descNetTxErrs = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "net_tx_errors"),
 		"Network Tx errors",
-		[]string{"desktop", "net"},
+		[]string{"desktop", "net", "mac"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -349,7 +353,7 @@ func NewDomain(libvirtMux *sync.Mutex, sshMux *sync.Mutex, cfg cfg.Cfg, log *zer
 	d.descNetTxDrop = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "net_tx_drop"),
 		"Network Rx drop",
-		[]string{"desktop", "net"},
+		[]string{"desktop", "net", "mac"},
 		prometheus.Labels{
 			"hypervisor": cfg.Domain,
 		},
@@ -560,6 +564,11 @@ func (d *Domain) Describe(ch chan<- *prometheus.Desc) {
 	ch <- d.descPortVNCWebsocket
 }
 
+type cacheDomain struct {
+	XML    *libvirtxml.Domain
+	RawXML string
+}
+
 func (d *Domain) Collect(ch chan<- prometheus.Metric) {
 	start := time.Now()
 
@@ -575,7 +584,31 @@ func (d *Domain) Collect(ch chan<- prometheus.Metric) {
 		id, err := s.Domain.GetName()
 		if err != nil {
 			d.Log.Info().Str("collector", d.String()).Err(err).Msg("get domain name")
+			continue
 		}
+
+		cacheDom, ok := d.cache.Get(id)
+		var domain cacheDomain
+		if !ok {
+			raw, err := s.Domain.GetXMLDesc(0)
+			if err != nil {
+				d.Log.Info().Str("collector", d.String()).Str("id", id).Err(err).Msg("get domain XML")
+				continue
+			}
+
+			xml := &libvirtxml.Domain{}
+			if err := xml.Unmarshal(raw); err != nil {
+				d.Log.Info().Str("collector", d.String()).Str("id", id).Err(err).Msg("unmarshal domain XML")
+				continue
+			}
+
+			domain = cacheDomain{XML: xml, RawXML: raw}
+
+			d.cache.Add(id, domain, cache.DefaultExpiration)
+		} else {
+			domain = cacheDom.(cacheDomain)
+		}
+
 		d.libvirtMux.Unlock()
 
 		defer func() {
@@ -627,14 +660,21 @@ func (d *Domain) Collect(ch chan<- prometheus.Metric) {
 
 		if s.Net != nil {
 			for _, n := range s.Net {
-				ch <- prometheus.MustNewConstMetric(d.descNetRxBytes, prometheus.GaugeValue, float64(n.RxBytes), id, n.Name)
-				ch <- prometheus.MustNewConstMetric(d.descNetRxPkts, prometheus.GaugeValue, float64(n.RxPkts), id, n.Name)
-				ch <- prometheus.MustNewConstMetric(d.descNetRxErrs, prometheus.CounterValue, float64(n.RxErrs), id, n.Name)
-				ch <- prometheus.MustNewConstMetric(d.descNetRxDrop, prometheus.GaugeValue, float64(n.RxDrop), id, n.Name)
-				ch <- prometheus.MustNewConstMetric(d.descNetTxBytes, prometheus.GaugeValue, float64(n.TxBytes), id, n.Name)
-				ch <- prometheus.MustNewConstMetric(d.descNetTxPkts, prometheus.GaugeValue, float64(n.TxPkts), id, n.Name)
-				ch <- prometheus.MustNewConstMetric(d.descNetTxErrs, prometheus.CounterValue, float64(n.TxErrs), id, n.Name)
-				ch <- prometheus.MustNewConstMetric(d.descNetTxDrop, prometheus.GaugeValue, float64(n.TxDrop), id, n.Name)
+				mac := ""
+				for _, i := range domain.XML.Devices.Interfaces {
+					if i.Target.Dev == n.Name {
+						mac = i.MAC.Address
+					}
+				}
+
+				ch <- prometheus.MustNewConstMetric(d.descNetRxBytes, prometheus.GaugeValue, float64(n.RxBytes), id, n.Name, mac)
+				ch <- prometheus.MustNewConstMetric(d.descNetRxPkts, prometheus.GaugeValue, float64(n.RxPkts), id, n.Name, mac)
+				ch <- prometheus.MustNewConstMetric(d.descNetRxErrs, prometheus.CounterValue, float64(n.RxErrs), id, n.Name, mac)
+				ch <- prometheus.MustNewConstMetric(d.descNetRxDrop, prometheus.GaugeValue, float64(n.RxDrop), id, n.Name, mac)
+				ch <- prometheus.MustNewConstMetric(d.descNetTxBytes, prometheus.GaugeValue, float64(n.TxBytes), id, n.Name, mac)
+				ch <- prometheus.MustNewConstMetric(d.descNetTxPkts, prometheus.GaugeValue, float64(n.TxPkts), id, n.Name, mac)
+				ch <- prometheus.MustNewConstMetric(d.descNetTxErrs, prometheus.CounterValue, float64(n.TxErrs), id, n.Name, mac)
+				ch <- prometheus.MustNewConstMetric(d.descNetTxDrop, prometheus.GaugeValue, float64(n.TxDrop), id, n.Name, mac)
 			}
 		}
 

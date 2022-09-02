@@ -22,6 +22,7 @@ require (
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
 	gopkg.in/rethinkdb/rethinkdb-go.v6 v6.2.1
 	libvirt.org/go/libvirt v1.8002.0
+	libvirt.org/go/libvirtxml v1.8006.0
 )
 
 // https://github.com/grafana/loki/issues/2826
