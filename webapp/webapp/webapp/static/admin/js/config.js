@@ -108,7 +108,7 @@ $(document).ready(function() {
         if($(this).attr('id')=='btn-backups-restore'){
 				new PNotify({
 						title: 'Restore backup',
-							text: "Do you really want to restore backup from file "+data.filename+"?",
+							text: "Do you really want to restore backup from file "+data.filename+"? NOTE: After restoring isard-engine container MUST be restarted to apply db version upgrade!",
 							hide: false,
 							opacity: 0.9,
 							confirm: {confirm: true},
