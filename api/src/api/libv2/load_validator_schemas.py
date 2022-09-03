@@ -4,6 +4,8 @@
 # License: AGPLv3
 
 import os
+from base64 import b64encode
+from secrets import token_bytes
 
 import yaml
 from cerberus import Validator, schema_registry
@@ -79,6 +81,9 @@ class IsardValidator(Validator):
             )
         elif not 1 <= int(range[0]) <= 4094 or not 1 <= int(range[1]) <= 4094:
             self._error(field, "Range limits should be >= 1 and <= 4094")
+
+    def _normalize_default_setter_gensecret(self, document):
+        return b64encode(token_bytes(32)).decode()
 
 
 def load_validators(purge_unknown=True):

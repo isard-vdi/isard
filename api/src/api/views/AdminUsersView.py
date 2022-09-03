@@ -498,35 +498,23 @@ def api_v3_admin_user_vpn(payload, user_id, kind, os=False):
 @app.route("/api/v3/admin/secret", methods=["POST"])
 @is_admin
 def api_v3_admin_secret(payload):
-    try:
-        # Required
-        kid = request.form.get("kid", type=str)
-        description = request.form.get("description", "")
-        role_id = request.form.get("role_id", type=str)
-        category_id = request.form.get("category_id", type=str)
-        domain = request.form.get("domain", type=str)
-    except:
-        raise Error(
-            "bad_request",
-            "Admin secret invalid body data",
-            traceback.format_exc(),
-        )
+    data = request.get_json()
+    data = _validate_item("secrets", data)
+    itemExists("categories", data["category_id"])
+    itemExists("roles", data["role_id"])
 
-    if role_id == None or domain == None or kid == None or category_id == None:
-        raise Error(
-            "bad_request",
-            "Admin secret missing body data",
-            traceback.format_exc(),
-        )
-
-    secret = users.Secret(kid, description, role_id, category_id, domain)
-    return json.dumps({"secret": secret}), 200, {"Content-Type": "application/json"}
+    admin_table_insert("secrets", data)
+    return (
+        json.dumps({"secret": data["secret"]}),
+        200,
+        {"Content-Type": "application/json"},
+    )
 
 
 @app.route("/api/v3/admin/secret/<kid>", methods=["DELETE"])
 @is_admin
 def api_v3_admin_secret_delete(payload, kid):
-    users.SecretDelete(kid)
+    admin_table_delete("secrets", kid)
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 

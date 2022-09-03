@@ -831,29 +831,6 @@ class ApiUsers:
 
         change_group_items_owner("media", group_id)
 
-    def Secret(self, kid, description, role_id, category_id, domain):
-        with app.app_context():
-            ## TODO: Check if exists, check that role is correct and category exists
-            secret = secrets.token_urlsafe(32)
-            r.table("secrets").insert(
-                {
-                    "id": kid,
-                    "secret": secret,
-                    "description": description,
-                    "role_id": role_id,
-                    "category_id": category_id,
-                    "domain": domain,
-                }
-            ).run(db.conn)
-        return secret
-
-    def SecretDelete(self, kid):
-        with app.app_context():
-            ## TODO: Check if exists, check that role is correct and category exists
-            secret = secrets.token_urlsafe(32)
-            r.table("secrets").get(kid).delete().run(db.conn)
-        return True
-
     def EnrollmentAction(self, data):
         if data["action"] == "disable":
             with app.app_context():
