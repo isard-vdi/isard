@@ -32,6 +32,7 @@ from engine.services.db import (
     update_domain_viewer_started_values,
     update_domains_started_in_hyp_to_unknown,
     update_hyp_status,
+    update_last_hyp_id,
     update_table_field,
     update_vgpu_uuid_domain_action,
 )
@@ -243,6 +244,9 @@ class HypWorkerThread(threading.Thread):
                                             action["id_domain"]
                                         )
                                     )
+                                update_last_hyp_id(
+                                    action["id_domain"], last_hyp_id=hyp_id
+                                )
 
                                 domain_active = False
 

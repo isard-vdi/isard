@@ -11,6 +11,7 @@ from engine.services.threads.threads import (
     TIMEOUT_QUEUES,
     launch_action_create_template_disk,
     launch_action_disk,
+    launch_action_update_size_storage_from_domain,
     launch_delete_disk_action,
 )
 
@@ -77,6 +78,11 @@ class DiskOperationsThread(threading.Thread):
 
                 elif action["type"] in ["create_template_disk_from_domain"]:
                     launch_action_create_template_disk(
+                        action, self.hostname, self.user, self.port
+                    )
+
+                elif action["type"] in ["update_storage_size"]:
+                    launch_action_update_size_storage_from_domain(
                         action, self.hostname, self.user, self.port
                     )
 

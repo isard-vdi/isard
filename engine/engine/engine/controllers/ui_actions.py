@@ -545,6 +545,12 @@ class UiActions(object):
             log.error("Exception message: {}".format(e))
             return False
 
+    def update_info_after_stopped_domain(self, domain_id):
+        hyp_to_disk_info = get_table_field("domains", domain_id, "last_hyp_id")
+        action = {"domain_id": domain_id, "type": "update_storage_size"}
+        if hyp_to_disk_info in self.manager.q_disk_operations.keys():
+            self.manager.q_disk_operations[hyp_to_disk_info].put(action)
+
     def create_template_disks_from_domain(self, id_domain):
         dict_domain = get_domain(id_domain)
 
