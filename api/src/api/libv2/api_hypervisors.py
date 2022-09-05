@@ -524,7 +524,7 @@ class ApiHypervisors:
     def assign_gpus(self):
         with app.app_context():
             hypers = [
-                h["hostname"]
+                h["id"]
                 for h in r.table("hypervisors")
                 .filter({"status": "Online"})
                 .run(db.conn)
@@ -536,7 +536,9 @@ class ApiHypervisors:
                 .run(db.conn)
             )
             physical_devices = [pd for pd in physical_devices if pd["hyp_id"] in hypers]
-            log.debug(physical_devices)
+            log.debug(
+                "Matching hypers with cards found by engine: " + str(physical_devices)
+            )
             for pd in physical_devices:
                 gpus = list(
                     r.table("gpus")
