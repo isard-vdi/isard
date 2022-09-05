@@ -149,6 +149,7 @@ $(document).ready(function() {
             { "data": "info.qemu_version" , "width": "10px", "defaultContent": 'NaN'},
             { "data": "info.libvirt_version" , "width": "10px", "defaultContent": 'NaN' },
             { "data": "info.virtualization_capabilities" , "width": "10px", "defaultContent": 'NaN' },
+            { "data": "gpus" , "width": "10px", "defaultContent": 'NaN' },
             { "data": "info.memory_in_MB" , "width": "10px", "defaultContent": 'NaN' },
             { "data": "info.virtualization_capabilities" , "width": "10px", "defaultContent": 'NaN' },            
             { "data": "capabilities.disk_operations" , "width": "10px" },
@@ -180,21 +181,17 @@ $(document).ready(function() {
                                 return full.viewer.proxy_video + ' ('+full.viewer.spice_ext_port + ',' + full.viewer.html5_ext_port + ')';
                             }},
                             {
-                            "targets": 12,
+                            "targets": 13,
                             "render": function ( data, type, full, meta ) {
                                 return Math.round(data / 1024 * 10) / 10 + 'GB';
                             }},
                             {
-                            "targets": 13,
+                            "targets": 14,
                             "render": function ( data, type, full, meta ) {
                                 if (full.info) {
                                     return full.info.cpu_cores*full.info.threads_x_core;
                                 }
                             }},
-                            {
-                            "targets": 14,
-                            "render": renderBoolean
-                            },
                             {
                             "targets": 15,
                             "render": renderBoolean
@@ -205,6 +202,10 @@ $(document).ready(function() {
                             },
                             {
                             "targets": 17,
+                            "render": renderBoolean
+                            },
+                            {
+                            "targets": 18,
                             "render": function ( data, type, full, meta ) {
                               return moment.unix(full.status_time).fromNow();
                             }}
