@@ -163,7 +163,6 @@ def api_v3_desktop_from_media(payload):
     data["user_id"] = payload["user_id"]
     data = _validate_item("desktop_from_media", data)
     quotas.DesktopCreate(payload["user_id"])
-
     desktop_id = desktops.NewFromMedia(payload, data)
     return json.dumps({"id": desktop_id}), 200, {"Content-Type": "application/json"}
 

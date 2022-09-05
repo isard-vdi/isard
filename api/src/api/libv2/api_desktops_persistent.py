@@ -367,9 +367,10 @@ class ApiDesktopsPersistent:
                     "not_found", "Not found interface id", traceback.format_exc()
                 )
 
-        if data["hardware"]["disk_size"]:
+        if data["hardware"].get("disk_size"):
             disks = [
                 {
+                    "bus": data["hardware"]["disk_bus"],
                     "extension": "qcow2",
                     "size": str(data["hardware"]["disk_size"]) + "G",
                 }
@@ -414,10 +415,10 @@ class ApiDesktopsPersistent:
                 "create_from_virt_install_xml": xml["id"],
                 "hardware": {
                     "disks": disks,
+                    "disk_bus": data["hardware"]["disk_bus"],
                     "isos": [{"id": media["id"]}],
                     "floppies": [],
                     "boot_order": data["hardware"]["boot_order"],
-                    "disk_bus": data["hardware"]["disk_bus"],
                     "graphics": graphics,
                     "videos": videos,
                     "interfaces": interfaces,

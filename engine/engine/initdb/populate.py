@@ -99,6 +99,7 @@ class Populate(object):
             "engine",
             "qos_net",
             "qos_disk",
+            "disk_bus",
             "remotevpn",
             "deployments",
             "secrets",
@@ -575,6 +576,66 @@ class Populate(object):
                 )
                 .run(self.conn)
             )
+
+    """
+    DISK BUS
+    """
+
+    def disk_bus(self):
+        if not self.create_table("disk_bus"):
+            self.result(
+                r.table("disk_bus")
+                .insert(
+                    [
+                        {
+                            "id": "default",
+                            "name": "Default",
+                            "description": "",
+                            "allowed": {
+                                "roles": [],
+                                "categories": [],
+                                "groups": [],
+                                "users": [],
+                            },
+                        },
+                        {
+                            "id": "virtio",
+                            "name": "Virtio",
+                            "description": "",
+                            "allowed": {
+                                "roles": [],
+                                "categories": False,
+                                "groups": False,
+                                "users": False,
+                            },
+                        },
+                        {
+                            "id": "ide",
+                            "name": "IDE",
+                            "description": "",
+                            "allowed": {
+                                "roles": [],
+                                "categories": False,
+                                "groups": False,
+                                "users": False,
+                            },
+                        },
+                        {
+                            "id": "sata",
+                            "name": "SATA",
+                            "description": "",
+                            "allowed": {
+                                "roles": [],
+                                "categories": False,
+                                "groups": False,
+                                "users": False,
+                            },
+                        },
+                    ]
+                )
+                .run(self.conn)
+            )
+        return True
 
     """
     INTERFACE

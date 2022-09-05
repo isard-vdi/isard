@@ -712,5 +712,3 @@ class QuotaLimits:
             create_dict["hardware"]["qos_id"] = "unlimited"
 
         return create_dict
-        # hypervisors_pools
-        # forced_hyp
