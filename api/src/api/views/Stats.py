@@ -41,7 +41,7 @@ def stats_kind_state(payload, kind, state=False):
     else:
         KindState(kind, state)
     return (
-        json.dumps({"query": KindState(kind, state=False)}),
+        json.dumps({"query": KindState(kind, state)}),
         200,
         {"Content-Type": "application/json"},
     )
@@ -66,7 +66,7 @@ def stats_categories_kind_state(payload, kind, state=False):
     else:
         CategoriesKindState(kind, state)
     return (
-        json.dumps({"category": CategoriesKindState(kind, state=False)}),
+        json.dumps({"category": CategoriesKindState(kind, state)}),
         200,
         {"Content-Type": "application/json"},
     )

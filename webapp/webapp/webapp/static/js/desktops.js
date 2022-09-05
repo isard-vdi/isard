@@ -25,7 +25,7 @@ $(document).ready(function() {
     //DataTable Main renderer
     table = $('#desktops').DataTable({
             "ajax": {
-                "url": "/api/v3/user/webapp_desktops",
+                "url": "/api/v3/stats/template/disabled",
                 "dataSrc": ""
             },
             "language": {
