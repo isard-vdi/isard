@@ -50,8 +50,9 @@ def api_v3_desktops_start(payload):
     except:
         Error(
             "bad_request",
-            "DesktopS start incorrect body data",
+            "Desktop start incorrect body data",
             traceback.format_exc(),
+            "desktop_start_incorrect_body_data",
         )
 
     for desktop_id in desktops_ids:
@@ -113,6 +114,7 @@ def api_v3_persistent_desktop_new(payload):
             "bad_request",
             "Desktop persistent add incorrect body data",
             traceback.format_exc(),
+            description_code="desktop_incorrect_body_data",
         )
 
     data = _validate_item("desktop_from_template", data)
@@ -177,6 +179,7 @@ def api_v3_domain_edit(payload, domain_id):
             "bad_request",
             "Desktop edit incorrect body data",
             traceback.format_exc(),
+            description_code="desktop_incorrect_body_data",
         )
     data["id"] = domain_id
     data = _validate_item("desktop_update", data)

@@ -500,6 +500,7 @@ class QuotasProcess:
                     + " quota exceeded for creating new desktop.",
                     traceback.format_exc(),
                     user,
+                    description_code="desktop_new_user_quota_exceeded",
                 )
             if group != False and float(group["dqp"]) >= 100:
                 raise Error(
@@ -509,6 +510,7 @@ class QuotasProcess:
                     + " quota exceeded for creating new desktop.",
                     traceback.format_exc(),
                     group,
+                    description_code="desktop_new_group_quota_exceeded",
                 )
             if category != False and float(category["dqp"]) >= 100:
                 raise Error(
@@ -518,6 +520,7 @@ class QuotasProcess:
                     + " quota exceeded for creating new desktop.",
                     traceback.format_exc(),
                     category,
+                    description_code="desktop_new_category_quota_exceeded",
                 )
 
         if item == "NewConcurrent":
@@ -530,6 +533,7 @@ class QuotasProcess:
                         + " quota exceeded for starting new desktop.",
                         traceback.format_exc(),
                         user,
+                        description_code="desktop_start_user_quota_exceeded",
                     )
                 if float(user["vqp"]) >= 100:
                     raise Error(
@@ -539,6 +543,7 @@ class QuotasProcess:
                         + " quota exceeded for vCPU at starting a new desktop.",
                         traceback.format_exc(),
                         user,
+                        description_code="desktop_start_vcpu_quota_exceeded",
                     )
                 if float(user["mqp"]) >= 100:
                     raise Error(
@@ -548,6 +553,7 @@ class QuotasProcess:
                         + " quota exceeded for RAM at starting a new desktop.",
                         traceback.format_exc(),
                         user,
+                        description_code="desktop_start_memory_quota_exceeded",
                     )
             if group != False:
                 if float(group["rqp"]) >= 100:
@@ -558,6 +564,7 @@ class QuotasProcess:
                         + " quota exceeded for starting new desktop.",
                         traceback.format_exc(),
                         group,
+                        description_code="desktop_start_group_quota_exceeded",
                     )
                 if float(group["vqp"]) >= 100:
                     raise Error(
@@ -567,6 +574,7 @@ class QuotasProcess:
                         + " quota exceeded for vCPU at starting new desktop.",
                         traceback.format_exc(),
                         group,
+                        description_code="desktop_start_group_vcpu_quota_exceeded",
                     )
                 if float(group["mqp"]) >= 100:
                     raise Error(
@@ -576,6 +584,7 @@ class QuotasProcess:
                         + " quota exceeded for RAM at starting new desktop.",
                         traceback.format_exc(),
                         group,
+                        description_code="desktop_start_group_memory_quota_exceeded",
                     )
             if category != False:
                 if float(category["rqp"]) >= 100:
@@ -586,6 +595,7 @@ class QuotasProcess:
                         + " quota exceeded for starting new desktop.",
                         traceback.format_exc(),
                         category,
+                        description_code="desktop_start_category_quota_exceeded",
                     )
                 if float(category["vqp"]) >= 100:
                     raise Error(
@@ -595,6 +605,7 @@ class QuotasProcess:
                         + " quota exceeded for vCPU at starting new desktop.",
                         traceback.format_exc(),
                         category,
+                        description_code="desktop_start_category_vcpu_quota_exceeded",
                     )
                 if float(category["mqp"]) >= 100:
                     raise Error(
@@ -604,6 +615,7 @@ class QuotasProcess:
                         + " quota exceeded for RAM at starting new desktop.",
                         traceback.format_exc(),
                         category,
+                        description_code="desktop_start_category_memory_quota_exceeded",
                     )
 
         if item == "NewTemplate":
@@ -615,6 +627,7 @@ class QuotasProcess:
                     + " quota exceeded for creating new template.",
                     traceback.format_exc(),
                     user,
+                    description_code="template_new_user_quota_exceeded",
                 )
             if group != False and float(group["tqp"]) >= 100:
                 raise Error(
@@ -624,6 +637,7 @@ class QuotasProcess:
                     + " quota exceeded for creating new template.",
                     traceback.format_exc(),
                     group,
+                    description_code="template_new_group_quota_exceeded",
                 )
             if category != False and float(category["tqp"]) >= 100:
                 raise Error(
@@ -633,6 +647,7 @@ class QuotasProcess:
                     + " quota exceeded for creating new desktop.",
                     traceback.format_exc(),
                     category,
+                    description_code="template_new_category_quota_exceeded",
                 )
 
         if item == "NewIso":
@@ -644,6 +659,7 @@ class QuotasProcess:
                     + " quota exceeded for uploading new iso",
                     traceback.format_exc(),
                     user,
+                    description_code="iso_creation_user_quota_exceeded",
                 )
             if group != False and float(group["iqp"]) >= 100:
                 raise Error(
@@ -653,6 +669,7 @@ class QuotasProcess:
                     + " quota exceeded for uploading new iso",
                     traceback.format_exc(),
                     group,
+                    description_code="iso_creation_group_quota_exceeded",
                 )
             if category != False and float(category["iqp"]) >= 100:
                 raise Error(
@@ -662,6 +679,7 @@ class QuotasProcess:
                     + " quota exceeded for uploading new iso",
                     traceback.format_exc(),
                     category,
+                    description_code="iso_creation_category_quota_exceeded",
                 )
 
         if item == "NewUser":
@@ -673,6 +691,7 @@ class QuotasProcess:
                     + " quota exceeded for creating user",
                     traceback.format_exc(),
                     group,
+                    description_code="user_new_group_cuota_exceeded",
                 )
             if category != False and float(category["uqp"]) >= 100:
                 raise Error(
@@ -682,6 +701,7 @@ class QuotasProcess:
                     + " quota exceeded for creating user",
                     traceback.format_exc(),
                     category,
+                    description_code="user_new_category_cuota_exceeded",
                 )
 
         if item == "NewUsers":
@@ -695,6 +715,7 @@ class QuotasProcess:
                     + " users",
                     traceback.format_exc(),
                     group,
+                    description_code="user_new_group_cuota_exceeded",
                 )
             if category != False and category["u"] + amount > category["uq"]:
                 raise Error(
@@ -706,6 +727,7 @@ class QuotasProcess:
                     + " users",
                     traceback.format_exc(),
                     category,
+                    description_code="user_new_category_cuota_exceeded",
                 )
 
         return False
@@ -721,6 +743,7 @@ class QuotasProcess:
                 "Group " + group["group"]["name"] + " quota exceeded for creating user",
                 traceback.format_exc(),
                 group,
+                description_code="user_new_group_cuota_exceeded",
             )
         if category != False and float(category["uqp"]) >= 100:
             raise Error(
@@ -730,6 +753,7 @@ class QuotasProcess:
                 + " quota exceeded for creating user",
                 traceback.format_exc(),
                 category,
+                description_code="user_new_category_cuota_exceeded",
             )
 
         return False
@@ -799,7 +823,12 @@ class QuotasProcess:
             with app.app_context():
                 domain = r.table("domains").get(domain_id)["create_dict"].run(db.conn)
             if not domain:
-                raise Error("not_found", "Domain id not found", traceback.format_exc())
+                raise Error(
+                    "not_found",
+                    "Domain id not found",
+                    traceback.format_exc(),
+                    description_code="not_found",
+                )
         else:
             domain = {}
 

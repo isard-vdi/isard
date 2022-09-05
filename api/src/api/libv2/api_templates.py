@@ -56,10 +56,20 @@ class ApiTemplates:
                     .run(db.conn)
                 )
             except:
-                raise Error("not_found", "User not found", traceback.format_exc())
+                raise Error(
+                    "not_found",
+                    "User not found",
+                    traceback.format_exc(),
+                    description_code="not_found",
+                )
             desktop = r.table("domains").get(desktop_id).run(db.conn)
             if desktop == None:
-                raise Error("not_found", "Desktop not found", traceback.format_exc())
+                raise Error(
+                    "not_found",
+                    "Desktop not found",
+                    traceback.format_exc(),
+                    description_code="not_found",
+                )
 
         parent_disk = desktop["hardware"]["disks"][0]["file"]
 
@@ -118,13 +128,16 @@ class ApiTemplates:
                 ):
                     raise Error(
                         "internal_server",
-                        "Unable to update at new template into database.",
+                        "Unable to update new template into database.",
+                        description_code="unable_to_update",
                     )
                 else:
                     return template_id
             else:
                 raise Error(
-                    "conflict", "Template id already exists: " + str(template_id)
+                    "conflict",
+                    "Template id already exists: " + str(template_id),
+                    description_code="template_already_exists" + str(template_id),
                 )
 
     def Duplicate(
@@ -144,7 +157,12 @@ class ApiTemplates:
                 .run(db.conn)
             )
         if not template:
-            raise Error("not_found", "Template id not found", traceback.format_exc())
+            raise Error(
+                "not_found",
+                "Template id not found",
+                traceback.format_exc(),
+                description_code="not_found",
+            )
 
         template["id"] = "_" + payload["user_id"] + "-" + _parse_string(name)
         template = {**template, **get_user_data(payload["user_id"])}
@@ -198,6 +216,7 @@ class ApiTemplates:
                 "not_found",
                 "Unable to update inexistent template",
                 traceback.format_exc(),
+                description_code="not_found",
             )
         if template and template["kind"] == "template":
             with app.app_context():
@@ -208,4 +227,5 @@ class ApiTemplates:
             "conflict",
             "Unable to update enable in a non template kind domain",
             traceback.format_exc(),
+            description_code="unable_to_update",
         )

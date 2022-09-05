@@ -160,7 +160,11 @@ def new(
                 .run(db.conn)["create_dict"]["hardware"]
             )
         except:
-            raise Error("not_found", "Template to create deployment not found")
+            raise Error(
+                "not_found",
+                "Template to create deployment not found",
+                description_code="not_found",
+            )
 
     deployment_tag = {
         "tag": payload["user_id"] + "=" + _parse_string(name),
@@ -230,13 +234,18 @@ def new(
                 )
             ]
         except:
-            raise Error("internal_server", "Unable to get deployment desktops")
+            raise Error(
+                "internal_server",
+                "Unable to get deployment desktops",
+                description_code="unable_to_get_deployment_desktops",
+            )
     if len(existing_desktops):
         if not skip_existing_desktops:
             raise Error(
                 "conflict",
                 "This users already have a desktop with this name: "
                 + str(existing_desktops),
+                description_code="new_desktop_name_exists",
             )
         else:
             users = [u for u in users if u["id"] not in existing_desktops]
@@ -246,7 +255,11 @@ def new(
         try:
             r.table("deployments").insert(deployment).run(db.conn)
         except:
-            raise Error("conflict", "Deployment id already exists")
+            raise Error(
+                "conflict",
+                "Deployment id already exists",
+                description_code="unable_to_insert",
+            )
 
     """Create desktops for each user found"""
     for user in users:
@@ -283,6 +296,7 @@ def recreate(payload, deployment_id):
         raise Error(
             "not_found",
             "Not found deployment id to recreate: " + str(deployment_id),
+            description_code="not_found",
         )
 
     new(
@@ -304,6 +318,7 @@ def useradd(payload, deployment_id, user_id):
         raise Error(
             "not_found",
             "Not found deployment id to recreate: " + str(deployment_id),
+            description_code="not_found",
         )
     if deployment["allowed"]["users"]:
         deployment["allowed"]["users"].append(user_id)
@@ -332,7 +347,11 @@ def start(deployment_id):
                 .run(db.conn)
             ]
     except:
-        raise Error("not_found", "Deployment id not found: " + str(deployment_id))
+        raise Error(
+            "not_found",
+            "Deployment id not found: " + str(deployment_id),
+            description_code="not_found",
+        )
 
     for domain_id in domains_ids:
         try:
@@ -352,7 +371,11 @@ def stop(deployment_id):
                 .run(db.conn)
             ]
     except:
-        raise Error("not_found", "Deployment id not found: " + str(deployment_id))
+        raise Error(
+            "not_found",
+            "Deployment id not found: " + str(deployment_id),
+            description_code="not_found" + str(deployment_id),
+        )
 
     for domain_id in domains_ids:
         try:
@@ -380,7 +403,11 @@ def visible(deployment_id, stop_started_domains=True):
                 {"create_dict": {"tag_visible": visible}}
             ).run(db.conn)
     except:
-        raise Error("not_found", "Deployment id not found: " + str(deployment_id))
+        raise Error(
+            "not_found",
+            "Deployment id not found: " + str(deployment_id),
+            description_code="not_found" + str(deployment_id),
+        )
 
     if stop_started_domains:
         with app.app_context():

@@ -123,7 +123,12 @@ def api_v3_user_owns_desktop(payload):
         try:
             ip = request.form.get("ip", False)
         except:
-            raise Error("bad_request", "Missing parameters.", traceback.format_exc())
+            raise Error(
+                "bad_request",
+                "Missing parameters.",
+                traceback.format_exc(),
+                description_code="bad_request",
+            )
 
         if ip == False:
             raise Error(

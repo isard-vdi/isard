@@ -40,7 +40,9 @@ def api_v3_deployments_new(payload):
     try:
         data = request.get_json(force=True)
     except:
-        raise Error("bad_request", "Could not decode body data")
+        raise Error(
+            "bad_request", "Could not decode body data", description_code="bad_request"
+        )
 
     data["id"] = data["name"]
     _validate_item("deployment", data)

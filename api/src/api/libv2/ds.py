@@ -155,6 +155,7 @@ class DS:
                         "precondition_required",
                         "Desktop transition initial status incorrect",
                         traceback.format_exc(),
+                        description_code="desktop_transition_initial_status_incorrect",
                     )
 
             # Get change
@@ -175,6 +176,7 @@ class DS:
                     "gateway_timeout",
                     "Unable to change desktop status.",
                     traceback.format_exc(),
+                    description_code="unable_to_change_desktop_status",
                 )
             if final_status != "Deleted":
                 if doc["new_val"]["status"] != final_status:
@@ -182,6 +184,7 @@ class DS:
                         "gateway_timeout",
                         "Unable to change desktop status.",
                         traceback.format_exc(),
+                        description_code="unable_to_change_desktop_status",
                     )
 
     def WaitHyperStatus(
@@ -241,6 +244,7 @@ class DS:
                         "precondition_required",
                         "Hypervisor transition initial status incorrect",
                         traceback.format_exc(),
+                        description_code="hypervisor_transition_initial_status_incorrect",
                     )
 
             # Get change
@@ -251,6 +255,7 @@ class DS:
                     "gateway_timeout",
                     "Unable to change hypervisor status.",
                     traceback.format_exc(),
+                    description_code="unable_to_change_hypervisor_status",
                 )
             if final_status != "Deleted":
                 if doc["new_val"]["status"] != final_status:
@@ -258,6 +263,7 @@ class DS:
                         "gateway_timeout",
                         "Unable to change hypervisor status.",
                         traceback.format_exc(),
+                        description_code="unable_to_change_hypervisor_status",
                     )
 
     def _check(self, dict, action):

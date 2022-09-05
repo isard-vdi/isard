@@ -72,6 +72,7 @@ def api_jumperurl_gencode(length=32):
         "internal_server",
         "Unable to create jumperurl code",
         traceback.format_exc(),
+        description_code="generic_error",
     )
 
 
@@ -83,7 +84,12 @@ class ApiDesktopsPersistent:
         with app.app_context():
             desktop = r.table("domains").get(desktop_id).run(db.conn)
         if desktop == None:
-            raise Error("not_found", "Desktop not found", traceback.format_exc())
+            raise Error(
+                "not_found",
+                "Desktop not found",
+                traceback.format_exc(),
+                description_code="not_found",
+            )
         ds.delete_desktop(desktop_id, desktop["status"])
         with app.app_context():
             r.table("bookings").get_all(
@@ -110,13 +116,26 @@ class ApiDesktopsPersistent:
         with app.app_context():
             template = r.table("domains").get(template_id).run(db.conn)
             if not template:
-                raise Error("not_found", "Template not found", traceback.format_exc())
+                raise Error(
+                    "not_found",
+                    "Template not found",
+                    traceback.format_exc(),
+                    description_code="not_found",
+                )
             user = r.table("users").get(user_id).run(db.conn)
             if not user:
-                raise Error("not_found", "NewFromTemplate: user id not found.")
+                raise Error(
+                    "not_found",
+                    "NewFromTemplate: user id not found.",
+                    description_code="not_found",
+                )
             group = r.table("groups").get(user["group"]).run(db.conn)
             if not group:
-                raise Error("not_found", "NewFromTemplate: group id not found.")
+                raise Error(
+                    "not_found",
+                    "NewFromTemplate: group id not found.",
+                    description_code="not_found",
+                )
 
         parsed_name = _parse_string(desktop_name)
         new_desktop_id = "_" + user_id + "-" + parsed_name
@@ -148,7 +167,9 @@ class ApiDesktopsPersistent:
             create_dict = _parse_media_info(create_dict)
         except:
             raise Error(
-                "internal_server", "NewFromTemplate: unable to parse media info."
+                "internal_server",
+                "NewFromTemplate: unable to parse media info.",
+                description_code="unable_to_parse_media",
             )
 
         if "interfaces_mac" in create_dict["hardware"].keys():
@@ -215,6 +236,7 @@ class ApiDesktopsPersistent:
                 raise Error(
                     "internal_server",
                     "NewFromTemplate: unable to insert new desktop in database",
+                    description_code="unable_to_insert",
                 )
             else:
                 if image:
@@ -321,17 +343,26 @@ class ApiDesktopsPersistent:
                     "conflict",
                     "Already exists a desktop with this id",
                     traceback.format_exc(),
+                    description_code="desktop_same_id",
                 )
         with app.app_context():
             xml = r.table("virt_install").get(data["xml_id"]).run(db.conn)
             if not xml:
                 raise Error(
-                    "not_found", "Not found virt install xml id", traceback.format_exc()
+                    "not_found",
+                    "Not found virt install xml id",
+                    traceback.format_exc(),
+                    description_code="not_found",
                 )
         with app.app_context():
             media = r.table("media").get(data["media_id"]).run(db.conn)
             if not media:
-                raise Error("not_found", "Not found media id", traceback.format_exc())
+                raise Error(
+                    "not_found",
+                    "Not found media id",
+                    traceback.format_exc(),
+                    description_code="not_found",
+                )
 
         with app.app_context():
             graphics = [
@@ -342,7 +373,10 @@ class ApiDesktopsPersistent:
             ]
             if not len(graphics):
                 raise Error(
-                    "not_found", "Not found graphics ids", traceback.format_exc()
+                    "not_found",
+                    "Not found graphics ids",
+                    traceback.format_exc(),
+                    description_code="not_found",
                 )
 
         with app.app_context():
@@ -353,7 +387,12 @@ class ApiDesktopsPersistent:
                 .run(db.conn)
             ]
             if not len(videos):
-                raise Error("not_found", "Not found videos ids", traceback.format_exc())
+                raise Error(
+                    "not_found",
+                    "Not found videos ids",
+                    traceback.format_exc(),
+                    description_code="not_found",
+                )
 
         with app.app_context():
             interfaces = [
@@ -364,7 +403,10 @@ class ApiDesktopsPersistent:
             ]
             if not len(interfaces):
                 raise Error(
-                    "not_found", "Not found interface id", traceback.format_exc()
+                    "not_found",
+                    "Not found interface id",
+                    traceback.format_exc(),
+                    description_code="not_found",
                 )
 
         if data["hardware"].get("disk_size"):
@@ -452,13 +494,23 @@ class ApiDesktopsPersistent:
                     .run(db.conn)["user"]
                 )
         except:
-            raise Error("not_found", "Desktop not found", traceback.format_exc())
+            raise Error(
+                "not_found",
+                "Desktop not found",
+                traceback.format_exc(),
+                description_code="not_found",
+            )
 
     def Start(self, desktop_id):
         with app.app_context():
             desktop = r.table("domains").get(desktop_id).run(db.conn)
         if not desktop:
-            raise Error("not_found", "Desktop not found", traceback.format_exc())
+            raise Error(
+                "not_found",
+                "Desktop not found",
+                traceback.format_exc(),
+                description_code="not_found",
+            )
         if desktop["status"] == "Started":
             return desktop_id
         if desktop["status"] not in ["Stopped", "Failed"]:
@@ -466,6 +518,8 @@ class ApiDesktopsPersistent:
                 "precondition_required",
                 "Desktop can't be started from " + str(desktop["status"]),
                 traceback.format_exc(),
+                description_code="unable_to_start_desktop_from"
+                + str(desktop["status"]),
             )
 
         # Start the domain
@@ -476,7 +530,12 @@ class ApiDesktopsPersistent:
         with app.app_context():
             desktop = r.table("domains").get(desktop_id).run(db.conn)
         if not desktop:
-            raise Error("not_found", "Desktop not found", traceback.format_exc())
+            raise Error(
+                "not_found",
+                "Desktop not found",
+                traceback.format_exc(),
+                description_code="not_found",
+            )
         if desktop["status"] == "Stopped":
             return desktop_id
         if desktop["status"] not in ["Started", "Shutting-down"]:
@@ -484,6 +543,7 @@ class ApiDesktopsPersistent:
                 "precondition_required",
                 "Desktop can't be stopped from " + str(desktop["status"]),
                 traceback.format_exc(),
+                description_code="unable_to_stop_desktop_from" + str(desktop["status"]),
             )
 
         # Stop the domain
@@ -520,6 +580,7 @@ class ApiDesktopsPersistent:
                     "internal_server",
                     "Unable to update desktop in database",
                     traceback.format_exc(),
+                    description_code="unable_to_update" + str(desktop["status"]),
                 )
 
     def JumperUrl(self, id):
@@ -530,6 +591,7 @@ class ApiDesktopsPersistent:
                 "not_found",
                 "Could not get domain jumperurl as domain not exists",
                 traceback.format_exc(),
+                description_code="unable_to_get_domain_jumperurl",
             )
         if "jumperurl" not in domain.keys():
             return {"jumperurl": False}
@@ -545,6 +607,7 @@ class ApiDesktopsPersistent:
                         "not_found",
                         "Unable to reset jumperurl as domain not exists",
                         traceback.format_exc(),
+                        description_code="unable_to_reset_domain_jumperurl",
                     )
         else:
             code = api_jumperurl_gencode()

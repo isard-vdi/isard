@@ -142,6 +142,7 @@ class ApiAllowed:
                 "internal_server",
                 "Internal server error",
                 traceback.format_exc(),
+                description_code="generic_error",
             )
 
     def is_allowed(self, payload, item, table):
