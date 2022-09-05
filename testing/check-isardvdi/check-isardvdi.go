@@ -30,10 +30,12 @@ const (
 )
 
 var (
-	host = "https://localhost"
-	usr  = "admin"
-	pwd  = "IsardVDI"
-	dskt = "_local-default-admin-admin_downloaded_slax93"
+	host                = "https://localhost"
+	usr                 = "admin"
+	pwd                 = "IsardVDI"
+	dskt                = "_local-default-admin-admin_downloaded_slax93"
+	failSelfSigned      = false
+	failMaintenanceMode = false
 )
 
 func main() {
@@ -59,6 +61,15 @@ func main() {
 		log.Fatalf("get IsardVDI version: %v", err)
 	}
 
+	maintenance, err := cli.Maintenance(ctx)
+	if err != nil {
+		log.Fatalf("get IsardVDI maintenance mode: %v", err)
+	}
+
+	if maintenance && failMaintenanceMode {
+		log.Fatal("maintenance mode is enabled")
+	}
+
 	// print info
 	fmt.Println(`
 ██╗███████╗ █████╗ ██████╗ ██████╗ ██╗   ██╗██████╗ ██╗    ████████╗███████╗███████╗████████╗███████╗██████╗ 
@@ -82,7 +93,9 @@ Host: %s
 
 IsardVDI Version: %s
 
-Date: %s`, client.Version, deps["remmina"], deps["remote-viewer"], deps["wg-quick"], host, version, time.Now().Format(time.RFC3339))).CombinedOutput()
+IsardVDI Maintenance mode: %t
+
+Date: %s`, client.Version, deps["remmina"], deps["remote-viewer"], deps["wg-quick"], host, version, maintenance, time.Now().Format(time.RFC3339))).CombinedOutput()
 	if err != nil {
 		log.Fatalf("print system info: %v", err)
 	}
@@ -224,6 +237,14 @@ func getCfg() {
 
 	if d := os.Getenv("DESKTOP_ID"); d != "" {
 		dskt = d
+	}
+
+	if f := os.Getenv("FAIL_MAINTENANCE_MODE"); f == "true" {
+		failMaintenanceMode = true
+	}
+
+	if f := os.Getenv("FAIL_SELF_SIGNED"); f == "true" {
+		failSelfSigned = true
 	}
 }
 
@@ -498,6 +519,10 @@ func testRDP(ctx context.Context, cli *client.Client, viewer client.DesktopViewe
 		"freerdp.channels.drdynvc.client] - Loading Dynamic Virtual Channel disp",
 		func(b []byte) error {
 			if strings.Contains(string(b), "@           WARNING: CERTIFICATE NAME MISMATCH!           @") {
+				if failSelfSigned {
+					return errors.New("self signed certificate found in RDP Gateway")
+				}
+
 				var host, port string
 				for _, l := range strings.Split(rdp, "\n") {
 					if strings.HasPrefix(l, "gatewayhostname:s:") {
