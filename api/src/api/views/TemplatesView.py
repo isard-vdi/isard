@@ -55,6 +55,7 @@ def api_v3_template_new(payload):
             "bad_request",
             "New template bad body data",
             traceback.format_exc(),
+            description_code="new_template_bad_body_data",
         )
     template_id = templates.New(
         payload["user_id"],
@@ -143,7 +144,12 @@ def api_v3_user_templates(payload):
     with app.app_context():
         group = r.table("groups").get(payload["group_id"])["uid"].run(db.conn)
     if group == None:
-        raise Error("not_found", "Group not found", traceback.format_exc())
+        raise Error(
+            "not_found",
+            "Group not found",
+            traceback.format_exc(),
+            description_code="ot_found",
+        )
     dropdown_templates = [
         {
             "id": t["id"],

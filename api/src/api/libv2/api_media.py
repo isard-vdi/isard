@@ -96,6 +96,7 @@ class ApiMedia:
                 "not_found",
                 "Not found media: " + media_id,
                 traceback.format_exc(),
+                description_code="not_found",
             )
         return media
 

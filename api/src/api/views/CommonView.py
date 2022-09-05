@@ -34,6 +34,7 @@ def api_v3_desktop_viewer(payload, desktop_id=False, protocol=False):
             "bad_request",
             "Desktop viewer incorrect body data",
             traceback.format_exc(),
+            description_code="incorrect_viewer_body_data",
         )
 
     ownsDomainId(payload, desktop_id)

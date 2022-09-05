@@ -259,6 +259,7 @@ def ownsDomainId(payload, domain_id):
         "forbidden",
         "Not enough access rights to access this desktop_id " + str(domain_id),
         traceback.format_exc(),
+        description_code="not_enough_rights_desktop" + str(domain_id),
     )
 
 
@@ -284,6 +285,7 @@ def ownsMediaId(payload, media_id):
         "forbidden",
         "Not enough access rights to access this media_id " + str(media_id),
         traceback.format_exc(),
+        description_code="not_enough_rights_media" + str(media_id),
     )
 
 

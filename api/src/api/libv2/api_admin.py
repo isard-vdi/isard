@@ -146,9 +146,14 @@ def admin_table_delete(table, item_id):
                     "internal_server",
                     "Internal server error",
                     traceback.format_exc(),
+                    description_code="generic_error",
                 )
         else:
-            raise Error("not_found", "Item " + str(item_id) + " not found")
+            raise Error(
+                "not_found",
+                "Item " + str(item_id) + " not found",
+                description_code="not_found",
+            )
 
 
 def admin_domains_delete(list):
@@ -160,7 +165,9 @@ def admin_domains_delete(list):
 def change_user_items_owner(table, user_id, new_user_id="admin"):
     if table not in ["media"]:
         raise Error(
-            "forbidden", "Table not allowed to change owner", traceback.format_exc()
+            "forbidden",
+            "Table not allowed to change owner",
+            traceback.format_exc(),
         )
     with app.app_context():
         r.table(table).get_all(user_id, index="user").update(
@@ -171,7 +178,9 @@ def change_user_items_owner(table, user_id, new_user_id="admin"):
 def change_group_items_owner(table, group_id, new_user_id="admin"):
     if table not in ["media"]:
         raise Error(
-            "forbidden", "Table not allowed to change owner", traceback.format_exc()
+            "forbidden",
+            "Table not allowed to change owner",
+            traceback.format_exc(),
         )
     with app.app_context():
         r.table(table).get_all(group_id, index="group").update(
@@ -182,7 +191,9 @@ def change_group_items_owner(table, group_id, new_user_id="admin"):
 def change_category_items_owner(table, category_id, new_user_id="admin"):
     if table not in ["media"]:
         raise Error(
-            "forbidden", "Table not allowed to change owner", traceback.format_exc()
+            "forbidden",
+            "Table not allowed to change owner",
+            traceback.format_exc(),
         )
     with app.app_context():
         r.table(table).get_all(category_id, index="category").update(
@@ -193,7 +204,9 @@ def change_category_items_owner(table, category_id, new_user_id="admin"):
 def change_item_owner(table, item_id, new_user_id="admin"):
     if table not in ["media"]:
         raise Error(
-            "forbidden", "Table not allowed to change owner", traceback.format_exc()
+            "forbidden",
+            "Table not allowed to change owner",
+            traceback.format_exc(),
         )
     with app.app_context():
         r.table(table).get(item_id).update(get_user_data(new_user_id)).run(db.conn)

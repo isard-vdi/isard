@@ -108,13 +108,19 @@ class ReservablesPlanner:
             ).astimezone(pytz.UTC)
         except ValueError:
             log.debug(traceback.format_exc())
-            raise Error("bad_request", "Start date invalid.")
+            raise Error(
+                "bad_request",
+                "Start date invalid.",
+                description_code="invalid_start_date",
+            )
         try:
             end = self.ceil_dt(
                 datetime.strptime(data["end"], "%Y-%m-%dT%H:%M%z")
             ).astimezone(pytz.UTC) - timedelta(0, 1)
         except ValueError:
-            raise Error("bad_request", "End date invalid.")
+            raise Error(
+                "bad_request", "End date invalid.", description_code="invalid_end_date"
+            )
 
         # Plan data structure
         try:
@@ -133,7 +139,10 @@ class ReservablesPlanner:
             }
         except:
             raise Error(
-                "bad_request", "New plan body data incorrect", traceback.format_exc()
+                "bad_request",
+                "New plan body data incorrect",
+                traceback.format_exc(),
+                description_code="incorrect_new_plan_body_data",
             )
         ## Get item behaviours
         item_can_overlap = self.reservables.planning_item_can_overlap(
@@ -194,7 +203,11 @@ class ReservablesPlanner:
                 r.table("resource_planner").insert(plan).run(db.conn), "inserted"
             )
             if not inserted:
-                raise Error("internal_error", "Could not insert plan in database")
+                raise Error(
+                    "internal_error",
+                    "Could not insert plan in database",
+                    description_code="unable_to_insert",
+                )
             return plan["id"]
 
     def delete_plan(self, plan_id):

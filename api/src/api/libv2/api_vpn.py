@@ -34,7 +34,12 @@ class ApiVpn:
         # NOTE: Kind will be users/hypers as this are the only two wireguard
         #       interfaces. Remotevpn are handled in users wg interface.
         if kind not in ["users", "hypers"]:
-            raise Error("not_found", "Vpn kind not found", traceback.format_exc())
+            raise Error(
+                "not_found",
+                "Vpn kind not found",
+                traceback.format_exc(),
+                description_code="vpn_kind_not_found",
+            )
 
         connection_data = {
             "connected": status,
@@ -74,7 +79,12 @@ def reset_connection_status(
     kind,
 ):
     if kind not in ["users", "hypers", "all"]:
-        raise Error("not_found", "Vpn kind not found", traceback.format_exc())
+        raise Error(
+            "not_found",
+            "Vpn kind not found",
+            traceback.format_exc(),
+            description_code="vpn_kind_not_found",
+        )
     connection_data = {"connected": False, "remote_ip": None, "remote_port": None}
 
     # Find ip

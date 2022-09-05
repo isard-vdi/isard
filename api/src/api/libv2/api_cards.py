@@ -145,6 +145,7 @@ class ApiCards:
                     "not_found",
                     "Domain for card not found",
                     traceback.format_exc(),
+                    description_code="not_found",
                 )
         return card_id
 

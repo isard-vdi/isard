@@ -52,6 +52,7 @@ def is_admin(f):
             "forbidden",
             "Not enough rights.",
             traceback.format_exc(),
+            description_code="forbidden",
         )
 
     return decorated

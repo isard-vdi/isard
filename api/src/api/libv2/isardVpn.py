@@ -8,6 +8,7 @@
 
 import os
 import traceback
+from pydoc import describe
 
 from rethinkdb import RethinkDB
 
@@ -35,6 +36,7 @@ class isardVpn:
                     "bad_request",
                     "Vpn missing itemid",
                     traceback.format_exc(),
+                    description_code="vpn_missing_itemid",
                 )
             with app.app_context():
                 wgdata = r.table("users").get(itemid).pluck("id", "vpn").run(db.conn)
@@ -63,6 +65,7 @@ class isardVpn:
                     "bad_request",
                     "Vpn missing itemid",
                     traceback.format_exc(),
+                    description_code="vpn_missing_itemid",
                 )
             with app.app_context():
                 wgdata = (
@@ -75,13 +78,19 @@ class isardVpn:
             postup = ":"
             endpoint = os.environ["DOMAIN"]
         else:
-            raise Error("not_found", "Vpn kind not exists", traceback.format_exc())
+            raise Error(
+                "not_found",
+                "Vpn kind does not exist",
+                traceback.format_exc(),
+                description_code="vpn_kind_not_found",
+            )
 
         if wgdata == None or "vpn" not in wgdata.keys():
             raise Error(
                 "not_found",
                 "Vpn data not found for user",
                 traceback.format_exc(),
+                description_code="vpn_data_not_found",
             )
 
         ## First up time the wireguard config keys are missing till isard-vpn populates it.
@@ -99,6 +108,7 @@ class isardVpn:
                 "precondition_required",
                 "There are no wireguard keys in webapp config yet. Try again in a few seconds...",
                 traceback.format_exc(),
+                description_code="no_wireguard_keys",
             )
 
         wireguard_data = [endpoint, wgdata, port, mtu, postup, wireguard_server_keys]
@@ -124,6 +134,7 @@ class isardVpn:
             "internal_server",
             "Unable to process vpn file",
             traceback.format_exc(),
+            description_code="unable_to_process_vpnfile",
         )
 
     def get_wireguard_file(

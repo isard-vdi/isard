@@ -39,6 +39,7 @@ def api_v3_desktop_new(payload):
             "bad_request",
             "New desktop missing body data",
             traceback.format_exc(),
+            description_code="missing_required_data",
         )
 
     allowedTemplateId(payload, template_id)

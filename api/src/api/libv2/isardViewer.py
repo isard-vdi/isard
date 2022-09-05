@@ -94,7 +94,11 @@ class isardViewer:
                         .run(db.conn)
                     )
             except ReqlNonExistenceError:
-                raise Error("not_found", "Unable to get viewer for inexistent desktop")
+                raise Error(
+                    "not_found",
+                    "Unable to get viewer for inexistent desktop",
+                    description_code="unable_to_get_viewer_inexistent",
+                )
 
         if not protocol in ["file-spice", "browser-vnc"] and not domain["status"] in [
             "Started",
@@ -104,6 +108,7 @@ class isardViewer:
                 "precondition_required",
                 "Unable to get viewer for non started desktop",
                 traceback.format_exc(),
+                description_code="unable_to_get_viewer",
             )
 
         ### File viewers
@@ -125,6 +130,7 @@ class isardViewer:
                 "not_found",
                 "Viewer protocol not implemented",
                 traceback.format_exc(),
+                description_code="viewer_protocol_not_implemented",
             )
 
         if protocol == "file-rdpvpn":
@@ -253,9 +259,18 @@ class isardViewer:
             }
 
         if protocol == "vnc-client-macos":
-            raise Error("not_found", "Viewer protocol not implemented")
+            raise Error(
+                "not_found",
+                "Viewer protocol not implemented",
+                description_code="viewer_protocol_not_implemented",
+            )
 
-        raise Error("not_found", "Viewer protocol not found", traceback.format_exc())
+        raise Error(
+            "not_found",
+            "Viewer protocol not found",
+            traceback.format_exc(),
+            description_code="not_found",
+        )
 
     def get_rdp_file(self, ip):
         ## This are the default values dumped from a windows rdp client connection to IsardVDI
@@ -403,6 +418,7 @@ smart sizing:i:1""" % (
                 "internal_server",
                 "Get vnc viewer data internal error.",
                 traceback.format_exc(),
+                description_code="get_vnc_viewer_data_error",
             )
 
     ##### VNC FILE VIEWER

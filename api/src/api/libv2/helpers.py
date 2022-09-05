@@ -88,7 +88,11 @@ def _get_reservables(item_type, item_id, tolist=False):
         with app.app_context():
             deployment = r.table("deployments").get(item_id).run(db.conn)
         if not deployment:
-            raise Error("not_found", "Deployment id not found")
+            raise Error(
+                "not_found",
+                "Deployment id not found",
+                description_code="not_found",
+            )
         item_name = deployment["name"]
         with app.app_context():
             deployment_domains = list(
@@ -103,12 +107,20 @@ def _get_reservables(item_type, item_id, tolist=False):
         data = deployment_domains[0]
         units = len(deployment_domains)
     else:
-        raise Error("not_found", "Item type " + str(item_type) + " not found")
+        raise Error(
+            "not_found",
+            "Item type " + str(item_type) + " not found",
+            description_code="not_found",
+        )
 
     if not data["create_dict"].get("reservables") or not any(
         list(data["create_dict"]["reservables"].values())
     ):
-        raise Error("precondition_required", "Item has no reservables")
+        raise Error(
+            "precondition_required",
+            "Item has no reservables",
+            description_code="no_reservables",
+        )
     data = data["create_dict"]["reservables"]
     data_without_falses = {k: v for k, v in data.items() if v}
     if tolist:
@@ -147,6 +159,7 @@ def _parse_string(txt):
             "internal_server",
             "Unable to parse string",
             traceback.format_exc(),
+            description_code="unable_to_parse_string",
         )
     else:
         # ~ Replace accents
@@ -408,7 +421,10 @@ def parse_domain_update(domain_id, new_data, admin_or_manager=False):
         domain = r.table("domains").get(domain_id).run(db.conn)
     if not domain:
         raise Error(
-            "not_found", "Not found domain to be updated", traceback.format_exc()
+            "not_found",
+            "Not found domain to be updated",
+            traceback.format_exc(),
+            description="not_found",
         )
     new_domain = {}
 
@@ -513,6 +529,17 @@ def generate_db_media(path_downloaded, filesize):
             "precondition_required",
             "Skipping uploaded file as has unknown extension",
             traceback.format_exc(),
+            description_code="unknown_extension",
+        )
+
+    with app.app_context():
+        username = r.table("users").get(parts[-2])["username"].run(db.conn)
+    if username == None:
+        raise Error(
+            "not_found",
+            "Username not found",
+            traceback.format_exc(),
+            description_code="not_found",
         )
 
     return {

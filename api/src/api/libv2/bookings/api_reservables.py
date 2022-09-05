@@ -95,7 +95,11 @@ class ResourceItemsGpus:
         with app.app_context():
             gpu_profile = r.table("gpu_profiles").get(data["bookable"]).run(db.conn)
         if not gpu_profile:
-            raise Error("not_found", "Gpu id not found in gpu table")
+            raise Error(
+                "not_found",
+                "Gpu id not found in gpu table",
+                description_code="not_found",
+            )
         new_gpu = {
             "architecture": gpu_profile["architecture"],
             "brand": gpu_profile["brand"],
@@ -112,7 +116,11 @@ class ResourceItemsGpus:
         if not _check(
             r.table("gpus").insert(new_gpu, conflict="update").run(db.conn), "inserted"
         ):
-            raise Error("internal_server", "Unable to insert bookable in database.")
+            raise Error(
+                "internal_server",
+                "Unable to insert bookable in database.",
+                description_code="unable_to_insert",
+            )
 
         return new_gpu
 
@@ -124,7 +132,11 @@ class ResourceItemsGpus:
         with app.app_context():
             item = r.table("gpus").get(item_id).run(db.conn)
         if not item:
-            raise Error("not_found", "Gpu id not found in gpu table")
+            raise Error(
+                "not_found",
+                "Gpu id not found in gpu table",
+                description_code="not_found",
+            )
         enabled_profiles = item["profiles_enabled"]
         if enabled:
             enabled_profiles.append(subitem_id)
@@ -137,7 +149,11 @@ class ResourceItemsGpus:
             .run(db.conn),
             "replaced",
         ):
-            raise Error("internal_server", "Unable to update bookable in database.")
+            raise Error(
+                "internal_server",
+                "Unable to update bookable in database.",
+                description_code="unable_to_update_bookable",
+            )
         gpus_enabled_subitem = list(
             r.table("gpus")
             .filter(lambda gpu: gpu["profiles_enabled"].contains(subitem_id))
@@ -155,7 +171,9 @@ class ResourceItemsGpus:
             subitem = self.get_subitem(item_id, subitem_id)
             if not subitem:
                 raise Error(
-                    "not_found", "Gpu profile id not found in gpu_profiles table"
+                    "not_found",
+                    "Gpu profile id not found in gpu_profiles table",
+                    description_code="not_found",
                 )
             new_reservable_vgpu = {
                 "allowed": {
@@ -196,7 +214,11 @@ class ResourceItemsGpus:
                 .run(db.conn),
                 "replaced",
             ):
-                raise Error("internal_server", "Unable to update bookable in database.")
+                raise Error(
+                    "internal_server",
+                    "Unable to update bookable in database.",
+                    description_code="unable_to_update_bookable",
+                )
             else:
                 with app.app_context():
                     total_profiles = (
@@ -244,7 +266,11 @@ class ResourceItemsGpus:
         with app.app_context():
             item = r.table("gpus").get(item_id).run(db.conn)
         if not item:
-            raise Error("not_found", "Gpu id not found in gpu table")
+            raise Error(
+                "not_found",
+                "Gpu id not found in gpu table",
+                description_code="not_found",
+            )
         try:
             with app.app_context():
                 subitems = list(
@@ -260,7 +286,11 @@ class ResourceItemsGpus:
         with app.app_context():
             item = r.table("gpus").get(item_id).run(db.conn)
         if not item:
-            raise Error("not_found", "Gpu id not found in gpu table")
+            raise Error(
+                "not_found",
+                "Gpu id not found in gpu table",
+                description_code="not_found",
+            )
         try:
             with app.app_context():
                 subitems = list(
@@ -269,7 +299,11 @@ class ResourceItemsGpus:
                     .run(db.conn)
                 )[0]["profiles"]
         except:
-            raise Error("not_found", "Gpu id not found in gpu definitions table")
+            raise Error(
+                "not_found",
+                "Gpu id not found in gpu definitions table",
+                description_code="not_found",
+            )
         return [
             subitem for subitem in subitems if subitem["id"] in item["profiles_enabled"]
         ]
@@ -348,7 +382,11 @@ class ResourceItemsUsbs:
         with app.app_context():
             item = r.table("usbs").get(item_id).run(db.conn)
         if not item:
-            raise Error("not_found", "Usb id not found in usb table")
+            raise Error(
+                "not_found",
+                "Usb id not found in usb table",
+                description_code="not_found",
+            )
         try:
             with app.app_context():
                 subitems = list(
@@ -357,14 +395,22 @@ class ResourceItemsUsbs:
                     .run(db.conn)
                 )[0]["profiles"]
         except:
-            raise Error("not_found", "Usb id not found in usb definitions table")
+            raise Error(
+                "not_found",
+                "Usb id not found in usb definitions table",
+                description_code="not_found",
+            )
         return subitems
 
     def list_subitems_enabled(self, item_id):
         with app.app_context():
             item = r.table("usbs").get(item_id).run(db.conn)
         if not item:
-            raise Error("not_found", "Usb id not found in usb table")
+            raise Error(
+                "not_found",
+                "Usb id not found in usb table",
+                description_code="not_found",
+            )
         try:
             with app.app_context():
                 subitems = list(
@@ -382,7 +428,11 @@ class ResourceItemsUsbs:
         with app.app_context():
             item = r.table("usbs").get(item_id).run(db.conn)
         if not item:
-            raise Error("not_found", "Usb id not found in usb table")
+            raise Error(
+                "not_found",
+                "Usb id not found in usb table",
+                description_code="not_found",
+            )
         try:
             with app.app_context():
                 subitem = list(

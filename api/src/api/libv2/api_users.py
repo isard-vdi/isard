@@ -417,6 +417,7 @@ class ApiUsers:
                 "internal_server",
                 "Internal server error",
                 traceback.format_exc(),
+                description_code="generic_error",
             )
 
     def Desktop(self, desktop_id, user_id):
@@ -457,12 +458,17 @@ class ApiUsers:
             if desktop.get("tag_visible", True):
                 return _parse_desktop(desktop)
             else:
-                raise Error("forbidden", "Desktop is not visible to this user now.")
+                raise Error(
+                    "forbidden",
+                    "Desktop is not visible to this user now.",
+                    description_code="desktop_is_not_visible",
+                )
         except:
             raise Error(
                 "not_found",
                 "Desktop not found",
                 traceback.format_exc(),
+                description_code="desktop_not_found",
             )
 
     def Delete(self, user_id):
@@ -480,6 +486,7 @@ class ApiUsers:
                     "internal_server",
                     "Unable to delete user_id " + user_id,
                     traceback.format_exc(),
+                    description_code="unable_to_delete_user" + user_id,
                 )
 
     def _delete_checks(self, item_id, table):
@@ -579,7 +586,12 @@ class ApiUsers:
             if len(found) > 0:
                 category = found[0]["parent_category"]  # found[0]['id'].split('_')[0]
                 return {"role": "user", "category": category, "group": found[0]["id"]}
-        raise Error("not_found", "Code not found code:" + code, traceback.format_exc())
+        raise Error(
+            "not_found",
+            "Code not found code:" + code,
+            traceback.format_exc(),
+            description_code="code_not_found: " + code,
+        )
 
     def CategoryGet(self, category_id, all=False):
         with app.app_context():
@@ -589,6 +601,7 @@ class ApiUsers:
                 "not_found",
                 "Category not found category_id:" + category_id,
                 traceback.format_exc(),
+                description_code="category_not_found",
             )
         if not all:
             return {"name": category["name"]}
@@ -640,6 +653,7 @@ class ApiUsers:
                     "not_found",
                     "Category to delete not found.",
                     traceback.format_exc(),
+                    description_code="category_not_found",
                 )
             else:
                 category.update({"kind": "category", "user": category["id"]})
@@ -715,6 +729,7 @@ class ApiUsers:
                 "not_found",
                 "Not found group_id " + group_id,
                 traceback.format_exc(),
+                description_code="group_not_found",
             )
         return group
 
@@ -757,6 +772,7 @@ class ApiUsers:
                     "not_found",
                     "Group to delete not found",
                     traceback.format_exc(),
+                    description_code="group_not_found",
                 )
             else:
                 group.update({"kind": "group", "user": group["id"]})
@@ -808,7 +824,11 @@ class ApiUsers:
                 .run(db.conn)["parent_category"]
             )
         if not category:
-            raise Error("not_found", "Group id " + str(group_id) + " not found")
+            raise Error(
+                "not_found",
+                "Group id " + str(group_id) + " not found",
+                description_code="group_not_found",
+            )
 
         desktops = (
             r.table("domains")
@@ -853,6 +873,7 @@ class ApiUsers:
             "internal_server",
             "Unable to generate enrollment code",
             traceback.format_exc(),
+            description_code="unable_to_gen_enrollment_code",
         )
 
     def enrollment_code_check(self, code):

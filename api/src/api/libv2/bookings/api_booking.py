@@ -91,7 +91,11 @@ class Bookings:
         # Overlap this plan with existing ones and check which ones have room from the new booking
         plans = self.reservables_planner.new_booking_plans(payload, booking)
         if not len(plans):
-            raise Error("conflict", "The booking does not fit in requested date")
+            raise Error(
+                "conflict",
+                "The booking does not fit in requested date",
+                description_code="booking_does_not_fit_date",
+            )
 
         # We could do a random or anything because the booking fits in one or multiple plans
         # Now we get the first available
@@ -111,7 +115,11 @@ class Bookings:
         booking["plans"] = new_planning
         with app.app_context():
             if not _check(r.table("bookings").insert(booking).run(db.conn), "inserted"):
-                raise Error("internal_server", "Unable to insert booking in database.")
+                raise Error(
+                    "internal_server",
+                    "Unable to insert booking in database.",
+                    description_code="unable_to_insert",
+                )
 
         self.resources_scheduler.schedule_booking(
             booking["id"], item_type, item_id, booking["start"], booking["end"]
@@ -131,7 +139,11 @@ class Bookings:
         with app.app_context():
             booking = r.table("bookings").get(booking_id).run(db.conn)
         if not self.reservables_planner.existing_booking_update_fits(payload, booking):
-            raise Error("conflict", "The booking update does not fit in requested date")
+            raise Error(
+                "conflict",
+                "The booking update does not fit in requested date",
+                description_code="booking_does_not_fit_date",
+            )
 
         if not _check(
             r.table("bookings")
@@ -159,7 +171,12 @@ class Bookings:
         with app.app_context():
             booking = r.table("bookings").get(booking_id).run(db.conn)
         if booking == None:
-            raise Error("not_found", "Booking not found", traceback.format_stack())
+            raise Error(
+                "not_found",
+                "Booking not found",
+                traceback.format_stack(),
+                description_code="not_found",
+            )
         if not _check(
             r.table("bookings").get(booking_id).delete().run(db.conn), "deleted"
         ):
