@@ -244,7 +244,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum(count_values by(role) (\"tipo\", isardvdi_isardvdi_api_user_info))",
+          "expr": "",
           "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: -100000000000000s)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"isardvdi-authentication\")\n  |> filter(fn: (r) => r[\"_field\"] == \"login\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> count(column: \"_value\")\n  |> unique(column: \"id\")\n  |> keep(columns: [\"_value\"])\n  |> count(column: \"_value\")\n  |> yield()",
           "range": true,
           "refId": "A"
@@ -430,7 +430,7 @@
         "text": {
           "valueSize": 30
         },
-        "textMode": "auto"
+        "textMode": "value"
       },
       "pluginVersion": "9.0.7",
       "targets": [
@@ -442,13 +442,17 @@
           "editorMode": "code",
           "exemplar": false,
           "expr": "",
-          "instant": true,
+          "format": "time_series",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "",
           "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"visors_started\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
-          "range": false,
+          "range": true,
           "refId": "A"
         }
       ],
       "title": "Visors started",
+      "transformations": [],
       "type": "stat"
     },
     {
@@ -818,7 +822,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum(count_values by(role) (\"tipo\", isardvdi_isardvdi_api_user_info))",
+          "expr": "count(count by(group) (isardvdi_isardvdi_api_user_info))",
           "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: -100000000000000s)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"isardvdi-authentication\")\n  |> filter(fn: (r) => r[\"_field\"] == \"login\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> count(column: \"_value\")\n  |> unique(column: \"id\")\n  |> keep(columns: [\"_value\"])\n  |> count(column: \"_value\")\n  |> yield()",
           "range": true,
           "refId": "A"
@@ -882,14 +886,13 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "editorMode": "code",
-          "expr": "sum(count_values by(role) (\"tipo\", isardvdi_isardvdi_api_user_info))",
-          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: -100000000000000s)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"isardvdi-authentication\")\n  |> filter(fn: (r) => r[\"_field\"] == \"login\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> count(column: \"_value\")\n  |> unique(column: \"id\")\n  |> keep(columns: [\"_value\"])\n  |> count(column: \"_value\")\n  |> yield()",
-          "range": true,
-          "refId": "A"
+          "expr": "count(count by(category) (isardvdi_isardvdi_api_user_info))",
+          "hide": false,
+          "refId": "B"
         }
       ],
       "title": "Total Categories",
+      "transformations": [],
       "type": "stat"
     },
     {
@@ -949,8 +952,12 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
+          "editorMode": "code",
+          "exemplar": false,
           "expr": "count(present_over_time(isardvdi_domain_port_spice_tls[1m]) * on(desktop) group_left isardvdi_domain_port_spice_tls * on (port) group_left count_over_time(isardvdi_socket_recv_bytes[1m]))",
+          "instant": true,
           "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"viewers\")\n  |> filter(fn: (r) => r[\"viewer_type\"] == \"viewer_port_spice_tls\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
+          "range": false,
           "refId": "A"
         }
       ],
@@ -1009,7 +1016,16 @@
       "pluginVersion": "9.0.7",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "count(present_over_time(isardvdi_domain_port_vnc[1m]) * on(desktop) group_left isardvdi_domain_port_vnc * on (port) group_left count_over_time(isardvdi_socket_recv_bytes[1m]))",
+          "instant": true,
           "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"viewers\")\n  |> filter(fn: (r) => r[\"viewer_type\"] == \"viewer_port_spice\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
+          "range": false,
           "refId": "A"
         }
       ],
@@ -1068,7 +1084,16 @@
       "pluginVersion": "9.0.7",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "count(present_over_time(isardvdi_domain_net_rx_bytes[1m]) * on (mac) group_left count_over_time(isardvdi_conntrack_rdp_recv_bytes[1m]))",
+          "instant": true,
           "query": "",
+          "range": false,
           "refId": "A"
         }
       ],
@@ -2309,8 +2334,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               }
             ]
           },
@@ -2432,8 +2456,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -2528,9 +2551,9 @@
       },
       {
         "current": {
-          "selected": false,
-          "text": "server",
-          "value": "server"
+          "selected": true,
+          "text": "vpnserver",
+          "value": "vpnserver"
         },
         "datasource": {
           "type": "prometheus",
@@ -2555,7 +2578,7 @@
     ]
   },
   "time": {
-    "from": "now-1h",
+    "from": "now-5m",
     "to": "now"
   },
   "timepicker": {
