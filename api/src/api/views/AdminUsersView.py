@@ -14,7 +14,12 @@ from flask import request
 # coding=utf-8
 from api import app
 
-from ..libv2.api_admin import admin_table_insert, admin_table_list, admin_table_update
+from ..libv2.api_admin import (
+    admin_table_delete,
+    admin_table_insert,
+    admin_table_list,
+    admin_table_update,
+)
 from ..libv2.api_exceptions import Error
 from ..libv2.api_users import ApiUsers, Password
 from ..libv2.quotas import Quotas
