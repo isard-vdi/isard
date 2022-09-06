@@ -158,6 +158,8 @@ def api_v3_admin_user_delete(payload):
     for user in data:
         ownsUserId(payload, user["id"])
 
+        if not user.get("username"):
+            user = users.Get(user["id"])
         if (
             user["username"] == "admin"
             and users.GroupGet(user["group"])["name"] == "Default"
@@ -166,7 +168,10 @@ def api_v3_admin_user_delete(payload):
             raise Error(
                 "forbidden", "Can not delete default admin", traceback.format_exc()
             )
-
+    for user in data:
+        if not user.get("username"):
+            user = users.Get(user["id"])
+        users.Delete(user["id"])
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
