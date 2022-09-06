@@ -288,6 +288,7 @@ def domain_from_disk(user, name, description, icon, create_dict, hyper_pools):
 
 
 def parseHardwareFromIso(create_dict, payload):
+    create_dict["hardware"]["virtualization_nested"] = False
     if "boot_order" not in create_dict["hardware"].keys():
         try:
             create_dict["hardware"]["boot_order"] = [

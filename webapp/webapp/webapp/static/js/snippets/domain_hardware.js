@@ -1,6 +1,7 @@
 function setHardwareOptions(id,default_boot,domain_id){
 	default_boot = typeof default_boot !== 'undefined' ? default_boot : 'hd' ;
 		// id is the main div id containing hardware.html
+		$(id+" #hardware-virtualization_nested").find('option').remove();
 		$(id+" #hardware-memory").find('option').remove();
 		$(id+" #hardware-vcpus").find('option').remove();
 		$(id+" #hardware-interfaces").find('option').remove();
@@ -14,6 +15,11 @@ function setHardwareOptions(id,default_boot,domain_id){
 			url = '/api/v3/user/hardware/allowed'
 		}
 		api.ajax_async(url,'GET','').done(function(hardware) {
+			if (hardware.virtualization_nested == true) {
+				$(id+"hardware-virtualization_nested").iCheck('check').iCheck('update');
+			} else {
+				$(id+"hardware-virtualization_nested").iCheck('uncheck').iCheck('update');
+			}
 			if(hardware.interfaces.length == 1){
 				$(id+" #hardware-interfaces").attr("disabled",true);
 			}else{
@@ -128,7 +134,7 @@ function setHardwareDomainDefaults(div_id,domain){
 	$(div_id+' #guest_properties-credentials-username').val(domain["guest_properties"]["credentials"]["username"]);
 	$(div_id+' #guest_properties-credentials-password').val(domain["guest_properties"]["credentials"]["password"]);
 	setViewers('#modalEditDesktop',domain)
-
+	$(div_id+' #hardware-virtualization_nested option:selected').val(domain.virtualization_nested);
 	$(div_id+' #hardware-interfaces option:selected').prop("selected", false);
 	$(div_id+' #hardware-videos option:selected').prop("selected", false);
 	$(div_id+' #hardware-boot_order option:selected').prop("selected", false);
@@ -258,7 +264,7 @@ function setHardwareDomainDefaults_viewer(div_id,data){
 		$(div_id+" #forced_hyp").html(data['forced_hyp']);
 		$(div_id+" #forced_hyp").closest("tr").show();
 	}else{
-		$(div_id+" #forced_hyp").closest("tr").hide(); //.closest("tr").remove();
+		$(div_id+" #forced_hyp").closest("tr").hide();
 	}
 	if (data.kind == 'desktop') {
 		populate_tree_template(data.create_dict.origin ? data.create_dict.origin : data.id);

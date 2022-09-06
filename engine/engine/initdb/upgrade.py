@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 57
+release_version = 58
+# release 58: Add new field 'virtualization_nested' into every created domain
 # release 57: Addded serverstostart index to domains
 # release 56: Remove hyp_started from non started domains
 # release 55: Added more secondary indices for domains queries
@@ -1123,6 +1124,11 @@ class Upgrade(object):
                 ).run(self.conn)
             except Exception as e:
                 print(e)
+
+        if version == 58:
+            r.table(table).update(
+                {"create_dict": {"hardware": {"virtualization_nested": False}}}
+            ).run(self.conn)
 
         return True
 

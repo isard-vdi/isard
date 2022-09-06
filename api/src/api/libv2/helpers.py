@@ -463,6 +463,10 @@ def parse_domain_update(domain_id, new_data, admin_or_manager=False):
         }
 
     if new_data.get("hardware") and new_data.get("hardware") != domain.get("hardware"):
+        if new_data["hardware"].get("virtualization_nested"):
+            new_data["hardware"]["virtualization_nested"] = new_data["hardware"][
+                "virtualization_nested"
+            ]
         if new_data["hardware"].get("memory"):
             new_data["hardware"]["memory"] = int(
                 new_data["hardware"]["memory"] * 1048576

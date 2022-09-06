@@ -1607,7 +1607,7 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
         if (
             dict_domain.get("create_dict", {})
             .get("hardware", {})
-            .get("nested_virtualization")
+            .get("virtualization_nested")
         ):
             x.set_cpu_host_model("host-passthrough")
         else:

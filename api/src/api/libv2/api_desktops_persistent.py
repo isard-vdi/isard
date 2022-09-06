@@ -454,6 +454,7 @@ class ApiDesktopsPersistent:
             "create_dict": {
                 "create_from_virt_install_xml": xml["id"],
                 "hardware": {
+                    "virtualization_nested": False,
                     "disks": disks,
                     "disk_bus": data["hardware"]["disk_bus"],
                     "isos": [{"id": media["id"]}],

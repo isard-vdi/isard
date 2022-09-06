@@ -1,3 +1,5 @@
+virtualization_nested:
+  type: boolean
 boot_order:
   type: list
 vcpus:
