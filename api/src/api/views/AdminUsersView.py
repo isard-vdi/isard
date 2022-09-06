@@ -14,6 +14,7 @@ from flask import request
 # coding=utf-8
 from api import app
 
+from .. import socketio
 from ..libv2.api_admin import (
     admin_table_delete,
     admin_table_insert,
@@ -666,3 +667,23 @@ def admin_users_getby_provider_category_uid(payload):
         return json.dumps(user_id[0]["id"]), 200, {"Content-Type": "application/json"}
     else:
         raise Error("not_found", "User not found")
+
+
+@app.route("/api/v3/admin/socketio/broadcast", methods=["POST"])
+@is_admin
+def socketio_broadcast(payload):
+    data = request.get_json()
+    socketio.emit(
+        "msg",
+        json.dumps({"type": data["type"], "msg": data["message"]}),
+        namespace="/administrators",
+        broadcast=True,
+        include_self=True,
+    )
+    socketio.emit(
+        "msg_" + data["type"],
+        json.dumps({"type": data["type"], "msg": data["message"]}),
+        namespace="/userspace",
+        broadcast=True,
+        include_self=True,
+    )
