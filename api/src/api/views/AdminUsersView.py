@@ -579,4 +579,4 @@ def admin_userschema(payload):
         for g in dict["group"]:
             if "parent_category" in g.keys():
                 g["name"] = "[" + g["parent_category"] + "] " + g["name"]
-    return json.dumps(dict)
+    return json.dumps(dict), 200, {"Content-Type": "application/json"}
