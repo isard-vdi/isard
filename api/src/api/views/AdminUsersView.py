@@ -60,20 +60,11 @@ def api_v3_admin_user_exists(payload, user_id):
 @app.route("/api/v3/admin/users", methods=["GET"])
 @is_admin_or_manager
 def api_v3_admin_users(payload):
-    userslist = users.List()
-
-    if payload["role_id"] == "admin":
-        return json.dumps(userslist), 200, {"Content-Type": "application/json"}
     if payload["role_id"] == "manager":
-        filtered_users = [
-            u for u in userslist if u["category"] == payload["category_id"]
-        ]
-        return json.dumps(filtered_users), 200, {"Content-Type": "application/json"}
-    return (
-        json.dumps({"error": "forbidden", "msg": "Forbidden"}),
-        403,
-        {"Content-Type": "application/json"},
-    )
+        userslist = users.List(payload["category_id"])
+    else:
+        userslist = users.List()
+    return json.dumps(userslist), 200, {"Content-Type": "application/json"}
 
 
 # Update user

@@ -195,29 +195,28 @@ class ApiUsers:
         del user["quota"]["user"]
         return user
 
-    def List(self):
+    def List(self, category_id=None):
+        query = r.table("users")
+        if category_id:
+            query = query.get_all(category_id, index="category")
+        query = query.without("password", {"vpn": {"wireguard": "keys"}}).merge(
+            lambda user: {
+                "desktops": r.table("domains")
+                .get_all(user["id"], index="user")
+                .filter({"kind": "desktop"})
+                .count(),
+                "templates": r.table("domains")
+                .get_all(user["id"], index="user")
+                .filter({"kind": "template"})
+                .count(),
+                "secondary_groups_data": r.table("groups")
+                .get_all(r.args(user["secondary_groups"]))
+                .pluck("id", "name")
+                .coerce_to("array"),
+            }
+        )
         with app.app_context():
-            return list(
-                r.table("users")
-                .without("password", {"vpn": {"wireguard": "keys"}})
-                .merge(
-                    lambda user: {
-                        "desktops": r.table("domains")
-                        .get_all(user["id"], index="user")
-                        .filter({"kind": "desktop"})
-                        .count(),
-                        "templates": r.table("domains")
-                        .get_all(user["id"], index="user")
-                        .filter({"kind": "template"})
-                        .count(),
-                        "secondary_groups_data": r.table("groups")
-                        .get_all(r.args(user["secondary_groups"]))
-                        .pluck("id", "name")
-                        .coerce_to("array"),
-                    }
-                )
-                .run(db.conn)
-            )
+            return list(query.run(db.conn))
 
     # this method is needed for user auto-registering
     # It will get the quota from the user group provided
