@@ -25,7 +25,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 2,
+  "id": 1,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -1683,8 +1683,12 @@
                 "type": "prometheus",
                 "uid": "PBFA97CFB590B2093"
               },
-              "expr": "count(present_over_time(isardvdi_domain_port_spice_tls[1m]) * on(desktop) group_left isardvdi_domain_port_spice_tls * on (port) group_left count_over_time(isardvdi_socket_recv_bytes[1m]))",
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "count(present_over_time(isardvdi_domain_port_spice_tls{domain=\"$domain\"}[1m]) * on(desktop) group_left isardvdi_domain_port_spice_tls{domain=\"$domain\"} * on (port) group_left count_over_time(isardvdi_socket_recv_bytes{domain=\"$domain\"}[1m]))",
+              "instant": true,
               "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"viewers\")\n  |> filter(fn: (r) => r[\"viewer_type\"] == \"viewer_port_spice_tls\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
+              "range": false,
               "refId": "A"
             }
           ],
@@ -1743,7 +1747,16 @@
           "pluginVersion": "9.0.7",
           "targets": [
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "count(present_over_time(isardvdi_domain_port_vnc{domain=\"$domain\"}[1m]) * on(desktop) group_left isardvdi_domain_port_vnc{domain=\"$domain\"} * on (port) group_left count_over_time(isardvdi_socket_recv_bytes{domain=\"$domain\"}[1m]))",
+              "instant": true,
               "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"viewers\")\n  |> filter(fn: (r) => r[\"viewer_type\"] == \"viewer_port_spice\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
+              "range": false,
               "refId": "A"
             }
           ],
@@ -1865,71 +1878,21 @@
           "pluginVersion": "9.0.7",
           "targets": [
             {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "count(present_over_time(isardvdi_domain_net_rx_bytes{domain=\"$domain\"}[1m]) * on (mac) group_left count_over_time(isardvdi_conntrack_rdp_recv_bytes{domain=\"$domain\"}[1m]))",
+              "hide": false,
+              "instant": true,
               "query": "",
+              "range": false,
               "refId": "A"
             }
           ],
           "title": "Viewer RDP",
-          "type": "stat"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
-              "displayName": "HTML5",
-              "mappings": [],
-              "noValue": "0",
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "#24292ea3",
-                    "value": null
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 3,
-            "w": 2,
-            "x": 2,
-            "y": 29
-          },
-          "id": 172,
-          "options": {
-            "colorMode": "background",
-            "graphMode": "none",
-            "justifyMode": "center",
-            "orientation": "vertical",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "text": {
-              "titleSize": 12,
-              "valueSize": 30
-            },
-            "textMode": "value"
-          },
-          "pluginVersion": "9.0.7",
-          "targets": [
-            {
-              "query": "",
-              "refId": "A"
-            }
-          ],
-          "title": "Viewer RDP HTML5",
           "type": "stat"
         }
       ],
@@ -1978,9 +1941,13 @@
       },
       {
         "current": {
-          "selected": false,
-          "text": "All",
-          "value": "$__all"
+          "selected": true,
+          "text": [
+            "vpnserver"
+          ],
+          "value": [
+            "vpnserver"
+          ]
         },
         "datasource": {
           "type": "prometheus",

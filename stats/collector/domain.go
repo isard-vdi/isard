@@ -781,7 +781,7 @@ func (d *Domain) collectDomainPorts(id string) (map[string]int, error) {
 	}
 	defer sess.Close()
 
-	b, err := sess.CombinedOutput(fmt.Sprintf(`cat /var/log/libvirt/qemu/%s.log | grep -e tls-port -e websocket | tail -n 2 | awk '{ print $2 }'`, id))
+	b, err := sess.CombinedOutput(fmt.Sprintf(`cat /var/log/libvirt/qemu/%s.log | grep -e tls-port -e websocket | tail -n 2`, id))
 	if err != nil {
 		return nil, fmt.Errorf("collect domain ports: %w: %s", err, b)
 	}
