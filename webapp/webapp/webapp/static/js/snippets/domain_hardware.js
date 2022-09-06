@@ -4,7 +4,6 @@ function setHardwareOptions(id,default_boot,domain_id){
 		$(id+" #hardware-memory").find('option').remove();
 		$(id+" #hardware-vcpus").find('option').remove();
 		$(id+" #hardware-interfaces").find('option').remove();
-		$(id+" #hardware-graphics").find('option').remove();
 		$(id+" #hardware-videos").find('option').remove();
 		$(id+" #hardware-boot_order").find('option').remove();
 		$(id+" #hardware-qos_id").find('option').remove();
@@ -24,17 +23,6 @@ function setHardwareOptions(id,default_boot,domain_id){
 			{
 				$(id+" #hardware-interfaces").append('<option value=' + value.id + '>' + value.name + ' - ' + value.description + '</option>');
 			});
-
-			if(hardware.graphics.length == 1){
-				$(id+" #hardware-graphics").attr("disabled",true);
-			}else{
-				$(id+" #hardware-graphics").attr("disabled",false);
-			}
-			$.each(hardware.graphics,function(key, value) 
-			{
-				$(id+" #hardware-graphics").append('<option value=' + value.id + '>' + value.name + '</option>');
-			});
-
 			if(hardware.videos.length == 1){
 				$(id+" #hardware-videos").attr("disabled",true);
 			}else{
@@ -142,7 +130,6 @@ function setHardwareDomainDefaults(div_id,domain){
 	setViewers('#modalEditDesktop',domain)
 
 	$(div_id+' #hardware-interfaces option:selected').prop("selected", false);
-	$(div_id+' #hardware-graphics option:selected').prop("selected", false);
 	$(div_id+' #hardware-videos option:selected').prop("selected", false);
 	$(div_id+' #hardware-boot_order option:selected').prop("selected", false);
 	$(div_id+' #hardware-disk_bus option:selected').prop("selected", false);
@@ -150,7 +137,6 @@ function setHardwareDomainDefaults(div_id,domain){
 	$.each(domain.hardware.interfaces, function(k,value){
 		$(div_id+' #hardware-interfaces option[value="'+value+'"]').prop("selected",true);
 	})
-	$(div_id+' #hardware-graphics option[value="'+domain.hardware.graphics[0].type+'"]').prop("selected",true);
 	$(div_id+' #hardware-videos option[value="'+domain.hardware.videos[0]+'"]').prop("selected",true);
 	$(div_id+' #hardware-disk_bus option[value="'+domain.hardware.disk_bus+'"]').prop("selected",true);
 	
@@ -265,7 +251,6 @@ function setHardwareDomainDefaults_viewer(div_id,data){
 		$(div_id+" #gpu").closest("tr").hide();
 	}
 	$(div_id+" #net").html(data.hardware.interfaces.join(' '));
-	$(div_id+" #graphics").html(data.hardware.graphics);
 	$(div_id+" #video").html(data.hardware.videos);
 	$(div_id+" #boot").html(data.hardware['boot_order']);
 	$(div_id+" #disk_bus").html(data.hardware.disk_bus);

@@ -1377,7 +1377,6 @@ function populate_tree_template_delete(id){
                     ...("vcpus" in data["hardware"]) && {"vcpus": parseInt(data["hardware"]["vcpus"])},
                     ...("memory" in data["hardware"]) && {"memory": parseFloat(data["hardware"]["memory"])},
                     ...("videos" in data["hardware"]) && {"videos": [data["hardware"]["videos"]]},
-                    ...("graphics" in data["hardware"]) && {"graphics": [data["hardware"]["graphics"]]},
                     ...("boot_order" in data["hardware"]) && {"boot_order": [data["hardware"]["boot_order"]]},
                     ...("interfaces" in data["hardware"]) && {"interfaces": data["hardware"]["interfaces"]},
                     ...("disk_bus" in data["hardware"]) && {"disk_bus": data["hardware"]["disk_bus"]},

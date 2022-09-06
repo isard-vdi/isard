@@ -118,38 +118,6 @@
           {{ $t(`validations.${v$.memory.$errors[0].$validator}`, { property: `${$t("forms.domain.hardware.memory")}` }) }}
         </div>
       </b-col>
-      <!-- Graphics -->
-      <b-col
-        cols="12"
-        xl="2"
-        class="mb-2"
-      >
-        {{ $t(`forms.domain.hardware.graphics`) }}
-        <v-select
-          v-model="graphics"
-          :options="availableHardware.graphics"
-          label="name"
-          :reduce="element => element.id"
-          @search:blur="v$.vcpus.$touch"
-        >
-          <template #search="{ attributes, events }">
-            <input
-              id="graphics"
-              class="vs__search"
-              v-bind="attributes"
-              v-on="events"
-            >
-          </template>
-        </v-select>
-        <div
-          v-if="v$.graphics.$error"
-          id="graphicsError"
-          class="text-danger"
-          @search:blur="v$.vcpus.$touch"
-        >
-          {{ $t(`validations.${v$.graphics.$errors[0].$validator}`, { property: `${$t("forms.domain.hardware.graphics")}` }) }}
-        </div>
-      </b-col>
       <!-- Videos -->
       <b-col
         cols="12"

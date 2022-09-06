@@ -628,89 +628,6 @@ $(document).ready(function() {
     });
 
 
-
-
-
-
-
-
-
-
-    // GRAPHICS
-    graphics_table=$('#graphics').DataTable({
-			"ajax": {
-				"url": "/admin/table/graphics",
-                "contentType": "application/json",
-                "type": 'POST',
-                "data": function(d){return JSON.stringify({'order_by':'name'})}
-			},
-            "sAjaxDataProp": "",
-			"language": {
-				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
-			},
-			"rowId": "id",
-			"deferRender": true,
-			"columns": [
-				{
-                "className":      'details-control',
-                "orderable":      false,
-                "data":           null,
-                "defaultContent": '' //'<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
-				},
-				{ "data": "name"},
-				{ "data": "description"},
-				{
-                "className":      'actions-control',
-                "orderable":      false,
-                "data":           null,
-                "defaultContent": '<button id="btn-alloweds" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button>'
-                                    //~ '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button> \
-                                   //~ <button id="btn-edit" class="btn btn-xs btn-edit-interface" type="button"  data-placement="top" ><i class="fa fa-pencil" style="color:darkblue"></i></button>'
-				},                
-                ],
-			 "order": [[1, 'asc']]
-    } );
-
-    $('#graphics').find(' tbody').on( 'click', 'button', function () {
-        var data = graphics_table.row( $(this).parents('tr') ).data();
-        switch($(this).attr('id')){
-            case 'btn-alloweds':        
-                modalAllowedsFormShow('graphics',data)
-            break;
-                
-        }
-    });
-    
-	$('.add-new-graphics').on( 'click', function () {
-            $("#modalGraphics #modalAddGraphics")[0].reset();
-			$('#modalGraphics').modal({
-				backdrop: 'static',
-				keyboard: false
-			}).modal('show');
-            $('#modalGraphics #modalAddGraphics').parsley();
-            setAlloweds_add('#alloweds-graphics-add');
-	});
-
-    $("#modalGraphics #send").on('click', function(e){
-            var form = $('#modalAddGraphics');
-            form.parsley().validate();
-            data=$('#modalAddGraphics').serializeObject();
-            data=replaceAlloweds_arrays('#modalAddGraphics #alloweds-graphics-add', data)
-            data['id']=data['name'];
-            data['table']='graphics'
-            $.ajax({
-                type: "POST",
-                url:"/admin/table/add/graphics",
-                data: JSON.stringify(data),
-                contentType: "application/json",
-                success: function(data)
-                {
-                    $('form').each(function() { this.reset() });
-                    $('.modal').modal('hide');
-                }
-            });
-        });
-
     // VIDEOS
     videos_table=$('#videos').DataTable({
 			"ajax": {
@@ -886,9 +803,6 @@ $(document).ready(function() {
     socket.on('data', function(data){
         var dict = JSON.parse(data);
         switch(dict['table']){
-            case 'graphics':
-                dtUpdateInsert(graphics_table,dict['data'],false);
-                break;
             case 'videos':
                 dtUpdateInsert(videos_table,dict['data'],false);
                 break;
@@ -947,9 +861,6 @@ $(document).ready(function() {
         data=dict['data']        
         //~ var row = table.row('#'+data.id).remove().draw();
         switch(dict['table']){
-            case 'graphics':
-                var row = graphics_table.row('#'+data.id).remove().draw();
-                break;
             case 'videos':
                 var row = videos_table.row('#'+data.id).remove().draw();
                 break;                

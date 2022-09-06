@@ -10,15 +10,15 @@
       </select>
    </div>
    <div class="col-md-3 col-sm-3 col-xs-12">
-      <label>Graphics:</label>
-      <select class="form-control roundbox" style="font-size:12px; padding:1px; width:100%; overflow: hidden; text-overflow: ellipsis;" id="hardware-graphics" name="hardware-graphics">
-      </select>
-   </div>
-   <div class="col-md-3 col-sm-3 col-xs-12">
       <label>Video:</label>
       <select class="form-control roundbox" style="font-size:12px; padding:1px; width:100%; overflow: hidden; text-overflow: ellipsis;" id="hardware-videos" name="hardware-videos">
       </select>
-   </div>                      
+   </div>
+   <div class="col-md-3 col-sm-3 col-xs-12">
+      <label>Disk Bus:</label>
+      <select class="form-control roundbox" style="font-size:12px; padding:1px; width:100%; overflow: hidden; text-overflow: ellipsis;" id="hardware-disk_bus" name="hardware-disk_bus">
+      </select>
+   </div>
 </div>
 <div class="row">
    <div class="col-md-3 col-sm-3 col-xs-12">
@@ -26,11 +26,6 @@
       <select class="form-control roundbox" style="font-size:12px; padding:1px; width:100%; overflow: hidden; text-overflow: ellipsis;" id="hardware-boot_order" name="hardware-boot_order">
       </select>
    </div>
-   <div class="col-md-3 col-sm-3 col-xs-12">
-      <label>Disk Bus:</label>
-      <select class="form-control roundbox" style="font-size:12px; padding:1px; width:100%; overflow: hidden; text-overflow: ellipsis;" id="hardware-disk_bus" name="hardware-disk_bus">
-      </select>
-   </div>   
    <!-- <div class="col-md-3 col-sm-3 col-xs-12">
       <label>Disk Qos:</label>
       <select class="form-control roundbox" style="font-size:12px; padding:1px; width:100%; overflow: hidden; text-overflow: ellipsis;" id="hardware-qos_id" name="hardware-qos_id">
@@ -39,7 +34,7 @@
 </div>
 <div class="row">
    <div class="col-md-12 col-sm-12 col-xs-12">
-      <label class="control-label" for="hardware-interfaces">Networks (select multiple networks holding Control key and clicking them)
+      <label class="control-label" for="hardware-interfaces">Networks: (select multiple networks holding Control key and clicking them)
       </label>
       <select id="hardware-interfaces" name="hardware-interfaces[]" class="tags-select roundbox" multiple="multiple" size="9" style="width: 100%;" disabled>
       </select>

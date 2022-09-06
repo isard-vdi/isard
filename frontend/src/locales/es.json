@@ -121,7 +121,6 @@
                 "title": "Hardware",
                 "vcpus": "vCPUS",
                 "memory": "Memoria (GB)",
-                "graphics": "Gráficos",
                 "videos": "Videos",
                 "boot": "Boot",
                 "disk-bus": "Disk Bus",
