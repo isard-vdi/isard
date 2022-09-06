@@ -38,7 +38,7 @@ def admin_table_list(
     query = r.table(table)
 
     if id and not index:
-        query = query.get(id).run(db.conn)
+        query = query.get(id)
     elif id and index:
         query = query.get_all(id, index=index)
 
