@@ -542,29 +542,40 @@ def admin_userschema(payload):
         dict["role"] = [
             r for r in dict["role"] if r["id"] in ["manager", "advanced", "user"]
         ]
-        dict["category"] = payload["category_id"]
+        # dict["category"] = payload["category_id"]
 
-    dict["category"] = admin_table_list(
-        "categories",
-        pluck=["id", "name", "description"],
-        order_by="name",
-        without=False,
-    )
-
-    dict["group"] = admin_table_list(
-        "groups",
-        pluck=["id", "name", "description", "parent_category", "linked_groups"],
-        order_by="name",
-        without=False,
-    )
     if payload["role_id"] == "manager":
-        dict["group"] = [
-            g
-            for g in dict["group"]
-            if "parent_category" in g.keys()
-            and g["parent_category"] == payload["category_id"]
+        dict["category"] = [
+            admin_table_list(
+                "categories",
+                pluck=["id", "name", "description"],
+                id=payload["category_id"],
+            )
         ]
     else:
+        dict["category"] = admin_table_list(
+            "categories",
+            pluck=["id", "name", "description"],
+            order_by="name",
+            without=False,
+        )
+
+    if payload["role_id"] == "manager":
+        dict["group"] = admin_table_list(
+            "groups",
+            pluck=["id", "name", "description", "parent_category", "linked_groups"],
+            order_by="name",
+            without=False,
+            id=payload["category_id"],
+            index="parent_category",
+        )
+    else:
+        dict["group"] = admin_table_list(
+            "groups",
+            pluck=["id", "name", "description", "parent_category", "linked_groups"],
+            order_by="name",
+            without=False,
+        )
         for g in dict["group"]:
             if "parent_category" in g.keys():
                 g["name"] = "[" + g["parent_category"] + "] " + g["name"]
