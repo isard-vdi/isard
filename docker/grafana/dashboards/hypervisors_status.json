@@ -25,7 +25,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 4,
+  "id": 9,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -1898,9 +1898,9 @@
     "list": [
       {
         "current": {
-          "selected": true,
-          "text": "10.100.1.54",
-          "value": "10.100.1.54"
+          "selected": false,
+          "text": "vpnserver",
+          "value": "vpnserver"
         },
         "datasource": {
           "type": "prometheus",
@@ -1925,9 +1925,9 @@
       },
       {
         "current": {
-          "selected": true,
-          "text": "10.100.1.54",
-          "value": "10.100.1.54"
+          "selected": false,
+          "text": "vpnserver",
+          "value": "vpnserver"
         },
         "datasource": {
           "type": "prometheus",
