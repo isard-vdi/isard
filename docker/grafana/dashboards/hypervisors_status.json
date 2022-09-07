@@ -25,7 +25,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 1,
+  "id": 9,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -360,18 +360,6 @@
           },
           "pluginVersion": "9.0.7",
           "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
-              },
-              "expr": "((node_memory_MemTotal_bytes{domain=\"$domain\"} - node_memory_MemFree_bytes{domain=\"$domain\"}) / (node_memory_MemTotal_bytes{domain=\"$domain\"} )) * 100",
-              "format": "time_series",
-              "hide": true,
-              "intervalFactor": 1,
-              "refId": "A",
-              "step": 240
-            },
             {
               "datasource": {
                 "type": "prometheus",
@@ -1910,13 +1898,9 @@
     "list": [
       {
         "current": {
-          "selected": true,
-          "text": [
-            "All"
-          ],
-          "value": [
-            "$__all"
-          ]
+          "selected": false,
+          "text": "vpnserver",
+          "value": "vpnserver"
         },
         "datasource": {
           "type": "prometheus",
@@ -1924,9 +1908,9 @@
         },
         "definition": "label_values(hypervisor)",
         "hide": 0,
-        "includeAll": true,
+        "includeAll": false,
         "label": "Hypervisors",
-        "multi": true,
+        "multi": false,
         "name": "hypers",
         "options": [],
         "query": {
@@ -1941,13 +1925,9 @@
       },
       {
         "current": {
-          "selected": true,
-          "text": [
-            "vpnserver"
-          ],
-          "value": [
-            "vpnserver"
-          ]
+          "selected": false,
+          "text": "vpnserver",
+          "value": "vpnserver"
         },
         "datasource": {
           "type": "prometheus",
@@ -1955,9 +1935,9 @@
         },
         "definition": "label_values(domain)",
         "hide": 0,
-        "includeAll": true,
+        "includeAll": false,
         "label": "Host",
-        "multi": true,
+        "multi": false,
         "name": "domain",
         "options": [],
         "query": {

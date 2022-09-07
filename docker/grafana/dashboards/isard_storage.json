@@ -25,7 +25,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 4,
+  "id": 3,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -102,8 +102,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "rgba(50, 172, 45, 0.97)",
-                    "value": null
+                    "color": "rgba(50, 172, 45, 0.97)"
                   },
                   {
                     "color": "rgba(237, 129, 40, 0.89)",
@@ -187,8 +186,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "rgba(50, 172, 45, 0.97)",
-                    "value": null
+                    "color": "rgba(50, 172, 45, 0.97)"
                   },
                   {
                     "color": "rgba(237, 129, 40, 0.89)",
@@ -292,8 +290,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -372,8 +369,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "rgba(50, 172, 45, 0.97)",
-                    "value": null
+                    "color": "rgba(50, 172, 45, 0.97)"
                   },
                   {
                     "color": "rgba(237, 129, 40, 0.89)",
@@ -458,8 +454,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "rgba(50, 172, 45, 0.97)",
-                    "value": null
+                    "color": "rgba(50, 172, 45, 0.97)"
                   },
                   {
                     "color": "rgba(237, 129, 40, 0.89)",
@@ -544,8 +539,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "rgba(50, 172, 45, 0.97)",
-                    "value": null
+                    "color": "rgba(50, 172, 45, 0.97)"
                   },
                   {
                     "color": "rgba(237, 129, 40, 0.89)",
@@ -630,8 +624,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "rgba(50, 172, 45, 0.97)",
-                    "value": null
+                    "color": "rgba(50, 172, 45, 0.97)"
                   },
                   {
                     "color": "rgba(237, 129, 40, 0.89)",
@@ -703,13 +696,9 @@
     "list": [
       {
         "current": {
-          "selected": true,
-          "text": [
-            "All"
-          ],
-          "value": [
-            "$__all"
-          ]
+          "selected": false,
+          "text": "vpnserver",
+          "value": "vpnserver"
         },
         "datasource": {
           "type": "prometheus",
@@ -717,9 +706,9 @@
         },
         "definition": "label_values(hypervisor)",
         "hide": 0,
-        "includeAll": true,
+        "includeAll": false,
         "label": "Hypervisors",
-        "multi": true,
+        "multi": false,
         "name": "hypers",
         "options": [],
         "query": {
@@ -734,13 +723,9 @@
       },
       {
         "current": {
-          "selected": true,
-          "text": [
-            "All"
-          ],
-          "value": [
-            "$__all"
-          ]
+          "selected": false,
+          "text": "vpnserver",
+          "value": "vpnserver"
         },
         "datasource": {
           "type": "prometheus",
@@ -748,9 +733,9 @@
         },
         "definition": "label_values(domain)",
         "hide": 0,
-        "includeAll": true,
+        "includeAll": false,
         "label": "Host",
-        "multi": true,
+        "multi": false,
         "name": "domain",
         "options": [],
         "query": {
