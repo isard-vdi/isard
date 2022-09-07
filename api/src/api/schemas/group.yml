@@ -22,6 +22,16 @@ uid:
   empty: false
   type: string
   default_setter: genidlower
+external_app_id:
+  required: false
+  type: string
+  nullable: true
+  default: null
+external_gid:
+  required: false
+  type: string
+  nullable: true
+  default: null
 enrollment:
   type: dict
   default:

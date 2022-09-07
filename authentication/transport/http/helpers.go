@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"gitlab.com/isard/isardvdi/authentication/authentication/provider"
 )
@@ -45,6 +46,9 @@ func parseArgs(r *http.Request) (map[string]string, error) {
 	}
 
 	args[provider.RequestBodyArgsKey] = string(b)
+
+	// Parse the token
+	args[provider.TokenArgsKey] = strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 
 	return args, nil
 }

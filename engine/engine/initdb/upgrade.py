@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 50
+release_version = 51
+# release 51: Add support for external apps
 # release 50: Added secondary indices for domains and users tables
 # release 49: Replace dots in media ids
 # release 48: Replace bookings_priority table null value to false
@@ -1204,6 +1205,11 @@ class Upgrade(object):
 
         if version == 40:
             r.table(table).update({"linked_groups": []}).run(self.conn)
+
+        if version == 51:
+            r.table(table).update({"external_app_id": None, "external_gid": None}).run(
+                self.conn
+            )
 
         return True
 
