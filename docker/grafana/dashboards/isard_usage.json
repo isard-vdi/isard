@@ -25,7 +25,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 5,
+  "id": 9,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -130,7 +130,7 @@
                 "type": "prometheus",
                 "uid": "PBFA97CFB590B2093"
               },
-              "editorMode": "builder",
+              "editorMode": "code",
               "expr": "count_values by(category) (\"categoria\", isardvdi_isardvdi_api_user_info{domain=\"$domain\"})",
               "legendFormat": "{{category}}",
               "range": true,
@@ -369,13 +369,9 @@
     "list": [
       {
         "current": {
-          "selected": true,
-          "text": [
-            "All"
-          ],
-          "value": [
-            "$__all"
-          ]
+          "selected": false,
+          "text": "10.100.1.54",
+          "value": "10.100.1.54"
         },
         "datasource": {
           "type": "prometheus",
@@ -383,9 +379,9 @@
         },
         "definition": "label_values(hypervisor)",
         "hide": 0,
-        "includeAll": true,
+        "includeAll": false,
         "label": "Hypervisors",
-        "multi": true,
+        "multi": false,
         "name": "hypers",
         "options": [],
         "query": {
@@ -400,13 +396,9 @@
       },
       {
         "current": {
-          "selected": true,
-          "text": [
-            "All"
-          ],
-          "value": [
-            "$__all"
-          ]
+          "selected": false,
+          "text": "10.100.1.54",
+          "value": "10.100.1.54"
         },
         "datasource": {
           "type": "prometheus",
@@ -414,9 +406,9 @@
         },
         "definition": "label_values(domain)",
         "hide": 0,
-        "includeAll": true,
+        "includeAll": false,
         "label": "Host",
-        "multi": true,
+        "multi": false,
         "name": "domain",
         "options": [],
         "query": {
