@@ -298,23 +298,30 @@
                 <form id="modalAddBulkUsersForm" class="form-horizontal form-label-left">
                     <div class="x_panel">
                         <div class="x_content">
-                            <!--
-                        <input id="id" hidden/>
--->
-
                             <div class="item form-group">
                                 <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Import CSV <span class="required">*</span>
                                 </label>
                                 <div class="col-md-9 col-sm-9 col-xs-12">
                                     <input type="file" id="csv" name="csv" enctype="multipart/form-data" />
-                                    <small>CSV file should have this columns: username,name,email,password</small>
-                                    <button id="btn-download-bulkusers" type="button" class="btn btn-success" data-dismiss="modal">Download csv template</button>
-                                    <!--
-                           <input id="csv" name="csv" class="form-control col-md-7 col-xs-12"  type="file">
--->
+                                    <br>
+                                    <small>CSV file should have this columns:
+                                        <ul>
+                                            <li>username / name / email / password / group / category / role</li>
+                                            <li>Where <b>category</b> and <b>group</b> are their <i>names</i></li>
+                                            <li>Where <b>role</b> must be <i>manager, advanced</i> or <i>user</i></li>
+                                        </ul>
+                                    </small>
+                                    <button id="btn-download-bulkusers" type="button" class="btn btn-success" data-dismiss="modal">Download sample csv format</button>
                                 </div>
                             </div>
-                            <div class="item form-group">
+                            <div class="x_content">
+                                <div id="csv_error" style="display:none" class="alert alert-danger alert-dismissible " role="alert">
+                                    <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">×</span>
+                                    </button>
+                                    <div id="csv_error_html"></div>
+                                </div>
+                            </div>
+                            <!-- <div class="item form-group">
                                 <label class="control-label col-md-3 col-sm-3 col-xs-12" for="role">Role: <span class="required">*</span></label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
                                     <select id="bulk-role" name="role" class="form-control role" data-quota="bulkusers-quota" required>
@@ -334,25 +341,46 @@
                                     <select id="bulk-group" name="group" class="form-control group" required>
                                     </select>
                                 </div>
-                            </div>
-                            <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="group">Secondary group: </label>
-                                <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <select id="bulk_secondary_groups" name="secondary_groups[]" class="tags-select roundbox" multiple="multiple" style="width: 100%;">
-                                    </select>
+                            </div> -->
+                            <div id="csv_correct" class="x_content"  style="display:none">
+                                <div class="x_title">
+                                    <h4><i class="fa fa-check" style="color:lightgreen"></i> Imported data was validated</h4>
+                                    <div class="clearfix"></div>
                                 </div>
+                                <table id="csv_preview" class="table">
+                                  <thead>
+                                    <tr>
+                                      <th>username</th>
+                                      <th>name</th>
+                                      <th>email</th>
+                                      <th>password</th>
+                                      <th>group</th>
+                                      <th>category</th>
+                                      <th>role</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                  </tbody>
+                                </table>
+                                <hr>
+                                <div class="x_title">
+                                    <h4></i> Extra parameters for all validated users</h4>
+                                    <div class="clearfix"></div>
+                                </div>
+                                <div class="item form-group">
+                                    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="group">Secondary groups: </label>
+                                    <div class="col-md-6 col-sm-6 col-xs-12">
+                                        <select id="bulk_secondary_groups" name="secondary_groups[]" class="tags-select roundbox" multiple="multiple" style="width: 100%;">
+                                        </select>
+                                    </div>
+                                </div>
+
+                            <div class="x_panela" id="bulkusers-quota" style="padding: 5px; margin-left:50px;">
+                                <label class="control-label" style="margin-left:20px;""">Quotas</label>
+                                {% include '/snippets/quota_edit.html' %}
                             </div>
-                            <!--
-                     </div>
--->
-
                         </div>
-
-                        <div class="x_panela" id="bulkusers-quota" style="padding: 5px;">
-                            <p style="font-size: 18px;margin-bottom:0px;">Quota for this users</p>
-                            {% include '/snippets/quota_edit.html' %}
-                        </div>
-
+                    </div>
                     </form>
                     </div>
             </div>

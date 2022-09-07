@@ -3,6 +3,7 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
+import json
 from functools import wraps
 
 from flask import request
@@ -219,7 +220,49 @@ def ownsCategoryId(payload, category_id):
         return True
     raise Error(
         "forbidden",
-        "Not enough access rights for this category_id " + str(category_id),
+        "Not enough access rights for this category_id: " + str(category_id),
+        traceback.format_exc(),
+    )
+
+
+def CategoryNameGroupNameMatch(category_name, group_name):
+    with app.app_context():
+        category = list(
+            r.table("categories")
+            .filter(lambda category: category["name"].match("(?i)" + category_name))
+            .run(db.conn)
+        )
+    if not len(category):
+        raise Error(
+            "bad_request",
+            "Category name " + category_name + " not found",
+            traceback.format_exc(),
+        )
+
+    with app.app_context():
+        group = list(
+            r.table("groups")
+            .get_all(category[0]["id"], index="parent_category")
+            .filter(lambda group: group["name"].match("(?i)" + group_name))
+            .run(db.conn)
+        )
+
+    if not len(group):
+        raise Error(
+            "bad_request",
+            "Group name " + group_name + " not found",
+            traceback.format_exc(),
+        )
+
+    if group[0]["parent_category"] == category[0]["id"]:
+        return {"category": category[0]["name"], "group": group[0]["name"]}
+
+    raise Error(
+        "bad_request",
+        "Category name "
+        + category_name
+        + " does not have child group name "
+        + group_name,
         traceback.format_exc(),
     )
 
@@ -346,6 +389,22 @@ def itemExists(item_table, item_id):
         raise Error(
             "not_found",
             item_table + " not found id: " + item_id,
+            traceback.format_exc(),
+        )
+
+
+def usernameNotExists(username, category_id, uid=None, provider="local"):
+    if not uid:
+        uid = username
+    if list(
+        r.table("users")
+        .get_all(category_id, index="category")
+        .filter({"provider": provider, "uid": uid, "username": username})
+        .run(db.conn)
+    ):
+        raise Error(
+            "bad_request",
+            "Username " + username + " already exists in category_id " + category_id,
             traceback.format_exc(),
         )
 
