@@ -33,6 +33,7 @@ from ..libv2.isardVpn import isardVpn
 vpn = isardVpn()
 
 from .decorators import (
+    CategoryNameGroupNameMatch,
     has_token,
     is_admin,
     is_admin_or_manager,
@@ -40,6 +41,7 @@ from .decorators import (
     ownsCategoryId,
     ownsDomainId,
     ownsUserId,
+    usernameNotExists,
 )
 
 
@@ -111,6 +113,7 @@ def api_v3_admin_user_insert(payload):
         # Required
 
         data = request.get_json()
+
     except:
         raise Error(
             "bad_request",
@@ -124,10 +127,11 @@ def api_v3_admin_user_insert(payload):
     data["accessed"] = time.time()
 
     if data["bulk"]:
-        data["category"] = users.CategoryGetByName(data["category"])[0]["id"]
-        data["group"] = users.GroupGetByNameCategory(data["group"], data["category"])[
-            0
-        ]["id"]
+        match = CategoryNameGroupNameMatch(data["category"], data["group"])
+        data["category"] = users.CategoryGetByName(match["category"])["id"]
+        data["group"] = users.GroupGetByNameCategory(match["group"], data["category"])[
+            "id"
+        ]
 
     data = _validate_item("user", data)
 
@@ -576,3 +580,29 @@ def admin_userschema(payload):
             if "parent_category" in g.keys():
                 g["name"] = "[" + g["parent_category"] + "] " + g["name"]
     return json.dumps(dict), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/admin/users/validate", methods=["POST"])
+@is_admin_or_manager
+def admin_users_validate(payload):
+    user_list = request.get_json()
+    for user in user_list:
+        category_id = users.CategoryGetByName(user["category"])["id"]
+        ownsCategoryId(payload, category_id)
+        CategoryNameGroupNameMatch(user["category"], user["group"])
+        if payload["role_id"] == "manager":
+            if user["role"] not in ["manager", "advanced", "user"]:
+                raise Error(
+                    "bad_request",
+                    "Role " + user["role"] + " not in manager, advanced or user",
+                    traceback.format_exc(),
+                )
+        else:
+            if user["role"] not in ["admin", "manager", "advanced", "user"]:
+                raise Error(
+                    "bad_request",
+                    "Role " + user["role"] + " not in admin, manager, advanced or user",
+                    traceback.format_exc(),
+                )
+        usernameNotExists(user["username"], category_id)
+    return json.dumps({}), 200, {"Content-Type": "application/json"}

@@ -49,8 +49,14 @@ $(document).ready(function() {
     
 	$('.btn-new-bulkusers').on('click', function () {
         setQuotaMax('#bulkusers-quota',kind='category',id=false,disabled=false);
+        $("#modalAddBulkUsers #send").attr("disabled", true);
         $('#modalAddBulkUsers').modal({backdrop: 'static', keyboard: false}).modal('show');
         $('#modalAddBulkUsersForm')[0].reset();
+        if ( $.fn.dataTable.isDataTable( '#csv_preview' ) ) {
+            csv_preview.clear().draw()
+            $("#csv_correct").hide()
+            $("#csv_error").hide()
+        }
         setModalUser();
 
         $('#modalAddBulkUsersForm #bulk_secondary_groups').select2({
@@ -116,7 +122,7 @@ $(document).ready(function() {
     });
 
 	$('#btn-download-bulkusers').on('click', function () {
-        var viewerFile = new Blob(["username,name,email,password,group,category,role\njdoe,John Doe,jdoe@isardvdi.com,sup3rs3cr3t,default,default,advanced\nauser,Another User,auser@domain.com,a1sera1ser,anothergroup,anothercategory,user"], {type: "text/csv"});
+        var viewerFile = new Blob(["username,name,email,password,group,category,role\njdoe,John Doe,jdoe@isardvdi.com,sup3rs3cr3t,Default,Default,advanced\nauser,Another User,auser@domain.com,a1sera1ser,Default,Default,user"], {type: "text/csv"});
         var a = document.createElement('a');
             a.download = 'bulk-users-template.csv';
             a.href = window.URL.createObjectURL(viewerFile);
@@ -320,31 +326,15 @@ $(document).ready(function() {
            var file = files[0];           
            var reader = new FileReader();
            reader.onload = function(event) {
-             filecontents=event.target.result;            
+             filecontents=event.target.result;
+             csv2datatables(filecontents)
            }
            reader.readAsText(file, 'UTF-8')
         }
 
-        function toObject(names, values) {
-            var result = {};
-            for (var i = 0; i < names.length; i++)
-                 result[names[i]] = values[i];
-            return result;
-        }
 
-    function parseCSV(){
-        lines=filecontents.split('\n')
-        header=lines[0].split(',')
-        users=[]
-        $.each(lines, function(n, l){
-            if(n!=0 && l.length > 10){
-                usr=toObject(header,l.split(','))
-                usr['id']=usr['username']
-                users.push(usr)
-            }
-        })
-        return users;
-    }
+
+
         
     $("#modalAddBulkUsers #send").on('click', function(e){
         var form = $('#modalAddBulkUsersForm');
@@ -355,7 +345,7 @@ $(document).ready(function() {
             data=userQuota2dict(formdata);
             delete data['unlimited']
             data['provider']='local';
-            users=parseCSV()
+            users=parseCSV(filecontents)
             var notice = new PNotify({
                 title: "Adding users",
             });
@@ -798,5 +788,74 @@ function setModalUser(){
             }
             $("."+key+' option[value="local"]').prop("selected",true);
         });
+        $('#add-category').trigger("change")
     });
 }
+
+function validate_csv(csv){
+    $.ajax({
+        type: "POST",
+        url: "/api/v3/admin/users/validate",
+        data: JSON.stringify(parseCSV(csv)),
+        contentType: "application/json",
+        async: false
+    }).done(function (d) {
+        $("#csv_correct").show()
+        $("#csv_error").hide()
+        $("#modalAddBulkUsers #send").attr("disabled", false);
+        return true
+    }).fail(function(data) {
+        $("#csv_correct").hide()
+        $("#modalAddBulkUsers #send").attr("disabled", true);
+        $("#csv_error #csv_error_html").html(data.responseJSON.description)
+        $("#csv_error").show()
+        // alert(data.responseJSON.description)
+        // return data.responseJSON.description
+        console.log(data.responseJSON.description)
+    });
+}
+function csv2datatables(csv){
+    response=validate_csv(csv)
+    // if( response != true ){alert(response);return}
+    if ( $.fn.dataTable.isDataTable( '#csv_preview' ) ) {
+        csv_preview.clear().rows.add(parseCSV(csv)).draw()
+    }else{
+        csv_preview=$("#csv_preview").DataTable( {
+            data: parseCSV(csv),
+            rowId: 'id',
+            columns: [
+                { "data": "username", "width": "88px"},
+                { "data": "name", "width": "88px"},
+                { "data": "email", "width": "88px"},
+                { "data": "password", "width": "88px"},
+                { "data": "group", "width": "88px", "defaultContent": ""},
+                { "data": "category", "width": "88px", "defaultContent": ""},
+                { "data": "role", "width": "88px", "defaultContent": ""},
+                ],
+             "order": [[0, 'asc']],
+             "columnDefs": [ ]
+        } );
+    }
+}
+
+function parseCSV(csv){
+    lines=csv.split('\n')
+    header=lines[0].split(',')
+    users=[]
+    $.each(lines, function(n, l){
+        if(n!=0 && l.length > 10){
+            usr=toObject(header,l.split(','))
+            usr['id']=usr['username']
+            users.push(usr)
+        }
+    })
+    return users;
+}
+
+function toObject(names, values) {
+    var result = {};
+    for (var i = 0; i < names.length; i++)
+         result[names[i]] = values[i];
+    return result;
+}
+
