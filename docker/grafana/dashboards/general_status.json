@@ -441,7 +441,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "",
+          "expr": "(count(present_over_time(isardvdi_domain_port_spice_tls[1m]) * on(desktop) group_left isardvdi_domain_port_spice_tls * on (port) group_left count_over_time(isardvdi_socket_recv_bytes[1m])) or vector(0)) +\n\n(count(present_over_time(isardvdi_domain_port_vnc[1m]) * on(desktop) group_left isardvdi_domain_port_vnc * on (port) group_left count_over_time(isardvdi_socket_recv_bytes[1m])) or vector(0)) + \n\n(count(present_over_time(isardvdi_domain_net_rx_bytes[1m]) * on (mac) group_left count_over_time(isardvdi_conntrack_rdp_recv_bytes[1m])) or vector(0))",
           "format": "time_series",
           "hide": false,
           "instant": false,
@@ -2551,7 +2551,7 @@
       },
       {
         "current": {
-          "selected": true,
+          "selected": false,
           "text": "vpnserver",
           "value": "vpnserver"
         },
@@ -2578,7 +2578,7 @@
     ]
   },
   "time": {
-    "from": "now-5m",
+    "from": "now-1h",
     "to": "now"
   },
   "timepicker": {
