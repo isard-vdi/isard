@@ -1,0 +1,46 @@
+version: '3.5'
+services:
+  isard-authentication:
+    environment:
+      # LDAP
+      # TODO: Autoregister
+      - AUTHENTICATION_AUTHENTICATION_LDAP_ENABLED=true
+      - AUTHENTICATION_AUTHENTICATION_LDAP_HOST=isard-authentication-test-ldap
+      - AUTHENTICATION_AUTHENTICATION_LDAP_PORT=10389
+      - AUTHENTICATION_AUTHENTICATION_LDAP_BIND_DN=cn=admin,dc=planetexpress,dc=com
+      - AUTHENTICATION_AUTHENTICATION_LDAP_PASSWORD=GoodNewsEveryone
+      - AUTHENTICATION_AUTHENTICATION_LDAP_BASE_SEARCH=ou=people,dc=planetexpress,dc=com
+      - AUTHENTICATION_AUTHENTICATION_LDAP_FILTER=(&(objectClass=inetOrgPerson)(uid=%s))
+      - AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_UID=uid
+      - AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_USERNAME=uid
+      - AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_NAME=cn
+      - AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_EMAIL=mail
+      - AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_PHOTO=jpegPhoto
+      # SAML 
+      - AUTHENTICATION_AUTHENTICATION_SAML_ENABLED=true
+      - AUTHENTICATION_AUTHENTICATION_SAML_METADATA_URL=http://${DOCKER_NET:-172.31.255}.86:8080/simplesaml/saml2/idp/metadata.php
+      - AUTHENTICATION_AUTHENTICATION_SAML_FIELD_UID=uid
+      - AUTHENTICATION_AUTHENTICATION_SAML_FIELD_USERNAME=email
+      - AUTHENTICATION_AUTHENTICATION_SAML_REGEX_USERNAME=(.*)@.*
+      - AUTHENTICATION_AUTHENTICATION_SAML_FIELD_NAME=email
+      - AUTHENTICATION_AUTHENTICATION_SAML_REGEX_NAME=(.*)@.*
+      - AUTHENTICATION_AUTHENTICATION_SAML_FIELD_EMAIL=email
+
+  # Credentials: https://github.com/rroemhild/docker-test-openldap#ldap-structure
+  isard-authentication-test-ldap:
+    container_name: isard-authentication-test-ldap
+    image: rroemhild/test-openldap
+    networks:
+      - isard-network
+
+  # Credentials: https://github.com/kristophjunge/docker-test-saml-idp#usage
+  isard-authentication-test-saml:
+    container_name: isard-authentication-test-saml
+    image: kristophjunge/test-saml-idp
+    networks:
+      isard-network:
+        ipv4_address: ${DOCKER_NET:-172.31.255}.86
+    environment:
+      - SIMPLESAMLPHP_SP_ENTITY_ID=https://${DOMAIN}/authentication/saml/metadata
+      - SIMPLESAMLPHP_SP_ASSERTION_CONSUMER_SERVICE=https://${DOMAIN}/authentication/saml/acs
+      - SIMPLESAMLPHP_SP_SINGLE_LOGOUT_SERVICE=https://${DOMAIN}/authentication/saml/slo
