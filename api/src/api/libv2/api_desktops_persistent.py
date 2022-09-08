@@ -538,6 +538,12 @@ class ApiDesktopsPersistent:
             )
         if desktop["status"] == "Stopped":
             return desktop_id
+        if desktop["status"] == "Failed":
+            with app.app_context():
+                r.table("domains").get(desktop_id).update({"status": "Stopped"}).run(
+                    db.conn
+                )
+            return desktop_id
         if desktop["status"] not in ["Started", "Shutting-down"]:
             raise Error(
                 "precondition_required",
