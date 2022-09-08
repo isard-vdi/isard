@@ -23,7 +23,21 @@ $(document).ready(function(){
             { "data": "role_id"},
             { "data": "category_id"},
             { "data": "domain"},
-        ]
+            {
+                "data": null,
+                "width": "35px",
+                "defaultContent": ""
+            }
+        ],
+        "columnDefs": [{
+            "targets": 6,
+            "render": function( data, type, full, meta ){
+                if(!(data.id == 'isardvdi' || data.id == 'isardvdi-hypervisors')) {
+                    return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
+                }
+                return data;
+            }
+        }]
     });
 
     $('.btn-new-secret').off('click').on('click', function(){
@@ -91,6 +105,37 @@ $(document).ready(function(){
             }
         });
     })
+
+    $('#externalapps tbody').on('click', 'button', function(){
+        var id = table.row($(this).parents('tr')).data()["id"];
+        switch($(this).attr('id')){
+            case 'btn-delete':
+                new PNotify({
+                    title: 'Delete external app',
+                    text: "Are you sure you want to delete secret " + id + "?",
+                    hide: false,
+                    opacity: 0.9,
+                    confirm: {
+                        confirm: true
+                    },
+                    buttons: {
+                        closer: false,
+                        sticker: false
+                    },
+                    history: {
+                        history: false
+                    },
+                    addclass: 'pnotify-center'
+                }).get().on('pnotify.confirm', function() {
+                    $.ajax({ 
+                        type: "DELETE",
+                        url: "/api/v3/admin/secret/" + id,
+                    });
+                    table.ajax.reload()
+                }).on('pnotify.cancel', function() {});
+                break;
+        }
+    });
 });
 
 function setModalUser(){
