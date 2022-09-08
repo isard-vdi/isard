@@ -17,9 +17,12 @@ type argsJSON struct {
 
 // TODO: Parse args depending on the content type
 func parseArgs(r *http.Request) (map[string]string, error) {
-	r.ParseMultipartForm(32 << 20)
-
 	args := map[string]string{}
+
+	// Parse the token
+	args[provider.TokenArgsKey] = strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+
+	r.ParseMultipartForm(32 << 20)
 	for k, v := range r.Form {
 		if len(v) == 0 {
 			continue
@@ -46,9 +49,6 @@ func parseArgs(r *http.Request) (map[string]string, error) {
 	}
 
 	args[provider.RequestBodyArgsKey] = string(b)
-
-	// Parse the token
-	args[provider.TokenArgsKey] = strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 
 	return args, nil
 }
