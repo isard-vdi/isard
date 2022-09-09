@@ -278,6 +278,79 @@ $(document).ready(function () {
     }
 });
 
+bookings_priority_computed = $("#bookings_priority_computed").DataTable({
+  sAjaxDataProp: "",
+  language: {
+    loadingRecords:
+      '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
+  },
+  rowId: "id",
+  deferRender: true,
+  columns: [
+    {
+      className: "details-control",
+      orderable: false,
+      data: null,
+      defaultContent: '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
+    },
+    { data: "username" },
+    { data: "rule_id" },
+    { data: "role" },
+    { data: "category" },
+    { data: "group" },
+    { data: "priority" },
+    { data: "forbid_time" },
+    { data: "max_time" },
+    { data: "max_items" },
+  ],
+  order: [[1, "asc"]],
+  columnDefs: [],
+});
+
+$(".btn-compute").on("click", function () {
+  new PNotify({
+    title: "Compute users priorities",
+    text: "WARNING! This can take a while and be quite process consuming. Continue?",
+    hide: false,
+    opacity: 0.9,
+    confirm: { confirm: true },
+    buttons: { closer: false, sticker: false },
+    history: { history: false },
+    addclass: "pnotify-center",
+  })
+    .get()
+    .on("pnotify.confirm", function () {
+      $.ajax({
+        type: "POST",
+        url:
+          "/api/v3/bookings/priorities",
+        data: JSON.stringify({"rule_id":$('#priority').val()}),
+        contentType: "application/json",
+        success: function (data) {
+          data = JSON.parse(data);
+          bookings_priority_computed.clear();
+          bookings_priority_computed.rows.add(data).draw();
+        },
+      });
+    })
+    .on("pnotify.cancel", function () {});
+});
+
+  $.ajax({
+    type: "GET",
+    url: "/api/v3/admin/priority/rules",
+    contentType: "application/json",
+    dataType: "json",
+    success: function (response) {
+      $("#priority").find('option').remove();
+      response.forEach(function(rule) {
+        $("#priority").append(
+          "<option value=" + rule.rule_id + ">" + rule.rule_id + "</option>"
+        );
+      })
+      $('#priority option[value="' + response.priority_id + '"]').prop("selected",true);
+    },
+  });
 
   // SocketIO
   socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/administrators', {
