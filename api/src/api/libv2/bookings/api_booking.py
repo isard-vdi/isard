@@ -16,7 +16,6 @@ from api import app
 from ..api_exceptions import Error
 
 r = RethinkDB()
-import logging as log
 
 from ..flask_rethink import RDB
 
@@ -28,7 +27,7 @@ import uuid
 from ..helpers import _check, _get_reservables
 from .api_reservables import Reservables
 from .api_reservables_planner import ReservablesPlanner
-from .api_reservables_planner_compute import payload_priority
+from .api_reservables_planner_compute import compute_user_priority, payload_priority
 from .api_reservables_scheduler import ResourceScheduler
 
 
@@ -45,6 +44,40 @@ class Bookings:
     def get_user_priority(self, payload, item_type, item_id):
         reservables, units, item_name = _get_reservables(item_type, item_id)
         return payload_priority(payload, reservables)
+
+    def get_users_priorities(self, rule_id):
+        with app.app_context():
+            users = list(
+                r.table("users")
+                .merge(
+                    lambda user: {
+                        "payload": {
+                            "provider": user["provider"],
+                            "user_id": user["id"],
+                            "role_id": user["role"],
+                            "category_id": user["category"],
+                            "group_id": user["group"],
+                            "name": user["name"],
+                        }
+                    },
+                )
+                .pluck("username", "role", "category", "group", "payload")
+                .run(db.conn)
+            )
+        users_priority = []
+        for user in users:
+            users_priority.append(
+                {
+                    **{
+                        "username": user["username"],
+                        "role": user["role"],
+                        "category": user["category"],
+                        "group": user["group"],
+                    },
+                    **compute_user_priority(user["payload"], rule_id),
+                }
+            )
+        return users_priority
 
     def list_priority_rules(self):
         return list(

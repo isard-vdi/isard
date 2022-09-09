@@ -18,6 +18,13 @@ def api_v3_user_priority(payload, item_type, item_id):
     return json.dumps(apib.get_user_priority(payload, item_type, item_id))
 
 
+@app.route("/api/v3/bookings/priorities", methods=["POST"])
+@is_admin
+def api_v3_user_priorities(payload):
+    data = request.get_json()
+    return json.dumps(apib.get_users_priorities(data["rule_id"]))
+
+
 # Gets list of priorities rules
 @app.route("/api/v3/admin/priority/rules", methods=["GET"])
 @is_admin

@@ -389,7 +389,7 @@ def payload_priority(payload, reservables):
                 rules = list(
                     r.table("bookings_priority")
                     .get_all(priority_id, index="rule_id")
-                    .order_by("priority")
+                    .order_by(r.desc("priority"))
                     .run(db.conn)
                 )
             new_priority = user_matches_priority_rule(payload, rules)
@@ -411,7 +411,7 @@ def get_user_default_priority(payload, subitem):
         rules = list(
             r.table("bookings_priority")
             .get_all("default", index="rule_id")
-            .order_by("priority")
+            .order_by(r.desc("priority"))
             .run(db.conn)
         )
     priority = user_matches_priority_rule(payload, rules)
@@ -431,6 +431,36 @@ def get_user_default_priority(payload, subitem):
     }
 
 
+def compute_user_priority(payload, rule_id):
+    # Get defaults
+    log.debug("GETTING DEFAULT PRIORITY AS NONE DID MATCH")
+    with app.app_context():
+        rules = list(
+            r.table("bookings_priority")
+            .get_all(rule_id, index="rule_id")
+            .order_by(r.desc("priority"))
+            .run(db.conn)
+        )
+    priority = user_matches_priority_rule(payload, rules)
+    if not priority and rule_id != "default":
+        with app.app_context():
+            rules = list(
+                r.table("bookings_priority")
+                .get_all("default", index="rule_id")
+                .order_by(r.desc("priority"))
+                .run(db.conn)
+            )
+        priority = user_matches_priority_rule(payload, rules)
+        rule_id = "default"
+    return {
+        "rule_id": rule_id,
+        "priority": priority["priority"],
+        "forbid_time": priority["forbid_time"],
+        "max_time": priority["max_time"],
+        "max_items": priority["max_items"],
+    }
+
+
 def user_matches_priority_rule(payload, rules):
     alloweds = [
         ("users", "user"),
@@ -438,8 +468,7 @@ def user_matches_priority_rule(payload, rules):
         ("categories", "category"),
         ("roles", "role"),
     ]
-    previous_match = False
-    match = False
+
     log.debug("############ USER PRIORITY ###############")
     log.debug(pformat(payload))
     log.debug("##########################################")
@@ -454,8 +483,7 @@ def user_matches_priority_rule(payload, rules):
                 + " / "
                 + str(payload[allowed_item[1] + "_id"])
             )
-            log.debug(rule)
-            if rule["allowed"][allowed_item[0]]:
+            if rule["allowed"][allowed_item[0]] is not False:
                 log.debug("Rule is not none")
                 log.debug(str(not len(rule["allowed"][allowed_item[0]])))
                 log.debug(
@@ -471,19 +499,16 @@ def user_matches_priority_rule(payload, rules):
                         not in rule["allowed"][allowed_item[0]]
                     )
                 )
-                if not len(rule["allowed"][allowed_item[0]]):
+                if (
+                    len(rule["allowed"][allowed_item[0]]) == 0
+                    or payload[allowed_item[1] + "_id"]
+                    in rule["allowed"][allowed_item[0]]
+                ):
                     log.debug("##### -> RULE MATCH!!! Ending priority search.")
                     return rule
-                elif (
-                    payload[allowed_item[1] + "_id"]
-                    not in rule["allowed"][allowed_item[0]]
-                ):
-                    log.debug("##### -> RULE DISCARDED, CONTINUE #####")
-                    continue
-                match = rule
             else:
                 log.debug("Rule is NONE")
-    return False if not match else match
+    return False
 
 
 def most_restrictive_rule(subitem, new_priority, old_priority=None):

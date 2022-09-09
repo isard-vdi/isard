@@ -45,6 +45,49 @@
  
  </div>
 
+ <div class="row">
+   <div class="col-md-12 col-sm-12 col-xs-12">
+      <div class="x_panel">
+         <div class="x_title">
+            <h3><i class="fa fa-gears"></i> Computed users priorities<small></small></h3>
+            <ul class="nav navbar-right panel_toolbox">
+               <li>
+                  Priority rule
+                  <select class="form-control roundbox" style="font-size:12px; padding:1px; width:100%; overflow: hidden; text-overflow: ellipsis;" id="priority" name="priority">
+                  </select>
+               </li>
+               <li><a class="btn-compute"><span style="color: #5499c7; "><i class="fa fa-plus"></i> Compute</span></a></li>
+               <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a></li>
+               <li><a class="close-link"><i class="fa fa-close"></i></a></li>
+            </ul>
+            <div class="clearfix"></div>
+         </div>
+         <div class="x_content">
+            <p class="text-muted font-13 m-b-30"></p>
+            <div id="tableDiv"></div>
+            <table id="bookings_priority_computed" class="table">
+               <thead>
+                  <tr>
+                     <th></th>
+                     <th>User</th>
+                     <th>Rule applied</th>
+                     <th>Role</th>
+                     <th>Category</th>
+                     <th>Group</th>
+                     <th>Priority</th>
+                     <th>Forbid time</th>
+                     <th>Max time</th>
+                     <th>Max items</th>
+                     <th></th>
+                  </tr>
+               </thead>
+               <tbody>
+               </tbody>
+            </table>
+         </div>
+      </div>
+   </div>
+</div>
  {% include '/snippets/alloweds_form.html' %}
 {% include '/admin/pages/bookables_priority_modals.html' %}
 {% include '/admin/pages/bookables_priority_detail.html' %}
