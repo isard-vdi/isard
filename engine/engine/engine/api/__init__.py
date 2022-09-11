@@ -1,5 +1,6 @@
 import json
 import os
+from pprint import pformat
 from time import sleep
 
 from engine.models.engine import Engine
@@ -339,9 +340,29 @@ def get_gpu_started_domains(gpu_id):
 
 @api.route("/qmp/<string:desktop_id>", methods=["PUT"])
 def send_qmp(desktop_id):
-    command = request.get_json(force=True)
+    ## This was done at bookings and only used from there.
+    ## Should be reformulated as per qmp/notify endpoint
+    ## maybe as /qmp/notify/custom/... for custom message.
+    command = request.get_json()
     logs.main.info(
         "NOT IMPLEMENTED. send_qmp: action: {}, kwargs: {}".format(
             command["action"], str(command["kwargs"])
         )
     )
+    return jsonify(True)
+
+
+@api.route("/qmp/notify/<string:desktop_id>", methods=["POST"])
+def qmp_notify(desktop_id):
+    data = request.get_json(force=True)
+    logs.main.info(
+        "NOT IMPLEMENTED. DATA:\n desktop_id: "
+        + data.get("desktop_id", "-")
+        + ", type: "
+        + data.get("type", "-")
+        + ", code: "
+        + data.get("code", "-")
+        + ", params: "
+        + pformat(data.get("params", ""))
+    )
+    return jsonify(True)

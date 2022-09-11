@@ -319,6 +319,7 @@ def _parse_desktop(desktop):
             "ip": desktop.get("ip"),
             "progress": progress,
             "editable": editable,
+            "scheduled": desktop.get("scheduled", {"shutdown": False}),
         },
         **_parse_desktop_booking(desktop),
     }

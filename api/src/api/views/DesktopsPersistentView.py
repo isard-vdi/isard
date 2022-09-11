@@ -22,8 +22,11 @@ from ..libv2.api_desktops_persistent import ApiDesktopsPersistent
 
 desktops = ApiDesktopsPersistent()
 
+from ..libv2.api_scheduler import Scheduler
 from ..libv2.validators import _validate_item, check_user_duplicated_domain_name
 from .decorators import allowedTemplateId, has_token, is_admin_or_manager, ownsDomainId
+
+scheduler = Scheduler()
 
 
 @app.route("/api/v3/desktop/start/<desktop_id>", methods=["GET"])
@@ -34,8 +37,11 @@ def api_v3_desktop_start(payload, desktop_id):
     quotas.DesktopStart(user_id)
 
     # So now we have checked if desktop exists and if we can create and/or start it
+    desktop_id = desktops.Start(desktop_id)
+    scheduler.add_desktop_timeouts(payload, desktop_id)
+
     return (
-        json.dumps({"id": desktops.Start(desktop_id)}),
+        json.dumps({"id": desktop_id}),
         200,
         {"Content-Type": "application/json"},
     )

@@ -5,12 +5,15 @@
   >
     <router-view />
     <vue-snotify />
+    <MessageModal />
   </div>
 </template>
 
 <script>
+import MessageModal from './components/MessageModal.vue'
 
 export default {
+  components: { MessageModal },
   beforeMount () {
     if (localStorage.token && this.$route.name !== 'DirectViewer') {
       this.$store.dispatch('setSession', localStorage.token)

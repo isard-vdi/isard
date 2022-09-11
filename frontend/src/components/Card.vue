@@ -79,6 +79,15 @@
           {{ getBookingNotificationBar(desktop.nextBookingStart) }}
         </p>
       </div>
+      <!-- Desktop next booking -->
+      <div
+        v-else-if="desktop.shutdown"
+        class="machine-notification-bar px-4 d-flex flex-row align-content-center text-white bg-dark"
+      >
+        <p class="mb-0 py-2 text-white">
+          {{ desktop.shutdown }}
+        </p>
+      </div>
 
       <div
         class="p-2 h-100 d-flex flex-wrap flex-column"

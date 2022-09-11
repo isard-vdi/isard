@@ -17,13 +17,16 @@ from .flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
-import os
+import time
 from datetime import datetime, timedelta
 
 import pytz
-from jose import jwt
 
+from .api_notify import notify_desktop, notify_user
 from .api_rest import ApiRest
+from .quotas import Quotas
+
+quotas = Quotas()
 
 
 class Scheduler:
@@ -44,6 +47,132 @@ class Scheduler:
             log.error(
                 "Could not contact scheduler service at /" + id + " method DELETE"
             )
+
+    """
+    DESKTOPS SCHEDULING
+    """
+
+    def remove_desktop_timeouts(self, desktop_id):
+        self.remove_scheduler_startswith_id(desktop_id)
+        with app.app_context():
+            r.table("domains").get(desktop_id).update(
+                {"scheduled": {"shutdown": False}}
+            ).run(db.conn)
+
+    def add_desktop_timeouts(self, payload, desktop_id, reset_existing=True):
+        if reset_existing:
+            self.remove_desktop_timeouts(desktop_id)
+
+        timeouts = quotas.get_shutdown_timeouts(payload, desktop_id)
+        if not timeouts:
+            return
+
+        with app.app_context():
+            desktop = (
+                r.table("domains")
+                .get(desktop_id)
+                .pluck("name", "user", "server")
+                .run(db.conn)
+            )
+        if desktop.get("server") and not timeouts.get("server"):
+            return
+
+        data = {
+            "kwargs": {
+                "user_id": desktop["user"],
+                "desktop_id": desktop_id,
+                "desktop_name": desktop["name"],
+                "msg": {
+                    "type": "info",
+                    "msg_code": "desktop-time-limit",
+                },
+            },
+        }
+
+        start_date = datetime.now(pytz.utc)
+
+        # Send now notification only to web
+        time_remaining = timeouts["max"]
+        stop_date = start_date + timedelta(minutes=time_remaining)
+        data["date"] = stop_date.astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
+        absolute_end_time = data["date"]
+        data["kwargs"]["msg"]["params"] = {"date": stop_date, "minutes": time_remaining}
+        if timeouts.get("notify_intervals"):
+            for interval in timeouts["notify_intervals"]:
+                if interval["time"] == 0:
+                    notify_user(
+                        desktop["user"],
+                        interval["type"],
+                        data["kwargs"]["msg"]["msg_code"],
+                        params={
+                            "date": absolute_end_time,
+                            "time_remaining": time_remaining,
+                            "name": desktop.get("name"),
+                        },
+                    )
+                    notify_desktop(
+                        desktop_id,
+                        interval["type"],
+                        data["kwargs"]["msg"]["msg_code"],
+                        params={
+                            "date": absolute_end_time,
+                            "time_remaining": time_remaining,
+                            "name": desktop.get("name"),
+                        },
+                    )
+                else:
+                    # Program in max time + NEGATIVE INTERVAL TIME minutes
+                    time_remaining = timeouts["max"] + interval["time"]
+                    data["id"] = desktop_id + ".shutdown-" + str(interval["time"]) + "m"
+                    data["date"] = start_date + timedelta(minutes=time_remaining)
+                    data["date"] = (
+                        data["date"].astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
+                    )
+                    data["kwargs"]["msg"]["params"] = {
+                        "date": absolute_end_time,
+                        "minutes": time_remaining,
+                        "name": desktop.get("name"),
+                    }
+                    data["kwargs"]["msg"]["type"] = interval["type"]
+                    try:
+                        self.api_rest.post(
+                            "/advanced/date/desktop/desktop_notify", data
+                        )
+                    except:
+                        log.error(
+                            "could not contact scheduler service at /advanced/date/desktop/desktop_notify"
+                        )
+
+        # Stop desktop (Shutting down)
+        data["id"] = desktop_id + ".shutdown"
+        stop_date = stop_date + timedelta(minutes=1)
+        data["date"] = stop_date.astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
+        data["kwargs"] = {"desktop_id": desktop_id}
+        try:
+            self.api_rest.post("/advanced/date/desktop/desktop_stop", data)
+        except:
+            log.error(
+                "could not contact scheduler service at /advanced/date/desktop/desktop_stop"
+            )
+
+        # Stop desktop (Force down)
+        data["id"] = desktop_id + ".shutdown-force"
+        stop_date = stop_date + timedelta(minutes=1)
+        data["date"] = stop_date.astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
+        data["kwargs"] = {"desktop_id": desktop_id}
+        try:
+            self.api_rest.post("/advanced/date/desktop/desktop_stop", data)
+        except:
+            log.error(
+                "could not contact scheduler service at /advanced/date/desktop/desktop_stop"
+            )
+
+        # Update end time in domain
+        with app.app_context():
+            r.table("domains").get(desktop_id).update(
+                {"scheduled": {"shutdown": absolute_end_time}}
+            ).run(db.conn)
+        return {"shutdown": absolute_end_time}
 
     """
     BOOKINGS SPECIFICS

@@ -1,5 +1,6 @@
 import { cardIcons, desktopStates, status } from '../shared/constants'
 import { DateUtils } from './dateUtils'
+import i18n from '@/i18n'
 
 export class DesktopUtils {
   static parseDesktops (items) {
@@ -9,7 +10,7 @@ export class DesktopUtils {
   }
 
   static parseDesktop (item) {
-    const { description, icon, id, name, state, type, viewers, ip, template, progress, image, needs_booking: needsBooking, next_booking_start: nextBookingStart, next_booking_end: nextBookingEnd, booking_id: bookingId, editable } = item
+    const { description, icon, id, name, state, type, viewers, ip, template, progress, image, needs_booking: needsBooking, next_booking_start: nextBookingStart, next_booking_end: nextBookingEnd, booking_id: bookingId, editable, scheduled } = item
     return {
       description,
       icon: !icon || !(icon in cardIcons) ? ['fas', 'desktop'] : this.getIcon(icon),
@@ -27,7 +28,8 @@ export class DesktopUtils {
       bookingId,
       needsBooking,
       nextBookingStart: nextBookingStart ? DateUtils.utcToLocalTime(nextBookingStart) : '',
-      nextBookingEnd: nextBookingEnd ? DateUtils.utcToLocalTime(nextBookingEnd) : ''
+      nextBookingEnd: nextBookingEnd ? DateUtils.utcToLocalTime(nextBookingEnd) : '',
+      shutdown: scheduled.shutdown ? i18n.t('components.desktop-cards.notification-bar.shutdown', { name: name, date: DateUtils.formatAsTime(DateUtils.utcToLocalTime(scheduled.shutdown)) }) : false
     }
   }
 

@@ -79,7 +79,8 @@
             },
             "notification-bar": {
                 "next-booking": "Propera reserva",
-                "no-next-booking": "L'escriptori no està reservat!"
+                "no-next-booking": "L'escriptori no està reservat!",
+                "shutdown": "Aturada automàtica a les {date}"
             },
             "no-info-default": "No hi ha cap descripció disponible",
             "open-with": "Accedeix amb",
@@ -861,6 +862,13 @@
             "expired_session": "Sessió caducada",
             "direct_viewer": "Visor directe",
             "edit-domain": "Editar domini"
+        }
+    },
+    "message-modal": {
+        "title": "Informació important",
+        "messages": {
+            "desktop-time-limit": "L'escriptori '{name}' s'apagarà automàticament a les {date}.",
+            "searching-resources": "Estem buscan recursos per l'escriptori. S'iniciarà en breus minuts, si-us-play esperi."
         }
     }
 }

@@ -41,11 +41,14 @@ from flask import request
 
 from ..auth.tokens import Error, get_token_payload
 from .api_exceptions import Error
+from .api_scheduler import Scheduler
 from .helpers import (
     _is_frontend_desktop_status,
     _parse_deployment_desktop,
     _parse_desktop,
 )
+
+scheduler = Scheduler()
 
 
 class DomainsThread(threading.Thread):
@@ -85,6 +88,7 @@ class DomainsThread(threading.Thread):
                                 "progress",
                                 "jumperurl",
                                 "booking_id",
+                                "scheduled",
                             ]
                         )
                         .changes(include_initial=False)
@@ -128,6 +132,15 @@ class DomainsThread(threading.Thread):
                                 else:
                                     # Update
                                     event = "update"
+                                    if c["old_val"]["status"] != c["new_val"][
+                                        "status"
+                                    ] and c["new_val"]["status"] in [
+                                        "Stopped",
+                                        "Failed",
+                                    ]:
+                                        scheduler.remove_desktop_timeouts(
+                                            c["new_val"]["id"]
+                                        )
                             data = c["new_val"]
 
                         socketio.emit(

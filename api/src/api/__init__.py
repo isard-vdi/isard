@@ -109,6 +109,7 @@ from .views import (
     HypervisorsView,
     JumperViewerView,
     MediaViews,
+    NotifyView,
     PublicView,
     Stats,
     TemplatesView,

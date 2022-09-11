@@ -44,6 +44,10 @@
                 <h1 class="font-weight-bold">
                   {{ directViewer.name }}
                 </h1>
+                <!-- machine shutdown -->
+                <h4 class="text-medium-gray">
+                  {{ directViewer.shutdown }}
+                </h4>
                 <!-- machine description -->
                 <h5 class="text-medium-gray">
                   {{ directViewer.description }}

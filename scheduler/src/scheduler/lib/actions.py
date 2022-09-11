@@ -46,8 +46,41 @@ engine_client = ApiClient("engine")
 
 
 class Actions:
-    def stop_domains_kwargs():
-        return []
+    def desktop_notify(**kwargs):
+        # Send to frontend
+        api_client.post(
+            "/admin/notify/user/desktop",
+            {
+                "user_id": kwargs["user_id"],
+                "type": kwargs["msg"]["type"],
+                "msg_code": kwargs["msg"]["msg_code"],
+                "params": kwargs["msg"]["params"],
+            },
+        )
+
+        api_client.post(
+            "/admin/notify/desktop",
+            {
+                "desktop_id": kwargs["desktop_id"],
+                "type": kwargs["msg"]["type"],
+                "msg_code": kwargs["msg"]["msg_code"],
+                "params": kwargs["msg"]["params"],
+            },
+        )
+
+        # Send to QMP
+        engine_client.post(
+            "/qmp/notify/" + kwargs["desktop_id"],
+            {
+                "desktop_id": kwargs["desktop_id"],
+                "type": kwargs["msg"]["type"],
+                "msg_code": kwargs["msg"]["msg_code"],
+                "params": kwargs["msg"]["params"],
+            },
+        )
+
+    def desktop_stop(**kwargs):
+        api_client.get("/desktop/stop/" + kwargs["desktop_id"])
 
     def stop_domains():
         with app.app_context():

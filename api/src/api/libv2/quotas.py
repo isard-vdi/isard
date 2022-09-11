@@ -68,3 +68,7 @@ class Quotas:
 
     def limit_user_hardware_allowed(self, payload, create_dict):
         return qp.limit_user_hardware_allowed(payload, create_dict)
+
+    # Timeouts
+    def get_shutdown_timeouts(self, payload, desktop_id=None):
+        return qp.get_shutdown_timeouts(payload, desktop_id=None)

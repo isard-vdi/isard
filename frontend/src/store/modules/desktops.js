@@ -1,10 +1,10 @@
 import i18n from '@/i18n'
 import router from '@/router'
 import axios from 'axios'
-import { get } from 'lodash'
 import * as cookies from 'tiny-cookie'
 import { apiV3Segment } from '../../shared/constants'
 import { DesktopUtils } from '../../utils/desktopsUtils'
+import { DirectViewerUtils } from '../../utils/directViewerUtils'
 import { ErrorUtils } from '../../utils/errorUtils'
 
 const getDefaultState = () => {
@@ -16,7 +16,8 @@ const getDefaultState = () => {
       name: '',
       description: '',
       viewers: [],
-      state: ''
+      state: '',
+      shutdown: ''
     },
     desktops_loaded: false,
     viewType: 'grid',
@@ -126,6 +127,7 @@ export default {
       state.directViewer.state = payload.state
       state.directViewer.jwt = payload.jwt
       state.directViewer.desktopId = payload.desktopId
+      state.directViewer.shutdown = payload.shutdown
     },
     update_direct_viewer: (state, desktop) => {
       const item = state.desktops.find(d => d.id === desktop.id)
@@ -160,13 +162,7 @@ export default {
       context.commit('resetDirectLinkState')
     },
     socket_directviewerUpdate (context, data) {
-      data = JSON.parse(data)
-      const name = data.vmName
-      const description = data.vmDescription
-      const state = data.vmState
-      const viewers = data.viewers
-
-      context.commit('saveDirectViewer', { name, description, viewers, state })
+      context.commit('saveDirectViewer', DirectViewerUtils.parseDirectViewer(JSON.parse(data)))
     },
     socket_desktopAdd (context, data) {
       const desktop = DesktopUtils.parseDesktop(JSON.parse(data))
@@ -285,14 +281,7 @@ export default {
     },
     getDirectViewers (context, payload) {
       return axios.get(`/api/v3/direct/${payload.token}`).then(response => {
-        const name = get(response, 'data.vmName')
-        const description = get(response, 'data.vmDescription')
-        const state = get(response, 'data.vmState')
-        const jwt = get(response, 'data.jwt')
-        const desktopId = get(response, 'data.desktopId')
-        const viewers = get(response, 'data.viewers')
-
-        context.commit('saveDirectViewer', { name, description, viewers, state, jwt, desktopId })
+        context.commit('saveDirectViewer', DirectViewerUtils.parseDirectViewer(response.data))
       }).catch(e => {
         context.commit('setDirectViewerErrorState')
         ErrorUtils.handleErrors(e, this._vm.$snotify)

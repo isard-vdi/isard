@@ -23,6 +23,7 @@ import sockets from './modules/sockets'
 import template from './modules/template'
 import templates from './modules/templates'
 import vpn from './modules/vpn'
+import { MessageUtils } from '../utils/messageUtils'
 
 Vue.use(Vuex)
 
@@ -43,7 +44,12 @@ export default new Vuex.Store({
   state: {
     categories: [],
     pageErrorMessage: '',
-    currentInternalTime: ''
+    currentInternalTime: '',
+    messageModal: {
+      show: false,
+      title: '',
+      message: ''
+    }
   },
   getters: {
     getCategories: state => {
@@ -51,6 +57,9 @@ export default new Vuex.Store({
     },
     getPageErrorMessage: state => {
       return state.pageErrorMessage
+    },
+    getMessageModal: state => {
+      return state.messageModal
     }
   },
   mutations: {
@@ -84,9 +93,18 @@ export default new Vuex.Store({
     },
     cleanStoreOnNavigation (state) {
       state.pageErrorMessage = ''
+    },
+    setMessageModal: (state, message) => {
+      state.messageModal = message
+    },
+    setShowMessageModal: (state, show) => {
+      state.messageModal.show = show
     }
   },
   actions: {
+    socket_msg (context, data) {
+      context.commit('setMessageModal', MessageUtils.parseMessage(JSON.parse(data)))
+    },
     fetchCategories ({ commit }) {
       return axios.get(`${apiV3Segment}/categories`).then(response => {
         commit('setCategories', response.data)
@@ -199,6 +217,9 @@ export default new Vuex.Store({
       const errorMessageText = ErrorUtils.getErrorMessageText(errorMessageCode)
       console.log(errorMessageText)
       ErrorUtils.showErrorNotification(this._vm.$snotify, errorMessageText)
+    },
+    showMessageModal (context, show) {
+      context.commit('setShowMessageModal', show)
     }
   },
   modules: {
