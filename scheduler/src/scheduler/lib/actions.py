@@ -296,9 +296,10 @@ class Actions:
             )
 
         log.debug("-> We got " + str(domains_ids) + " domains id to be destroyed")
+        base_url = "http://isard-api:5000/api/v3"
         for domain_id in domains_ids:
             try:
-                answer = _put(
+                answer = _get(
                     base_url + "/desktop/stop/" + domain_id,
                     {},
                 )
@@ -352,7 +353,6 @@ class Actions:
             log.error("Exception when setting gpu profile: " + traceback.format_exc())
 
     def domain_reservable_set(**kwargs):
-        base_url = "http://isard-engine:5000"
         with app.app_context():
             if kwargs["item_type"] == "deployment":
                 domains = (
