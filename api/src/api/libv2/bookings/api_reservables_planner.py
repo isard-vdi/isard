@@ -26,6 +26,7 @@ import portion as P
 import pytz
 
 from ..api_exceptions import Error
+from ..api_scheduler import Scheduler
 from ..helpers import _check, _get_reservables
 from .api_reservables import Reservables
 from .api_reservables_planner_compute import (
@@ -37,13 +38,12 @@ from .api_reservables_planner_compute import (
     join_existing_plan_before_new_plan_end,
     payload_priority,
 )
-from .api_reservables_scheduler import ResourceScheduler
 
 
 class ReservablesPlanner:
     def __init__(self):
         self.round_minutes = 10
-        self.scheduler = ResourceScheduler()
+        self.scheduler = Scheduler()
         self.reservables = Reservables()
 
     def ceil_dt(self, dt):
