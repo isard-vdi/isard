@@ -12,25 +12,21 @@ from api import app
 r = RethinkDB()
 import logging as log
 
-from ..flask_rethink import RDB
+from .flask_rethink import RDB
 
 db = RDB(app)
 db.init_app(app)
 
-import json
 import os
-import traceback
 from datetime import datetime, timedelta
 
 import pytz
-import requests
 from jose import jwt
 
-from ..api_exceptions import Error
-from ..api_rest import ApiRest
+from .api_rest import ApiRest
 
 
-class ResourceScheduler:
+class Scheduler:
     def __init__(self):
         self.api_rest = ApiRest("http://isard-scheduler:5000/scheduler")
 

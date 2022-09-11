@@ -24,11 +24,11 @@ db.init_app(app)
 
 import uuid
 
+from ..api_scheduler import Scheduler
 from ..helpers import _check, _get_reservables
 from .api_reservables import Reservables
 from .api_reservables_planner import ReservablesPlanner
 from .api_reservables_planner_compute import compute_user_priority, payload_priority
-from .api_reservables_scheduler import ResourceScheduler
 
 
 def is_future(event):
@@ -39,7 +39,7 @@ class Bookings:
     def __init__(self):
         self.reservables = Reservables()
         self.reservables_planner = ReservablesPlanner()
-        self.resources_scheduler = ResourceScheduler()
+        self.resources_scheduler = Scheduler()
 
     def get_user_priority(self, payload, item_type, item_id):
         reservables, units, item_name = _get_reservables(item_type, item_id)
