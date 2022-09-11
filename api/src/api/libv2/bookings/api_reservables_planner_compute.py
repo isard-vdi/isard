@@ -432,8 +432,6 @@ def get_user_default_priority(payload, subitem):
 
 
 def compute_user_priority(payload, rule_id):
-    # Get defaults
-    log.debug("GETTING DEFAULT PRIORITY AS NONE DID MATCH")
     with app.app_context():
         rules = list(
             r.table("bookings_priority")
@@ -443,6 +441,7 @@ def compute_user_priority(payload, rule_id):
         )
     priority = user_matches_priority_rule(payload, rules)
     if not priority and rule_id != "default":
+        log.debug("GETTING DEFAULT PRIORITY AS NONE DID MATCH")
         with app.app_context():
             rules = list(
                 r.table("bookings_priority")
