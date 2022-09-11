@@ -548,6 +548,11 @@ class ConfigThread(threading.Thread):
                             )
                         else:
                             event = "_data"
+                            if (
+                                c["new_val"]["table"] == "scheduler_jobs"
+                                and c["new_val"].get("kind") == "date"
+                            ):
+                                continue
                             socketio.emit(
                                 c["new_val"]["table"] + event,
                                 json.dumps(c["new_val"]),
