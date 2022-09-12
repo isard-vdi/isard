@@ -767,12 +767,15 @@ def update_db_hyp_info(id, hyp_info):
 def get_vgpu_model_profile_change(vgpu_id):
     r_conn = new_rethink_connection()
     rtable = r.table("vgpus")
-
-    d = (
-        rtable.get(vgpu_id)
-        .pluck("model", "vgpu_profile", "changing_to_profile")
-        .run(r_conn)
-    )
+    try:
+        d = (
+            rtable.get(vgpu_id)
+            .pluck("model", "vgpu_profile", "changing_to_profile")
+            .run(r_conn)
+        )
+    except ReqlNonExistenceError:
+        close_rethink_connection(r_conn)
+        return False
     close_rethink_connection(r_conn)
     return d
 
