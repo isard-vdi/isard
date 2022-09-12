@@ -5,6 +5,7 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
+import time
 import traceback
 
 from rethinkdb import RethinkDB
@@ -45,6 +46,11 @@ class ApiDesktopsCommon:
         viewer_txt = isardviewer.viewer_data(
             desktop_id, protocol=protocol, get_cookie=get_cookie
         )
+
+        with app.app_context():
+            r.table("domains").get(desktop_id).update({"accessed": time.time()}).run(
+                db.conn
+            )
 
         if not direct_protocol:
             return viewer_txt
