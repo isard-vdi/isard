@@ -218,7 +218,7 @@ class ReservablesPlanner:
                 "deleted",
             ):
                 Error("internal_server", "Could not remove plan from database.")
-            self.scheduler.remove_scheduler_id(plan_id)
+            self.scheduler.remove_scheduler_startswith_id(plan_id)
 
             ## NEEDS to get plan["start"] and plan["end"] to get only those bookings??
             result = (
@@ -232,7 +232,7 @@ class ReservablesPlanner:
         if result.get("changes"):
             booking_ids = [b["old_val"]["id"] for b in result["changes"]]
             for booking_id in booking_ids:
-                self.scheduler.remove_scheduler_id(booking_id)
+                self.scheduler.remove_scheduler_startswith_id(booking_id)
 
     ## Bookings functions
     #######################################################
@@ -324,7 +324,7 @@ class ReservablesPlanner:
         # If event is added, at start time an scheduler is added (15/5/2/1 minutes before start as kwargs/plan_id index key)
         # existing_plan start is now new_plan start (moved before)
         # we need to reeschedule plan_id to new start time
-        self.scheduler.reschedule_item_id(
+        self.scheduler.bookings_reschedule_item_id(
             existing_plan["item_id"], existing_plan["start"]
         )
 
@@ -333,7 +333,7 @@ class ReservablesPlanner:
         # If event is added, at start time an scheduler is added (15/5/2/1 minutes before start as kwargs/plan_id index key)
         # existing_plan end is now new_plan end (moved after)
         # Remove existing default profile scheduler if exists at end for existing plan
-        self.scheduler.remove_scheduler_item_id(existing_plan["item_id"])
+        self.scheduler.bookings_remove_scheduler_item_id(existing_plan["item_id"])
         # If there is no plan just after new end, schedule default
         with app.app_context():
             joined_plan_end = list(
@@ -345,7 +345,7 @@ class ReservablesPlanner:
                 ).run(db.conn)
             )
         if not len(joined_plan_end):
-            self.scheduler.schedule_subitem(
+            self.scheduler.bookings_schedule_subitem(
                 new_plan["id"],
                 new_plan["item_type"],
                 new_plan["item_id"],
@@ -356,7 +356,7 @@ class ReservablesPlanner:
             )
 
     def new_subitem_schedule(self, plan):
-        self.scheduler.schedule_subitem(
+        self.scheduler.bookings_schedule_subitem(
             plan["id"],
             plan["item_type"],
             plan["item_id"],
