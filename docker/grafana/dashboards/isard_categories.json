@@ -25,7 +25,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 6,
+  "id": 7,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -49,7 +49,7 @@
         "showStarred": false,
         "tags": []
       },
-      "pluginVersion": "9.0.7",
+      "pluginVersion": "9.1.4",
       "tags": [],
       "targets": [
         {
@@ -110,7 +110,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.0.7",
+      "pluginVersion": "9.1.4",
       "targets": [
         {
           "datasource": {
@@ -174,7 +174,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.0.7",
+      "pluginVersion": "9.1.4",
       "targets": [
         {
           "datasource": {
@@ -239,7 +239,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.0.7",
+      "pluginVersion": "9.1.4",
       "targets": [
         {
           "datasource": {
@@ -311,7 +311,7 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true
       },
-      "pluginVersion": "9.0.7",
+      "pluginVersion": "9.1.4",
       "targets": [
         {
           "datasource": {
@@ -426,6 +426,7 @@
         "legend": {
           "displayMode": "table",
           "placement": "right",
+          "showLegend": true,
           "values": [
             "value"
           ],
@@ -558,6 +559,7 @@
         "legend": {
           "displayMode": "table",
           "placement": "right",
+          "showLegend": true,
           "values": [
             "value"
           ],
@@ -643,7 +645,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.0.7",
+      "pluginVersion": "9.1.4",
       "targets": [
         {
           "datasource": {
@@ -711,7 +713,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.0.7",
+      "pluginVersion": "9.1.4",
       "targets": [
         {
           "datasource": {
@@ -771,7 +773,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.0.7",
+      "pluginVersion": "9.1.4",
       "targets": [
         {
           "datasource": {
@@ -836,7 +838,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "9.0.7",
+      "pluginVersion": "9.1.4",
       "targets": [
         {
           "datasource": {
@@ -869,6 +871,8 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -966,7 +970,8 @@
             "lastNotNull"
           ],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
           "mode": "single",
@@ -1018,6 +1023,8 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -1096,7 +1103,8 @@
             "lastNotNull"
           ],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
           "mode": "single",
@@ -1133,6 +1141,8 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -1228,7 +1238,8 @@
             "lastNotNull"
           ],
           "displayMode": "table",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
           "mode": "multi",
@@ -1327,6 +1338,8 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -1410,7 +1423,8 @@
             "lastNotNull"
           ],
           "displayMode": "table",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
           "mode": "multi",
@@ -1498,6 +1512,8 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -1572,7 +1588,8 @@
             "lastNotNull"
           ],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
           "mode": "single",
@@ -1613,6 +1630,8 @@
             "mode": "fixed"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -1681,7 +1700,8 @@
             "lastNotNull"
           ],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
           "mode": "single",
@@ -1720,20 +1740,16 @@
     }
   ],
   "refresh": "10s",
-  "schemaVersion": 36,
+  "schemaVersion": 37,
   "style": "dark",
   "tags": [],
   "templating": {
     "list": [
       {
         "current": {
-          "selected": true,
-          "text": [
-            "All"
-          ],
-          "value": [
-            "$__all"
-          ]
+          "selected": false,
+          "text": "server",
+          "value": "server"
         },
         "datasource": {
           "type": "prometheus",
@@ -1741,9 +1757,9 @@
         },
         "definition": "label_values(hypervisor)",
         "hide": 0,
-        "includeAll": true,
+        "includeAll": false,
         "label": "Hypervisors",
-        "multi": true,
+        "multi": false,
         "name": "hypers",
         "options": [],
         "query": {
@@ -1766,14 +1782,14 @@
           "type": "prometheus",
           "uid": "PBFA97CFB590B2093"
         },
-        "definition": "label_values(domain)",
-        "hide": 0,
+        "definition": "label_values(isardvdi_hypervisor_scrape_duration_success{hypervisor=\"$hypers\"}, domain)",
+        "hide": 2,
         "includeAll": false,
         "multi": false,
         "name": "domain",
         "options": [],
         "query": {
-          "query": "label_values(domain)",
+          "query": "label_values(isardvdi_hypervisor_scrape_duration_success{hypervisor=\"$hypers\"}, domain)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 1,

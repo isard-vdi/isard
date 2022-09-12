@@ -25,7 +25,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 6,
+  "id": 2,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -49,7 +49,7 @@
         "showStarred": false,
         "tags": []
       },
-      "pluginVersion": "9.0.7",
+      "pluginVersion": "9.1.4",
       "tags": [],
       "targets": [
         {
@@ -1346,7 +1346,7 @@
     }
   ],
   "refresh": "10s",
-  "schemaVersion": 36,
+  "schemaVersion": 37,
   "style": "dark",
   "tags": [],
   "templating": {
@@ -1354,8 +1354,8 @@
       {
         "current": {
           "selected": false,
-          "text": "vpnserver",
-          "value": "vpnserver"
+          "text": "server",
+          "value": "server"
         },
         "datasource": {
           "type": "prometheus",
@@ -1381,22 +1381,22 @@
       {
         "current": {
           "selected": false,
-          "text": "vpnserver",
-          "value": "vpnserver"
+          "text": "server",
+          "value": "server"
         },
         "datasource": {
           "type": "prometheus",
           "uid": "PBFA97CFB590B2093"
         },
-        "definition": "label_values(domain)",
-        "hide": 0,
+        "definition": "label_values(isardvdi_hypervisor_scrape_duration_success{hypervisor=\"$hypers\"}, domain)",
+        "hide": 2,
         "includeAll": false,
         "label": "Host",
         "multi": false,
         "name": "domain",
         "options": [],
         "query": {
-          "query": "label_values(domain)",
+          "query": "label_values(isardvdi_hypervisor_scrape_duration_success{hypervisor=\"$hypers\"}, domain)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 1,
