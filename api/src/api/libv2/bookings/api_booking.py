@@ -154,7 +154,7 @@ class Bookings:
                     description_code="unable_to_insert",
                 )
 
-        self.resources_scheduler.schedule_booking(
+        self.resources_scheduler.bookings_schedule(
             booking["id"], item_type, item_id, booking["start"], booking["end"]
         )
         return {

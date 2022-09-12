@@ -30,7 +30,28 @@ class Scheduler:
     def __init__(self):
         self.api_rest = ApiRest("http://isard-scheduler:5000/scheduler")
 
-    def schedule_subitem(self, plan_id, item_type, item_id, subitem_id, on_date):
+    """
+    GENERIC METHODS
+    """
+
+    def reschedule_id(self, id, on_date):
+        log.error("Reschedule id " + id + " not implemented!!!")
+
+    def remove_scheduler_startswith_id(self, id):
+        try:
+            self.api_rest.delete("/startswith/" + id)
+        except:
+            log.error(
+                "Could not contact scheduler service at /" + id + " method DELETE"
+            )
+
+    """
+    BOOKINGS SPECIFICS
+    """
+
+    def bookings_schedule_subitem(
+        self, plan_id, item_type, item_id, subitem_id, on_date
+    ):
         if isinstance(on_date, datetime):
             on_date = on_date.isoformat()
         data = {
@@ -92,7 +113,7 @@ class Scheduler:
                 "could not contact scheduler service at /advanced/date/bookings/gpu_profile_set"
             )
 
-    def schedule_booking(self, booking_id, item_type, item_id, start, end):
+    def bookings_schedule(self, booking_id, item_type, item_id, start, end):
         if isinstance(start, datetime):
             start = start.isoformat()
         if isinstance(end, datetime):
@@ -133,34 +154,8 @@ class Scheduler:
                 "could not contact scheduler service at /advanced/date/bookings/domain_reservable_set"
             )
 
-    def reschedule_id(self, id, on_date):
-        log.error("Reschedule id " + id + " not implemented!!!")
-
-    def reschedule_item_id(self, item_id, on_date):
+    def bookings_reschedule_item_id(self, item_id, on_date):
         log.error("Reschedule item id " + item_id + " not implemented!!!")
 
-    def remove_scheduler_id(self, id):
-        try:
-            self.api_rest.delete("/startswith/" + id)
-        except:
-            log.error(
-                "Could not contact scheduler service at /" + id + " method DELETE"
-            )
-
-    def remove_scheduler_item_id(self, item_id):
+    def bookings_remove_scheduler_item_id(self, item_id):
         log.error("Remove scheduler id " + item_id + " not implemented!!!")
-
-    def header_auth(self):
-        token = jwt.encode(
-            {
-                "exp": datetime.utcnow() + timedelta(seconds=20),
-                "kid": "isardvdi",
-                "data": {
-                    "role_id": "admin",
-                    "category_id": "*",
-                },
-            },
-            os.environ["API_ISARDVDI_SECRET"],
-            algorithm="HS256",
-        )
-        return {"Authorization": "Bearer " + token}
