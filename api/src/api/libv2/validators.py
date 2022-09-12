@@ -50,9 +50,8 @@ def _validate_alloweds(alloweds):
 def check_user_duplicated_domain_name(item_id, name, user_id, kind="desktop"):
     if (
         r.table("domains")
-        .get_all(user_id, index="user")
+        .get_all([kind, user_id], index="kind_user")
         .filter(lambda item: (item["name"] == name.strip()) & (item["id"] != item_id))
-        .filter({"kind": kind})
         .count()
         .run(db.conn)
         > 0

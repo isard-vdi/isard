@@ -191,12 +191,10 @@ class ApiUsers:
         query = query.without("password", {"vpn": {"wireguard": "keys"}}).merge(
             lambda user: {
                 "desktops": r.table("domains")
-                .get_all(user["id"], index="user")
-                .filter({"kind": "desktop"})
+                .get_all(["desktop", user["id"]], index="kind_user")
                 .count(),
                 "templates": r.table("domains")
-                .get_all(user["id"], index="user")
-                .filter({"kind": "template"})
+                .get_all(["template", user["id"]], index="kind_user")
                 .count(),
                 "secondary_groups_data": r.table("groups")
                 .get_all(r.args(user["secondary_groups"]))
@@ -335,8 +333,7 @@ class ApiUsers:
             with app.app_context():
                 return list(
                     r.table("domains")
-                    .get_all(payload["user_id"], index="user")
-                    .filter({"kind": "template"})
+                    .get_all(["template", payload["user_id"]], index="kind_user")
                     .order_by("name")
                     .pluck(
                         {
@@ -366,8 +363,7 @@ class ApiUsers:
             with app.app_context():
                 desktops = list(
                     r.table("domains")
-                    .get_all(user_id, index="user")
-                    .filter({"kind": "desktop"})
+                    .get_all(["desktop", user_id], index="kind_user")
                     .order_by("name")
                     .pluck(
                         [
@@ -670,15 +666,13 @@ class ApiUsers:
 
             category_desktops = list(
                 r.table("domains")
-                .get_all(category_id, index="category")
-                .filter({"kind": "desktop"})
+                .get_all(["desktop", category_id], index="kind_category")
                 .pluck("id", "name", "kind", "user", "status", "parents")
                 .run(db.conn)
             )
             category_templates = list(
                 r.table("domains")
-                .get_all("template", index="kind")
-                .filter({"category": category_id})
+                .get_all(["template", category_id], index="kind_category")
                 .pluck("id", "name", "kind", "user", "status", "parents")
                 .run(db.conn)
             )
@@ -781,15 +775,13 @@ class ApiUsers:
 
             desktops = list(
                 r.table("domains")
-                .get_all(group_id, index="group")
-                .filter({"kind": "desktop"})
+                .get_all(["desktop", group_id], index="kind_group")
                 .pluck("id", "name", "kind", "user", "status", "parents")
                 .run(db.conn)
             )
             group_templates = list(
                 r.table("domains")
-                .get_all("template", index="kind")
-                .filter({"group": group_id})
+                .get_all(["template", group_id], index="kind_group")
                 .pluck("id", "name", "kind", "user", "status", "parents")
                 .run(db.conn)
             )
@@ -825,7 +817,7 @@ class ApiUsers:
 
         desktops = (
             r.table("domains")
-            .filter({"group": group_id})
+            .get_all(group_id, index="group")
             .pluck("id", "status")
             .run(db.conn)
         )
@@ -917,8 +909,7 @@ class ApiUsers:
         with app.app_context():
             desktops = list(
                 r.table("domains")
-                .get_all(user_id, index="user")
-                .filter({"kind": "desktop"})
+                .get_all(["desktop", user_id], index="kind_user")
                 .order_by("name")
                 .without("xml", "history_domain", "allowed")
                 .run(db.conn)
@@ -929,8 +920,7 @@ class ApiUsers:
         with app.app_context():
             templates = list(
                 r.table("domains")
-                .get_all(user_id, index="user")
-                .filter({"kind": "template"})
+                .get_all(["template", user_id], index="kind_user")
                 .without("viewer", "xml", "history_domain")
                 .run(db.conn)
             )

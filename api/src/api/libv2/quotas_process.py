@@ -56,22 +56,19 @@ class QuotasProcess:
         with app.app_context():
             desktops = (
                 r.table("domains")
-                .get_all(user_id, index="user")
-                .filter({"kind": "desktop"})
+                .get_all(["desktop", user_id], index="kind_user")
                 .count()
                 .run(db.conn)
             )
             desktopsup = (
                 r.table("domains")
-                .get_all(user_id, index="user")
-                .filter({"kind": "desktop", "status": "Started"})
+                .get_all(["desktop", "Started", user_id], index="kind_status_user")
                 .count()
                 .run(db.conn)
             )
             templates = (
                 r.table("domains")
-                .get_all(user_id, index="user")
-                .filter({"kind": "template"})
+                .get_all(["template", user_id], index="kind_user")
                 .count()
                 .run(db.conn)
             )
@@ -79,8 +76,7 @@ class QuotasProcess:
 
             starteds = (
                 r.table("domains")
-                .get_all(user_id, index="user")
-                .filter({"status": "Started"})
+                .get_all(["Started", user_id], index="status_user")
                 .pluck("hardware")
                 .run(db.conn)
             )
@@ -182,22 +178,21 @@ class QuotasProcess:
         with app.app_context():
             desktops = (
                 r.table("domains")
-                .get_all(category["id"], index="category")
-                .filter({"kind": "desktop"})
+                .get_all(["desktop", category["id"]], index="kind_category")
                 .count()
                 .run(db.conn)
             )
             desktopsup = (
                 r.table("domains")
-                .get_all(category["id"], index="category")
-                .filter({"kind": "desktop", "status": "Started"})
+                .get_all(
+                    ["desktop", "Started", category["id"]], index="kind_status_category"
+                )
                 .count()
                 .run(db.conn)
             )
             templates = (
                 r.table("domains")
-                .get_all(category["id"], index="category")
-                .filter({"kind": "template"})
+                .get_all(["template", category["id"]], index="kind_category")
                 .count()
                 .run(db.conn)
             )
@@ -210,8 +205,7 @@ class QuotasProcess:
 
             starteds = (
                 r.table("domains")
-                .get_all(category["id"], index="category")
-                .filter({"status": "Started"})
+                .get_all(["Started", category["id"]], index="status_category")
                 .pluck("hardware")
                 .run(db.conn)
             )
@@ -324,22 +318,19 @@ class QuotasProcess:
         with app.app_context():
             desktops = (
                 r.table("domains")
-                .get_all(group["id"], index="group")
-                .filter({"kind": "desktop"})
+                .get_all(["desktop", group["id"]], index="kind_group")
                 .count()
                 .run(db.conn)
             )
             desktopsup = (
                 r.table("domains")
-                .get_all(group["id"], index="group")
-                .filter({"kind": "desktop", "status": "Started"})
+                .get_all(["desktop", "Started", group["id"]], index="kind_status_group")
                 .count()
                 .run(db.conn)
             )
             templates = (
                 r.table("domains")
-                .get_all(group["id"], index="group")
-                .filter({"kind": "template"})
+                .get_all(["template", group["id"]], index="kind_group")
                 .count()
                 .run(db.conn)
             )
@@ -352,8 +343,7 @@ class QuotasProcess:
 
             starteds = (
                 r.table("domains")
-                .get_all(group["id"], index="group")
-                .filter({"status": "Started"})
+                .get_all(["Started", group["id"]], index="status_group")
                 .pluck("hardware")
                 .run(db.conn)
             )

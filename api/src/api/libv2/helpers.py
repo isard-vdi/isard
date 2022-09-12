@@ -591,7 +591,8 @@ def get_user_data(user_id="admin"):
         with app.app_context():
             user = list(
                 r.table("users")
-                .filter({"uid": "admin", "provider": "local"})
+                .get_all("admin", index="uid")
+                .filter({"provider": "local"})
                 .run(db.conn)
             )[0]
     else:

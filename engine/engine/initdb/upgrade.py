@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 54
+release_version = 55
+# release 55: Added more secondary indices for domains queries
 # release 54: Add status time info to storage disks
 # release 53: Add secondary_groups users multi index
 # release 52: Add sortorder field to roles table
@@ -1029,6 +1030,76 @@ class Upgrade(object):
                 r.table(table).index_create(
                     "kind_status_category",
                     [r.row["kind"], r.row["status"], r.row["category"]],
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 55:
+            try:
+                r.table(table).index_create(
+                    "kind_user", [r.row["kind"], r.row["user"]]
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).index_create(
+                    "kind_group", [r.row["kind"], r.row["group"]]
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).index_create(
+                    "kind_status_user", [r.row["kind"], r.row["status"], r.row["user"]]
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).index_create(
+                    "kind_status_group",
+                    [r.row["kind"], r.row["status"], r.row["group"]],
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).index_create(
+                    "status_user",
+                    [r.row["status"], r.row["user"]],
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).index_create(
+                    "status_group",
+                    [r.row["status"], r.row["group"]],
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).index_create(
+                    "status_category",
+                    [r.row["status"], r.row["category"]],
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).index_create(
+                    "template_enabled",
+                    [r.row["kind"], r.row["enabled"]],
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).index_create(
+                    "template_enabled_category",
+                    [r.row["kind"], r.row["enabled"], r.row["category"]],
                 ).run(self.conn)
             except Exception as e:
                 print(e)
