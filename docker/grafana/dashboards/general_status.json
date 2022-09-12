@@ -25,7 +25,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 1,
+  "id": 9,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -49,7 +49,7 @@
         "showStarred": false,
         "tags": []
       },
-      "pluginVersion": "9.0.7",
+      "pluginVersion": "9.1.4",
       "tags": [],
       "targets": [
         {
@@ -109,7 +109,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.0.7",
+      "pluginVersion": "9.1.4",
       "targets": [
         {
           "datasource": {
@@ -173,7 +173,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.0.7",
+      "pluginVersion": "9.1.4",
       "targets": [
         {
           "datasource": {
@@ -236,7 +236,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "9.0.7",
+      "pluginVersion": "9.1.4",
       "targets": [
         {
           "datasource": {
@@ -301,7 +301,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.0.7",
+      "pluginVersion": "9.1.4",
       "targets": [
         {
           "datasource": {
@@ -369,7 +369,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.0.7",
+      "pluginVersion": "9.1.4",
       "targets": [
         {
           "datasource": {
@@ -432,7 +432,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "9.0.7",
+      "pluginVersion": "9.1.4",
       "targets": [
         {
           "datasource": {
@@ -520,7 +520,7 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true
       },
-      "pluginVersion": "9.0.7",
+      "pluginVersion": "9.1.4",
       "targets": [
         {
           "datasource": {
@@ -528,7 +528,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "100 - ((node_filesystem_avail_bytes{domain=\"$domain\",mountpoint=\"/\",fstype!=\"rootfs\"} * 100) / node_filesystem_size_bytes{domain=\"$domain\",mountpoint=\"/\",fstype!=\"rootfs\"})",
+          "expr": "100 - ((sum(node_filesystem_avail_bytes{mountpoint=\"/\",fstype!=\"rootfs\"}) * 100) / sum(node_filesystem_size_bytes{mountpoint=\"/\",fstype!=\"rootfs\"}))",
           "format": "time_series",
           "intervalFactor": 1,
           "range": true,
@@ -536,7 +536,7 @@
           "step": 240
         }
       ],
-      "title": "/ Espai en disc",
+      "title": "/ Disk Space",
       "type": "gauge"
     },
     {
@@ -604,7 +604,7 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true
       },
-      "pluginVersion": "9.0.7",
+      "pluginVersion": "9.1.4",
       "targets": [
         {
           "datasource": {
@@ -681,7 +681,7 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true
       },
-      "pluginVersion": "9.0.7",
+      "pluginVersion": "9.1.4",
       "targets": [
         {
           "datasource": {
@@ -689,7 +689,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum(100 - ((node_memory_MemAvailable_bytes{} * 100) / node_memory_MemTotal_bytes{}))",
+          "expr": "100 - (sum(node_memory_MemAvailable_bytes * 100)) / sum(node_memory_MemTotal_bytes)",
           "format": "time_series",
           "hide": false,
           "intervalFactor": 1,
@@ -749,7 +749,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "9.0.7",
+      "pluginVersion": "9.1.4",
       "targets": [
         {
           "datasource": {
@@ -814,7 +814,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "9.0.7",
+      "pluginVersion": "9.1.4",
       "targets": [
         {
           "datasource": {
@@ -879,7 +879,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "9.0.7",
+      "pluginVersion": "9.1.4",
       "targets": [
         {
           "datasource": {
@@ -945,7 +945,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "9.0.7",
+      "pluginVersion": "9.1.4",
       "targets": [
         {
           "datasource": {
@@ -1013,7 +1013,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "9.0.7",
+      "pluginVersion": "9.1.4",
       "targets": [
         {
           "datasource": {
@@ -1081,7 +1081,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "9.0.7",
+      "pluginVersion": "9.1.4",
       "targets": [
         {
           "datasource": {
@@ -1167,14 +1167,14 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.0.7",
+      "pluginVersion": "9.1.4",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "node_filesystem_size_bytes{domain=\"$domain\",mountpoint=\"/\",fstype!=\"rootfs\"}",
+          "expr": "sum(node_filesystem_size_bytes{mountpoint=\"/\",fstype!=\"rootfs\"})",
           "format": "time_series",
           "hide": false,
           "intervalFactor": 1,
@@ -1182,7 +1182,7 @@
           "step": 240
         }
       ],
-      "title": "RootFS Total",
+      "title": "Total Disk Space",
       "type": "stat"
     },
     {
@@ -1247,14 +1247,14 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.0.7",
+      "pluginVersion": "9.1.4",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "count(count(node_cpu_seconds_total{domain=\"$domain\"}) by (cpu))",
+          "expr": "count(count(node_cpu_seconds_total{}) by (cpu))",
           "interval": "",
           "intervalFactor": 1,
           "legendFormat": "",
@@ -1326,16 +1326,16 @@
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "textMode": "value"
       },
-      "pluginVersion": "9.0.7",
+      "pluginVersion": "9.1.4",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "node_memory_MemTotal_bytes{domain=\"$domain\"}",
+          "expr": "sum(node_memory_MemTotal_bytes{})",
           "intervalFactor": 1,
           "refId": "A",
           "step": 240
@@ -1393,7 +1393,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "9.0.7",
+      "pluginVersion": "9.1.4",
       "targets": [
         {
           "datasource": {
@@ -1477,7 +1477,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "9.0.7",
+      "pluginVersion": "9.1.4",
       "targets": [
         {
           "datasource": {
@@ -1519,6 +1519,8 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -1616,7 +1618,8 @@
             "lastNotNull"
           ],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
           "mode": "single",
@@ -1667,6 +1670,8 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -1745,7 +1750,8 @@
             "lastNotNull"
           ],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
           "mode": "single",
@@ -1784,6 +1790,8 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -1879,7 +1887,8 @@
             "lastNotNull"
           ],
           "displayMode": "table",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
           "mode": "multi",
@@ -1979,6 +1988,8 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -2006,6 +2017,7 @@
               "mode": "off"
             }
           },
+          "displayName": "Espai en disc",
           "links": [],
           "mappings": [],
           "max": 100,
@@ -2041,7 +2053,8 @@
             "lastNotNull"
           ],
           "displayMode": "table",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
           "mode": "multi",
@@ -2055,7 +2068,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "100 - ((node_filesystem_avail_bytes{domain=\"$domain\",device!~'rootfs'} * 100) / node_filesystem_size_bytes{domain=\"$domain\",device!~'rootfs'})",
+          "expr": "100 - ((sum(node_filesystem_avail_bytes{mountpoint=\"/\",fstype!=\"rootfs\"}) * 100) / sum(node_filesystem_size_bytes{mountpoint=\"/\",fstype!=\"rootfs\"}))",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "{{mountpoint}}",
@@ -2063,7 +2076,7 @@
           "step": 240
         }
       ],
-      "title": "Espai en disc",
+      "title": "Espai en disc %",
       "type": "timeseries"
     },
     {
@@ -2077,6 +2090,8 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -2155,7 +2170,8 @@
             "lastNotNull"
           ],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
           "mode": "single",
@@ -2196,6 +2212,8 @@
             "mode": "fixed"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -2224,7 +2242,7 @@
             }
           },
           "decimals": 0,
-          "displayName": "RAM Utilitzada",
+          "displayName": "RAM",
           "mappings": [],
           "max": 100,
           "min": 0,
@@ -2264,7 +2282,8 @@
             "lastNotNull"
           ],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
           "mode": "single",
@@ -2278,7 +2297,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "sum(100 - ((node_memory_MemAvailable_bytes{} * 100) / node_memory_MemTotal_bytes{}))",
+          "expr": "100 - (sum(node_memory_MemAvailable_bytes * 100)) / sum(node_memory_MemTotal_bytes)",
           "format": "time_series",
           "hide": false,
           "intervalFactor": 1,
@@ -2300,6 +2319,8 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -2334,7 +2355,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               }
             ]
           },
@@ -2373,7 +2395,8 @@
             "lastNotNull"
           ],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
           "mode": "single",
@@ -2413,6 +2436,8 @@
             "mode": "fixed"
           },
           "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
@@ -2456,7 +2481,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -2483,7 +2509,8 @@
             "lastNotNull"
           ],
           "displayMode": "list",
-          "placement": "bottom"
+          "placement": "bottom",
+          "showLegend": true
         },
         "tooltip": {
           "mode": "single",
@@ -2513,47 +2540,16 @@
     }
   ],
   "refresh": "10s",
-  "schemaVersion": 36,
+  "schemaVersion": 37,
   "style": "dark",
   "tags": [],
   "templating": {
     "list": [
       {
         "current": {
-          "selected": true,
-          "text": [
-            "All"
-          ],
-          "value": [
-            "$__all"
-          ]
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "PBFA97CFB590B2093"
-        },
-        "definition": "label_values(hypervisor)",
-        "hide": 0,
-        "includeAll": true,
-        "label": "Hypervisors",
-        "multi": true,
-        "name": "hypers",
-        "options": [],
-        "query": {
-          "query": "label_values(hypervisor)",
-          "refId": "StandardVariableQuery"
-        },
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
-        "type": "query"
-      },
-      {
-        "current": {
           "selected": false,
-          "text": "vpnserver",
-          "value": "vpnserver"
+          "text": "server",
+          "value": "server"
         },
         "datasource": {
           "type": "prometheus",
@@ -2562,6 +2558,7 @@
         "definition": "label_values(domain)",
         "hide": 0,
         "includeAll": false,
+        "label": "Host",
         "multi": false,
         "name": "domain",
         "options": [],
