@@ -127,7 +127,7 @@
             v-if="locationDeployment"
             class="pt-1"
           >
-            <b-button
+            <!-- <b-button
               class="rounded-circle px-2 mr-2 btn-green"
               :title="$t('components.statusbar.deployment.buttons.start.title')"
               @click="startDesktops()"
@@ -136,7 +136,7 @@
                 icon="play"
                 scale="0.75"
               />
-            </b-button>
+            </b-button> -->
             <b-button
               class="rounded-circle px-2 mr-2 btn-red"
               :title="$t('components.statusbar.deployment.buttons.stop.title')"
