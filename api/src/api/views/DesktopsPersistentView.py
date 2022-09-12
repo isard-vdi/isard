@@ -72,8 +72,6 @@ def api_v3_desktops_start(payload):
 @has_token
 def api_v3_desktop_stop(payload, desktop_id):
     ownsDomainId(payload, desktop_id)
-    user_id = desktops.UserDesktop(desktop_id)
-
     return (
         json.dumps({"id": desktops.Stop(desktop_id)}),
         200,
@@ -95,8 +93,6 @@ def api_v3_desktops_stop(payload, desktop_id):
         )
     for desktop_id in desktops_ids:
         ownsDomainId(payload, desktop_id)
-        user_id = desktops.UserDesktop(desktop_id)
-
     return (
         json.dumps({}),
         200,
