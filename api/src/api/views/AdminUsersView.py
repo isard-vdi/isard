@@ -527,6 +527,7 @@ def api_v3_admin_secret(payload):
 @app.route("/api/v3/admin/secret/<kid>", methods=["DELETE"])
 @is_admin
 def api_v3_admin_secret_delete(payload, kid):
+    _validate_item("secrets_delete", {"id": kid})
     admin_table_delete("secrets", kid)
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
