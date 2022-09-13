@@ -108,6 +108,16 @@ def admin_table_update(table, data):
     _validate_table(table)
     if table == "interfaces":
         _validate_item(table, data)
+    if table == "hypervisors":
+        if (
+            not data["capabilities"]["hypervisor"]
+            and not data["capabilities"]["disk_operations"]
+        ):
+            raise Error(
+                "bad_request",
+                "'disk_operations' and 'hypervisor' capabilities can't be both false",
+                traceback.format_exc(),
+            )
     with app.app_context():
         if table == "users":
             old_data = r.table("users").get(data["id"]).run(db.conn)

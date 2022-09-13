@@ -12,6 +12,7 @@ $(document).ready(function() {
     $('.admin-status').show()
 
     $('.btn-new-hyper').on('click', function () {
+        $("#checkbox_add_error").hide()
             $('#modalAddHyper').modal({
                 backdrop: 'static',
                 keyboard: false
@@ -40,11 +41,16 @@ $(document).ready(function() {
             $('#modalAddHyper #modalAdd #port').val(2022)
             $('#modalAddHyper #modalAdd #capabilities-disk_operations').iCheck('check')
             $('#modalAddHyper .capabilities_hypervisor').on('ifChecked', function(event){
+                $("#checkbox_add_error").hide()
                 $('#viewer_fields').show()
                     $('#modalAddHyper #viewer-static').val($('#modalAddHyper #modalAdd #hostname').val());
                     $('#modalAddHyper #viewer-proxy_video').val($('#modalAddHyper #modalAdd #hostname').val());
                     $('#modalAddHyper #viewer-proxy_hyper_host').val('isard-hypervisor');
                     $('#modalAddHyper #viewer-hyper_vpn_host').val('isard-hypervisor');
+            });
+
+            $('#modalAddHyper .capabilities_disk_operations').on('ifChecked', function(event){
+                $("#checkbox_add_error").hide()
             });
 
             $('#modalAddHyper .capabilities_hypervisor').on('ifUnchecked', function(event){
@@ -77,31 +83,39 @@ $(document).ready(function() {
 
         $('#modalAddHyper #modalAdd').parsley().validate();
         if ($('#modalAddHyper #modalAdd').parsley().isValid()) {
-            $.ajax({
-                type: "POST",
-                url:"/api/v3/hypervisor",
-                data: form,
-                processData: false,
-                contentType: false,
-                success: function(data)
-                {
-                    $('form').each(function() { this.reset() });
-                    $('.modal').modal('hide');
-                },
-                error: function (xhr, ajaxOptions, thrownError) {
-                    if (xhr.status == 404) {
-                        new PNotify({
-                            title: "Cannot connect to hypervisor",
-                            text: "Can't create the hypervisor, it's not reachable.",
-                            hide: true,
-                            delay: 3000,
-                            icon: 'fa fa-warning',
-                            opacity: 1,
-                            type: 'error'
-                        });
+
+            if (!$('#modalAddHyper #modalAdd #capabilities-hypervisor').prop('checked') && !$('#modalAddHyper #modalAdd #capabilities-disk_operations').prop('checked')){
+                $("#checkbox_add_error #checkbox_add_error_html").html("You must select at least one option")
+                $("#checkbox_add_error").show()
+            } else {
+                $("#checkbox_edit_error").hide()
+
+                $.ajax({
+                    type: "POST",
+                    url:"/api/v3/hypervisor",
+                    data: form,
+                    processData: false,
+                    contentType: false,
+                    success: function(data)
+                    {
+                        $('form').each(function() { this.reset() });
+                        $('.modal').modal('hide');
+                    },
+                    error: function (xhr, ajaxOptions, thrownError) {
+                        if (xhr.status == 404) {
+                            new PNotify({
+                                title: "Cannot connect to hypervisor",
+                                text: "Can't create the hypervisor, it's not reachable.",
+                                hide: true,
+                                delay: 3000,
+                                icon: 'fa fa-warning',
+                                opacity: 1,
+                                type: 'error'
+                            });
+                        }
                     }
-                }
-            });
+                });
+            }
         }
     });
 
@@ -499,7 +513,8 @@ function actionsHyperDetail(){
     });
 
     $('.btn-edit').on('click', function () {
-                var pk=$(this).closest("div").attr("data-pk");
+            $("#checkbox_edit_error").hide()
+            var pk=$(this).closest("div").attr("data-pk");
             $("#modalEdit")[0].reset();
             $("#modalEditHyper #hypervisors_pools_dropdown").find('option').remove();
             
@@ -548,6 +563,7 @@ function actionsHyperDetail(){
             });
             
             $('#modalEditHyper .capabilities_hypervisor').on('ifChecked', function(event){
+                $("#checkbox_edit_error").hide()
                 $('#modalEditHyper #viewer_fields').show()
                 if( $('#modalEditHyper #viewer-static').val()!='' && $('#modalEditHyper #viewer-proxy_video').val()=='' && $('#modalEditHyper #viewer-proxy_hyper_host').val()==''){
                     $('#modalEditHyper #viewer-static').val($('#modalEditHyper #hostname').val());
@@ -558,6 +574,9 @@ function actionsHyperDetail(){
 
             });
 
+            $('#modalEditHyper .capabilities_disk_operations').on('ifChecked', function(event){
+                $("#checkbox_edit_error").hide()
+            });
 
             $('#modalEditHyper .capabilities_hypervisor').on('ifUnchecked', function(event){
                 $('#modalEditHyper #viewer_fields').hide()
@@ -576,7 +595,15 @@ function actionsHyperDetail(){
                         data['capabilities'] = {}
                         data['capabilities']['hypervisor'] = $('#modalEditHyper #modalEdit #capabilities-hypervisor').prop('checked')
                         data['capabilities']['disk_operations'] = $('#modalEditHyper #modalEdit #capabilities-disk_operations').prop('checked')
+                        data['only_forced'] = $('#modalEditHyper #modalEdit #only_forced').prop('checked')
                         data['hypervisors_pools'] = [$('#modalEditHyper #hypervisors_pools_dropdown').val()];
+
+                        if (!data['capabilities']['hypervisor'] && !data['capabilities']['disk_operations']){
+                            $("#checkbox_edit_error #checkbox_edit_error_html").html("You must select at least one option")
+                            $("#checkbox_edit_error").show()
+                        } else {
+                            $("#checkbox_edit_error").hide()
+
                             $.ajax({
                                 type: "PUT",
                                 url:"/admin/table/update/hypervisors",
@@ -588,6 +615,7 @@ function actionsHyperDetail(){
                                         $('.modal').modal('hide');
                                     }
                             });
+                        }
                     }
                 });
     });               
