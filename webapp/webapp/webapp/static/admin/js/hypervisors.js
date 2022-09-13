@@ -66,7 +66,6 @@ $(document).ready(function() {
         form.append('port', $('#modalAddHyper #modalAdd #port').val())
         form.append('cap_hyper', $('#modalAddHyper #modalAdd #capabilities-hypervisor').prop('checked'))
         form.append('cap_disk', $('#modalAddHyper #modalAdd #capabilities-disk_operations').prop('checked'))
-        form.append('only_forced', $('#modalAddHyper #modalAdd #only_forced').prop('checked'))
         form.append('isard_static_url', $('#modalAddHyper #modalAdd #viewer-static').val())
         form.append('isard_video_url', $('#modalAddHyper #modalAdd #viewer-proxy_video').val())
         form.append('spice_port', $('#modalAddHyper #modalAdd #viewer-spice_ext_port').val())
@@ -577,7 +576,6 @@ function actionsHyperDetail(){
                         data['capabilities'] = {}
                         data['capabilities']['hypervisor'] = $('#modalEditHyper #modalEdit #capabilities-hypervisor').prop('checked')
                         data['capabilities']['disk_operations'] = $('#modalEditHyper #modalEdit #capabilities-disk_operations').prop('checked')
-                        data['only_forced'] = $('#modalEditHyper #modalEdit #only_forced').prop('checked')
                         data['hypervisors_pools'] = [$('#modalEditHyper #hypervisors_pools_dropdown').val()];
                             $.ajax({
                                 type: "PUT",
@@ -592,7 +590,63 @@ function actionsHyperDetail(){
                             });
                     }
                 });
-    });                       
+    });               
+    
+    $('.btn-onlyforced').on('click', function () {
+
+        var pk=$(this).closest("div").attr("data-pk");
+        var only_forced = table.row("#"+pk).data()['only_forced'];        
+
+        new PNotify({
+            title: 'Confirmation Needed',
+            text: "Are you sure you want to set \"only forced\" to: " + !only_forced + "?",
+            hide: false,
+            opacity: 0.9,
+            confirm: {
+                confirm: true
+            },
+            buttons: {
+                closer: false,
+                sticker: false
+            },
+            history: {
+                history: false
+            },
+            addclass: 'pnotify-center'
+
+        }).get().on('pnotify.confirm', function() {
+
+            $.ajax({
+                url: "/admin/table/update/hypervisors",
+                type: "PUT",
+                data: JSON.stringify({'id': pk, 'only_forced': !only_forced}),
+                contentType: "application/json",
+                success: function(data) {
+                    new PNotify({
+                        title: 'Updated',
+                        text: 'Hypervisor updated',
+                        hide: true,
+                        delay: 2000,
+                        opacity: 1,
+                        type: 'success'
+                    })
+                },
+                error: function(data) {
+                    new PNotify({
+                        title: 'ERROR',
+                        text: 'Could not update hypervisor',
+                        type: 'error',
+                        hide: true,
+                        icon: 'fa fa-warning',
+                        delay: 2000,
+                        opacity: 1
+                    })
+                },
+            });
+
+        }).on('pnotify.cancel', function() {
+            });
+    });
 
             
     //~ });
