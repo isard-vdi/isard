@@ -44,7 +44,8 @@ const router = new VueRouter({
           name: 'desktops',
           component: Desktops,
           meta: {
-            title: i18n.t('router.titles.desktops')
+            title: i18n.t('router.titles.desktops'),
+            allowedRoles: ['admin', 'manager', 'advanced', 'user']
           }
         },
         {
@@ -52,7 +53,8 @@ const router = new VueRouter({
           name: 'desktopsnew',
           component: DesktopNew,
           meta: {
-            title: i18n.t('router.titles.new_desktop')
+            title: i18n.t('router.titles.new_desktop'),
+            allowedRoles: ['admin', 'manager', 'advanced', 'user']
           }
         },
         {
@@ -60,7 +62,8 @@ const router = new VueRouter({
           name: 'domainedit',
           component: DomainEdit,
           meta: {
-            title: i18n.t('router.titles.edit-domain')
+            title: i18n.t('router.titles.edit-domain'),
+            allowedRoles: ['admin', 'manager', 'advanced', 'user']
           }
         },
         {
@@ -68,7 +71,8 @@ const router = new VueRouter({
           name: 'booking',
           component: Booking,
           meta: {
-            title: i18n.t('router.titles.booking')
+            title: i18n.t('router.titles.booking'),
+            allowedRoles: ['admin', 'manager', 'advanced', 'user']
           }
         },
         {
@@ -76,7 +80,8 @@ const router = new VueRouter({
           name: 'Planning',
           component: Planning,
           meta: {
-            title: i18n.t('router.titles.planning')
+            title: i18n.t('router.titles.planning'),
+            allowedRoles: ['admin']
           }
         }
       ],
@@ -95,7 +100,8 @@ const router = new VueRouter({
           name: 'templates',
           component: Templates,
           meta: {
-            title: i18n.t('router.titles.templates')
+            title: i18n.t('router.titles.templates'),
+            allowedRoles: ['admin', 'manager', 'advanced']
           }
         },
         {
@@ -103,7 +109,8 @@ const router = new VueRouter({
           name: 'templatenew',
           component: TemplateNew,
           meta: {
-            title: i18n.t('router.titles.new_template')
+            title: i18n.t('router.titles.new_template'),
+            allowedRoles: ['admin', 'manager', 'advanced']
           }
         }
       ],
@@ -129,7 +136,8 @@ const router = new VueRouter({
           name: 'deployments',
           component: Deployments,
           meta: {
-            title: i18n.t('router.titles.deployment')
+            title: i18n.t('router.titles.deployment'),
+            allowedRoles: ['admin', 'manager', 'advanced']
           }
         },
         {
@@ -137,7 +145,8 @@ const router = new VueRouter({
           name: 'deploymentsnew',
           component: DeploymentNew,
           meta: {
-            title: i18n.t('router.titles.new_deployment')
+            title: i18n.t('router.titles.new_deployment'),
+            allowedRoles: ['admin', 'manager', 'advanced']
           }
         },
         {
@@ -145,7 +154,8 @@ const router = new VueRouter({
           name: 'deployment_videowall',
           component: DeploymentVideowall,
           meta: {
-            title: i18n.t('router.titles.deployment_videowall')
+            title: i18n.t('router.titles.deployment_videowall'),
+            allowedRoles: ['admin', 'manager', 'advanced']
           }
         },
         {
@@ -153,7 +163,8 @@ const router = new VueRouter({
           name: 'deployment_desktops',
           component: Deployment,
           meta: {
-            title: i18n.t('router.titles.deployment')
+            title: i18n.t('router.titles.deployment'),
+            allowedRoles: ['admin', 'manager', 'advanced']
           }
         }
       ],
@@ -172,7 +183,8 @@ const router = new VueRouter({
           name: 'profile',
           component: Profile,
           meta: {
-            title: i18n.t('router.titles.profile')
+            title: i18n.t('router.titles.profile'),
+            allowedRoles: ['admin', 'manager', 'advanced', 'user']
           }
         }
       ],
@@ -191,7 +203,8 @@ const router = new VueRouter({
           name: 'media',
           component: Media,
           meta: {
-            title: i18n.t('router.titles.media')
+            title: i18n.t('router.titles.media'),
+            allowedRoles: ['admin', 'manager', 'advanced']
           }
         },
         {
@@ -199,7 +212,8 @@ const router = new VueRouter({
           name: 'medianew',
           component: MediaNew,
           meta: {
-            title: i18n.t('router.titles.new_media')
+            title: i18n.t('router.titles.new_media'),
+            allowedRoles: ['admin', 'manager', 'advanced']
           }
         },
         {
@@ -207,7 +221,8 @@ const router = new VueRouter({
           name: 'newfrommedia',
           component: NewFromMedia,
           meta: {
-            title: i18n.t('router.titles.new_desktop')
+            title: i18n.t('router.titles.new_desktop'),
+            allowedRoles: ['admin', 'manager', 'advanced']
           }
         }
       ],
@@ -279,7 +294,7 @@ router.beforeEach((to, from, next) => {
   document.title = to.meta.title ? `${appTitle} - ${to.meta.title}` : appTitle
 
   if (to.matched.some(record => record.meta.requiresAuth)) {
-    auth(to, from, next)
+    auth(to, from, next, to.meta.allowedRoles)
   } else if (to.matched.some(record => record.meta.requiresRdpToken)) {
     checkRdpToken(to, from, next)
   } else {
