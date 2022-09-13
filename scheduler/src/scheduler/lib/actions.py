@@ -18,15 +18,11 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-import json
 import time
 
-import requests
 from rethinkdb import RethinkDB
 
 from scheduler import app
-
-from .exceptions import Error
 
 r = RethinkDB()
 import os
@@ -42,35 +38,11 @@ db.init_app(app)
 
 from datetime import datetime
 
+from .api_client import ApiClient
+from .exceptions import Error
 
-def _put(url, data):
-
-    try:
-        resp = requests.put(url, json=data)
-        if resp.status_code == 200:
-            return json.loads(resp.text)
-        raise Error("bad_request", "Bad request while contacting scheduler service")
-    except:
-        raise Error(
-            "internal_server",
-            "Could not contact scheduler service",
-            traceback.format_exc(),
-        )
-
-
-def _get(url):
-
-    try:
-        resp = requests.get(url)
-        if resp.status_code == 200:
-            return json.loads(resp.text)
-        raise Error("bad_request", "Bad request while contacting scheduler service")
-    except:
-        raise Error(
-            "internal_server",
-            "Could not contact scheduler service",
-            traceback.format_exc(),
-        )
+api_client = ApiClient("api")
+engine_client = ApiClient("engine")
 
 
 class Actions:
@@ -187,22 +159,16 @@ class Actions:
         #     "message": "Test"
 
         # } ,
-        base_url = "http://isard-engine:5000"
-        try:
-            _put(
-                base_url + "/qmp/" + kwargs["domain_id"],
-                {"action": "message", "kwargs": {"message": kwargs["message"]}},
-            )
-        except:
-            log.error("Exception when sending qmp message: " + traceback.format_exc())
-            raise Error("internal_server", "Error when sending qmp message")
+        engine_client.put(
+            "/qmp/" + kwargs["domain_id"],
+            {"action": "message", "kwargs": {"message": kwargs["message"]}},
+        )
 
     def deployment_qmp_notification(**kwargs):
         # "kwargs": {
         #     "deployment_id": "_local_default_..." ,
         #     "message": "Test"
         # } ,
-        base_url = "http://isard-engine:5000"
         deployment = r.table("deployments").get(kwargs["deployment_id"]).run(db.conn)
         if not deployment:
             log.error("Deployment id " + kwargs["deployment_id"] + " not found")
@@ -216,20 +182,13 @@ class Actions:
             .run(db.conn)
         )
         for domain_id in domains_ids:
-            try:
-                _put(
-                    base_url + "/qmp/" + domain_id,
-                    {"action": "message", "kwargs": {"message": kwargs["message"]}},
-                )
-            except:
-                log.error(
-                    "Exception when sending qmp message: " + traceback.format_exc()
-                )
-                raise Error("internal_server", "Error when sending qmp message")
+            engine_client.put(
+                "/qmp/" + domain_id,
+                {"action": "message", "kwargs": {"message": kwargs["message"]}},
+            )
 
     ### GPUS SPECIFICS
     def gpu_desktops_notify(**kwargs):
-        base_url = "http://isard-engine:5000"
         with app.app_context():
             gpu_device = (
                 r.table("gpus")
@@ -238,38 +197,23 @@ class Actions:
                 .run(db.conn)["physical_device"]
             )
         if not gpu_device:
-            log.error(
+            raise Error(
+                "bad_request",
                 "The gpu "
                 + kwargs["item_id"]
-                + " has no associated physical_device right now!"
+                + " has no associated physical_device right now!",
+                traceback.format_exc(),
             )
-            return
-        try:
-            domains_ids = _get(base_url + "/profile/gpu/started_domains/" + gpu_device)
-        except:
-            log.error(
-                "Could not contact engine api to get desktops to notify! "
-                + traceback.format_exc()
-            )
-            raise Error(
-                "internal_server", "Could not contact engine to get desktops to destroy"
-            )
-        log.debug("-> We got " + str(domains_ids) + " domains id to be notified")
+
+        domains_ids = engine_client.get("/profile/gpu/started_domains/" + gpu_device)
+        log.debug("-> We got " + str(domains_ids) + " domains id to be notified...")
         for domain_id in domains_ids:
-            data = {"domain_id": domain_id, "message": kwargs["message"]}
-            try:
-                _put(
-                    base_url + "/qmp/" + domain_id,
-                    {"action": "message", "message": kwargs["message"]},
-                )
-            except:
-                log.error(
-                    "Exception when sending qmp message: " + traceback.format_exc()
-                )
-                raise Error("internal_server", "Error when sending qmp message")
+            engine_client.put(
+                "/qmp/" + domain_id,
+                {"action": "message", "message": kwargs["message"]},
+            )
 
     def gpu_desktops_destroy(**kwargs):
-        base_url = "http://isard-engine:5000"
         with app.app_context():
             gpu_device = (
                 r.table("gpus")
@@ -278,31 +222,20 @@ class Actions:
                 .run(db.conn)["physical_device"]
             )
         if not gpu_device:
-            log.error(
+            raise Error(
+                "bad_request",
                 "The gpu "
                 + kwargs["item_id"]
-                + " has no associated physical_device right now!"
-            )
-            return
-        try:
-            domains_ids = _get(base_url + "/profile/gpu/started_domains/" + gpu_device)
-        except:
-            log.error(
-                "Could not contact engine api to get desktops to destroy! "
-                + traceback.format_exc()
-            )
-            raise Error(
-                "internal_server", "Could not contact engine to get desktops to destroy"
+                + " has no associated physical_device right now!",
+                traceback.format_exc(),
             )
 
-        log.debug("-> We got " + str(domains_ids) + " domains id to be destroyed")
-        base_url = "http://isard-api:5000/api/v3"
+        domains_ids = engine_client.get("/profile/gpu/started_domains/" + gpu_device)
+        log.debug("-> We got " + str(domains_ids) + " domains id to be destroyed...")
+
         for domain_id in domains_ids:
             try:
-                answer = _get(
-                    base_url + "/desktop/stop/" + domain_id,
-                    {},
-                )
+                answer = api_client.get("/desktop/stop/" + domain_id)
                 log.debug("-> Stopping domain " + domain_id + ": " + str(answer))
             except:
                 log.error(
@@ -314,7 +247,6 @@ class Actions:
 
     def gpu_profile_set(**kwargs):
         # Will set profile_id on selected card.
-        base_url = "http://isard-engine:5000"
         with app.app_context():
             gpu_device = (
                 r.table("gpus")
@@ -329,28 +261,33 @@ class Actions:
                 + " has no associated physical_device right now!"
             )
             return
-        try:
-            answer = _get(base_url + "/profile/gpu/" + gpu_device)
-            if (
-                answer.get("vgpu_profile")
-                and answer["vgpu_profile"] == kwargs["subitem_id"].split("-")[-1]
-            ):
-                log.debug(
-                    "-> The actual profile at vgpu is the same we want to put: "
-                    + str(kwargs["subitem_id"])
-                    + ", so doing nothing."
-                )
-                return
-        except:
-            log.error("Exception when getting gpu profile: " + traceback.format_exc())
-        try:
-            answer = _put(
-                base_url + "/profile/gpu/" + gpu_device,
-                {"profile_id": kwargs["subitem_id"]},
+
+        answer = engine_client.put(
+            "/profile/gpu/" + gpu_device, {"profile_id": kwargs["subitem_id"]}
+        )
+        if (
+            answer.get("vgpu_profile")
+            and answer["vgpu_profile"] == kwargs["subitem_id"].split("-")[-1]
+        ):
+            raise Error(
+                "bad_request",
+                "-> The actual profile at vgpu is the same we want to put: "
+                + str(kwargs["subitem_id"])
+                + ", so doing nothing.",
             )
-            log.debug("-> Setting profile answer: " + str(answer))
-        except:
-            log.error("Exception when setting gpu profile: " + traceback.format_exc())
+
+        answer = engine_client.put(
+            "/profile/gpu/" + gpu_device,
+            {"profile_id": kwargs["subitem_id"]},
+        )
+        log.debug(
+            "-> Profile "
+            + kwargs["subitem_id"]
+            + " set to gpu "
+            + gpu_device
+            + ": "
+            + str(answer)
+        )
 
     def domain_reservable_set(**kwargs):
         with app.app_context():
@@ -374,19 +311,3 @@ class Actions:
                 r.table("domains").get_all(r.args(domains_ids), index="id").update(
                     {"booking_id": kwargs["booking_id"]}
                 ).run(db.conn)
-
-    """
-    BULK ACTIONS
-    """
-
-    def bulk_action(table, tbl_filter, tbl_update):
-        with app.app_context():
-            log.info(
-                "BULK ACTION: Table {}, Filter {}, Update {}".format(
-                    table, filter, update
-                )
-            )
-            r.table(table).filter(filter).update(update).run(db.conn)
-            r.table(table).filter({"status": "Unknown"}).update(
-                {"status": "Stopping"}
-            ).run(db.conn)
