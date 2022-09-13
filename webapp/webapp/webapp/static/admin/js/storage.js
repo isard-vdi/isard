@@ -7,16 +7,16 @@
 
 $(document).ready(function() {
     $template = $(".template-storage-detail");
-    var storage_ready=$('#storage').DataTable( {
-        "ajax": {
-				"url": "/api/v3/admin/storage/ready",
-                "contentType": "application/json",
-                "type": 'GET',
-        },
-        "sAjaxDataProp": "",
-			"language": {
-				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
-			},
+    var storage_ready=$('#storage').DataTable({
+      "ajax": {
+        "url": "/api/v3/admin/storage/ready",
+        "contentType": "application/json",
+        "type": 'GET',
+      },
+      "sAjaxDataProp": "",
+      "language": {
+        "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+      },
 			"rowId": "id",
 			"deferRender": true,
         "columns": [
@@ -109,6 +109,19 @@ $(document).ready(function() {
             tr.addClass("shown");
           }
     } );
+
+    $('.btn-tree').on('click', function(){
+      $('form').each(function() {
+        this.reset();
+      })
+
+      $('#modalTreeDisk').modal({
+        backdrop: 'static',
+        keyboard: false
+      }).modal('show');
+
+      populateDiskTree();
+    });
 
     var storage_deleted=$('#storage_deleted').DataTable( {
         "ajax": {
@@ -322,4 +335,38 @@ function format(rowData) {
       '" class="display compact nowrap w-100" width="100%">' +
       "</table>";
     return $(childTable).toArray();
-  }
+}
+
+function populateDiskTree(){
+  $(":ui-fancytree").fancytree("destroy")
+  $("#modalTreeDisk .storage_disk_tree").fancytree({
+    extensions: ["table"],
+    table: {
+      indentation: 20,      // indent 20px per node level
+      nodeColumnIdx: 1,     // render the node title into the 2nd column
+    },  
+    source: {
+      url: "/api/v3/admin/storage/tree_list",
+      cache: false
+    },
+    lazyLoad: function(event, data){
+      data.result = $.ajax({
+        url: "/api/v3/admin/storage/tree_list",
+        dataType: "json"
+      });
+    },
+    renderColumns: function(event, data) {
+      var node = data.node,
+      $tdList = $(node.tr).find(">td");
+      $tdList.eq(0).text(node.getIndexHier());
+      // Fancy tree populates id column (1) as title
+      $tdList.eq(2).text(node.data.user_name);
+      if (node.data.directory_path == "/isard/templates") {
+        $tdList.eq(3).text("Template");
+      } else if (node.data.directory_path == "/isard/groups") {
+        $tdList.eq(3).text("Desktop");
+      }
+      $tdList.eq(4).text(node.data.category_name);
+    }
+  });
+}
