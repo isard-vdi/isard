@@ -11,6 +11,7 @@ from api import app
 
 r = RethinkDB()
 import logging as log
+import traceback
 
 from .flask_rethink import RDB
 
@@ -45,7 +46,10 @@ class Scheduler:
             self.api_rest.delete("/startswith/" + id + ".")
         except:
             log.error(
-                "Could not contact scheduler service at /" + id + " method DELETE"
+                "Could not contact scheduler service at /scheduler/"
+                + id
+                + " method DELETE. "
+                + traceback.format_exc()
             )
 
     """

@@ -18,12 +18,17 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+from gevent import monkey
+
+monkey.patch_all()
+
 import os
 
 from flask import Flask
 
-from scheduler import app
+from scheduler import app, socketio
+
+debug = os.environ.get("USAGE", "production") == "devel"
 
 if __name__ == "__main__":
-    debug = True if os.environ["LOG_LEVEL"] == "DEBUG" else False
-    app.run(host="0.0.0.0", debug=debug, port=5000)
+    socketio.run(app, host="0.0.0.0", port=5000, debug=debug, log_output=debug)
