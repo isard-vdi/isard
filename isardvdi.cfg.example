@@ -44,10 +44,6 @@ DOMAIN=localhost
 ## and authenticated backend paths (/debug/...)
 WEBAPP_ADMIN_PWD=IsardVDI
 
-# ------ Frontend Administration Button --------------------------------------
-## Will show/hide Administration menu button for users of role User.
-#FRONTEND_SHOW_ADMIN_BTN=True
-
 # ------ Frontend Bookings ---------------------------------------------------
 ## Will show/hide Resource bookings menu.
 #FRONTEND_SHOW_BOOKINGS=False

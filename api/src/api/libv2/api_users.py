@@ -140,14 +140,6 @@ class ApiUsers:
         )
 
     def Config(self, payload):
-        frontend_show_admin_btn = (
-            True
-            if os.environ.get("FRONTEND_SHOW_ADMIN_BTN") == None
-            else os.environ.get("FRONTEND_SHOW_ADMIN_BTN") == "True"
-        )
-        show_admin_button = (
-            True if payload["role_id"] != "user" else frontend_show_admin_btn
-        )
         show_bookings_button = (
             True
             if payload["role_id"] == "admin"
@@ -160,7 +152,6 @@ class ApiUsers:
             else os.environ.get("FRONTEND_SHOW_TEMPORAL") == "True"
         )
         return {
-            "show_admin_button": show_admin_button,
             "show_bookings_button": show_bookings_button,
             "documentation_url": os.environ.get(
                 "FRONTEND_DOCS_URI", "https://isard.gitlab.io/isardvdi-docs/"

@@ -55,7 +55,7 @@ export default {
           console.log(e)
         }
       }).then(() => {
-        window.location = `${apiAdminSegment}/desktops`
+        window.location = `${apiAdminSegment}/admin/domains/render/Desktops`
       })
     },
     saveNavigation (context, payload) {

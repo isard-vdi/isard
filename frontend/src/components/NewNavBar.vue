@@ -113,7 +113,7 @@
               </b-dropdown-item>
             </b-nav-item-dropdown>
             <b-nav-item
-              v-if="getConfig.showAdminButton"
+              v-if="['admin', 'manager'].includes(getUser.role_id)"
               @click="loginAdmin()"
             >
               <font-awesome-icon

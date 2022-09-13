@@ -9,18 +9,6 @@
 <!-- sidebar menu -->
 <div id="sidebar-menu" class="main_menu_side hidden-print main_menu">        
   <div class="menu_section">
-    <h3>User</h3>
-    <div class="clearfix"></div>
-    <ul class="nav side-menu">
-      <li><a href="/"><i class="fa fa-home"></i> Home</a></li>
-      <li><a href="/isard-admin/desktops"><i class="fa fa-desktop"></i> Desktops</a></li>
-      {% if current_user.role == 'admin' or current_user.role == 'advanced' or current_user.role == 'manager' %}
-      <li><a href="/isard-admin/templates"><i class="fa fa-cubes"></i> Templates</a></li>
-      <li><a href="/isard-admin/media"><i class="fa fa-circle-o"></i> Media</a></li>
-      {% endif %}
-    </ul>
-
-
     {% if current_user.role == 'manager' %}
     <h3>Manager</h3>
     <div class="clearfix"></div>
