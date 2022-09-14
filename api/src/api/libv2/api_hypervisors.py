@@ -86,6 +86,7 @@ class ApiHypervisors:
                 isard_video_url=isard_video_url,
                 isard_proxy_hyper_url=isard_proxy_hyper_url,
                 isard_hyper_vpn_host=isard_hyper_vpn_host,
+                nvidia_enabled=nvidia_enabled,
                 description="Added via api",
                 user=user,
                 only_forced=only_forced,
