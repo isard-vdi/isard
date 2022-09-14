@@ -75,10 +75,25 @@ $(document).ready(function() {
     $("#modalScheduler #send").on('click', function(e){
             var form = $('#modalAddScheduler');
             data=$('#modalAddScheduler').serializeObject();
-            $.ajax({
-                type: 'POST',
-                url: '/scheduler/system/'+data["kind"]+"/"+data["action"]+"/"+data["hour"]+"/"+data["minute"],
-            }).done(function(data) {});
+            let url = '/scheduler/system/'+data["kind"]+"/"+data["action"]+"/"+data["hour"]+"/"+data["minute"]
+            if (data['kind'] == 'date') {
+                url = '/scheduler/advanced/date/system/' + data['action']
+                data = {
+                    date: moment(data['daterangepicker_start'], "DD/MM/YYYY HH:mm").utc().format('YYYY-MM-DDTHH:mmZ'),
+                    kwargs: $('#div_action_form').serializeObject()
+                }
+            } else {
+                data = {
+                    kwargs: $('#div_action_form').serializeObject()
+                }
+            }
+                $.ajax({
+                    type: 'POST',
+                    url: url,
+                    data: JSON.stringify(data),
+                    contentType: "application/json",
+
+                }).done(function(data) {});
             $("#modalAddScheduler")[0].reset();
             $("#modalScheduler").modal('hide');
         });
@@ -431,6 +446,15 @@ function scheduler_init(){
             $('#modalAddScheduler #div_date').hide()
         }else if(valueSelected == 'date'){
             $('#modalAddScheduler #div_date').show()
+            $('#modalAddScheduler #div_date #datePicker').daterangepicker({
+                parentEl: "#modalAddScheduler #div_date",
+                singleDatePicker: true,
+                singleClasses: "picker_2",
+                timePicker: true,
+                locale: {
+                    format: 'DD/MM/YYYY HH:mm'
+                }
+            })
             $('#modalAddScheduler #div_interval_cron').hide()
         }else{
             $('#modalAddScheduler #div_interval_cron').hide()

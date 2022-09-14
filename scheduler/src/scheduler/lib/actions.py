@@ -204,10 +204,10 @@ class Actions:
                 "id": "deployment_id",
                 "name": "Deployment ID",
                 "placeholder": "Deployment desktops to be notified",
-                "element": "select",
+                "element": "select2",
                 "ajax": {
                     "type": "POST",
-                    "url": "/admin/table/deployments",
+                    "url": "/admin/alloweds/term/deployments",
                     "url_id": None,
                     "data": {"pluck": ["id", "name"]},
                     "ids": "id",

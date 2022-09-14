@@ -31,9 +31,10 @@ function gen_form(div_id,data){
             $(div_id).append(html)
         }
         if(action.element == "select2"){
-            html_select2 = '<input id="'+action.id+'" name="'+action.id+'" class="tags-select roundbox" style="width: 100%;"></select>'
+            html_select2 = '<select id="'+action.id+'" name="'+action.id+'" class="tags-select roundbox" style="width: 100%;"></select>'
             $(div_id).append(html_select2)
             $(div_id+" #"+action.id).select2({
+                dropdownParent: $(div_id),
                 minimumInputLength: 2,
                 maximumSelectionSize: 1,
                 showSearchBox: true,
