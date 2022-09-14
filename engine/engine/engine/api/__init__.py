@@ -250,7 +250,7 @@ def get_domains(username):
 @api.route("/profile/gpu/<string:gpu_id>", methods=["PUT"])
 def set_gpu_profile(gpu_id):
     logs.main.info("set_gpu_profile: {}".format(gpu_id))
-    d = request.get_json()
+    d = request.get_json(force=True)
     pci_id = gpu_id.split("-")[-1]
     profile_id = d.get("profile_id", False)
     profile = profile_id.split("-")[-1]
@@ -339,7 +339,7 @@ def get_gpu_started_domains(gpu_id):
 
 @api.route("/qmp/<string:desktop_id>", methods=["PUT"])
 def send_qmp(desktop_id):
-    command = request.get_json()
+    command = request.get_json(force=True)
     logs.main.info(
         "NOT IMPLEMENTED. send_qmp: action: {}, kwargs: {}".format(
             command["action"], str(command["kwargs"])
