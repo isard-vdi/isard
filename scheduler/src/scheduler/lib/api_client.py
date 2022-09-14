@@ -49,7 +49,7 @@ class ApiClient:
         try:
             resp = requests.post(
                 self.base_url + url,
-                data=data,
+                json=data,
                 headers=self.header_auth(),
                 verify=self.verifycert,
             )
@@ -145,7 +145,7 @@ class ApiClient:
         try:
             resp = requests.put(
                 self.base_url + url,
-                data=data,
+                json=data,
                 headers=self.header_auth(),
                 verify=self.verifycert,
             )

@@ -262,9 +262,7 @@ class Actions:
             )
             return
 
-        answer = engine_client.put(
-            "/profile/gpu/" + gpu_device, {"profile_id": kwargs["subitem_id"]}
-        )
+        answer = engine_client.get("/profile/gpu/" + gpu_device)
         if (
             answer.get("vgpu_profile")
             and answer["vgpu_profile"] == kwargs["subitem_id"].split("-")[-1]
