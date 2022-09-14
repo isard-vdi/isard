@@ -78,8 +78,10 @@ export default {
       const params = JSON.parse(window.atob(cookie)).web_viewer
       this.host = params.host
       this.desktopIp = params.vmHost
+      this.username = params.vmUsername
+      this.password = params.vmPassword
 
-      const query = `scheme=rdp&hostname=${this.desktopIp}&ignore-cert=true&resize-method=display-update&session=${localStorage.rdpToken}&server-layout=es-es-qwerty`
+      const query = `scheme=rdp&hostname=${this.desktopIp}&ignore-cert=true&resize-method=display-update&session=${localStorage.rdpToken}&server-layout=es-es-qwerty&username=${this.username}&password=${this.password}`
       this.connected = true
 
       this.connect(query)
