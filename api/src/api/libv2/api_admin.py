@@ -61,11 +61,11 @@ def admin_table_list(
     if pluck:
         query = query.pluck(pluck)
 
-    if without:
-        query = query.without(without)
-
     if order_by:
         query = query.order_by(order_by)
+
+    if without:
+        query = query.without(without)
 
     if table == "groups":
         query = query.merge(

@@ -12,7 +12,7 @@ $(document).ready(function() {
             "url": "/admin/table/roles",
             "dataSrc": "",
             "type" : "POST",
-            "data": function(d){return JSON.stringify({})}
+            "data": function(d){return JSON.stringify({'order_by':'sortorder', 'without':'sortorder'})}
         },
 			"language": {
 				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
