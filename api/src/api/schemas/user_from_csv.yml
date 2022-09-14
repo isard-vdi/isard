@@ -1,0 +1,21 @@
+username:
+  required: true
+  empty: false
+name:
+  required: true
+  empty: false
+email:
+  type: string
+password:
+  required: true
+  empty: false
+group:
+  required: true
+  empty: false
+category:
+  required: true
+  empty: false
+role:
+  required: true
+  empty: false
+

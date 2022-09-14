@@ -591,6 +591,7 @@ def admin_userschema(payload):
 def admin_users_validate(payload):
     user_list = request.get_json()
     for user in user_list:
+        _validate_item("user_from_csv", user)
         category_id = users.CategoryGetByName(user["category"])["id"]
         ownsCategoryId(payload, category_id)
         CategoryNameGroupNameMatch(user["category"], user["group"])
