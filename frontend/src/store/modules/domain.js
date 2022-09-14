@@ -22,8 +22,8 @@ const getDefaultState = () => {
       description: '',
       guestProperties: {
         credentials: {
-          password: 'isard',
-          username: 'pirineus'
+          username: 'isard',
+          password: 'pirineus'
         },
         fullscreen: false,
         viewers: [{
@@ -154,8 +154,8 @@ export default {
       }
     },
     removeGuestProperties: (state) => {
-      state.domain.guestProperties.credentials.password = 'isard'
-      state.domain.guestProperties.credentials.username = 'pirineus'
+      state.domain.guestProperties.credentials.username = 'isard'
+      state.domain.guestProperties.credentials.password = 'pirineus'
     },
     setSelectedOSTemplateId: (state, selectedOSTemplateId) => {
       state.domain.OSTemplateId = selectedOSTemplateId
