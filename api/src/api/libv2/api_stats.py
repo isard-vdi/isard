@@ -89,6 +89,119 @@ def Templates():
         }
 
 
+def OtherStatus():
+    with app.app_context():
+        query = {}
+        categories = r.table("categories")["id"].run(db.conn)
+        status = [
+            "Creating",
+            "CreatingAndStarting",
+            "CreatingDisk",
+            "CreatingDiskFromScratch",
+            "CreatingDomain",
+            "CreatingDomainFromBuilder",
+            "CreatingDomainFromDisk",
+            "CreatingFromBuilder",
+            "CreatingNewTemplateInDB",
+            "CreatingTemplateDisk",
+            "CreatingTemplate",
+            "Deleting",
+            "DeletingDomainDisk",
+            "DiskDeleted",
+            "Failed",
+            "FailedDeleted",
+            "Resumed",
+            "RunningVirtBuilder",
+            "Shutting-down",
+            "Starting",
+            "StartingDomainDisposable",
+            "StartingPaused",
+            "Stopping",
+            "StoppingAndDeleting",
+            "Suspended",
+            "TemplateDiskCreated",
+            "Unknown",
+            "Updating",
+        ]
+        for category in categories:
+            query[category] = {
+                "desktops_wrong_status": {
+                    "Creating": "",
+                    "CreatingAndStarting": "",
+                    "CreatingDisk": "",
+                    "CreatingDiskFromScratch": "",
+                    "CreatingDomain": "",
+                    "CreatingDomainFromBuilder": "",
+                    "CreatingDomainFromDisk": "",
+                    "CreatingFromBuilder": "",
+                    "CreatingNewTemplateInDB": "",
+                    "CreatingTemplateDisk": "",
+                    "CreatingTemplate": "",
+                    "Deleting": "",
+                    "DeletingDomainDisk": "",
+                    "DiskDeleted": "",
+                    "Failed": "",
+                    "FailedDeleted": "",
+                    "Resumed": "",
+                    "RunningVirtBuilder": "",
+                    "Shutting-down": "",
+                    "Starting": "",
+                    "StartingDomainDisposable": "",
+                    "StartingPaused": "",
+                    "Stopping": "",
+                    "StoppingAndDeleting": "",
+                    "Suspended": "",
+                    "TemplateDiskCreated": "",
+                    "Unknown": "",
+                    "Updating": "",
+                },
+                "templates_wrong_status": {
+                    "Creating": "",
+                    "CreatingAndStarting": "",
+                    "CreatingDisk": "",
+                    "CreatingDiskFromScratch": "",
+                    "CreatingDomain": "",
+                    "CreatingDomainFromBuilder": "",
+                    "CreatingDomainFromDisk": "",
+                    "CreatingFromBuilder": "",
+                    "CreatingNewTemplateInDB": "",
+                    "CreatingTemplateDisk": "",
+                    "CreatingTemplate": "",
+                    "Deleting": "",
+                    "DeletingDomainDisk": "",
+                    "DiskDeleted": "",
+                    "Failed": "",
+                    "FailedDeleted": "",
+                    "Resumed": "",
+                    "RunningVirtBuilder": "",
+                    "Shutting-down": "",
+                    "Starting": "",
+                    "StartingDomainDisposable": "",
+                    "StartingPaused": "",
+                    "Stopping": "",
+                    "StoppingAndDeleting": "",
+                    "Suspended": "",
+                    "TemplateDiskCreated": "",
+                    "Unknown": "",
+                    "Updating": "",
+                },
+            }
+            for s in status:
+                query[category]["desktops_wrong_status"][s] = (
+                    r.table("domains")
+                    .get_all(["desktop", s, category], index="kind_status_category")
+                    .count()
+                    .run(db.conn)
+                )
+                query[category]["templates_wrong_status"][s] = (
+                    r.table("domains")
+                    .get_all(["template", s, category], index="kind_status_category")
+                    .count()
+                    .run(db.conn)
+                )
+    return query
+
+
 def KindState(kind, state=False):
     with app.app_context():
         query = {}

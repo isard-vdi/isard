@@ -10,6 +10,7 @@ from ..libv2.api_stats import (
     Desktops,
     GroupByCategories,
     KindState,
+    OtherStatus,
     Templates,
     Users,
 )
@@ -42,6 +43,16 @@ def stats_kind_state(payload, kind, state=False):
         KindState(kind, state)
     return (
         json.dumps({"query": KindState(kind, state)}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/stats/category/status", methods=["GET"])
+@is_admin
+def stats_kind_status(payload):
+    return (
+        json.dumps({"categories": OtherStatus()}),
         200,
         {"Content-Type": "application/json"},
     )
