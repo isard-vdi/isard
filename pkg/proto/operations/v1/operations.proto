@@ -1,0 +1,122 @@
+syntax = "proto3";
+
+package operations.v1;
+
+// OperationsService is a service responsible for executing operations in the IsardVDI infrastructure
+service OperationsService {
+    // CreateHypervisor creates and adds a new hypervisor on the pool
+    rpc CreateHypervisor(CreateHypervisorRequest) returns (stream CreateHypervisorResponse) {}
+    // DestroyHypervisor destroys a Hypervisor. It doesn't stop / migrate the running VMs or anything like that
+    rpc DestroyHypervisor(DestroyHypervisorRequest) returns (stream DestroyHypervisorResponse) {}
+    
+    // ExpandStorage adds more storage to the shared storage pool
+    rpc ExpandStorage(ExpandStorageRequest) returns (stream ExpandStorageResponse) {}
+    // ShrinkStorage removes storage from the shared storage pool
+    rpc ShrinkStorage(ShrinkStorageRequest) returns (stream ShrinkStorageResponse) {}
+
+    // CreateBackup creates a new backup of the storage pool
+    rpc CreateBackup(CreateBackupRequest) returns (stream CreateBackupResponse) {}
+}
+
+// OperationState are the different states that a operation can be
+enum OperationState {
+    // default zero value
+    OPERATION_STATE_UNSPECIFIED = 0;
+    // OPERATION_STATE_SCHEDULED means that the operation is queued, and it's going to be ran when it's its time
+    OPERATION_STATE_SCHEDULED = 1;
+    // OPERATION_STATE_ACTIVE means that the operation is being executed
+    OPERATION_STATE_ACTIVE = 2;
+    // OPERATION_STATE_FAILED means the operation has failed
+    OPERATION_STATE_FAILED = 3;
+    // OPERATION_STATE_COMPLETED means the operation has finished successfully
+    OPERATION_STATE_COMPLETED = 4;
+}
+
+// HypervisorCapabilites are the different capabilites that a hypervisor can have
+enum HypervisorCapabilities {
+    // default zero value
+    HYPERVISOR_CAPABILITIES_UNSPECIFIED = 0;
+    // HYPERVISOR_CAPABILITIES_STORAGE means the hypervisor has access to the shared storage pool
+    HYPERVISOR_CAPABILITIES_STORAGE = 1;
+    // HYPERVISOR_CAPABILITIES_GPU means the hypervisor has access to a GPU
+    HYPERVISOR_CAPABILITIES_GPU = 2;
+}
+
+// CreateHypervisorRequest is the request for the CreateHypervisor method
+message CreateHypervisorRequest {
+    // min_cpu is the minimum number of CPU threads that the machine has to have
+    int32 min_cpu = 1;
+    // min_ram is the minimum number of RAM that the machine has to have. It's in MB
+    int32 min_ram = 2;
+    // capabilities are the capabilities that the hypervisor has to have
+    repeated HypervisorCapabilities capabilities = 3;
+}
+
+// CreateHypervisorResponse is the response for the CreateHypervisor method
+message CreateHypervisorResponse {
+    // id is the generated ID of the hypervisor
+    string id = 1;
+
+    // state is the state of the operation
+    OperationState state = 2;
+
+    // msg contains info related with the operation
+    string msg = 3;
+}
+
+// DestroyHypervisorRequest is the request for the DestroyHypervisor method
+message DestroyHypervisorRequest {
+    // id is the ID of the hypervisor
+    string id = 1;
+}
+
+// DestroyHypervisorResponse is the response for the DestroyHypervisor method
+message DestroyHypervisorResponse {
+    // state is the state of the operation
+    OperationState state = 1;
+
+    // msg contains info related with the operation
+    string msg = 2;
+}
+
+// ExpandStorageRequest is the request for the ExpandStorage method
+message ExpandStorageRequest {
+    // min_bytes is the minimum number of bytes that the storage needs to be expanded
+    int32 min_bytes = 1;
+}
+
+// ExpandStorageResponse is the response for the ExpandStorage method
+message ExpandStorageResponse {
+    // state is the state of the operation
+    OperationState state = 1;
+
+    // msg contains info related with the operation
+    string msg = 2;
+}
+
+// ShrinkStorageRequest is the request for the ShrinkStorage method
+message ShrinkStorageRequest {
+    // max_bytes is the maximum number of bytes that the storage needs to be shrink
+    int32 max_bytes = 1;
+}
+
+// ShrinkStorageResponse is the response for the ShrinkStorage method
+message ShrinkStorageResponse {
+    // state is the state of the operation
+    OperationState state = 1;
+
+    // msg contains info related with the operation
+    string msg = 2;
+}
+
+// CreateBackupRequest is the request for the CreateBackup method
+message CreateBackupRequest {}
+
+// CreateBackupResponse is the response for the CreateBackup method
+message CreateBackupResponse {
+    // state is the state of the operation
+    OperationState state = 1;
+
+    // msg contains info related with the operation
+    string msg = 2;
+}
