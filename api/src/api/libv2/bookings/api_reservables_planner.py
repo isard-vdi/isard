@@ -42,7 +42,7 @@ from .api_reservables_planner_compute import (
 
 class ReservablesPlanner:
     def __init__(self):
-        self.round_minutes = 10
+        self.round_minutes = 5
         self.scheduler = Scheduler()
         self.reservables = Reservables()
 
