@@ -100,7 +100,12 @@ def add(payload, type, kind, action, hour, minute):
     return (
         json.dumps(
             app.scheduler.add_job(
-                type, kind, action, hour, minute, kwargs=custom_parameters
+                type,
+                kind,
+                action,
+                hour,
+                minute,
+                kwargs=custom_parameters.pop("kwargs", None),
             )
         ),
         200,

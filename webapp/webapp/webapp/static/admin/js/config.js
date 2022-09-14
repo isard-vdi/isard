@@ -74,26 +74,33 @@ $(document).ready(function() {
 
     $("#modalScheduler #send").on('click', function(e){
             var form = $('#modalAddScheduler');
-            data=$('#modalAddScheduler').serializeObject();
-            let url = '/scheduler/system/'+data["kind"]+"/"+data["action"]+"/"+data["hour"]+"/"+data["minute"]
-            if (data['kind'] == 'date') {
-                url = '/scheduler/advanced/date/system/' + data['action']
-                data = {
-                    date: moment(data['daterangepicker_start'], "DD/MM/YYYY HH:mm").utc().format('YYYY-MM-DDTHH:mmZ'),
-                    kwargs: $('#div_action_form').serializeObject()
-                }
-            } else {
-                data = {
-                    kwargs: $('#div_action_form').serializeObject()
-                }
+            const formData=$('#modalAddScheduler').serializeObject();
+            let url = ''
+            let data = {
+                kwargs: {}
             }
-                $.ajax({
-                    type: 'POST',
-                    url: url,
-                    data: JSON.stringify(data),
-                    contentType: "application/json",
+            // For once at a date jobs we must parse the selected datetime as utc and call another endpoint 
+            if (formData['kind'] == 'date') {
+                url = '/scheduler/advanced/date/system/' + formData['action']
+                data["date"] = moment(formData['daterangepicker_start'], "DD/MM/YYYY HH:mm").utc().format('YYYY-MM-DDTHH:mmZ')
+            } else {
+                const hour = formData['kind'] == 'cron' ? moment(formData["hour"], "HH").utc().format('HH') : formData["hour"]
+                url = '/scheduler/system/'+formData["kind"]+"/"+formData["action"]+"/"+ hour + "/"+ formData["minute"]
+                // If we are adding a cron job we must schedule it as utc, if its an interval we keep the introduced hour as is
+            }
+            // If the action has kwargs we must add it to the data to be sent
+            if ($('.kwargs_field').length > 0){
+                $('.kwargs_field').each(function() { 
+                    data['kwargs'][this.id] = this.value
+                });
+            }
+            $.ajax({
+                type: 'POST',
+                url: url,
+                data: JSON.stringify(data),
+                contentType: "application/json",
 
-                }).done(function(data) {});
+            }).done(function(data) {});
             $("#modalAddScheduler")[0].reset();
             $("#modalScheduler").modal('hide');
         });
@@ -463,14 +470,21 @@ function scheduler_init(){
     })
 
     $('#modalAddScheduler #action').on('change', function (e) {
-        var actionSelected = this.value;
+        var selectedAction = this.value;
+        var selectedActionText = this.options[this.selectedIndex].text
         $.ajax({
             type: "GET",
-            url: "/scheduler/action/"+actionSelected,
+            url: "/scheduler/action/"+selectedAction,
             contentType: "application/json",
             success: function(data)
             {
-                gen_form("#modalAddScheduler #div_action_form",data)
+                // If the action requires to introduce data
+                if (data.length > 0) {
+                    $('#actionTitle').html('<i class="fa fa-info-circle" aria-hidden="true"></i> ' + selectedActionText.charAt(0).toUpperCase() + selectedActionText.slice(1))
+                    gen_form("#modalAddScheduler #div_action_form", data)
+                } else {
+                    $("#modalAddScheduler #div_action_form, #actionTitle").html("")
+                }
             }
         });
     })

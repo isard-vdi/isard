@@ -1,15 +1,11 @@
 
-pre = '<div class="item form-group"> \
-       <div class="col-md-6 col-sm-6 col-xs-12"> '
-post = '</div></div>'
-
-var html = ""
 
 function gen_form(div_id,data){
-    $(div_id).html("")
+    $(div_id).empty()
+    var html = ""
     data.forEach(function(action) {
         if(action.element == "textarea"){
-            html = html + pre + '<label >'+action.name+'</label><'+action.element+' "placeholder"="'+action.placeholder+'"></+'+action.element+'>' + post
+            html = html + '<label >'+action.name+'</label><'+action.element+' id="' + action.id + '" class="form-control kwargs_field" style="min-width: 100%" placeholder"="'+action.placeholder+'"></'+action.element+'>'
             $(div_id).append(html)
         }
         if(action.element == "select"){
@@ -21,7 +17,7 @@ function gen_form(div_id,data){
                 success: function(data)
                 {
                     data=JSON.parse(data)
-                    html = html + '<select id="'+action.id+'" name="'+action.id+'" class="form-control" required>"'
+                    html = html + '<select id="'+action.id+'" name="'+action.id+'" class="form-control kwargs_field" required>"'
                     data.forEach(function(items) {
                         html = html + '<option value="'+items[action.ajax.ids]+'">'+items[action.ajax.values]+'</option>'
                     })
@@ -31,7 +27,7 @@ function gen_form(div_id,data){
             $(div_id).append(html)
         }
         if(action.element == "select2"){
-            html_select2 = '<select id="'+action.id+'" name="'+action.id+'" class="tags-select roundbox" style="width: 100%;"></select>'
+            html_select2 = '<label >'+action.name+'</label><select id="'+action.id+'" name="'+action.id+'" class="tags-select roundbox kwargs_field" style="width: 100%;"></select>'
             $(div_id).append(html_select2)
             $(div_id+" #"+action.id).select2({
                 dropdownParent: $(div_id),

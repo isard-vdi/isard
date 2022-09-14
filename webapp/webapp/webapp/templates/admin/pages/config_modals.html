@@ -96,17 +96,20 @@
                                     </div>
                                 </div>
                             </div>
-                            <hr>
                             <div class="item form-group">
                                 <label class="control-label col-md-3 col-sm-3 col-xs-12" for="action">Action: <span class="required">*</span></label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                <select id="action" name="action" class="form-control" onchange="hiddenFields(this);console.log('hide');" required>
-                                    <option value="">Choose..</option>
-                                </select>
+                                    <select id="action" name="action" class="form-control" onchange="hiddenFields(this)" required>
+                                        <option value="">Choose..</option>
+                                    </select>
                                 </div>
                             </div>
-                            <div id="div_action_form">
-
+                            <div class="x_panel">
+                                <div class="x_content">
+                                    <h4 id="actionTitle"></h4>
+                                    <div id="div_action_form">
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
