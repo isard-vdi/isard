@@ -1,0 +1,12 @@
+version: v1
+managed:
+  enabled: true
+  go_package_prefix:
+    default: gitlab.com/isard/isardvdi/pkg/gen/proto/go  
+plugins:
+  - name: go
+    out: pkg/gen/proto/go
+    opt: paths=source_relative
+  - name: go-grpc
+    out: pkg/gen/proto/go
+    opt: paths=source_relative

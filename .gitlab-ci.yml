@@ -38,6 +38,23 @@ check-frontend:
     - yarn
     - yarn lint --no-fix --max-warnings 0
 
+check-protobuf:
+  stage: lint
+  image: bufbuild/buf
+  before_script:
+    - echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
+    - apk add --no-cache go@edge
+    - go install github.com/bufbuild/buf/cmd/buf@latest
+    - go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1
+    - go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0
+  script:
+    - export PATH=$PATH:~/go/bin
+    - buf lint
+    # TODO: Add the breaking check
+    # - buf breaking --against "${CI_PROJECT_URL}.git"
+    - buf generate -o check-protobuf
+    - diff -r check-protobuf/pkg/gen pkg/gen
+
 version:
   stage: version
   image: node
