@@ -839,7 +839,7 @@ function csv2datatables(csv){
 }
 
 function parseCSV(csv){
-    lines=csv.split('\n')
+    lines=csv.split(/\r?\n/)
     header=lines[0].split(',')
     users=[]
     $.each(lines, function(n, l){
