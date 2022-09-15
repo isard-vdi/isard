@@ -26,7 +26,7 @@ from ..lib.log import *
 
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = "redirect_to_login"
+login_manager.login_view = "remote_logout"
 
 ram_users = {}
 

@@ -70,19 +70,16 @@ class ApiUsers:
                 user = (
                     r.table("users")
                     .get(user_id)
-                    .pluck(
-                        "id", "username", "photo", "email", "role", "category", "group"
-                    )
+                    .pluck("id", "provider", "name", "role", "category", "group")
                     .run(db.conn)
                 )
                 user = {
+                    "provider": user["provider"],
                     "user_id": user["id"],
                     "role_id": user["role"],
                     "category_id": user["category"],
                     "group_id": user["group"],
-                    "username": user["username"],
-                    "email": user["email"],
-                    "photo": user["photo"],
+                    "name": user["name"],
                 }
         except:
             raise Error(
