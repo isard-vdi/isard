@@ -489,3 +489,21 @@ def CategoriesLimitsHardware():
                 .run(db.conn)
             )
     return query
+
+
+def CategoriesDeploys():
+    with app.app_context():
+        query = {}
+        query = (
+            r.table("deployments")
+            .merge(
+                lambda dom: {
+                    "category": r.table("users").get(dom["user"])["category"],
+                }
+            )
+            .group(r.row["category"])
+            .count()
+            .run(db.conn)
+        )
+
+    return query

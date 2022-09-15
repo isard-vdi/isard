@@ -5,6 +5,7 @@ import json
 from api import app
 
 from ..libv2.api_stats import (
+    CategoriesDeploys,
     CategoriesKindState,
     CategoriesLimitsHardware,
     Desktops,
@@ -77,6 +78,16 @@ def stats_categories_kind_state(payload, kind, state=False):
 def stats_categories_limits(payload):
     return (
         json.dumps({"category": CategoriesLimitsHardware()}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/stats/categories/deployments", methods=["GET"])
+@is_admin
+def stats_categories_deployments(payload):
+    return (
+        json.dumps({"categories": CategoriesDeploys()}),
         200,
         {"Content-Type": "application/json"},
     )
