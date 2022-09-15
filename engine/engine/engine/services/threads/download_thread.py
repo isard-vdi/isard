@@ -41,6 +41,7 @@ from engine.services.lib.qcow import (
     get_host_disk_operations_from_path,
     get_path_to_disk,
 )
+from engine.services.lib.storage import create_storage, update_storage_status
 from engine.services.log import logs
 from rethinkdb import r
 
@@ -61,6 +62,7 @@ class DownloadThread(threading.Thread, object):
         threads_disk_operations,
         pool_id,
         type_path_selected,
+        storage_id=None,
     ):
         threading.Thread.__init__(self)
         self.name = "_".join([table, id_down])
@@ -72,6 +74,7 @@ class DownloadThread(threading.Thread, object):
         self.dict_header = dict_header
         self.stop = False
         self.finalished_threads = finalished_threads
+        self.storage_id = storage_id
 
         self.threads_disk_operations = threads_disk_operations
         self.hostname = None
@@ -203,6 +206,7 @@ class DownloadThread(threading.Thread, object):
             self.id,
             "downloading in hypervisor: {}".format(self.hostname),
         )
+        update_storage_status(self.storage_id, "downloading")
         if rc is None:
             header = p.stderr.readline().decode("utf8")
             header2 = p.stderr.readline().decode("utf8")
@@ -305,13 +309,8 @@ class DownloadThread(threading.Thread, object):
         else:
             logs.downloads.info("File downloaded: {}".format(self.path))
             if self.table == "domains":
-                # update_table_field(self.table, self.id, 'path_downloaded', self.path)
-                d_update_domain = get_domain(self.id)["create_dict"]
-                # d_update_domain = {'hardware': {'disks': [{}]}}
-                d_update_domain["hardware"]["disks"][0]["file"] = self.path
-
-                update_domain_dict_create_dict(self.id, d_update_domain)
                 update_domain_status("Downloaded", self.id, detail="downloaded disk")
+                update_storage_status(self.storage_id, "ready")
                 update_domain_status("Updating", self.id, detail="downloaded disk")
             else:
                 update_table_field(self.table, self.id, "path_downloaded", self.path)
@@ -510,9 +509,16 @@ class DownloadChangesThread(threading.Thread):
                 self.download_threads.pop(new_file_path)
             self.finalished_threads.remove(new_file_path)
 
+        storage_id = None
         if table == "domains":
             d_update_domain = dict_changes["create_dict"]
             d_update_domain["hardware"]["disks"][0]["path_selected"] = path_selected
+            d_update_domain["hardware"]["disks"][0]["file"] = new_file_path
+            storage_id = create_storage(
+                d_update_domain["hardware"]["disks"][0],
+                get_domain(dict_changes.get("id")).get("user"),
+            )
+            d_update_domain["hardware"]["disks"][0] = {"storage_id": storage_id}
             update_domain_dict_create_dict(id_down, d_update_domain)
 
         if new_file_path in self.download_threads:
@@ -535,6 +541,7 @@ class DownloadChangesThread(threading.Thread):
                 self.threads_disk_operations,
                 pool_id,
                 type_path_selected,
+                storage_id,
             )
             self.download_threads[new_file_path].daemon = True
             self.download_threads[new_file_path].start()
