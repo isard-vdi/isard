@@ -4,6 +4,7 @@ import sys
 import time
 import traceback
 from copy import deepcopy
+from datetime import datetime
 
 import flatten_dict
 from engine.config import TRANSITIONAL_STATUS
@@ -128,7 +129,13 @@ def update_domain_parents(id_domain):
 
 
 def update_domain_status(
-    status, id_domain, hyp_id=None, detail="", keep_hyp_id=False, storage_id=None
+    status,
+    id_domain,
+    hyp_id=None,
+    detail="",
+    keep_hyp_id=False,
+    storage_id=None,
+    update_started_time=True,
 ):
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
@@ -179,13 +186,16 @@ def update_domain_status(
             .run(r_conn)
         )
     else:
+        d_update = {
+            "hyp_started": hyp_id,
+            "status": status,
+            "detail": json.dumps(detail),
+        }
+        if update_started_time is True:
+            d_update["started_time"] = int(datetime.now().timestamp())
+
         results = (
-            rtable.get(id_domain)
-            .update(
-                {"hyp_started": hyp_id, "status": status, "detail": json.dumps(detail)},
-                return_changes=True,
-            )
-            .run(r_conn)
+            rtable.get(id_domain).update(d_update, return_changes=True).run(r_conn)
         )
 
     if status == "DiskDeleted":
