@@ -12,6 +12,11 @@ metrics:
             - targets: ['host.docker.internal:9100']
               labels:
                 domain: ${DOMAIN}
+        - job_name: cadvisor
+          static_configs:
+            - targets: ['isard-stats-cadvisor:8080']
+              labels:
+                domain: ${DOMAIN}
         - job_name: stats_exporter
           static_configs:
             - targets: ['isard-stats-go:9091']

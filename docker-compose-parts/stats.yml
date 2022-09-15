@@ -34,6 +34,28 @@ services:
     volumes:
       - '/:/host:ro,rslave'
 
+  isard-stats-cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.45.0
+    container_name: isard-stats-cadvisor
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    restart: "no"
+    privileged: true
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    networks:
+      isard-network:
+        ipv4_address: ${DOCKER_NET:-172.31.255}.74
+
   isard-grafana-agent:
     container_name: isard-grafana-agent
     image: grafana/agent:v0.24.2
