@@ -302,7 +302,12 @@ def api_v3_admin_quota(payload):
         toUpdate = quota["quota"]
         kind = "quota"
 
-    ownsCategoryId(payload, quota["id"])
+    if quota["table"] == "groups":
+        category = users.GroupGet(quota["id"])["parent_category"]
+    else:
+        category = quota["id"]
+
+    ownsCategoryId(payload, category)
 
     if "propagate" in quota.keys():
         propagate = quota["propagate"]
