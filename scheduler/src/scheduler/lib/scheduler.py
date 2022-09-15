@@ -101,7 +101,18 @@ class Scheduler:
                 return list(r.table("scheduler_jobs").without("job_state").run(db.conn))
 
     def list_actions(self):
-        return [f[0] for f in getmembers(Actions, isfunction)]
+        return [
+            {"id": f[0], "name": f[0].replace("_", " ")}
+            for f in getmembers(Actions, isfunction)
+            if not f[0].endswith("_kwargs")
+        ]
+
+    def get_action_kwargs(self, action):
+        try:
+            function = getattr(Actions, action + "_kwargs")
+        except:
+            raise Error("bad_request", "Action not implemented")
+        return function()
 
     def add_job(self, type, kind, action, hour, minute, id=None, kwargs=None):
         if type not in ["system", "bookings", "alerts"]:

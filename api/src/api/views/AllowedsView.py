@@ -24,7 +24,15 @@ alloweds = ApiAllowed()
 @app.route("/api/v3/admin/alloweds/term/<table>", methods=["POST"])
 @has_token
 def alloweds_table_term(payload, table):
-    if table not in ["roles", "categories", "groups", "users", "media"]:
+    if table not in [
+        "domains",
+        "roles",
+        "categories",
+        "groups",
+        "users",
+        "media",
+        "deployments",
+    ]:
         raise Error("forbidden", "Table not allowed.")
     data = request.get_json(force=True)
     data["pluck"] = ["id", "name"]

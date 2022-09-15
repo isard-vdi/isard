@@ -46,17 +46,26 @@ engine_client = ApiClient("engine")
 
 
 class Actions:
+    def stop_domains_kwargs():
+        return []
+
     def stop_domains():
         with app.app_context():
             r.table("domains").get_all("Started", index="status").update(
                 {"status": "Stopping"}
             ).run(db.conn)
 
+    def stop_domains_without_viewer_kwargs():
+        return []
+
     def stop_domains_without_viewer():
         with app.app_context():
             r.table("domains").get_all("Started", index="status").filter(
                 {"viewer": {"client_since": False}}
             ).update({"status": "Stopping"}).run(db.conn)
+
+    def stop_shutting_down_desktops_kwargs():
+        return []
 
     def stop_shutting_down_desktops():
         with app.app_context():
@@ -72,6 +81,9 @@ class Actions:
                     r.table("domains").get(d["id"]).update(
                         {"status": "Stopping", "accessed": time.time()}
                     ).run(db.conn)
+
+    def check_ephimeral_status_kwargs():
+        return []
 
     def check_ephimeral_status():
         with app.app_context():
@@ -91,6 +103,9 @@ class Actions:
                     r.table("domains").get(d["id"]).update(
                         {"status": d["ephimeral"]["action"]}
                     ).run(db.conn)
+
+    def backup_database_kwargs():
+        return []
 
     def backup_database():
         id = "isard_backup_" + datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -153,22 +168,61 @@ class Actions:
                 db.conn
             )
 
-    def domain_qmp_notification(**kwargs):
-        # "kwargs": {
-        #     "domain_id": "_local_default_..." ,
-        #     "message": "Test"
+    def domain_qmp_notification_kwargs(**kwargs):
+        return [
+            {
+                "id": "domain_id",
+                "name": "Domain ID",
+                "placeholder": "Domain to be notified",
+                "element": "select2",
+                "ajax": {
+                    "type": "POST",
+                    "url": "/admin/alloweds/term/domains",
+                    "url_id": None,
+                    "data": {"pluck": ["id", "name"]},
+                    "ids": "id",
+                    "values": "name",
+                },
+            },
+            {
+                "id": "message",
+                "name": "Message",
+                "placeholder": "Message to be sent",
+                "element": "textarea",
+            },
+        ]
 
-        # } ,
+    def domain_qmp_notification(**kwargs):
         engine_client.put(
             "/qmp/" + kwargs["domain_id"],
             {"action": "message", "kwargs": {"message": kwargs["message"]}},
         )
 
+    def deployment_qmp_notification_kwargs(**kwargs):
+        return [
+            {
+                "id": "deployment_id",
+                "name": "Deployment ID",
+                "placeholder": "Deployment desktops to be notified",
+                "element": "select2",
+                "ajax": {
+                    "type": "POST",
+                    "url": "/admin/alloweds/term/deployments",
+                    "url_id": None,
+                    "data": {"pluck": ["id", "name"]},
+                    "ids": "id",
+                    "values": "name",
+                },
+            },
+            {
+                "id": "message",
+                "name": "Message",
+                "placeholder": "Message to be sent",
+                "element": "textarea",
+            },
+        ]
+
     def deployment_qmp_notification(**kwargs):
-        # "kwargs": {
-        #     "deployment_id": "_local_default_..." ,
-        #     "message": "Test"
-        # } ,
         deployment = r.table("deployments").get(kwargs["deployment_id"]).run(db.conn)
         if not deployment:
             log.error("Deployment id " + kwargs["deployment_id"] + " not found")
@@ -188,6 +242,30 @@ class Actions:
             )
 
     ### GPUS SPECIFICS
+    def gpu_desktops_notify_kwargs(**kwargs):
+        return [
+            {
+                "id": "item_id",
+                "name": "GPU phy id",
+                "placeholder": "gpu physical_device",
+                "element": "input",
+                "ajax": {
+                    "type": "GET",
+                    "url": "/admin/reservables/gpus",
+                    "url_id": None,
+                    "data": {},
+                    "ids": "physical_device",
+                    "values": "name",
+                },
+            },
+            {
+                "id": "message",
+                "name": "Message",
+                "placeholder": "message to send to domains using this gpu",
+                "element": "textarea",
+            },
+        ]
+
     def gpu_desktops_notify(**kwargs):
         with app.app_context():
             gpu_device = (
@@ -212,6 +290,24 @@ class Actions:
                 "/qmp/" + domain_id,
                 {"action": "message", "message": kwargs["message"]},
             )
+
+    def gpu_desktops_destroy_kwargs(**kwargs):
+        return [
+            {
+                "id": "item_id",
+                "name": "GPU name",
+                "placeholder": "gpu physical_device to destroy domains using it",
+                "element": "select",
+                "ajax": {
+                    "type": "GET",
+                    "url": "/admin/reservables/gpus",
+                    "url_id": None,
+                    "data": {},
+                    "ids": "id",
+                    "values": "name",
+                },
+            },
+        ]
 
     def gpu_desktops_destroy(**kwargs):
         with app.app_context():
@@ -244,6 +340,38 @@ class Actions:
                     + ": "
                     + traceback.format_exc()
                 )
+
+    def gpu_profile_set_kwargs(**kwargs):
+        return [
+            {
+                "id": "item_id",
+                "name": "GPU phy ID",
+                "placeholder": "GPU physical id to set profile",
+                "element": "select",
+                "ajax": {
+                    "type": "GET",
+                    "url": "/admin/reservables/gpus",
+                    "url_id": None,
+                    "data": {},
+                    "ids": "physical_device",
+                    "values": "name",
+                },
+            },
+            {
+                "id": "subitem_id",
+                "name": "GPU profile ID",
+                "placeholder": "GPU profile to be set",
+                "element": "select",
+                "ajax": {
+                    "type": "GET",
+                    "url": "/admin/reservables/enabled/gpus",
+                    "url_id": "item_id",
+                    "data": {},
+                    "ids": "id",
+                    "values": "name",
+                },
+            },
+        ]
 
     def gpu_profile_set(**kwargs):
         # Will set profile_id on selected card.
@@ -286,6 +414,9 @@ class Actions:
             + ": "
             + str(answer)
         )
+
+    def domain_reservable_set_kwargs(**kwargs):
+        return []
 
     def domain_reservable_set(**kwargs):
         with app.app_context():

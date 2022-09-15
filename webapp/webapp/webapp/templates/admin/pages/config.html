@@ -3,6 +3,8 @@
 {% block css %}
     <!-- Dropzone.js -->
     <link href="/isard-admin/vendors/dropzone/dist/min/dropzone.min.css" rel="stylesheet">
+    <!-- bootstrap-daterangepicker -->
+    <link href="/isard-admin/vendors/bootstrap-daterangepicker/daterangepicker.css" rel="stylesheet">
 {% endblock %}
 {% block content %}
 
@@ -21,7 +23,7 @@
 
     <div class="clearfix"></div>
     <div class="row">
-        <div class="col-md-6 col-sm-6 col-xs-12">
+        <div class="col-md-12 col-sm-12 col-xs-12">
             <div class="x_panel">
                 <div class="x_title">
                     <h3><i class="fa fa-lock"></i> Job scheduler <small></small></h3>
@@ -47,6 +49,27 @@
                             </tbody>
                         </table>
                     </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+    <div class="clearfix"></div>
+    <div class="row">
+        <div class="col-md-6 col-sm-6 col-xs-12">
+            <div class="x_panel">
+                <div class="x_title">
+                    <h3><i class="fa fa-wrench"></i> Maintenance mode</h3>
+                    <div class="clearfix"></div>
+                </div>
+                <div class="x_content">
+                  <span id="maintenance_wrapper" style="display: none">
+                     <input id="maintenance_checkbox" type="checkbox">
+                  </span>
+                  <i id="maintenance_spinner" class="fa fa-spinner fa-lg fa-spin"></i>
+                  <label for="maintenance_checkbox">
+                     Maintenance mode enabled
+                  </label>
                 </div>
 
             </div>
@@ -80,27 +103,6 @@
         </div>
     </div>
     <div class="clearfix"></div>
-    <div class="row">
-        <div class="col-md-6 col-sm-6 col-xs-12">
-            <div class="x_panel">
-                <div class="x_title">
-                    <h3><i class="fa fa-wrench"></i> Maintenance mode</h3>
-                    <div class="clearfix"></div>
-                </div>
-                <div class="x_content">
-                  <span id="maintenance_wrapper" style="display: none">
-                     <input id="maintenance_checkbox" type="checkbox">
-                  </span>
-                  <i id="maintenance_spinner" class="fa fa-spinner fa-lg fa-spin"></i>
-                  <label for="maintenance_checkbox">
-                     Maintenance mode enabled
-                  </label>
-                </div>
-
-            </div>
-        </div>
-    </div>
-    <div class="clearfix"></div>
 
 <div class="clearfix"></div>
 </div>
@@ -110,6 +112,10 @@
 {% block pagescript %}
     <!-- Dropzone.js -->
     <script src="/isard-admin/vendors/dropzone/dist/min/dropzone.min.js"></script>
-     	<script src="/isard-admin/static/js/restful.js""></script>
-        <script src="/isard-admin/static/admin/js/config.js"></script>  
+    <script src="/isard-admin/static/js/restful.js""></script>
+    <script src="/isard-admin/static/admin/js/config.js"></script>
+    <script src="/isard-admin/static/js/snippets/form_items.js"></script>
+    <!-- bootstrap-daterangepicker -->
+    <script src="/isard-admin/vendors/moment/min/moment.min.js"></script>
+    <script src="/isard-admin/vendors/bootstrap-daterangepicker/daterangepicker.js"></script>
 {% endblock %}
