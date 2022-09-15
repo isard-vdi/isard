@@ -1,0 +1,15 @@
+{
+  "apiVersion": 1,
+  "policies": [
+    {
+      "orgId": 1,
+      "receiver": "telegram",
+      "group_by": [
+        "isardvdi-alerts"
+      ],
+      "group_wait": "30s",
+      "group_internval": "5m",
+      "repeat_interval": "10m"
+    }
+  ]
+}

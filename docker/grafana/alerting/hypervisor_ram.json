@@ -1,0 +1,87 @@
+{
+  "apiVersion": 1,
+  "groups": [
+    {
+      "orgID": 1,
+      "name": "isardvdi-alerts",
+      "folder": "alerts",
+      "interval": "30s",
+      "rules": [
+        {
+          "uid": "hypervisor-high-ram",
+          "title": "Hypervisor High RAM",
+          "condition": "B",
+          "data": [
+            {
+              "refId": "A",
+              "queryType": "",
+              "relativeTimeRange": {
+                "from": 600,
+                "to": 0
+              },
+              "datasourceUid": "PBFA97CFB590B2093",
+              "model": {
+                "editorMode": "code",
+                "expr": "100 - ((node_memory_MemAvailable_bytes{} * 100) / node_memory_MemTotal_bytes{})",
+                "hide": false,
+                "intervalMs": 1000,
+                "legendFormat": "{{domain}}",
+                "maxDataPoints": 43200,
+                "range": true,
+                "refId": "A"
+              }
+            },
+            {
+              "refId": "B",
+              "queryType": "",
+              "relativeTimeRange": {
+                "from": 0,
+                "to": 0
+              },
+              "datasourceUid": -100,
+              "model": {
+                "conditions": [
+                  {
+                    "evaluator": {
+                      "params": [
+                        80
+                      ],
+                      "type": "gt"
+                    },
+                    "operator": {
+                      "type": "and"
+                    },
+                    "query": {
+                      "params": [
+                        "A"
+                      ]
+                    },
+                    "reducer": {
+                      "params": [],
+                      "type": "last"
+                    },
+                    "type": "query"
+                  }
+                ],
+                "datasource": {
+                  "type": "__expr__",
+                  "uid": "-100"
+                },
+                "expression": "A",
+                "hide": false,
+                "intervalMs": 1000,
+                "maxDataPoints": 43200,
+                "refId": "B",
+                "type": "classic_conditions"
+              }
+            }
+          ],
+          "updated": "2022-09-15T06:48:31Z",
+          "noDataState": "OK",
+          "execErrState": "Alerting",
+          "for": "30s"
+        }
+      ]
+    }
+  ]
+}
