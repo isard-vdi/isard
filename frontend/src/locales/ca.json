@@ -665,6 +665,11 @@
                 "category": "Categoria",
                 "group": "Grup",
                 "user": "Usuari"
+            },
+            "error": {
+                "groups": "S'ha d'escollir com a mínim un grup",
+                "users": "S'ha d'escollir com a mínim un usuari",
+                "groups-users": "S'ha d'escollir com a mínim un usuari o un grup"
             }
         },
         "new-media": {

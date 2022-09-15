@@ -86,6 +86,11 @@
                 "category": "Category",
                 "group": "Group",
                 "user": "User"
+            },
+            "error": {
+                "groups": "At least one group must be selected",
+                "users": "At least one user must be selected",
+                "groups-users": "At least one user or one group must be selected"
             }
         },
         "new-media": {

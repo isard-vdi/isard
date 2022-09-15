@@ -230,6 +230,7 @@ import AllowedForm from '@/components/AllowedForm.vue'
 import DomainInfo from '@/components/domain/DomainInfo.vue'
 import DesktopNewSkeleton from '@/components/desktops/DesktopNewSkeleton.vue'
 import { map } from 'lodash'
+import { ErrorUtils } from '@/utils/errorUtils'
 
 // const inputFormat = helpers.regex('inputFormat', /^1(3|4|5|7|8)\d{9}$/) // /^\D*7(\D*\d){12}\D*$'
 const inputFormat = value => /^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$/.test(value)
@@ -349,6 +350,18 @@ export default {
       }
       const groups = groupsChecked.value ? map(selectedGroups.value, 'id') : false
       const users = usersChecked.value ? map(selectedUsers.value, 'id') : false
+
+      if (groups && groups.length === 0) {
+        ErrorUtils.showErrorNotification(context.root.$snotify, i18n.t('forms.new-deployment.error.groups'))
+        return
+      } else if (users && users.length === 0) {
+        ErrorUtils.showErrorNotification(context.root.$snotify, i18n.t('forms.new-deployment.error.users'))
+        return
+      } else if (!groups && !users) {
+        ErrorUtils.showErrorNotification(context.root.$snotify, i18n.t('forms.new-deployment.error.groups-users'))
+        return
+      }
+
       $store.dispatch('createNewDeployment',
         {
           visible: visible.value,
