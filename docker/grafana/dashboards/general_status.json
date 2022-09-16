@@ -441,12 +441,12 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "(count(present_over_time(isardvdi_domain_port_spice_tls[1m]) * on(desktop) group_left isardvdi_domain_port_spice_tls * on (port) group_left count_over_time(isardvdi_socket_recv_bytes[1m])) or vector(0)) +\n\n(count(present_over_time(isardvdi_domain_port_vnc[1m]) * on(desktop) group_left isardvdi_domain_port_vnc * on (port) group_left count_over_time(isardvdi_socket_recv_bytes[1m])) or vector(0)) + \n\n(count(present_over_time(isardvdi_domain_net_rx_bytes[1m]) * on (mac) group_left count_over_time(isardvdi_conntrack_rdp_recv_bytes[1m])) or vector(0))",
+          "expr": "",
           "format": "time_series",
           "hide": false,
           "instant": false,
           "legendFormat": "",
-          "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"visors_started\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
+          "query": "",
           "range": true,
           "refId": "A"
         }
@@ -954,9 +954,9 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "count(present_over_time(isardvdi_domain_port_spice_tls[1m]) * on(desktop) group_left isardvdi_domain_port_spice_tls * on (port) group_left count_over_time(isardvdi_socket_recv_bytes[1m]))",
+          "expr": "",
           "instant": true,
-          "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"viewers\")\n  |> filter(fn: (r) => r[\"viewer_type\"] == \"viewer_port_spice_tls\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
+          "query": "",
           "range": false,
           "refId": "A"
         }
@@ -1022,9 +1022,9 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "count(present_over_time(isardvdi_domain_port_vnc[1m]) * on(desktop) group_left isardvdi_domain_port_vnc * on (port) group_left count_over_time(isardvdi_socket_recv_bytes[1m]))",
+          "expr": "",
           "instant": true,
-          "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"viewers\")\n  |> filter(fn: (r) => r[\"viewer_type\"] == \"viewer_port_spice\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
+          "query": "",
           "range": false,
           "refId": "A"
         }
@@ -1254,10 +1254,12 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
+          "editorMode": "code",
           "expr": "count(count(node_cpu_seconds_total{}) by (cpu))",
           "interval": "",
           "intervalFactor": 1,
           "legendFormat": "",
+          "range": true,
           "refId": "A",
           "step": 240
         }
@@ -1335,8 +1337,10 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
+          "editorMode": "code",
           "expr": "sum(node_memory_MemTotal_bytes{})",
           "intervalFactor": 1,
+          "range": true,
           "refId": "A",
           "step": 240
         }
@@ -1424,17 +1428,7 @@
             "fixedColor": "rgb(31, 120, 193)",
             "mode": "fixed"
           },
-          "mappings": [
-            {
-              "options": {
-                "match": "null",
-                "result": {
-                  "text": "N/A"
-                }
-              },
-              "type": "special"
-            }
-          ],
+          "mappings": [],
           "noValue": "0",
           "thresholds": {
             "mode": "absolute",
@@ -2377,6 +2371,21 @@
                 }
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CPU"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#d1151e",
+                  "mode": "fixed"
+                }
+              }
+            ]
           }
         ]
       },
@@ -2419,9 +2428,21 @@
           "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) => \n    r[\"_measurement\"] == \"domain\" and\n    r[\"hypervisor\"] == \"${hypers}\" and\n    r[\"_field\"] == \"vcpu_current\"\n  )\n  |> group(columns: [\"id\"])\n  |> sort(columns: [\"_time\"])\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> sum()",
           "range": true,
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "count(count(node_cpu_seconds_total{}) by (cpu))",
+          "hide": false,
+          "legendFormat": "CPU",
+          "range": true,
+          "refId": "B"
         }
       ],
-      "title": "vCPU",
+      "title": "vCPU i CPU",
       "type": "timeseries"
     },
     {
@@ -2492,7 +2513,23 @@
           },
           "unit": "kbytes"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "RAM"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 10,
@@ -2533,9 +2570,21 @@
           "range": true,
           "refId": "A",
           "target": "isard.hypers.$hypers.stats.num_domains"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "sum(node_memory_MemTotal_bytes{})",
+          "hide": false,
+          "legendFormat": "RAM",
+          "range": true,
+          "refId": "B"
         }
       ],
-      "title": "vRAM",
+      "title": "vRAM i RAM",
       "type": "timeseries"
     }
   ],
