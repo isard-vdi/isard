@@ -146,6 +146,12 @@ export default {
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
+    },
+    countGroupsUsers (_, groups) {
+      ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.counting-desktops'), '', true, 1000)
+      return axios.put(`${apiV3Segment}/groups_users/count`, groups).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
     }
   }
 }

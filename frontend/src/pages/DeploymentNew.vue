@@ -341,7 +341,7 @@ export default {
       }
     ])
 
-    const submitForm = () => {
+    const submitForm = (toast) => {
       // Check if the form is valid
       v$.value.$touch()
       if (v$.value.$invalid) {
@@ -362,19 +362,53 @@ export default {
         return
       }
 
-      $store.dispatch('createNewDeployment',
-        {
-          visible: visible.value,
-          template_id: selected.value[0].id,
-          name: deploymentName.value,
-          desktop_name: domain.value.name,
-          description: domain.value.description,
-          allowed: {
-            users,
-            groups
-          }
+      const showConfirmation = () => {
+        context.root.$snotify.clear()
+        const yesAction = () => {
+          context.root.$snotify.remove(toast.id)
+          $store.dispatch('createNewDeployment',
+            {
+              visible: visible.value,
+              template_id: selected.value[0].id,
+              name: deploymentName.value,
+              desktop_name: domain.value.name,
+              description: domain.value.description,
+              allowed: {
+                users,
+                groups
+              }
+            }
+          )
         }
-      )
+
+        const noAction = (toast) => {
+          context.root.$snotify.clear()
+        }
+
+        context.root.$snotify.prompt(`${i18n.t('messages.confirmation.new-deployment', { quantity: quantity })}`, {
+          position: 'centerTop',
+          buttons: [
+            { text: `${i18n.t('messages.yes')}`, action: yesAction, bold: true },
+            { text: `${i18n.t('messages.no')}`, action: noAction }
+          ],
+          placeholder: ''
+        })
+      }
+
+      let quantity = 0
+
+      if (users && users.length !== 0) {
+        quantity = quantity + users.length
+      }
+
+      if (groups && groups.length !== 0) {
+        $store.dispatch('countGroupsUsers', { groups }).then((response) => {
+          quantity = quantity + response.data.quantity
+          showConfirmation()
+        })
+      } else {
+        showConfirmation()
+      }
     }
 
     onUnmounted(() => {

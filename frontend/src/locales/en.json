@@ -754,7 +754,8 @@
             "delete-event": "'{name}' booking will be deleted, continue?",
             "direct-viewer-reset": "The direct viewers file will be downloaded. Reset the viewers urls?",
             "delete-media": "'{name}' media will be deleted, continue?",
-            "edit-domain": "'{name}' hardware will be limited and its data will be changed, continue?"
+            "edit-domain": "'{name}' hardware will be limited and its data will be changed, continue?",
+            "new-deployment": "{quantity} desktops will be created, one for each selected user. Continue?"
         },
         "yes": "Yes",
         "no": "No",
@@ -786,7 +787,8 @@
             "edit-desktop-stop": "To edit a desktop it must be stopped",
             "deleting-media": "Deleting media",
             "downloading-media": "Downloading media",
-            "stopping-download": "Stopping download"
+            "stopping-download": "Stopping download",
+            "counting-desktops": "Counting how many desktops will be created"
         },
         "loading": "Loading"
     },
@@ -840,9 +842,9 @@
         "booking_new_event_start_error": "The starting time is not valid",
         "booking_new_event_end_error": "The end time is not valid",
         "booking_new_event_overlap_error": "The event overlaps",
-        "booking_does_not_fit_date":"The booking does not fit in requested date",
-        "unable_to_update":"Unable to update in database.",
-        "unable_to_insert":"Unable to insert in database.",
+        "booking_does_not_fit_date": "The booking does not fit in requested date",
+        "unable_to_update": "Unable to update in database.",
+        "unable_to_insert": "Unable to insert in database.",
         "conflict": "Conflict",
         "conflict_title": "Conflict",
         "missing_required_data": "Missing required fields",
@@ -855,7 +857,7 @@
         "unable_to_parse_media": "Unable to parse media info",
         "unable_to_parse_string": "Unable to parse string",
         "unable_to_start_desktop_from": "Desktop can't be started from ",
-        "unable_to_stop_desktop_from": "Desktop can't be stopped from " ,
+        "unable_to_stop_desktop_from": "Desktop can't be stopped from ",
         "unable_to_change_desktop_status": "Unable to change desktop status",
         "unable_to_change_hypervisor_status": "Unable to change hypervisor status",
         "unable_to_get_domain_jumperurl": "  not get domain jumperurl as domain not exists",
@@ -873,11 +875,11 @@
         "unknown_extension": "Skipping uploaded file as has unknown extension",
         "vpn_missing_itemid": "VPN missing itemid",
         "no_wireguard_keys": "There are no wireguard keys in webapp config yet. Try again in a few seconds...",
-        "unable_to_process_vpnfile":  "Unable to process VPN file",
+        "unable_to_process_vpnfile": "Unable to process VPN file",
         "desktop_is_not_visible": "Desktop is not visible to this user now.",
         "invalid_start_date": "Invalid start date",
         "invalid_end_date": "Invalid end date",
-        "incorrect_new_plan_body_data":" Incorrect new plan body data"
+        "incorrect_new_plan_body_data": " Incorrect new plan body data"
     },
     "router": {
         "titles": {

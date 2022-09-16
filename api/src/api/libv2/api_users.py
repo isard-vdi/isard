@@ -926,7 +926,7 @@ class ApiUsers:
             )
         return templates
 
-    def groups_users_count(groups):
+    def groups_users_count(self, groups):
         with app.app_context():
             return (
                 r.table("users")

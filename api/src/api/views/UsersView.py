@@ -252,8 +252,9 @@ def api_v3_user_webapp_templates(payload):
 
 
 @app.route("/api/v3/groups_users/count", methods=["PUT"])
-@is_not_user
-def groups_users_count(payload, groups):
-    quantity = users.groups_users_count(groups)
+@has_token
+def groups_users_count(payload):
+    data = request.get_json(force=True)
+    quantity = users.groups_users_count(data.get("groups"))
 
     return json.dumps({"quantity": quantity}), 200, {"Content-Type": "application/json"}
