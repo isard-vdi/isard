@@ -33,7 +33,13 @@ from ..libv2.isardVpn import isardVpn
 
 vpn = isardVpn()
 
-from .decorators import has_token, is_auto_register, is_register, ownsDomainId
+from .decorators import (
+    has_token,
+    is_auto_register,
+    is_not_user,
+    is_register,
+    ownsDomainId,
+)
 
 """
 Users jwt endpoints
@@ -243,3 +249,11 @@ def api_v3_user_webapp_desktops(payload):
 def api_v3_user_webapp_templates(payload):
     templates = users.WebappTemplates(payload["user_id"])
     return json.dumps(templates), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/groups_users/count", methods=["PUT"])
+@is_not_user
+def groups_users_count(payload, groups):
+    quantity = users.groups_users_count(groups)
+
+    return json.dumps({"quantity": quantity}), 200, {"Content-Type": "application/json"}

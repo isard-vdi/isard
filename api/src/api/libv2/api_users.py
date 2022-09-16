@@ -926,6 +926,15 @@ class ApiUsers:
             )
         return templates
 
+    def groups_users_count(groups):
+        with app.app_context():
+            return (
+                r.table("users")
+                .get_all(r.args(groups), index="group")
+                .count()
+                .run(db.conn)
+            )
+
     def check_secondary_groups_category(self, category, secondary_groups):
         for group in secondary_groups:
             group = self.GroupGet(group)
