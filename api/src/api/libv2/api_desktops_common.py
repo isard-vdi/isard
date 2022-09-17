@@ -20,6 +20,8 @@ from .flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
+from ..libv2.api_scheduler import Scheduler
+from ..libv2.helpers import gen_payload_from_user
 from .api_exceptions import Error
 from .isardViewer import isardViewer, viewer_jwt
 
@@ -28,6 +30,7 @@ isardviewer = isardViewer()
 from .ds import DS
 
 ds = DS()
+scheduler = Scheduler()
 
 import secrets
 
@@ -71,14 +74,18 @@ class ApiDesktopsCommon:
                 description_code="not_found",
             )
         if len(domains) == 1:
+            scheduled = False
             if start_desktop and domains[0]["status"] == "Stopped":
                 ds.WaitStatus(domains[0]["id"], "Stopped", "Starting", "Started")
+                payload = gen_payload_from_user(user_id=domains[0]["user"])
+                scheduled = scheduler.add_desktop_timeouts(payload, domains[0]["id"])
             viewers = {
                 "desktopId": domains[0]["id"],
                 "jwt": viewer_jwt(domains[0]["id"], minutes=30),
                 "vmName": domains[0]["name"],
                 "vmDescription": domains[0]["description"],
                 "vmState": "Started",
+                "scheduled": scheduled if scheduled else domains[0].get("scheduled"),
             }
             desktop_viewers = list(domains[0]["guest_properties"]["viewers"].keys())
             if "file_spice" in desktop_viewers:

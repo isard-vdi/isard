@@ -5,6 +5,7 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
+import json
 import time
 from datetime import datetime, timedelta
 
@@ -395,6 +396,7 @@ class ApiUsers:
                             },
                             "progress",
                             "booking_id",
+                            "scheduled",
                         ]
                     )
                     .run(db.conn)

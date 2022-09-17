@@ -239,7 +239,8 @@
             },
             "notification-bar": {
                 "next-booking": "Próxima reserva",
-                "no-next-booking": "El escritorio no está reservado!"
+                "no-next-booking": "El escritorio no está reservado!",
+                "shutdown": "Apagado automático a las {date}"
             },
             "no-info-default": "No hay descripción disponible",
             "open-with": "Accede con",
@@ -873,6 +874,13 @@
             "expired_session": "Sesión caducada",
             "direct_viewer": "Visor directo",
             "edit-domain": "Editar dominio"
+        }
+    },
+    "message-modal": {
+        "title": "Información importante",
+        "messages": {
+            "desktop-time-limit": "El escritorio '{name}' se apagará automáticamente a las {date}.",
+            "searching-resources": "Estamos buscando recursos para el escritorio. Se iniciará en breves minutos, por favor espere."
         }
     }
 }

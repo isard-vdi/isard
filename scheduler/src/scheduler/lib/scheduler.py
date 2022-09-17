@@ -101,10 +101,11 @@ class Scheduler:
                 return list(r.table("scheduler_jobs").without("job_state").run(db.conn))
 
     def list_actions(self):
+        actions = [action[0] for action in getmembers(Actions, isfunction)]
         return [
-            {"id": f[0], "name": f[0].replace("_", " ")}
-            for f in getmembers(Actions, isfunction)
-            if not f[0].endswith("_kwargs")
+            {"id": f, "name": f.replace("_", " ")}
+            for f in actions
+            if not f.endswith("_kwargs") and f + "_kwargs" in actions
         ]
 
     def get_action_kwargs(self, action):
@@ -251,7 +252,10 @@ class Scheduler:
         try:
             self.scheduler.remove_job(job_id)
         except:
-            raise Error("not_found", "Job id not found")
+            raise Error(
+                "not_found",
+                "Job id " + str(job_id) + " not found. Probably was already deleted",
+            )
 
     def remove_job_startswith(self, job_id):
         jobs = (

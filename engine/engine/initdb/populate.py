@@ -7,10 +7,10 @@
 # coding=utf-8
 
 import json
-import random
 import sys
 import time
 import traceback
+import uuid
 from string import ascii_lowercase, digits
 
 from rethinkdb import r
@@ -90,6 +90,7 @@ class Populate(object):
             "interfaces",
             "graphics",
             "videos",
+            "desktops_priority",
             "domains",
             "virt_install",
             "media",
@@ -1466,5 +1467,38 @@ class Populate(object):
             r.table("reservables_vgpus").insert(
                 default_reservable_vgpu, conflict="update"
             ).run(self.conn)
+        except:
+            None
+
+    def desktops_priority(self):
+        try:
+            log.info("Table desktops_priority not found, creating...")
+            r.table_create("desktops_priority", primary_key="id").run(self.conn)
+        except:
+            None
+        try:
+            priority = [
+                {
+                    "id": str(uuid.uuid4()),
+                    "name": "default",
+                    "op": "shutdown",
+                    "description": "Applied to non matching users",
+                    "allowed": {
+                        "roles": [],  ## Matches all
+                        "categories": False,
+                        "groups": False,
+                        "users": False,
+                        "desktops": False,
+                    },
+                    "priority": 0,
+                    "shutdown": False,
+                    # {
+                    #     "server": False,
+                    #     "max": 240,
+                    #     "notify_intervals": [{"time":0,"type":"info"}, {"time":-1,"type":"alert"},{"time":-2,"type":"warning"}],
+                    # },
+                },
+            ]
+            r.table("desktops_priority").insert(priority).run(self.conn)
         except:
             None

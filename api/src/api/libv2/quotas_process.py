@@ -1148,3 +1148,40 @@ class QuotasProcess:
         if limited == {}:
             limited = None
         return {**create_dict, **{"limited_hardware": limited}}
+
+    def get_shutdown_timeouts(self, payload, desktop_id=None):
+        with app.app_context():
+            rules = list(
+                r.table("desktops_priority").order_by(r.desc("priority")).run(db.conn)
+            )
+        if not len(rules):
+            return False
+
+        if desktop_id:
+            # check for desktop
+            for rule in rules:
+                if rule["allowed"]["desktops"] is not False:
+                    if (
+                        len(rule["allowed"]["desktops"]) == 0
+                        or desktop_id in rule["allowed"]["desktops"]
+                    ):
+                        return rule["shutdown"]
+
+        # if not, check for payload
+        alloweds = [
+            ("users", "user"),
+            ("groups", "group"),
+            ("categories", "category"),
+            ("roles", "role"),
+        ]
+
+        for allowed_item in alloweds:
+            for rule in rules:
+                if rule["allowed"][allowed_item[0]] is not False:
+                    if (
+                        len(rule["allowed"][allowed_item[0]]) == 0
+                        or payload[allowed_item[1] + "_id"]
+                        in rule["allowed"][allowed_item[0]]
+                    ):
+                        return rule["shutdown"]
+        return False

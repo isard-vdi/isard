@@ -239,7 +239,8 @@
             },
             "notification-bar": {
                 "next-booking": "Next booking",
-                "no-next-booking": "The desktop isn't booked!"
+                "no-next-booking": "The desktop isn't booked!",
+                "shutdown": "Automatic shutdown at {date}"
             },
             "no-info-default": "No description available",
             "open-with": "Open with",
@@ -897,6 +898,13 @@
             "expired_session": "Expired session",
             "direct_viewer": "Direct viewer",
             "edit-domain": "Edit domain"
+        }
+    },
+    "message-modal": {
+        "title": "Important information",
+        "messages": {
+            "desktop-time-limit": "The '{name}' desktop will be stopped at {date}.",
+            "searching-resources": "We are looking for resources for the desktop. It will be started in a few minutes, please wait."
         }
     }
 }

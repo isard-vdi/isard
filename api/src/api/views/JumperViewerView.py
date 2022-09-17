@@ -36,6 +36,7 @@ def api_v3_viewer(token):
                 "vmName": viewers.pop("vmName", None),
                 "vmDescription": viewers.pop("vmDescription", None),
                 "vmState": vmState,
+                "scheduled": viewers.pop("scheduled"),
                 "viewers": viewers,
             }
         ),
