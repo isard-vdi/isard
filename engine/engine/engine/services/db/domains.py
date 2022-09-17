@@ -23,6 +23,7 @@ ALL_STATUS_RUNNING = ["Stopping", "Started", "Stopping", "Shutting-down"]
 STATUS_TO_UNKNOWN = ["Started", "Paused", "Shutting-down", "Stopping", "Unknown"]
 STATUS_TO_STOPPED = ["Starting", "CreatingTemplate"]
 STATUS_FROM_CAN_START = ["Stopped", "Failed"]
+STATUS_FROM_SERVER_CAN_START = ["Stopped"]
 STATUS_TO_FAILED = ["Started", "Stopping", "Shutting-down"]
 
 DEBUG_CHANGES = True if logs.changes.handlers[0].level <= 10 else False
@@ -1111,7 +1112,7 @@ def get_domains_flag_server_to_starting():
         logs.main.error(e)
         return []
     ids_servers_must_start = [
-        d["id"] for d in l if d["status"] in STATUS_FROM_CAN_START
+        d["id"] for d in l if d["status"] in STATUS_FROM_SERVER_CAN_START
     ]
     close_rethink_connection(r_conn)
     return ids_servers_must_start
