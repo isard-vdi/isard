@@ -281,6 +281,9 @@ class HypervisorsOrchestratorThread(threading.Thread):
             except queue.Empty:
                 self.check_hyps_from_database()
                 for server_id in get_domains_flag_server_to_starting():
+                    logs.main.info(
+                        f"Desktop with flag server with id {server_id} go to Starting status"
+                    )
                     update_domain_status("Starting", server_id)
                 pass
 
