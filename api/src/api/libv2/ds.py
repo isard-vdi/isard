@@ -26,11 +26,13 @@ class DS:
         None
 
     def delete_desktop(self, desktop_id, status):
-        if status == "Started":
+        if status in ["Started", "Shutting-down"]:
             transition_status = "Stopping"
             final_status = "Stopped"
             try:
-                self.WaitStatus(desktop_id, status, transition_status, final_status)
+                self.WaitStatus(
+                    desktop_id, status, transition_status, final_status, wait_seconds=20
+                )
                 status = "Stopped"
             except:
                 with app.app_context():
@@ -46,8 +48,19 @@ class DS:
                 self.WaitStatus(desktop_id, status, transition_status, final_status)
             except:
                 with app.app_context():
+                    log.error(
+                        "Deleting desktop "
+                        + str(desktop_id)
+                        + " failed (engine timeout?).We will force delete in database."
+                    )
                     r.table("domains").get(desktop_id).delete().run(db.conn)
+                    return
 
+        log.error(
+            "Deleting desktop "
+            + str(desktop_id)
+            + " failed (engine down?).We will force failed and delete again in database."
+        )
         with app.app_context():
             r.table("domains").get(desktop_id).update({"status": "Failed"}).run(db.conn)
         transition_status = "Deleting"
