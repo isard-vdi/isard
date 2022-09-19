@@ -239,11 +239,11 @@ variants(){
 		production)
 			merge "$version_args" "$config_name" $(parts_variant $version $(parts_variant $FLAVOUR $@))
 			;;
-		test)
-			merge "$version_args" "$config_name" $(parts_variant $version $(parts_variant $FLAVOUR $@) $(parts_variant test $@))
-			;;
 		build)
-			merge "$version_args" "$config_name" $(parts_variant $version $(parts_variant $FLAVOUR $@) $(parts_variant test $@) $(parts_variant build $@))
+			merge "$version_args" "$config_name" $(parts_variant $version $(parts_variant $FLAVOUR $@) $(parts_variant build $@))
+			;;
+		test)
+			merge "$version_args" "$config_name" $(parts_variant $version $(parts_variant $FLAVOUR $@) $(parts_variant build $@) $(parts_variant test $@))
 			;;
 		devel)
 			merge "$version_args" "$config_name" $(parts_variant $version $(parts_variant $FLAVOUR $@) $(parts_variant test $@) $(parts_variant build $@) $(parts_variant devel $@))

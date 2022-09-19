@@ -22,9 +22,9 @@
 ##  - production: docker-compose file without build section
 ##      ready to pull and up
 ##      (see also: https://github.com/docker/compose/issues/7873)
-##  - test: like production with docker services to run tests
-##  - build: like test with build section
-##  - devel: like build and host source code are mounted into docker volumes
+##  - build: like production with build section
+##  - test: like build with docker services to run tests
+##  - devel: like test and host source code are mounted into docker volumes
 #USAGE=production
 
 ## Should stats service will be included
