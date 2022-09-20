@@ -266,13 +266,10 @@ class ApiDesktopsPersistent:
                 for role in selected["roles"]:
                     # Can't use get_all as has no index in database
                     with app.app_context():
-                        roles = list(
-                            r.table("users")
-                            .filter({"role": role})
-                            .pluck("id")
-                            .run(db.conn)
+                        users_in_roles = list(
+                            r.table("users").filter({"role": role})["id"].run(db.conn)
                         )
-                    users = users + [r["id"] for r in roles]
+                    users = users + users_in_roles
 
             if selected["categories"] is not False:
                 if not selected["categories"]:
@@ -284,13 +281,12 @@ class ApiDesktopsPersistent:
                             )
                         ]
                 with app.app_context():
-                    categories = list(
+                    users_in_categories = list(
                         r.table("users")
-                        .get_all(r.args(selected["categories"]), index="category")
-                        .pluck("id")
+                        .get_all(r.args(selected["categories"]), index="category")["id"]
                         .run(db.conn)
                     )
-                users = users + [c["id"] for c in categories]
+                users = users + users_in_categories
 
         if selected["groups"] is not False:
             if not selected["groups"]:
@@ -300,17 +296,19 @@ class ApiDesktopsPersistent:
                         payload["category_id"], index="parent_category"
                     )
                 with app.app_context():
-                    selected["groups"] = [
-                        g["id"] for g in list(query.pluck("id").run(db.conn))
-                    ]
+                    selected["groups"] = query["id"].run(db.conn)
             with app.app_context():
-                groups = list(
+                users_in_groups = list(
                     r.table("users")
-                    .get_all(r.args(selected["groups"]), index="group")
-                    .pluck("id")
+                    .get_all(r.args(selected["groups"]), index="group")["id"]
                     .run(db.conn)
                 )
-            users = users + [g["id"] for g in groups]
+                users_in_secondary_groups = list(
+                    r.table("users")
+                    .get_all(r.args(selected["groups"]), index="secondary_groups")["id"]
+                    .run(db.conn)
+                )
+            users = users + users_in_groups + users_in_secondary_groups
 
         if selected["users"] is not False:
             if not selected["users"]:
