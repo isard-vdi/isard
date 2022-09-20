@@ -45,6 +45,21 @@ api_client = ApiClient("api")
 engine_client = ApiClient("engine")
 
 
+def format_lang(message_code, lang, kwargs):
+    msg = (
+        app.langs.get(lang, app.langs.get("en", {}))
+        .get("messages", {})
+        .get(message_code)
+    )
+    if not msg:
+        log.error("Unknown lang " + str(lang) + " or msg code " + str(message_code))
+        return "Desktop notification message with unknown code."
+    try:
+        return msg.format(**kwargs)
+    except:
+        log.error(traceback.format_exc())
+
+
 class Actions:
     def desktop_notify(**kwargs):
         # Send to frontend
@@ -73,9 +88,13 @@ class Actions:
             "/qmp/notify/" + kwargs["desktop_id"],
             {
                 "desktop_id": kwargs["desktop_id"],
-                "type": kwargs["msg"]["type"],
-                "msg_code": kwargs["msg"]["msg_code"],
-                "params": kwargs["msg"]["params"],
+                "message": kwargs["msg"]["type"]
+                + ": "
+                + format_lang(
+                    kwargs["msg"]["msg_code"],
+                    kwargs["msg"].get("msg_lang", "en"),
+                    kwargs["msg"]["params"],
+                ),
             },
         )
 
