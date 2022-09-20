@@ -70,9 +70,9 @@ def api_v3_admin_users(payload):
 
 
 # Update user
-@app.route("/api/v3/admin/user/<id>", methods=["PUT"])
+@app.route("/api/v3/admin/user/<user_id>", methods=["PUT"])
 @has_token
-def api_v3_admin_user_update(payload, id=False):
+def api_v3_admin_user_update(payload, user_id):
 
     try:
         data = request.get_json()
@@ -83,15 +83,16 @@ def api_v3_admin_user_update(payload, id=False):
             traceback.format_exc(),
         )
 
-    user = users.Get(id)
+    user = users.Get(user_id)
 
-    ownsUserId(payload, id)
+    ownsUserId(payload, user_id)
     ownsCategoryId(payload, user["category"])
     itemExists("categories", user["category"])
     itemExists("groups", user["group"])
 
     quotas.UserCreate(user["category"], user["group"])
 
+    data["id"] = user_id
     data = _validate_item("user_update", data)
 
     if "password" in data:
