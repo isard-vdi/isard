@@ -143,7 +143,9 @@ function setModalUser(){
         type: "POST",
         url: "/api/v3/admin/userschema",
         data: '',
-        contentType: "application/json"
+        contentType: "application/json",
+        async: false,
+        cache: false
     }).done(function (d) {
         $.each(d, function (key, value) {
             $("." + key).find('option').remove().end();
