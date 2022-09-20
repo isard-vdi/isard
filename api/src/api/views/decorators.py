@@ -255,7 +255,12 @@ def CategoryNameGroupNameMatch(category_name, group_name):
         )
 
     if group[0]["parent_category"] == category[0]["id"]:
-        return {"category": category[0]["name"], "group": group[0]["name"]}
+        return {
+            "category_id": category[0]["id"],
+            "category": category[0]["name"],
+            "group_id": group[0]["id"],
+            "group": group[0]["name"],
+        }
 
     raise Error(
         "bad_request",
