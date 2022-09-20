@@ -142,20 +142,20 @@ then
 	exit 1
 fi
 
-if ! git diff --exit-code $LAST_VERSION_TAG -- isardvdi.cfg.example
-then
+#if ! git diff --exit-code $LAST_VERSION_TAG -- isardvdi.cfg.example
+#then
 	# TODO: Script that sources isardvdi.cfg and generates new from isardvdi.cfg.example
-	echo "
-Has changes in isardvdi.cfg.example. Upgrade manually!
-git stash -u
-git merge --ff $LAST_VERSION_TAG
-git stash pop
-(compare and fix new/removed envvars from isardvdi.cfg.example to isardvdi$CONFIG_NAME.cfg)
-Run the cron script now or wait for the cron to be executed automatically
-" >&2
-	exit 1
-fi
-echo "isardvdi.cfg.example has no changes. Proceeding to execute automatic upgrade (it can take some minutes)"
+#	echo "
+#Has changes in isardvdi.cfg.example. Upgrade manually!
+#git stash -u
+#git merge --ff $LAST_VERSION_TAG
+#git stash pop
+#(compare and fix new/removed envvars from isardvdi.cfg.example to isardvdi$CONFIG_NAME.cfg)
+#Run the cron script now or wait for the cron to be executed automatically
+#" >&2
+#	exit 1
+#fi
+#echo "isardvdi.cfg.example has no changes. Proceeding to execute automatic upgrade (it can take some minutes)"
 if [ -n "$(git status --ignore-submodules --porcelain)" ]
 then
   git stash -u
