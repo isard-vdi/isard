@@ -1,4 +1,8 @@
-<network>
+<network xmlns:dnsmasq='http://libvirt.org/schemas/network/dnsmasq/1.0'>
+  <dnsmasq:options>
+    <dnsmasq:option value='dhcp-ignore-names'/>
+    <dnsmasq:option value='dhcp-ignore-clid'/>
+  </dnsmasq:options>
   <name>default</name>
   <uuid>98552eb2-3e01-4f4d-9d50-4b824f31caea</uuid>
   <forward mode='nat'/>
