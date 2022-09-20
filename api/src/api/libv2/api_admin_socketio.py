@@ -531,7 +531,12 @@ class ConfigThread(threading.Thread):
                             r.table("scheduler_jobs")
                             .has_fields("name")
                             .without("job_state")
-                            .merge({"table": "scheduler_jobs"})
+                            .merge(
+                                {
+                                    "table": "scheduler_jobs",
+                                    "date": r.row["date"].to_iso8601(),
+                                }
+                            )
                             .changes(include_initial=False)
                         )
                         .run(db.conn)
@@ -542,17 +547,12 @@ class ConfigThread(threading.Thread):
                             event = "_deleted"
                             socketio.emit(
                                 c["old_val"]["table"] + event,
-                                json.dumps(c["old_val"]),
+                                json.dumps({"id": c["old_val"]["id"]}),
                                 namespace="/administrators",
                                 room="admins",
                             )
                         else:
                             event = "_data"
-                            if (
-                                c["new_val"]["table"] == "scheduler_jobs"
-                                and c["new_val"].get("kind") == "date"
-                            ):
-                                continue
                             socketio.emit(
                                 c["new_val"]["table"] + event,
                                 json.dumps(c["new_val"]),
