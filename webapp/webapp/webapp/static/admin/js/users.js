@@ -48,6 +48,7 @@ $(document).ready(function() {
 
     
 	$('.btn-new-bulkusers').on('click', function () {
+        $('#bulk-allow-update').iCheck('uncheck').iCheck('update');
         setQuotaMax('#bulkusers-quota',kind='category',id=false,disabled=false);
         $("#modalAddBulkUsers #send").attr("disabled", true);
         $('#modalAddBulkUsers').modal({backdrop: 'static', keyboard: false}).modal('show');
@@ -332,40 +333,55 @@ $(document).ready(function() {
            reader.readAsText(file, 'UTF-8')
         }
 
-
-
-
-        
     $("#modalAddBulkUsers #send").on('click', function(e){
         var form = $('#modalAddBulkUsersForm');
         $("#modalAddBulkUserForm #bulk_secondary_groups").empty().trigger('change')
         formdata = form.serializeObject()
         form.parsley().validate();
-        if (form.parsley().isValid()){     // || 'unlimited' in formdata){   
+        if (form.parsley().isValid()){
             data=userQuota2dict(formdata);
             delete data['unlimited']
             data['provider']='local';
-            users=parseCSV(filecontents)
+            users=csv_preview.data().toArray()
             var notice = new PNotify({
                 title: "Adding users",
             });
             var usersAdded = 1;
-            
-            users.forEach(function (value, index) {
-                data['uid'] = value['username'];
+            users.forEach(function (user) {
+                data['uid'] = user['username'];
                 data['bulk'] = true
+                if(user["exists"] && !$('#bulk-allow-update').prop("checked")){
+                    notice.update({
+                        title: "Adding users",
+                        text: "Skipping user "+user["username"]+" as already exists",
+                        hide: true,
+                        delay: 4000,
+                        opacity: 1
+                    });
+                    return true
+                }
+                if(user["exists"] && $('#bulk-allow-update').prop("checked")){
+                    method="PUT"
+                    url="/api/v3/admin/user/local-"+user["category_id"]+"-"+user["username"]+"-"+user["username"]
+                    op="Updated"
+                }else{
+                    method="POST"
+                    url="/api/v3/admin/user"
+                    op="Added"
+                }
+                delete user["exists"]
                 $.ajax({
-                    type: "POST",
-                    url:"/api/v3/admin/user" ,
-                    data: JSON.stringify(Object.assign({},data,value)) ,
+                    type: method,
+                    url: url,
+                    data: JSON.stringify(Object.assign({},data,user)) ,
                     contentType: "application/json",
                     success: function(data)
-                    {                        
+                    {
                         $('form').each(function() { this.reset() });
-                        $('.modal').modal('hide');      
+                        $('.modal').modal('hide');
                     notice.update({
                             title: "Adding users",
-                            text: "Added user (" + ( usersAdded ) + "/" + users.length + "): ",
+                            text: op + " user (" + ( usersAdded ) + "/" + users.length + "): ",
                             hide: true,
                             delay: 4000,
                             opacity: 1
@@ -375,7 +391,7 @@ $(document).ready(function() {
                      error: function(data){
                         var error = new PNotify({
                             title: "ERROR",
-                            text: "Error adding user in line " + (index + 2) + ": " + data.responseJSON.description,
+                            text: "Error adding user " + user.username + ": " + data.responseJSON.description,
                             type: 'error',
                             hide: true,
                             icon: 'fa fa-warning',
@@ -383,12 +399,10 @@ $(document).ready(function() {
                             opacity: 1
                         });
                      }
-                     
                 }); 
             });
         }
     }); 
-    
 
     $("#add-category").on('change', function(e){
         setQuotaMax('#users-quota',kind='category',id=$(this).val(),disabled=false);
@@ -790,50 +804,62 @@ function setModalUser(){
     });
 }
 
-function validate_csv(csv){
+function csv2datatables(csv){
+    var exists = false
+    $('#bulk-allow-update').iCheck('uncheck').iCheck('update');
     $.ajax({
         type: "POST",
-        url: "/api/v3/admin/users/validate",
+        url: "/api/v3/admin/users/validate/allow_update",
         data: JSON.stringify(parseCSV(csv)),
         contentType: "application/json",
         async: false
-    }).done(function (d) {
+    }).done(function (data) {
         $("#csv_correct").show()
         $("#csv_error").hide()
         $("#modalAddBulkUsers #send").attr("disabled", false);
-        return true
+        if ( $.fn.dataTable.isDataTable( '#csv_preview' ) ) {
+            $.each( data, function( index, value ){
+                if(value.exists){exists=true; return false}
+            });
+            csv_preview.clear().rows.add(data).draw()
+        }else{
+            csv_preview=$("#csv_preview").DataTable( {
+                data: data,
+                rowId: 'username',
+                columns: [
+                    { "data": "exists", "width": "88px"},
+                    { "data": "username", "width": "88px", "className": "no-update"},
+                    { "data": "name", "width": "88px"},
+                    { "data": "email", "width": "88px"},
+                    { "data": "password", "width": "88px"},
+                    { "data": "group", "width": "88px", "defaultContent": "", "className": "no-update"},
+                    { "data": "category", "width": "88px", "defaultContent": "", "className": "no-update"},
+                    { "data": "role", "width": "88px", "defaultContent": ""},
+                    ],
+                "order": [[0, 'asc']],
+                "columnDefs": [
+                    {
+                    "targets": 0,
+                    "render": function ( data, type, full, meta ) {
+                        if(full.exists){
+                            exists = true
+                            return '<i class="fa fa-check" style="color:lightgreen"></i>';
+                        }else{
+                            return '<i class="fa fa-close" style="color:darkgray"></i>';
+                        }
+                    }},
+                ]
+            } );
+        }
     }).fail(function(data) {
         $("#csv_correct").hide()
         $("#modalAddBulkUsers #send").attr("disabled", true);
         $("#csv_error #csv_error_html").html(data.responseJSON.description)
         $("#csv_error").show()
-        // alert(data.responseJSON.description)
-        // return data.responseJSON.description
-        console.log(data.responseJSON.description)
+        if ( $.fn.dataTable.isDataTable( '#csv_preview' ) ) {
+            csv_preview.clear()
+        }
     });
-}
-function csv2datatables(csv){
-    response=validate_csv(csv)
-    // if( response != true ){alert(response);return}
-    if ( $.fn.dataTable.isDataTable( '#csv_preview' ) ) {
-        csv_preview.clear().rows.add(parseCSV(csv)).draw()
-    }else{
-        csv_preview=$("#csv_preview").DataTable( {
-            data: parseCSV(csv),
-            rowId: 'id',
-            columns: [
-                { "data": "username", "width": "88px"},
-                { "data": "name", "width": "88px"},
-                { "data": "email", "width": "88px"},
-                { "data": "password", "width": "88px"},
-                { "data": "group", "width": "88px", "defaultContent": ""},
-                { "data": "category", "width": "88px", "defaultContent": ""},
-                { "data": "role", "width": "88px", "defaultContent": ""},
-                ],
-             "order": [[0, 'asc']],
-             "columnDefs": [ ]
-        } );
-    }
 }
 
 function parseCSV(csv){

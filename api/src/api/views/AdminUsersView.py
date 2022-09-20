@@ -593,14 +593,18 @@ def admin_userschema(payload):
 
 
 @app.route("/api/v3/admin/users/validate", methods=["POST"])
+@app.route("/api/v3/admin/users/validate/allow_update", methods=["POST"])
 @is_admin_or_manager
 def admin_users_validate(payload):
     user_list = request.get_json()
-    for user in user_list:
+    for i, user in enumerate(user_list):
         _validate_item("user_from_csv", user)
         category_id = users.CategoryGetByName(user["category"])["id"]
         ownsCategoryId(payload, category_id)
-        CategoryNameGroupNameMatch(user["category"], user["group"])
+        cg_data = CategoryNameGroupNameMatch(user["category"], user["group"])
+        user_list[i]["category_id"] = cg_data["category_id"]
+        user_list[i]["group_id"] = cg_data["group_id"]
+
         if payload["role_id"] == "manager":
             if user["role"] not in ["manager", "advanced", "user"]:
                 raise Error(
@@ -615,5 +619,12 @@ def admin_users_validate(payload):
                     "Role " + user["role"] + " not in admin, manager, advanced or user",
                     traceback.format_exc(),
                 )
-        usernameNotExists(user["username"], category_id)
-    return json.dumps({}), 200, {"Content-Type": "application/json"}
+        try:
+            usernameNotExists(user["username"], category_id)
+            user_list[i]["exists"] = False
+        except:
+            if request.path.split("?")[0].endswith("/allow_update"):
+                user_list[i]["exists"] = True
+            else:
+                raise
+    return json.dumps(user_list), 200, {"Content-Type": "application/json"}
