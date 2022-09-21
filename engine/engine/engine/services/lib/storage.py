@@ -17,14 +17,17 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import time
 from pathlib import PurePath
 
 from engine.services.db import (
     get_dict_from_item_in_table,
     get_table_field,
     insert_table_dict,
+    update_table_dict,
     update_table_field,
 )
+from rethinkdb import r
 
 
 def _get_filename(storage):
@@ -54,6 +57,7 @@ def create_storage(disk, user, force_parent=False):
             "parent": parent,
             "user_id": user,
             "status": "non_existing",
+            "status_logs": [{"time": time.time(), "status": "created"}],
         },
     )
     disk["storage_id"] = storage_id
@@ -75,7 +79,13 @@ def insert_storage(disk):
 
 def update_storage_status(storage_id, status):
     if storage_id:
-        update_table_field("storage", storage_id, "status", status)
+        data = {
+            "status": status,
+            "status_logs": r.row["status_logs"].append(
+                {"time": time.time(), "status": status}
+            ),
+        }
+        update_table_dict("storage", storage_id, data)
 
 
 def update_qemu_img_info(
