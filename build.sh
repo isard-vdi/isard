@@ -345,7 +345,7 @@ create_docker_compose_file(){
 
 	if [ -n "$ENABLE_STATS" -a "$ENABLE_STATS" != "true" ]
 	then
-		parts="$(echo $parts | sed 's/stats//')"
+		parts="$(echo $parts | sed 's/stats//' | sed 's/monitor//')"
 	fi
 	if [ "$BACKUP_DB_ENABLED" = "false" ] && [ "$BACKUP_DISKS_ENABLED" = "false" ]
 	then
