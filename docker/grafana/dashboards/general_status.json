@@ -49,7 +49,7 @@
         "showStarred": false,
         "tags": []
       },
-      "pluginVersion": "9.1.5",
+      "pluginVersion": "9.1.6",
       "tags": [],
       "targets": [
         {
@@ -109,7 +109,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.5",
+      "pluginVersion": "9.1.6",
       "targets": [
         {
           "datasource": {
@@ -117,7 +117,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "expr": "isardvdi_isardvdi_api_desktop_number",
-          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"isardvdi-api\")\n  |> filter(fn: (r) => r[\"_field\"] == \"desktops\")\n  |> yield()",
+          "query": "",
           "refId": "A"
         }
       ],
@@ -173,7 +173,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.5",
+      "pluginVersion": "9.1.6",
       "targets": [
         {
           "datasource": {
@@ -181,7 +181,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "expr": "isardvdi_isardvdi_api_template_number",
-          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"isardvdi-api\")\n  |> filter(fn: (r) => r[\"_field\"] == \"templates\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield()",
+          "query": "",
           "refId": "A"
         }
       ],
@@ -236,7 +236,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "9.1.5",
+      "pluginVersion": "9.1.6",
       "targets": [
         {
           "datasource": {
@@ -245,7 +245,7 @@
           },
           "editorMode": "code",
           "expr": "",
-          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: -100000000000000s)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"isardvdi-authentication\")\n  |> filter(fn: (r) => r[\"_field\"] == \"login\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> count(column: \"_value\")\n  |> unique(column: \"id\")\n  |> keep(columns: [\"_value\"])\n  |> count(column: \"_value\")\n  |> yield()",
+          "query": "",
           "range": true,
           "refId": "A"
         }
@@ -301,7 +301,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.5",
+      "pluginVersion": "9.1.6",
       "targets": [
         {
           "datasource": {
@@ -312,7 +312,7 @@
           "exemplar": false,
           "expr": "count(count_over_time(isardvdi_domain_vcpu_current[1m]))",
           "instant": true,
-          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\"\n  )\n  |> keep(columns: [\"_time\", \"id\"])\n  |> group()\n  |> unique(column: \"id\")\n  |> count(column: \"id\")\n  |> yield()",
+          "query": "",
           "range": false,
           "refId": "A"
         }
@@ -369,7 +369,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.5",
+      "pluginVersion": "9.1.6",
       "targets": [
         {
           "datasource": {
@@ -377,7 +377,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "expr": "count(count by(id) (count_over_time(isardvdi_isardvdi_authentication_login_success[5m]))) or vector(0)",
-          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"isardvdi-authentication\")\n  |> filter(fn: (r) => r[\"_field\"] == \"login\")\n  |> aggregateWindow(every: 30s, fn: last, createEmpty: false)\n  |> unique(column: \"id\")\n  |> count(column: \"_value\")\n  |> keep(columns: [\"_value\"])\n  |> count(column: \"_value\")\n  |> yield()",
+          "query": "",
           "refId": "A"
         }
       ],
@@ -432,7 +432,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "9.1.5",
+      "pluginVersion": "9.1.6",
       "targets": [
         {
           "datasource": {
@@ -441,7 +441,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "",
+          "expr": "(count(present_over_time(isardvdi_domain_port_spice_tls{}[1m]) * on(desktop) group_left isardvdi_domain_port_spice_tls{} * on (port) group_left count_over_time(isardvdi_socket_recv_bytes{}[1m])) or vector(0))  + \n(count(present_over_time(isardvdi_domain_net_rx_bytes{}[1m]) * on (mac) group_left count_over_time(isardvdi_conntrack_rdp_recv_bytes{}[1m])) or vector(0))",
           "format": "time_series",
           "hide": false,
           "instant": false,
@@ -449,10 +449,38 @@
           "query": "",
           "range": true,
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "(count(present_over_time(isardvdi_domain_port_vnc{}[1m]) * on(desktop) group_left isardvdi_domain_port_vnc{} * on (port) group_left count_over_time(isardvdi_socket_recv_bytes{}[1m])) or vector(0))",
+          "hide": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "B"
         }
       ],
       "title": "Visors started",
-      "transformations": [],
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "binary": {
+              "left": "(count(present_over_time(isardvdi_domain_port_spice_tls{}[1m]) * on(desktop) group_left isardvdi_domain_port_spice_tls{} * on (port) group_left count_over_time(isardvdi_socket_recv_bytes{}[1m])) or vector(0))  + \n(count(present_over_time(isardvdi_domain_net_rx_bytes{}[1m]) * on (mac) group_left count_over_time(isardvdi_conntrack_rdp_recv_bytes{}[1m])) or vector(0))",
+              "reducer": "sum",
+              "right": "(count(present_over_time(isardvdi_domain_port_vnc{}[1m]) * on(desktop) group_left isardvdi_domain_port_vnc{} * on (port) group_left count_over_time(isardvdi_socket_recv_bytes{}[1m])) or vector(0))"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            },
+            "replaceFields": true
+          }
+        }
+      ],
       "type": "stat"
     },
     {
@@ -520,7 +548,7 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true
       },
-      "pluginVersion": "9.1.5",
+      "pluginVersion": "9.1.6",
       "targets": [
         {
           "datasource": {
@@ -604,7 +632,7 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true
       },
-      "pluginVersion": "9.1.5",
+      "pluginVersion": "9.1.6",
       "targets": [
         {
           "datasource": {
@@ -681,7 +709,7 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true
       },
-      "pluginVersion": "9.1.5",
+      "pluginVersion": "9.1.6",
       "targets": [
         {
           "datasource": {
@@ -749,7 +777,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "9.1.5",
+      "pluginVersion": "9.1.6",
       "targets": [
         {
           "datasource": {
@@ -758,7 +786,7 @@
           },
           "editorMode": "code",
           "expr": "sum(count_values by(role) (\"tipo\", isardvdi_isardvdi_api_user_info))",
-          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: -100000000000000s)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"isardvdi-authentication\")\n  |> filter(fn: (r) => r[\"_field\"] == \"login\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> count(column: \"_value\")\n  |> unique(column: \"id\")\n  |> keep(columns: [\"_value\"])\n  |> count(column: \"_value\")\n  |> yield()",
+          "query": "",
           "range": true,
           "refId": "A"
         }
@@ -814,7 +842,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "9.1.5",
+      "pluginVersion": "9.1.6",
       "targets": [
         {
           "datasource": {
@@ -823,7 +851,7 @@
           },
           "editorMode": "code",
           "expr": "count(count by(group) (isardvdi_isardvdi_api_user_info))",
-          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: -100000000000000s)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"isardvdi-authentication\")\n  |> filter(fn: (r) => r[\"_field\"] == \"login\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> count(column: \"_value\")\n  |> unique(column: \"id\")\n  |> keep(columns: [\"_value\"])\n  |> count(column: \"_value\")\n  |> yield()",
+          "query": "",
           "range": true,
           "refId": "A"
         }
@@ -879,7 +907,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "9.1.5",
+      "pluginVersion": "9.1.6",
       "targets": [
         {
           "datasource": {
@@ -945,7 +973,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "9.1.5",
+      "pluginVersion": "9.1.6",
       "targets": [
         {
           "datasource": {
@@ -954,7 +982,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "",
+          "expr": "(count(present_over_time(isardvdi_domain_port_spice_tls{}[1m]) * on(desktop) group_left isardvdi_domain_port_spice_tls{} * on (port) group_left count_over_time(isardvdi_socket_recv_bytes{}[1m])) or vector(0))",
           "instant": true,
           "query": "",
           "range": false,
@@ -1013,7 +1041,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "9.1.5",
+      "pluginVersion": "9.1.6",
       "targets": [
         {
           "datasource": {
@@ -1022,7 +1050,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "",
+          "expr": "(count(present_over_time(isardvdi_domain_port_vnc{}[1m]) * on(desktop) group_left isardvdi_domain_port_vnc{} * on (port) group_left count_over_time(isardvdi_socket_recv_bytes{}[1m])) or vector(0)) ",
           "instant": true,
           "query": "",
           "range": false,
@@ -1081,7 +1109,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "9.1.5",
+      "pluginVersion": "9.1.6",
       "targets": [
         {
           "datasource": {
@@ -1167,7 +1195,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.5",
+      "pluginVersion": "9.1.6",
       "targets": [
         {
           "datasource": {
@@ -1247,7 +1275,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.5",
+      "pluginVersion": "9.1.6",
       "targets": [
         {
           "datasource": {
@@ -1330,7 +1358,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "9.1.5",
+      "pluginVersion": "9.1.6",
       "targets": [
         {
           "datasource": {
@@ -1397,7 +1425,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.5",
+      "pluginVersion": "9.1.6",
       "targets": [
         {
           "datasource": {
@@ -1409,7 +1437,7 @@
           "expr": "sum(isardvdi_domain_vcpu_current)",
           "hide": false,
           "instant": true,
-          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) => \n    r[\"_measurement\"] == \"domain\" and\n    r[\"hypervisor\"] == \"${hypers}\" and\n    r[\"_field\"] == \"vcpu_current\"\n  )\n  |> group(columns: [\"id\"])\n  |> sort(columns: [\"_time\"])\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> sum()",
+          "query": "",
           "range": false,
           "refId": "A"
         }
@@ -1471,7 +1499,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.5",
+      "pluginVersion": "9.1.6",
       "targets": [
         {
           "datasource": {
@@ -1482,7 +1510,7 @@
           "exemplar": false,
           "expr": "sum(isardvdi_domain_mem_total{})",
           "instant": true,
-          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) => \n    r[\"_measurement\"] == \"domain\" and\n    r[\"hypervisor\"] == \"${hypers}\" and\n    r[\"_field\"] == \"mem_total\"\n  )\n   |> group(columns: [\"id\"])\n  |> sort(columns: [\"_time\"])\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> sum()",
+          "query": "",
           "range": false,
           "refId": "A",
           "target": "isard.hypers.$hypers.stats.num_domains"
@@ -1633,7 +1661,7 @@
           "hide": false,
           "instant": false,
           "legendFormat": "Escritorios Creados",
-          "query": " Desktops = from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\" \n  )\n  |> keep(columns: [\"_time\", \"id\"])\n  |> group()\n  |> aggregateWindow(every: 30s, column: \"id\", fn:(column, tables=<-) => tables \n    |> unique(column: column)\n    |> count(column:column),)\n  |> rename(columns: {id: \"_value\"})\n  |> map(fn: (r) => ({ Desktops:r._value, _time:r._time }))\n  |> yield()\nVisors = from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"visors_started\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n    |> map(fn: (r) => ({ Visors:r._value, _time:r._time  }))\n  |> yield(name: \"mean\")\n\n",
+          "query": "",
           "range": true,
           "refId": "A"
         },
@@ -1765,7 +1793,7 @@
           "hide": false,
           "instant": false,
           "legendFormat": "Escritorios",
-          "query": " Desktops = from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\" \n  )\n  |> keep(columns: [\"_time\", \"id\"])\n  |> group()\n  |> aggregateWindow(every: 30s, column: \"id\", fn:(column, tables=<-) => tables \n    |> unique(column: column)\n    |> count(column:column),)\n  |> rename(columns: {id: \"_value\"})\n  |> map(fn: (r) => ({ Desktops:r._value, _time:r._time }))\n  |> yield()\nVisors = from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"visors_started\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n    |> map(fn: (r) => ({ Visors:r._value, _time:r._time  }))\n  |> yield(name: \"mean\")\n\n",
+          "query": "",
           "range": true,
           "refId": "A"
         }
@@ -1975,11 +2003,10 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
-      "description": "",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "mode": "continuous-BlYlRd"
           },
           "custom": {
             "axisCenteredZero": false,
@@ -1988,7 +2015,7 @@
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 20,
+            "fillOpacity": 10,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -2011,10 +2038,7 @@
               "mode": "off"
             }
           },
-          "displayName": "Espai en disc",
-          "links": [],
           "mappings": [],
-          "max": 100,
           "min": 0,
           "thresholds": {
             "mode": "absolute",
@@ -2029,7 +2053,7 @@
               }
             ]
           },
-          "unit": "percent"
+          "unit": "none"
         },
         "overrides": []
       },
@@ -2039,11 +2063,11 @@
         "x": 12,
         "y": 19
       },
-      "id": 224,
-      "links": [],
+      "id": 253,
       "options": {
         "legend": {
           "calcs": [
+            "mean",
             "lastNotNull"
           ],
           "displayMode": "table",
@@ -2051,26 +2075,36 @@
           "showLegend": true
         },
         "tooltip": {
-          "mode": "multi",
+          "mode": "single",
           "sort": "none"
         }
       },
-      "pluginVersion": "9.0.7",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "100 - ((sum(node_filesystem_avail_bytes{mountpoint=\"/\",fstype!=\"rootfs\"}) * 100) / sum(node_filesystem_size_bytes{mountpoint=\"/\",fstype!=\"rootfs\"}))",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "legendFormat": "{{mountpoint}}",
-          "refId": "A",
-          "step": 240
+          "editorMode": "code",
+          "expr": "isardvdi_domain_scrape_duration_seconds{}",
+          "legendFormat": "libvirt scrape time - {{domain}}",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "isardvdi_isardvdi_api_scrape_duration_seconds{}",
+          "hide": false,
+          "legendFormat": "api scrape time - {{domain}}",
+          "range": true,
+          "refId": "B"
         }
       ],
-      "title": "Espai en disc %",
+      "title": "Temps de consulta",
       "type": "timeseries"
     },
     {
@@ -2185,7 +2219,7 @@
           "hide": false,
           "interval": "10s",
           "legendFormat": "CPU ",
-          "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"system\")\n  |> filter(fn: (r) => r[\"_field\"] == \"cpu_usage\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
+          "query": "",
           "range": true,
           "refId": "A"
         }
@@ -2202,8 +2236,7 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "fixedColor": "#b91e8e",
-            "mode": "fixed"
+            "mode": "palette-classic"
           },
           "custom": {
             "axisCenteredZero": false,
@@ -2212,7 +2245,7 @@
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 10,
+            "fillOpacity": 20,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -2225,7 +2258,7 @@
             "scaleDistribution": {
               "type": "linear"
             },
-            "showPoints": "auto",
+            "showPoints": "never",
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -2235,8 +2268,8 @@
               "mode": "off"
             }
           },
-          "decimals": 0,
-          "displayName": "RAM",
+          "displayName": "Espai en disc",
+          "links": [],
           "mappings": [],
           "max": 100,
           "min": 0,
@@ -2248,12 +2281,8 @@
                 "value": null
               },
               {
-                "color": "rgba(237, 129, 40, 0.89)",
+                "color": "red",
                 "value": 80
-              },
-              {
-                "color": "rgba(245, 54, 54, 0.9)",
-                "value": 90
               }
             ]
           },
@@ -2267,20 +2296,19 @@
         "x": 12,
         "y": 29
       },
-      "hideTimeOverride": false,
-      "id": 222,
+      "id": 224,
       "links": [],
       "options": {
         "legend": {
           "calcs": [
             "lastNotNull"
           ],
-          "displayMode": "list",
+          "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
         },
         "tooltip": {
-          "mode": "single",
+          "mode": "multi",
           "sort": "none"
         }
       },
@@ -2291,15 +2319,15 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "100 - (sum(node_memory_MemAvailable_bytes * 100)) / sum(node_memory_MemTotal_bytes)",
+          "expr": "100 - ((sum(node_filesystem_avail_bytes{mountpoint=\"/\",fstype!=\"rootfs\"}) * 100) / sum(node_filesystem_size_bytes{mountpoint=\"/\",fstype!=\"rootfs\"}))",
           "format": "time_series",
-          "hide": false,
           "intervalFactor": 1,
-          "refId": "B",
+          "legendFormat": "{{mountpoint}}",
+          "refId": "A",
           "step": 240
         }
       ],
-      "title": "RAM %",
+      "title": "Espai en disc %",
       "type": "timeseries"
     },
     {
@@ -2425,7 +2453,7 @@
           "hide": false,
           "instant": false,
           "legendFormat": "vCPU",
-          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) => \n    r[\"_measurement\"] == \"domain\" and\n    r[\"hypervisor\"] == \"${hypers}\" and\n    r[\"_field\"] == \"vcpu_current\"\n  )\n  |> group(columns: [\"id\"])\n  |> sort(columns: [\"_time\"])\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> sum()",
+          "query": "",
           "range": true,
           "refId": "A"
         },
@@ -2443,6 +2471,115 @@
         }
       ],
       "title": "vCPU i CPU",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#b91e8e",
+            "mode": "fixed"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 0,
+          "displayName": "RAM",
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "rgba(237, 129, 40, 0.89)",
+                "value": 80
+              },
+              {
+                "color": "rgba(245, 54, 54, 0.9)",
+                "value": 90
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 39
+      },
+      "hideTimeOverride": false,
+      "id": 222,
+      "links": [],
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "9.0.7",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "100 - (sum(node_memory_MemAvailable_bytes * 100)) / sum(node_memory_MemTotal_bytes)",
+          "format": "time_series",
+          "hide": false,
+          "intervalFactor": 1,
+          "refId": "B",
+          "step": 240
+        }
+      ],
+      "title": "RAM %",
       "type": "timeseries"
     },
     {
@@ -2535,7 +2672,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 39
+        "y": 49
       },
       "id": 214,
       "links": [],
@@ -2566,7 +2703,7 @@
           "expr": "sum(isardvdi_domain_mem_total{})",
           "instant": false,
           "legendFormat": "vRAM",
-          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) => \n    r[\"_measurement\"] == \"domain\" and\n    r[\"hypervisor\"] == \"${hypers}\" and\n    r[\"_field\"] == \"mem_total\"\n  )\n   |> group(columns: [\"id\"])\n  |> sort(columns: [\"_time\"])\n  |> last()\n  |> keep(columns: [\"_time\", \"_value\"])\n  |> sum()",
+          "query": "",
           "range": true,
           "refId": "A",
           "target": "isard.hypers.$hypers.stats.num_domains"
