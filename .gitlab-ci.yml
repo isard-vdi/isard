@@ -165,6 +165,7 @@ docker-image:
           - squid
           - static
           - stats-go
+          - stats-rethinkdb
           - webapp
           - websockify
       - DOCKER_COMPOSE: build
