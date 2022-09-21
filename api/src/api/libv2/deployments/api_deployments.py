@@ -200,6 +200,12 @@ def new(
                 .pluck("id", "username", "category", "group")
                 .run(db.conn)
             )
+            secondary_groups_users = list(
+                r.table("users")
+                .get_all(r.args(selected["groups"]), index="secondary_groups")
+                .pluck("id", "username", "category", "group")
+                .run(db.conn)
+            )
     # Add payload user if not in list
     if selected["users"]:
         if payload["user_id"] not in selected["users"]:
@@ -215,7 +221,7 @@ def new(
             .pluck("id", "username", "category", "group")
             .run(db.conn)
         )
-    users = group_users + user_users
+    users = group_users + user_users + secondary_groups_users
     # Remove duplicate user dicts in list
     users = list({u["id"]: u for u in users}.values())
 

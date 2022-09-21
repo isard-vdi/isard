@@ -18,8 +18,9 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 52
-# release 52 :Add sortorder field to roles table
+release_version = 53
+# release 53: Add secondary_groups users multi index
+# release 52: Add sortorder field to roles table
 # release 51: Add support for external apps
 # release 50: Added secondary indices for domains and users tables
 # release 49: Replace dots in media ids
@@ -1435,6 +1436,14 @@ class Upgrade(object):
         if version == 50:
             try:
                 r.table(table).index_create("active").run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 53:
+            try:
+                r.table(table).index_create("secondary_groups", multi=True).run(
+                    self.conn
+                )
             except Exception as e:
                 print(e)
 
