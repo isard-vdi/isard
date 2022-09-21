@@ -766,6 +766,47 @@ function actionsUserDetail(){
             });
         }).on('pnotify.cancel', function() {});
     });
+
+    $('.btn-impersonate').on('click', function () {
+        var closest=$(this).closest("div");
+        var id=closest.attr("data-pk");
+        var name=closest.attr("data-name");
+        new PNotify({
+            title: 'Confirmation Needed',
+            text: "Are you sure you want to impersonate as: "+name+"?",
+            hide: false,
+            opacity: 0.9,
+            confirm: {
+                confirm: true
+            },
+            buttons: {
+                closer: false,
+                sticker: false
+            },
+            history: {
+                history: false
+            },
+            addclass: 'pnotify-center'
+        }).get().on('pnotify.confirm', function() {
+            $.ajax({
+                type: "GET",
+                url: "/api/v3/admin/jwt/"+id,
+            }).done(function (data) {
+                localStorage.setItem('token', data.jwt)
+                window.location = "/Desktops"
+            }).fail(function(data) {
+                new PNotify({
+                    title: "Impersonate",
+                    text: "Not allowed to impersonate as a higher role",
+                    hide: true,
+                    delay: 4000,
+                    icon: 'fa fa-cross',
+                    opacity: 1,
+                    type: 'error'
+                });
+            });
+        }).on('pnotify.cancel', function() {});
+    });
 }
 
 function renderUsersDetailPannel ( d ) {
