@@ -37,6 +37,7 @@ ALLINONE_KEY="all-in-one"
 ALLINONE_PARTS="
 	network
 	db
+	db-stats
 	engine
 	static
 	portal
@@ -92,6 +93,7 @@ WEB_KEY="web"
 WEB_PARTS="
 	network
 	db
+	db-stats
 	engine
 	static
 	portal
@@ -345,7 +347,7 @@ create_docker_compose_file(){
 
 	if [ -n "$ENABLE_STATS" -a "$ENABLE_STATS" != "true" ]
 	then
-		parts="$(echo $parts | sed 's/stats//' | sed 's/monitor//')"
+		parts="$(echo $parts | sed 's/monitor//' | sed 's/db-stats//' | sed 's/stats//')"
 	fi
 	if [ "$BACKUP_DB_ENABLED" = "false" ] && [ "$BACKUP_DISKS_ENABLED" = "false" ]
 	then

@@ -61,6 +61,8 @@ services:
     image: grafana/agent:v0.24.2
     volumes:
       - ${BUILD_ROOT_PATH}/docker/grafana-agent/config.yml:/etc/agent/config.yml
+      - ${BUILD_ROOT_PATH}/docker/grafana-agent/db.yml:/etc/agent/db.yml
+      - ${BUILD_ROOT_PATH}/docker/grafana-agent/run.sh:/run.sh
       - /opt/isard-local/stats/grafana-agent:/tmp/agent/data
       - /var/log:/var/log
       - /var/lib/docker/containers:/var/lib/docker/containers
@@ -75,7 +77,7 @@ services:
         max-size: "100m"
         tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
     restart: "no"
-    command: -config.file=/etc/agent/config.yml -config.expand-env=true --metrics.wal-directory=/tmp/agent/data
+    entrypoint: /run.sh
     env_file:
       - .env
     environment:
