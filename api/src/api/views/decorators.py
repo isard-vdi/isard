@@ -200,10 +200,9 @@ def ownsUserId(payload, user_id):
         return True
     if payload["role_id"] == "manager":
         with app.app_context():
-            category = r.table("users").get(payload["user_id"])["category"].run(db.conn)
-        if category == payload["category_id"]:
+            user = r.table("users").get(user_id).pluck("category", "role").run(db.conn)
+        if user["category"] == payload["category_id"] and user["role"] != "admin":
             return True
-        return True
     if payload["user_id"] == user_id:
         return True
     raise Error(
