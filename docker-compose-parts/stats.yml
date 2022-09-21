@@ -29,6 +29,20 @@ services:
     restart: "no"
     command:
       - '--path.rootfs=/host'
+      - '--collector.disable-defaults'
+      - '--collector.cpu'
+      - '--collector.diskstats'
+      - '--collector.filesystem'
+      - '--collector.loadavg'
+      - '--collector.meminfo'
+      - '--collector.netclass'
+      - '--collector.netdev'
+      - '--collector.netstat'
+      - '--collector.nfs'
+      - '--collector.nfsd'
+      - '--collector.os'
+      - '--collector.schedstat'
+      - '--collector.stat'
     network_mode: host
     pid: host
     volumes:
@@ -43,6 +57,9 @@ services:
         max-size: "100m"
         tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
     restart: "no"
+    command:
+      - '--docker_only=true'
+      - '--disable_metrics=accelerator,cpu_topology,percpu,sched,process,hugetlb,referenced_memory,resctrl,cpuset,advtcp,memory_numa'
     privileged: true
     devices:
       - /dev/kmsg:/dev/kmsg
