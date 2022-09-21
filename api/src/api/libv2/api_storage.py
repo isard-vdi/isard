@@ -48,8 +48,12 @@ def get_disks(user_id=None, status=None):
     )
     query = query.merge(
         lambda disk: {
-            "user_name": r.table("users").get(disk["user_id"])["name"],
-            "category": r.table("users").get(disk["user_id"])["category"],
+            "user_name": r.table("users")
+            .get(disk["user_id"])
+            .default({"name": "[DELETED] " + disk["user_id"]})["name"],
+            "category": r.table("users")
+            .get(disk["user_id"])
+            .default({"category": "[DELETED]"})["category"],
             "domains": r.table("domains")
             .get_all(disk["id"], index="storage_ids")
             .count(),
