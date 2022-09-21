@@ -312,7 +312,10 @@ def launch_action_disk(action, hostname, user, port, from_scratch=False):
             update_storage_status(action.get("storage_id"), "deleted")
             update_disk_backing_chain(id_domain, index_disk, "DISK_ERASED", [])
             update_domain_status(
-                "DiskDeleted", id_domain, detail="delete disk operation run ok"
+                "DiskDeleted",
+                id_domain,
+                detail="delete disk operation run ok",
+                storage_id=action.get("storage_id"),
             )
 
 

@@ -88,6 +88,11 @@ def update_storage_status(storage_id, status):
         update_table_dict("storage", storage_id, data)
 
 
+def update_storage_deleted_domain(storage_id, domain=None):
+    if storage_id:
+        update_table_field("storage", storage_id, "last_domain_attached", domain)
+
+
 def update_qemu_img_info(
     create_dict, disk_index, qemu_img_info, force_storage_id=False
 ):
