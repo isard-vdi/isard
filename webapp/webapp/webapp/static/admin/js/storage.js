@@ -36,6 +36,7 @@ $(document).ready(function() {
             { "data": "user_name",},
             { "data": "category",},
             { "data": "domains",},
+            { "data": "status_logs",}
         ],
         "columnDefs": [ 
             {
@@ -55,6 +56,11 @@ $(document).ready(function() {
                     }else{
                         return '-'
                     }
+                }},
+                {
+                  "targets": 10,
+                  "render": function ( data, type, full, meta ) {
+                    return moment.unix(full["status_logs"][full["status_logs"].length -1]["time"]).fromNow()
                 }
             }],
     });
@@ -122,6 +128,7 @@ $(document).ready(function() {
             { "data": null},
             { "data": "user_name",},
             { "data": "category",},
+            { "data": "status_logs"}
         ],
         "columnDefs": [
           {
@@ -132,7 +139,13 @@ $(document).ready(function() {
               }else{
                   return '-'
               }
-          }},],
+          }},
+          {
+            "targets": 5,
+            "render": function ( data, type, full, meta ) {
+              return moment.unix(full["status_logs"][full["status_logs"].length -1]["time"]).fromNow()
+          }
+        }],
     });
 
     if( $("#storage_physical").length != 0){

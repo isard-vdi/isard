@@ -43,6 +43,7 @@ def get_disks(user_id=None, status=None):
             "directory_path",
             "parent",
             "user_id",
+            "status_logs",
             {"qemu-img-info": {"virtual-size": True, "actual-size": True}},
         ]
     )

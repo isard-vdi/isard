@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 53
+release_version = 54
+# release 54: Add status time info to storage disks
 # release 53: Add secondary_groups users multi index
 # release 52: Add sortorder field to roles table
 # release 51: Add support for external apps
@@ -1668,6 +1669,24 @@ class Upgrade(object):
                 .run(self.conn)
             )
             r.table("storage").insert(data, conflict="update").run(self.conn)
+
+        if version == 54:
+            r.table("storage").filter(lambda s: ~s["status"].eq("deleted")).update(
+                {
+                    "status_logs": [
+                        {"status": "created", "time": time.time() - 43200},  # 12h
+                        {"status": "ready", "time": time.time() - 43199},
+                    ]
+                }
+            ).run(self.conn)
+            r.table("storage").filter(lambda s: s["status"].eq("deleted")).update(
+                {
+                    "status_logs": [
+                        {"status": "created", "time": time.time() - 3600},  # 1h
+                        {"status": "ready", "time": time.time() - 3599},
+                    ]
+                }
+            ).run(self.conn)
 
         return True
 

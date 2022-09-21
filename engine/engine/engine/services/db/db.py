@@ -425,6 +425,13 @@ def update_table_field(table, id_doc, field, value, merge_dict=True):
     return result
 
 
+def update_table_dict(table, id_doc, dict):
+    r_conn = new_rethink_connection()
+    result = r.table(table).get(id_doc).update(dict).run(r_conn)
+    close_rethink_connection(r_conn)
+    return result
+
+
 def get_user(id):
     r_conn = new_rethink_connection()
     rtable = r.table("users")
