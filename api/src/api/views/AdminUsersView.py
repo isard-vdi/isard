@@ -136,7 +136,7 @@ def api_v3_admin_user_insert(payload):
 
     data = _validate_item("user", data)
 
-    ownsUserId(payload, data["id"])
+    ownsCategoryId(payload, data["category"])
     itemExists("categories", data["category"])
     itemExists("groups", data["group"])
     quotas.UserCreate(category_id=data["category"], group_id=data["group"])
