@@ -195,7 +195,14 @@ class ApiTemplates:
                 return (
                     r.table("domains")
                     .get(template_id)
-                    .pluck("id", "name", "icon", "image", "description")
+                    .pluck(
+                        "id",
+                        "name",
+                        "icon",
+                        "image",
+                        "description",
+                        "allowed",
+                    )
                     .run(db.conn)
                 )
             except:

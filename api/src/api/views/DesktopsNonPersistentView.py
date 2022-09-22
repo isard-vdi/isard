@@ -13,16 +13,21 @@ from flask import request
 # coding=utf-8
 from api import app
 
+from ..libv2.api_allowed import ApiAllowed
 from ..libv2.api_exceptions import Error
+from ..libv2.api_templates import ApiTemplates
+
+templates = ApiTemplates()
 from ..libv2.quotas import Quotas
 
 quotas = Quotas()
+allowed = ApiAllowed()
 
 from ..libv2.api_desktops_nonpersistent import ApiDesktopsNonPersistent
 
 desktops = ApiDesktopsNonPersistent()
 
-from .decorators import allowedTemplateId, has_token
+from .decorators import has_token
 
 
 @app.route("/api/v3/desktop", methods=["POST"])
@@ -42,7 +47,8 @@ def api_v3_desktop_new(payload):
             description_code="missing_required_data",
         )
 
-    allowedTemplateId(payload, template_id)
+    template = templates.Get(template_id)
+    allowed.is_allowed(payload, template, "domains")
 
     # Leave only one nonpersistent desktop from this template
     desktops.DeleteOthers(user_id, template_id)

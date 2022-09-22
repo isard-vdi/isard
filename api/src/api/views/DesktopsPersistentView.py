@@ -18,13 +18,17 @@ from ..libv2.quotas import Quotas
 
 quotas = Quotas()
 
+from ..libv2.api_allowed import ApiAllowed
 from ..libv2.api_desktops_persistent import ApiDesktopsPersistent
+from ..libv2.api_templates import ApiTemplates
 
+templates = ApiTemplates()
 desktops = ApiDesktopsPersistent()
+allowed = ApiAllowed()
 
 from ..libv2.api_scheduler import Scheduler
 from ..libv2.validators import _validate_item, check_user_duplicated_domain_name
-from .decorators import allowedTemplateId, has_token, is_admin_or_manager, ownsDomainId
+from .decorators import has_token, is_admin_or_manager, ownsDomainId
 
 scheduler = Scheduler()
 
@@ -120,7 +124,8 @@ def api_v3_persistent_desktop_new(payload):
         )
 
     data = _validate_item("desktop_from_template", data)
-    allowedTemplateId(payload, data["template_id"])
+    template = templates.Get(data["template_id"])
+    allowed.is_allowed(payload, template, "domains")
     quotas.DesktopCreate(payload["user_id"])
 
     desktop_id = desktops.NewFromTemplate(
@@ -147,7 +152,8 @@ def api_v3_persistent_desktop_bulk_new(payload):
             traceback.format_exc(),
         )
     data = _validate_item("desktops_from_template", data)
-    allowedTemplateId(payload, data["template_id"])
+    template = templates.Get(data["template_id"])
+    allowed.is_allowed(payload, template, "domains")
     desktops.BulkDesktops(payload, data)
 
     return json.dumps({}), 200, {"Content-Type": "application/json"}

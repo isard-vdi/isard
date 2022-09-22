@@ -39,7 +39,7 @@ from ..libv2.api_allowed import ApiAllowed
 allowed = ApiAllowed()
 
 from ..libv2.validators import _validate_item, check_user_duplicated_domain_name
-from .decorators import allowedTemplateId, has_token, ownsDomainId
+from .decorators import has_token, ownsDomainId
 
 
 @app.route("/api/v3/template", methods=["POST"])
@@ -108,7 +108,8 @@ def api_v3_template_duplicate(payload, template_id):
 @app.route("/api/v3/template/<template_id>", methods=["GET"])
 @has_token
 def api_v3_template(payload, template_id):
-    allowedTemplateId(payload, template_id)
+    template = templates.Get(template_id)
+    allowed.is_allowed(payload, template, "domains")
     return (
         json.dumps(templates.Get(template_id)),
         200,
