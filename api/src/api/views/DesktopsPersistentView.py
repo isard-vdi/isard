@@ -196,6 +196,13 @@ def api_v3_domain_edit(payload, domain_id):
     if data.get("name"):
         check_user_duplicated_domain_name(data["id"], data["name"], desktop["user"])
 
+    if data.get("forced_hyp") and payload["role_id"] != "admin":
+        raise Error(
+            "unauthorized",
+            "Only administrators can force an hypervisor",
+            traceback.format_exc(),
+        )
+
     admin_or_manager = True if payload["role_id"] in ["manager", "admin"] else False
     desktops.Update(domain_id, data, admin_or_manager)
     return (

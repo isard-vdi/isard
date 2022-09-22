@@ -7,9 +7,11 @@
           <div class="row">
             <button class="btn btn-success btn-xs pull-right btn-template" type="button"  data-placement="top" ><i class="fa fa-cubes m-right-xs"></i>Template it</button>
           </div>
+          {% if(current_user.role=='admin') %}
           <div class="row">
             <button class="btn btn-success btn-xs pull-right btn-forcedhyp" type="button"  data-placement="top" ><i class="fa fa-rocket m-right-xs"></i>Forced hyp</button>
           </div>
+          {% endif %}
           <!-- Needed for admin -->
           <div class="row">
             <button class="btn btn-success btn-xs pull-right btn-duplicate-template" type="button"  data-placement="top" ><i class="fa fa-copy m-right-xs"></i>Duplicate</button>
