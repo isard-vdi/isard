@@ -458,7 +458,10 @@ class QuotasProcess:
                 .run(db.conn)
             )
             templates = (
-                r.table("domains").filter({"kind": "template"}).count().run(db.conn)
+                r.table("domains")
+                .get_all("template", index="kind")
+                .count()
+                .run(db.conn)
             )
             isos = r.table("media").count().run(db.conn)
             starteds = (
@@ -470,8 +473,8 @@ class QuotasProcess:
         vcpus = 0
         memory = 0
         for s in starteds:
-            vcpus = vcpus + s["hardware"]["vcpus"]
-            memory = memory + s["hardware"]["memory"]
+            vcpus = vcpus + s["hardware"].get("vcpus", 0)
+            memory = memory + s["hardware"].get("memory", 0)
         memory = memory / 1000000
         with app.app_context():
             users = r.table("users").count().run(db.conn)
