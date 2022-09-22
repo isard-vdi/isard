@@ -9,8 +9,10 @@ import traceback
 from api import app
 
 from ..libv2.api_exceptions import Error
+from ..libv2.api_templates import ApiTemplates
 from ..libv2.quotas import Quotas
 
+templates = ApiTemplates()
 quotas = Quotas()
 
 from ..libv2.api_admin import admin_table_get
@@ -23,7 +25,7 @@ from ..libv2.api_allowed import ApiAllowed
 allowed = ApiAllowed()
 
 from ..libv2.helpers import _get_domain_reservables
-from .decorators import allowedTemplateId, has_token, ownsDomainId
+from .decorators import has_token, ownsDomainId
 
 
 @app.route("/api/v3/desktop/<desktop_id>/viewer/<protocol>", methods=["GET"])
@@ -140,7 +142,8 @@ def api_v3_desktop_info(payload, domain_id):
         **common.get_domain_hardware(domain_id),
     }
     if domain["kind"] == "template":
-        allowedTemplateId(payload, domain_id)
+        template = templates.Get(domain_id)
+        allowed.is_allowed(payload, template, "domains")
     else:
         ownsDomainId(payload, domain_id)
     domain = quotas.limit_user_hardware_allowed(payload, domain)
