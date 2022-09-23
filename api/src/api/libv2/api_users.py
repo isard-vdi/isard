@@ -936,6 +936,20 @@ class ApiUsers:
             )
         return templates
 
+    def check_secondary_groups_category(self, category, secondary_groups):
+        for group in secondary_groups:
+            group = self.GroupGet(group)
+            if group["parent_category"] != category:
+                category = self.CategoryGet(category)["name"]
+                raise Error(
+                    "unauthorized",
+                    "Group "
+                    + group["name"]
+                    + " does not belong to category "
+                    + category,
+                    traceback.format_exc(),
+                )
+
 
 """
 PASSWORDS MANAGER
