@@ -87,6 +87,13 @@ def api_v3_admin_user_update(payload, user_id):
 
     ownsUserId(payload, user_id)
     ownsCategoryId(payload, user["category"])
+
+    if data.get("secondary_groups"):
+        if len(data["secondary_groups"]) > 0:
+            users.check_secondary_groups_category(
+                data["category"], data["secondary_groups"]
+            )
+
     itemExists("categories", user["category"])
     itemExists("groups", user["group"])
 
@@ -137,6 +144,13 @@ def api_v3_admin_user_insert(payload):
     data = _validate_item("user", data)
 
     ownsCategoryId(payload, data["category"])
+
+    if data.get("secondary_groups"):
+        if len(data["secondary_groups"]) > 0:
+            users.check_secondary_groups_category(
+                data["category"], data["secondary_groups"]
+            )
+
     itemExists("categories", data["category"])
     itemExists("groups", data["group"])
     quotas.UserCreate(category_id=data["category"], group_id=data["group"])

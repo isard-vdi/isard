@@ -6,6 +6,8 @@
 */
 
 var users_table= ''
+var current_category = ''
+
 $(document).ready(function() {
     $('.admin-status').show()
     $template = $(".template-detail-users");
@@ -27,6 +29,7 @@ $(document).ready(function() {
                 data: function (params) {
                     return  JSON.stringify({
                         term: params.term,
+                        category: current_category,
                     });
                 },
                 processResults: function (data) {
@@ -72,6 +75,7 @@ $(document).ready(function() {
                 data: function (params) {
                     return  JSON.stringify({
                         term: params.term,
+                        category: current_category,
                     });
                 },
                 processResults: function (data) {
@@ -146,10 +150,14 @@ $(document).ready(function() {
         })
     }
     $("#add-category").on('change', function () {
+        current_category = ($(this).val())
         filter_groups($(this), $('#add-group'))
+        $("#secondary_groups").empty().trigger('change')
     })
     $("#bulk-category").on('change', function () {
+        current_category = ($(this).val())
         filter_groups($(this), $('#bulk-group'))
+        $("#secondary_groups").empty().trigger('change')
     })
 
     $("#modalAddUser #send").on('click', function(e){
@@ -622,6 +630,25 @@ function actionsUserDetail(){
 				backdrop: 'static',
 				keyboard: false
             }).modal('show');
+            setModalUser();
+            api.ajax('/api/v3/admin/table/users','POST',{'id':pk}).done(function(user) {
+                $('#modalEditUserForm #name').val(user.name);
+                $('#modalEditUserForm #id').val(user.id);
+                $('#modalEditUserForm #uid').val(user.uid);
+                $('#modalEditUserForm #email').val(user.email);
+                $('#modalEditUserForm #role option:selected').prop("selected", false);
+                $('#modalEditUserForm #role option[value="'+user.role+'"]').prop("selected",true);
+                $('#modalEditUserForm #category option:selected').prop("selected", false);
+                $('#modalEditUserForm #category option[value="'+user.category+'"]').prop("selected",true);
+                current_category=user.category;
+                $('#modalEditUserForm #group option:selected').prop("selected", false);
+                $('#modalEditUserForm #group option[value="'+user.group+'"]').prop("selected",true);                
+                $('#modalEditUserForm').parsley().validate();
+                $.each(user.secondary_groups, function(i, group) {
+                    var newOption = new Option(group, group, true, true);
+                    $("#modalEditUserForm #secondary_groups").append(newOption).trigger('change');
+                })
+            });
             $('#modalEditUserForm #secondary_groups').select2({
                 minimumInputLength: 2,
                 multiple: true,
@@ -634,6 +661,7 @@ function actionsUserDetail(){
                     data: function (params) {
                         return  JSON.stringify({
                             term: params.term,
+                            category: current_category,
                         });
                     },
                     processResults: function (data) {
@@ -648,24 +676,6 @@ function actionsUserDetail(){
                     }
                 },
             });   
-            setModalUser();
-            api.ajax('/api/v3/admin/table/users','POST',{'id':pk}).done(function(user) {
-                $('#modalEditUserForm #name').val(user.name);
-                $('#modalEditUserForm #id').val(user.id);
-                $('#modalEditUserForm #uid').val(user.uid);
-                $('#modalEditUserForm #email').val(user.email);
-                $('#modalEditUserForm #role option:selected').prop("selected", false);
-                $('#modalEditUserForm #role option[value="'+user.role+'"]').prop("selected",true);
-                $('#modalEditUserForm #category option:selected').prop("selected", false);
-                $('#modalEditUserForm #category option[value="'+user.category+'"]').prop("selected",true);
-                $('#modalEditUserForm #group option:selected').prop("selected", false);
-                $('#modalEditUserForm #group option[value="'+user.group+'"]').prop("selected",true);                
-                $('#modalEditUserForm').parsley().validate();
-                $.each(user.secondary_groups, function(i, group) {
-                    var newOption = new Option(group, group, true, true);
-                    $("#modalEditUserForm #secondary_groups").append(newOption).trigger('change');
-                })
-            });
             setQuotaMax('#edit-users-quota',kind='user',id=pk,disabled=false);
 	});
 
@@ -839,9 +849,9 @@ function setModalUser(){
             for(var i in d[key]){
                     $("."+key).append('<option value=' + value[i].id + '>' + value[i].name + '</option>');
             }
-            $("."+key+' option[value="local"]').prop("selected",true);
         });
         $('#add-category').trigger("change")
+        current_category = ($('#add-category').val())
     });
 }
 
