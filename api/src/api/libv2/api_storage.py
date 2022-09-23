@@ -22,9 +22,9 @@ from .flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
+import logging as log
+
 from .api_exceptions import Error
-from .helpers import get_user_data
-from .validators import _validate_item, _validate_table
 
 
 def get_disks(user_id=None, status=None):
@@ -82,3 +82,45 @@ def get_media_domains(storage_id):
             .pluck("id", "kind", "name")
             .run(db.conn)
         )
+
+
+def get_disk_tree():
+    root = {"id": None}
+    query = (
+        r.table("storage")
+        .merge(
+            lambda disk: {
+                "user_name": r.table("users").get(disk["user_id"])["name"],
+                "category_name": r.table("categories").get(
+                    r.table("users").get(disk["user_id"])["category"]
+                )["name"],
+                "title": disk["id"],
+                "icon": "fa fa-folder-open",
+                "domains": r.table("domains")
+                .get_all(disk["id"], index="storage_ids")
+                .count(),
+            }
+        )
+        .pluck(
+            "id",
+            "parent",
+            "status",
+            "directory_path",
+            "user_name",
+            "category_name",
+            "domains",
+            "title",
+            "icon",
+        )
+        .run(db.conn)
+    )
+
+    def recursive(query, parent):
+        parent["children"] = []
+        for item in query:
+            if item["parent"] == parent["id"]:
+                parent["children"].append(item)
+                recursive(query, item)
+
+    recursive(list(query), root)
+    return root["children"]
