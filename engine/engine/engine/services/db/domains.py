@@ -1232,7 +1232,7 @@ def get_domains_from_group(group, kind="desktop"):
         .without({"right": "id"})
         .without({"right": "kind"})
         .zip()
-        .filter({"group": group, "kind": kind})
+        .get_all([kind, group], index="kind_group")
         .order_by("id")
         .pluck("status", "id", "kind", {"hardware": [{"disks": ["file"]}]})
         .run(r_conn)
@@ -1253,10 +1253,10 @@ def get_all_domains_with_id_and_status(status=None, kind="desktop"):
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
     if status is None:
-        l = list(rtable.filter({"kind": kind}).pluck("id", "status").run(r_conn))
+        l = list(rtable.get_all(kind, index="kind").pluck("id", "status").run(r_conn))
     else:
         l = list(
-            rtable.filter({"kind": kind, "status": status})
+            rtable.get_all([kind, status], index="kind_status")
             .pluck("id", "status")
             .run(r_conn)
         )
@@ -1268,7 +1268,7 @@ def get_all_domains_with_hyp_started(hyp_started_id):
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
     l = list(
-        rtable.filter({"hyp_started": hyp_started_id})
+        rtable.get_all(hyp_started_id, index="hyp_started")
         .pluck("id", "status", "hyp_started")
         .run(r_conn)
     )
@@ -1281,13 +1281,13 @@ def get_all_domains_with_id_status_hyp_started(status=None, kind="desktop"):
     rtable = r.table("domains")
     if status is None:
         l = list(
-            rtable.filter({"kind": kind})
+            rtable.get_all(kind, index="kind")
             .pluck("id", "status", "hyp_started")
             .run(r_conn)
         )
     else:
         l = list(
-            rtable.filter({"kind": kind, "status": status})
+            rtable.get_all([kind, status], index="kind_status")
             .pluck("id", "status", "hyp_started")
             .run(r_conn)
         )
@@ -1299,7 +1299,7 @@ def get_domains_from_user(user, kind="desktop"):
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
     l = list(
-        rtable.filter({"user": user, "kind": kind})
+        rtable.get_all([kind, user], index="kind_user")
         .pluck("status", "id", "kind", {"hardware": [{"disks": ["file"]}]})
         .run(r_conn)
     )
@@ -1485,7 +1485,7 @@ def get_and_update_personal_vlan_id_from_domain_id(
     if vlan_id is False:
         l_all_vlans_active = list(
             r.table("domains")
-            .filter({"status": "Started"})
+            .get_all("Started", index="status")
             .filter(
                 (r.row["status"] == "Started") | (r.row["status"] == "Shutting-down")
             )

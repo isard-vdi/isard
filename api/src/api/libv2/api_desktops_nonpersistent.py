@@ -89,10 +89,9 @@ class ApiDesktopsNonPersistent:
             desktops = list(
                 r.db("isard")
                 .table("domains")
-                .get_all(user_id, index="user")
+                .get_all(["desktop", user_id], index="kind_user")
                 .filter(
                     {
-                        "kind": "desktop",
                         "from_template": template_id,
                         "persistent": False,
                     }

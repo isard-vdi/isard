@@ -354,8 +354,7 @@ class isard:
         with app.app_context():
             dom = list(
                 r.table("domains")
-                .get_all(user, index="user")
-                .filter({"kind": "template"})
+                .get_all(["template", user], index="kind_user")
                 .without("viewer", "xml", "history_domain")
                 .run(db.conn)
             )
@@ -528,8 +527,7 @@ class isard:
             data = list(
                 r.db("isard")
                 .table("domains")
-                .get_all("template", index="kind")
-                .filter({"enabled": True})
+                .get_all(["template", True], index="template_enabled")
                 .eq_join("user", r.db("isard").table("users"))
                 .without({"right": {"id": True}})
                 .pluck({"right": "role"}, "left")
@@ -943,8 +941,7 @@ class isard:
         with app.app_context():
             usr_dsk = (
                 r.table("domains")
-                .get_all(user, index="user")
-                .filter({"kind": "desktop"})
+                .get_all(["desktop", user], index="kind_user")
                 .run(db.conn)
             )
             usr_dsk_list = [d["id"] for d in usr_dsk]

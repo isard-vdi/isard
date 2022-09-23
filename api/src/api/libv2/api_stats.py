@@ -76,13 +76,11 @@ def Templates():
             .run(db.conn),
             "status": {
                 "enabled": r.table("domains")
-                .get_all("template", index="kind")
-                .filter({"enabled": True})
+                .get_all(["template", True], index="template_enabled")
                 .count()
                 .run(db.conn),
                 "disabled": r.table("domains")
-                .get_all("template", index="kind")
-                .filter({"enabled": False})
+                .get_all(["template", False], index="template_enabled")
                 .count()
                 .run(db.conn),
             },
@@ -168,8 +166,7 @@ def KindState(kind, state=False):
                     return {
                         "templates": {
                             "enabled": r.table("domains")
-                            .get_all("template", index="kind")
-                            .filter({"enabled": True})
+                            .get_all(["template", True], index="template_enabled")
                             .count()
                             .run(db.conn)
                         }
@@ -178,8 +175,7 @@ def KindState(kind, state=False):
                     return {
                         "templates": {
                             "disabled": r.table("domains")
-                            .get_all("template", index="kind")
-                            .filter({"enabled": False})
+                            .get_all(["template", False], index="template_enabled")
                             .count()
                             .run(db.conn)
                         }
@@ -193,13 +189,11 @@ def KindState(kind, state=False):
                         .run(db.conn),
                         "status": {
                             "enabled": r.table("domains")
-                            .get_all("template", index="kind")
-                            .filter({"enabled": True})
+                            .get_all(["template", True], index="template_enabled")
                             .count()
                             .run(db.conn),
                             "disabled": r.table("domains")
-                            .get_all("template", index="kind")
-                            .filter({"enabled": False})
+                            .get_all(["template", False], index="template_enabled")
                             .count()
                             .run(db.conn),
                         },
@@ -304,15 +298,17 @@ def GroupByCategories():
             )
             query[category]["templates"]["status"]["enabled"] = (
                 r.table("domains")
-                .get_all(["template", category], index="kind_category")
-                .filter({"enabled": True})
+                .get_all(
+                    ["template", True, category], index="template_enabled_category"
+                )
                 .count()
                 .run(db.conn)
             )
             query[category]["templates"]["status"]["disabled"] = (
                 r.table("domains")
-                .get_all(["template", category], index="kind_category")
-                .filter({"enabled": False})
+                .get_all(
+                    ["template", False, category], index="template_enabled_category"
+                )
                 .count()
                 .run(db.conn)
             )
@@ -396,8 +392,10 @@ def CategoriesKindState(kind, state=False):
                     query[category] = {"templates": {"status": {"enabled": ""}}}
                     query[category]["templates"]["status"]["enabled"] = (
                         r.table("domains")
-                        .get_all(["template", category], index="kind_category")
-                        .filter({"enabled": True})
+                        .get_all(
+                            ["template", True, category],
+                            index="template_enabled_category",
+                        )
                         .count()
                         .run(db.conn)
                     )
@@ -407,8 +405,10 @@ def CategoriesKindState(kind, state=False):
                     query[category] = {"templates": {"status": {"disabled": ""}}}
                     query[category]["templates"]["status"]["disabled"] = (
                         r.table("domains")
-                        .get_all(["template", category], index="kind_category")
-                        .filter({"enabled": False})
+                        .get_all(
+                            ["template", False, category],
+                            index="template_enabled_category",
+                        )
                         .count()
                         .run(db.conn)
                     )
@@ -429,15 +429,19 @@ def CategoriesKindState(kind, state=False):
                     )
                     query[category]["templates"]["status"]["enabled"] = (
                         r.table("domains")
-                        .get_all(["template", category], index="kind_category")
-                        .filter({"enabled": True})
+                        .get_all(
+                            ["template", True, category],
+                            index="template_enabled_category",
+                        )
                         .count()
                         .run(db.conn)
                     )
                     query[category]["templates"]["status"]["disabled"] = (
                         r.table("domains")
-                        .get_all(["template", category], index="kind_category")
-                        .filter({"enabled": False})
+                        .get_all(
+                            ["template", False, category],
+                            index="template_enabled_category",
+                        )
                         .count()
                         .run(db.conn)
                     )
