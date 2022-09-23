@@ -25,6 +25,7 @@ services:
     volumes:
       - /sys:/sys:rw
       - /opt/isard/wireguard/certs:/certs
+      - /opt/isard/certs/default:/portal-certs:ro
       - /opt/isard-local/conntrack:/conntrack
       - /proc/sys/net/netfilter/nf_conntrack_acct:/host-proc/sys/net/netfilter/nf_conntrack_acct
     env_file:
