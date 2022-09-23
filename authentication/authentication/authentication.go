@@ -369,6 +369,8 @@ func (a *Authentication) Callback(ctx context.Context, args map[string]string) (
 			return "", "", fmt.Errorf("update user in the DB: %w", err)
 		}
 
+		a.Log.Info().Str("usr", u.ID).Str("tkn", ss).Str("redirect", redirect).Msg("login succeeded")
+
 		ss, err = a.signLoginToken(u)
 		if err != nil {
 			return "", "", err
