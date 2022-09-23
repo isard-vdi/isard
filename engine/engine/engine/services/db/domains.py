@@ -196,6 +196,9 @@ def update_domain_status(
         stop_last_domain_status(id_domain)
         remove_fieds_when_stopped(id_domain, conn=r_conn)
 
+    if status == "Failed":
+        remove_fieds_when_stopped(id_domain, conn=r_conn)
+
     close_rethink_connection(r_conn)
     # if results_zero(results):
     #
@@ -1416,7 +1419,7 @@ def remove_fieds_when_stopped(id_domain, conn=False):
         r_conn = conn
 
     r.table("domains").get(id_domain).update(
-        {"create_dict": {"personal_vlans": False}}
+        {"create_dict": {"personal_vlans": False}, "hyp_started": False}
     ).run(r_conn)
 
     if conn is False:
