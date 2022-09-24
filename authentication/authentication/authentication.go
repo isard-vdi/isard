@@ -369,17 +369,25 @@ func (a *Authentication) Callback(ctx context.Context, args map[string]string) (
 			return "", "", fmt.Errorf("update user in the DB: %w", err)
 		}
 
-		a.Log.Info().Str("usr", u.ID).Str("tkn", ss).Str("redirect", redirect).Msg("login succeeded")
-
 		ss, err = a.signLoginToken(u)
 		if err != nil {
 			return "", "", err
 		}
+
+		logRedirect := redirect
+		if logRedirect == "" {
+			logRedirect = claims.Redirect
+		}
+
+		a.Log.Info().Str("usr", u.ID).Str("tkn", ss).Str("redirect", logRedirect).Msg("login succeeded")
+
 	} else {
 		ss, err = a.signRegisterToken(u)
 		if err != nil {
 			return "", "", err
 		}
+
+		a.Log.Info().Err(err).Str("usr", u.UID).Str("tkn", ss).Msg("register token signed")
 	}
 
 	if redirect == "" {
