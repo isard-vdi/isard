@@ -18,7 +18,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 55
+release_version = 56
+# release 56: Remove hyp_started from non started domains
 # release 55: Added more secondary indices for domains queries
 # release 54: Add status time info to storage disks
 # release 53: Add secondary_groups users multi index
@@ -1103,6 +1104,9 @@ class Upgrade(object):
                 ).run(self.conn)
             except Exception as e:
                 print(e)
+
+        if version == 56:
+            r.table(table).update({"hyp_started": False}).run(self.conn)
 
         return True
 
