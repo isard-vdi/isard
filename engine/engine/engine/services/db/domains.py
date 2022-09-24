@@ -1189,7 +1189,7 @@ def update_domain_history_status(
     rtable = r.table("domains")
     results = (
         rtable.get(domain_id)
-        .update({"history_domain": list_history_domain, "accessed": int(when)})
+        .update({"history_domain": list_history_domain})
         .run(r_conn)
     )
 
