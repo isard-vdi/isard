@@ -54,7 +54,10 @@ def admin_table_list(
     if table == "hypervisors":
         query = query.merge(
             lambda hyper: {
-                "gpus": r.table("vgpus").filter({"hyp_id": hyper["id"]}).count()
+                "gpus": r.table("vgpus").filter({"hyp_id": hyper["id"]}).count(),
+                "dom_started": r.table("domains")
+                .get_all(hyper["id"], index="hyp_started")
+                .count(),
             }
         )
 

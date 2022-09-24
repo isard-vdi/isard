@@ -152,27 +152,23 @@ $(document).ready(function() {
                  "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
                 },
             { "data": "enabled", "width": "10px" },
+            { "data": "only_forced" , "width": "10px" },
             { "data": "status", "width": "10px" },
             { "data": "id" , "width": "10px" },
             { "data": "hostname" , "width": "100px" },
-            { "data": "vpn.wireguard.connected" , "width": "10px", "defaultContent": 'NaN' },
             { "data": "viewer.static" , "width": "10px" },
             { "data": "viewer.proxy_video" , "width": "10px" },
-            { "data": "viewer.proxy_hyper_host" , "width": "10px" },
-            { "data": "info.qemu_version" , "width": "10px", "defaultContent": 'NaN'},
-            { "data": "info.libvirt_version" , "width": "10px", "defaultContent": 'NaN' },
-            { "data": "info.virtualization_capabilities" , "width": "10px", "defaultContent": 'NaN' },
-            { "data": "gpus" , "width": "10px", "defaultContent": 'NaN' },
-            { "data": "info.memory_in_MB" , "width": "10px", "defaultContent": 'NaN' },
-            { "data": "info.virtualization_capabilities" , "width": "10px", "defaultContent": 'NaN' },            
             { "data": "capabilities.disk_operations" , "width": "10px" },
             { "data": "capabilities.hypervisor" , "width": "10px" },
-            { "data": "only_forced" , "width": "10px" },
-            { "data": "status_time" , "width": "10px" }],
-            
-          /*   { "data": "started_domains", "width": "10px", "defaultContent": 0}, */
-          /*   { "data": "hypervisors_pools", "width": "10px" }, */
-            
+            { "data": "dom_started", "width": "10px", "defaultContent": 0},
+            { "data": "info.memory_in_MB" , "width": "10px", "defaultContent": 'NaN' },
+            { "data": "info.cpu_cores" , "width": "10px", "defaultContent": 'NaN' },
+            { "data": "gpus" , "width": "10px", "defaultContent": 0 },
+            { "data": "status_time" , "width": "10px" },
+            { "data": "vpn.wireguard.connected" , "width": "10px", "defaultContent": 'NaN' },
+            { "data": "info.virtualization_capabilities" , "width": "10px", "defaultContent": 'NaN' },
+            { "data": "info.libvirt_version" , "width": "10px", "defaultContent": 'NaN' },
+            { "data": "info.qemu_version" , "width": "10px", "defaultContent": 'NaN' }],
              "order": [[2, 'asc']],
              "columnDefs": [ {
                             "targets": 1,
@@ -180,48 +176,48 @@ $(document).ready(function() {
                               return renderEnabled(full);
                             }},
                             {
-                            "targets": 2,
+                                "targets": 2,
+                                "render": renderBoolean
+                                },
+                            {
+                            "targets": 3,
                             "render": function ( data, type, full, meta ) {
                               return renderStatus(full);
                             }},
-                            {
-                            "targets": 5,
-                            "render": renderBoolean
-                            },
                             {
                             "targets": 7,
                             "render": function ( data, type, full, meta ) {
                                 return full.viewer.proxy_video + ' ('+full.viewer.spice_ext_port + ',' + full.viewer.html5_ext_port + ')';
                             }},
                             {
-                            "targets": 13,
-                            "render": function ( data, type, full, meta ) {
-                                return Math.round(data / 1024 * 10) / 10 + 'GB';
-                            }},
+                            "targets": 8,
+                            "render": renderBoolean
+                            },
+                            {
+                            "targets": 9,
+                            "render": renderBoolean
+                            },
+                            {
+                                "targets": 11,
+                                "render": function ( data, type, full, meta ) {
+                                    return Math.round(data / 1024 * 10) / 10 + 'GB';
+                                }},
+                                {
+                                "targets": 12,
+                                "render": function ( data, type, full, meta ) {
+                                    if (full.info) {
+                                        return full.info.cpu_cores*full.info.threads_x_core;
+                                    }
+                                }},
                             {
                             "targets": 14,
                             "render": function ( data, type, full, meta ) {
-                                if (full.info) {
-                                    return full.info.cpu_cores*full.info.threads_x_core;
-                                }
+                              return moment.unix(full.status_time).fromNow();
                             }},
                             {
-                            "targets": 15,
-                            "render": renderBoolean
-                            },
-                            {
-                            "targets": 16,
-                            "render": renderBoolean
-                            },
-                            {
-                            "targets": 17,
-                            "render": renderBoolean
-                            },
-                            {
-                            "targets": 18,
-                            "render": function ( data, type, full, meta ) {
-                              return moment.unix(full.status_time).fromNow();
-                            }}
+                                "targets": 15,
+                                "render": renderBoolean
+                                },
              ],
     } );
 
