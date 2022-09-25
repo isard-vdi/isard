@@ -19,7 +19,7 @@ from .log import *
 Update to new database release version when new code version release
 """
 release_version = 57
-# release 57 :Addded serverstostart index to domains
+# release 57: Addded serverstostart index to domains
 # release 56: Remove hyp_started from non started domains
 # release 55: Added more secondary indices for domains queries
 # release 54: Add status time info to storage disks
@@ -1113,6 +1113,13 @@ class Upgrade(object):
             try:
                 r.table("domains").index_create(
                     "serverstostart", [r.row["kind"], r.row["server"], r.row["status"]]
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table("domains").replace(
+                    r.row.without({"create_dict": {"server"}})
                 ).run(self.conn)
             except Exception as e:
                 print(e)

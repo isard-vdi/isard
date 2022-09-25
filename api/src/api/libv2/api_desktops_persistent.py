@@ -192,7 +192,7 @@ class ApiDesktopsPersistent:
             "xml": None,
             "icon": template["icon"],
             "image": template["image"],
-            "server": template["server"],
+            "server": False,
             "os": template["os"],
             "guest_properties": new_data.get("guest_properties")
             if new_data
@@ -429,7 +429,7 @@ class ApiDesktopsPersistent:
             "username": user["username"],
             "category": payload["category_id"],
             "group": payload["group_id"],
-            "server": data["server"],
+            "server": False,
             "xml": None,
             "icon": "fa-circle-o"
             if data["kind"] == "iso"

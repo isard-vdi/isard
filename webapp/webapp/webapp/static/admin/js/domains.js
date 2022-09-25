@@ -22,7 +22,7 @@ columns= [
                 "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
 				},
                 { "data": "icon" },
-                { "data": "server", "width": "10px"},
+                { "data": "server", "width": "10px", "defaultContent":"-"},
                 { "data": "hyp_started", "width": "100px"},
 				{ "data": "name"},
 				{ "data": "description"},
@@ -52,9 +52,13 @@ columnDefs = [
         "targets": 2,
         "render": function (data, type, full, meta) {
             if('server' in full){
-                return full['server']
+                if(full["server"] == true){
+                    return 'SERVER';
+                }else{
+                    return '-';
+                }
             }else{
-                return false;
+                return '-';
             }
         }
     },{

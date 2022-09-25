@@ -157,7 +157,7 @@ class ApiDesktopsNonPersistent:
             "xml": None,
             "icon": template["icon"],
             "image": template["image"],
-            "server": template["server"],
+            "server": False,
             "os": template["os"],
             "guest_properties": template["guest_properties"],
             "create_dict": {
