@@ -18,6 +18,8 @@ services:
       - /opt/isard-local/environment:/usr/local/etc/environment
       - /dev/vfio:/dev/vfio
       - ${BUILD_ROOT_PATH}/docker/hypervisor/src/ovs:/src/ovs
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
     env_file:
       - .env
     environment:
