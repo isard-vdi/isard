@@ -19,6 +19,7 @@ from engine.models.domain_xml import (
     DomainXML,
     populate_dict_hardware_from_create_dict,
     recreate_xml_if_gpu,
+    recreate_xml_if_start_paused,
     recreate_xml_to_start,
     update_xml_from_dict_domain,
 )
@@ -202,6 +203,8 @@ class UiActions(object):
                     dict_action["vgpu_id"] = extra_info["gpu_id"]
 
                 if action == "start_paused_domain":
+                    # start_paused only with 512MB of memory
+                    dict_action["xml"] = recreate_xml_if_start_paused(xml)
                     update_domain_status(
                         status="CreatingDomain",
                         id_domain=id_domain,
