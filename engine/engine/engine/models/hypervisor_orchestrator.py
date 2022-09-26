@@ -53,6 +53,7 @@ from engine.services.db.hypervisors import (
     update_hyp_thread_status,
 )
 from engine.services.lib.functions import (
+    PriorityQueueIsard,
     engine_restart,
     exec_remote_list_of_cmds_dict,
     get_threads_running,
@@ -171,7 +172,7 @@ class HypervisorsOrchestratorThread(threading.Thread):
         self.polling_interval = polling_interval
         self.t_workers = t_workers
         self.t_events = t_events
-        self.q_actions = queue.Queue()
+        self.q_actions = PriorityQueueIsard()
         self.t_long_operations = t_long_operations
         self.q_long_operations = q_long_operations
         self.t_disk_operations = t_disk_operations

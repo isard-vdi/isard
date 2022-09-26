@@ -33,7 +33,7 @@ from engine.services.db import (
     update_uri_hyp,
     update_vgpu_uuid_domain_action,
 )
-from engine.services.lib.functions import get_tid, hostname_to_uri
+from engine.services.lib.functions import PriorityQueueIsard, get_tid, hostname_to_uri
 from engine.services.log import *
 
 TIMEOUT_QUEUE_REGISTER_EVENTS = 1
@@ -701,7 +701,7 @@ class ThreadHypEvents(threading.Thread):
         # self.hostname = get_hyp_hostname_from_id(hyp_id)
         self.hyps_conn = dict()
         self.events_ids = dict()
-        self.q_event_register = queue.Queue()
+        self.q_event_register = PriorityQueueIsard()
 
     def run(self):
         # Close connection on exit (to test cleanup paths)

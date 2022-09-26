@@ -1250,7 +1250,21 @@ def pop_key_if_zero(d):
 
 class QueuesThreads:
     def __init__(self):
-        self.background = queue.Queue()
+        self.background = PriorityQueueIsard()
         self.workers = {}
         self.quit = False
         self.action = ""
+
+
+class PriorityQueueIsard(queue.PriorityQueue):
+    def __init__(self, maxsize=0):
+        self.counter = 0
+        super().__init__(maxsize=maxsize)
+
+    def put(self, item, priority=100, block=True, timeout=None):
+        self.counter += 1
+        super().put((priority, self.counter, item), block=block, timeout=timeout)
+
+    def get(self, block=True, timeout=None):
+        get_super = super().get(block=block, timeout=timeout)
+        return get_super[-1]
