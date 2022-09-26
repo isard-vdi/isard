@@ -2,6 +2,7 @@ import json
 import logging
 import sys
 import time
+import traceback
 from copy import deepcopy
 
 import flatten_dict
@@ -189,9 +190,14 @@ def update_domain_status(
         )
 
     if status == "DiskDeleted":
-        update_storage_deleted_domain(
-            storage_id, results.get("changes", [{}])[0].get("new_val")
-        )
+        try:
+            update_storage_deleted_domain(
+                storage_id, results.get("changes", [{}])[0].get("new_val")
+            )
+        except Exception as e:
+            logs.main.error("Exception in update_storage_deleted_domain")
+            logs.main.error("Traceback: \n .{}".format(traceback.format_exc()))
+            logs.main.error("Exception message: {}".format(e))
     if status == "Stopped":
         stop_last_domain_status(id_domain)
         remove_fieds_when_stopped(id_domain, conn=r_conn)
