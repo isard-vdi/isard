@@ -335,6 +335,9 @@
                 "confirmation-password": {
                     "label": "Подтверждение пароля",
                     "placeholder": "Подтверждение пароля"
+                },
+                "buttons": {
+                    "update": "Обновить"
                 }
             }
         }
