@@ -333,7 +333,8 @@
                     "placeholder": "Пароль"
                 },
                 "confirmation-password": {
-                    "label": "Подтверждение пароля"
+                    "label": "Подтверждение пароля",
+                    "placeholder": "Подтвердите пароль"
                 }
             }
         }
