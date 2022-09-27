@@ -334,7 +334,7 @@
                 },
                 "confirmation-password": {
                     "label": "Подтверждение пароля",
-                    "placeholder": "Подтвердите пароль"
+                    "placeholder": "Подтверждение пароля"
                 }
             }
         }
