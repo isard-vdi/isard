@@ -1716,6 +1716,32 @@ def recreate_xml_interfaces(dict_domain, x):
         interface_index += 1
 
 
+def recreate_xml_if_start_paused(xml, memory_mb=256):
+    xml = xml
+    unit = "KiB"
+    mem_size = memory_mb * 1024
+
+    parser = etree.XMLParser(remove_blank_text=True)
+    try:
+        tree = etree.parse(StringIO(xml), parser)
+    except Exception as e:
+        logs.exception_id.debug("0024")
+        log.error(
+            "Exception when parsing xml in recreate_xml_to_start_paused: {}".format(e)
+        )
+        log.error("xml that fail: \n{}".format(xml))
+        log.error("Traceback: {}".format(traceback.format_exc()))
+        return xml
+
+    for tag in ["memory", "currentMemory", "maxMemory"]:
+        if tree.xpath(f"/domain/{tag}"):
+            tree.xpath(f"/domain/{tag}")[0].set("unit", unit)
+            tree.xpath(f"/domain/{tag}")[0].text = str(mem_size)
+
+    xml_output = indent(etree.tostring(tree, encoding="unicode"))
+    return xml_output
+
+
 def recreate_xml_if_gpu(xml, mdev_uid):
     xml = xml
 
