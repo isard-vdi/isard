@@ -665,6 +665,11 @@
                 "category": "Categoria",
                 "group": "Grup",
                 "user": "Usuari"
+            },
+            "error": {
+                "groups": "S'ha d'escollir com a mínim un grup",
+                "users": "S'ha d'escollir com a mínim un usuari",
+                "groups-users": "S'ha d'escollir com a mínim un usuari o un grup"
             }
         },
         "new-media": {
@@ -803,7 +808,8 @@
             "direct-viewer-reset": "Es descarregarà el fitxer de visors directes. Reestablir les adreces dels visors?",
             "delete-media": "El mitjà '{name}' s'esborrarà, continuar?",
             "image-uploaded": "Imatge pujada correctament",
-            "edit-domain": "El hardware de '{name}' es limitarà i les seves dades es modificaran, continuar?"
+            "edit-domain": "El hardware de '{name}' es limitarà i les seves dades es modificaran, continuar?",
+            "new-deployment": "Es crearan {quantity} escriptoris, un per cada usuari seleccionat. Continuar?"
         },
         "yes": "Si",
         "no": "No",
@@ -834,7 +840,8 @@
             "edit-desktop-stop": "Per editar un escriptori és necessari que estigui parat",
             "deleting-media": "Esborrant mitjà",
             "downloading-media": "Descarregant mitjà",
-            "stopping-download": "Parant la descàrrega"
+            "stopping-download": "Parant la descàrrega",
+            "counting-desktops": "Comptant quants escriptoris es crearan"
         },
         "loading": "Carregant"
     },

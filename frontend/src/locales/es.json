@@ -86,6 +86,11 @@
                 "category": "Categoría",
                 "group": "Grupo",
                 "user": "Usuario"
+            },
+            "error": {
+                "groups": "Se debe escoger como mínimo un grupo",
+                "users": "Se debe escoger como mínimo un usuario",
+                "groups-users": "Se debe escoger como mínimo un usuario o un grupo"
             }
         },
         "new-media": {
@@ -763,7 +768,8 @@
             "enable-template": "'{name}' será visible para sus usuarios, ¿desea continuar?",
             "direct-viewer-reset": "Se descargará el fichero de visores directos. Reestablecer las direcciones de los visores?",
             "delete-media": "El medio '{name}' se borrará, continuar?",
-            "edit-domain": "El hardware de '{name}' se limitará y sus datos se modificarán, continuar?"
+            "edit-domain": "El hardware de '{name}' se limitará y sus datos se modificarán, continuar?",
+            "new-deployment": "Se crearán {quantity} escritorios, uno por cada usuario seleccionado. Continuar?"
         },
         "yes": "Si",
         "no": "No",
@@ -795,7 +801,8 @@
             "edit-desktop-stop": "Para editar un escritorio es necesario que esté parado",
             "deleting-media": "Borrando medio",
             "downloading-media": "Descargando medio",
-            "stopping-download": "Parando la descarga"
+            "stopping-download": "Parando la descarga",
+            "counting-desktops": "Contado cuántos escritorios se crearán"
         },
         "loading": "Cargando"
     },

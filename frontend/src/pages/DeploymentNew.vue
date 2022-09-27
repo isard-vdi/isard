@@ -230,6 +230,7 @@ import AllowedForm from '@/components/AllowedForm.vue'
 import DomainInfo from '@/components/domain/DomainInfo.vue'
 import DesktopNewSkeleton from '@/components/desktops/DesktopNewSkeleton.vue'
 import { map } from 'lodash'
+import { ErrorUtils } from '@/utils/errorUtils'
 
 // const inputFormat = helpers.regex('inputFormat', /^1(3|4|5|7|8)\d{9}$/) // /^\D*7(\D*\d){12}\D*$'
 const inputFormat = value => /^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$/.test(value)
@@ -340,7 +341,7 @@ export default {
       }
     ])
 
-    const submitForm = () => {
+    const submitForm = (toast) => {
       // Check if the form is valid
       v$.value.$touch()
       if (v$.value.$invalid) {
@@ -349,19 +350,65 @@ export default {
       }
       const groups = groupsChecked.value ? map(selectedGroups.value, 'id') : false
       const users = usersChecked.value ? map(selectedUsers.value, 'id') : false
-      $store.dispatch('createNewDeployment',
-        {
-          visible: visible.value,
-          template_id: selected.value[0].id,
-          name: deploymentName.value,
-          desktop_name: domain.value.name,
-          description: domain.value.description,
-          allowed: {
-            users,
-            groups
-          }
+
+      if (groups && groups.length === 0) {
+        ErrorUtils.showErrorNotification(context.root.$snotify, i18n.t('forms.new-deployment.error.groups'))
+        return
+      } else if (users && users.length === 0) {
+        ErrorUtils.showErrorNotification(context.root.$snotify, i18n.t('forms.new-deployment.error.users'))
+        return
+      } else if (!groups && !users) {
+        ErrorUtils.showErrorNotification(context.root.$snotify, i18n.t('forms.new-deployment.error.groups-users'))
+        return
+      }
+
+      const showConfirmation = () => {
+        context.root.$snotify.clear()
+        const yesAction = () => {
+          context.root.$snotify.remove(toast.id)
+          $store.dispatch('createNewDeployment',
+            {
+              visible: visible.value,
+              template_id: selected.value[0].id,
+              name: deploymentName.value,
+              desktop_name: domain.value.name,
+              description: domain.value.description,
+              allowed: {
+                users,
+                groups
+              }
+            }
+          )
         }
-      )
+
+        const noAction = (toast) => {
+          context.root.$snotify.clear()
+        }
+
+        context.root.$snotify.prompt(`${i18n.t('messages.confirmation.new-deployment', { quantity: quantity })}`, {
+          position: 'centerTop',
+          buttons: [
+            { text: `${i18n.t('messages.yes')}`, action: yesAction, bold: true },
+            { text: `${i18n.t('messages.no')}`, action: noAction }
+          ],
+          placeholder: ''
+        })
+      }
+
+      let quantity = 0
+
+      if (users && users.length !== 0) {
+        quantity = quantity + users.length
+      }
+
+      if (groups && groups.length !== 0) {
+        $store.dispatch('countGroupsUsers', { groups }).then((response) => {
+          quantity = quantity + response.data.quantity
+          showConfirmation()
+        })
+      } else {
+        showConfirmation()
+      }
     }
 
     onUnmounted(() => {
