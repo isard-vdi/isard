@@ -185,7 +185,8 @@
             },
             "logout": "Logout",
             "profile": "Profile",
-            "media": "Media"
+            "media": "Media",
+            "viewers": "Viewers"
         },
         "statusbar": {
             "desktops-started": "Desktops started",

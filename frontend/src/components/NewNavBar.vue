@@ -158,6 +158,17 @@
                 {{ $t("components.navbar.help") }}
               </b-dropdown-item>
               <b-dropdown-item
+                :href="goToViewersGuide()"
+                target="_blank"
+              >
+                <b-icon
+                  icon="info-circle"
+                  class="mr-2 d-lg-none d-xl-inline"
+                  scale="0.75"
+                />
+                {{ $t("components.navbar.viewers") }}
+              </b-dropdown-item>
+              <b-dropdown-item
                 href="#"
                 @click="fetchVpn()"
               >
@@ -218,6 +229,15 @@ export default {
     },
     menuGoToPlanning () {
       this.$store.dispatch('navigate', 'Planning')
+    },
+    goToViewersGuide () {
+      if (localStorage.language === 'es') {
+        return 'https://isard.gitlab.io/isardvdi-docs/user/viewers.es/#visor-para-el-protocolo-spice'
+      } else if (localStorage.language === 'ca') {
+        return 'https://isard.gitlab.io/isardvdi-docs/user/viewers.ca/#visor-per-al-protocol-spice'
+      } else {
+        return 'https://isard.gitlab.io/isardvdi-docs/user/viewers/#viewer-for-the-spice-protocol'
+      }
     }
   }
 }

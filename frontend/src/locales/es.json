@@ -185,7 +185,8 @@
             },
             "logout": "Cerrar sesión",
             "profile": "Perfil",
-            "media": "Medios"
+            "media": "Medios",
+            "viewers": "Visores"
         },
         "statusbar": {
             "desktops-started": "Escritorios arrancados",

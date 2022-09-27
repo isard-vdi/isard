@@ -27,7 +27,8 @@
             },
             "logout": "Tancar la sessió",
             "profile": "Perfil",
-            "media": "Mitjans"
+            "media": "Mitjans",
+            "viewers": "Visors"
         },
         "statusbar": {
             "desktops-started": "Desktops arrencats",
