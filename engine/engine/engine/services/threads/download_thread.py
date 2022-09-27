@@ -6,9 +6,11 @@
 
 import os
 import pprint
+import re
 import signal
 import subprocess
 import threading
+import uuid
 from os.path import dirname
 from time import sleep
 
@@ -34,7 +36,7 @@ from engine.services.db.downloads import (
     update_status_table,
 )
 from engine.services.db.hypervisors import get_hypers_in_pool
-from engine.services.lib.download import test_url_for_download
+from engine.services.lib.download import test_url_for_download, test_url_google_drive
 from engine.services.lib.functions import get_tid
 from engine.services.lib.qcow import (
     create_cmds_delete_disk,
@@ -154,41 +156,89 @@ class DownloadThread(threading.Thread, object):
             headers += header_template.format(header_key=k, header_value=v)
             dict_header[k] = v
 
-        # TEST IF url return an stream of data
-        ok, error_msg = test_url_for_download(
-            self.url,
-            url_download_insecure_ssl=URL_DOWNLOAD_INSECURE_SSL,
-            timeout_time_limit=TIMEOUT_WAITING_HYPERVISOR_TO_DOWNLOAD,
-            dict_header=dict_header,
-        )
+        if self.url.find("drive.google.com") > 0:
+            url_download = re.sub(
+                r"https://drive\.google\.com/file/d/(.*?)/.*?\?usp=sharing",
+                r"https://drive.google.com/uc?export=download&id=\1",
+                self.url,
+            )
+            try:
+                file_google_drive_id = re.search(
+                    "https://drive\.google\.com/file/d/(.*?)/.*?\?usp=sharing", self.url
+                ).group(1)
+            except AttributeError:
+                logs.downloads.error(
+                    "file google drive id not fount by regex for url: " + self.url
+                )
+                file_google_drive_id = "drive_id_not_found"
 
-        if ok is False:
-            logs.downloads.error(f"URL check failed for url: {self.url}")
-            logs.downloads.error(f"Failed url check reason: {error_msg}")
-            print(self.id)
-            print(self.table)
-            update_status_table(self.table, "DownloadFailed", self.id, detail=error_msg)
-            return False
+            ok, error_msg = test_url_google_drive(url_download)
+            if ok is not False:
+                confirm = ok
 
-        curl_template = "curl {insecure_option} -L -o '{path}' {headers} '{url}'"
+                cookie_file = "./cookie_download_" + str(uuid.uuid4())
+                cmds_google = (
+                    f"""curl -c {cookie_file} -s -L '{url_download}' ; """
+                    f"""curl -Lb {cookie_file} 'https://drive.google.com/uc?export=download&{confirm}&id={file_google_drive_id}' -o {self.path} ; """
+                    f"""rm -f {cookie_file}"""
+                )
+                path_dir = dirname(self.path)
 
-        ssh_template = (
-            """ssh -oBatchMode=yes -p {port} {user}@{hostname} """
-            """ "mkdir -p '{path_dir}'; """ + curl_template + '"'
-        )
+                ssh_command = (
+                    f'ssh -oBatchMode=yes -p {self.port} {self.user}@{self.hostname} /bin/bash -c "'
+                    f"mkdir -p '{path_dir}' ; {cmds_google}; \""
+                )
+            else:
+                logs.downloads.error(
+                    f"URL check failed for url from google drive: {self.url}"
+                )
+                logs.downloads.error(f"Failed url check reason: {error_msg}")
+                print(self.id)
+                print(self.table)
+                update_status_table(
+                    self.table, "DownloadFailed", self.id, detail=error_msg
+                )
+                return False
 
-        logs.downloads.debug(ssh_template)
+        else:
 
-        ssh_command = ssh_template.format(
-            port=self.port,
-            user=self.user,
-            hostname=self.hostname,
-            path=self.path,
-            path_dir=dirname(self.path),
-            headers=headers,
-            url=self.url,
-            insecure_option=insecure_option,
-        )
+            # TEST IF url return an stream of data
+            ok, error_msg = test_url_for_download(
+                self.url,
+                url_download_insecure_ssl=URL_DOWNLOAD_INSECURE_SSL,
+                timeout_time_limit=TIMEOUT_WAITING_HYPERVISOR_TO_DOWNLOAD,
+                dict_header=dict_header,
+            )
+
+            if ok is False:
+                logs.downloads.error(f"URL check failed for url: {self.url}")
+                logs.downloads.error(f"Failed url check reason: {error_msg}")
+                print(self.id)
+                print(self.table)
+                update_status_table(
+                    self.table, "DownloadFailed", self.id, detail=error_msg
+                )
+                return False
+
+            curl_template = "curl {insecure_option} -L -o '{path}' {headers} '{url}'"
+
+            ssh_template = (
+                """ssh -oBatchMode=yes -p {port} {user}@{hostname} """
+                """ "mkdir -p '{path_dir}'; """ + curl_template + '"'
+            )
+
+            logs.downloads.debug(ssh_template)
+
+            ssh_command = ssh_template.format(
+                port=self.port,
+                user=self.user,
+                hostname=self.hostname,
+                path=self.path,
+                path_dir=dirname(self.path),
+                headers=headers,
+                url=self.url,
+                insecure_option=insecure_option,
+            )
 
         logs.downloads.debug("SSH COMMAND: {}".format(ssh_command))
 
