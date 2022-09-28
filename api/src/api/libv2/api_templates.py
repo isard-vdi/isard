@@ -86,6 +86,7 @@ class ApiTemplates:
             }
 
         template_dict = {
+            "accessed": time.time(),
             "id": template_id,
             "name": name,
             "description": description,
