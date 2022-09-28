@@ -45,7 +45,10 @@
                   {{ directViewer.name }}
                 </h1>
                 <!-- machine shutdown -->
-                <h4 class="text-medium-gray">
+                <h4
+                  v-if="directViewer.shutdown"
+                  class="text-medium-gray"
+                >
                   {{ directViewer.shutdown }}
                 </h4>
                 <!-- machine description -->
@@ -177,6 +180,8 @@ export default {
     window.onunload = () => {
       $store.dispatch('closeSocket')
     }
+
+    console.log(directViewer)
 
     return {
       loading,
