@@ -86,7 +86,7 @@ class ApiTemplates:
             }
 
         template_dict = {
-            "accessed": time.time(),
+            "accessed": int(time.time()),
             "id": template_id,
             "name": name,
             "description": description,
@@ -172,7 +172,7 @@ class ApiTemplates:
         template["allowed"] = allowed
         template["enabled"] = enabled
         template["status"] = "Stopped"
-        template["accessed"] = time.time()
+        template["accessed"] = int(time.time())
 
         try:
             with app.app_context():

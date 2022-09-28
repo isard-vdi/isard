@@ -58,7 +58,7 @@ def api_v3_admin_media_insert(payload):
     data["category"] = payload["category_id"]
     data["group"] = payload["group_id"]
     data["url-web"] = data["url"]
-    data["accessed"] = time.time()
+    data["accessed"] = int(time.time())
 
     data = _validate_item("media", data)
 

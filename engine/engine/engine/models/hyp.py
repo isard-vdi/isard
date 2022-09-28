@@ -1233,7 +1233,7 @@ class hyp(object):
                     )
                 }
 
-                raw_stats["time_utc"] = time.time()
+                raw_stats["time_utc"] = int(time.time())
 
             except:
                 log.error(

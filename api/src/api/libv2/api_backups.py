@@ -50,7 +50,7 @@ def new_backup_db():
             "filename": id + ".tar.gz",
             "path": path,
             "description": "",
-            "when": time.time(),
+            "when": int(time.time()),
             "data": {},
             "status": "Initializing",
             "version": r.table("config")

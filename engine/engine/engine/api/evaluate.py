@@ -82,7 +82,7 @@ def new_eval():
     objs = []
     for i in range(iterations):
         data = eval_ctrl.run()
-        now = time.time()
+        now = int(time.time())
         obj = {
             "id": "{}_{}".format(code, now),
             "code": code,

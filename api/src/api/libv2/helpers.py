@@ -544,7 +544,7 @@ def generate_db_media(path_downloaded, filesize):
         )
 
     return {
-        "accessed": time.time(),
+        "accessed": int(time.time()),
         "allowed": {
             "categories": False,
             "groups": False,

@@ -182,7 +182,7 @@ class auth(object):
 
     def update_access(self, username):
         with app.app_context():
-            r.table("users").get(username).update({"accessed": time.time()}).run(
+            r.table("users").get(username).update({"accessed": int(time.time())}).run(
                 db.conn
             )
 

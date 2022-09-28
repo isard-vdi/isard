@@ -231,7 +231,7 @@ def update_hyp_status(id, status, detail="", uri=""):
                 :MAX_LEN_PREV_STATUS_HYP
             ]
 
-        now = time.time()
+        now = int(time.time())
         dict_update["status_time"] = now
 
         # if len(detail) == 0:
@@ -896,7 +896,7 @@ def update_vgpu_created(vgpu_id, profile, uuid64, created=True):
 
 
 def update_vgpu_started(vgpu_id, profile, uuid64, domain_id):
-    now = time.time()
+    now = int(time.time())
     r_conn = new_rethink_connection()
     rtable = r.table("vgpus")
     result = (
@@ -919,7 +919,7 @@ def update_vgpu_started(vgpu_id, profile, uuid64, domain_id):
 
 
 def update_vgpu_reserved(vgpu_id, profile, uuid64, domain_id):
-    now = time.time()
+    now = int(time.time())
     r_conn = new_rethink_connection()
     rtable = r.table("vgpus")
     result = (

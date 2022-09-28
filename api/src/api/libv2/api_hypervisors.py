@@ -226,8 +226,8 @@ class ApiHypervisors:
                 {"enabled": False, "status": "Deleting"}
             ).run(db.conn)
 
-        now = time.time()
-        while time.time() - now < 20:
+        now = int(time.time())
+        while int(time.time()) - now < 20:
             time.sleep(1)
             with app.app_context():
                 if not r.table("hypervisors").get(hyper_id).run(db.conn):

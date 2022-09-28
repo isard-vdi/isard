@@ -312,7 +312,7 @@ def insert_host_viewer(
             "status": "Offline",  # Offline, online, ready_to_launch_ssh_commands
             "logged_user": None,
             "desktops_running": [],
-            "status_time": time.time(),
+            "status_time": int(time.time()),
         }
     ).run(r_conn)
 
@@ -337,7 +337,7 @@ def insert_action(id_action, parameters, debug=False):
         "action": id_action,
         "parameters": parameters,
         "debug": debug,
-        "when": time.time(),
+        "when": int(time.time()),
     }
     result = rtable.insert(d).run(r_conn)
     close_rethink_connection(r_conn)

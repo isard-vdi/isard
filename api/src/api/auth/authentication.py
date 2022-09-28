@@ -267,7 +267,7 @@ class auth_voucher(object):
                     "log"
                 ]
             log.append(
-                {"when": time.time(), "ip": remote_addr, "action": "Activate user"}
+                {"when": int(time.time()), "ip": remote_addr, "action": "Activate user"}
             )
             with app.app_context():
                 r.table("users").filter({"code": code}).update({"log": log}).run(
@@ -284,7 +284,7 @@ class auth_voucher(object):
             "name": email.split("@")[0],
             "provider": "local",
             "active": False,
-            "accessed": time.time(),
+            "accessed": int(time.time()),
             "username": email.replace("@", "_").replace(".", "_"),
             "password": self.pw.encrypt(
                 self.pw.generate_human()
@@ -293,7 +293,7 @@ class auth_voucher(object):
             .replace("/", "-")
             .replace(".", "_"),  # Code for email confirmation
             "log": [
-                {"when": time.time(), "ip": remote_addr, "action": "Register user"}
+                {"when": int(time.time()), "ip": remote_addr, "action": "Register user"}
             ],
             "role": "advanced",
             "category": voucher,
@@ -318,7 +318,7 @@ class auth_voucher(object):
 
     def update_access(self, username):
         with app.app_context():
-            r.table("users").get(username).update({"accessed": time.time()}).run(
+            r.table("users").get(username).update({"accessed": int(time.time())}).run(
                 db.conn
             )
 

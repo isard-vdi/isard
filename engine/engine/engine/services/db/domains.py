@@ -64,7 +64,7 @@ def update_domain_progress(id_domain, percent):
     rtable = r.table("domains")
     results = (
         rtable.get(id_domain)
-        .update({"progress": {"percent": percent, "when": time.time()}})
+        .update({"progress": {"percent": percent, "when": int(time.time())}})
         .run(r_conn)
     )
     close_rethink_connection(r_conn)
@@ -1172,7 +1172,7 @@ def update_domain_history_from_id_domain(domain_id, new_status, new_detail, date
         hyp_started = ""
 
     # now = date_now.strftime("%Y-%b-%d %H:%M:%S.%f")
-    now = time.time()
+    now = int(time.time())
     update_domain_history_status(
         domain_id=domain_id,
         new_status=new_status,

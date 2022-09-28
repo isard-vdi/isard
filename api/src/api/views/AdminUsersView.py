@@ -132,7 +132,7 @@ def api_v3_admin_user_insert(payload):
     p = Password()
     data["password"] = p.encrypt(data["password"])
     data["id"] = None
-    data["accessed"] = time.time()
+    data["accessed"] = int(time.time())
 
     if data["bulk"]:
         match = CategoryNameGroupNameMatch(data["category"], data["group"])

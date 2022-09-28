@@ -59,7 +59,7 @@ if __name__ == "__main__":
     except PidFileAlreadyLockedError:
         import time
 
-        err_pid = PidFile(str(time.time()))
+        err_pid = PidFile(str(int(time.time())))
         err_pid.create()
         while True:
             time.sleep(1)

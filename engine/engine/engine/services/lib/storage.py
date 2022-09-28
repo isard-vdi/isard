@@ -57,7 +57,7 @@ def create_storage(disk, user, force_parent=False):
             "parent": parent,
             "user_id": user,
             "status": "non_existing",
-            "status_logs": [{"time": time.time(), "status": "created"}],
+            "status_logs": [{"time": int(time.time()), "status": "created"}],
         },
     )
     disk["storage_id"] = storage_id
@@ -82,7 +82,7 @@ def update_storage_status(storage_id, status):
         data = {
             "status": status,
             "status_logs": r.row["status_logs"].append(
-                {"time": time.time(), "status": status}
+                {"time": int(time.time()), "status": status}
             ),
         }
         update_table_dict("storage", storage_id, data)
