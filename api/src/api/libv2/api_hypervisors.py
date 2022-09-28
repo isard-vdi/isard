@@ -250,7 +250,7 @@ class ApiHypervisors:
                 r.table("domains")
                 .get_all("Started", index="status")
                 .filter({"hyp_started": hyper_id})
-                .update({"status": "Stopping"})
+                .update({"status": "Stopping", "accessed": int(time.time())})
                 .run(db.conn)
             )
             time.sleep(1)
@@ -503,7 +503,7 @@ class ApiHypervisors:
                         r.table("domains")
                         .get_all("Started", index="status")
                         .filter({"viewer": {"client_since": False}})
-                        .update({"status": "Stopping"})
+                        .update({"status": "Stopping", "accessed": int(time.time())})
                         .run(db.conn)["replaced"]
                     )
                 else:
@@ -516,7 +516,7 @@ class ApiHypervisors:
                                 "viewer": {"client_since": False},
                             }
                         )
-                        .update({"status": "Stopping"})
+                        .update({"status": "Stopping", "accessed": int(time.time())})
                         .run(db.conn)["replaced"]
                     )
             except:

@@ -1,3 +1,4 @@
+import time
 import traceback
 
 from rethinkdb import RethinkDB
@@ -36,9 +37,9 @@ class DS:
                 status = "Stopped"
             except:
                 with app.app_context():
-                    r.table("domains").get(desktop_id).update({"status": "Failed"}).run(
-                        db.conn
-                    )
+                    r.table("domains").get(desktop_id).update(
+                        {"status": "Failed", "accessed": int(time.time())}
+                    ).run(db.conn)
                     status = "Failed"
 
         if status in ["Stopped", "Failed"]:
@@ -62,7 +63,9 @@ class DS:
             + " failed (engine down?).We will force failed and delete again in database."
         )
         with app.app_context():
-            r.table("domains").get(desktop_id).update({"status": "Failed"}).run(db.conn)
+            r.table("domains").get(desktop_id).update(
+                {"status": "Failed", "accessed": int(time.time())}
+            ).run(db.conn)
         transition_status = "Deleting"
         final_status = "Deleted"
 
@@ -159,7 +162,7 @@ class DS:
                 status = (
                     r.table("domains")
                     .get(desktop_id)
-                    .update({"status": transition_status})
+                    .update({"status": transition_status, "accessed": int(time.time())})
                     .run(db.conn)
                 )
 
@@ -248,7 +251,7 @@ class DS:
                 status = (
                     r.table("hypervisors")
                     .get(hyper_id)
-                    .update({"status": transition_status})
+                    .update({"status": transition_status, "accessed": int(time.time())})
                     .run(db.conn)
                 )
 
