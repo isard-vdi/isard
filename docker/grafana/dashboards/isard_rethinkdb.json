@@ -24,7 +24,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 7,
+  "id": 6,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -53,6 +53,38 @@
       ],
       "title": "Stats collection",
       "type": "row"
+    },
+    {
+      "datasource": {
+        "uid": "Graphite"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "id": 37,
+      "options": {
+        "maxItems": 10,
+        "query": "",
+        "showHeadings": false,
+        "showRecentlyViewed": false,
+        "showSearch": true,
+        "showStarred": false,
+        "tags": []
+      },
+      "pluginVersion": "9.1.6",
+      "tags": [],
+      "targets": [
+        {
+          "refId": "A",
+          "target": ""
+        }
+      ],
+      "title": "Dashboards",
+      "transparent": true,
+      "type": "dashlist"
     },
     {
       "datasource": {
@@ -115,8 +147,8 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 0,
+        "w": 10,
+        "x": 4,
         "y": 1
       },
       "id": 24,
@@ -213,8 +245,8 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 12,
+        "w": 10,
+        "x": 14,
         "y": 1
       },
       "id": 26,
