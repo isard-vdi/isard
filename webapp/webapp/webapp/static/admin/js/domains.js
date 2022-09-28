@@ -45,8 +45,8 @@ columnDefs = [
     {
         "targets": 1,
         "render": function ( data, type, full, meta ) {
-            url = location.protocol+'//' + document.domain + ':' + location.port + full.image.url
-            return "<img src='"+url+"' width='50px'>"
+            img_url = location.protocol+'//' + document.domain + ':' + location.port + full.image.url
+            return "<img src='"+img_url+"' width='50px'>"
         }
     },{
         "targets": 2,
@@ -776,6 +776,7 @@ function actionsDomainDetail(){
 	});
 
     $('.btn-server').on('click', function () {
+        if(url!="Desktops"){return}
         var pk=$(this).closest("[data-pk]").attr("data-pk");
         $("#modalServerForm")[0].reset();
         $('#modalServer').modal({
