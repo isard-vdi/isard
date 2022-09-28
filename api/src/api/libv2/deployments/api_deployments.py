@@ -191,6 +191,7 @@ def new(
     users = []
 
     group_users = []
+    secondary_groups_users = []
     if selected["groups"] is not False:
         with app.app_context():
             group_users = list(

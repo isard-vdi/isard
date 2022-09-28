@@ -252,7 +252,7 @@ def api_v3_user_webapp_templates(payload):
 
 
 @app.route("/api/v3/groups_users/count", methods=["PUT"])
-@has_token
+@is_not_user
 def groups_users_count(payload):
     data = request.get_json(force=True)
     quantity = users.groups_users_count(data.get("groups"))
