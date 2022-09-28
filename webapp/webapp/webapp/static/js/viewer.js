@@ -147,6 +147,9 @@ function setViewerButtons(data,socket,offer){
                     setCookie('browser_viewer', data.cookie)
                     el.setAttribute('href', data.viewer)
                     el.setAttribute('target', '_blank')
+                    if (data.protocol === 'rdp') {
+                        localStorage.rdpToken = localStorage.token
+                    }
                 }
                 el.style.display = 'none'
                 document.body.appendChild(el)

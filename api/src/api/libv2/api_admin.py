@@ -264,6 +264,7 @@ class ApiAdmin:
                         "group",
                         "accessed",
                         "detail",
+                        {"viewer": "guest_ip"},
                         {
                             "create_dict": {
                                 "hardware": {
