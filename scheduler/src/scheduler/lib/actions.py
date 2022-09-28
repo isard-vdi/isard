@@ -108,11 +108,11 @@ class Actions:
                 .pluck("id", "accessed")
                 .run(db.conn)
             )
-            t = time.time()
+            t = int(time.time())
             for d in domains:
                 if d["accessed"] + 1.9 * 60 < t:  # 2 minutes * 60 seconds
                     r.table("domains").get(d["id"]).update(
-                        {"status": "Stopping", "accessed": time.time()}
+                        {"status": "Stopping", "accessed": int(time.time())}
                     ).run(db.conn)
 
     def check_ephimeral_status_kwargs():
@@ -127,7 +127,7 @@ class Actions:
                 .pluck("id", "ephimeral", "history_domain")
                 .run(db.conn)
             )
-            t = time.time()
+            t = int(time.time())
             for d in domains:
                 if (
                     d["history_domain"][0]["when"] + int(d["ephimeral"]["minutes"]) * 60
@@ -150,7 +150,7 @@ class Actions:
                 "filename": id + ".tar.gz",
                 "path": path,
                 "description": "",
-                "when": time.time(),
+                "when": int(time.time()),
                 "data": {},
                 "status": "Initializing",
                 "version": r.table("config")

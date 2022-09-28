@@ -270,7 +270,7 @@ class ApiUsers:
                 "uid": user_uid,
                 "provider": provider,
                 "active": True,
-                "accessed": time.time(),
+                "accessed": int(time.time()),
                 "username": user_username,
                 "password": password,
                 "role": role_id,

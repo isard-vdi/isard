@@ -171,7 +171,7 @@ class ApiDesktopsNonPersistent:
                 "groups": False,
                 "users": False,
             },
-            "accessed": time.time(),
+            "accessed": int(time.time()),
             "persistent": False,
             "from_template": template["id"],
         }

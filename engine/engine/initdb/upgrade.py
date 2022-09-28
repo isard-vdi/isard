@@ -1765,16 +1765,16 @@ class Upgrade(object):
             r.table("storage").filter(lambda s: ~s["status"].eq("deleted")).update(
                 {
                     "status_logs": [
-                        {"status": "created", "time": time.time() - 43200},  # 12h
-                        {"status": "ready", "time": time.time() - 43199},
+                        {"status": "created", "time": int(time.time()) - 43200},  # 12h
+                        {"status": "ready", "time": int(time.time()) - 43199},
                     ]
                 }
             ).run(self.conn)
             r.table("storage").filter(lambda s: s["status"].eq("deleted")).update(
                 {
                     "status_logs": [
-                        {"status": "created", "time": time.time() - 3600},  # 1h
-                        {"status": "ready", "time": time.time() - 3599},
+                        {"status": "created", "time": int(time.time()) - 3600},  # 1h
+                        {"status": "ready", "time": int(time.time()) - 3599},
                     ]
                 }
             ).run(self.conn)

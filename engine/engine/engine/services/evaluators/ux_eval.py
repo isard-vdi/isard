@@ -386,8 +386,8 @@ class UXEval(EvaluatorInterface):
     def _wait_stop(self, domain_id, hyp, timeout=150):
         stats = []
         i = 0
-        start_time = time.time()
-        execution_time = time.time() - start_time
+        start_time = int(time.time())
+        execution_time = int(time.time()) - start_time
         while (
             get_domain_status(domain_id) == "Started"
             and (self.real_stop or i < self.time_to_stop)
@@ -406,7 +406,7 @@ class UXEval(EvaluatorInterface):
             # logs.eval.debug("Domain {} is started and i : {}".format(domain_id, i))
             sleep(1)
             i += 1
-            execution_time = time.time() - start_time
+            execution_time = int(time.time()) - start_time
 
         if get_domain_status(domain_id) == "Started":
             update_domain_status("Stopping", domain_id, hyp.id)  # Force stop

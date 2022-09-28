@@ -263,7 +263,7 @@ class Updates(object):
     # ~ d['progress']={}
     # ~ d['status']='DownloadStarting'
     # ~ d['detail']=''
-    # ~ d['accessed']=time.time()
+    # ~ d['accessed']=int(time.time())
     # ~ d['hypervisors_pools']=d['create_dict']['hypervisors_pools']
     # ~ d.update(self.get_user_data(current_user))
     # ~ for disk in d['create_dict']['hardware']['disks']:
@@ -278,7 +278,7 @@ class Updates(object):
             d["status"] = "DownloadStarting"
             d["detail"] = ""
             d["image"] = get_domain_stock_card(d["id"])
-            d["accessed"] = time.time()
+            d["accessed"] = int(time.time())
             d["hypervisors_pools"] = d["create_dict"]["hypervisors_pools"]
             d["guest_properties"] = default_guest_properties()
             if d.get("options"):
@@ -295,7 +295,7 @@ class Updates(object):
             d.update(self.get_user_data(current_user))
             d["progress"] = {}
             d["status"] = "DownloadStarting"
-            d["accessed"] = time.time()
+            d["accessed"] = int(time.time())
             if d["url-isard"] == False:
                 d["path"] = current_user.path + d["url-web"].split("/")[-1]
             else:

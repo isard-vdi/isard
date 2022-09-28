@@ -93,7 +93,7 @@ class isard:
             return self.check(
                 r.table(table)
                 .get(id)
-                .update({field: value, "accessed": time.time()})
+                .update({field: value, "accessed": int(time.time())})
                 .run(db.conn),
                 "replaced",
             )

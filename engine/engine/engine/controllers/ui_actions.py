@@ -1382,10 +1382,10 @@ class UiActions(object):
         cmds.append(ferrary[0]["cmd"][0])
         cmds = cmds + list(itertools.chain([d["cmd"][1] for d in ferrary]))
 
-        before = time.time()
+        before = int(time.time())
 
         cmds_result = exec_remote_list_of_cmds(VDESKTOP_DISK_OPERATINOS, cmds)
-        after = time.time()
+        after = int(time.time())
         duration = after - before
         log.debug(
             "FERRARY: {} disks created in {} with name in {} seconds".format(
@@ -1416,11 +1416,11 @@ class UiActions(object):
             "rm -f " + f["dict_domain"]["hardware"]["disks"][0]["file"] for f in ferrary
         ]
 
-        before = time.time()
+        before = int(time.time())
 
         cmds_result = exec_remote_list_of_cmds(VDESKTOP_DISK_OPERATINOS, cmds)
 
-        after = time.time()
+        after = int(time.time())
         duration = after - before
 
         ids = [f["id"] for f in ferrary]

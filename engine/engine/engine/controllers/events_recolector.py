@@ -412,7 +412,7 @@ def myConnectionCloseCallback(conn, reason, opaque):
 
 
 def myDomainEventCallbackRethink(conn, dom, event, detail, opaque):
-    now = time.time()
+    now = int(time.time())
     dom_id = dom.name()
     hyp_id = get_id_hyp_from_uri(conn.getURI())
 
@@ -596,7 +596,7 @@ def myDomainEventGraphicsCallbackRethink(
         global last_chain_event_graphics
         global last_timestamp_event_graphics
 
-        now = time.time()
+        now = int(time.time())
         domain_name = dom.name()
         hypervisor_hostname = conn.getHostname()
         key_domain_hyp_phase = domain_name + hypervisor_hostname + str(phase)

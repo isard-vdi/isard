@@ -262,7 +262,7 @@ class Populate(object):
                         "uid": "admin",
                         "username": "admin",
                         "active": True,
-                        "accessed": time.time(),
+                        "accessed": int(time.time()),
                         "password": self.passwd,
                         "role": "admin",
                         "group": "default-default",

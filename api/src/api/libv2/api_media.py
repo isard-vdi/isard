@@ -12,8 +12,8 @@ from rethinkdb import RethinkDB
 from api import app
 
 r = RethinkDB()
-import json
 import logging as log
+import time
 import traceback
 
 from ..libv2.api_cards import ApiCards
@@ -142,9 +142,13 @@ class ApiMedia:
             desktop.pop("name", None)
             desktop.pop("kind", None)
             desktop["status"] = "Updating"
+            desktop["accessed"] = int(time.time())
 
             admin_table_update("domains", desktop)
-        admin_table_update("media", {"id": media_id, "status": "Deleting"})
+        admin_table_update(
+            "media",
+            {"id": media_id, "status": "Deleting", "accessed": int(time.time())},
+        )
 
 
 def get_disk_path(user, parsed_name):

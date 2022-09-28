@@ -941,7 +941,7 @@ def try_ssh(hostname, port, user, timeout):
 
 
 def execute_commands(hostname, ssh_commands, dict_mode=False, user="root", port=22):
-    before = time.time()
+    before = int(time.time())
     dict_mode = True if type(ssh_commands[0]) is dict else False
     if dict_mode == True:
         array_out_err = exec_remote_list_of_cmds_dict(
@@ -951,7 +951,7 @@ def execute_commands(hostname, ssh_commands, dict_mode=False, user="root", port=
         array_out_err = exec_remote_list_of_cmds(
             hostname, ssh_commands, username=user, port=port
         )
-    after = time.time()
+    after = int(time.time())
     time_elapsed = after - before
     d_log = {
         "time_elapsed": time_elapsed,
@@ -967,12 +967,12 @@ def execute_commands(hostname, ssh_commands, dict_mode=False, user="root", port=
 def execute_command_with_progress(
     hostname, ssh_command, id_domain=None, user="root", port=22
 ):
-    before = time.time()
+    before = int(time.time())
     progress = []
     array_out_err = exec_remote_updating_progress(
         ssh_command, hostname, progress, username=user, port=port, id_domain=id_domain
     )
-    after = time.time()
+    after = int(time.time())
     time_elapsed = after - before
     d_log = {
         "time_elapsed": time_elapsed,

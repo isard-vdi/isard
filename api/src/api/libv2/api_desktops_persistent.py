@@ -208,7 +208,7 @@ class ApiDesktopsPersistent:
                 "groups": False,
                 "users": False,
             },
-            "accessed": time.time(),
+            "accessed": int(time.time()),
             "persistent": True,
             "forced_hyp": False,
             "from_template": template["id"],
@@ -442,7 +442,7 @@ class ApiDesktopsPersistent:
                 "guest_properties", default_guest_properties()
             ),
             "hypervisors_pools": ["default"],
-            "accessed": time.time(),
+            "accessed": int(time.time()),
             "persistent": True,
             "forced_hyp": data["forced_hyp"],
             "allowed": {

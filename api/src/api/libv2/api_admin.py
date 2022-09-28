@@ -15,6 +15,7 @@ from .api_exceptions import Error
 r = RethinkDB()
 import csv
 import io
+import time
 import traceback
 
 from .flask_rethink import RDB
@@ -622,7 +623,7 @@ class ApiAdmin:
                 res_stopped = (
                     r.table(table)
                     .get_all(r.args(domains_stopped))
-                    .update({"status": "Starting"})
+                    .update({"status": "Starting", "accessed": int(time.time())})
                     .run(db.conn)
                 )
                 res_started = (
@@ -641,13 +642,13 @@ class ApiAdmin:
                 res_stopped = (
                     r.table(table)
                     .get_all(r.args(domains_stopped))
-                    .update({"status": "Starting"})
+                    .update({"status": "Starting", "accessed": int(time.time())})
                     .run(db.conn)
                 )
                 res_started = (
                     r.table(table)
                     .get_all(r.args(domains_started))
-                    .update({"status": "Stopping"})
+                    .update({"status": "Stopping", "accessed": int(time.time())})
                     .run(db.conn)
                 )
                 return True
@@ -663,7 +664,7 @@ class ApiAdmin:
                     r.table(table)
                     .get_all(r.args(domains_shown))
                     .filter({"status": "Started"})
-                    .update({"status": "Stopping"})
+                    .update({"status": "Stopping", "accessed": int(time.time())})
                     .run(db.conn)
                 )
                 res_hidden = (
@@ -783,7 +784,7 @@ class ApiAdmin:
                 res_deleted = (
                     r.table(table)
                     .get_all(r.args(domains))
-                    .update({"status": "Stopping"})
+                    .update({"status": "Stopping", "accessed": int(time.time())})
                     .run(db.conn)
                 )
                 return True
@@ -797,7 +798,7 @@ class ApiAdmin:
             #         r.table(table)
             #         .get_all(r.args(domains_tostop))
             #         .filter(~r.row.has_fields({"viewer": "client_since"}))
-            #         .update({"status": "Stopping"})
+            #         .update({"status": "Stopping","accessed":int(time.time())})
             #         .run(db.conn)
             #     )
             #     return True
@@ -809,7 +810,7 @@ class ApiAdmin:
                 res = (
                     r.table(table)
                     .get_all(r.args(domains))
-                    .update({"status": "StartingPaused"})
+                    .update({"status": "StartingPaused", "accessed": int(time.time())})
                     .run(db.conn)
                 )
                 return True

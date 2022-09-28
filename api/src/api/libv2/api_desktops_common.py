@@ -51,9 +51,9 @@ class ApiDesktopsCommon:
         )
 
         with app.app_context():
-            r.table("domains").get(desktop_id).update({"accessed": time.time()}).run(
-                db.conn
-            )
+            r.table("domains").get(desktop_id).update(
+                {"accessed": int(time.time())}
+            ).run(db.conn)
 
         if not direct_protocol:
             return viewer_txt
