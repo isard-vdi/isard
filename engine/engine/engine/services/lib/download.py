@@ -25,7 +25,7 @@ def test_url_for_download(
 
     content_type = response.headers.get("Content-Type", "")
 
-    if content_type.find("application") < 0:
+    if content_type.find("application") < 0 and len(content_type) > 0:
         return False, "Content-Type of HTTP Header is not application"
     else:
         return True, ""
