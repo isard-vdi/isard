@@ -191,16 +191,19 @@ def new(
     users = []
 
     group_users = []
+
     secondary_groups_users = []
     if selected["groups"] is not False:
         with app.app_context():
-            group_users = list(
+            query_group_users = (
                 r.table("users")
                 .get_all(r.args(selected["groups"]), index="group")
-                .filter({"category": payload["category_id"]})
                 .pluck("id", "username", "category", "group")
-                .run(db.conn)
             )
+            if payload["role_id"] != "admin":
+                query_group_users.filter({"category": payload["category_id"]})
+            group_users = list(query_group_users.run(db.conn))
+
             secondary_groups_users = list(
                 r.table("users")
                 .get_all(r.args(selected["groups"]), index="secondary_groups")
@@ -215,13 +218,15 @@ def new(
         selected["users"] = [payload["user_id"]]
     user_users = []
     with app.app_context():
-        user_users = list(
+        query_user_users = (
             r.table("users")
             .get_all(r.args(selected["users"]), index="id")
-            .filter({"category": payload["category_id"]})
             .pluck("id", "username", "category", "group")
-            .run(db.conn)
         )
+        if payload["role_id"] != "admin":
+            query_user_users.filter({"category": payload["category_id"]})
+        user_users = list(query_user_users.run(db.conn))
+
     users = group_users + user_users + secondary_groups_users
     # Remove duplicate user dicts in list
     users = list({u["id"]: u for u in users}.values())
