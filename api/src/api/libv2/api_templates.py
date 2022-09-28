@@ -100,7 +100,6 @@ class ApiTemplates:
             "xml": desktop["xml"],  #### In desktop creation is
             "icon": desktop["icon"],
             "image": ApiCards().get_domain_stock_card(template_id),
-            "server": desktop["server"],
             "os": desktop["os"],
             "guest_properties": desktop["guest_properties"],
             "create_dict": create_dict,

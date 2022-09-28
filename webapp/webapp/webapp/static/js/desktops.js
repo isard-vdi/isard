@@ -44,7 +44,7 @@ $(document).ready(function() {
                 "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
                 },
                 { "data": "icon", "width": "10px" },
-                { "data": "server", "width": "10px"},
+                { "data": "server", "width": "10px", "defaultContent":"-"},
                 { "data": null, "width": "10px"},
                 { "data": null, "width": "10px"},
                 { "data": "status", "width": "10px"},

@@ -25,9 +25,6 @@ kind:
 xml_id:
   type: string
   default: win10Virtio
-server:
-  type: boolean
-  default: false
 forced_hyp:
   type:
     - boolean
