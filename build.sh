@@ -118,6 +118,12 @@ BACKUPNINJA_STANDALONE_PARTS="
 	backupninja
 "
 
+STORAGE_KEY="storage"
+STORAGE_PARTS="
+	network
+	stats
+"
+
 docker_compose_version(){
 	$DOCKER_COMPOSE version --short | sed 's/^docker-compose version \([^,]\+\),.*$/\1/'
 }
@@ -338,6 +344,9 @@ create_docker_compose_file(){
 			;;
 		$BACKUPNINJA_STANDALONE_KEY)
 			parts=$BACKUPNINJA_STANDALONE_PARTS
+			;;
+		$STORAGE_KEY)
+			parts=$STORAGE_PARTS
 			;;
 		*)
 			echo "Error: Flavour $FLAVOUR of $config_file not found"
