@@ -133,29 +133,63 @@
                   @buttonClicked="deleteDesktop(data.item.id)"
                 />
               </template>
-              <template #cell(delete)="data">
-                <div class="d-flex justify-content-center align-items-center">
-                  <a
-                    class="cursor-pointer"
+              <template #cell(options)="data">
+                <div class="d-flex align-items-center">
+                  <b-button
+                    :title="$t('components.desktop-cards.actions.edit')"
+                    class="rounded-circle btn-blue px-2 mr-2"
+                    @click="onClickGoToEditDesktop({itemId: data.item.id, returnPage: currentRouteName})"
+                  >
+                    <b-icon
+                      icon="pencil-fill"
+                      scale="0.75"
+                    />
+                  </b-button>
+                  <b-button
+                    v-if="data.item.type === 'persistent'"
+                    :title="$t('components.desktop-cards.actions.delete')"
+                    class="rounded-circle btn-red px-2 mr-2"
                     @click="onClickDeleteDesktop(data.item)"
-                  ><b-icon
-                    icon="trash"
-                    variant="danger"
-                  /></a>
-                </div>
-              </template>
-              <template #cell(booking)="data">
-                <div
-                  v-if="data.item.needsBooking"
-                  class="d-flex justify-content- align-items-center"
-                >
-                  <a
-                    class="cursor-pointer"
+                  >
+                    <b-icon
+                      icon="trash-fill"
+                      scale="0.75"
+                    />
+                  </b-button>
+                  <b-button
+                    v-if="getUser.role_id != 'user' && data.item.type === 'persistent'"
+                    :title="$t('components.desktop-cards.actions.template')"
+                    class="rounded-circle btn-green px-2 mr-2"
+                    style="width: 36px; height: 36px"
+                    @click="onClickGoToNewTemplate(data.item)"
+                  >
+                    <font-awesome-icon
+                      :icon="['fas', 'cubes']"
+                      class="text-white"
+                    />
+                  </b-button>
+                  <b-button
+                    v-if="getUser.role_id != 'user'"
+                    :title="$t('components.desktop-cards.actions.direct-link')"
+                    class="rounded-circle btn-purple px-2 mr-2"
+                    @click="onClickOpenDirectViewerModal(data.item.id)"
+                  >
+                    <b-icon
+                      icon="link45deg"
+                      scale="0.75"
+                    />
+                  </b-button>
+                  <b-button
+                    v-if="data.item.needsBooking"
+                    :title="$t('components.desktop-cards.actions.booking')"
+                    class="rounded-circle btn-orange px-2 mr-2"
                     @click="onClickBookingDesktop(data.item)"
-                  ><b-icon
-                    icon="calendar"
-                    variant="info"
-                  /></a>
+                  >
+                    <b-icon
+                      icon="calendar"
+                      scale="0.75"
+                    />
+                  </b-button>
                 </div>
               </template>
             </b-table>
@@ -174,6 +208,7 @@ import IsardDropdown from '@/components/shared/IsardDropdown.vue'
 import DesktopButton from '@/components/desktops/Button.vue'
 import { mapActions, mapGetters } from 'vuex'
 import ListItemSkeleton from '@/components/ListItemSkeleton.vue'
+import { ErrorUtils } from '@/utils/errorUtils'
 
 export default {
   components: { DesktopButton, IsardDropdown, ListItemSkeleton },
@@ -249,14 +284,7 @@ export default {
           tdClass: 'px-4 action'
         },
         {
-          key: 'delete',
-          label: '',
-          thStyle: { width: '5%' },
-          thClass: `${this.desktops[0].type === 'persistent' ? '' : 'd-none'}`,
-          tdClass: `${this.desktops[0].type === 'persistent' ? '' : 'd-none'}`
-        },
-        {
-          key: 'booking',
+          key: 'options',
           label: '',
           thStyle: { width: '5%' },
           thClass: `${this.desktops[0].type === 'persistent' ? '' : 'd-none'}`,
@@ -266,7 +294,7 @@ export default {
     }
   },
   computed: {
-    ...mapGetters(['getViewers']),
+    ...mapGetters(['getViewers', 'getUser']),
     stateBarCssClass () {
       const states = {
         stopped: 'state-off',
@@ -276,6 +304,9 @@ export default {
         failed: 'state-failed'
       }
       return states[this.desktopState]
+    },
+    currentRouteName () {
+      return this.$route.name
     }
   },
   destroyed () {
@@ -287,7 +318,11 @@ export default {
       'openDesktop',
       'changeDesktopStatus',
       'createDesktop',
-      'goToItemBooking'
+      'navigate',
+      'goToNewTemplate',
+      'goToItemBooking',
+      'goToEditDomain',
+      'fetchDirectLink'
     ]),
     chooseDesktop (template) {
       const data = new FormData()
@@ -345,6 +380,20 @@ export default {
       }
       return ''
     },
+    onClickGoToNewTemplate (desktop) {
+      if (this.getItemState(desktop) === desktopStates.stopped) {
+        this.goToNewTemplate(desktop.id)
+      } else {
+        ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.new-template-stop'), '', true, 2000)
+      }
+    },
+    onClickGoToEditDesktop (desktop) {
+      if (this.getItemState(desktop) === desktopStates.stopped) {
+        this.goToEditDomain(desktop.itemId)
+      } else {
+        ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.edit-desktop-stop'), '', true, 2000)
+      }
+    },
     onClickDeleteDesktop (desktop) {
       this.$snotify.clear()
 
@@ -360,15 +409,18 @@ export default {
       this.$snotify.prompt(`${i18n.t('messages.confirmation.delete-desktop', { name: desktop.name })}`, {
         position: 'centerTop',
         buttons: [
-          { text: 'Yes', action: yesAction, bold: true },
-          { text: 'No', action: noAction }
+          { text: `${i18n.t('messages.yes')}`, action: yesAction, bold: true },
+          { text: `${i18n.t('messages.no')}`, action: noAction }
         ],
         placeholder: ''
       })
     },
     onClickBookingDesktop (desktop) {
-      const data = { id: desktop.id, type: 'desktop' }
+      const data = { id: desktop.id, type: 'desktop', name: desktop.name }
       this.goToItemBooking(data)
+    },
+    onClickOpenDirectViewerModal (desktopId) {
+      this.fetchDirectLink(desktopId)
     }
   }
 }
