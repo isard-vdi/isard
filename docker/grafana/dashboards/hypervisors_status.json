@@ -25,7 +25,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 5,
+  "id": 8,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -35,7 +35,7 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 3,
+        "w": 4,
         "x": 0,
         "y": 0
       },
@@ -49,7 +49,7 @@
         "showStarred": false,
         "tags": []
       },
-      "pluginVersion": "9.1.5",
+      "pluginVersion": "9.1.6",
       "tags": [],
       "targets": [
         {
@@ -60,6 +60,81 @@
       "title": "Dashboards",
       "transparent": true,
       "type": "dashlist"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "P8E80F9AEF21F6940"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 10,
+        "x": 4,
+        "y": 0
+      },
+      "id": 207,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": false,
+        "sortOrder": "Descending",
+        "wrapLogMessage": false
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          },
+          "editorMode": "code",
+          "expr": "{job=\"containerlogs\"}",
+          "legendFormat": "",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "IsardVDI Logs",
+      "type": "logs"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "P8E80F9AEF21F6940"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 10,
+        "x": 14,
+        "y": 0
+      },
+      "id": 208,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": false,
+        "sortOrder": "Descending",
+        "wrapLogMessage": false
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          },
+          "editorMode": "code",
+          "expr": "{job=\"containerlogs\"} |= \"error\" !=\"query\" !=\"logo\" !=\"message\" !=\"Domain\"",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "IsardVDI Error Logs",
+      "type": "logs"
     },
     {
       "collapsed": true,
@@ -91,7 +166,7 @@
             "content": "",
             "mode": "markdown"
           },
-          "pluginVersion": "9.1.5",
+          "pluginVersion": "9.1.6",
           "title": "Info Hypervisor ",
           "type": "text"
         },
@@ -175,7 +250,7 @@
             "text": {},
             "textMode": "name"
           },
-          "pluginVersion": "9.1.5",
+          "pluginVersion": "9.1.6",
           "targets": [
             {
               "datasource": {
@@ -282,7 +357,7 @@
             "text": {},
             "textMode": "name"
           },
-          "pluginVersion": "9.1.5",
+          "pluginVersion": "9.1.6",
           "targets": [
             {
               "datasource": {
@@ -358,7 +433,7 @@
             "showThresholdLabels": false,
             "showThresholdMarkers": true
           },
-          "pluginVersion": "9.1.5",
+          "pluginVersion": "9.1.6",
           "targets": [
             {
               "datasource": {
@@ -513,7 +588,7 @@
             "content": "",
             "mode": "markdown"
           },
-          "pluginVersion": "9.1.5",
+          "pluginVersion": "9.1.6",
           "title": "Hypervisor Hardware",
           "type": "text"
         },
@@ -582,7 +657,7 @@
             "showThresholdLabels": false,
             "showThresholdMarkers": true
           },
-          "pluginVersion": "9.1.5",
+          "pluginVersion": "9.1.6",
           "targets": [
             {
               "datasource": {
@@ -662,19 +737,21 @@
             "text": {},
             "textMode": "value"
           },
-          "pluginVersion": "9.1.5",
+          "pluginVersion": "9.1.6",
           "targets": [
             {
               "datasource": {
                 "type": "prometheus",
                 "uid": "PBFA97CFB590B2093"
               },
+              "editorMode": "code",
               "exemplar": true,
-              "expr": "isardvdi_system_cpu_cores{domain=\"$domain\"}",
+              "expr": "machine_cpu_physical_cores{domain=\"$domain\"} * 2",
               "hide": false,
               "interval": "",
               "legendFormat": "",
               "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => \n    r[\"_measurement\"] == \"system\" and\n    r[\"hypervisor\"] == \"${hypers}\" and\n    r[\"_field\"] == \"cpu_cores\"\n  )\n  |> last()\n  |> yield()\n",
+              "range": true,
               "refId": "A"
             }
           ],
@@ -743,19 +820,21 @@
             "text": {},
             "textMode": "value"
           },
-          "pluginVersion": "9.1.5",
+          "pluginVersion": "9.1.6",
           "targets": [
             {
               "datasource": {
                 "type": "prometheus",
                 "uid": "PBFA97CFB590B2093"
               },
+              "editorMode": "code",
               "exemplar": true,
-              "expr": "isardvdi_system_cpu_threads{domain=\"$domain\"}",
+              "expr": "machine_cpu_cores{domain=\"$domain\"}",
               "hide": false,
               "interval": "",
               "legendFormat": "",
               "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => \n    r[\"_measurement\"] == \"system\" and\n    r[\"hypervisor\"] == \"${hypers}\" and\n    r[\"_field\"] == \"cpu_threads\"\n  )\n  |> last()\n  |> yield()\n",
+              "range": true,
               "refId": "A"
             }
           ],
@@ -942,7 +1021,7 @@
             "text": {},
             "textMode": "value"
           },
-          "pluginVersion": "9.1.5",
+          "pluginVersion": "9.1.6",
           "targets": [
             {
               "datasource": {
@@ -1021,7 +1100,7 @@
             },
             "textMode": "auto"
           },
-          "pluginVersion": "9.1.5",
+          "pluginVersion": "9.1.6",
           "targets": [
             {
               "datasource": {
@@ -1102,7 +1181,7 @@
             "showThresholdLabels": false,
             "showThresholdMarkers": true
           },
-          "pluginVersion": "9.1.5",
+          "pluginVersion": "9.1.6",
           "targets": [
             {
               "datasource": {
@@ -1168,7 +1247,7 @@
             "text": {},
             "textMode": "auto"
           },
-          "pluginVersion": "9.1.5",
+          "pluginVersion": "9.1.6",
           "targets": [
             {
               "datasource": {
@@ -1242,7 +1321,7 @@
             "text": {},
             "textMode": "auto"
           },
-          "pluginVersion": "9.1.5",
+          "pluginVersion": "9.1.6",
           "targets": [
             {
               "datasource": {
@@ -1324,7 +1403,7 @@
             },
             "textMode": "auto"
           },
-          "pluginVersion": "9.1.5",
+          "pluginVersion": "9.1.6",
           "targets": [
             {
               "datasource": {
@@ -1333,7 +1412,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "sum(isardvdi_domain_vcpu_current{domain=\"$domain\"}) / sum(isardvdi_system_cpu_threads{domain=\"$domain\"})",
+              "expr": "sum(isardvdi_domain_vcpu_current{domain=\"$domain\"}) / sum(machine_cpu_cores{domain=\"$domain\"})",
               "format": "time_series",
               "hide": false,
               "instant": true,
@@ -1374,7 +1453,8 @@
                     "value": 80
                   }
                 ]
-              }
+              },
+              "unit": "bytes"
             },
             "overrides": []
           },
@@ -1390,10 +1470,10 @@
             "colorMode": "value",
             "graphMode": "none",
             "justifyMode": "auto",
-            "orientation": "auto",
+            "orientation": "horizontal",
             "reduceOptions": {
               "calcs": [
-                "mean"
+                "lastNotNull"
               ],
               "fields": "",
               "values": false
@@ -1401,9 +1481,9 @@
             "text": {
               "valueSize": 40
             },
-            "textMode": "auto"
+            "textMode": "value"
           },
-          "pluginVersion": "9.1.5",
+          "pluginVersion": "9.1.6",
           "targets": [
             {
               "datasource": {
@@ -1474,7 +1554,7 @@
             },
             "textMode": "auto"
           },
-          "pluginVersion": "9.1.5",
+          "pluginVersion": "9.1.6",
           "targets": [
             {
               "datasource": {
@@ -1663,7 +1743,7 @@
             },
             "textMode": "value"
           },
-          "pluginVersion": "9.1.5",
+          "pluginVersion": "9.1.6",
           "targets": [
             {
               "datasource": {
@@ -1672,7 +1752,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "count(present_over_time(isardvdi_domain_port_spice_tls{domain=\"$domain\"}[1m]) * on(desktop) group_left isardvdi_domain_port_spice_tls{domain=\"$domain\"} * on (port) group_left count_over_time(isardvdi_socket_recv_bytes{domain=\"$domain\"}[1m]))",
+              "expr": "count(present_over_time(isardvdi_domain_port_spice_tls{domain=\"$domain\"}[1m]) * on(desktop) group_left isardvdi_domain_port_spice_tls{domain=\"$domain\"} * on (port,hypervisor) group_left count_over_time(isardvdi_socket_recv_bytes{domain=\"$domain\"}[1m]))",
               "instant": true,
               "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"viewers\")\n  |> filter(fn: (r) => r[\"viewer_type\"] == \"viewer_port_spice_tls\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
               "range": false,
@@ -1731,7 +1811,7 @@
             },
             "textMode": "value"
           },
-          "pluginVersion": "9.1.5",
+          "pluginVersion": "9.1.6",
           "targets": [
             {
               "datasource": {
@@ -1740,7 +1820,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "count(present_over_time(isardvdi_domain_port_vnc{domain=\"$domain\"}[1m]) * on(desktop) group_left isardvdi_domain_port_vnc{domain=\"$domain\"} * on (port) group_left count_over_time(isardvdi_socket_recv_bytes{domain=\"$domain\"}[1m]))",
+              "expr": "count(present_over_time(isardvdi_domain_port_vnc{domain=\"$domain\"}[1m]) * on(desktop) group_left isardvdi_domain_port_vnc{domain=\"$domain\"} * on (port,hypervisor) group_left count_over_time(isardvdi_socket_recv_bytes{domain=\"$domain\"}[1m]))",
               "instant": true,
               "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"viewers\")\n  |> filter(fn: (r) => r[\"viewer_type\"] == \"viewer_port_spice\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
               "range": false,
@@ -1796,9 +1876,9 @@
             "text": {
               "valueSize": 30
             },
-            "textMode": "auto"
+            "textMode": "value"
           },
-          "pluginVersion": "9.1.5",
+          "pluginVersion": "9.1.6",
           "targets": [
             {
               "datasource": {
@@ -1806,13 +1886,42 @@
                 "uid": "PBFA97CFB590B2093"
               },
               "editorMode": "code",
-              "expr": "(count(present_over_time(isardvdi_domain_port_spice_tls{domain=\"$domain\"}[1m]) * on(desktop) group_left isardvdi_domain_port_spice_tls{domain=\"$domain\"} * on (port) group_left count_over_time(isardvdi_socket_recv_bytes{domain=\"$domain\"}[1m])) or vector(0)) +\n\n(count(present_over_time(isardvdi_domain_port_vnc{domain=\"$domain\"}[1m]) * on(desktop) group_left isardvdi_domain_port_vnc{domain=\"$domain\"} * on (port) group_left count_over_time(isardvdi_socket_recv_bytes{domain=\"$domain\"}[1m])) or vector(0)) + \n\n(count(present_over_time(isardvdi_domain_net_rx_bytes{domain=\"$domain\"}[1m]) * on (mac) group_left count_over_time(isardvdi_conntrack_rdp_recv_bytes{domain=\"$domain\"}[1m])) or vector(0))",
+              "expr": "(count(present_over_time(isardvdi_domain_port_spice_tls{domain=\"$domain\"}[1m]) * on(desktop) group_left isardvdi_domain_port_spice_tls{domain=\"$domain\"} * on (port,hypervisor) group_left count_over_time(isardvdi_socket_recv_bytes{domain=\"$domain\"}[1m])) or vector(0))  + \n(count(present_over_time(isardvdi_domain_net_rx_bytes{domain=\"$domain\"}[1m]) * on (mac) group_left count_over_time(isardvdi_conntrack_rdp_recv_bytes{domain=\"$domain\"}[1m])) or vector(0))",
               "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"visors_started\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
               "range": true,
               "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              },
+              "editorMode": "code",
+              "expr": "(count(present_over_time(isardvdi_domain_port_vnc{domain=\"$domain\"}[1m]) * on(desktop) group_left isardvdi_domain_port_vnc{domain=\"$domain\"} * on (port, hypervisor) group_left count_over_time(isardvdi_socket_recv_bytes{domain=\"$domain\"}[1m])) or vector(0))",
+              "hide": false,
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "B"
             }
           ],
           "title": "Visors started",
+          "transformations": [
+            {
+              "id": "calculateField",
+              "options": {
+                "binary": {
+                  "left": "(count(present_over_time(isardvdi_domain_port_spice_tls{domain=\"server\"}[1m]) * on(desktop) group_left isardvdi_domain_port_spice_tls{domain=\"server\"} * on (port,hypervisor) group_left count_over_time(isardvdi_socket_recv_bytes{domain=\"server\"}[1m])) or vector(0))  + \n(count(present_over_time(isardvdi_domain_net_rx_bytes{domain=\"server\"}[1m]) * on (mac) group_left count_over_time(isardvdi_conntrack_rdp_recv_bytes{domain=\"server\"}[1m])) or vector(0))",
+                  "reducer": "sum",
+                  "right": "(count(present_over_time(isardvdi_domain_port_vnc{domain=\"server\"}[1m]) * on(desktop) group_left isardvdi_domain_port_vnc{domain=\"server\"} * on (port, hypervisor) group_left count_over_time(isardvdi_socket_recv_bytes{domain=\"server\"}[1m])) or vector(0))"
+                },
+                "mode": "binary",
+                "reduce": {
+                  "reducer": "sum"
+                },
+                "replaceFields": true
+              }
+            }
+          ],
           "type": "stat"
         },
         {
@@ -1864,7 +1973,7 @@
             },
             "textMode": "value"
           },
-          "pluginVersion": "9.1.5",
+          "pluginVersion": "9.1.6",
           "targets": [
             {
               "datasource": {
@@ -1899,7 +2008,7 @@
     "list": [
       {
         "current": {
-          "selected": true,
+          "selected": false,
           "text": "server",
           "value": "server"
         },
