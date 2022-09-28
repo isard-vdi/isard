@@ -40,7 +40,7 @@ check-frontend:
 
 check-protobuf:
   stage: lint
-  image: bufbuild/buf
+  image: alpine:3.16
   before_script:
     - echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
     - apk add --no-cache go@edge
