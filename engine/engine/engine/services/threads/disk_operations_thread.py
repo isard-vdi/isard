@@ -5,7 +5,7 @@ import traceback
 
 from engine.services.db import update_domain_status
 from engine.services.db.hypervisors import update_hyp_thread_status
-from engine.services.lib.functions import get_tid, try_ssh_command
+from engine.services.lib.functions import PriorityQueueIsard, get_tid, try_ssh_command
 from engine.services.log import log, logs
 from engine.services.threads.threads import (
     TIMEOUT_QUEUES,

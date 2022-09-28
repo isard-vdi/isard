@@ -72,6 +72,18 @@ from engine.services.log import *
 
 DEFAULT_HOST_MODE = "host-passthrough"
 
+# normal priority in PriorityQueueIsard is 100
+# lower number => more priority
+Q_PRIORITY_START = 50
+Q_PRIORITY_STARTPAUSED = 60
+Q_PRIORITY_DELETE = 150
+Q_PRIORITY_STOP = 40  # Destroy
+Q_PRIORITY_SHUTDOWN = 80  # Soft Shut-Down
+
+Q_LONGOPERATIONS_PRIORITY_CREATE_TEMPLATE_DISK = 50
+Q_LONGOPERATIONS_PRIORITY_CREATE_DISK_FROM_TEMPLATE = 40
+Q_LONGOPERATIONS_PRIORITY_DOMAIN_FROM_TEMPLATE = 40
+
 
 class UiActions(object):
     def __init__(self, manager):
@@ -202,6 +214,8 @@ class UiActions(object):
                     dict_action["profile"] = extra_info.get("profile", False)
                     dict_action["vgpu_id"] = extra_info["gpu_id"]
 
+                priority = Q_PRIORITY_START
+
                 if action == "start_paused_domain":
                     # start_paused only with 512MB of memory
                     dict_action["xml"] = recreate_xml_if_start_paused(xml)
@@ -213,8 +227,9 @@ class UiActions(object):
                             next_hyp, pool_id, self.manager.q.workers[next_hyp].qsize()
                         ),
                     )
+                    priority = Q_PRIORITY_STARTPAUSED
 
-                self.manager.q.workers[next_hyp].put(dict_action)
+                self.manager.q.workers[next_hyp].put(dict_action, priority)
 
             else:
                 failed = True
@@ -283,7 +298,7 @@ class UiActions(object):
             "delete_after_stopped": delete_after_stopped,
         }
 
-        self.manager.q.workers[hyp_id].put(action)
+        self.manager.q.workers[hyp_id].put(action, Q_PRIORITY_SHUTDOWN)
         logs.main.debug(
             f"desktop {id_domain} in queue to soft off with shutdown ACPI action in hyp {hyp_id}"
         )
@@ -297,7 +312,7 @@ class UiActions(object):
             "delete_after_stopped": delete_after_stopped,
         }
 
-        self.manager.q.workers[hyp_id].put(action)
+        self.manager.q.workers[hyp_id].put(action, Q_PRIORITY_STOP)
         logs.main.debug(
             f"desktop {id_domain} in queue to destroy action in hyp {hyp_id}"
         )
@@ -447,7 +462,9 @@ class UiActions(object):
                                     disk_path, id_domain, next_hyp
                                 ),
                             )
-                            self.manager.q.workers[next_hyp].put(action)
+                            self.manager.q.workers[next_hyp].put(
+                                action, Q_PRIORITY_DELETE
+                            )
                             wait_for_disks_to_be_deleted = True
                         except Exception as e:
                             logs.exception_id.debug("0011")
@@ -561,7 +578,9 @@ class UiActions(object):
                             self.manager.q_disk_operations[hyp_to_disk_create].qsize(),
                         ),
                     )
-                    self.manager.q_disk_operations[hyp_to_disk_create].put(action)
+                    self.manager.q_disk_operations[hyp_to_disk_create].put(
+                        action, Q_LONGOPERATIONS_PRIORITY_CREATE_TEMPLATE_DISK
+                    )
                 except Exception as e:
                     logs.exception_id.debug("0012")
                     update_domain_status(
@@ -965,7 +984,9 @@ class UiActions(object):
                         self.manager.q_disk_operations[hyp_to_disk_create].qsize(),
                     ),
                 )
-                self.manager.q_disk_operations[hyp_to_disk_create].put(action)
+                self.manager.q_disk_operations[hyp_to_disk_create].put(
+                    action, Q_LONGOPERATIONS_PRIORITY_CREATE_DISK_FROM_TEMPLATE
+                )
 
             except Exception as e:
                 logs.exception_id.debug("0015")
@@ -1304,7 +1325,9 @@ class UiActions(object):
             action["domain"] = id_new
             action["ssh_commands"] = cmds
             if hasattr(self.pool, "queue_disk_operation"):
-                self.pool.queue_disk_operation.put(action)
+                self.pool.queue_disk_operation.put(
+                    action, Q_LONGOPERATIONS_PRIORITY_DOMAIN_FROM_TEMPLATE
+                )
                 # err,out = create_disk_from_base(old_path_disk,new_path_disk)
                 dict_domain_new["status"] = "CreatingDisk"
                 dict_domain_new[

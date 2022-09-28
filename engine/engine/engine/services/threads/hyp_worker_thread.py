@@ -43,6 +43,7 @@ from engine.services.db.hypervisors import (
     update_vgpu_uuids,
 )
 from engine.services.lib.functions import (
+    PriorityQueueIsard,
     engine_restart,
     exec_remote_list_of_cmds_dict,
     get_tid,

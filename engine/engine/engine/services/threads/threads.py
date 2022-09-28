@@ -37,6 +37,7 @@ from engine.services.db.hypervisors import (
     update_hypervisor_failed_connection,
 )
 from engine.services.lib.functions import (
+    PriorityQueueIsard,
     dict_domain_libvirt_state_to_isard_state,
     execute_command_with_progress,
     execute_commands,
@@ -91,7 +92,7 @@ def launch_disk_operations_thread(
 
     update_hyp_thread_status("disk_operations", hyp_id, "Starting")
 
-    queue_disk_operation = queue.Queue()
+    queue_disk_operation = PriorityQueueIsard()
     # thread_disk_operation = threading.Thread(name='disk_op_'+id,target=disk_operations_thread, args=(host_disk_operations,queue_disk_operation))
     thread_disk_operation = DiskOperationsThread(
         name="disk_op_" + hyp_id,
@@ -115,7 +116,7 @@ def launch_long_operations_thread(
 
     update_hyp_thread_status("long_operations", hyp_id, "Starting")
 
-    queue_long_operation = queue.Queue()
+    queue_long_operation = PriorityQueueIsard()
     thread_long_operation = LongOperationsThread(
         name="long_op_" + hyp_id,
         hyp_id=hyp_id,
@@ -438,7 +439,7 @@ def launch_action_create_template_disk(action, hostname, user, port):
 
 def launch_thread_worker(hyp_id, q_event_register, queue_master):
     log.debug("launching thread wordker for hypervisor: {}".format(hyp_id))
-    q = queue.Queue()
+    q = PriorityQueueIsard()
     update_hyp_thread_status("worker", hyp_id, "Starting")
     # t = threading.Thread(name='worker_'+hyp_id,target=hyp_worker_thread, args=(hyp_id,q,queue_master))
     t = HypWorkerThread(

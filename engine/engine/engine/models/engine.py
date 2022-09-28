@@ -52,6 +52,7 @@ from engine.services.db.hypervisors import (
     update_hyp_status,
 )
 from engine.services.lib.functions import (
+    PriorityQueueIsard,
     QueuesThreads,
     clean_intermediate_status,
     clean_started_without_hyp,
