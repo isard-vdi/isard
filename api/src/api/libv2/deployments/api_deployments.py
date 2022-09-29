@@ -153,6 +153,7 @@ def new(
                                 "graphics": True,
                                 "boot_order": True,
                                 "qos_id": True,
+                                "virtualization_nested": True,
                             }
                         }
                     }

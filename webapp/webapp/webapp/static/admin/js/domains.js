@@ -1379,6 +1379,8 @@ function populate_tree_template_delete(id){
                 "description": data["description"],
                 "guest_properties": data["guest_properties"],
                 "hardware": {
+                    ...("virtualization_nested" in data["hardware"]) && {"virtualization_nested": true},
+                    ...(! ("virtualization_nested" in data["hardware"]) && {"virtualization_nested": false}),
                     ...("vcpus" in data["hardware"]) && {"vcpus": parseInt(data["hardware"]["vcpus"])},
                     ...("memory" in data["hardware"]) && {"memory": parseFloat(data["hardware"]["memory"])},
                     ...("videos" in data["hardware"]) && {"videos": [data["hardware"]["videos"]]},

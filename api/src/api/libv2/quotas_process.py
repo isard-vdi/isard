@@ -826,6 +826,13 @@ class QuotasProcess:
             domain = {}
 
         dict = {}
+        if payload["role_id"] in ["admin", "manager"]:
+            if domain.get("hardware"):
+                dict["virtualization_nested"] = domain["hardware"].get(
+                    "virtualization_nested", False
+                )
+            else:
+                dict["virtualization_nested"] = False
         if not kind or kind == "interfaces":
             dict["interfaces"] = allowed.get_items_allowed(
                 payload,

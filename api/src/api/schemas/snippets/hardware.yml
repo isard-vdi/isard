@@ -1,3 +1,6 @@
+virtualization_nested:
+  type: boolean
+  default: false
 boot_order:
   type: list
   default: ["iso"]
