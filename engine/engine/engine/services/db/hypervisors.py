@@ -450,6 +450,20 @@ def get_hypers_enabled_with_capabilities_status():
     return hypers
 
 
+def get_hypers_not_forced_disk_operations():
+    r_conn = new_rethink_connection()
+    rtable = r.table("hypervisors")
+
+    hypers = list(
+        rtable.filter({"enabled": True, "status": "Online", "only_forced": False})[
+            "id"
+        ].run(r_conn)
+    )
+
+    close_rethink_connection(r_conn)
+    return hypers
+
+
 def get_hyp_hostname_user_port_from_id(id):
     r_conn = new_rethink_connection()
     l = r.table("hypervisors").get(id).pluck("hostname", "user", "port").run(r_conn)

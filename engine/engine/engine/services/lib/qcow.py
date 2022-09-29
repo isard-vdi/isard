@@ -22,6 +22,7 @@ from engine.services.db.domains import (
     get_custom_dict_from_domain,
     update_custom_all_dict,
 )
+from engine.services.db.hypervisors import get_hypers_not_forced_disk_operations
 from engine.services.lib.functions import (
     backing_chain_cmd,
     exec_remote_cmd,
@@ -874,12 +875,14 @@ def get_host_long_operations_from_path(
     l_threads = get_threads_names_running()
     pool_paths = get_pool(pool)["paths"]
     paths_for_type = pool_paths[type_path]
+    online_not_forced_hypers = get_hypers_not_forced_disk_operations()
     hyps = [v["disk_operations"] for v in paths_for_type if v["path"] == path_selected][
         0
     ]
+
     # TODO must be revised to return random or less cpuload hypervisor
     for h in hyps:
-        if "long_op_" + h in l_threads:
+        if "long_op_" + h in l_threads and h in online_not_forced_hypers:
             return h
 
     log.error(
@@ -928,7 +931,8 @@ def get_host_disk_operations_from_path(
     # TODO must be revised to return random or less cpuload hypervisor
 
     # select hypers for this path and if they are running
-    d_threads_h = {"disk_op_" + h: h for h in hyps}
+    online_not_forced_hypers = get_hypers_not_forced_disk_operations()
+    d_threads_h = {"disk_op_" + h: h for h in hyps if h in online_not_forced_hypers}
     hyps_candidate = sorted(
         [d_threads_h[k] for k in set(l_threads).intersection(set(d_threads_h.keys()))]
     )
