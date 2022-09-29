@@ -176,7 +176,7 @@ class ApiDesktopsPersistent:
             create_dict["hardware"].pop("interfaces_mac")
 
         if not deployment_tag_dict:
-            payload = gen_payload_from_user(user)
+            payload = gen_payload_from_user(user_id)
             create_dict = quotas.limit_user_hardware_allowed(payload, create_dict)
         new_desktop = {
             "id": new_desktop_id,

@@ -609,15 +609,32 @@ def get_user_data(user_id="admin"):
     }
 
 
-def gen_payload_from_user(user=None, user_id=None):
-    if not user:
-        with app.app_context():
-            user = r.table("users").get(user_id).run(db.conn)
+def gen_payload_from_user(user_id):
+    with app.app_context():
+        user = (
+            r.table("users")
+            .get(user_id)
+            .merge(
+                lambda d: {
+                    "category_name": r.table("categories").get(d["category"])["name"],
+                    "group_name": r.table("groups").get(d["group"])["name"],
+                    "role_name": r.table("roles").get(d["role"])["name"],
+                }
+            )
+            .without("password")
+            .run(db.conn)
+        )
     return {
         "provider": user["provider"],
         "user_id": user["id"],
-        "role_id": user["role"],
-        "category_id": user["category"],
-        "group_id": user["group"],
         "name": user["name"],
+        "uid": user["uid"],
+        "username": user["username"],
+        "photo": user.get("photo", ""),
+        "role_id": user["role"],
+        "role_name": user["role_name"],
+        "category_id": user["category"],
+        "category_name": user["category_name"],
+        "group_id": user["group"],
+        "group_name": user["group_name"],
     }

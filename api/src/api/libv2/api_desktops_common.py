@@ -77,7 +77,7 @@ class ApiDesktopsCommon:
             scheduled = False
             if start_desktop and domains[0]["status"] == "Stopped":
                 ds.WaitStatus(domains[0]["id"], "Stopped", "Starting", "Started")
-                payload = gen_payload_from_user(user_id=domains[0]["user"])
+                payload = gen_payload_from_user(domains[0]["user"])
                 scheduled = scheduler.add_desktop_timeouts(payload, domains[0]["id"])
             viewers = {
                 "desktopId": domains[0]["id"],
