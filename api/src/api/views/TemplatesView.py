@@ -79,7 +79,7 @@ def api_v3_template_duplicate(payload, template_id):
     ownsDomainId(payload, template_id)
     data = request.get_json(force=True)
     if data.get("user_id"):
-        payload = gen_payload_from_user(user_id=data["user_id"])
+        payload = gen_payload_from_user(data["user_id"])
     data["user_id"] = payload["user_id"]
     data = _validate_item("template_duplicate", data)
 

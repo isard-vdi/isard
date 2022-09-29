@@ -34,7 +34,7 @@ from .api_admin import (
     change_user_items_owner,
 )
 from .ds import DS
-from .helpers import _check, _parse_desktop, _random_password
+from .helpers import _check, _parse_desktop, _random_password, gen_payload_from_user
 
 ds = DS()
 
@@ -65,34 +65,12 @@ def check_category_domain(category_id, domain):
 
 class ApiUsers:
     def Jwt(self, user_id, minutes=240):
-        try:
-            with app.app_context():
-                user = (
-                    r.table("users")
-                    .get(user_id)
-                    .pluck("id", "provider", "name", "role", "category", "group")
-                    .run(db.conn)
-                )
-                user = {
-                    "provider": user["provider"],
-                    "user_id": user["id"],
-                    "role_id": user["role"],
-                    "category_id": user["category"],
-                    "group_id": user["group"],
-                    "name": user["name"],
-                }
-        except:
-            raise Error(
-                "not_found",
-                "Not found user_id " + user_id,
-                traceback.format_exc(),
-            )
         return {
             "jwt": jwt.encode(
                 {
                     "exp": datetime.utcnow() + timedelta(minutes=minutes),
                     "kid": "isardvdi",
-                    "data": user,
+                    "data": gen_payload_from_user(user_id),
                 },
                 app.ram["secrets"]["isardvdi"]["secret"],
                 algorithm="HS256",
@@ -149,12 +127,16 @@ class ApiUsers:
             if os.environ.get("FRONTEND_SHOW_TEMPORAL") == None
             else os.environ.get("FRONTEND_SHOW_TEMPORAL") == "True"
         )
+
         return {
-            "show_bookings_button": show_bookings_button,
-            "documentation_url": os.environ.get(
-                "FRONTEND_DOCS_URI", "https://isard.gitlab.io/isardvdi-docs/"
-            ),
-            "show_temporal_tab": frontend_show_temporal_tab,
+            **{
+                "show_bookings_button": show_bookings_button,
+                "documentation_url": os.environ.get(
+                    "FRONTEND_DOCS_URI", "https://isard.gitlab.io/isardvdi-docs/"
+                ),
+                "show_temporal_tab": frontend_show_temporal_tab,
+            },
+            **{"quota": quotas.GetUserQuota(payload["user_id"])["quota"]},
         }
 
     def Get(self, user_id):
