@@ -613,11 +613,6 @@ def admin_users_validate(payload):
     user_list = request.get_json()
     for i, user in enumerate(user_list):
         _validate_item("user_from_csv", user)
-        category_id = users.CategoryGetByName(user["category"])["id"]
-        ownsCategoryId(payload, category_id)
-        cg_data = CategoryNameGroupNameMatch(user["category"], user["group"])
-        user_list[i]["category_id"] = cg_data["category_id"]
-        user_list[i]["group_id"] = cg_data["group_id"]
 
         if payload["role_id"] == "manager":
             if user["role"] not in ["manager", "advanced", "user"]:
@@ -626,6 +621,8 @@ def admin_users_validate(payload):
                     "Role " + user["role"] + " not in manager, advanced or user",
                     traceback.format_exc(),
                 )
+            user["category"] = users.CategoryGetByName(payload["category_id"])["name"]
+
         else:
             if user["role"] not in ["admin", "manager", "advanced", "user"]:
                 raise Error(
@@ -633,6 +630,12 @@ def admin_users_validate(payload):
                     "Role " + user["role"] + " not in admin, manager, advanced or user",
                     traceback.format_exc(),
                 )
+
+        category_id = users.CategoryGetByName(user["category"])["id"]
+        cg_data = CategoryNameGroupNameMatch(user["category"], user["group"])
+        user_list[i]["category_id"] = cg_data["category_id"]
+        user_list[i]["group_id"] = cg_data["group_id"]
+
         try:
             usernameNotExists(user["username"], category_id)
             user_list[i]["exists"] = False
