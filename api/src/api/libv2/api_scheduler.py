@@ -42,7 +42,7 @@ class Scheduler:
 
     def remove_scheduler_startswith_id(self, id):
         try:
-            self.api_rest.delete("/startswith/" + id)
+            self.api_rest.delete("/startswith/" + id + ".")
         except:
             log.error(
                 "Could not contact scheduler service at /" + id + " method DELETE"
