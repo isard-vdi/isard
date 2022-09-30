@@ -141,7 +141,7 @@
                   href="isard_changelog_link"
                   target="_blank"
                 >
-                  <p>isard_display_version</p>
+                  <p ref="version">isard_display_version</p>
                 </a>
                 <b-spinner v-if="loading" />
               </b-col>
@@ -261,7 +261,7 @@ export default {
         data.append('username', this.usr)
         data.append('password', this.pwd)
         this.$store
-          .dispatch('login', data)
+          .dispatch('login', data, this.$refs.version)
           .then(() => {})
           .catch(err => {
             console.log(err)

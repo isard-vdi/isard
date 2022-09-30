@@ -5,6 +5,7 @@
 # coding=utf-8
 
 import json
+import os
 
 from api import app
 
@@ -22,7 +23,12 @@ with open("/version", "r") as file:
 def api_v3_test():
     return (
         json.dumps(
-            {"name": "IsardVDI", "api_version": 3.1, "isardvdi_version": version}
+            {
+                "name": "IsardVDI",
+                "api_version": 3.1,
+                "isardvdi_version": version,
+                "usage": os.environ.get("USAGE"),
+            }
         ),
         200,
         {"Content-Type": "application/json"},
