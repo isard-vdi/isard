@@ -26,7 +26,7 @@
   "fiscalYearStartMonth": 0,
   "gnetId": 14282,
   "graphTooltip": 0,
-  "id": 5,
+  "id": 11,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -68,7 +68,7 @@
       },
       "id": 21,
       "options": {
-        "maxItems": 10,
+        "maxItems": 20,
         "query": "",
         "showHeadings": false,
         "showRecentlyViewed": false,
@@ -76,7 +76,7 @@
         "showStarred": false,
         "tags": []
       },
-      "pluginVersion": "9.1.5",
+      "pluginVersion": "9.1.6",
       "tags": [],
       "targets": [
         {
@@ -687,9 +687,9 @@
       {
         "allValue": ".*",
         "current": {
-          "selected": true,
-          "text": "isard-authentication-test-saml",
-          "value": "isard-authentication-test-saml"
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
         },
         "datasource": {
           "type": "prometheus",
@@ -717,9 +717,13 @@
       },
       {
         "current": {
-          "selected": true,
+          "selected": false,
           "text": "server",
           "value": "server"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "PBFA97CFB590B2093"
         },
         "definition": "label_values(domain)",
         "hide": 0,

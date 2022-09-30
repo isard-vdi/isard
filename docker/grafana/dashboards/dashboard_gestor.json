@@ -24,7 +24,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 1,
+  "id": 4,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -40,7 +40,7 @@
       },
       "id": 18,
       "options": {
-        "maxItems": 10,
+        "maxItems": 20,
         "query": "",
         "showHeadings": false,
         "showRecentlyViewed": false,
@@ -48,7 +48,7 @@
         "showStarred": false,
         "tags": []
       },
-      "pluginVersion": "9.1.4",
+      "pluginVersion": "9.1.6",
       "tags": [],
       "targets": [
         {
@@ -371,7 +371,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "9.1.4",
+      "pluginVersion": "9.1.6",
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -1060,8 +1060,8 @@
       {
         "current": {
           "selected": false,
-          "text": "10.100.1.40",
-          "value": "10.100.1.40"
+          "text": "server",
+          "value": "server"
         },
         "datasource": {
           "type": "prometheus",
