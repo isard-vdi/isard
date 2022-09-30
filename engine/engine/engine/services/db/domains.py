@@ -128,7 +128,13 @@ def update_domain_parents(id_domain):
 
 
 def update_domain_status(
-    status, id_domain, hyp_id=None, detail="", keep_hyp_id=False, storage_id=None
+    status,
+    id_domain,
+    hyp_id=None,
+    detail="",
+    keep_hyp_id=False,
+    storage_id=None,
+    update_started_time=True,
 ):
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
@@ -169,23 +175,25 @@ def update_domain_status(
         hyp_id = rtable.get(id_domain).pluck("hyp_started").run(r_conn)["hyp_started"]
 
     if hyp_id is None:
-        # print('ojojojo')rtable.get(id_domain)
         results = (
             rtable.get(id_domain)
             .update(
-                {"status": status, "hyp_started": "", "detail": json.dumps(detail)},
+                {"status": status, "hyp_started": False, "detail": json.dumps(detail)},
                 return_changes=True,
             )
             .run(r_conn)
         )
     else:
+        d_update = {
+            "hyp_started": hyp_id,
+            "status": status,
+            "detail": json.dumps(detail),
+        }
+        if update_started_time is True:
+            d_update["status_logs"] = {"Started": time.time()}
+
         results = (
-            rtable.get(id_domain)
-            .update(
-                {"hyp_started": hyp_id, "status": status, "detail": json.dumps(detail)},
-                return_changes=True,
-            )
-            .run(r_conn)
+            rtable.get(id_domain).update(d_update, return_changes=True).run(r_conn)
         )
 
     if status == "DiskDeleted":
@@ -216,6 +224,7 @@ def update_domain_hw_stats(hw_stats, id_domain):
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
     results = rtable.get(id_domain).update({"hw_stats": hw_stats}).run(r_conn)
+    close_rethink_connection(r_conn)
     return results
 
 
@@ -289,7 +298,7 @@ def get_domain_hyp_started(id_domain):
     results = rtable.get(id_domain).pluck("hyp_started").run(r_conn)
     close_rethink_connection(r_conn)
     if results is None:
-        return ""
+        return False
 
     return results["hyp_started"]
 
@@ -341,10 +350,10 @@ def get_domain_hyp_started_and_status_and_detail(id_domain):
         results = (
             rtable.get(id_domain).pluck("hyp_started", "detail", "status").run(r_conn)
         )
-        close_rethink_connection(r_conn)
     except:
         # if results is None:
         return {}
+    close_rethink_connection(r_conn)
     return results
 
 
@@ -828,7 +837,7 @@ def get_vgpu_uuid_status(uuid, gpu_id=None, profile=None):
         logs.exception_id.debug("0080")
         logs.main.error(e)
         return False
-
+    close_rethink_connection(r_conn)
     return False
 
 
@@ -1130,6 +1139,7 @@ def get_domains_flag_server_to_starting():
     except Exception as e:
         logs.exception_id.debug("0040")
         logs.main.error(e)
+        close_rethink_connection(r_conn)
         return []
     close_rethink_connection(r_conn)
     return ids_servers_must_start
@@ -1150,6 +1160,7 @@ def update_domain_history_from_id_domain(domain_id, new_status, new_detail, date
             f"domain {domain_id} does not exists in db and update_domain_history_from_id_domain is not posible"
         )
         logs.main.error(e)
+        close_rethink_connection(r_conn)
         return False
     close_rethink_connection(r_conn)
 
@@ -1164,7 +1175,7 @@ def update_domain_history_from_id_domain(domain_id, new_status, new_detail, date
     if "hyp_started" in domain_fields:
         hyp_started = domain_fields["hyp_started"]
     else:
-        hyp_started = ""
+        hyp_started = False
 
     # now = date_now.strftime("%Y-%b-%d %H:%M:%S.%f")
     now = int(time.time())
@@ -1384,6 +1395,7 @@ def domain_get_vgpu_info(domain_id):
     r_conn = new_rethink_connection()
     rtable_dom = r.table("domains")
     d = dict(rtable_dom.get(domain_id).pluck("vgpu_info").run(r_conn))
+    close_rethink_connection(r_conn)
     return d.get("vgpu_info", {})
 
 
@@ -1420,7 +1432,11 @@ def remove_fieds_when_stopped(id_domain, conn=False):
         r_conn = conn
 
     r.table("domains").get(id_domain).update(
-        {"create_dict": {"personal_vlans": False}, "hyp_started": False}
+        {
+            "create_dict": {"personal_vlans": False},
+            "hyp_started": False,
+            "status_logs": {"Stopped": time.time()},
+        },
     ).run(r_conn)
 
     if conn is False:
