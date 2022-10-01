@@ -3,13 +3,10 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
-# !/usr/bin/env python
-# coding=utf-8
 
 import sys
 import time
 
-import requests
 import rethinkdb as r
 
 from .lib import *
@@ -18,8 +15,10 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 60
+release_version = 61
 
+# release 61: Added indexes to table media.
+#             Added kind_user_tag index and updated all desktops to tag False.
 # release 60: Modify transitional_states_polling to 10 seconds by default
 # release 59: Remove whitespaces in uids and usernames
 # release 58: Add new field 'virtualization_nested' into every created domain
@@ -1147,6 +1146,20 @@ class Upgrade(object):
                 {"create_dict": {"hardware": {"virtualization_nested": False}}}
             ).run(self.conn)
 
+        if version == 61:
+            r.table(table).filter(
+                lambda domain: r.not_(domain.has_fields({"tag"}))
+            ).update({"tag": False, "tag_name": False, "tag_visible": False}).run(
+                self.conn
+            )
+            try:
+                r.table("domains").index_create(
+                    "kind_user_tag",
+                    [r.row["kind"], r.row["user"], r.row["tag"]],
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
         return True
 
     """
@@ -1271,6 +1284,45 @@ class Upgrade(object):
                     media["id"] = media["id"].replace(".", "_")
                     r.table("media").insert(media).run(self.conn)
                     r.table("media").get(old_id).delete().run(self.conn)
+
+        if version == 61:
+            try:
+                r.table(table).index_create("user").run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).index_create("category").run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).index_create("group").run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).index_create(
+                    "status_user", [r.row["status"], r.row["user"]]
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).index_create(
+                    "status_group",
+                    [r.row["status"], r.row["group"]],
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).index_create(
+                    "status_category",
+                    [r.row["status"], r.row["category"]],
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
 
     """
     GROUPS TABLE UPGRADES

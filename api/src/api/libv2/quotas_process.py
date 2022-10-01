@@ -479,6 +479,25 @@ class QuotasProcess:
             "u": users,
         }
 
+    def check_payload_quota_newdesktop(self, payload):
+        with app.app_context():
+            desktops = (
+                r.table("domains")
+                .get_all(["desktop", payload["user_id"]], index="kind_user")
+                .count()
+                .run(db.conn)
+            )
+        if desktops >= payload.get("quota", {}).get("desktops"):
+            raise Error(
+                "precondition_required",
+                "User "
+                + payload["user_id"]
+                + " quota exceeded for creating new desktop.",
+                traceback.format_exc(),
+                data=payload,
+                description_code="desktop_new_user_quota_exceeded",
+            )
+
     def check(self, item, user_id, amount=1):
         """All common events should call here and check if quota/limits have exceeded already."""
         user = self.process_user_quota(user_id)

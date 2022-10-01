@@ -96,8 +96,6 @@ def api_v3_admin_user_update(payload, user_id):
     itemExists("categories", user["category"])
     itemExists("groups", user["group"])
 
-    quotas.UserCreate(user["category"], user["group"])
-
     data["id"] = user_id
     data = _validate_item("user_update", data)
 
@@ -335,7 +333,7 @@ def api_v3_admin_quota_category(payload, category_id):
 
 
 @app.route("/api/v3/admin/limits/group/<group_id>", methods=["PUT"])
-@is_admin
+@is_admin_or_manager
 def api_v3_admin_limits_group(payload, group_id):
     data = request.get_json()
     if data["limits"]:

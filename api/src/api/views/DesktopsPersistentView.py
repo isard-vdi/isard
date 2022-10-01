@@ -33,17 +33,12 @@ from .decorators import has_token, is_admin_or_manager, ownsDomainId
 scheduler = Scheduler()
 
 
-@app.route("/api/v3/desktops/count", methods=["GET"])
+@app.route("/api/v3/desktops/new/check_quota", methods=["GET"])
 @has_token
-def api_v3_desktops_count(payload):
+def api_v3_desktops_check_quota(payload):
+    quotas.DesktopCreate(payload["user_id"])
     return (
-        json.dumps(
-            {
-                "count": desktops.count(
-                    payload["user_id"],
-                )
-            }
-        ),
+        json.dumps({}),
         200,
         {"Content-Type": "application/json"},
     )
@@ -54,7 +49,7 @@ def api_v3_desktops_count(payload):
 def api_v3_desktop_start(payload, desktop_id):
     ownsDomainId(payload, desktop_id)
     user_id = desktops.UserDesktop(desktop_id)
-    quotas.DesktopStart(user_id)
+    quotas.DesktopStart(user_id, desktop_id)
 
     # So now we have checked if desktop exists and if we can create and/or start it
     desktop_id = desktops.Start(desktop_id)
@@ -84,7 +79,7 @@ def api_v3_desktops_start(payload):
     for desktop_id in desktops_ids:
         ownsDomainId(payload, desktop_id)
         user_id = desktops.UserDesktop(desktop_id)
-        quotas.DesktopStart(user_id)
+        quotas.DesktopStart(user_id, desktop_id)
 
     # So now we have checked if desktop exists and if we can create and/or start it
     return (

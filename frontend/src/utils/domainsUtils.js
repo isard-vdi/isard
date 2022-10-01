@@ -41,9 +41,10 @@ export class DomainsUtils {
 
   static parseAvailableHardware (hardware) {
     const { boot_order: bootOrder, disks, floppies, graphics, interfaces, interfaces_mac: interfacesMac, isos, videos } = hardware
-    let quota = hardware.quota
-    if (quota === false) {
-      quota = { memory: 128, vcpus: 128, desktopDiskSizes: 500 }
+    // Unlimited default quota
+    let quota = { memory: 128, vcpus: 128, desktopDiskSizes: 500 }
+    if (hardware.quota !== false) {
+      quota = { memory: hardware.quota.memory, vcpus: hardware.quota.vcpus, desktopDiskSizes: hardware.quota.desktops_disk_size }
     }
     const memory = []
     for (let i = 0.5; i <= quota.memory; i += 0.5) {

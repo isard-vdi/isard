@@ -119,6 +119,9 @@ class ApiTemplates:
             "parents": desktop["parents"] if "parents" in desktop.keys() else [],
             "allowed": allowed,
             "enabled": enabled,
+            "tag": False,
+            "tag_name": False,
+            "tag_visible": False,
         }
 
         with app.app_context():

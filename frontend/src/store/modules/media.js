@@ -185,22 +185,6 @@ export default {
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
-    },
-    checkCreateMediaQuota (context, data) {
-      const config = context.getters.getConfig
-      if (!config.quota) {
-        context.dispatch('navigate', 'medianew')
-      } else {
-        axios.get(`${apiV3Segment}/media/count`).then(response => {
-          if (response.data.count < config.quota.isos) {
-            context.dispatch('navigate', 'medianew')
-          } else {
-            ErrorUtils.showErrorNotification(this._vm.$snotify, i18n.t('errors.iso_creation_user_quota_exceeded'))
-          }
-        }).catch(e => {
-          ErrorUtils.handleErrors(e, this._vm.$snotify)
-        })
-      }
     }
   }
 }

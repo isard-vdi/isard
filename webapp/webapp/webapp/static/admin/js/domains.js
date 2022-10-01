@@ -570,7 +570,24 @@ $(document).ready(function() {
 							type: 'error'
 						});
 				}else{
-					api.ajax('/api/v3/desktop/start/' + data["id"], 'GET',{'pk':data['id'],'name':'status','value':'Starting'}).done(function(data) {});
+                    $.ajax({
+                        type: "GET",
+                        url: '/api/v3/desktop/start/' + data["id"],
+                        data: {'pk':data['id'],'name':'status','value':'Starting'},
+                        contentType: "application/json",
+                        cache: false,
+                        error: function(data) {
+                            new PNotify({
+                                title: 'ERROR',
+                                text: data.responseJSON.description,
+                                type: 'error',
+                                hide: true,
+                                icon: 'fa fa-warning',
+                                delay: 5000,
+                                opacity: 1
+                            })
+                        },
+                    })
 				}          
                 break;
             case 'btn-stop':

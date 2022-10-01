@@ -31,17 +31,12 @@ from ..libv2.validators import _validate_item
 from .decorators import has_token, is_admin_or_manager_or_advanced, ownsMediaId
 
 
-@app.route("/api/v3/media/count", methods=["GET"])
+@app.route("/api/v3/media/new/check_quota", methods=["GET"])
 @has_token
 def api_v3_media_count(payload):
+    quotas.MediaCreate(payload["user_id"])
     return (
-        json.dumps(
-            {
-                "count": api_media.count(
-                    payload["user_id"],
-                )
-            }
-        ),
+        json.dumps({}),
         200,
         {"Content-Type": "application/json"},
     )
@@ -59,15 +54,11 @@ def api_v3_admin_media_insert(payload):
             "Unable to parse body data.",
             traceback.format_exc(),
         )
-
+    quotas.MediaCreate(payload["user_id"])
     with app.app_context():
-        username = r.table("users").get(payload["user_id"])["username"].run(db.conn)
-        uid = r.table("users").get(payload["user_id"])["uid"]
-        if username == None:
-            raise Error("not_found", "User not found", traceback.format_exc())
-        group = r.table("groups").get(payload["group_id"])["uid"].run(db.conn)
-        if group == None:
-            raise Error("not_found", "Group not found", traceback.format_exc())
+        user = r.table("users").get(payload["user_id"]).run(db.conn)
+        username = user["username"]
+        uid = user["uid"]
 
     data["user"] = payload["user_id"]
     data["username"] = username
@@ -81,7 +72,7 @@ def api_v3_admin_media_insert(payload):
     urlpath = (
         data["category"]
         + "/"
-        + group
+        + payload["group_id"]
         + "/"
         + payload["provider"]
         + "/"

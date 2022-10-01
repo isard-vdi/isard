@@ -210,6 +210,9 @@ class ApiDesktopsPersistent:
             "persistent": True,
             "forced_hyp": False,
             "from_template": template["id"],
+            "tag": False,
+            "tag_name": False,
+            "tag_visible": False,
         }
         if deployment_tag_dict:
             new_desktop = {**new_desktop, **deployment_tag_dict}
@@ -465,6 +468,9 @@ class ApiDesktopsPersistent:
                     "vcpus": int(data["hardware"]["vcpus"]),
                 },
             },
+            "tag": False,
+            "tag_name": False,
+            "tag_visible": False,
         }
 
         res = qp.limit_user_hardware_allowed(payload, domain["create_dict"])

@@ -425,7 +425,7 @@ export default {
       'goToItemBooking',
       'goToEditDomain',
       'fetchDirectLink',
-      'checkCreateTemplateQuota'
+      'goToNewTemplate'
     ]),
     getBookingNotificationBar (date) {
       if (date) {
@@ -464,7 +464,7 @@ export default {
       if (this.desktop.server) {
         ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.new-template-server'), '', true, 2000)
       } else if (this.desktopState === desktopStates.stopped) {
-        this.checkCreateTemplateQuota(desktopId)
+        this.goToNewTemplate(desktopId)
       } else {
         ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.new-template-stop'), '', true, 2000)
       }

@@ -26,11 +26,9 @@ from .api_allowed import ApiAllowed
 from .api_exceptions import Error
 from .flask_rethink import RDB
 from .helpers import _check, _parse_string
-from .quotas_process import QuotasProcess
 
 db = RDB(app)
 db.init_app(app)
-quotas = QuotasProcess()
 api_allowed = ApiAllowed()
 
 persistent = ApiDesktopsPersistent()

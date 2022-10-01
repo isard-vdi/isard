@@ -47,6 +47,9 @@ def api_v3_desktop_new(payload):
             description_code="missing_required_data",
         )
 
+    quotas.DesktopCreate(payload["user_id"])
+    quotas.DesktopStart(user_id, template_id)
+
     template = templates.Get(template_id)
     allowed.is_allowed(payload, template, "domains")
 

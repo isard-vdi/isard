@@ -323,7 +323,7 @@ export default {
       'goToItemBooking',
       'goToEditDomain',
       'fetchDirectLink',
-      'checkCreateTemplateQuota'
+      'goToNewTemplate'
     ]),
     chooseDesktop (template) {
       this.$snotify.clear()
@@ -403,7 +403,7 @@ export default {
       if (desktop.server) {
         ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.new-template-server'), '', true, 2000)
       } else if (this.getItemState(desktop) === desktopStates.stopped) {
-        this.checkCreateTemplateQuota(desktop.id)
+        this.goToNewTemplate(desktop.id)
       } else {
         ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.new-template-stop'), '', true, 2000)
       }
