@@ -132,9 +132,9 @@ class DomainsThread(threading.Thread):
                                 else:
                                     # Update
                                     event = "update"
-                                    if c["old_val"]["status"] != c["new_val"][
-                                        "status"
-                                    ] and c["new_val"]["status"] in [
+                                    if c["old_val"]["status"] == "Stopping" and c[
+                                        "new_val"
+                                    ]["status"] in [
                                         "Stopped",
                                         "Failed",
                                     ]:
