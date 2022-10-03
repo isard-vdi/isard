@@ -3,3 +3,4 @@ services:
   isard-hypervisor:
     volumes:
     - ${BUILD_ROOT_PATH}/docker/hypervisor/src:/src
+    - ${BUILD_ROOT_PATH}/docker/hypervisor/kvm/hooks:/etc/libvirt/hooks

@@ -1,0 +1,67 @@
+#!/bin/bash
+flowdir=/var/run/openvswitch/libvirt-flows
+mkdir -p "${flowdir}"
+
+domain_name="$1"
+domain_status="$2"
+
+XML=$(cat -)
+
+flow_add(){
+    if [[ ! "$XML" == *"4095"* ]]; then
+        exit 0
+    fi
+
+    i=0
+    until echo $XML | xmllint --xpath //interface[$i]/vlan/tag/@id -;
+    do
+        i=$((i+1))
+    done
+
+    port=$(echo ${XML}| xmllint --xpath //interface[${i}]/target/@dev - | sed 's/.*="\([^"]*\)"/\1/')
+    portgroup=$(echo ${XML} | xmllint --xpath //interface[${i}]/virtualport/parameters/@interfaceid - | sed 's/.*="\([^"]*\)"/\1/')
+    mac=$(echo ${XML} | xmllint --xpath //interface[${i}]/mac/@address - | sed 's/.*="\([^"]*\)"/\1/')
+    nport="$(ovs-ofctl show ovsbr0 | egrep "\(${port}\)" | cut -d '(' -f 1|tr -d ' ')"
+
+    ovs-ofctl mod-port ovsbr0 "${nport}" no-flood
+    # Incoming from guest is tagged 4095 goes to trunk port 1. Other traffic discarded.
+    echo "priority=201,dl_src=${mac},in_port=${nport},dl_vlan=0x4095,actions=output:1" > "${flowdir}/${domain_name}"
+    echo "priority=200,in_port=${nport},dl_vlan=0x4095,actions=drop" >> "${flowdir}/${domain_name}"
+    # Outgoing to guest 
+    echo "priority=201,dl_dst=${mac},dl_vlan=4095,actions=strip_vlan,output:${nport}" >> "${flowdir}/${domain_name}"
+
+    ovs-ofctl add-flows ovsbr0 "${flowdir}/${domain_name}"
+}
+
+flow_del() {
+    if [[ ! "$XML" == *"4095"* ]]; then
+        exit 0
+    fi
+  echo "has wg" >> /tmp/qemu
+    if [ -e "${flowdir}/${domain_name}" ]; then
+        cat "${flowdir}/${domain_name}" | sed -e 's/^priority=[0-9]*,//' | sed -e 's/,actions=.*//' | ovs-ofctl del-flows ovsbr0 - >> /tmp/qemu
+        rm -f "${flowdir}/${domain_name}"
+    fi
+}
+
+case "${domain_status}" in
+  started)
+    flow_add
+    ;;
+  stopped)
+    flow_del
+    ;;
+  reconnect)
+    flow_del
+    flow_add
+    ;;
+  migrate)
+    flow_add
+    ;;
+  *)
+    exit 0
+    echo "Unexpected libvirt task $*" > /tmp/qemu
+    ;;
+esac
+
+exit 0

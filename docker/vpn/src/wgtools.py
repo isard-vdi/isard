@@ -302,6 +302,35 @@ class Wg(object):
                             "options:remote_ip=" + address,
                         ]
                     )
+
+                    port = (
+                        check_output(("ovs-ofctl", "show", "ovsbr0"), text=True)
+                        .strip()
+                        .split("): addr:")[-3]
+                        .split("(")[0]
+                        .split(" ")[-1]
+                    )
+                    subprocess.run(
+                        [
+                            "ovs-ofctl",
+                            "add-flow",
+                            "ovsbr0",
+                            "priority=201,in_port="
+                            + str(port)
+                            + ",dl_vlan=0x4095,actions=output:1",
+                        ]
+                    )
+                    subprocess.run(
+                        [
+                            "ovs-ofctl",
+                            "add-flow",
+                            "ovsbr0",
+                            "priority=200,in_port="
+                            + str(port)
+                            + ",dl_vlan=0x4095,actions=drop",
+                        ]
+                    )
+
                 # There seems to be a bug because the route is not applied so we need to force again...
                 # check_output(('/usr/bin/wg-quick','save','hypers'), text=True)
                 # check_output(('/usr/bin/wg-quick','down','hypers'), text=True)

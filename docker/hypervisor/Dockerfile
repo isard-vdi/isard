@@ -162,7 +162,7 @@ RUN pip3 install --no-cache-dir python-jose==3.3.0 python-iptables==1.0.0 python
 # RUN apk del .build_deps
 
 # Openvswitch
-RUN apk add openvswitch
+RUN apk add openvswitch libxml2-utils
 RUN /usr/bin/ovsdb-tool create /etc/openvswitch/conf.db
 RUN mkdir -pv /var/run/openvswitch/
 
@@ -192,6 +192,7 @@ COPY --from=build /usr/sbin/mdevctl /usr/sbin/mdevctl
 
 # RUNTIME
 COPY docker/hypervisor/src /src
+COPY docker/hypervisor/kvm/hooks /etc/libvirt/hooks
 WORKDIR /src
 CMD [ "/src/start.sh"]
 
