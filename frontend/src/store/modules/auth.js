@@ -44,6 +44,7 @@ export default {
       context.dispatch('setSession', token)
       localStorage.token = token
       context.dispatch('openSocket', {})
+      context.dispatch('fetchConfig')
       store.dispatch('removeAuthorizationCookie')
       router.push({ name: 'desktops' })
     },

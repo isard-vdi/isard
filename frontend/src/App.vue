@@ -18,6 +18,7 @@ export default {
     if (localStorage.token && this.$route.name !== 'DirectViewer') {
       this.$store.dispatch('setSession', localStorage.token)
       this.$store.dispatch('openSocket', {})
+      this.$store.dispatch('fetchConfig')
     }
     this.$store.dispatch('watchToken')
   },

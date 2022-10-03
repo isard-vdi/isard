@@ -150,6 +150,9 @@ class ApiMedia:
             {"id": media_id, "status": "Deleting", "accessed": int(time.time())},
         )
 
+    def count(self, user_id):
+        return r.table("media").get_all(user_id, index="user").count().run(db.conn)
+
 
 def get_disk_path(user, parsed_name):
     with app.app_context():

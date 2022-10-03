@@ -42,6 +42,22 @@ from ..libv2.validators import _validate_item, check_user_duplicated_domain_name
 from .decorators import has_token, ownsDomainId
 
 
+@app.route("/api/v3/templates/count", methods=["GET"])
+@has_token
+def api_v3_templates_count(payload):
+    return (
+        json.dumps(
+            {
+                "count": templates.count(
+                    payload["user_id"],
+                )
+            }
+        ),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
 @app.route("/api/v3/template", methods=["POST"])
 @has_token
 def api_v3_template_new(payload):

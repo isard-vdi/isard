@@ -31,6 +31,22 @@ from ..libv2.validators import _validate_item
 from .decorators import has_token, is_admin_or_manager_or_advanced, ownsMediaId
 
 
+@app.route("/api/v3/media/count", methods=["GET"])
+@has_token
+def api_v3_media_count(payload):
+    return (
+        json.dumps(
+            {
+                "count": api_media.count(
+                    payload["user_id"],
+                )
+            }
+        ),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
 # Add media
 @app.route("/api/v3/media", methods=["POST"])
 @is_admin_or_manager_or_advanced

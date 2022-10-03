@@ -94,7 +94,7 @@
               class="mr-0 mr-md-4"
               variant="outline-primary"
               size="sm"
-              @click="navigate('desktopsnew')"
+              @click="createDesktop()"
             >
               {{ `${$t("components.statusbar.new-desktop")}` }}
             </b-button>
@@ -118,7 +118,7 @@
               class="mr-0 mr-md-4"
               variant="outline-primary"
               size="sm"
-              @click="navigate('medianew')"
+              @click="createMedia()"
             >
               {{ `${$t("components.statusbar.new-media")}` }}
             </b-button>
@@ -246,6 +246,14 @@ export default {
   },
   setup (props, context) {
     const $store = context.root.$store
+
+    const createDesktop = () => {
+      $store.dispatch('checkCreateDesktopQuota')
+    }
+
+    const createMedia = () => {
+      $store.dispatch('checkCreateMediaQuota')
+    }
 
     const deployment = computed(() => $store.getters.getDeployment)
 
@@ -417,7 +425,9 @@ export default {
       toggleVisible,
       downloadDirectViewerCSV,
       deleteDeployment,
-      recreateDeployment
+      recreateDeployment,
+      createDesktop,
+      createMedia
     }
   },
   data () {

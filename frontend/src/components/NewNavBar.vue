@@ -212,14 +212,10 @@ export default {
       'getUser'
     ])
   },
-  beforeMount: async function () {
-    this.fetchConfig()
-  },
   methods: {
     ...mapActions([
       'logout',
       'fetchVpn',
-      'fetchConfig',
       'loginAdmin',
       'goToBookingSummary',
       'navigate'
