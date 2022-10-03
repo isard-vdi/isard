@@ -882,9 +882,57 @@ class ApiUsers:
                 }
         return False
 
-    def UpdateQuota(self, id, quota, table, kind):
+    def UpdateGroupQuota(self, group, quota, propagate):
+        category = self.CategoryGet(group["parent_category"], True)
+
+        # Limit group limits to it's category limits
+        if category["limits"] != False:
+            for k, v in category["limits"].items():
+                if quota.get("users") and v < quota[k]:
+                    quota[k] = v
+
         with app.app_context():
-            r.table(table).get(id).update({kind: quota}).run(db.conn)
+            r.table("groups").get(group["id"]).update({"quota": quota}).run(db.conn)
+
+        if propagate:
+            r.table("users").get_all(group["id"], index="group").update(
+                {"quota": quota}
+            ).run(db.conn)
+
+    def UpdateCategoryQuota(self, category_id, quota, propagate):
+        with app.app_context():
+            r.table("categories").get(category_id).update({"quota": quota}).run(db.conn)
+        if propagate:
+            with app.app_context():
+                for group in list(
+                    r.table("groups")
+                    .get_all(category_id, index="parent_category")
+                    .run(db.conn)
+                ):
+                    self.UpdateGroupQuota(group, quota, propagate)
+
+    def UpdateGroupLimits(self, group, limits):
+        category = self.CategoryGet(group["parent_category"], True)
+
+        # Limit group limits to it's category limits
+        if category["limits"] != False:
+            for k, v in category["limits"].items():
+                if v < limits[k]:
+                    limits[k] = v
+
+        with app.app_context():
+            r.table("groups").get(group["id"]).update({"limits": limits}).run(db.conn)
+
+    def UpdateCategoryLimits(self, category_id, limits, propagate):
+        with app.app_context():
+            r.table("categories").get(category_id).update({"limits": limits}).run(
+                db.conn
+            )
+        if propagate:
+            with app.app_context():
+                r.table("groups").get_all(category_id, index="parent_category").update(
+                    {"limits": limits}
+                ).run(db.conn)
 
     def WebappDesktops(self, user_id):
         self.Get(user_id)

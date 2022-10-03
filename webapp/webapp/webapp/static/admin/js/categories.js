@@ -446,7 +446,6 @@ function actionsCategoryDetail(){
                 dataform=quota2dict(formdata)
             } 
             data={}
-            data['id']=pk
             data['quota']=dataform['quota']
             if('propagate' in formdata){
                 data['propagate']=true;
@@ -460,7 +459,7 @@ function actionsCategoryDetail(){
             })
             $.ajax({
                 type: "PUT",
-                url:"/api/v3/admin/quota" ,
+                url:"/api/v3/admin/quota/category/"+pk ,
                 data: JSON.stringify(data),
                 contentType: "application/json",
                 success: function(data)
@@ -517,12 +516,10 @@ function actionsCategoryDetail(){
                 dataform=quota2dict(form.serializeObject())
             }           
             data={}
-            data['id']=pk
             data['limits']=dataform['limits']
             if('propagate' in formdata){
                 data['propagate']=true;
             }
-            data['table']='categories'
             var notice = new PNotify({
                 text: 'Updating limits...',
                 hide: false,
@@ -531,7 +528,7 @@ function actionsCategoryDetail(){
             })
             $.ajax({
                 type: "PUT",
-                url:"/api/v3/admin/quota" ,
+                url:"/api/v3/admin/limits/category/"+pk ,
                 data: JSON.stringify(data),
                 contentType: "application/json",
                 success: function(data)
