@@ -28,10 +28,6 @@ export default {
     }
   },
   actions: {
-    goToNewTemplate (context, desktopId) {
-      context.commit('setTemplateNewItemId', desktopId)
-      context.dispatch('navigate', 'templatenew')
-    },
     createNewTemplate (_, payload) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.creating-template'), '', true, 1000)
 
@@ -43,6 +39,23 @@ export default {
     },
     resetTemplateState (context) {
       context.commit('resetTemplateState')
+    },
+    checkCreateTemplateQuota (context, desktopId) {
+      context.commit('setTemplateNewItemId', desktopId)
+      const config = context.getters.getConfig
+      if (!config.quota) {
+        context.dispatch('navigate', 'templatenew')
+      } else {
+        axios.get(`${apiV3Segment}/templates/count`).then(response => {
+          if (response.data.count < config.quota.templates) {
+            context.dispatch('navigate', 'templatenew')
+          } else {
+            ErrorUtils.showErrorNotification(this._vm.$snotify, i18n.t('errors.template_new_user_quota_exceeded'))
+          }
+        }).catch(e => {
+          ErrorUtils.handleErrors(e, this._vm.$snotify)
+        })
+      }
     }
   }
 }

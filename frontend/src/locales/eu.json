@@ -335,9 +335,6 @@
     },
     "errors": {
         "generic_error": "Errore bat gertatu da",
-        "create_desktop_user_quota": "Mahaigaina sortzeko erabiltzaileen kuota gainditu da",
-        "create_desktop_group_quota": "Mahaigainak sortzeko taldearen kuota gainditu da",
-        "create_desktop_category_quota": "Mahaigaina sortzeko kategoriako kuota gainditu da",
         "desktop_start_category_vcpu_quota_exceeded": "Kategoria honentzako vCPU muga gainditua",
         "desktop_start_category_memory_quota_exceeded": "Kategoria honentzako memoria muga gainditua",
         "user_new_group_cuota_exceeded": "Talde honentzako erabiltzaile sorrera muga gainditua",
@@ -360,7 +357,6 @@
         "login_failed": "Saioan sartzean akatsa",
         "template_new_category_quota_exceeded": "Kategoriako txantiloi sorrera-muga gaindituta",
         "desktop_new_template_forbidden": "Baimen inguruko akats bat mahaigaina sortzerakoan",
-        "desktop_new_desktop_name_exists_foruser": "Izen bera duen mahaigain bat jada badago erabiltzaile honentzat",
         "update_generic_exception": "Eguneratzerakoan errore bat gertatu da",
         "desktop_action_failed": "Mahaigaineko ekintza gauzatzerakoan errore bat gertatu da",
         "template_new_not_created": "Txantiloia sortzean errore bat gertatu da",

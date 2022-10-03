@@ -33,6 +33,22 @@ from .decorators import has_token, is_admin_or_manager, ownsDomainId
 scheduler = Scheduler()
 
 
+@app.route("/api/v3/desktops/count", methods=["GET"])
+@has_token
+def api_v3_desktops_count(payload):
+    return (
+        json.dumps(
+            {
+                "count": desktops.count(
+                    payload["user_id"],
+                )
+            }
+        ),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
 @app.route("/api/v3/desktop/start/<desktop_id>", methods=["GET"])
 @has_token
 def api_v3_desktop_start(payload, desktop_id):

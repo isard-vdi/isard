@@ -412,10 +412,10 @@ export default {
       'changeDesktopStatus',
       'createDesktop',
       'navigate',
-      'goToNewTemplate',
       'goToItemBooking',
       'goToEditDomain',
-      'fetchDirectLink'
+      'fetchDirectLink',
+      'checkCreateTemplateQuota'
     ]),
     getBookingNotificationBar (date) {
       if (date) {
@@ -452,7 +452,7 @@ export default {
     },
     onClickGoToNewTemplate (desktopId) {
       if (this.desktopState === desktopStates.stopped) {
-        this.goToNewTemplate(desktopId)
+        this.checkCreateTemplateQuota(desktopId)
       } else {
         ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.new-template-stop'), '', true, 2000)
       }

@@ -619,3 +619,11 @@ class ApiDesktopsPersistent:
             with app.app_context():
                 r.table("domains").get(id).update({"jumperurl": code}).run(db.conn)
             return code
+
+    def count(self, user_id):
+        return (
+            r.table("domains")
+            .get_all(["desktop", user_id], index="kind_user")
+            .count()
+            .run(db.conn)
+        )

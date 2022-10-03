@@ -385,9 +385,9 @@
         }
     },
     "errors": {
-        "create_desktop_user_quota": "Benutzerquote für die Erstellung von Arbeitoberflächen überschritten",
-        "create_desktop_group_quota": "Quote für Arbeitoberfläche-Erstellungsgruppe überschritten",
-        "create_desktop_category_quota": "Quote für Arbeitoberfläche-Erstellungskategorie überschritten",
+        "desktop_new_user_quota_exceeded": "Benutzerquote für die Erstellung von Arbeitoberflächen überschritten",
+        "desktop_new_group_quota_exceeded": "Quote für Arbeitoberfläche-Erstellungsgruppe überschritten",
+        "desktop_new_category_quota_exceeded": "Quote für Arbeitoberfläche-Erstellungskategorie überschritten",
         "generic_error": "Ein Fehler ist aufgetreten"
     },
     "validations": {

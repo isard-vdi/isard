@@ -236,3 +236,11 @@ class ApiTemplates:
             traceback.format_exc(),
             description_code="unable_to_update",
         )
+
+    def count(seld, user_id):
+        return (
+            r.table("domains")
+            .get_all(["template", user_id], index="kind_user")
+            .count()
+            .run(db.conn)
+        )

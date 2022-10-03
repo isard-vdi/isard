@@ -319,10 +319,10 @@ export default {
       'changeDesktopStatus',
       'createDesktop',
       'navigate',
-      'goToNewTemplate',
       'goToItemBooking',
       'goToEditDomain',
-      'fetchDirectLink'
+      'fetchDirectLink',
+      'checkCreateTemplateQuota'
     ]),
     chooseDesktop (template) {
       const data = new FormData()
@@ -382,7 +382,7 @@ export default {
     },
     onClickGoToNewTemplate (desktop) {
       if (this.getItemState(desktop) === desktopStates.stopped) {
-        this.goToNewTemplate(desktop.id)
+        this.checkCreateTemplateQuota(desktop.id)
       } else {
         ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.new-template-stop'), '', true, 2000)
       }

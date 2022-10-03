@@ -344,10 +344,7 @@
         }
     },
     "errors": {
-        "create_desktop_group_quota": "Le quota du groupe de création de bureau est dépassé",
-        "create_desktop_category_quota": "Le quota de la catégorie de création de bureau est dépassé",
         "generic_error": "Une erreur s'est produite",
-        "create_desktop_user_quota": "Le quota d'utilisateurs pour la création de bureau est dépassé",
         "desktop_new_user_quota_exceeded": "Le quota d'utilisateurs pour la création de bureau est dépassé",
         "desktop_new_group_quota_exceeded": "La limite du groupe de création de bureau est dépassée",
         "desktop_new_category_quota_exceeded": "La limite de catégorie de création de bureau est dépassée",
@@ -361,7 +358,6 @@
         "category_generic_exception": "Échec lors de la récupération de la catégorie",
         "desktop_start_category_vcpu_quota_exceeded": "La limite de vCPU pour cette catégorie a été dépassée",
         "desktop_start_memory_quota_exceeded": "Le quota de mémoire pour cet utilisateur a été dépassé",
-        "desktop_new_desktop_name_exists_foruser": "Un bureau avec le même nom existe déjà pour cet utilisateur",
         "user_new_category_cuota_exceeded": "La limite de création d'utilisateurs pour cette catégorie est dépassée",
         "template_new_not_created": "Échec lors de la création du modèle",
         "get_generic_exception": "Échec lors de la récupération des données",
