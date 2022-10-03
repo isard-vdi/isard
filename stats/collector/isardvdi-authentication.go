@@ -79,7 +79,7 @@ func (a *IsardVDIAuthentication) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	var failed float64 = 0
-	if rsp.Data.ResultType == loghttp.ResultTypeStream {
+	if success == 1 && rsp.Data.ResultType == loghttp.ResultTypeStream {
 
 		for _, s := range rsp.Data.Result.(loghttp.Streams) {
 			for _, e := range s.Entries {
