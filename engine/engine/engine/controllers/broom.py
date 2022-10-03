@@ -14,6 +14,7 @@ from engine.models.hyp import hyp
 from engine.services.db import (
     get_domains_with_transitional_status,
     get_hyp_hostname_from_id,
+    get_hyp_hostnames_online,
     update_domain_hyp_started,
     update_domain_status,
     update_table_field,
@@ -60,6 +61,11 @@ class ThreadBroom(threading.Thread):
 
             list_domains_without_hyp = [d for d in l if "hyp_started" not in d.keys()]
             list_domains = [d for d in l if "hyp_started" in d.keys()]
+            ids_domains_started_in_db_with_hypervisor = [a["id"] for a in list_domains]
+            ids_domains_started_in_db_without_hypervisor = [
+                a["id"] for a in list_domains_without_hyp
+            ]
+
             for d in list_domains_without_hyp:
                 logs.broom.error(
                     "DOMAIN {} WITH STATUS {} without HYPERVISOR".format(
@@ -72,13 +78,15 @@ class ThreadBroom(threading.Thread):
                     detail="starting or stoping status witouth hypervisor",
                 )
 
-            hyps_to_try = set(
+            hyps_with_hyp_started = set(
                 [
                     d["hyp_started"]
                     for d in list_domains
                     if type(d["hyp_started"]) is str
                 ]
             )
+            hyps_to_try = list(get_hyp_hostnames_online().keys())
+
             hyps_domain_started = {}
             for hyp_id in hyps_to_try:
                 try:
@@ -109,6 +117,24 @@ class ThreadBroom(threading.Thread):
                             hyps_domain_started[hyp_id][
                                 "active_domains"
                             ] = list_domains_from_hyp
+
+                            # Update the current hypervisor memory and CPU usage in the DB
+                            try:
+                                mem_stats = h.conn.getMemoryStats(-1)
+                                mem_stats["available"] = (
+                                    mem_stats["free"] + mem_stats["cached"]
+                                )
+                                # cpu_stats = h.conn.getCPUStats(-1)
+
+                            except Exception as e:
+                                logs.broom.error(
+                                    "hyp {} with id fail in get stats from libvirt".format(
+                                        hyp_id
+                                    )
+                                )
+                                h.disconnect()
+                                continue
+
                         else:
                             logs.broom.error("HYPERVISOR {} libvirt connection failed")
                             hyps_domain_started[hyp_id] = False
@@ -117,8 +143,11 @@ class ThreadBroom(threading.Thread):
                         after = time()
                         elapsed = round(after - previous, 3)
 
-                        d_stats = {"time_elapsed_broom_connection": elapsed}
-                        update_table_field("hypervisors", hostname, "stats", d_stats)
+                        d_stats = {
+                            "time_elapsed_broom_connection": elapsed,
+                            "mem_stats": mem_stats,
+                        }
+                        update_table_field("hypervisors", hyp_id, "stats", d_stats)
 
                 except Exception as e:
                     logs.exception_id.debug("0003")
@@ -212,19 +241,6 @@ class ThreadBroom(threading.Thread):
                                     "Stopped",
                                     domain_id,
                                     detail="Stopped by broom thread",
-                                )
-                        elif status == "Shutting-down":
-                            logs.broom.debug(
-                                "DOMAIN: {} STATUS Shutting-down IN HYPERVISOR: {}".format(
-                                    domain_id, hyp_started
-                                )
-                            )
-                            if int(time()) - int(d["accessed"]) > 5 * 60:
-                                update_domain_status(
-                                    "Stopping",
-                                    domain_id,
-                                    keep_hyp_id=True,
-                                    detail="Stopping by broom thread",
                                 )
                         else:
                             logs.broom.debug(
