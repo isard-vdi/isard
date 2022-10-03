@@ -305,61 +305,57 @@ def api_v3_admin_edit_category(payload, category_id):
     return json.dumps(data), 200, {"Content-Type": "application/json"}
 
 
-@app.route("/api/v3/admin/quota", methods=["PUT"])
+@app.route("/api/v3/admin/quota/group/<group_id>", methods=["PUT"])
 @is_admin_or_manager
-def api_v3_admin_quota(payload):
-    quota = request.get_json()
+def api_v3_admin_quotas_category(payload, group_id):
+    data = request.get_json()
+    propagate = True if "propagate" in data.keys() else False
+    if data["quota"]:
+        data["id"] = group_id
+        _validate_item("group_update", data)
+    group = users.GroupGet(group_id)
+    ownsCategoryId(payload, group["parent_category"])
+    users.UpdateGroupQuota(group, data["quota"], propagate)
+    return json.dumps(data), 200, {"Content-Type": "application/json"}
 
-    if "limits" in quota.keys():
-        toUpdate = quota["limits"]
-        kind = "limits"
-    if "quota" in quota.keys():
-        toUpdate = quota["quota"]
-        kind = "quota"
 
-    if quota["table"] == "groups":
-        category = users.GroupGet(quota["id"])["parent_category"]
-    else:
-        category = quota["id"]
+@app.route("/api/v3/admin/quota/category/<category_id>", methods=["PUT"])
+@is_admin_or_manager
+def api_v3_admin_quota_category(payload, category_id):
+    data = request.get_json()
+    propagate = True if "propagate" in data.keys() else False
+    if data["quota"]:
+        data["id"] = category_id
+        _validate_item("category_update", data)
+    ownsCategoryId(payload, category_id)
+    users.UpdateCategoryQuota(category_id, data["quota"], propagate)
+    return json.dumps(data), 200, {"Content-Type": "application/json"}
 
-    ownsCategoryId(payload, category)
 
-    if "propagate" in quota.keys():
-        propagate = quota["propagate"]
-    else:
-        propagate = False
+@app.route("/api/v3/admin/limits/group/<group_id>", methods=["PUT"])
+@is_admin
+def api_v3_admin_limits_group(payload, group_id):
+    data = request.get_json()
+    if data["limits"]:
+        data["id"] = group_id
+        _validate_item("group_update", data)
+    group = users.GroupGet(group_id)
+    ownsCategoryId(payload, group["parent_category"])
+    users.UpdateGroupLimits(group, data["limits"])
+    return json.dumps(data), 200, {"Content-Type": "application/json"}
 
-    try:
-        if quota["table"] == "groups" and "limits" in quota.keys():
-            group = users.GroupGet(quota["id"])
-            category = users.CategoryGet(group["parent_category"], True)
 
-            if category["limits"] != False:
-                for k, v in category["limits"].items():
-                    if v < quota["limits"][k]:
-                        quota["limits"][k] = v
-        users.UpdateQuota(quota["id"], toUpdate, quota["table"], kind)
-
-    except:
-        raise Error("bad_request", "Unable to parse body data")
-
-    if propagate:
-        if quota["table"] == "categories":
-
-            for group in users.GroupsGet():
-                if group["parent_category"] == quota["id"]:
-                    users.UpdateQuota(group["id"], toUpdate, "groups", "quota")
-
-                    for user in users.List():  ## NO FUNCIONA???
-                        if user["group"] == group["id"]:
-                            users.Update(user["id"], quota=toUpdate)
-
-        if quota["table"] == "groups":
-            for user in users.List():
-                if user["group"] == quota["id"]:
-                    users.Update(user["id"], quota=toUpdate)
-
-    return json.dumps(quota), 200, {"Content-Type": "application/json"}
+@app.route("/api/v3/admin/limits/category/<category_id>", methods=["PUT"])
+@is_admin
+def api_v3_admin_limits_category(payload, category_id):
+    data = request.get_json()
+    propagate = True if "propagate" in data.keys() else False
+    if data["limits"]:
+        data["id"] = category_id
+        _validate_item("category_update", data)
+    ownsCategoryId(payload, category_id)
+    users.UpdateCategoryLimits(category_id, data["limits"], propagate)
+    return json.dumps(data), 200, {"Content-Type": "application/json"}
 
 
 # Add category

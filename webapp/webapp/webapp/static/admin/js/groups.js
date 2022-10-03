@@ -320,12 +320,10 @@ function actionsGroupDetail(){
                 dataform=quota2dict(formdata)
             } 
             data={}
-            data['id']=pk
             data['quota']=dataform['quota']
             if('propagate' in formdata){
                 data['propagate']=true;
-            }            
-            data['table']='groups'
+            }
             var notice = new PNotify({
                 text: 'Updating quota...',
                 hide: false,
@@ -335,7 +333,7 @@ function actionsGroupDetail(){
     
             $.ajax({
                 type: "PUT",
-                url:"/api/v3/admin/quota" ,
+                url:"/api/v3/admin/quota/group/"+pk ,
                 data: JSON.stringify(data),
                 contentType: "application/json",
                 success: function(data)
@@ -391,14 +389,12 @@ function actionsGroupDetail(){
                 dataform['limits']=false
             }else{
                 dataform=quota2dict(form.serializeObject())
-            }           
+            }
             data={}
-            data['id']=pk
             data['limits']=dataform['limits']
             if('propagate' in formdata){
                 data['propagate']=true;
-            }            
-            data['table']='groups'
+            }
             var notice = new PNotify({
                 text: 'Updating limits...',
                 hide: false,
@@ -407,7 +403,7 @@ function actionsGroupDetail(){
             })
             $.ajax({
                 type: "PUT",
-                url:"/api/v3/admin/quota" ,
+                url:"/api/v3/admin/limits/group/"+pk ,
                 data: JSON.stringify(data),
                 contentType: "application/json",
                 success: function(data)

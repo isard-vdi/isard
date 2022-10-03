@@ -1,0 +1,65 @@
+id:
+  required: true
+  type: string
+  empty: false
+name:
+  empty: false
+  type: string
+description: 
+  type: string
+parent_category: 
+  empty: false
+  type: string
+linked_groups:
+  type: list
+  default: []
+uid:
+  empty: false
+  type: string
+external_app_id:
+  type: string
+  nullable: true
+  default: null
+external_gid:
+  type: string
+  nullable: true
+  default: null
+enrollment:
+  type: dict
+  default:
+    schema:
+  schema:
+    manager:
+      type:
+        - string 
+        - boolean
+      default: false
+    advanced:
+      type:
+        - string 
+        - boolean
+      default: false
+    user:
+      type:
+        - string 
+        - boolean
+      default: false
+limits:
+  type: 
+    - dict
+    - boolean
+  default: false
+  schema: limits
+quota:
+  type: 
+    - dict
+    - boolean
+  default: false
+  schema: quotas
+ephimeral:
+  type: dict
+  schema:
+    action:
+      type: string
+    minutes:
+      type: integer  

@@ -1,0 +1,59 @@
+id:
+  required: true
+  type: string
+  empty: false
+name:
+  empty: false
+  type: string
+description: 
+  type: string
+frontend:
+  type: boolean
+  nullable: true 
+  default: false
+allowed_domain:
+  type: string
+  nullable: false
+  default: ""
+auto:
+  type:
+    - dict
+    - boolean
+  default: false
+  schema:
+    desktops:
+      required: true
+      type: list
+      minlength: 1
+ephimeral:
+  type:
+    - dict
+    - boolean
+  schema:
+    action:
+      required: true
+      type:
+        - string
+      nullable: false
+      empty: false
+      allowed:
+        - Stopping
+        - StoppingAndDeleting
+    minutes:
+      required: true
+      type: integer
+      min: 1
+      nullable: false
+      empty: false
+limits:
+  type: 
+    - dict
+    - boolean
+  default: false
+  schema: limits
+quota:
+  type: 
+    - dict
+    - boolean
+  default: false
+  schema: quotas
