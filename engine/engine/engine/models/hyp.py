@@ -261,7 +261,7 @@ class hyp(object):
                         # y al ponerlo da error lo dejo comentado, pero en futuro hay que quitar
                         # esta línea si no sabemos bien que hace...
                         # self.conn.setKeepAlive(5, 3)
-                        log.info("connected to hypervisor: %s" % self.hostname)
+                        log.debug("connected to hypervisor: %s" % self.hostname)
                         self.set_status(HYP_STATUS_CONNECTED)
                         self.fail_connected_reason = ""
                         # para que le de tiempo a los eventos a quedarse registrados hay que esperar un poquillo, ya
