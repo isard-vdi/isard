@@ -89,6 +89,7 @@ class DomainsThread(threading.Thread):
                                 "jumperurl",
                                 "booking_id",
                                 "scheduled",
+                                "server",
                             ]
                         )
                         .changes(include_initial=False)

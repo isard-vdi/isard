@@ -803,7 +803,9 @@
             "deleting-media": "Borrando medio",
             "downloading-media": "Descargando medio",
             "stopping-download": "Parando la descarga",
-            "counting-desktops": "Contado cuántos escritorios se crearán"
+            "counting-desktops": "Contado cuántos escritorios se crearán",
+            "new-template-server": "No se puede crear una plantilla de servidor",
+            "edit-desktop-server": "No se puede editar un servidor"
         },
         "loading": "Cargando"
     },

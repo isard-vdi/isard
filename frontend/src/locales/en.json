@@ -789,7 +789,9 @@
             "deleting-media": "Deleting media",
             "downloading-media": "Downloading media",
             "stopping-download": "Stopping download",
-            "counting-desktops": "Counting how many desktops will be created"
+            "counting-desktops": "Counting how many desktops will be created",
+            "new-template-server": "Can't create a template from a server",
+            "edit-desktop-server": "Can't edit a server"
         },
         "loading": "Loading"
     },

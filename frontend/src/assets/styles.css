@@ -318,6 +318,12 @@
   border-bottom-left-radius: 20px;
 }
 
+.card-list .card .serverHighlight {
+  background-color: #f7eac6;
+  border-bottom-right-radius: 20px;
+  border-bottom-left-radius: 20px;
+}
+
 /* DEPLOYMENTS */
 
 .visibleHighlight {

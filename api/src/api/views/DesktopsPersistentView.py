@@ -209,6 +209,25 @@ def api_v3_domain_edit(payload, domain_id):
     data = _validate_item("desktop_update", data)
     ownsDomainId(payload, domain_id)
     desktop = desktops.Get(desktop_id=domain_id)
+
+    if not "server" in data and desktop.get("status") not in ["Failed", "Stopped"]:
+        raise Error(
+            "precondition_required",
+            "Desktops only can be edited when stopped or failed",
+            traceback.format_exc(),
+        )
+
+    if (
+        desktop.get("server")
+        and not "server" in data
+        and desktop.get("status") != "Failed"
+    ):
+        raise Error(
+            "precondition_required",
+            "Servers can't be edited",
+            traceback.format_exc(),
+        )
+
     if data.get("name"):
         check_user_duplicated_domain_name(data["id"], data["name"], desktop["user"])
 
