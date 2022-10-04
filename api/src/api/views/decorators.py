@@ -395,19 +395,3 @@ def itemExists(item_table, item_id):
             item_table + " not found id: " + item_id,
             traceback.format_exc(),
         )
-
-
-def usernameNotExists(username, category_id, uid=None, provider="local"):
-    if not uid:
-        uid = username
-    if list(
-        r.table("users")
-        .get_all(category_id, index="category")
-        .filter({"provider": provider, "uid": uid, "username": username})
-        .run(db.conn)
-    ):
-        raise Error(
-            "bad_request",
-            "Username " + username + " already exists in category_id " + category_id,
-            traceback.format_exc(),
-        )

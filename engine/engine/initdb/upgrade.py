@@ -18,7 +18,9 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 58
+release_version = 59
+
+# release 59: Remove whitespaces in uids and usernames
 # release 58: Add new field 'virtualization_nested' into every created domain
 # release 57: Addded serverstostart index to domains
 # release 56: Remove hyp_started from non started domains
@@ -1544,6 +1546,28 @@ class Upgrade(object):
                 )
             except Exception as e:
                 print(e)
+
+        if version == 59:
+
+            r.table(table).index_create(
+                "uid_category_provider",
+                [r.row["uid"], r.row["category"], r.row["provider"]],
+            ).run(self.conn)
+
+            uid_list = list(
+                r.table(table)
+                .filter(lambda doc: doc["uid"].match(" "))
+                .pluck("uid")
+                .run(self.conn)
+            )
+
+            for uid in uid_list:
+                r.table(table).get_all(uid["uid"], index="uid").update(
+                    {
+                        "uid": uid["uid"].replace(" ", ""),
+                        "username": uid["uid"].replace(" ", ""),
+                    }
+                ).run(self.conn)
 
         return True
 
