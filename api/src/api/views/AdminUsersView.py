@@ -41,7 +41,6 @@ from .decorators import (
     ownsCategoryId,
     ownsDomainId,
     ownsUserId,
-    usernameNotExists,
 )
 
 
@@ -141,6 +140,7 @@ def api_v3_admin_user_insert(payload):
             "id"
         ]
 
+    data["username"].replace(" ", "")
     data = _validate_item("user", data)
 
     ownsCategoryId(payload, data["category"])
@@ -632,12 +632,29 @@ def admin_users_validate(payload):
         user_list[i]["category_id"] = cg_data["category_id"]
         user_list[i]["group_id"] = cg_data["group_id"]
 
-        try:
-            usernameNotExists(user["username"], category_id)
-            user_list[i]["exists"] = False
-        except:
+        user_id = users.GetByProviderCategoryUID(
+            "local", category_id, user["username"].replace(" ", "")
+        )
+
+        if len(user_id) > 0:
             if request.path.split("?")[0].endswith("/allow_update"):
                 user_list[i]["exists"] = True
             else:
                 raise
+        else:
+            user_list[i]["exists"] = False
+
     return json.dumps(user_list), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/admin/users/check/by/provider", methods=["POST"])
+@is_admin_or_manager
+def admin_users_getby_provider_category_uid(payload):
+    data = request.get_json()
+    user_id = users.GetByProviderCategoryUID(
+        data["provider"], data["category"], data["uid"].replace(" ", "")
+    )
+    if len(user_id) > 0:
+        return json.dumps(user_id[0]["id"]), 200, {"Content-Type": "application/json"}
+    else:
+        return json.dumps(user_id), 200, {"Content-Type": "application/json"}

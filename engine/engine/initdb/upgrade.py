@@ -1548,15 +1548,21 @@ class Upgrade(object):
                 print(e)
 
         if version == 59:
+
+            r.table(table).index_create(
+                "uid_category_provider",
+                [r.row["uid"], r.row["category"], r.row["provider"]],
+            ).run(self.conn)
+
             uid_list = list(
-                r.table("users")
+                r.table(table)
                 .filter(lambda doc: doc["uid"].match(" "))
                 .pluck("uid")
                 .run(self.conn)
             )
 
             for uid in uid_list:
-                r.table("users").get_all(uid["uid"], index="uid").update(
+                r.table(table).get_all(uid["uid"], index="uid").update(
                     {
                         "uid": uid["uid"].replace(" ", ""),
                         "username": uid["uid"].replace(" ", ""),

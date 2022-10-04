@@ -166,6 +166,16 @@ class ApiUsers:
         del user["quota"]["user"]
         return user
 
+    def GetByProviderCategoryUID(self, provider, category, uid):
+        with app.app_context():
+            user = list(
+                r.table("users")
+                .get_all([uid, category, provider], index="uid_category_provider")
+                .run(db.conn)
+            )
+        log.error(user)
+        return user
+
     def List(self, category_id=None):
         query = r.table("users")
         if category_id:

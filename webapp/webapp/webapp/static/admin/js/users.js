@@ -368,46 +368,85 @@ $(document).ready(function() {
                     });
                     return true
                 }
+
                 if(user["exists"] && $('#bulk-allow-update').prop("checked")){
-                    method="PUT"
-                    url="/api/v3/admin/user/local-"+user["category_id"]+"-"+user["username"]+"-"+user["username"]
-                    op="Updated"
+                    $.ajax({
+                        type: 'POST',
+                        url: "/api/v3/admin/users/check/by/provider",
+                        data: JSON.stringify({
+                            "provider":data['provider'],
+                            "category":user['category'],
+                            "uid":user['username']
+                        }),
+                        contentType: "application/json",
+                        success: function(data){
+                            $.ajax({
+                                type: 'PUT',
+                                url: "/api/v3/admin/user/"+data,
+                                data: JSON.stringify(Object.assign({},data,user)) ,
+                                contentType: "application/json",
+                                success: function(data)
+                                {
+                                    $('form').each(function() { this.reset() });
+                                    $('.modal').modal('hide');
+                                notice.update({
+                                        title: "Updating users",
+                                        text: "Updating user (" + ( usersAdded ) + "/" + users.length + "): ",
+                                        hide: true,
+                                        delay: 4000,
+                                        opacity: 1
+                                    });
+                                usersAdded ++;
+                                 },
+                                 error: function(data){
+                                    new PNotify({
+                                        title: "ERROR",
+                                        text: "Error updating user " + user.username,
+                                        type: 'error',
+                                        hide: true,
+                                        icon: 'fa fa-warning',
+                                        delay: 15000,
+                                        opacity: 1
+                                    });
+                                 }
+                            }); 
+
+
+                        }
+                    })
                 }else{
-                    method="POST"
-                    url="/api/v3/admin/user"
-                    op="Added"
+                    delete user["exists"]
+                    $.ajax({
+                        type: 'POST',
+                        url: "/api/v3/admin/user",
+                        data: JSON.stringify(Object.assign({},data,user)) ,
+                        contentType: "application/json",
+                        success: function(data)
+                        {
+                            $('form').each(function() { this.reset() });
+                            $('.modal').modal('hide');
+                        notice.update({
+                                title: "Adding users",
+                                text: "Added user (" + ( usersAdded ) + "/" + users.length + "): ",
+                                hide: true,
+                                delay: 4000,
+                                opacity: 1
+                            });
+                        usersAdded ++;
+                        },
+                        error: function(data){
+                            new PNotify({
+                                title: "ERROR",
+                                text: "Error adding user " + user.username,
+                                type: 'error',
+                                hide: true,
+                                icon: 'fa fa-warning',
+                                delay: 15000,
+                                opacity: 1
+                            });
+                        }
+                    }); 
                 }
-                delete user["exists"]
-                $.ajax({
-                    type: method,
-                    url: url,
-                    data: JSON.stringify(Object.assign({},data,user)) ,
-                    contentType: "application/json",
-                    success: function(data)
-                    {
-                        $('form').each(function() { this.reset() });
-                        $('.modal').modal('hide');
-                    notice.update({
-                            title: "Adding users",
-                            text: op + " user (" + ( usersAdded ) + "/" + users.length + "): ",
-                            hide: true,
-                            delay: 4000,
-                            opacity: 1
-                        });
-                    usersAdded ++;
-                     },
-                     error: function(data){
-                        var error = new PNotify({
-                            title: "ERROR",
-                            text: "Error adding user " + user.username + ": " + data.responseJSON.description,
-                            type: 'error',
-                            hide: true,
-                            icon: 'fa fa-warning',
-                            delay: 15000,
-                            opacity: 1
-                        });
-                     }
-                }); 
             });
         }
     }); 
