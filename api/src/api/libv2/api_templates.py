@@ -70,6 +70,18 @@ class ApiTemplates:
                     traceback.format_exc(),
                     description_code="not_found",
                 )
+            if desktop.get("status") not in ["Failed", "Stopped"]:
+                raise Error(
+                    "precondition_required",
+                    "To create a template its desktop must be stopped or failed",
+                    traceback.format_exc(),
+                )
+            if desktop.get("server"):
+                raise Error(
+                    "internal_server",
+                    "Can't create a template from a server",
+                    traceback.format_exc(),
+                )
 
         parent_disk = desktop["hardware"]["disks"][0]["file"]
 

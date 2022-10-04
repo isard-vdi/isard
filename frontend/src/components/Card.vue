@@ -91,7 +91,7 @@
 
       <div
         class="p-2 h-100 d-flex flex-wrap flex-column"
-        :class="{'startedHighlight': desktopState === desktopStates.started}"
+        :class="getCardBackgroundColor"
       >
         <div class="flex-grow-1">
           <!-- Title -->
@@ -350,6 +350,15 @@ export default {
       }
       return stateColors[this.desktopState]
     },
+    getCardBackgroundColor () {
+      if (this.desktop.server) {
+        return 'serverHighlight'
+      } else if (this.desktop.state.toLowerCase() === desktopStates.started) {
+        return 'startedHighlight'
+      } else {
+        return ''
+      }
+    },
     desktopState () {
       return (this.desktop.state && this.desktop.state.toLowerCase()) || desktopStates.stopped
     },
@@ -451,14 +460,18 @@ export default {
       return this.getDefaultViewer && (this.waitingIp && DesktopUtils.viewerNeedsIp(viewer))
     },
     onClickGoToNewTemplate (desktopId) {
-      if (this.desktopState === desktopStates.stopped) {
+      if (this.desktop.server) {
+        ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.new-template-server'), '', true, 2000)
+      } else if (this.desktopState === desktopStates.stopped) {
         this.checkCreateTemplateQuota(desktopId)
       } else {
         ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.new-template-stop'), '', true, 2000)
       }
     },
     onClickGoToEditDesktop (payload) {
-      if (this.desktopState === desktopStates.stopped) {
+      if (this.desktop.server && this.desktopState !== desktopStates.failed) {
+        ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.edit-desktop-server'), '', true, 2000)
+      } else if ([desktopStates.failed, desktopStates.stopped].includes(this.desktopState)) {
         this.goToEditDomain(payload.itemId)
       } else {
         ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.edit-desktop-stop'), '', true, 2000)

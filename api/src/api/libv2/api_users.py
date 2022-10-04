@@ -369,6 +369,7 @@ class ApiUsers:
                                     "reservables": True,
                                 }
                             },
+                            "server",
                             "progress",
                             "booking_id",
                             "scheduled",

@@ -859,7 +859,9 @@
             "deleting-media": "Esborrant mitjà",
             "downloading-media": "Descarregant mitjà",
             "stopping-download": "Parant la descàrrega",
-            "counting-desktops": "Comptant quants escriptoris es crearan"
+            "counting-desktops": "Comptant quants escriptoris es crearan",
+            "new-template-server": "No es pot crear una plantilla d'un servidor",
+            "edit-desktop-server": "No es pot editar un servidor"
         },
         "loading": "Carregant"
     },

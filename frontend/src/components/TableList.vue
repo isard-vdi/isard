@@ -381,14 +381,18 @@ export default {
       return ''
     },
     onClickGoToNewTemplate (desktop) {
-      if (this.getItemState(desktop) === desktopStates.stopped) {
+      if (desktop.server) {
+        ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.new-template-server'), '', true, 2000)
+      } else if (this.getItemState(desktop) === desktopStates.stopped) {
         this.checkCreateTemplateQuota(desktop.id)
       } else {
         ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.new-template-stop'), '', true, 2000)
       }
     },
     onClickGoToEditDesktop (desktop) {
-      if (this.getItemState(desktop) === desktopStates.stopped) {
+      if (desktop.server && this.getItemState(desktop) !== desktopStates.failed) {
+        ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.edit-desktop-server'), '', true, 2000)
+      } else if ([desktopStates.failed, desktopStates.stopped].includes(this.getItemState(desktop))) {
         this.goToEditDomain(desktop.itemId)
       } else {
         ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.edit-desktop-stop'), '', true, 2000)
