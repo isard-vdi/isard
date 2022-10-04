@@ -8,7 +8,7 @@ domain_status="$2"
 XML=$(cat -)
 
 flow_add(){
-    if [[ ! "$XML" == *"4095"* ]]; then
+    if [[ ! "$XML" == *"<tag id='4095'/>"* ]]; then
         exit 0
     fi
 
@@ -34,12 +34,12 @@ flow_add(){
 }
 
 flow_del() {
-    if [[ ! "$XML" == *"4095"* ]]; then
+    if [[ ! "$XML" == *"<tag id='4095'/>"* ]]; then
         exit 0
     fi
-  echo "has wg" >> /tmp/qemu
+
     if [ -e "${flowdir}/${domain_name}" ]; then
-        cat "${flowdir}/${domain_name}" | sed -e 's/^priority=[0-9]*,//' | sed -e 's/,actions=.*//' | ovs-ofctl del-flows ovsbr0 - >> /tmp/qemu
+        cat "${flowdir}/${domain_name}" | sed -e 's/^priority=[0-9]*,//' | sed -e 's/,actions=.*//' | ovs-ofctl del-flows ovsbr0 -
         rm -f "${flowdir}/${domain_name}"
     fi
 }
