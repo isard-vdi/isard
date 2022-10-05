@@ -353,7 +353,7 @@ export default {
     getCardBackgroundColor () {
       if (this.desktop.server) {
         return 'serverHighlight'
-      } else if (this.desktop.state.toLowerCase() === desktopStates.started) {
+      } else if (this.desktopState === desktopStates.started) {
         return 'startedHighlight'
       } else {
         return ''
