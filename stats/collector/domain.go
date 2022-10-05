@@ -580,36 +580,12 @@ func (d *Domain) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	for _, s := range stats {
-		d.libvirtMux.Lock()
-		id, err := s.Domain.GetName()
+		id, domain, err, msg := d.getDomainXML(s)
 		if err != nil {
-			d.Log.Info().Str("collector", d.String()).Err(err).Msg("get domain name")
+			d.Log.Info().Str("collector", d.String()).Err(err).Msg(msg)
+
 			continue
 		}
-
-		cacheDom, ok := d.cache.Get(id)
-		var domain cacheDomain
-		if !ok {
-			raw, err := s.Domain.GetXMLDesc(0)
-			if err != nil {
-				d.Log.Info().Str("collector", d.String()).Str("id", id).Err(err).Msg("get domain XML")
-				continue
-			}
-
-			xml := &libvirtxml.Domain{}
-			if err := xml.Unmarshal(raw); err != nil {
-				d.Log.Info().Str("collector", d.String()).Str("id", id).Err(err).Msg("unmarshal domain XML")
-				continue
-			}
-
-			domain = cacheDomain{XML: xml, RawXML: raw}
-
-			d.cache.Add(id, domain, cache.DefaultExpiration)
-		} else {
-			domain = cacheDom.(cacheDomain)
-		}
-
-		d.libvirtMux.Unlock()
 
 		defer func() {
 			d.libvirtMux.Lock()
@@ -732,6 +708,38 @@ func (d *Domain) Collect(ch chan<- prometheus.Metric) {
 
 	ch <- prometheus.MustNewConstMetric(d.descScrapeDuration, prometheus.GaugeValue, duration.Seconds())
 	ch <- prometheus.MustNewConstMetric(d.descScrapeSuccess, prometheus.GaugeValue, float64(success))
+}
+
+func (d *Domain) getDomainXML(s libvirt.DomainStats) (string, cacheDomain, error, string) {
+	d.libvirtMux.Lock()
+	defer d.libvirtMux.Unlock()
+
+	id, err := s.Domain.GetName()
+	if err != nil {
+		return id, cacheDomain{}, err, "get domain name"
+	}
+
+	cacheDom, ok := d.cache.Get(id)
+	var domain cacheDomain
+	if !ok {
+		raw, err := s.Domain.GetXMLDesc(0)
+		if err != nil {
+			return id, cacheDomain{}, err, "get domain XML"
+		}
+
+		xml := &libvirtxml.Domain{}
+		if err := xml.Unmarshal(raw); err != nil {
+			return id, cacheDomain{}, err, "unmarshal domain XML"
+		}
+
+		domain = cacheDomain{XML: xml, RawXML: raw}
+
+		d.cache.Add(id, domain, cache.DefaultExpiration)
+	} else {
+		domain = cacheDom.(cacheDomain)
+	}
+
+	return id, domain, nil, ""
 }
 
 func (d *Domain) collectStats() ([]libvirt.DomainStats, error) {
