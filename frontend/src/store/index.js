@@ -224,7 +224,7 @@ export default new Vuex.Store({
     },
     checkVersion (context, version) {
       return axios.get(`${apiV3Segment}`).then(response => {
-        if (response.usage !== 'devel' && response.isardvdi_version !== version) {
+        if (response.data.usage !== 'devel' && response.data.isardvdi_version !== version) {
           router.go()
         }
       })
