@@ -27,6 +27,7 @@ type IsardVDIAPI struct {
 	descTemplateNumber               *prometheus.Desc
 	descTemplateNumberCategory       *prometheus.Desc
 	descHypervisorInfo               *prometheus.Desc
+	descDeploymentNumberCategory     *prometheus.Desc
 }
 
 func NewIsardVDIAPI(log *zerolog.Logger, cli *client.Client, secret string) *IsardVDIAPI {
@@ -102,6 +103,12 @@ func NewIsardVDIAPI(log *zerolog.Logger, cli *client.Client, secret string) *Isa
 		[]string{"id", "status", "only_forced"},
 		prometheus.Labels{},
 	)
+	a.descDeploymentNumberCategory = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, a.String(), "deployment_number_category"),
+		"The number of deployments of a category",
+		[]string{"category"},
+		prometheus.Labels{},
+	)
 
 	return a
 }
@@ -121,6 +128,7 @@ func (a *IsardVDIAPI) Describe(ch chan<- *prometheus.Desc) {
 	ch <- a.descTemplateNumber
 	ch <- a.descTemplateNumberCategory
 	ch <- a.descHypervisorInfo
+	ch <- a.descDeploymentNumberCategory
 }
 
 func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
@@ -191,7 +199,17 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	for _, h := range hyp {
-		ch <- prometheus.MustNewConstMetric(a.descHypervisorInfo, prometheus.GaugeValue, 1, client.GetString(h.ID), client.GetString(h.Status), strconv.FormatBool(client.GetBool(h.OnlyForced)))
+		ch <- prometheus.MustNewConstMetric(a.descHypervisorInfo, prometheus.GaugeValue, 1, client.GetString(h.ID), string(*h.Status), strconv.FormatBool(client.GetBool(h.OnlyForced)))
+	}
+
+	dply, err := a.cli.StatsDeploymentByCategory(context.Background())
+	if err != nil {
+		a.Log.Info().Str("collector", a.String()).Err(err).Msg("get deployments statistics")
+		success = 0
+	}
+
+	for _, d := range dply {
+		ch <- prometheus.MustNewConstMetric(a.descDeploymentNumberCategory, prometheus.GaugeValue, float64(client.GetInt(d.DeploymentNum)), client.GetString(d.CategoryID))
 	}
 
 	duration := time.Since(start)
