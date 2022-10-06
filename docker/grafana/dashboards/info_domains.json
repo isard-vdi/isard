@@ -91,7 +91,7 @@
         "showStarred": false,
         "tags": []
       },
-      "pluginVersion": "9.1.6",
+      "pluginVersion": "9.2.0",
       "tags": [],
       "targets": [
         {
@@ -168,7 +168,7 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true
       },
-      "pluginVersion": "9.1.6",
+      "pluginVersion": "9.2.0",
       "targets": [
         {
           "datasource": {
@@ -243,7 +243,7 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true
       },
-      "pluginVersion": "9.1.6",
+      "pluginVersion": "9.2.0",
       "targets": [
         {
           "datasource": {
@@ -338,7 +338,7 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true
       },
-      "pluginVersion": "9.1.6",
+      "pluginVersion": "9.2.0",
       "targets": [
         {
           "datasource": {
@@ -421,7 +421,7 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true
       },
-      "pluginVersion": "9.1.6",
+      "pluginVersion": "9.2.0",
       "targets": [
         {
           "datasource": {
@@ -503,7 +503,7 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true
       },
-      "pluginVersion": "9.1.6",
+      "pluginVersion": "9.2.0",
       "targets": [
         {
           "datasource": {
@@ -585,7 +585,7 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true
       },
-      "pluginVersion": "9.1.6",
+      "pluginVersion": "9.2.0",
       "targets": [
         {
           "datasource": {
@@ -665,7 +665,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.6",
+      "pluginVersion": "9.2.0",
       "targets": [
         {
           "datasource": {
@@ -743,7 +743,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.6",
+      "pluginVersion": "9.2.0",
       "targets": [
         {
           "datasource": {
@@ -824,7 +824,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.6",
+      "pluginVersion": "9.2.0",
       "targets": [
         {
           "datasource": {
@@ -903,7 +903,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.6",
+      "pluginVersion": "9.2.0",
       "targets": [
         {
           "datasource": {
@@ -986,7 +986,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.6",
+      "pluginVersion": "9.2.0",
       "targets": [
         {
           "datasource": {

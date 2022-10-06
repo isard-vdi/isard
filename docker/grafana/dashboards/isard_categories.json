@@ -25,7 +25,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 6,
+  "id": 8,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -49,7 +49,7 @@
         "showStarred": false,
         "tags": []
       },
-      "pluginVersion": "9.1.6",
+      "pluginVersion": "9.2.0",
       "tags": [],
       "targets": [
         {
@@ -78,7 +78,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "dark-yellow",
+                "color": "semi-dark-yellow",
                 "value": null
               }
             ]
@@ -110,15 +110,17 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.6",
+      "pluginVersion": "9.2.0",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
+          "editorMode": "code",
           "expr": "isardvdi_isardvdi_api_desktop_number_category{category=\"$category\"}",
           "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"isardvdi-api\")\n  |> filter(fn: (r) => r[\"_field\"] == \"desktops\")\n  |> yield()",
+          "range": true,
           "refId": "A"
         }
       ],
@@ -142,7 +144,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "#0da1a8",
+                "color": "semi-dark-yellow",
                 "value": null
               }
             ]
@@ -174,7 +176,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.6",
+      "pluginVersion": "9.2.0",
       "targets": [
         {
           "datasource": {
@@ -194,7 +196,6 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
-      "description": "Total Templates per categoria",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -206,7 +207,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "#f4a743",
+                "color": "purple",
                 "value": null
               }
             ]
@@ -220,8 +221,7 @@
         "x": 9,
         "y": 0
       },
-      "id": 175,
-      "maxDataPoints": 85,
+      "id": 150,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
@@ -239,19 +239,23 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.6",
+      "pluginVersion": "9.2.0",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "isardvdi_isardvdi_api_template_number_category{category=\"$category\"}",
-          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"isardvdi-api\")\n  |> filter(fn: (r) => r[\"_field\"] == \"templates\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield()",
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "count(isardvdi_domain_vcpu_current * on (desktop) label_replace(isardvdi_isardvdi_api_desktop_info * on (user) group_left label_replace(isardvdi_isardvdi_api_user_info{category=\"$category\"}, \"user\", \"$1\", \"id\", \"(.*)\"), \"desktop\", \"$1\", \"id\", \"(.*)\")) or vector(0)",
+          "instant": true,
+          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\"\n  )\n  |> keep(columns: [\"_time\", \"id\"])\n  |> group()\n  |> unique(column: \"id\")\n  |> count(column: \"id\")\n  |> yield()",
+          "range": false,
           "refId": "A"
         }
       ],
-      "title": "Total Templates",
+      "title": "Desktops started",
       "type": "stat"
     },
     {
@@ -259,13 +263,12 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
-      "description": "Non available RAM memory",
+      "description": "RAM memory per categoria",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "thresholds"
           },
-          "decimals": 0,
           "mappings": [],
           "max": 100,
           "min": 0,
@@ -273,25 +276,17 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "rgba(50, 172, 45, 0.97)",
+                "color": "text",
                 "value": null
-              },
-              {
-                "color": "rgba(237, 129, 40, 0.89)",
-                "value": 80
-              },
-              {
-                "color": "rgba(245, 54, 54, 0.9)",
-                "value": 90
               }
             ]
           },
-          "unit": "percent"
+          "unit": "deckbytes"
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
+        "h": 3,
         "w": 2,
         "x": 11,
         "y": 0
@@ -300,6 +295,9 @@
       "id": 206,
       "links": [],
       "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
         "orientation": "horizontal",
         "reduceOptions": {
           "calcs": [
@@ -308,10 +306,9 @@
           "fields": "",
           "values": false
         },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
+        "textMode": "auto"
       },
-      "pluginVersion": "9.1.6",
+      "pluginVersion": "9.2.0",
       "targets": [
         {
           "datasource": {
@@ -319,7 +316,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "100 - ((node_memory_MemAvailable_bytes{domain=\"$domain\"} * 100) / node_memory_MemTotal_bytes{domain=\"$domain\"})",
+          "expr": "sum(isardvdi_domain_mem_total * on (desktop) label_replace(isardvdi_isardvdi_api_desktop_info * on (user) group_left label_replace(isardvdi_isardvdi_api_user_info{category=\"$category\"}, \"user\", \"$1\", \"id\", \"(.*)\"), \"desktop\", \"$1\", \"id\", \"(.*)\")) ",
           "format": "time_series",
           "hide": false,
           "intervalFactor": 1,
@@ -328,8 +325,8 @@
           "step": 240
         }
       ],
-      "title": "RAM %",
-      "type": "gauge"
+      "title": "RAM Total",
+      "type": "stat"
     },
     {
       "datasource": {
@@ -602,6 +599,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
+      "description": "Total Templates per categoria",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -613,7 +611,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "dark-purple",
+                "color": "semi-dark-yellow",
                 "value": null
               }
             ]
@@ -627,7 +625,8 @@
         "x": 5,
         "y": 3
       },
-      "id": 150,
+      "id": 175,
+      "maxDataPoints": 85,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
@@ -645,23 +644,19 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.6",
+      "pluginVersion": "9.2.0",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "count(isardvdi_domain_vcpu_current * on (desktop) label_replace(isardvdi_isardvdi_api_desktop_info * on (user) group_left label_replace(isardvdi_isardvdi_api_user_info{category=\"$category\"}, \"user\", \"$1\", \"id\", \"(.*)\"), \"desktop\", \"$1\", \"id\", \"(.*)\")) or vector(0)",
-          "instant": true,
-          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: now())\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\"\n  )\n  |> keep(columns: [\"_time\", \"id\"])\n  |> group()\n  |> unique(column: \"id\")\n  |> count(column: \"id\")\n  |> yield()",
-          "range": false,
+          "expr": "isardvdi_isardvdi_api_template_number_category{category=\"$category\"}",
+          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"isardvdi-api\")\n  |> filter(fn: (r) => r[\"_field\"] == \"templates\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield()",
           "refId": "A"
         }
       ],
-      "title": "Desktops started",
+      "title": "Total Templates",
       "type": "stat"
     },
     {
@@ -669,7 +664,6 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
-      "description": "online users in the last 5 minutes",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -681,7 +675,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "semi-dark-green",
+                "color": "semi-dark-yellow",
                 "value": null
               }
             ]
@@ -695,7 +689,7 @@
         "x": 7,
         "y": 3
       },
-      "id": 178,
+      "id": 228,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
@@ -711,69 +705,9 @@
         "text": {
           "valueSize": 30
         },
-        "textMode": "auto"
+        "textMode": "value"
       },
-      "pluginVersion": "9.1.6",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "expr": "count(count by(id) (count_over_time(isardvdi_isardvdi_authentication_login_success[5m]))) or vector(0)",
-          "query": "from(bucket: \"isardvdi-go\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"isardvdi-authentication\")\n  |> filter(fn: (r) => r[\"_field\"] == \"login\")\n  |> aggregateWindow(every: 30s, fn: last, createEmpty: false)\n  |> unique(column: \"id\")\n  |> count(column: \"_value\")\n  |> keep(columns: [\"_value\"])\n  |> count(column: \"_value\")\n  |> yield()",
-          "refId": "A"
-        }
-      ],
-      "title": "Users Online",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "noValue": "0",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "semi-dark-green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 3,
-        "w": 2,
-        "x": 9,
-        "y": 3
-      },
-      "id": 184,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "9.1.6",
+      "pluginVersion": "9.2.0",
       "targets": [
         {
           "datasource": {
@@ -781,12 +715,13 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "builder",
-          "expr": "isardvdi_domain_scrape_duration_seconds{domain=\"$domain\"}",
+          "expr": "isardvdi_isardvdi_api_deployment_number_category{category=\"$category\"}",
+          "query": "",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Scrape Time",
+      "title": "Total Deploys",
       "type": "stat"
     },
     {
@@ -815,10 +750,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 2,
+        "h": 3,
         "w": 2,
         "x": 11,
-        "y": 4
+        "y": 3
       },
       "id": 216,
       "links": [],
@@ -838,7 +773,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.6",
+      "pluginVersion": "9.2.0",
       "targets": [
         {
           "datasource": {
@@ -1605,7 +1540,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(isardvdi_domain_vcpu_current * on (desktop) label_replace(isardvdi_isardvdi_api_desktop_info * on (user) group_left label_replace(isardvdi_isardvdi_api_user_info{category=\"$category\"}, \"user\", \"$1\", \"id\", \"(.*)\"), \"desktop\", \"$1\", \"id\", \"(.*)\"))",
+          "expr": "sum(isardvdi_domain_vcpu_current * on (desktop) label_replace(isardvdi_isardvdi_api_desktop_info * on (user) group_left label_replace(isardvdi_isardvdi_api_user_info{category=\"$category\"}, \"user\", \"$1\", \"id\", \"(.*)\"), \"desktop\", \"$1\", \"id\", \"(.*)\")) or vector(0)",
           "hide": false,
           "instant": false,
           "legendFormat": "vCPU",
@@ -1659,10 +1594,8 @@
               "mode": "off"
             }
           },
-          "decimals": 0,
-          "displayName": "RAM Utilitzada",
+          "displayName": "RAM Total",
           "mappings": [],
-          "max": 100,
           "min": 0,
           "thresholds": {
             "mode": "absolute",
@@ -1681,7 +1614,7 @@
               }
             ]
           },
-          "unit": "percent"
+          "unit": "deckbytes"
         },
         "overrides": []
       },
@@ -1715,27 +1648,17 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "((node_memory_MemTotal_bytes{} - node_memory_MemFree_bytes{}) / (node_memory_MemTotal_bytes{} )) * 100",
-          "format": "time_series",
-          "hide": true,
-          "intervalFactor": 1,
-          "refId": "A",
-          "step": 240
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "expr": "100 - ((node_memory_MemAvailable_bytes{domain=\"$domain\"} * 100) / node_memory_MemTotal_bytes{domain=\"$domain\"})",
+          "editorMode": "code",
+          "expr": "sum(isardvdi_domain_mem_total * on (desktop) label_replace(isardvdi_isardvdi_api_desktop_info * on (user) group_left label_replace(isardvdi_isardvdi_api_user_info{category=\"$category\"}, \"user\", \"$1\", \"id\", \"(.*)\"), \"desktop\", \"$1\", \"id\", \"(.*)\")) or vector(0)",
           "format": "time_series",
           "hide": false,
           "intervalFactor": 1,
+          "range": true,
           "refId": "B",
           "step": 240
         }
       ],
-      "title": "RAM %",
+      "title": "RAM Total",
       "type": "timeseries"
     }
   ],
