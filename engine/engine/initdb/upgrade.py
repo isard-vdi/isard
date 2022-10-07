@@ -18,8 +18,9 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 59
+release_version = 60
 
+# release 60: Modify transitional_states_polling to 10 seconds by default
 # release 59: Remove whitespaces in uids and usernames
 # release 58: Add new field 'virtualization_nested' into every created domain
 # release 57: Addded serverstostart index to domains
@@ -304,6 +305,20 @@ class Upgrade(object):
         if version == 10:
             try:
                 d["resources"]["url"] = "https://repository.isardvdi.com"
+                r.table(table).update(d).run(self.conn)
+            except Exception as e:
+                log.error(
+                    "Could not update table "
+                    + table
+                    + " conversion fields for db version "
+                    + str(version)
+                    + "!"
+                )
+                log.error("Error detail: " + str(e))
+
+        if version == 60:
+            try:
+                d["engine"]["intervals"]["transitional_states_polling"] = 10
                 r.table(table).update(d).run(self.conn)
             except Exception as e:
                 log.error(
