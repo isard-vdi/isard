@@ -21,6 +21,7 @@ from ..flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
+from ..api_desktop_events import desktops_stop
 from ..api_desktops_common import ApiDesktopsCommon
 from ..api_desktops_persistent import ApiDesktopsPersistent
 from ..ds import DS
@@ -29,8 +30,6 @@ from ..helpers import (
     _parse_deployment_desktop,
     _parse_string,
 )
-
-ds = DS()
 
 
 def lists(user_id):
@@ -390,11 +389,7 @@ def stop(deployment_id):
             description_code="not_found" + str(deployment_id),
         )
 
-    for domain_id in domains_ids:
-        try:
-            ApiDesktopsPersistent().Stop(domain_id)
-        except:
-            None
+    desktops_stop(domains_ids, force=True, wait_seconds=30)
 
 
 def visible(deployment_id, stop_started_domains=True):
@@ -424,35 +419,12 @@ def visible(deployment_id, stop_started_domains=True):
 
     if stop_started_domains:
         with app.app_context():
-            for domain in list(
+            desktops_ids = list(
                 r.table("domains")
-                .get_all(deployment_id, index="tag")
-                .pluck("id", "status")
+                .get_all(deployment_id, index="tag")["id"]
                 .run(db.conn)
-            ):
-                if domain["status"] == "Started":
-                    try:
-                        ds.WaitStatus(
-                            domain["id"],
-                            "Any",
-                            "ShuttingDown",
-                            "Stopped",
-                            wait_seconds=5,
-                        )
-                    except:
-                        try:
-                            ds.WaitStatus(
-                                domain["id"],
-                                "Any",
-                                "Stopping",
-                                "Stopped",
-                                wait_seconds=5,
-                            )
-                        except:
-                            log.warning(
-                                "internal_server",
-                                "Unable to stop domain: " + str(domain["id"]),
-                            )
+            )
+            desktops_stop(desktops_ids, force=True, wait_seconds=5)
 
 
 def direct_viewer_csv(deployment_id):

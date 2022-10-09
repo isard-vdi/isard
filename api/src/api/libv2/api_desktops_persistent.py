@@ -41,6 +41,7 @@ from ..libv2.quotas import Quotas
 quotas = Quotas()
 
 from ..libv2.quotas_process import QuotasProcess
+from .api_desktop_events import desktop_stop
 
 qp = QuotasProcess()
 
@@ -506,40 +507,7 @@ class ApiDesktopsPersistent:
         return desktop_id
 
     def Stop(self, desktop_id):
-        with app.app_context():
-            desktop = r.table("domains").get(desktop_id).run(db.conn)
-        if not desktop:
-            raise Error(
-                "not_found",
-                "Desktop not found",
-                traceback.format_exc(),
-                description_code="not_found",
-            )
-        if desktop["status"] == "Stopped":
-            return desktop_id
-        if desktop["status"] == "Failed":
-            with app.app_context():
-                r.table("domains").get(desktop_id).update({"status": "Stopped"}).run(
-                    db.conn
-                )
-            return desktop_id
-        if desktop["status"] not in ["Started", "Shutting-down"]:
-            raise Error(
-                "precondition_required",
-                "Desktop can't be stopped from " + str(desktop["status"]),
-                traceback.format_exc(),
-                description_code="unable_to_stop_desktop_from" + str(desktop["status"]),
-            )
-
-        # Stop the domain
-        if desktop["status"] == "Started":
-            ds.WaitStatus(
-                desktop_id, desktop["status"], "Shutting-down", "Shutting-down"
-            )
-
-        if desktop["status"] == "Shutting-down":
-            ds.WaitStatus(desktop_id, desktop["status"], "Stopping", "Stopped")
-
+        desktop_stop(desktop_id, force=True)
         return desktop_id
 
     def Update(self, desktop_id, desktop_data, admin_or_manager=False):

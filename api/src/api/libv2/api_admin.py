@@ -24,7 +24,7 @@ db = RDB(app)
 db.init_app(app)
 
 from ..auth.authentication import *
-from .api_desktop_events import desktops_start
+from .api_desktop_events import desktops_start, desktops_stop
 from .api_desktops_persistent import ApiDesktopsPersistent
 from .api_exceptions import Error
 from .api_templates import ApiTemplates
@@ -638,12 +638,7 @@ class ApiAdmin:
                 ) + self.CheckField(table, "status", "Failed", ids)
                 desktops_start(domains_stopped)
                 domains_started = self.CheckField(table, "status", "Started", ids)
-                res_started = (
-                    r.table(table)
-                    .get_all(r.args(domains_started))
-                    .update({"status": "Stopping", "accessed": int(time.time())})
-                    .run(db.conn)
-                )
+                desktops_stop(domains_started, force=True)
                 return True
 
             if action == "toggle_visible":
@@ -653,13 +648,7 @@ class ApiAdmin:
                     r.table(table).get(domain_id).update(
                         {"tag_visible": True, "jumperurl": self.api_jumperurl_gencode()}
                     ).run(db.conn)
-                res_hidden = (
-                    r.table(table)
-                    .get_all(r.args(domains_shown))
-                    .filter({"status": "Started"})
-                    .update({"status": "Stopping", "accessed": int(time.time())})
-                    .run(db.conn)
-                )
+                desktops_stop(domains_shown, force=True)
                 res_hidden = (
                     r.table(table)
                     .get_all(r.args(domains_shown))
@@ -774,12 +763,7 @@ class ApiAdmin:
                 )
                 domains_started = self.CheckField(table, "status", "Started", ids)
                 domains = domains_shutting_down + domains_started
-                res_deleted = (
-                    r.table(table)
-                    .get_all(r.args(domains))
-                    .update({"status": "Stopping", "accessed": int(time.time())})
-                    .run(db.conn)
-                )
+                desktops_stop(domains, force=True)
                 return True
 
                 ## TODO: Pending Stats
