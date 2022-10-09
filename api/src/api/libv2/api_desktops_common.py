@@ -22,6 +22,7 @@ db.init_app(app)
 
 from ..libv2.api_scheduler import Scheduler
 from ..libv2.helpers import gen_payload_from_user
+from .api_desktop_events import desktop_start
 from .api_exceptions import Error
 from .isardViewer import isardViewer, viewer_jwt
 
@@ -76,7 +77,7 @@ class ApiDesktopsCommon:
         if len(domains) == 1:
             scheduled = False
             if start_desktop and domains[0]["status"] == "Stopped":
-                ds.WaitStatus(domains[0]["id"], "Stopped", "Starting", "Started")
+                desktop_start(domains[0]["id"], wait_seconds=60)
                 payload = gen_payload_from_user(domains[0]["user"])
                 scheduled = scheduler.add_desktop_timeouts(payload, domains[0]["id"])
             viewers = {

@@ -15,6 +15,7 @@ r = RethinkDB()
 import logging as log
 import traceback
 
+from .api_desktop_events import desktop_start
 from .api_exceptions import Error
 from .flask_rethink import RDB
 
@@ -52,9 +53,8 @@ class ApiDesktopsNonPersistent:
         if len(desktops) == 1:
             if desktops[0]["status"] == "Started":
                 return desktops[0]["id"]
-            elif desktops[0]["status"] == "Stopped":
-                ds.WaitStatus(desktops[0]["id"], "Stopped", "Starting", "Started")
-                return desktops[0]["id"]
+            desktop_start(desktops[0]["id"], wait_seconds=1)
+            return desktops[0]["id"]
 
         # If not, delete all nonpersistent desktops based on this template from user
         ds.delete_non_persistent(user_id, template_id)
@@ -114,7 +114,7 @@ class ApiDesktopsNonPersistent:
         # Create the domain from that template
         desktop_id = self._nonpersistent_desktop_from_tmpl(user_id, template_id)
 
-        ds.WaitStatus(desktop_id, "Any", "Any", "Started")
+        desktop_start(desktop_id)
         return desktop_id
 
     def _nonpersistent_desktop_from_tmpl(self, user_id, template_id):
@@ -184,6 +184,3 @@ class ApiDesktopsNonPersistent:
             "Unable to create non persistent desktop",
             traceback.format_exc(),
         )
-
-    def DesktopStart(self, desktop_id):
-        ds.WaitStatus(desktop_id, "Any", "Any", "Started")

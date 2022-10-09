@@ -18,6 +18,7 @@ from rethinkdb import RethinkDB
 from api import app
 
 from ..libv2.validators import _validate_item, check_user_duplicated_domain_name
+from .api_desktop_events import desktop_start
 from .api_exceptions import Error
 
 r = RethinkDB()
@@ -501,28 +502,7 @@ class ApiDesktopsPersistent:
             )
 
     def Start(self, desktop_id):
-        with app.app_context():
-            desktop = r.table("domains").get(desktop_id).run(db.conn)
-        if not desktop:
-            raise Error(
-                "not_found",
-                "Desktop not found",
-                traceback.format_exc(),
-                description_code="not_found",
-            )
-        if desktop["status"] == "Started":
-            return desktop_id
-        if desktop["status"] not in ["Stopped", "Failed"]:
-            raise Error(
-                "precondition_required",
-                "Desktop can't be started from " + str(desktop["status"]),
-                traceback.format_exc(),
-                description_code="unable_to_start_desktop_from"
-                + str(desktop["status"]),
-            )
-
-        # Start the domain
-        ds.WaitStatus(desktop_id, "Any", "Starting", "Started")
+        desktop_start(desktop_id)
         return desktop_id
 
     def Stop(self, desktop_id):

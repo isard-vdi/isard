@@ -24,6 +24,7 @@ db = RDB(app)
 db.init_app(app)
 
 from ..auth.authentication import *
+from .api_desktop_events import desktops_start
 from .api_desktops_persistent import ApiDesktopsPersistent
 from .api_exceptions import Error
 from .api_templates import ApiTemplates
@@ -621,13 +622,8 @@ class ApiAdmin:
                 domains_stopped = self.CheckField(
                     table, "status", "Stopped", ids
                 ) + self.CheckField(table, "status", "Failed", ids)
+                desktops_start(domains_stopped)
                 domains_started = self.CheckField(table, "status", "Started", ids)
-                res_stopped = (
-                    r.table(table)
-                    .get_all(r.args(domains_stopped))
-                    .update({"status": "Starting", "accessed": int(time.time())})
-                    .run(db.conn)
-                )
                 res_started = (
                     r.table(table)
                     .get_all(r.args(domains_started))
@@ -640,13 +636,8 @@ class ApiAdmin:
                 domains_stopped = self.CheckField(
                     table, "status", "Stopped", ids
                 ) + self.CheckField(table, "status", "Failed", ids)
+                desktops_start(domains_stopped)
                 domains_started = self.CheckField(table, "status", "Started", ids)
-                res_stopped = (
-                    r.table(table)
-                    .get_all(r.args(domains_stopped))
-                    .update({"status": "Starting", "accessed": int(time.time())})
-                    .run(db.conn)
-                )
                 res_started = (
                     r.table(table)
                     .get_all(r.args(domains_started))
@@ -809,12 +800,7 @@ class ApiAdmin:
                 domains_stopped = self.CheckField(table, "status", "Stopped", ids)
                 domains_failed = self.CheckField(table, "status", "Failed", ids)
                 domains = domains_stopped + domains_failed
-                res = (
-                    r.table(table)
-                    .get_all(r.args(domains))
-                    .update({"status": "StartingPaused", "accessed": int(time.time())})
-                    .run(db.conn)
-                )
+                desktops_start(domains, paused=True)
                 return True
         return False
 
