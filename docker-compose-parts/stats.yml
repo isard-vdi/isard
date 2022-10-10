@@ -4,6 +4,8 @@ services:
     image: ${DOCKER_IMAGE_PREFIX}stats-go:${DOCKER_IMAGE_TAG-latest}
     volumes:
       - /opt/isard-local/conntrack:/conntrack
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
     container_name: isard-stats-go
     logging:
       driver: "json-file"
@@ -47,6 +49,8 @@ services:
     pid: host
     volumes:
       - '/:/host:ro,rslave'
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
 
   isard-stats-cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.45.0
@@ -69,6 +73,8 @@ services:
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.74
@@ -83,6 +89,8 @@ services:
       - /opt/isard-local/stats/grafana-agent:/tmp/agent/data
       - /var/log:/var/log
       - /var/lib/docker/containers:/var/lib/docker/containers
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.69

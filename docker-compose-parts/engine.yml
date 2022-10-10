@@ -14,6 +14,8 @@ services:
     volumes:
       - /opt/isard/certs/viewers:/certs:rw
       - /opt/isard/sshkeys:/root/.ssh:rw
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
     depends_on:
       - isard-db
     env_file:
