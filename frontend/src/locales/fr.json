@@ -456,7 +456,8 @@
         "maxLengthValue": "Le champ {property} a {model} caractères, mais sa longueur maximale doit être de {max}.",
         "inputFormat": "Les caractères valides sont les lettres, les chiffres, la virgule, le point, -, _",
         "required": "{property} est requis.",
-        "minLengthValue": "Le champ {property} a {model} caractères, mais sa longueur minimale doit être de {min}."
+        "minLengthValue": "Le champ {property} a {model} caractères, mais sa longueur minimale doit être de {min}.",
+        "url": "Le champ {property} doit être une URL."
     },
     "forms": {
         "new-desktop": {
@@ -496,7 +497,8 @@
             "modal": {
                 "buttons": {
                     "update": "Mettre à jour"
-                }
+                },
+                "title": "Mise à jour autorisée"
             }
         },
         "new-deployment": {
