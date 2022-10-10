@@ -12,6 +12,7 @@ from time import sleep, time
 from engine.config import POLLING_INTERVAL_TRANSITIONAL_STATES
 from engine.models.hyp import hyp
 from engine.services.db import (
+    get_domain,
     get_domains_with_transitional_status,
     get_hyp_hostname_from_id,
     get_hyp_hostnames_online,
@@ -113,12 +114,71 @@ class ThreadBroom(threading.Thread):
                         if h.connected:
                             hyps_domain_started[hyp_id] = {}
                             hyps_domain_started[hyp_id]["hyp"] = h
-                            list_domains_from_hyp = h.get_domains()
-                            if list_domains_from_hyp is None:
-                                list_domains_from_hyp = []
+                            d_domains_status_from_hyp = h.get_domains()
+                            if d_domains_status_from_hyp is None:
+                                d_domains_status_from_hyp = {}
+
+                            # check if domain running in hypervisor is not defined in database
+                            domains_destroyed = []
+                            domains_debugging = []
+                            for id_domain, status in d_domains_status_from_hyp.items():
+                                if (
+                                    id_domain
+                                    not in ids_domains_started_in_db_with_hypervisor
+                                ):
+                                    if (
+                                        id_domain
+                                        not in ids_domains_started_in_db_with_hypervisor
+                                    ):
+                                        # starting with _debug_ not destroyed by broom
+                                        if id_domain.find("_debug_") != 0:
+                                            d_domain = get_domain(id_domain)
+                                            if d_domain is None:
+                                                try:
+                                                    domain_handler = (
+                                                        h.conn.lookupByName(id_domain)
+                                                    )
+                                                    domain_handler.destroy()
+                                                    domains_destroyed.append(id_domain)
+                                                    logs.broom.error(
+                                                        f"broom destroyed domain not in database {id_domain} in hypervisor {hyp_id}"
+                                                    )
+                                                except Exception as e:
+                                                    logs.broom.error(
+                                                        f"EXCEPTION when try to destroy domain not in database {id_domain} in hypervisor {hyp_id} with exception: {e}"
+                                                    )
+                                        else:
+                                            logs.broom.info(
+                                                f"domain debugging: id_domain"
+                                            )
+                                            domains_debugging.append(id_domain)
+                                    else:
+                                        status_domain = [
+                                            d["status"]
+                                            for d in list_domains_without_hyp
+                                            if d["id"] == id_domain
+                                        ][0]
+                                        update_domain_hyp_started(
+                                            id_domain,
+                                            hyp_id,
+                                            "hyp_started updated by broom",
+                                            status_domain,
+                                        )
+
+                            # remove domains destroyed by broom
+                            [
+                                d_domains_status_from_hyp.pop(k)
+                                for k in domains_destroyed
+                            ]
+                            # remove domains debugging by broom
+                            [
+                                d_domains_status_from_hyp.pop(k)
+                                for k in domains_debugging
+                            ]
+
                             hyps_domain_started[hyp_id][
                                 "active_domains"
-                            ] = list_domains_from_hyp
+                            ] = d_domains_status_from_hyp
 
                             # Update the current hypervisor memory and CPU usage in the DB
                             try:
@@ -187,10 +247,13 @@ class ThreadBroom(threading.Thread):
 
                         else:
                             logs.broom.error("HYPERVISOR {} libvirt connection failed")
+                            hyps_domain_started[hyp_id] = False
                             logs.broom.error(
                                 "Traceback: {}".format(traceback.format_exc())
                             )
                             hyps_domain_started[hyp_id] = False
+                            continue
+
                         h.disconnect()
 
                         after = time()
@@ -210,6 +273,39 @@ class ThreadBroom(threading.Thread):
                         "Exception when try to hypervisor {}: {}".format(hyp_id, e)
                     )
                     logs.broom.error("Traceback: {}".format(traceback.format_exc()))
+
+            ## DOMAINS ACTIVE EN HYPERVISOR THAT ARE STOPPED, FAILED, UNKNOWN IN DATABASE...
+            for hyp_id, d in hyps_domain_started.items():
+                for id_domain, d_status in d["active_domains"].items():
+                    if (
+                        id_domain not in ids_domains_started_in_db_with_hypervisor
+                    ) and (id_domain not in ids_domains_started_in_db_with_hypervisor):
+                        d_domain = get_domain(id_domain)
+                        if d_domain is None:
+                            logs.broom.error(
+                                "CRITICAL, if domain is not in database, must be destroyed previously by broom"
+                            )
+                            continue
+                        if (
+                            d_status["status"] == "Started"
+                            or d_status["status"] == "Paused"
+                        ):
+                            logs.broom.error(
+                                f"broom find domain {id_domain} with status {d_status['status']} in hypervisor {hyp_id} and updated status and hyp_started in databse"
+                            )
+                            update_domain_hyp_started(
+                                id_domain,
+                                hyp_id,
+                                "State and hyp_started updated by broom",
+                                d_status["status"],
+                            )
+                        else:
+                            logs.broom.error(
+                                f"CRITICAL: STATUS FROM LIBVIRT IS NOT STARTED OR PAUSED!! broom find domain {id_domain} with status {d_status['status']} in hypervisor {hyp_id}"
+                            )
+                            logs.broom.error(
+                                f"CRITICAL: broom not update strange status {id_domain} with status {d_status['status']} in hypervisor {hyp_id}"
+                            )
 
             for d in list_domains_without_hyp:
                 domain_id = d["id"]
@@ -237,7 +333,9 @@ class ThreadBroom(threading.Thread):
                 # TODO bug sometimes hyp_started not in hyps_domain_started keys... why?
                 if hyp_started in hyps_domain_started.keys() and len(hyp_started) > 0:
                     if hyps_domain_started[hyp_started] is not False:
-                        if status == "Starting":
+                        if status == "Started":
+                            pass
+                        elif status == "Starting":
                             logs.broom.debug(
                                 "DOMAIN: {} STATUS STARTING TO RUN IN HYPERVISOR: {}".format(
                                     domain_id, hyp_started
@@ -297,10 +395,26 @@ class ThreadBroom(threading.Thread):
                                     domain_id,
                                     detail="Stopped by broom thread",
                                 )
-                        else:
+                        elif status == "Shutting-down":
                             logs.broom.debug(
-                                "DOMAIN: {} NOT ACTIVE YET IN HYPERVISOR: {} ".format(
+                                "DOMAIN: {} STATUS Shutting-down IN HYPERVISOR: {}".format(
                                     domain_id, hyp_started
+                                )
+                            )
+                            if int(time()) - int(d["accessed"]) > 5 * 60:
+                                update_domain_status(
+                                    "Stopping",
+                                    domain_id,
+                                    keep_hyp_id=True,
+                                    detail="Stopping by broom thread",
+                                )
+                                logs.broom.info(
+                                    f"domain {domain_id} updated to Stopping after 5 min in Shutting-down"
+                                )
+                        else:
+                            logs.broom.info(
+                                "DOMAIN with status {}: {} NOT ACTIVE YET IN HYPERVISOR: {} ?".format(
+                                    status, domain_id, hyp_started
                                 )
                             )
                 else:
