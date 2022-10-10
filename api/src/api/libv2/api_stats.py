@@ -610,17 +610,16 @@ def CategoriesLimitsHardware():
 
 def CategoriesDeploys():
     with app.app_context():
-        query = {}
-        query = (
+        return (
             r.table("deployments")
             .merge(
                 lambda dom: {
-                    "category": r.table("users").get(dom["user"])["category"],
+                    "category": r.table("users")
+                    .get(dom["user"])["category"]
+                    .default("None"),
                 }
             )
             .group(r.row["category"])
             .count()
             .run(db.conn)
         )
-
-    return query
