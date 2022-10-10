@@ -89,11 +89,15 @@ class ApiAllowed:
             if query_merge:
                 query = query.merge(
                     lambda d: {
-                        "category_name": r.table("categories").get(d["category"])[
-                            "name"
-                        ],
-                        "group_name": r.table("groups").get(d["group"])["name"],
-                        "user_name": r.table("users").get(d["user"])["name"],
+                        "category_name": r.table("categories")
+                        .get(d["category"])["name"]
+                        .default(None),
+                        "group_name": r.table("groups")
+                        .get(d["group"])["name"]
+                        .default(None),
+                        "user_name": r.table("users")
+                        .get(d["user"])["name"]
+                        .default(None),
                     }
                 )
                 if len(query_pluck) > 0:
