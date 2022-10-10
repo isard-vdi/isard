@@ -41,7 +41,7 @@ from ..libv2.quotas import Quotas
 quotas = Quotas()
 
 from ..libv2.quotas_process import QuotasProcess
-from .api_desktop_events import desktop_stop
+from .api_desktop_events import desktop_delete, desktop_stop
 
 qp = QuotasProcess()
 
@@ -92,11 +92,7 @@ class ApiDesktopsPersistent:
                 traceback.format_exc(),
                 description_code="not_found",
             )
-        ds.delete_desktop(desktop_id, desktop["status"])
-        with app.app_context():
-            r.table("bookings").get_all(
-                ["desktop", desktop_id], index="item_type-id"
-            ).delete().run(db.conn)
+        desktop_delete(desktop_id)
 
     def Get(self, desktop_id):
         with app.app_context():

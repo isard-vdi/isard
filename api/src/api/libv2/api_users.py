@@ -13,6 +13,7 @@ from rethinkdb import RethinkDB
 
 from api import app
 
+from .api_desktop_events import desktops_delete
 from .api_exceptions import Error
 from .quotas import Quotas
 
@@ -453,9 +454,11 @@ class ApiUsers:
 
     def Delete(self, user_id):
         self.Get(user_id)
-        todelete = self._delete_checks(user_id, "user")
-        for desktop in todelete:
-            ds.delete_desktop(desktop["id"], desktop["status"])
+        desktops_delete(
+            [desktop["id"] for desktop in self._delete_checks(user_id, "user")],
+            from_started=True,
+            wait_seconds=30,
+        )
 
         change_user_items_owner("media", user_id)
         with app.app_context():
@@ -689,6 +692,7 @@ class ApiUsers:
         return [i for n, i in enumerate(domains) if i not in domains[n + 1 :]]
 
     def CategoryDelete(self, category_id):
+        desktops_to_delete = []
         with app.app_context():
             for d in self.category_delete_checks(category_id):
                 if d["kind"] == "user":
@@ -698,7 +702,12 @@ class ApiUsers:
                 elif d["kind"] == "category":
                     r.table("categories").get(d["id"]).delete().run(db.conn)
                 else:
-                    ds.delete_desktop(d["id"], d["status"])
+                    desktops_to_delete.append(d["id"])
+        desktops_delete(
+            desktops_to_delete,
+            from_started=True,
+            wait_seconds=30,
+        )
         change_category_items_owner("media", category_id)
 
     def GroupGet(self, group_id):
@@ -815,9 +824,13 @@ class ApiUsers:
             .run(db.conn)
         )
 
-        for desktop in desktops:
-            ds.delete_desktop(desktop["id"], desktop["status"])
+        desktops_delete(
+            [desktop["id"] for desktop in desktops],
+            from_started=True,
+            wait_seconds=30,
+        )
 
+        desktops_to_delete = []
         with app.app_context():
             for d in self.group_delete_checks(group_id):
                 if d["kind"] == "user":
@@ -825,8 +838,12 @@ class ApiUsers:
                 elif d["kind"] == "group":
                     r.table("groups").get(d["id"]).delete().run(db.conn)
                 else:
-                    ds.delete_desktop(d["id"], d["status"])
-
+                    desktops_to_delete.append(d["id"])
+        desktops_delete(
+            desktops_to_delete,
+            from_started=True,
+            wait_seconds=30,
+        )
         change_group_items_owner("media", group_id)
 
     def EnrollmentAction(self, data):

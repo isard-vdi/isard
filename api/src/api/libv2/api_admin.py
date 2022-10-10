@@ -24,7 +24,7 @@ db = RDB(app)
 db.init_app(app)
 
 from ..auth.authentication import *
-from .api_desktop_events import desktops_start, desktops_stop
+from .api_desktop_events import desktops_delete, desktops_start, desktops_stop
 from .api_desktops_persistent import ApiDesktopsPersistent
 from .api_exceptions import Error
 from .api_templates import ApiTemplates
@@ -699,38 +699,18 @@ class ApiAdmin:
                 return data
 
             if action == "delete":
-                domains_deleting = self.CheckField(table, "status", "Deleting", ids)
-                res = (
-                    r.table(table)
-                    .get_all(r.args(domains_deleting))
-                    .delete()
-                    .run(db.conn)
-                )
                 domains = list(
                     r.table(table)
                     .get_all(r.args(ids))
                     .pluck("id", "status")
                     .run(db.conn)
                 )
-                domains = [
-                    d["id"]
-                    for d in domains
-                    if d["status"]
-                    in [
-                        "Stopped",
-                        "Disabled",
-                        "Failed",
-                        "Creating",
-                        "CreatingDisk",
-                        "CreatingAndStarting",
-                        "Shutting-down",
+                desktops_delete(
+                    [
+                        desktop["id"]
+                        for desktop in domains
+                        if desktop["status"] in ["Stopped", "Failed"]
                     ]
-                ]
-                res = (
-                    r.table(table)
-                    .get_all(r.args(domains))
-                    .update({"status": "Deleting"})
-                    .run(db.conn)
                 )
                 return True
 

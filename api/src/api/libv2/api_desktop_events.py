@@ -57,6 +57,29 @@ def wait_status(
     return status
 
 
+def wait_delete_status(desktop_id, wait_seconds=0, interval_seconds=2):
+    seconds = 0
+    while seconds <= wait_seconds:
+        time.sleep(interval_seconds)
+        seconds += interval_seconds
+        with app.app_context():
+            try:
+                status = (
+                    r.table("domains")
+                    .get(desktop_id)
+                    .pluck("status")["status"]
+                    .run(db.conn)
+                )
+            except:
+                return True
+    raise Error(
+        "internal_server",
+        "Engine could not delete " + desktop_id + " in " + str(wait_seconds),
+        traceback.format_exc(),
+        description_code="generic_error",
+    )
+
+
 def get_desktop_status(desktop_id):
     with app.app_context():
         try:
@@ -128,19 +151,9 @@ def desktop_stop(desktop_id, force=False, wait_seconds=0):
         else:
             with app.app_context():
                 r.table("domains").get(desktop_id).update(
-                    {"status": "Shutting-down", "accessed": int(time.time())}
+                    {"status": "Stopping", "accessed": int(time.time())}
                 ).run(db.conn)
-            status_changed = wait_status(
-                desktop_id,
-                "Shutting-down",
-                wait_seconds=120,
-                raise_exc=False,
-                interval_seconds=30,
-            )
-            if status_changed:
-                return status_changed
-            else:
-                status = "Shutting-down"
+            return wait_status(desktop_id, "Stopping", wait_seconds=wait_seconds)
     if status == "Shutting-down":
         with app.app_context():
             r.table("domains").get(desktop_id).update(
@@ -164,12 +177,6 @@ def desktops_stop(desktops_ids, force=False, wait_seconds=30):
             ).update({"status": "Stopping", "accessed": int(time.time())}).run(db.conn)
             r.table("domains").get_all(r.args(desktops_ids), index="id").filter(
                 {"status": "Started"}
-            ).update({"status": "Shutting-down", "accessed": int(time.time())}).run(
-                db.conn
-            )
-            time.sleep(wait_seconds)
-            r.table("domains").get_all(r.args(desktops_ids), index="id").filter(
-                {"status": "Shutting-down"}
             ).update({"status": "Stopping", "accessed": int(time.time())}).run(db.conn)
     else:
         with app.app_context():
@@ -181,3 +188,69 @@ def desktops_stop(desktops_ids, force=False, wait_seconds=30):
             ).update({"status": "Shutting-down", "accessed": int(time.time())}).run(
                 db.conn
             )
+
+
+def desktop_delete(desktop_id, from_started=False, wait_seconds=0):
+    status = get_desktop_status(desktop_id)
+    if status == "Deleting":
+        return True
+    if from_started:
+        # TODO: Engine should implement StoppingAndDeleting
+        status = desktop_stop(desktop_id, force=True, wait_seconds=60)
+
+    if status in ["Stopped", "Failed"]:
+        with app.app_context():
+            r.table("bookings").get_all(
+                ["desktop", desktop_id], index="item_type-id"
+            ).delete().run(db.conn)
+            r.table("domains").get(desktop_id).update(
+                {"status": "Deleting", "accessed": int(time.time())}
+            ).run(db.conn)
+    else:
+        raise Error(
+            "precondition_required",
+            "Unable to delete desktop " + desktop_id + " in status " + status,
+            traceback.format_exc(),
+            description_code="unable_to_delete_desktop_from" + status,
+        )
+    if wait_seconds:
+        wait_delete_status(desktop_id, wait_seconds=wait_seconds)
+    return True
+
+
+def desktops_delete(desktops_ids, from_started=False, wait_seconds=30):
+    if from_started:
+        for desktop_id in desktops_ids:
+            desktop_stop(desktop_id, force=True, wait_seconds=0)
+        time.sleep(wait_seconds)
+
+    with app.app_context():
+        r.table("bookings").get_all(
+            ["desktop", r.args(desktops_ids)], index="item_type-id"
+        ).delete().run(db.conn)
+        r.table("domains").get_all(r.args(desktops_ids), index="id").filter(
+            {"status": "Stopped"}
+        ).update({"status": "Deleting", "accessed": int(time.time())}).run(db.conn)
+        r.table("domains").get_all(r.args(desktops_ids), index="id").filter(
+            {"status": "Failed"}
+        ).update({"status": "Deleting", "accessed": int(time.time())}).run(db.conn)
+
+
+def desktops_non_persistent_delete(user_id, template=False):
+    if template == False:
+        with app.app_context():
+            desktops_to_delete = (
+                r.table("domains")
+                .get_all(user_id, index="user")
+                .filter({"persistent": False})["id"]
+                .run(db.conn)
+            )
+    else:
+        with app.app_context():
+            desktops_to_delete = (
+                r.table("domains")
+                .get_all(user_id, index="user")
+                .filter({"from_template": template, "persistent": False})["id"]
+                .run(db.conn)
+            )
+    desktops_delete(desktops_to_delete, from_started=True, wait_seconds=3)
