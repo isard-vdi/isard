@@ -68,6 +68,9 @@
                         "title": "Esborrar desplegament"
                     }
                 }
+            },
+            "videowall": {
+                "back": "Volver a despliegues"
             }
         },
         "desktop-cards": {

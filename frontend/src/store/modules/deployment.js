@@ -10,7 +10,8 @@ const getDefaultState = () => {
       desktops: []
     },
     deployment_loaded: false,
-    selectedDesktop: {}
+    selectedDesktop: {},
+    deploymentsShowStarted: false
   }
 }
 
@@ -27,10 +28,13 @@ export default {
     },
     getSelectedDesktop: state => {
       return state.selectedDesktop
+    },
+    getDeploymentsShowStarted: state => {
+      return state.deploymentsShowStarted
     }
   },
   mutations: {
-    resetDeploymentsState: (state) => {
+    resetDeploymentState: (state) => {
       Object.assign(state, getDefaultState())
     },
     setDeployment: (state, deployment) => {
@@ -59,11 +63,14 @@ export default {
       if (deploymentIndex !== -1) {
         state.deployment.desktops.splice(deploymentIndex, 1)
       }
+    },
+    toggleDeploymentsShowStarted: (state, type) => {
+      state.deploymentsShowStarted = !state.deploymentsShowStarted
     }
   },
   actions: {
-    resetDeploymentsState (context) {
-      context.commit('resetDeploymentsState')
+    resetDeploymentState (context) {
+      context.commit('resetDeploymentState')
     },
     socket_deploymentUpdate (context, data) {
       const deployment = DeploymentsUtils.parseDeployment(JSON.parse(data))
@@ -152,6 +159,9 @@ export default {
       return axios.put(`${apiV3Segment}/groups_users/count`, groups).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
+    },
+    toggleDeploymentsShowStarted (context) {
+      context.commit('toggleDeploymentsShowStarted')
     }
   }
 }

@@ -141,6 +141,7 @@ import IsardDropdown from '@/components/shared/IsardDropdown.vue'
 import DesktopButton from '@/components/desktops/Button.vue'
 import { mapActions, mapGetters } from 'vuex'
 import ListItemSkeleton from '@/components/ListItemSkeleton.vue'
+import { onUnmounted } from '@vue/composition-api'
 
 export default {
   components: { DesktopButton, IsardDropdown, ListItemSkeleton },
@@ -159,6 +160,13 @@ export default {
       required: true,
       type: Boolean
     }
+  },
+  setup (props, context) {
+    const $store = context.root.$store
+
+    onUnmounted(() => {
+      $store.dispatch('resetDeploymentState')
+    })
   },
   data () {
     return {

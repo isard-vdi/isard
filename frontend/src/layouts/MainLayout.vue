@@ -13,14 +13,12 @@ import { computed } from '@vue/composition-api'
 import { sectionConfig } from '@/utils/section-config.js'
 import NewNavBar from '@/components/NewNavBar.vue'
 import StatusBar from '@/components/StatusBar.vue'
-import DeploymentVideowallStatusBar from '@/components/deployments/DeploymentVideowallStatusBar.vue'
 import BookingStatusBar from '@/components/booking/BookingStatusBar.vue'
 
 export default {
   components: {
     StatusBar,
     NewNavBar,
-    DeploymentVideowallStatusBar,
     BookingStatusBar
   },
   setup (_, context) {

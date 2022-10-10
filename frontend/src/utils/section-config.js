@@ -9,7 +9,7 @@ export const sectionConfig = {
     statusBar: 'StatusBar'
   },
   deployment_videowall: {
-    statusBar: 'DeploymentVideowallStatusBar'
+    statusBar: 'StatusBar'
   },
   deployments: {
     statusBar: 'StatusBar'

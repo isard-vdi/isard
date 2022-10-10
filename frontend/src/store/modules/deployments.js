@@ -8,8 +8,7 @@ import { ErrorUtils } from '../../utils/errorUtils'
 const getDefaultState = () => {
   return {
     deployments: [],
-    deployments_loaded: false,
-    deploymentsShowStarted: false
+    deployments_loaded: false
   }
 }
 
@@ -23,9 +22,6 @@ export default {
     },
     getDeploymentsLoaded: state => {
       return state.deployments_loaded
-    },
-    getDeploymentsShowStarted: state => {
-      return state.deploymentsShowStarted
     }
   },
   mutations: {
@@ -50,9 +46,6 @@ export default {
       if (deploymentIndex !== -1) {
         state.deployments.splice(deploymentIndex, 1)
       }
-    },
-    toggleDeploymentsShowStarted: (state, type) => {
-      state.deploymentsShowStarted = !state.deploymentsShowStarted
     }
   },
   actions: {
@@ -75,9 +68,6 @@ export default {
       axios.get(`${apiV3Segment}/deployments`).then(response => {
         context.commit('setDeployments', DeploymentsUtils.parseDeployments(response.data))
       })
-    },
-    toggleDeploymentsShowStarted (context) {
-      context.commit('toggleDeploymentsShowStarted')
     },
     createNewDeployment (_, payload) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.creating-deployment'), '', true, 1000)

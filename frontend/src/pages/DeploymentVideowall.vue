@@ -54,11 +54,19 @@
 import NoVNC from '@/components/NoVNC.vue'
 import DeploymentCard from '@/components/deployments/DeploymentCard.vue'
 import { mapGetters } from 'vuex'
+import { onUnmounted } from '@vue/composition-api'
 
 export default {
   components: {
     NoVNC,
     DeploymentCard
+  },
+  setup (props, context) {
+    const $store = context.root.$store
+
+    onUnmounted(() => {
+      $store.dispatch('resetDeploymentState')
+    })
   },
   computed: {
     ...mapGetters(['getDeployment', 'getDeploymentLoaded', 'getViewType', 'getSelectedDesktop', 'getDeploymentsShowStarted']),
