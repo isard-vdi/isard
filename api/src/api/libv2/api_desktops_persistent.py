@@ -18,6 +18,7 @@ from rethinkdb import RethinkDB
 from api import app
 
 from ..libv2.validators import _validate_item, check_user_duplicated_domain_name
+from .api_desktop_events import desktop_start
 from .api_exceptions import Error
 
 r = RethinkDB()
@@ -40,6 +41,7 @@ from ..libv2.quotas import Quotas
 quotas = Quotas()
 
 from ..libv2.quotas_process import QuotasProcess
+from .api_desktop_events import desktop_delete, desktop_stop
 
 qp = QuotasProcess()
 
@@ -90,11 +92,7 @@ class ApiDesktopsPersistent:
                 traceback.format_exc(),
                 description_code="not_found",
             )
-        ds.delete_desktop(desktop_id, desktop["status"])
-        with app.app_context():
-            r.table("bookings").get_all(
-                ["desktop", desktop_id], index="item_type-id"
-            ).delete().run(db.conn)
+        desktop_delete(desktop_id)
 
     def Get(self, desktop_id):
         with app.app_context():
@@ -501,65 +499,11 @@ class ApiDesktopsPersistent:
             )
 
     def Start(self, desktop_id):
-        with app.app_context():
-            desktop = r.table("domains").get(desktop_id).run(db.conn)
-        if not desktop:
-            raise Error(
-                "not_found",
-                "Desktop not found",
-                traceback.format_exc(),
-                description_code="not_found",
-            )
-        if desktop["status"] == "Started":
-            return desktop_id
-        if desktop["status"] not in ["Stopped", "Failed"]:
-            raise Error(
-                "precondition_required",
-                "Desktop can't be started from " + str(desktop["status"]),
-                traceback.format_exc(),
-                description_code="unable_to_start_desktop_from"
-                + str(desktop["status"]),
-            )
-
-        # Start the domain
-        ds.WaitStatus(desktop_id, "Any", "Starting", "Started")
+        desktop_start(desktop_id)
         return desktop_id
 
     def Stop(self, desktop_id):
-        with app.app_context():
-            desktop = r.table("domains").get(desktop_id).run(db.conn)
-        if not desktop:
-            raise Error(
-                "not_found",
-                "Desktop not found",
-                traceback.format_exc(),
-                description_code="not_found",
-            )
-        if desktop["status"] == "Stopped":
-            return desktop_id
-        if desktop["status"] == "Failed":
-            with app.app_context():
-                r.table("domains").get(desktop_id).update({"status": "Stopped"}).run(
-                    db.conn
-                )
-            return desktop_id
-        if desktop["status"] not in ["Started", "Shutting-down"]:
-            raise Error(
-                "precondition_required",
-                "Desktop can't be stopped from " + str(desktop["status"]),
-                traceback.format_exc(),
-                description_code="unable_to_stop_desktop_from" + str(desktop["status"]),
-            )
-
-        # Stop the domain
-        if desktop["status"] == "Started":
-            ds.WaitStatus(
-                desktop_id, desktop["status"], "Shutting-down", "Shutting-down"
-            )
-
-        if desktop["status"] == "Shutting-down":
-            ds.WaitStatus(desktop_id, desktop["status"], "Stopping", "Stopped")
-
+        desktop_stop(desktop_id, force=True)
         return desktop_id
 
     def Update(self, desktop_id, desktop_data, admin_or_manager=False):

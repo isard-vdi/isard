@@ -15,6 +15,12 @@ r = RethinkDB()
 import logging as log
 import traceback
 
+from .api_desktop_events import (
+    desktop_delete,
+    desktop_start,
+    desktops_delete,
+    desktops_non_persistent_delete,
+)
 from .api_exceptions import Error
 from .flask_rethink import RDB
 
@@ -52,26 +58,20 @@ class ApiDesktopsNonPersistent:
         if len(desktops) == 1:
             if desktops[0]["status"] == "Started":
                 return desktops[0]["id"]
-            elif desktops[0]["status"] == "Stopped":
-                ds.WaitStatus(desktops[0]["id"], "Stopped", "Starting", "Started")
-                return desktops[0]["id"]
+            desktop_start(desktops[0]["id"], wait_seconds=1)
+            return desktops[0]["id"]
 
         # If not, delete all nonpersistent desktops based on this template from user
-        ds.delete_non_persistent(user_id, template_id)
+        desktops_non_persistent_delete(user_id, template_id)
 
         # and get a new nonpersistent desktops from this template
         return self._nonpersistent_desktop_create_and_start(user_id, template_id)
 
     def Delete(self, desktop_id):
-        with app.app_context():
-            desktop = r.table("domains").get(desktop_id).run(db.conn)
-        if desktop == None:
-            raise Error("not_found", "Desktop not found", traceback.format_exc())
-        ds.delete_desktop(desktop_id, desktop["status"])
-        with app.app_context():
-            r.table("bookings").get_all(
-                ["desktop", desktop_id], index="item_type-id"
-            ).delete().run(db.conn)
+        desktop_delete(
+            desktop_id,
+            from_started=True,
+        )
 
     def DeleteOthers(self, user_id, template_id):
         """Will leave only one nonpersistent desktops form template `template_id`
@@ -96,15 +96,13 @@ class ApiDesktopsNonPersistent:
                         "persistent": False,
                     }
                 )
-                .order_by(r.desc("accessed"))
+                .order_by(r.desc("accessed"))["id"]
                 .run(db.conn)
             )
         # This situation should not happen as there should only be a maximum of 1 non persistent desktop
         # So we delete all but the first one [0] as the descendant order_by lets this as the newer desktop
         if len(desktops) > 1:
-            for i in range(1, len(desktops) - 1):
-                ## We delete all and return the first as the order is descendant (first is the newer desktop)
-                ds.delete_desktop(desktops[i]["id"])
+            desktops_delete(desktops[1:], from_started=True, wait_seconds=5)
 
     def _nonpersistent_desktop_create_and_start(self, user_id, template_id):
         with app.app_context():
@@ -114,7 +112,7 @@ class ApiDesktopsNonPersistent:
         # Create the domain from that template
         desktop_id = self._nonpersistent_desktop_from_tmpl(user_id, template_id)
 
-        ds.WaitStatus(desktop_id, "Any", "Any", "Started")
+        desktop_start(desktop_id)
         return desktop_id
 
     def _nonpersistent_desktop_from_tmpl(self, user_id, template_id):
@@ -184,6 +182,3 @@ class ApiDesktopsNonPersistent:
             "Unable to create non persistent desktop",
             traceback.format_exc(),
         )
-
-    def DesktopStart(self, desktop_id):
-        ds.WaitStatus(desktop_id, "Any", "Any", "Started")

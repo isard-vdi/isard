@@ -24,6 +24,7 @@ db = RDB(app)
 db.init_app(app)
 
 from ..auth.authentication import *
+from .api_desktop_events import desktops_delete, desktops_start, desktops_stop
 from .api_desktops_persistent import ApiDesktopsPersistent
 from .api_exceptions import Error
 from .api_templates import ApiTemplates
@@ -621,13 +622,8 @@ class ApiAdmin:
                 domains_stopped = self.CheckField(
                     table, "status", "Stopped", ids
                 ) + self.CheckField(table, "status", "Failed", ids)
+                desktops_start(domains_stopped)
                 domains_started = self.CheckField(table, "status", "Started", ids)
-                res_stopped = (
-                    r.table(table)
-                    .get_all(r.args(domains_stopped))
-                    .update({"status": "Starting", "accessed": int(time.time())})
-                    .run(db.conn)
-                )
                 res_started = (
                     r.table(table)
                     .get_all(r.args(domains_started))
@@ -640,19 +636,9 @@ class ApiAdmin:
                 domains_stopped = self.CheckField(
                     table, "status", "Stopped", ids
                 ) + self.CheckField(table, "status", "Failed", ids)
+                desktops_start(domains_stopped)
                 domains_started = self.CheckField(table, "status", "Started", ids)
-                res_stopped = (
-                    r.table(table)
-                    .get_all(r.args(domains_stopped))
-                    .update({"status": "Starting", "accessed": int(time.time())})
-                    .run(db.conn)
-                )
-                res_started = (
-                    r.table(table)
-                    .get_all(r.args(domains_started))
-                    .update({"status": "Stopping", "accessed": int(time.time())})
-                    .run(db.conn)
-                )
+                desktops_stop(domains_started, force=True)
                 return True
 
             if action == "toggle_visible":
@@ -662,13 +648,7 @@ class ApiAdmin:
                     r.table(table).get(domain_id).update(
                         {"tag_visible": True, "jumperurl": self.api_jumperurl_gencode()}
                     ).run(db.conn)
-                res_hidden = (
-                    r.table(table)
-                    .get_all(r.args(domains_shown))
-                    .filter({"status": "Started"})
-                    .update({"status": "Stopping", "accessed": int(time.time())})
-                    .run(db.conn)
-                )
+                desktops_stop(domains_shown, force=True)
                 res_hidden = (
                     r.table(table)
                     .get_all(r.args(domains_shown))
@@ -719,38 +699,18 @@ class ApiAdmin:
                 return data
 
             if action == "delete":
-                domains_deleting = self.CheckField(table, "status", "Deleting", ids)
-                res = (
-                    r.table(table)
-                    .get_all(r.args(domains_deleting))
-                    .delete()
-                    .run(db.conn)
-                )
                 domains = list(
                     r.table(table)
                     .get_all(r.args(ids))
                     .pluck("id", "status")
                     .run(db.conn)
                 )
-                domains = [
-                    d["id"]
-                    for d in domains
-                    if d["status"]
-                    in [
-                        "Stopped",
-                        "Disabled",
-                        "Failed",
-                        "Creating",
-                        "CreatingDisk",
-                        "CreatingAndStarting",
-                        "Shutting-down",
+                desktops_delete(
+                    [
+                        desktop["id"]
+                        for desktop in domains
+                        if desktop["status"] in ["Stopped", "Failed"]
                     ]
-                ]
-                res = (
-                    r.table(table)
-                    .get_all(r.args(domains))
-                    .update({"status": "Deleting"})
-                    .run(db.conn)
                 )
                 return True
 
@@ -783,12 +743,7 @@ class ApiAdmin:
                 )
                 domains_started = self.CheckField(table, "status", "Started", ids)
                 domains = domains_shutting_down + domains_started
-                res_deleted = (
-                    r.table(table)
-                    .get_all(r.args(domains))
-                    .update({"status": "Stopping", "accessed": int(time.time())})
-                    .run(db.conn)
-                )
+                desktops_stop(domains, force=True)
                 return True
 
                 ## TODO: Pending Stats
@@ -809,12 +764,7 @@ class ApiAdmin:
                 domains_stopped = self.CheckField(table, "status", "Stopped", ids)
                 domains_failed = self.CheckField(table, "status", "Failed", ids)
                 domains = domains_stopped + domains_failed
-                res = (
-                    r.table(table)
-                    .get_all(r.args(domains))
-                    .update({"status": "StartingPaused", "accessed": int(time.time())})
-                    .run(db.conn)
-                )
+                desktops_start(domains, paused=True)
                 return True
         return False
 

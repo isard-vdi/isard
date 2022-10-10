@@ -23,6 +23,7 @@ db = RDB(app)
 db.init_app(app)
 
 from ..libv2.isardVpn import isardVpn
+from .api_desktop_events import desktops_stop
 from .api_exceptions import Error
 
 isardVpn = isardVpn()
@@ -246,23 +247,13 @@ class ApiHypervisors:
 
     def stop_hyper_domains(self, hyper_id):
         with app.app_context():
-            domains = list(
+            desktops_ids = list(
                 r.table("domains")
                 .get_all("Started", index="status")
-                .filter({"hyp_started": hyper_id})
-                .update({"status": "Stopping", "accessed": int(time.time())})
+                .filter({"hyp_started": hyper_id})["id"]
                 .run(db.conn)
             )
-            time.sleep(1)
-        while len(
-            list(
-                r.table("domains")
-                .get_all("Started", index="status")
-                .filter({"hyp_started": hyper_id})
-                .run(db.conn)
-            )
-        ):
-            time.sleep(1)
+        desktops_stop(desktops_ids, force=True, wait_seconds=0)
 
     def engine_restart(self):
         try:
@@ -497,30 +488,27 @@ class ApiHypervisors:
 
     def domains_stop(self, hyp_id=False):
         with app.app_context():
-            try:
-                if hyp_id == False:
-                    return (
-                        r.table("domains")
-                        .get_all("Started", index="status")
-                        .filter({"viewer": {"client_since": False}})
-                        .update({"status": "Stopping", "accessed": int(time.time())})
-                        .run(db.conn)["replaced"]
-                    )
-                else:
-                    return (
-                        r.table("domains")
-                        .get_all("Started", index="status")
-                        .filter(
-                            {
-                                "hyp_started": hyp_id,
-                                "viewer": {"client_since": False},
-                            }
-                        )
-                        .update({"status": "Stopping", "accessed": int(time.time())})
-                        .run(db.conn)["replaced"]
-                    )
-            except:
-                raise Error("internal_server", "Could not stop the hypervisor" + hyp_id)
+            if hyp_id == False:
+                desktops_ids = list(
+                    r.table("domains")
+                    .get_all("Started", index="status")
+                    .filter({"viewer": {"client_since": False}})["id"]
+                    .run(db.conn)["replaced"]
+                )
+            else:
+                desktops_ids = list(
+                    r.table("domains")
+                    .get_all("Started", index="status")
+                    .filter(
+                        {
+                            "hyp_started": hyp_id,
+                            "viewer": {"client_since": False},
+                        }
+                    )["id"]
+                    .run(db.conn)["replaced"]
+                )
+        desktops_stop(desktops_ids, force=True, wait_seconds=0)
+        return True
 
     def assign_gpus(self):
         with app.app_context():
