@@ -189,7 +189,7 @@ class Populate(object):
                                     "time_between_polling": 5,
                                     "test_hyp_fail": 20,
                                     "background_polling": 10,
-                                    "transitional_states_polling": 2,
+                                    "transitional_states_polling": 10,
                                 },
                                 "ssh": {"paramiko_host_key_policy_check": False},
                                 "stats": {
