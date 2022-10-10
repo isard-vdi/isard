@@ -46,6 +46,8 @@ class ThreadBroom(threading.Thread):
         self.stop = False
 
     def polling(self):
+        cpu_stats_previous = {}
+        cpu_stats_5min_previous = {}
         while self.stop is not True:
 
             interval = 0.0
@@ -124,7 +126,55 @@ class ThreadBroom(threading.Thread):
                                 mem_stats["available"] = (
                                     mem_stats["free"] + mem_stats["cached"]
                                 )
-                                # cpu_stats = h.conn.getCPUStats(-1)
+                                cpu_stats_timestamp = time()
+                                cpu_stats = h.conn.getCPUStats(-1)
+
+                                if cpu_stats_previous.get(hyp_id, False) == False:
+                                    cpu_stats_previous[hyp_id] = cpu_stats
+                                    cpu_stats_5min_previous[hyp_id] = []
+                                    cpu_stats_5min_previous[hyp_id].append(
+                                        (cpu_stats_timestamp, cpu_stats)
+                                    )
+                                    sleep(2)
+                                    cpu_stats_timestamp = time()
+                                    cpu_stats = h.conn.getCPUStats(-1)
+
+                                (
+                                    percent,
+                                    diff_time,
+                                    total_diff_time,
+                                ) = calcule_cpu_hyp_stats(
+                                    cpu_stats_previous[hyp_id],
+                                    cpu_stats,
+                                    round_digits=3,
+                                )
+                                cpu_current = percent
+
+                                cpu_stats_previous[hyp_id] = cpu_stats
+                                cpu_stats_5min_previous[hyp_id].append(
+                                    (cpu_stats_timestamp, cpu_stats)
+                                )
+
+                                # remove old stats > 5 min
+                                pop_items = 0
+                                for a in cpu_stats_5min_previous[hyp_id]:
+                                    if (cpu_stats_timestamp - a[0]) > (5 * 60 + 10):
+                                        pop_items += 1
+                                    else:
+                                        break
+                                for i in range(pop_items):
+                                    if len(cpu_stats_5min_previous[hyp_id]) > 2:
+                                        cpu_stats_5min_previous[hyp_id].pop(0)
+
+                                (
+                                    cpu_current_5min,
+                                    diff_time,
+                                    total_diff_time,
+                                ) = calcule_cpu_hyp_stats(
+                                    cpu_stats_5min_previous[hyp_id][0][1],
+                                    cpu_stats,
+                                    round_digits=3,
+                                )
 
                             except Exception as e:
                                 logs.broom.error(
@@ -137,6 +187,9 @@ class ThreadBroom(threading.Thread):
 
                         else:
                             logs.broom.error("HYPERVISOR {} libvirt connection failed")
+                            logs.broom.error(
+                                "Traceback: {}".format(traceback.format_exc())
+                            )
                             hyps_domain_started[hyp_id] = False
                         h.disconnect()
 
@@ -145,6 +198,8 @@ class ThreadBroom(threading.Thread):
 
                         d_stats = {
                             "time_elapsed_broom_connection": elapsed,
+                            "cpu_current": cpu_current,
+                            "cpu_5min": cpu_current_5min,
                             "mem_stats": mem_stats,
                         }
                         update_table_field("hypervisors", hyp_id, "stats", d_stats)
