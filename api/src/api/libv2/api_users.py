@@ -174,7 +174,6 @@ class ApiUsers:
                 .get_all([uid, category, provider], index="uid_category_provider")
                 .run(db.conn)
             )
-        log.error(user)
         return user
 
     def List(self, category_id=None):
