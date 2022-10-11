@@ -27,10 +27,10 @@ from ..libv2.api_desktops_nonpersistent import ApiDesktopsNonPersistent
 
 desktops = ApiDesktopsNonPersistent()
 
-from .decorators import has_token
+from .decorators import has_token, ownsDomainId
 
 
-@app.route("/api/v3/desktop", methods=["POST"])
+@app.route("/api/v3/nonpersistent", methods=["POST"])
 @has_token
 def api_v3_desktop_new(payload):
     try:
@@ -59,3 +59,11 @@ def api_v3_desktop_new(payload):
         200,
         {"Content-Type": "application/json"},
     )
+
+
+@app.route("/api/v3/nonpersistent/<desktop_id>", methods=["DELETE"])
+@has_token
+def api_v3_nonpersistent_desktop_delete(payload, desktop_id):
+    ownsDomainId(payload, desktop_id)
+    desktops.Delete(desktop_id)
+    return json.dumps({}), 200, {"Content-Type": "application/json"}

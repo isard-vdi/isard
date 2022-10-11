@@ -189,7 +189,7 @@ export default {
     createDesktop (_, data) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.creating-desktop'))
 
-      axios.post(`${apiV3Segment}/desktop`, data, { timeout: 25000 }).then(response => {
+      axios.post(`${apiV3Segment}/nonpersistent`, data, { timeout: 25000 }).then(response => {
         this._vm.$snotify.clear()
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -262,6 +262,15 @@ export default {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deleting-desktop'))
 
       axios.delete(`${apiV3Segment}/desktop/${desktopId}`).then(response => {
+        this._vm.$snotify.clear()
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    deleteNonpersistentDesktop (_, desktopId) {
+      ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deleting-desktop'))
+
+      axios.delete(`${apiV3Segment}/nonpersistent/${desktopId}`).then(response => {
         this._vm.$snotify.clear()
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)

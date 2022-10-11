@@ -202,7 +202,7 @@
               :spinner-active="false"
               :butt-text="$t('views.select-template.remove')"
               icon-name="trash"
-              @buttonClicked="deleteDesktop(desktop.id)"
+              @buttonClicked="deleteNonpersistentDesktop(desktop.id)"
             />
           </div>
 
@@ -417,6 +417,7 @@ export default {
   methods: {
     ...mapActions([
       'deleteDesktop',
+      'deleteNonpersistentDesktop',
       'openDesktop',
       'changeDesktopStatus',
       'createDesktop',
