@@ -226,6 +226,9 @@
                         "title": "Delete deployment"
                     }
                 }
+            },
+            "videowall": {
+                "back": "Back to deployment"
             }
         },
         "desktop-cards": {

@@ -20,7 +20,7 @@
             id="statusbar-content"
             class="flex-grow flex-row"
           >
-            <!-- Back -->
+            <!-- Back to deployments -->
             <b-nav-item
               v-if="locationDeployment"
               href="#"
@@ -35,6 +35,21 @@
                 {{ $t("components.statusbar.deployment.back") }}
               </div>
             </b-nav-item>
+            <!-- Back to deployment desktop list -->
+            <b-nav-item
+              v-if="locationVideowall"
+              href="#"
+              @click="redirectDeployment"
+            >
+              <div>
+                <b-icon
+                  icon="arrow-left"
+                  aria-hidden="true"
+                  class="text-medium-gray mr-2 mr-lg-2"
+                />
+                {{ $t("components.statusbar.videowall.back") }}
+              </div>
+            </b-nav-item>
             <!-- filter -->
             <DesktopsFilter
               v-if="locationDesktops && !creationMode"
@@ -42,10 +57,10 @@
             />
             <!-- Only started checkbox -->
             <b-nav-item
-              v-if="locationDesktops && !creationMode"
+              v-if="(locationDesktops || locationVideowall) && !creationMode"
               class="ml-2 ml-md-4"
               href="#"
-              @click="toggleDesktopsFilter"
+              @click="startedFilter"
             >
               <div>
                 <b-form-checkbox
@@ -227,6 +242,35 @@
               />
             </b-nav-item>
           </b-navbar-nav>
+          <!-- Videowall grid and individual view -->
+          <b-navbar-nav
+            v-if="locationVideowall"
+            class="ml-auto flex-row d-none d-xl-flex"
+          >
+            <b-nav-item
+              href="#"
+              :class="{selectedView: getViewType === 'grid'}"
+              @click="changeView('grid')"
+            >
+              <b-icon
+                icon="grid-fill"
+                aria-hidden="true"
+                class="text-medium-gray mt-1"
+              />
+            </b-nav-item>
+            <b-nav-item
+              href="#"
+              :class="{selectedView: getViewType === 'youtube'}"
+              class="ml-sm-2 ml-xl-0"
+              @click="changeView('youtube')"
+            >
+              <b-icon
+                icon="grid1x2-fill"
+                aria-hidden="true"
+                class="text-medium-gray mt-1"
+              />
+            </b-nav-item>
+          </b-navbar-nav>
         </div>
       </b-navbar>
     </b-container>
@@ -237,7 +281,7 @@
 import { desktopStates } from '@/shared/constants'
 import { mapActions, mapGetters } from 'vuex'
 import DesktopsFilter from '@/components/desktops/DesktopsFilter.vue'
-import { computed } from '@vue/composition-api'
+import { ref, computed, watch } from '@vue/composition-api'
 import i18n from '@/i18n'
 
 export default {
@@ -246,6 +290,8 @@ export default {
   },
   setup (props, context) {
     const $store = context.root.$store
+
+    const started = ref(false)
 
     const createDesktop = () => {
       $store.dispatch('checkCreateDesktopQuota')
@@ -413,6 +459,10 @@ export default {
       })
     }
 
+    watch(() => context.root.$route, () => {
+      started.value = false
+    }, { immediate: true })
+
     return {
       goToDeployments,
       startDesktops,
@@ -427,13 +477,8 @@ export default {
       deleteDeployment,
       recreateDeployment,
       createDesktop,
-      createMedia
-    }
-  },
-  data () {
-    return {
-      started: false,
-      showStarted: 'false'
+      createMedia,
+      started
     }
   },
   computed: {
@@ -464,6 +509,10 @@ export default {
       const tokens = this.getUrlTokens
       return tokens === 'deployment_desktops'
     },
+    locationVideowall () {
+      const tokens = this.getUrlTokens
+      return tokens === 'deployment_videowall'
+    },
     creationMode () {
       return this.getUrlTokens.includes('new')
     }
@@ -472,11 +521,19 @@ export default {
     ...mapActions([
       'setViewType',
       'toggleShowStarted',
-      'navigate'
+      'navigate',
+      'toggleDeploymentsShowStarted'
     ]),
-    toggleDesktopsFilter () {
+    startedFilter () {
       this.started = !this.started
-      this.toggleShowStarted()
+      if (this.locationDesktops) {
+        this.toggleShowStarted()
+      } else if (this.locationVideowall) {
+        this.toggleDeploymentsShowStarted()
+      }
+    },
+    changeView (type) {
+      this.$store.dispatch('setViewType', type)
     }
   }
 }

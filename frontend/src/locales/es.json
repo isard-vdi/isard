@@ -226,6 +226,9 @@
                         "title": "Eliminar despliegue"
                     }
                 }
+            },
+            "videowall": {
+                "back": "Volver al despliegue"
             }
         },
         "desktop-cards": {
