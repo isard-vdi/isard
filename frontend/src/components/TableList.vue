@@ -130,7 +130,7 @@
                   :spinner-active="false"
                   :butt-text="$t('views.select-template.remove')"
                   icon-name="trash"
-                  @buttonClicked="deleteDesktop(data.item.id)"
+                  @buttonClicked="deleteNonpersistentDesktop(data.item.id)"
                 />
               </template>
               <template #cell(options)="data">
@@ -315,6 +315,7 @@ export default {
   methods: {
     ...mapActions([
       'deleteDesktop',
+      'deleteNonpersistentDesktop',
       'openDesktop',
       'changeDesktopStatus',
       'createDesktop',
@@ -325,9 +326,27 @@ export default {
       'checkCreateTemplateQuota'
     ]),
     chooseDesktop (template) {
-      const data = new FormData()
-      data.append('template', template)
-      this.createDesktop(data)
+      this.$snotify.clear()
+
+      const yesAction = () => {
+        const data = new FormData()
+        data.append('template', template)
+        this.$snotify.clear()
+        this.createDesktop(data)
+      }
+
+      const noAction = (toast) => {
+        this.$snotify.clear()
+      }
+
+      this.$snotify.prompt(`${i18n.t('messages.confirmation.create-nonpersistent')}`, {
+        position: 'centerTop',
+        buttons: [
+          { text: `${i18n.t('messages.yes')}`, action: yesAction, bold: true },
+          { text: `${i18n.t('messages.no')}`, action: noAction }
+        ],
+        placeholder: ''
+      })
     },
     imageId (desktop, template) {
       return desktop.state && desktop.type === 'nonpersistent' && [desktopStates.started, desktopStates.waitingip, desktopStates.stopped].includes(this.getItemState(desktop)) ? DesktopUtils.hash(this.getemplate.id) : desktop.id && DesktopUtils.hash(desktop.id)
