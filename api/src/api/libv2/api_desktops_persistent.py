@@ -503,7 +503,7 @@ class ApiDesktopsPersistent:
         return desktop_id
 
     def Stop(self, desktop_id):
-        desktop_stop(desktop_id, force=True)
+        desktop_stop(desktop_id)
         return desktop_id
 
     def Update(self, desktop_id, desktop_data, admin_or_manager=False):
