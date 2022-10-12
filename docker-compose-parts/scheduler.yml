@@ -10,6 +10,8 @@ services:
         tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
     volumes:
       - /opt/isard/backups:/src/backups:rw
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.24

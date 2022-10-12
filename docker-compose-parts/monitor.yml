@@ -11,6 +11,9 @@ services:
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.15
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
     restart: unless-stopped
     env_file:
       - .env
@@ -25,6 +28,8 @@ services:
     volumes:
       - /opt/isard/stats/loki:/data
       - ${BUILD_ROOT_PATH}/docker/loki/config.yaml:/etc/loki/local-config.yaml
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
     logging:
       driver: "json-file"
       options:
@@ -44,6 +49,8 @@ services:
     user: root
     volumes:
       - /opt/isard/stats/prometheus:/prometheus
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
     logging:
       driver: "json-file"
       options:

@@ -14,5 +14,7 @@ services:
     volumes:
       - "/opt/isard/authentication/keys:/keys"
       - "/opt/isard/authentication/metadata:/metadata"
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
     env_file:
       - .env

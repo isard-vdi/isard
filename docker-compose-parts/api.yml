@@ -17,6 +17,8 @@ services:
       - /opt/isard/assets/img/desktops:/api/api/static/assets/img/desktops:rw
       - /opt/isard/config:/usr/local/etc/isardvdi
       - /opt/isard/backups:/api/backups:rw
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
     environment:
       DOMAIN:
       LOG_LEVEL:

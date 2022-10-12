@@ -26,5 +26,7 @@ services:
     volumes:
       - /opt/isard/certs/letsencrypt:/etc/letsencrypt:rw
       - /opt/isard/certs/default:/certs:rw
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
     env_file:
       - .env

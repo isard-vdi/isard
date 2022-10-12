@@ -11,6 +11,9 @@ services:
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.19
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
     sysctls:
       - net.ipv6.conf.all.disable_ipv6=1
     env_file:

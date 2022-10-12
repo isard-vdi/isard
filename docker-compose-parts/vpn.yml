@@ -28,6 +28,8 @@ services:
       - /opt/isard/certs/default:/portal-certs:ro
       - /opt/isard-local/conntrack:/conntrack
       - /proc/sys/net/netfilter/nf_conntrack_acct:/host-proc/sys/net/netfilter/nf_conntrack_acct
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
     env_file:
       - .env  
 
