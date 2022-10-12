@@ -188,8 +188,8 @@ $(document).ready(function() {
                 contentType: "application/json",
                 error: function (data) {
                     notice.update({
-                        title: "ERROR",
-                        text: "Couldn't create user",
+                        title: "ERROR creating user",
+                        text: data.responseJSON.description,
                         type: 'error',
                         hide: true,
                         icon: 'fa fa-warning',
@@ -237,8 +237,8 @@ $(document).ready(function() {
                 contentType: "application/json",
                 error: function(data) {
                     notice.update({
-                        title: 'ERROR',
-                        text: 'Cannot update user',
+                        title: 'ERROR Updating user',
+                        text: data.responseJSON.description,
                         type: 'error',
                         hide: true,
                         icon: 'fa fa-warning',
@@ -400,8 +400,8 @@ $(document).ready(function() {
                                  },
                                  error: function(data){
                                     new PNotify({
-                                        title: "ERROR",
-                                        text: "Error updating user " + user.username,
+                                        title: "ERROR updating user "+user.username,
+                                        text: data.responseJSON.description,
                                         type: 'error',
                                         hide: true,
                                         icon: 'fa fa-warning',
@@ -436,8 +436,8 @@ $(document).ready(function() {
                         },
                         error: function(data){
                             new PNotify({
-                                title: "ERROR",
-                                text: "Error adding user " + user.username,
+                                title: "ERROR adding user "+user.username,
+                                text: data.responseJSON.description,
                                 type: 'error',
                                 hide: true,
                                 icon: 'fa fa-warning',
@@ -805,8 +805,8 @@ function actionsUserDetail(){
                 },
                 error: function(data) {
                     new PNotify({
-                        title: "ERROR",
-                        text: "Can't update user status",
+                        title: "ERROR updating user "+name,
+                        text: data.responseJSON.description,
                         type: 'error',
                         hide: true,
                         icon: 'fa fa-warning',
