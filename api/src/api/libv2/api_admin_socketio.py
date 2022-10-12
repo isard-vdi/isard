@@ -396,6 +396,19 @@ class UsersThread(threading.Thread):
                             table = c["new_val"]["table"]
                             event = table + "_data"
 
+                        if table == "users":
+                            data["desktops"] = (
+                                r.table("domains")
+                                .get_all(["desktop", data["id"]], index="kind_user")
+                                .count()
+                                .run(db.conn)
+                            )
+                            data["templates"] = (
+                                r.table("domains")
+                                .get_all(["template", data["id"]], index="kind_user")
+                                .count()
+                                .run(db.conn)
+                            )
                         # Admins receive all events
                         socketio.emit(
                             event,
