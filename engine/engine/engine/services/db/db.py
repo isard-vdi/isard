@@ -414,13 +414,20 @@ def delete_table_item(table, id_item):
     return False
 
 
-def update_table_field(table, id_doc, field, value, merge_dict=True):
+def update_table_field(table, id_doc, field, value, merge_dict=True, soft=False):
+    durability = "hard" if soft is False else "soft"
     r_conn = new_rethink_connection()
     rtable = r.table(table)
     if merge_dict is True:
-        result = rtable.get(id_doc).update({field: value}).run(r_conn)
+        result = (
+            rtable.get(id_doc).update({field: value}, durability=durability).run(r_conn)
+        )
     else:
-        result = rtable.get(id_doc).update({field: r.literal(value)}).run(r_conn)
+        result = (
+            rtable.get(id_doc)
+            .update({field: r.literal(value)}, durability=durability)
+            .run(r_conn)
+        )
     close_rethink_connection(r_conn)
     return result
 

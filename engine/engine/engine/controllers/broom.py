@@ -265,7 +265,9 @@ class ThreadBroom(threading.Thread):
                             "cpu_5min": cpu_current_5min,
                             "mem_stats": mem_stats,
                         }
-                        update_table_field("hypervisors", hyp_id, "stats", d_stats)
+                        update_table_field(
+                            "hypervisors", hyp_id, "stats", d_stats, soft=True
+                        )
 
                 except Exception as e:
                     logs.exception_id.debug("0003")
