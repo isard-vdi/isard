@@ -486,7 +486,9 @@ $(document).ready(function() {
         },
 			"language": {
 				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
-			},
+        },
+        "rowId": "id",
+        "deferRender": true,
         "columns": [
 				{
                 "className":      'details-control',
@@ -611,15 +613,15 @@ $(document).ready(function() {
     });
 
     socket.on('users_data', function(data) {
-        console.log('User update')
-        users_table.ajax.reload()
+        var data = JSON.parse(data);
+        dtUpdateInsert(users_table,data,false);
         //var data = JSON.parse(data);
         //drawUserQuota(data);
     });
 
     socket.on('users_delete', function(data) {
-        console.log('User update')
-        users_table.ajax.reload()
+        var data = JSON.parse(data);
+        users_table.row('#'+data.id).remove().draw();
         //var data = JSON.parse(data);
         //drawUserQuota(data);
     });
