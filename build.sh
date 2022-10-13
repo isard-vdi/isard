@@ -52,7 +52,7 @@ ALLINONE_PARTS="
 	authentication
 	vpn
 	guac
-	toolbox
+	storage
 	backupninja
 "
 HYPERVISOR_KEY="hypervisor"
@@ -70,7 +70,7 @@ HYPERVISOR_STANDALONE_PARTS="
 	hypervisor
 	hypervisor-standalone
 	stats
-	toolbox
+	storage
 "
 VIDEO_STANDALONE_KEY="video-standalone"
 VIDEO_STANDALONE_PARTS="
@@ -80,14 +80,15 @@ VIDEO_STANDALONE_PARTS="
 	squid
 	stats
 "
-TOOLBOX_KEY="toolbox"
-TOOLBOX_PARTS="
+STORAGE_KEY="storage"
+STORAGE_PARTS="
 	network
-	toolbox
+	storage
+	stats
 "
-TOOLBOXBASE_KEY="toolbox-base"
-TOOLBOXBASE_PARTS="
-	toolbox-base
+STORAGEBASE_KEY="storage-base"
+STORAGEBASE_PARTS="
+	storage-base
 "
 WEB_KEY="web"
 WEB_PARTS="
@@ -116,12 +117,6 @@ BACKUPNINJA_STANDALONE_KEY="backupninja"
 BACKUPNINJA_STANDALONE_PARTS="
 	network
 	backupninja
-"
-
-STORAGE_KEY="storage"
-STORAGE_PARTS="
-	network
-	stats
 "
 
 docker_compose_version(){
@@ -330,11 +325,11 @@ create_docker_compose_file(){
 		$VIDEO_STANDALONE_KEY)
 			parts=$VIDEO_STANDALONE_PARTS
 			;;
-		$TOOLBOX_KEY)
-			parts=$TOOLBOX_PARTS
+		$STORAGE_KEY)
+			parts=$STORAGE_PARTS
 			;;
-		$TOOLBOXBASE_KEY)
-			parts=$TOOLBOXBASE_PARTS
+		$STORAGEBASE_KEY)
+			parts=$STORAGEBASE_PARTS
 			;;
 		$WEB_KEY)
 			parts=$WEB_PARTS
@@ -344,9 +339,6 @@ create_docker_compose_file(){
 			;;
 		$BACKUPNINJA_STANDALONE_KEY)
 			parts=$BACKUPNINJA_STANDALONE_PARTS
-			;;
-		$STORAGE_KEY)
-			parts=$STORAGE_PARTS
 			;;
 		*)
 			echo "Error: Flavour $FLAVOUR of $config_file not found"

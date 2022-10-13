@@ -170,7 +170,7 @@ def _phy_internal_toolbox_host():
     if not len(viewers):
         raise Error("precondition_required", "No hypervisors currently online")
     if "isard-hypervisor" in [v["proxy_hyper_host"] for v in viewers]:
-        return "http://isard-toolbox:5000/toolbox/api"
+        return "http://isard-storage:5000/toolbox/api"
     data = viewers[random.randint(0, len(viewers) - 1)]
     return (
         "https://" + data["proxy_video"] + ":" + data["html5_ext_port"] + "/toolbox/api"

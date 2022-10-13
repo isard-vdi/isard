@@ -1,8 +1,0 @@
-version: '3.5'
-services:
-  isard-toolbox-base:
-    image: ${DOCKER_IMAGE_PREFIX}toolbox-base:${DOCKER_IMAGE_TAG-latest}
-    build:
-      context: ${BUILD_ROOT_PATH}
-      dockerfile: docker/toolbox/Dockerfile.base
-      target: production

@@ -1,7 +1,7 @@
 version: '3.5'
 services:
-  isard-toolbox:
+  isard-storage:
     build:
       context: ${BUILD_ROOT_PATH}
-      dockerfile: docker/toolbox/Dockerfile
+      dockerfile: docker/storage/Dockerfile
       target: production

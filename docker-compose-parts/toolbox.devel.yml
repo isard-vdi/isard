@@ -1,7 +1,0 @@
-version: '3.5'
-services:
-  isard-toolbox:
-    volumes:
-    - ${BUILD_ROOT_PATH}/docker/toolbox/filebrowser:/fb
-    - ${BUILD_ROOT_PATH}/docker/toolbox/src:/src
-    - ${BUILD_ROOT_PATH}/docker/toolbox/api:/api
