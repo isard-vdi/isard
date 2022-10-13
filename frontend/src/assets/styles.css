@@ -592,6 +592,13 @@
   overflow-x: hidden;
 }
 
+.table-scrollable-div {
+  height: calc(100vh - 250px);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+
 .new-templates-list {
   height: calc(100vh - 120px);
   overflow-y: auto;

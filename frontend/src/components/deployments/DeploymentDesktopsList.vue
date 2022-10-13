@@ -1,5 +1,5 @@
 <template>
-  <div class="table-list px-5">
+  <div class="table-list px-5 table-scrollable-div">
     <b-container
       fluid
       class="px-0"
@@ -15,16 +15,49 @@
             <list-item-skeleton class="mb-2" />
           </b-col>
         </template>
-        <b-row class="scrollable-div">
+        <!-- Filter -->
+        <b-row class="mt-2">
+          <b-col
+            cols="8"
+            md="6"
+            lg="4"
+            xl="4"
+          >
+            <b-input-group size="sm">
+              <b-form-input
+                id="filter-input"
+                v-model="filter"
+                type="search"
+                :placeholder="$t('forms.filter-placeholder')"
+              />
+              <b-input-group-append>
+                <b-button
+                  :disabled="!filter"
+                  @click="filter = ''"
+                >
+                  {{ $t('forms.clear') }}
+                </b-button>
+              </b-input-group-append>
+            </b-input-group>
+          </b-col>
+        </b-row>
+
+        <b-row>
           <b-col
             cols="12"
-            class="d-flex flex-row flex-wrap justify-content-start pb-4"
+            class="d-flex flex-row flex-wrap justify-content-start4"
           >
             <b-table
+              id="deployment-desktops-table"
               :items="desktops"
               :fields="fields"
+              tbody-tr-class="cursor-pointer"
               :responsive="true"
-              class="pb-5"
+              :per-page="perPage"
+              :current-page="currentPage"
+              :filter="filter"
+              :filter-included-fields="filterOn"
+              @filtered="onFiltered"
             >
               <template #cell(image)="data">
                 <!-- INFO -->
@@ -126,6 +159,17 @@
                 </b-button>
               </template>
             </b-table>
+            <b-row class="pb-5">
+              <b-col>
+                <b-pagination
+                  v-model="currentPage"
+                  :total-rows="totalRows"
+                  :per-page="perPage"
+                  aria-controls="deployment-desktops-table"
+                  size="sm"
+                />
+              </b-col>
+            </b-row>
           </b-col>
         </b-row>
       </b-skeleton-wrapper>
@@ -141,7 +185,7 @@ import IsardDropdown from '@/components/shared/IsardDropdown.vue'
 import DesktopButton from '@/components/desktops/Button.vue'
 import { mapActions, mapGetters } from 'vuex'
 import ListItemSkeleton from '@/components/ListItemSkeleton.vue'
-import { onUnmounted } from '@vue/composition-api'
+import { onUnmounted, ref, reactive, watch } from '@vue/composition-api'
 
 export default {
   components: { DesktopButton, IsardDropdown, ListItemSkeleton },
@@ -164,9 +208,34 @@ export default {
   setup (props, context) {
     const $store = context.root.$store
 
+    const perPage = ref(7)
+    const currentPage = ref(1)
+    const totalRows = ref(1)
+    const filter = ref('')
+    const filterOn = reactive(['userName', 'groupName'])
+
+    const onFiltered = (filteredItems) => {
+      // Trigger pagination to update the number of buttons/pages due to filtering
+      totalRows.value = filteredItems.length
+      currentPage.value = 1
+    }
+
+    watch(() => props.desktops, (newVal, prevVal) => {
+      totalRows.value = newVal.length
+    })
+
     onUnmounted(() => {
       $store.dispatch('resetDeploymentState')
     })
+
+    return {
+      onFiltered,
+      filter,
+      filterOn,
+      perPage,
+      currentPage,
+      totalRows
+    }
   },
   data () {
     return {
