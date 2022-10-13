@@ -5,7 +5,7 @@
 ## This configuration should generate docker-compose file for the following
 ## flavour
 ## Values: (first value is the default one)
-##  - all-in-one: all services except toolbox in one docker-compose file
+##  - all-in-one: all services in one docker-compose file
 ##  - hypervisor: hypervisor and related service to access to their desktops
 ##  - hypervisor-standalone: hypervisor without related services
 ##  - video-standalone: services to access to desktops
