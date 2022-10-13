@@ -111,15 +111,14 @@ def desktop_start(desktop_id, wait_seconds=0, paused=False):
             description_code="unable_to_start_desktop_from" + status,
         )
     with app.app_context():
-        new_status = "Starting" if not paused else "StartingPaused"
         r.table("domains").get(desktop_id).update(
-            {"status": new_status, "accessed": int(time.time())}
+            {"status": "Starting", "accessed": int(time.time())}
         ).run(db.conn)
 
-    return wait_status(desktop_id, new_status, wait_seconds=wait_seconds)
+    return wait_status(desktop_id, "Starting", wait_seconds=wait_seconds)
 
 
-def desktops_start(desktops_ids, wait_seconds=0):
+def desktops_start(desktops_ids, wait_seconds=0, paused=False):
     with app.app_context():
         desktops = list(
             r.table("domains")
@@ -128,13 +127,15 @@ def desktops_start(desktops_ids, wait_seconds=0):
             .run(db.conn)
         )
         desktops_ok = [
-            desktop
+            desktop["id"]
             for desktop in desktops
             if desktop["status"] in ["Stopped", "Failed"]
         ]
-        r.table("domains").get_all(r.args(desktops_ok), index="id").update(
-            {"status": "Starting", "accessed": int(time.time())}
-        ).run(db.conn)
+        with app.app_context():
+            new_status = "Starting" if not paused else "StartingPaused"
+            r.table("domains").get_all(r.args(desktops_ok)).update(
+                {"status": new_status, "accessed": int(time.time())}
+            ).run(db.conn)
 
 
 def desktop_stop(desktop_id, force=False, wait_seconds=0):
