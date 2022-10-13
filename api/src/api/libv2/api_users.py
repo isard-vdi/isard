@@ -390,7 +390,9 @@ class ApiUsers:
             return [
                 _parse_desktop(desktop)
                 for desktop in desktops
-                if desktop.get("tag_visible", True)
+                if not desktop.get("tag")
+                or desktop.get("tag")
+                and desktop.get("tag_visible")
             ]
         except:
             raise Error(
@@ -915,7 +917,7 @@ class ApiUsers:
         # Limit group limits to it's category limits
         if category["limits"] != False:
             for k, v in category["limits"].items():
-                if quota.get("users") and v < quota[k]:
+                if quota and quota.get("users") and v < quota[k]:
                     quota[k] = v
 
         with app.app_context():

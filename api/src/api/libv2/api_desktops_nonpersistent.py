@@ -15,12 +15,15 @@ r = RethinkDB()
 import logging as log
 import traceback
 
+from ..libv2.quotas import Quotas
 from .api_desktop_events import (
     desktop_delete,
     desktop_start,
     desktops_delete,
     desktops_non_persistent_delete,
 )
+
+quotas = Quotas()
 from .api_exceptions import Error
 from .flask_rethink import RDB
 
@@ -116,6 +119,7 @@ class ApiDesktopsNonPersistent:
         return desktop_id
 
     def _nonpersistent_desktop_from_tmpl(self, user_id, template_id):
+        quotas.DesktopCreate(user_id)
         with app.app_context():
             template = r.table("domains").get(template_id).run(db.conn)
             if not template:

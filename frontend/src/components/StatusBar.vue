@@ -294,11 +294,11 @@ export default {
     const started = ref(false)
 
     const createDesktop = () => {
-      $store.dispatch('checkCreateDesktopQuota')
+      $store.dispatch('checkCreateQuota', { itemType: 'desktops', routeName: 'desktopsnew' })
     }
 
     const createMedia = () => {
-      $store.dispatch('checkCreateMediaQuota')
+      $store.dispatch('checkCreateQuota', { itemType: 'media', routeName: 'medianew' })
     }
 
     const deployment = computed(() => $store.getters.getDeployment)

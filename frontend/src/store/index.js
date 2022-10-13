@@ -228,6 +228,13 @@ export default new Vuex.Store({
           router.go()
         }
       })
+    },
+    checkCreateQuota (context, data) {
+      axios.get(`${apiV3Segment}/${data.itemType}/new/check_quota`).then(response => {
+        context.dispatch('navigate', data.routeName)
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
     }
   },
   modules: {

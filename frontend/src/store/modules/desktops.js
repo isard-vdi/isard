@@ -337,22 +337,6 @@ export default {
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
-    },
-    checkCreateDesktopQuota (context, data) {
-      const config = context.getters.getConfig
-      if (!config.quota) {
-        context.dispatch('navigate', 'desktopsnew')
-      } else {
-        axios.get(`${apiV3Segment}/desktops/count`).then(response => {
-          if (response.data.count < config.quota.desktops) {
-            context.dispatch('navigate', 'desktopsnew')
-          } else {
-            ErrorUtils.showErrorNotification(this._vm.$snotify, i18n.t('errors.desktop_new_user_quota_exceeded'))
-          }
-        }).catch(e => {
-          ErrorUtils.handleErrors(e, this._vm.$snotify)
-        })
-      }
     }
   }
 }
