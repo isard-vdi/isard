@@ -140,7 +140,9 @@ def api_v3_admin_user_insert(payload):
             "id"
         ]
 
-    data["username"].replace(" ", "")
+    data["username"] = data["username"].replace(" ", "")
+    if data["provider"] == "local":
+        data["uid"] = data["username"]
     data = _validate_item("user", data)
 
     ownsCategoryId(payload, data["category"])
@@ -651,10 +653,14 @@ def admin_users_validate(payload):
 @is_admin_or_manager
 def admin_users_getby_provider_category_uid(payload):
     data = request.get_json()
+    category_id = users.CategoryGetByName(data["category"])["id"]
+
     user_id = users.GetByProviderCategoryUID(
-        data["provider"], data["category"], data["uid"].replace(" ", "")
+        data["provider"],
+        category_id,
+        data["uid"].replace(" ", "_"),
     )
     if len(user_id) > 0:
         return json.dumps(user_id[0]["id"]), 200, {"Content-Type": "application/json"}
     else:
-        return json.dumps(user_id), 200, {"Content-Type": "application/json"}
+        raise Error("not_found", "User not found")

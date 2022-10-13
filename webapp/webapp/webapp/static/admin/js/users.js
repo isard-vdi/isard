@@ -174,7 +174,6 @@ $(document).ready(function() {
             data['provider']='local';
             data['bulk']=false;
             data['username']=$('#modalAddUserForm #id').val();
-            data['uid'] = data['username'];
             var notice = new PNotify({
                 text: 'Creating user...',
                 hide: true,
