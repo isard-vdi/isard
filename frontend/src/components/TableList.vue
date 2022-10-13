@@ -138,7 +138,7 @@
                   <b-button
                     :title="$t('components.desktop-cards.actions.edit')"
                     class="rounded-circle btn-blue px-2 mr-2"
-                    @click="onClickGoToEditDesktop({itemId: data.item.id, returnPage: currentRouteName})"
+                    @click="onClickGoToEditDesktop({itemId: data.item.id, returnPage: currentRouteName, server: data.item.server, state: data.item.state})"
                   >
                     <b-icon
                       icon="pencil-fill"
