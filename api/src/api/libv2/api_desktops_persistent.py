@@ -36,10 +36,6 @@ from ..libv2.api_cards import ApiCards, get_domain_stock_card
 
 api_cards = ApiCards()
 
-from ..libv2.quotas import Quotas
-
-quotas = Quotas()
-
 from ..libv2.quotas_process import QuotasProcess
 from .api_desktop_events import desktop_delete, desktop_stop
 
@@ -473,7 +469,7 @@ class ApiDesktopsPersistent:
             "tag_visible": False,
         }
 
-        res = qp.limit_user_hardware_allowed(payload, domain["create_dict"])
+        res = quotas.limit_user_hardware_allowed(payload, domain["create_dict"])
         if res["limited_hardware"]:
             raise Error(
                 "bad_request",

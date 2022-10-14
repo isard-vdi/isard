@@ -23,9 +23,6 @@ import json
 from api import app
 
 from .. import socketio
-from .quotas import Quotas
-
-quotas = Quotas()
 
 
 def notify_user(user_id, type, msg_code, params={}):
