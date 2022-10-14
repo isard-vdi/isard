@@ -66,7 +66,11 @@ class ApiDesktopsCommon:
             domains = list(
                 r.table("domains").get_all(token, index="jumperurl").run(db.conn)
             )
-        domains = [d for d in domains if d.get("tag_visible", True)]
+        domains = [
+            d
+            for d in domains
+            if not d.get("tag") or d.get("tag") and d.get("tag_visible")
+        ]
         if len(domains) == 0:
             raise Error(
                 "not_found",
