@@ -19,6 +19,7 @@ from ..libv2.api_admin import (
     admin_table_list,
     admin_table_update,
 )
+from ..libv2.api_exceptions import Error
 from .decorators import is_admin, is_admin_or_manager
 
 
@@ -56,6 +57,8 @@ def api_v3_admin_table(payload, table):
             result = [r for r in result if r["id"] != "admin"]
         if table == "media":
             result = [r for r in result if r["category"] == payload["category_id"]]
+        if table == "secrets":
+            raise Error("forbidden", "Not enough rights.")
 
     return (
         json.dumps(result),
