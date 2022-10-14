@@ -367,13 +367,18 @@
             },
             "language": "Language",
             "quota": {
-                "title": "Quota",
-                "d": "Created desktops / Total desktops",
-                "i": "Created isos / Total isos",
-                "m": "Used memory / Total memory (GB)",
-                "r": "Running desktops / Total running desktops",
-                "t": "Created templates / Total templates",
-                "v": "Used vcpus / Total vcpus"
+                "title": "Restriction applied: {restriction}",
+                "restrictions": {
+                    "user_quota": "User quota",
+                    "group_quota": "Group quota",
+                    "category_quota": "Category quota"
+                },
+                "desktops": "Created desktops / Total desktops",
+                "media": "Created media / Total media",
+                "memory": "Used memory / Total memory (GB)",
+                "running": "Running desktops / Total running desktops",
+                "templates": "Created templates / Total templates",
+                "vcpus": "Used vcpus / Total vcpus"
             }
         }
     },

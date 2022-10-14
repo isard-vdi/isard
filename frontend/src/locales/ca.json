@@ -209,13 +209,18 @@
             },
             "language": "Idioma",
             "quota": {
-                "title": "Quota",
-                "d": "Escriptoris creats / Total d'escriptoris",
-                "i": "Isos creades / Total d'isos",
-                "m": "Memòria utilitzada / Total de memòria (GB)",
-                "r": "Escriptoris arrencats / Total d'escriptoris arrencats",
-                "t": "Plantilles creades / Total de plantilles",
-                "v": "Vcpus utilitzades / Total de vcpus"
+                "title": "Restricció aplicada: {restriction}",
+                "restrictions": {
+                    "user_quota": "Quota d'usuari",
+                    "group_quota": "Quota de grup",
+                    "category_quota": "Quota de categoria"
+                },
+                "desktops": "Escriptoris creats / Total d'escriptoris",
+                "media": "Mitjans creats / Total de mitjans",
+                "memory": "Memòria utilitzada / Total de memòria (GB)",
+                "running": "Escriptoris arrencats / Total d'escriptoris arrencats",
+                "templates": "Plantilles creades / Total de plantilles",
+                "vcpus": "Vcpus utilitzades / Total de vcpus"
             }
         }
     },

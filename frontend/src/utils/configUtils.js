@@ -3,14 +3,12 @@ export class ConfigUtils {
     const {
       show_bookings_button: showBookingsButton,
       documentation_url: documentationUrl,
-      show_temporal_tab: showTemporalTab,
-      quota
+      show_temporal_tab: showTemporalTab
     } = config
     return {
       showBookingsButton,
       documentationUrl,
-      showTemporalTab,
-      quota
+      showTemporalTab
     }
   }
 }

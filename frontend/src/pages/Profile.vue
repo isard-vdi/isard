@@ -158,39 +158,39 @@
                             </b-col>
                           </b-row>
                           <h5 class="font-weight-bold mt-4">
-                            {{ $t('components.profile.quota.title') }}
+                            {{ $t('components.profile.quota.title', { restriction: $t(`components.profile.quota.restrictions.${getProfile.restrictionApplied}` )}) }}
                           </h5>
                           <b-row class="justify-content-center text-center pb-4">
                             <b-col cols="12">
                               <QuotaProgressBar
-                                :title="$t('components.profile.quota.d')"
-                                :value="getProfile.quota.d"
-                                :max="getProfile.quota.dq"
+                                :title="$t('components.profile.quota.desktops')"
+                                :value="getProfile.used.desktops"
+                                :max="getProfile.quota.desktops"
                               />
                               <QuotaProgressBar
-                                :title="$t('components.profile.quota.i')"
-                                :value="getProfile.quota.i"
-                                :max="getProfile.quota.iq"
+                                :title="$t('components.profile.quota.templates')"
+                                :value="getProfile.used.templates"
+                                :max="getProfile.quota.templates"
                               />
                               <QuotaProgressBar
-                                :title="$t('components.profile.quota.m')"
-                                :value="getProfile.quota.m"
-                                :max="getProfile.quota.mq"
+                                :title="$t('components.profile.quota.media')"
+                                :value="getProfile.used.media"
+                                :max="getProfile.quota.isos"
                               />
                               <QuotaProgressBar
-                                :title="$t('components.profile.quota.r')"
-                                :value="getProfile.quota.r"
-                                :max="getProfile.quota.rq"
+                                :title="$t('components.profile.quota.running')"
+                                :value="getProfile.used.running"
+                                :max="getProfile.quota.running"
                               />
                               <QuotaProgressBar
-                                :title="$t('components.profile.quota.t')"
-                                :value="getProfile.quota.t"
-                                :max="getProfile.quota.tq"
+                                :title="$t('components.profile.quota.memory')"
+                                :value="getProfile.used.memory"
+                                :max="getProfile.quota.memory"
                               />
                               <QuotaProgressBar
-                                :title="$t('components.profile.quota.v')"
-                                :value="getProfile.quota.v"
-                                :max="getProfile.quota.vq"
+                                :title="$t('components.profile.quota.vcpus')"
+                                :value="getProfile.used.vcpus"
+                                :max="getProfile.quota.vcpus"
                               />
                             </b-col>
                           </b-row>

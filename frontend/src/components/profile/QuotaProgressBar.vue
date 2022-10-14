@@ -15,16 +15,30 @@
       class="text-right"
     >
       <h6 class="mt-4">
-        {{ value }} / {{ max }}
+        {{ value }} / {{ max ? max : '&infin;' }}
       </h6>
     </b-col>
     <b-col cols="12">
       <b-progress
-        :value="value"
-        :max="max"
-        show-progress
+        :max="max ? max : 9999"
         animated
-      />
+      >
+        <b-progress-bar
+          v-if="value * 100 / max <= 75"
+          variant="primary"
+          :value="value"
+        />
+        <b-progress-bar
+          v-else-if="value * 100 / max <= 90"
+          variant="warning"
+          :value="value"
+        />
+        <b-progress-bar
+          v-else
+          variant="danger"
+          :value="value"
+        />
+      </b-progress>
     </b-col>
   </b-row>
 </template>

@@ -367,13 +367,18 @@
             },
             "language": "Idioma",
             "quota": {
-                "title": "Cuota",
-                "d": "Escritorios creados / Total de escritorios",
-                "i": "Isos creadas / Total de isos",
-                "m": "Memoria utilizada / Total de memoria (GB)",
-                "r": "Escritorios arrancados / Total de escritorios arrancados",
-                "t": "Plantillas creadas / Total de plantillas",
-                "v": "Vcpus utilitzadas / Total de vcpus"
+                "title": "Restricción aplicada: {restriction}",
+                "restrictions": {
+                    "user_quota": "Cuota de usuario",
+                    "group_quota": "Cuota de grupo",
+                    "category_quota": "Cuota de categoría"
+                },
+                "desktops": "Escritorios creados / Total de escritorios",
+                "media": "Medios creados / Total de medios",
+                "memory": "Memoria utilizada / Total de memoria (GB)",
+                "running": "Escritorios arrancados / Total de escritorios arrancados",
+                "templates": "Plantillas creadas / Total de plantillas",
+                "vcpus": "Vcpus utilitzadas / Total de vcpus"
             }
         }
     },
