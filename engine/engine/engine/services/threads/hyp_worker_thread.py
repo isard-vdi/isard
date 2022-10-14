@@ -4,6 +4,7 @@
 # License: AGPLv3
 # coding=utf-8
 
+import base64
 import os
 import queue
 import threading
@@ -49,6 +50,7 @@ from engine.services.lib.functions import (
     get_tid,
     update_status_db_from_running_domains,
 )
+from engine.services.lib.qmp import notify_desktop
 from engine.services.log import logs
 from engine.services.threads.threads import (
     RETRIES_HYP_IS_ALIVE,
@@ -558,6 +560,18 @@ class HypWorkerThread(threading.Thread):
                 ## DESTROY THREAD
                 elif action["type"] == "stop_thread":
                     self.stop = True
+
+                elif action["type"] == "notify":
+                    try:
+                        domain = self.h.conn.lookupByName(action["desktop_id"])
+                    except libvirtError as error:
+                        logs.workers.error(
+                            f'libvirt error getting desktop {action["desktop_id"]} to '
+                            f'notify with "{base64.b64decode(action["message"])}": '
+                            f"{error}"
+                        )
+                    else:
+                        notify_desktop(domain, action["message"])
                 else:
                     logs.workers.error(
                         "type action {} not supported in queue actions".format(

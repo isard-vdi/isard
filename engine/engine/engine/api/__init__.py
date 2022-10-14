@@ -1,3 +1,4 @@
+import base64
 import json
 import os
 from pprint import pformat
@@ -366,3 +367,20 @@ def qmp_notify(desktop_id):
         + pformat(data.get("params", ""))
     )
     return jsonify(True)
+
+
+def _send_message_qmp(desktop_id, message):
+    message_base64 = base64.b64encode(message)
+    hypervisor = current_app.db.get_domain_hyp_started(desktop_id)
+    if hypervisor:
+        current_app.m.q.workers[hypervisor].put(
+            {"type": "notify", "desktop_id": desktop_id, "message": message_base64}, 10
+        )
+        logs.main.info(f'Notification of {desktop_id} with message "{message}" queued')
+        return jsonify(True)
+    else:
+        logs.main.error(
+            f'Cannot notify domain {desktop_id} with message "{message}" due to it '
+            "isn't started"
+        )
+        return jsonify(False)
