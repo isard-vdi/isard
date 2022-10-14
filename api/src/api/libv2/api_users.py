@@ -437,7 +437,11 @@ class ApiUsers:
                     )
                     .run(db.conn)
                 )
-            if desktop.get("tag_visible", True):
+            if (
+                not desktop.get("tag")
+                or desktop.get("tag")
+                and desktop.get("tag_visible")
+            ):
                 return _parse_desktop(desktop)
             else:
                 raise Error(
