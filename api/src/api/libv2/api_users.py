@@ -977,7 +977,11 @@ class ApiUsers:
                 .without("xml", "history_domain", "allowed")
                 .run(db.conn)
             )
-        return [d for d in desktops if d.get("tag_visible", True)]
+        return [
+            d
+            for d in desktops
+            if not d.get("tag") or d.get("tag") and d.get("tag_visible")
+        ]
 
     def WebappTemplates(self, user_id):
         with app.app_context():
