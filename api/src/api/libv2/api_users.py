@@ -137,7 +137,6 @@ class ApiUsers:
                 ),
                 "show_temporal_tab": frontend_show_temporal_tab,
             },
-            **{"quota": quotas.GetUserQuota(payload["user_id"])["quota"]},
         }
 
     def Get(self, user_id):
@@ -163,9 +162,7 @@ class ApiUsers:
                 "Not found user_id " + user_id,
                 traceback.format_exc(),
             )
-        user["quota"] = quotas.Get(user_id)
-        del user["quota"]["user"]
-        return user
+        return {**user, **quotas.Get(user_id)}
 
     def GetByProviderCategoryUID(self, provider, category, uid):
         with app.app_context():

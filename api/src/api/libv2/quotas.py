@@ -30,8 +30,72 @@ class Quotas:
     def __init__(self):
         None
 
+    # Return the user applied quota or limit
     def Get(self, user_id):
-        return qp.get(user_id)
+        with app.app_context():
+            user = (
+                r.table("users")
+                .get(user_id)
+                .pluck("id", "name", "category", "group", "quota")
+                .run(db.conn)
+            )
+            group = (
+                r.table("groups").get(user["group"]).pluck("name", "quota").run(db.conn)
+            )
+            category = (
+                r.table("categories")
+                .get(user["category"])
+                .pluck("name", "quota")
+                .run(db.conn)
+            )
+
+            user_desktops = (
+                r.table("domains")
+                .get_all(["desktop", user_id, False], index="kind_user_tag")
+                .count()
+                .run(db.conn)
+            )
+            user_templates = (
+                r.table("domains")
+                .get_all(["template", user_id, False], index="kind_user_tag")
+                .count()
+                .run(db.conn)
+            )
+            user_media = (
+                r.table("media").get_all(user_id, index="user").count().run(db.conn)
+            )
+
+        started_desktops = self.get_started_desktops(user_id, "kind_user")
+
+        used = {
+            "desktops": user_desktops,
+            "templates": user_templates,
+            "media": user_media,
+            "running": started_desktops["count"],
+            "memory": started_desktops["memory"],
+            "vcpus": started_desktops["vcpus"],
+        }
+
+        if user["quota"]:
+            return {
+                "quota": user["quota"],
+                "used": used,
+                "restriction_applied": "user_quota",
+            }
+        elif group["quota"]:
+            return {
+                "quota": group["quota"],
+                "used": used,
+                "restriction_applied": "group_quota",
+            }
+        elif category["quota"]:
+            return {
+                "quota": category["quota"],
+                "used": used,
+                "restriction_applied": "category_quota",
+            }
+        else:
+            return {"quota": False, "used": used, "restriction_applied": "user_quota"}
 
     def GetUserQuota(self, user_id):
         return qp.get_user(user_id)
@@ -168,22 +232,7 @@ class Quotas:
                 description_code=kind + "_new_category_limit_exceeded",
             )
 
-    def DesktopStart(self, user_id, desktop_id):
-        with app.app_context():
-            desktop = r.table("domains").get(desktop_id).run(db.conn)
-        if not desktop:
-            raise Error("not_found", "Desktop not found")
-        try:
-            with app.app_context():
-                user = (
-                    r.table("users")
-                    .get(user_id)
-                    .pluck("id", "name", "category", "group", "quota")
-                    .run(db.conn)
-                )
-        except:
-            raise Error("not_found", "User not found")
-
+    def get_started_desktops(self, query_id, query_index):
         # Status that are considered in the running quota
         started_status = [
             "Started",
@@ -206,9 +255,9 @@ class Quotas:
                     .get_all(
                         [
                             "desktop",
-                            user["id"],
+                            query_id,
                         ],
-                        index="kind_user",
+                        index=query_index,
                     )
                     .filter(
                         lambda desktop: r.expr(started_status).contains(
@@ -234,12 +283,34 @@ class Quotas:
         except ReqlNonExistenceError:
             pass
 
+        started_desktops["memory"] = started_desktops["memory"] / 1048576
+
+        return started_desktops
+
+    def DesktopStart(self, user_id, desktop_id):
+        with app.app_context():
+            desktop = r.table("domains").get(desktop_id).run(db.conn)
+        if not desktop:
+            raise Error("not_found", "Desktop not found")
+        try:
+            with app.app_context():
+                user = (
+                    r.table("users")
+                    .get(user_id)
+                    .pluck("id", "name", "category", "group", "quota")
+                    .run(db.conn)
+                )
+        except:
+            raise Error("not_found", "User not found")
+
+        started_desktops = self.get_started_desktops(user_id, "kind_user")
+
         desktops = {
             "count": started_desktops["count"] + 1,  # Add the current desktop
             "vcpus": started_desktops["vcpus"]
             + desktop["create_dict"]["hardware"]["vcpus"],
             "memory": started_desktops["memory"]
-            + desktop["create_dict"]["hardware"]["memory"],
+            + desktop["create_dict"]["hardware"]["memory"] / 1048576,
         }
 
         # User quota
@@ -254,7 +325,7 @@ class Quotas:
                     data=desktops,
                     description_code="desktop_start_user_quota_exceeded",
                 )
-            if desktops["memory"] / 1048576 > user["quota"].get("memory"):
+            if desktops["memory"] > user["quota"].get("memory"):
                 raise Error(
                     "precondition_required",
                     "User "
@@ -298,7 +369,7 @@ class Quotas:
                     data=desktops,
                     description_code="desktop_start_group_quota_exceeded",
                 )
-            if desktops["memory"] / 1048576 > group["quota"].get("memory"):
+            if desktops["memory"] > group["quota"].get("memory"):
                 raise Error(
                     "precondition_required",
                     "Group "
@@ -321,47 +392,15 @@ class Quotas:
 
         # Group limit
         if group["limits"]:
-            try:
-                with app.app_context():
-                    started_desktops = (
-                        r.table("domains")
-                        .get_all(
-                            [
-                                "desktop",
-                                user["group"],
-                            ],
-                            index="kind_group",
-                        )
-                        .filter(
-                            lambda desktop: r.expr(started_status).contains(
-                                desktop["status"]
-                            )
-                        )
-                        .map(
-                            lambda domain: {
-                                "count": 1,
-                                "memory": domain["create_dict"]["hardware"]["memory"],
-                                "vcpus": domain["create_dict"]["hardware"]["vcpus"],
-                            }
-                        )
-                        .reduce(
-                            lambda left, right: {
-                                "count": left["count"] + right["count"],
-                                "vcpus": left["vcpus"].add(right["vcpus"]),
-                                "memory": left["memory"].add(right["memory"]),
-                            }
-                        )
-                        .run(db.conn)
-                    )
-            except ReqlNonExistenceError:
-                pass
+
+            started_desktops = self.get_started_desktops(user["group"], "kind_group")
 
             desktops = {
                 "count": started_desktops["count"] + 1,  # Add the current desktop
                 "vcpus": started_desktops["vcpus"]
                 + desktop["create_dict"]["hardware"]["vcpus"],
                 "memory": started_desktops["memory"]
-                + desktop["create_dict"]["hardware"]["memory"],
+                + desktop["create_dict"]["hardware"]["memory"] / 1048576,
             }
             if desktops["count"] > group["limits"].get("running"):
                 raise Error(
@@ -373,7 +412,7 @@ class Quotas:
                     data=desktops,
                     description_code="desktop_start_group_limit_exceeded",
                 )
-            if desktops["memory"] / 1048576 > group["limits"].get("memory"):
+            if desktops["memory"] > group["limits"].get("memory"):
                 raise Error(
                     "precondition_required",
                     "Group "
@@ -417,7 +456,7 @@ class Quotas:
                     data=desktops,
                     description_code="desktop_start_category_quota_exceeded",
                 )
-            if desktops["memory"] / 1048576 > category["quota"].get("memory"):
+            if desktops["memory"] > category["quota"].get("memory"):
                 raise Error(
                     "precondition_required",
                     "Category "
@@ -442,47 +481,14 @@ class Quotas:
         if not category["limits"]:
             return
 
-        try:
-            with app.app_context():
-                started_desktops = (
-                    r.table("domains")
-                    .get_all(
-                        [
-                            "desktop",
-                            user["category"],
-                        ],
-                        index="kind_category",
-                    )
-                    .filter(
-                        lambda desktop: r.expr(started_status).contains(
-                            desktop["status"]
-                        )
-                    )
-                    .map(
-                        lambda domain: {
-                            "count": 1,
-                            "memory": domain["create_dict"]["hardware"]["memory"],
-                            "vcpus": domain["create_dict"]["hardware"]["vcpus"],
-                        }
-                    )
-                    .reduce(
-                        lambda left, right: {
-                            "count": left["count"] + right["count"],
-                            "vcpus": left["vcpus"].add(right["vcpus"]),
-                            "memory": left["memory"].add(right["memory"]),
-                        }
-                    )
-                    .run(db.conn)
-                )
-        except ReqlNonExistenceError:
-            pass
+        started_desktops = self.get_started_desktops(user["category"], "kind_category")
 
         desktops = {
             "count": started_desktops["count"] + 1,  # Add the current desktop
             "vcpus": started_desktops["vcpus"]
             + desktop["create_dict"]["hardware"]["vcpus"],
             "memory": started_desktops["memory"]
-            + desktop["create_dict"]["hardware"]["memory"],
+            + desktop["create_dict"]["hardware"]["memory"] / 1048576,
         }
 
         if desktops["count"] > category["limits"].get("running"):
@@ -495,7 +501,7 @@ class Quotas:
                 data=desktops,
                 description_code="desktop_start_category_limit_exceeded",
             )
-        if desktops["memory"] / 1048576 > category["limits"].get("memory"):
+        if desktops["memory"] > category["limits"].get("memory"):
             raise Error(
                 "precondition_required",
                 "Category "
