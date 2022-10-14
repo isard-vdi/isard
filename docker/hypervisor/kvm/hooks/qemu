@@ -13,10 +13,15 @@ flow_add(){
     fi
 
     i=0
-    until echo $XML | xmllint --xpath //interface[$i]/vlan/tag/@id -;
+    until [[ $(echo $XML | xmllint --xpath "string(//interface[$i]/vlan/tag/@id)" -) -eq "4095" || i -eq 10 ]];
     do
         i=$((i+1))
     done
+    if [[ i -eq 10 ]];
+    then
+        echo "Domain $domain_name can't be started. Were unable to get wg interface. This should not happen" >> /tmp/qemu-hook.log
+        exit 1
+    fi
 
     port=$(echo ${XML}| xmllint --xpath //interface[${i}]/target/@dev - | sed 's/.*="\([^"]*\)"/\1/')
     portgroup=$(echo ${XML} | xmllint --xpath //interface[${i}]/virtualport/parameters/@interfaceid - | sed 's/.*="\([^"]*\)"/\1/')
@@ -32,7 +37,6 @@ flow_add(){
     echo "priority=201,dl_dst=${mac},dl_vlan=4095,actions=strip_vlan,output:${nport}" >> "${flowdir}/${domain_name}"
     echo "priority=201,dl_type=0x0806,dl_dst=ff:ff:ff:ff:ff:ff,dl_vlan=4095,arp_spa=10.2.0.1,actions=strip_vlan,output:${nport}" >> "${flowdir}/${domain_name}"
     ovs-ofctl add-flows ovsbr0 "${flowdir}/${domain_name}"
-
 }
 
 
