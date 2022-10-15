@@ -62,7 +62,6 @@ class Keys(object):
             actual_public_key = self.skeys["public"]
             ## Generate new ones
         except Exception as e:
-            print("Serve read keys error: \n" + traceback.format_exc())
             log.error("Server read keys internal error: \n" + traceback.format_exc())
             exit(1)
 
@@ -92,7 +91,6 @@ class Keys(object):
                 with open("/certs/" + self.interface + "_public.key", "w") as f:
                     f.write(actual_public_key)
             except Exception as e:
-                print("Serve keys write error: \n" + traceback.format_exc())
                 log.error(
                     "Server write keys internal error: \n" + traceback.format_exc()
                 )
