@@ -22,6 +22,7 @@ MAINTAINER isard <info@isardvdi.com>
 
 RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories
 RUN echo "@testing http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
+RUN echo "@community http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
 
 RUN apk add --no-cache \
     libvirt \
@@ -42,7 +43,7 @@ RUN apk add --no-cache \
     qemu-modules \
     qemu-system-x86_64 \
     libcrypto3@edge \
-    swtpm@testing
+    swtpm@community
     
 
 RUN apk add --no-cache \
