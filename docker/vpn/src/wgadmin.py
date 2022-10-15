@@ -8,6 +8,12 @@ from rethinkdb import RethinkDB
 r = RethinkDB()
 import logging as log
 
+LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
+LOG_LEVEL_NUM = log.getLevelName(LOG_LEVEL)
+log.basicConfig(
+    level=LOG_LEVEL_NUM, format="%(asctime)s - %(levelname)-8s - %(message)s"
+)
+
 from rethinkdb.errors import ReqlDriverError, ReqlOpFailedError, ReqlTimeoutError
 from wg_monitor import start_monitoring_vpn_status
 from wgtools import Wg
