@@ -133,12 +133,9 @@ while True:
                     wg_users.desktop_iptables(data)
 
     except (ReqlDriverError, ReqlOpFailedError):
-        print(traceback.format_exc())
-        print("Users: Rethink db connection missing!")
         log.error("Users: Rethink db connection missing!")
         time.sleep(0.5)
     except Exception as e:
-        print("Users internal error: \n" + traceback.format_exc())
         log.error("Users internal error: \n" + traceback.format_exc())
         # exit(1)
 
