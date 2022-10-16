@@ -198,6 +198,15 @@ $(document).ready(function() {
                             "render": renderBoolean
                             },
                             {
+                                "targets": 10,
+                                "render": function ( data, type, full, meta ) {
+                                    if( full.status != "Online" ){
+                                        return "0"
+                                    }
+                                    return data
+                                }
+                            },
+                            {
                                 "targets": 11,
                                 "render": function ( data, type, full, meta ) {
                                     memTotalGB=Math.round(data / 1024 * 10) / 10
@@ -274,42 +283,17 @@ $(document).ready(function() {
     });
 
     socket.on('hyper_data', function(data){
-        //~ console.log('hyper_data')
-        //~ console.log(data)
         var data = JSON.parse(data);
+        data = {...table.row("#"+data.id).data(),...data}
         new_hyper=dtUpdateInsert(table,data,false);
+        table.draw(false)
         if(new_hyper){tablepools.draw(false);}
         setHypervisorDetailButtonsStatus(data.id,data.status)
-        //~ if($("#" + data.id).length == 0) {
-          //~ //it doesn't exist
-          //~ table.row.add(data); //.draw();
-          //~ tablepools.draw(false(
-        //~ }else{
-          //~ //if already exists do an update (ie. connection lost and reconnect)
-          //~ var row = table.row('#'+data.id); 
-          //~ data.started_domains = row.data().started_domains
-          //~ table.row(row).data(data).invalidate();           
-        //~ }
-        //~ table.draw(false);
-    });
-
-    socket.on('hyper_status', function(data){
-        //~ console.log('status')
-        var data = JSON.parse(data);
-        table.row('#'+data.hyp_id).data().started_domains=data.domains
-        table.row('#'+data.hyp_id).invalidate().draw();
-        // chart[data.hyp_id].push([
-        // //~ chart.push([
-        //   { time: timestamp(), y: data['cpu_percent-used']},
-        //   { time: timestamp(), y: data['load-percent_free']}
-        // ]);
     });
         
     socket.on('hyper_deleted', function(data){
         var data = JSON.parse(data);
-        //~ console.log('hyper deleted:'+data.id)
-        //~ var row = table.row('#'+data.id).remove().draw();
-         
+        table.row('#'+data.id).remove().draw();
         new PNotify({
                 title: "Hypervisor deleted",
                 text: "Hypervisor "+data+" has been deleted",
@@ -319,7 +303,6 @@ $(document).ready(function() {
                 opacity: 1,
                 type: 'success'
         });
-        table.ajax.reload()
         tablepools.ajax.reload()
     });
 
@@ -642,7 +625,6 @@ function actionsHyperDetail(){
             addclass: 'pnotify-center'
 
         }).get().on('pnotify.confirm', function() {
-
             $.ajax({
                 url: "/admin/table/update/hypervisors",
                 type: "PUT",

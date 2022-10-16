@@ -482,9 +482,22 @@ class HypervisorsThread(threading.Thread):
     def run(self):
         while True:
             try:
+
                 with app.app_context():
                     for c in (
                         r.table("hypervisors")
+                        .pluck(
+                            [
+                                "enabled",
+                                "id",
+                                "only_forced",
+                                "stats",
+                                "status",
+                                "status_time",
+                                {"stats": {"mem_stats": True}},
+                                {"vpn": {"wireguard": {"conneced": True}}},
+                            ]
+                        )
                         .changes(include_initial=False)
                         .run(db.conn)
                     ):
@@ -493,14 +506,52 @@ class HypervisorsThread(threading.Thread):
                         if c["new_val"] == None:
                             socketio.emit(
                                 "hyper_deleted",
-                                json.dumps(c["old_val"]["id"]),
+                                json.dumps(c["old_val"]),
                                 namespace="/administrators",
                                 room="admins",
                             )
                         else:
+                            if c["old_val"] == None:
+                                data = (
+                                    r.table("hypervisors")
+                                    .get(c["new_val"]["id"])
+                                    .merge(
+                                        lambda hyper: {
+                                            "gpus": r.table("vgpus")
+                                            .filter({"hyp_id": hyper["id"]})
+                                            .count(),
+                                            "dom_started": r.table("domains")
+                                            .get_all(hyper["id"], index="hyp_started")
+                                            .count(),
+                                        }
+                                    )
+                                    .run(db.conn)
+                                )
+                                socketio.emit(
+                                    "hyper_data",
+                                    json.dumps(data),
+                                    namespace="/administrators",
+                                    room="admins",
+                                )
+                                continue
+                            if c["new_val"]["status"] != "Online":
+                                data = c["new_val"]
+                                data["dom_started"] = 0
+                            else:
+                                data = {
+                                    **c["new_val"],
+                                    **{
+                                        "dom_started": r.table("domains")
+                                        .get_all(
+                                            c["new_val"]["id"], index="hyp_started"
+                                        )
+                                        .count()
+                                        .run(db.conn),
+                                    },
+                                }
                             socketio.emit(
                                 "hyper_data",
-                                json.dumps(c["new_val"]),
+                                json.dumps(data),
                                 namespace="/administrators",
                                 room="admins",
                             )
