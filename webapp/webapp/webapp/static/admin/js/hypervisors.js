@@ -200,7 +200,10 @@ $(document).ready(function() {
                             {
                                 "targets": 11,
                                 "render": function ( data, type, full, meta ) {
-                                    return Math.round(data / 1024 * 10) / 10 + 'GB';
+                                    memTotalGB=Math.round(data / 1024 * 10) / 10
+                                    if( ! ("stats" in full) ){return "0% "+memTotalGB + 'GB'}
+                                    memUsedGB=Math.round((full.stats.mem_stats.total-full.stats.mem_stats.available) / 1024 /1024)
+                                    return Math.round(memUsedGB*100/memTotalGB)+"% "+memTotalGB + 'GB'
                                 }},
                                 {
                                 "targets": 12,
