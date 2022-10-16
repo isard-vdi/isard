@@ -210,7 +210,7 @@ $(document).ready(function() {
                                 "targets": 11,
                                 "render": function ( data, type, full, meta ) {
                                     memTotalGB=Math.round(data / 1024 * 10) / 10
-                                    if( ! ("stats" in full) ){return "0% "+memTotalGB + 'GB'}
+                                    if( ! ("stats" in full) ){return "-% "+memTotalGB + 'GB'}
                                     memUsedGB=Math.round((full.stats.mem_stats.total-full.stats.mem_stats.available) / 1024 /1024)
                                     return Math.round(memUsedGB*100/memTotalGB)+"% "+memTotalGB + 'GB'
                                 }},
@@ -218,7 +218,8 @@ $(document).ready(function() {
                                 "targets": 12,
                                 "render": function ( data, type, full, meta ) {
                                     if (full.info) {
-                                        return full.info.cpu_cores*full.info.threads_x_core;
+                                        if( ! ("stats" in full) ){ return "-% "+full.info.cpu_cores*full.info.threads_x_core+"th"}
+                                        return Math.round(full.stats.cpu_current.used)+"% "+full.info.cpu_cores*full.info.threads_x_core+"th";
                                     }
                                 }},
                             {

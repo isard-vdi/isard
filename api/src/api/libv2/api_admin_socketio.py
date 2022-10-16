@@ -494,7 +494,12 @@ class HypervisorsThread(threading.Thread):
                                 "stats",
                                 "status",
                                 "status_time",
-                                {"stats": {"mem_stats": True}},
+                                {
+                                    "stats": {
+                                        "mem_stats": {"total": True, "available": True},
+                                        "cpu_current": {"used": True},
+                                    }
+                                },
                                 {"vpn": {"wireguard": {"conneced": True}}},
                             ]
                         )
@@ -511,7 +516,9 @@ class HypervisorsThread(threading.Thread):
                                 room="admins",
                             )
                         else:
-                            if c["old_val"] == None:
+                            if c["old_val"] == None or c["old_val"].get("status") != c[
+                                "new_val"
+                            ].get("status"):
                                 data = (
                                     r.table("hypervisors")
                                     .get(c["new_val"]["id"])
