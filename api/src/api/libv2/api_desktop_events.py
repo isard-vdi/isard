@@ -191,6 +191,16 @@ def desktops_stop(desktops_ids, force=False, wait_seconds=30):
             )
 
 
+def desktops_stop_all():
+    with app.app_context():
+        r.table("domains").get_all("Shutting-down", index="status").update(
+            {"status": "Stopping", "accessed": int(time.time())}
+        ).run(db.conn)
+        r.table("domains").get_all("Started", index="status").update(
+            {"status": "Stopping", "accessed": int(time.time())}
+        ).run(db.conn)
+
+
 def desktop_delete(desktop_id, from_started=False, wait_seconds=0):
     status = get_desktop_status(desktop_id)
     if status == "Deleting":
