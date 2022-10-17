@@ -30,6 +30,7 @@ from api import app
 from .. import socketio
 from .api_exceptions import Error
 from .api_rest import ApiRest
+from .maintenance import Maintenance
 
 r = RethinkDB()
 
@@ -119,6 +120,7 @@ def phy_add_to_storage(path_id, user_id):
 
 def phy_storage_upgrade_to_storage(data, user_id):
     # Set manteinance
+    Maintenance.enabled = True
     # Stop domains started before upgrading? What happens with servers?
     i = 0
     socketio.emit(
@@ -204,6 +206,7 @@ def phy_storage_upgrade_to_storage(data, user_id):
         )
         i += 1
     # take over manteinance
+    Maintenance.enabled = False
     return errors
 
 
