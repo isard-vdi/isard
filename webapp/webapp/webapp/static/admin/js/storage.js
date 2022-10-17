@@ -17,8 +17,8 @@ $(document).ready(function() {
       "language": {
         "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
       },
-			"rowId": "id",
-			"deferRender": true,
+      "rowId": "id",
+      "deferRender": true,
         "columns": [
             {
                 "className":      'details-control',
@@ -43,7 +43,7 @@ $(document).ready(function() {
                 "targets": 4,
                 "render": function ( data, type, full, meta ) {
                     if( full['status'] == 'ready' && 'qemu-img-info' in full){
-                        return full["qemu-img-info"]["virtual-size"]
+                        return Math.round(full["qemu-img-info"]["virtual-size"]/1000/1000/1000)+" GB"
                     }else{
                         return '-'
                     }
@@ -52,7 +52,7 @@ $(document).ready(function() {
                 "targets": 5,
                 "render": function ( data, type, full, meta ) {
                     if( full['status'] == 'ready' && 'qemu-img-info' in full){
-                        return full["qemu-img-info"]["actual-size"] +' ('+full["qemu-img-info"]["actual-size"]*100/full["qemu-img-info"]["virtual-size"]+'%)'
+                        return Math.round(full["qemu-img-info"]["actual-size"]/1000/1000/1000)+' GB ('+Math.round(full["qemu-img-info"]["actual-size"]*100/full["qemu-img-info"]["virtual-size"])+'%)'
                     }else{
                         return '-'
                     }
@@ -60,7 +60,10 @@ $(document).ready(function() {
                 {
                   "targets": 10,
                   "render": function ( data, type, full, meta ) {
-                    return moment.unix(full["status_logs"][full["status_logs"].length -1]["time"]).fromNow()
+                    if( "status_logs" in full ){
+                      return moment.unix(full["status_logs"][full["status_logs"].length -1]["time"]).fromNow()
+                    }
+                    return "-"
                 }
             }],
     });
@@ -125,19 +128,20 @@ $(document).ready(function() {
 
     var storage_deleted=$('#storage_deleted').DataTable( {
         "ajax": {
-				"url": "/api/v3/admin/storage/deleted",
+        "url": "/api/v3/admin/storage/deleted",
                 "contentType": "application/json",
                 "type": 'GET',
         },
         "sAjaxDataProp": "",
-			"language": {
-				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
-			},
-			"rowId": "id",
-			"deferRender": true,
+      "language": {
+        "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+      },
+      "rowId": "id",
+      "deferRender": true,
         "columns": [
             { "data": "id",},
             { "data": "type",},
+            { "data": null},
             { "data": null},
             { "data": "user_name",},
             { "data": "category",},
@@ -145,16 +149,25 @@ $(document).ready(function() {
         ],
         "columnDefs": [
           {
-          "targets": 2,
-          "render": function ( data, type, full, meta ) {
-              if( 'qemu-img-info' in full ){
-                  return full["qemu-img-info"]["virtual-size"]
-              }else{
-                  return '-'
-              }
-          }},
+            "targets": 2,
+            "render": function ( data, type, full, meta ) {
+                if( 'qemu-img-info' in full){
+                    return Math.round(full["qemu-img-info"]["virtual-size"]/1000/1000/1000)+" GB"
+                }else{
+                    return '-'
+                }
+            }},
+            {
+            "targets": 3,
+            "render": function ( data, type, full, meta ) {
+                if( 'qemu-img-info' in full){
+                    return Math.round(full["qemu-img-info"]["actual-size"]/1000/1000/1000)+' GB ('+Math.round(full["qemu-img-info"]["actual-size"]*100/full["qemu-img-info"]["virtual-size"])+'%)'
+                }else{
+                    return '-'
+                }
+            }},
           {
-            "targets": 5,
+            "targets": 6,
             "render": function ( data, type, full, meta ) {
               return moment.unix(full["status_logs"][full["status_logs"].length -1]["time"]).fromNow()
           }
