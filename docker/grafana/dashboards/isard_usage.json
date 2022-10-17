@@ -25,7 +25,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 12,
+  "id": 6,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -185,7 +185,7 @@
             "overrides": []
           },
           "gridPos": {
-            "h": 9,
+            "h": 10,
             "w": 8,
             "x": 0,
             "y": 9
@@ -212,84 +212,16 @@
                 "type": "prometheus",
                 "uid": "PBFA97CFB590B2093"
               },
-              "editorMode": "code",
+              "editorMode": "builder",
               "exemplar": false,
-              "expr": "sort_desc(topk(50, isardvdi_isardvdi_api_user_info{domain=\"$domain\"}))",
-              "instant": false,
+              "expr": "topk(15, sort_desc(count_values by(category) (\"categoria\", isardvdi_isardvdi_api_user_info{domain=\"$domain\"})))",
+              "instant": true,
               "legendFormat": "{{category}}",
-              "range": true,
+              "range": false,
               "refId": "A"
             }
           ],
           "title": "Ranking Usuaris por Categoria",
-          "type": "bargauge"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "fixedColor": "dark-purple",
-                "mode": "fixed"
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 9,
-            "w": 8,
-            "x": 8,
-            "y": 9
-          },
-          "id": 209,
-          "options": {
-            "displayMode": "gradient",
-            "minVizHeight": 10,
-            "minVizWidth": 0,
-            "orientation": "horizontal",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "showUnfilled": true
-          },
-          "pluginVersion": "9.2.0",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
-              },
-              "editorMode": "code",
-              "exemplar": false,
-              "expr": "sort_desc(topk(50, isardvdi_isardvdi_api_desktop_number_category{domain=\"$domain\"}))",
-              "instant": false,
-              "legendFormat": "{{category}}",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Ranking Escriptoris per Categoria",
           "type": "bargauge"
         },
         {
@@ -321,9 +253,9 @@
             "overrides": []
           },
           "gridPos": {
-            "h": 9,
+            "h": 10,
             "w": 8,
-            "x": 16,
+            "x": 8,
             "y": 9
           },
           "id": 210,
@@ -350,14 +282,82 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "sort_desc(topk(50, isardvdi_isardvdi_api_template_number_category{domain=\"$domain\"}))",
-              "instant": false,
+              "expr": "sort_desc(topk(15, isardvdi_isardvdi_api_template_number_category{domain=\"$domain\"}))",
+              "instant": true,
               "legendFormat": "{{category}}",
-              "range": true,
+              "range": false,
               "refId": "A"
             }
           ],
           "title": "Ranking Plantilles per Categoria",
+          "type": "bargauge"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "fixedColor": "dark-purple",
+                "mode": "fixed"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 10,
+            "w": 8,
+            "x": 16,
+            "y": 9
+          },
+          "id": 209,
+          "options": {
+            "displayMode": "gradient",
+            "minVizHeight": 10,
+            "minVizWidth": 0,
+            "orientation": "horizontal",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showUnfilled": true
+          },
+          "pluginVersion": "9.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "sort_desc(topk(15, isardvdi_isardvdi_api_desktop_number_category{domain=\"$domain\"}))",
+              "instant": true,
+              "legendFormat": "{{category}}",
+              "range": false,
+              "refId": "A"
+            }
+          ],
+          "title": "Ranking Escriptoris per Categoria",
           "type": "bargauge"
         },
         {
@@ -389,78 +389,12 @@
             "overrides": []
           },
           "gridPos": {
-            "h": 9,
+            "h": 10,
             "w": 8,
             "x": 0,
-            "y": 18
+            "y": 19
           },
-          "id": 213,
-          "options": {
-            "displayMode": "gradient",
-            "minVizHeight": 10,
-            "minVizWidth": 0,
-            "orientation": "horizontal",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "showUnfilled": true
-          },
-          "pluginVersion": "9.2.0",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "PBFA97CFB590B2093"
-              },
-              "editorMode": "code",
-              "expr": "count_values by(category) (\"categoria\", isardvdi_isardvdi_api_user_info{domain=\"$domain\"})",
-              "legendFormat": "{{category}}",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Usuaris por Categoria",
-          "type": "bargauge"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "fixedColor": "dark-purple",
-                "mode": "fixed"
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 9,
-            "w": 8,
-            "x": 8,
-            "y": 18
-          },
-          "id": 214,
+          "id": 216,
           "options": {
             "displayMode": "gradient",
             "minVizHeight": 10,
@@ -483,13 +417,15 @@
                 "uid": "PBFA97CFB590B2093"
               },
               "editorMode": "builder",
-              "expr": "isardvdi_isardvdi_api_desktop_number_category{domain=\"$domain\"}",
+              "exemplar": false,
+              "expr": "count_values by(category) (\"categoria\", isardvdi_isardvdi_api_user_info{domain=\"$domain\"})",
+              "instant": true,
               "legendFormat": "{{category}}",
-              "range": true,
+              "range": false,
               "refId": "A"
             }
           ],
-          "title": "Escriptoris per Categoria",
+          "title": "Usuaris por Categoria",
           "type": "bargauge"
         },
         {
@@ -521,10 +457,78 @@
             "overrides": []
           },
           "gridPos": {
-            "h": 9,
+            "h": 10,
+            "w": 8,
+            "x": 8,
+            "y": 19
+          },
+          "id": 214,
+          "options": {
+            "displayMode": "gradient",
+            "minVizHeight": 10,
+            "minVizWidth": 0,
+            "orientation": "horizontal",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showUnfilled": true
+          },
+          "pluginVersion": "9.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              },
+              "editorMode": "builder",
+              "exemplar": false,
+              "expr": "isardvdi_isardvdi_api_template_number_category{domain=\"$domain\"}",
+              "instant": true,
+              "legendFormat": "{{category}}",
+              "range": false,
+              "refId": "A"
+            }
+          ],
+          "title": "Plantilles per Categoria",
+          "type": "bargauge"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "fixedColor": "dark-purple",
+                "mode": "fixed"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 10,
             "w": 8,
             "x": 16,
-            "y": 18
+            "y": 19
           },
           "id": 215,
           "options": {
@@ -549,13 +553,15 @@
                 "uid": "PBFA97CFB590B2093"
               },
               "editorMode": "builder",
-              "expr": "isardvdi_isardvdi_api_template_number_category{domain=\"$domain\"}",
+              "exemplar": false,
+              "expr": "isardvdi_isardvdi_api_desktop_number_category{domain=\"$domain\"}",
+              "instant": true,
               "legendFormat": "{{category}}",
-              "range": true,
+              "range": false,
               "refId": "A"
             }
           ],
-          "title": "Plantilles per Categoria",
+          "title": "Escriptoris per Categoria",
           "type": "bargauge"
         }
       ],
