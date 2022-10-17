@@ -25,7 +25,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 3,
+  "id": 4,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -152,8 +152,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -251,8 +250,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -362,8 +360,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "rgba(50, 172, 45, 0.97)",
-                    "value": null
+                    "color": "rgba(50, 172, 45, 0.97)"
                   },
                   {
                     "color": "rgba(237, 129, 40, 0.89)",
@@ -466,8 +463,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -592,8 +588,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "rgba(50, 172, 45, 0.97)",
-                    "value": null
+                    "color": "rgba(50, 172, 45, 0.97)"
                   },
                   {
                     "color": "rgba(237, 129, 40, 0.89)",
@@ -672,8 +667,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -755,8 +749,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -864,8 +857,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "rgba(237, 129, 40, 0.89)",
@@ -960,8 +952,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -1036,8 +1027,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1116,8 +1106,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "rgba(50, 172, 45, 0.97)",
-                    "value": null
+                    "color": "rgba(50, 172, 45, 0.97)"
                   },
                   {
                     "color": "rgba(237, 129, 40, 0.89)",
@@ -1186,8 +1175,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -1256,8 +1244,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1330,8 +1317,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "#6ED0E0",
@@ -1417,8 +1403,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1494,8 +1479,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "dark-purple",
-                    "value": null
+                    "color": "dark-purple"
                   }
                 ]
               }
@@ -1594,8 +1578,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1682,8 +1665,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "dark-red",
-                    "value": null
+                    "color": "dark-red"
                   }
                 ]
               }
@@ -1750,8 +1732,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "dark-orange",
-                    "value": null
+                    "color": "dark-orange"
                   }
                 ]
               }
@@ -1818,8 +1799,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "dark-blue",
-                    "value": null
+                    "color": "dark-blue"
                   }
                 ]
               }
@@ -1858,7 +1838,7 @@
                 "uid": "PBFA97CFB590B2093"
               },
               "editorMode": "code",
-              "expr": "(count(present_over_time(isardvdi_domain_port_spice_tls{domain=\"$domain\"}[1m]) * on(desktop) group_left isardvdi_domain_port_spice_tls{domain=\"$domain\"} * on (port,hypervisor) group_left count_over_time(isardvdi_socket_recv_bytes{domain=\"$domain\"}[1m])) or vector(0))  + \n(count(present_over_time(isardvdi_domain_net_rx_bytes{domain=\"$domain\"}[1m]) * on (mac) group_left count_over_time(isardvdi_conntrack_rdp_recv_bytes{domain=\"$domain\"}[1m])) or vector(0)) +\n(count(present_over_time(isardvdi_domain_port_vnc{domain=\"$domain\"}[1m]) * on(desktop) group_left isardvdi_domain_port_vnc{domain=\"$domain\"} * on (port, hypervisor) group_left count_over_time(isardvdi_socket_recv_bytes{domain=\"$domain\"}[1m])) or vector(0))",
+              "expr": "(count(present_over_time(isardvdi_domain_port_spice_tls{domain=\"$domain\"}[1m]) * on(desktop) group_left isardvdi_domain_port_spice_tls{domain=\"$domain\"} * on (port,hypervisor) group_left count_over_time(isardvdi_socket_recv_bytes{domain=\"$domain\"}[1m])) or vector(0))  + \n(count(present_over_time(isardvdi_domain_net_rx_bytes{domain=\"$domain\"}[1m]) * on (mac) group_left count_over_time(isardvdi_conntrack_rdp_recv_bytes[1m])) or vector(0)) +\n(count(present_over_time(isardvdi_domain_port_vnc{domain=\"$domain\"}[1m]) * on(desktop) group_left isardvdi_domain_port_vnc{domain=\"$domain\"} * on (port, hypervisor) group_left count_over_time(isardvdi_socket_recv_bytes{domain=\"$domain\"}[1m])) or vector(0))",
               "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"visors_started\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
               "range": true,
               "refId": "A"
@@ -1884,8 +1864,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "text",
-                    "value": null
+                    "color": "text"
                   }
                 ]
               }
@@ -1926,7 +1905,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "count(present_over_time(isardvdi_domain_net_rx_bytes{domain=\"$domain\"}[1m]) * on (mac) group_left count_over_time(isardvdi_conntrack_rdp_recv_bytes{domain=\"$domain\"}[1m]))",
+              "expr": "count(present_over_time(isardvdi_domain_net_rx_bytes{domain=\"$domain\"}[1m]) * on (mac) group_left count_over_time(isardvdi_conntrack_rdp_recv_bytes[1m]))",
               "hide": false,
               "instant": true,
               "query": "",

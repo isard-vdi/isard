@@ -25,7 +25,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 6,
+  "id": 11,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -357,6 +357,126 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Escritorios"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "purple",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 2,
+        "y": 4
+      },
+      "id": 190,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "8.2.5",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "count(count by (desktop)(isardvdi_domain_vcpu_current{domain=~\"$domain\"})) or vector(0)",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "Escritorios",
+          "query": " Desktops = from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\" \n  )\n  |> keep(columns: [\"_time\", \"id\"])\n  |> group()\n  |> aggregateWindow(every: 30s, column: \"id\", fn:(column, tables=<-) => tables \n    |> unique(column: column)\n    |> count(column:column),)\n  |> rename(columns: {id: \"_value\"})\n  |> map(fn: (r) => ({ Desktops:r._value, _time:r._time }))\n  |> yield()\nVisors = from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"visors_started\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n    |> map(fn: (r) => ({ Visors:r._value, _time:r._time  }))\n  |> yield(name: \"mean\")\n\n",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Escriptoris Arrencats",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
       "description": "Non available RAM memory",
       "fieldConfig": {
         "defaults": {
@@ -391,7 +511,7 @@
       "gridPos": {
         "h": 4,
         "w": 3,
-        "x": 2,
+        "x": 6,
         "y": 4
       },
       "hideTimeOverride": false,
@@ -479,7 +599,7 @@
       "gridPos": {
         "h": 4,
         "w": 3,
-        "x": 5,
+        "x": 9,
         "y": 4
       },
       "id": 218,
@@ -566,7 +686,7 @@
       "gridPos": {
         "h": 4,
         "w": 3,
-        "x": 8,
+        "x": 12,
         "y": 4
       },
       "id": 211,
@@ -604,371 +724,6 @@
       ],
       "title": "Disk",
       "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "description": "",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "fixedColor": "#b91e8e",
-            "mode": "fixed"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "smooth",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "decimals": 0,
-          "displayName": "RAM Utilitzada",
-          "mappings": [],
-          "max": 100,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "rgba(237, 129, 40, 0.89)",
-                "value": 80
-              },
-              {
-                "color": "rgba(245, 54, 54, 0.9)",
-                "value": 90
-              }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 3,
-        "x": 11,
-        "y": 4
-      },
-      "hideTimeOverride": false,
-      "id": 202,
-      "links": [],
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": false
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "9.0.7",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "((node_memory_MemTotal_bytes{domain=~\"$domain\"} - node_memory_MemFree_bytes{domain=~\"$domain\"}) / (node_memory_MemTotal_bytes{domain=~\"$domain\"} )) * 100",
-          "format": "time_series",
-          "hide": true,
-          "intervalFactor": 1,
-          "range": true,
-          "refId": "A",
-          "step": 240
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "100 - ((node_memory_MemAvailable_bytes{domain=~\"$domain\"} * 100) / node_memory_MemTotal_bytes{domain=~\"$domain\"})",
-          "format": "time_series",
-          "hide": false,
-          "intervalFactor": 1,
-          "range": true,
-          "refId": "B",
-          "step": 240
-        }
-      ],
-      "title": "RAM %",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "smooth",
-            "lineStyle": {
-              "fill": "solid"
-            },
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Escritorios"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "purple",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 14,
-        "y": 4
-      },
-      "id": 190,
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": false
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "8.2.5",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "count(count by (desktop)(isardvdi_domain_vcpu_current{domain=~\"$domain\"})) or vector(0)",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "Escritorios",
-          "query": " Desktops = from(bucket: \"isardvdi-go\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) =>\n    r[\"_measurement\"] == \"domain\" \n  )\n  |> keep(columns: [\"_time\", \"id\"])\n  |> group()\n  |> aggregateWindow(every: 30s, column: \"id\", fn:(column, tables=<-) => tables \n    |> unique(column: column)\n    |> count(column:column),)\n  |> rename(columns: {id: \"_value\"})\n  |> map(fn: (r) => ({ Desktops:r._value, _time:r._time }))\n  |> yield()\nVisors = from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"visors_started\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n    |> map(fn: (r) => ({ Visors:r._value, _time:r._time  }))\n  |> yield(name: \"mean\")\n\n",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Escriptoris Arrencats",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "links": [],
-          "mappings": [],
-          "max": 100,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Value"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "#2aa787",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 3,
-        "x": 18,
-        "y": 4
-      },
-      "id": 200,
-      "links": [],
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": false
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "8.2.5",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "exemplar": true,
-          "expr": "(((count(count(node_cpu_seconds_total{domain=~\"$domain\"}) by (cpu))) - avg(sum by (mode)(rate(node_cpu_seconds_total{mode='idle',domain=~\"$domain\"}[$__rate_interval])))) * 100) / count(count(node_cpu_seconds_total{domain=~\"$domain\"}) by (cpu))",
-          "hide": false,
-          "interval": "10s",
-          "legendFormat": "CPU ",
-          "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"system\")\n  |> filter(fn: (r) => r[\"_field\"] == \"cpu_usage\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "CPU %",
-      "type": "timeseries"
     },
     {
       "datasource": {
@@ -1033,7 +788,7 @@
       "gridPos": {
         "h": 4,
         "w": 3,
-        "x": 21,
+        "x": 15,
         "y": 4
       },
       "id": 207,
@@ -1157,7 +912,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "(count(present_over_time(isardvdi_domain_port_spice_tls{domain=~\"$domain\"}[1m]) * on(desktop) group_left isardvdi_domain_port_spice_tls{domain=~\"$domain\"} * on (port,hypervisor) group_left count_over_time(isardvdi_socket_recv_bytes{domain=~\"$domain\"}[1m])) or vector(0))  + \n(count(present_over_time(isardvdi_domain_net_rx_bytes{domain=~\"$domain\"}[1m]) * on (mac) group_left count_over_time(isardvdi_conntrack_rdp_recv_bytes{domain=~\"$domain\"}[1m])) or vector(0)) + (count(present_over_time(isardvdi_domain_port_vnc{domain=~\"$domain\"}[1m]) * on(desktop) group_left isardvdi_domain_port_vnc{domain=~\"$domain\"} * on (port, hypervisor) group_left count_over_time(isardvdi_socket_recv_bytes{domain=~\"$domain\"}[1m])) or vector(0))",
+          "expr": "(count(present_over_time(isardvdi_domain_port_spice_tls{domain=~\"$domain\"}[1m]) * on(desktop) group_left isardvdi_domain_port_spice_tls{domain=~\"$domain\"} * on (port,hypervisor) group_left count_over_time(isardvdi_socket_recv_bytes{domain=~\"$domain\"}[1m])) or vector(0))  + \n(count(present_over_time(isardvdi_domain_net_rx_bytes{domain=~\"$domain\"}[1m]) * on (mac) group_left count_over_time(isardvdi_conntrack_rdp_recv_bytes[1m])) or vector(0)) + (count(present_over_time(isardvdi_domain_port_vnc{domain=~\"$domain\"}[1m]) * on(desktop) group_left isardvdi_domain_port_vnc{domain=~\"$domain\"} * on (port, hypervisor) group_left count_over_time(isardvdi_socket_recv_bytes{domain=~\"$domain\"}[1m])) or vector(0))",
           "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"visors_started\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
           "range": true,
           "refId": "A"
