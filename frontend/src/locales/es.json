@@ -385,18 +385,24 @@
     "views": {
         "cancel": "Cancelar",
         "error": {
-            "title": "Error",
             "codes": {
-                "401": "Tu grupo no tiene permisos para acceder esta página",
-                "403": "No tienes permisos para acceder esta página",
-                "500": "Error inesperado"
+                "401": {
+                    "title": "La sesión ha caducado.",
+                    "subtitle": "Para volver a utilizar el escritorio virtual es necesario volver a acceder al sistema.",
+                    "home": "Inicia sesión de nuevo "
+                },
+                "403": {
+                    "title": "Acceso denegado.",
+                    "subtitle": "No dispones de permisos suficientes para acceder a este contenido.",
+                    "home": "Para encontrar alternativas puedes ir "
+                },
+                "500": {
+                    "title": "Error inesperado.",
+                    "subtitle": "No se ha podido acceder al contenido solicitado.",
+                    "home": "Para encontrar alternativas puedes ir "
+                }
             },
-            "go-home": "Ir al inicio"
-        },
-        "expired-session": {
-            "title": "La sesión ha caducado",
-            "subtitle": "Para volver a utilizar el escritorio virtual, inicia sessión de nuevo",
-            "button": "Iniciar sesión"
+            "here": "aquí."
         },
         "login": {
             "title": "Iniciar Sesión",
@@ -569,10 +575,6 @@
                     "text": "Descargando"
                 }
             }
-        },
-        "welcome": {
-            "title": "Bienvenido a IsardVDI, sistema de escritorios virtuales",
-            "button": "Identificarse"
         },
         "deployments": {
             "no-deployments": {
@@ -916,7 +918,6 @@
             "error": "Error",
             "not_found": "No encontrado",
             "maintenance": "Mantenimiento",
-            "expired_session": "Sesión caducada",
             "direct_viewer": "Visor directo",
             "edit-domain": "Editar dominio"
         }

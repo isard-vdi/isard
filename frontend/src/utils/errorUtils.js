@@ -1,6 +1,5 @@
 import i18n from '@/i18n'
 import { get } from 'lodash'
-import router from '@/router'
 
 export class ErrorUtils {
   static getErrorMessageText (errorMessageCode) {
@@ -45,11 +44,8 @@ export class ErrorUtils {
     snotify.clear()
     console.log(error)
 
-    if (error.response.status === 503) {
-      router.push({ name: 'Maintenance' })
-    } else if (error.response.status === 401) {
-      router.push({ name: 'ExpiredSession' })
-    } else {
+    // Errors 401, 500 and 503 are handled through axios interceptors in the axios.js file
+    if (![401, 500, 503].includes(error.response.status)) {
       ErrorUtils.showErrorMessage(snotify, error)
     }
   }

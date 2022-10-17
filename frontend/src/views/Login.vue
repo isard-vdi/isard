@@ -124,7 +124,10 @@
                   :class="'rounded-pill mt-0 btn-sm login-btn btn-' + provider.toLowerCase()"
                   @click="login(provider.toLowerCase())"
                 >
-                  <font-awesome-icon :icon="['fab', provider.toLowerCase()]" />
+                  <font-awesome-icon
+                    v-if="!['saml'].includes(provider)"
+                    :icon="['fab', provider.toLowerCase()]"
+                  />
                   {{ provider }}
                 </b-button>
               </div>

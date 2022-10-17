@@ -228,7 +228,7 @@ def api_v3_domain_edit(payload, domain_id):
 
     if data.get("forced_hyp") and payload["role_id"] != "admin":
         raise Error(
-            "unauthorized",
+            "forbidden",
             "Only administrators can force an hypervisor",
             traceback.format_exc(),
         )

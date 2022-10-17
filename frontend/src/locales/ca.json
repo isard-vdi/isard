@@ -227,18 +227,24 @@
     "views": {
         "cancel": "Cancel·lar",
         "error": {
-            "title": "Error",
             "codes": {
-                "401": "El teu grup no té permisos per accedir a aquesta pàgina",
-                "403": "No tens permisos per accedir a aquesta pàgina",
-                "500": "Error inesperat"
+                "401": {
+                    "title": "La sessió ha caducat.",
+                    "subtitle": "Per a tornar a utilitzar l'escriptori virtual és necessari tornar a accedir al sistema.",
+                    "home": "Inicia sessió de nou "
+                },
+                "403": {
+                    "title": "Accés denegat.",
+                    "subtitle": "No disposes de permisos suficients per accedir al contingut sol·licitat.",
+                    "home": "Per a trobar alternatives pots anar "
+                },
+                "500": {
+                    "title": "Error inesperat.",
+                    "subtitle": "No s'ha pogut accedir al contingut sol·licitat.",
+                    "home": "Per a trobar alternatives pots anar "
+                }
             },
-            "go-home": "Anar al inici"
-        },
-        "expired-session": {
-            "title": "La sessió ha caducat",
-            "subtitle": "Per a tornar a utilitzar l'escriptori virtual, inicia sessió de nou",
-            "button": "Iniciar sessió"
+            "here": "aquí."
         },
         "login": {
             "title": "Iniciar Sessió",
@@ -411,10 +417,6 @@
                     "text": "Descarregant"
                 }
             }
-        },
-        "welcome": {
-            "title": "Benvingut a IsardVDI, sistema d'escriptoris virtuals",
-            "button": "Identifiqueu-vos"
         },
         "deployments": {
             "no-deployments": {
@@ -905,7 +907,6 @@
             "error": "Error",
             "not_found": "No trobat",
             "maintenance": "Manteniment",
-            "expired_session": "Sessió caducada",
             "direct_viewer": "Visor directe",
             "edit-domain": "Editar domini"
         }

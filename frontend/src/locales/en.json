@@ -385,18 +385,24 @@
     "views": {
         "cancel": "Cancel",
         "error": {
-            "title": "Error",
             "codes": {
-                "401": "Your group doesn't have permissions to access this page",
-                "403": "You don't have permissions to access this page",
-                "500": "Unexpected error"
+                "401": {
+                    "title": "The session has expired.",
+                    "subtitle": "In order to use the virtual desktop re-accessing the system is required.",
+                    "home": "Login again "
+                },
+                "403": {
+                    "title": "Forbidden.",
+                    "subtitle": "You don't have enough permission to access the content.",
+                    "home": "To find alternatives you can go "
+                },
+                "500": {
+                    "title": "Unexpected error.",
+                    "subtitle": "The content couldn't be accessed.",
+                    "home": "To find alternatives you can go "
+                }
             },
-            "go-home": "Go Home"
-        },
-        "expired-session": {
-            "title": "The session has expired",
-            "subtitle": "In order to use the virtual desktop, login again",
-            "button": "Login"
+            "here": "here."
         },
         "login": {
             "title": "Login",
@@ -569,10 +575,6 @@
                     "text": "Downloading"
                 }
             }
-        },
-        "welcome": {
-            "title": "Welcome to IsardVDI, virtual desktops service",
-            "button": "Login"
         },
         "deployments": {
             "no-deployments": {
@@ -932,7 +934,6 @@
             "error": "Error",
             "not_found": "Not found",
             "maintenance": "Maintenance",
-            "expired_session": "Expired session",
             "direct_viewer": "Direct viewer",
             "edit-domain": "Edit domain"
         }
