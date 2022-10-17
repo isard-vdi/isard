@@ -25,7 +25,7 @@ import traceback
 
 from api import app
 
-from .api_rest import ApiRest
+from .._common.api_rest import ApiRest
 
 
 def wait_for_api(app):
@@ -34,7 +34,7 @@ def wait_for_api(app):
         url = "https://" + api_domain + "/api/v3"
     else:
         url = "http://isard-api:5000/api/v3"
-    api_rest = ApiRest(url)
+    api_rest = ApiRest(url, verify_cert=True)
     app.logger.info("Check connection to api at " + url)
     api_conection = False
     while not api_conection:

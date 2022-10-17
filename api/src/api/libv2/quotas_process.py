@@ -11,8 +11,8 @@ from rethinkdb import RethinkDB
 
 from api import app
 
+from .._common.api_exceptions import Error
 from .api_allowed import ApiAllowed
-from .api_exceptions import Error
 
 allowed = ApiAllowed()
 r = RethinkDB()

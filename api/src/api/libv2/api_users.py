@@ -13,8 +13,8 @@ from rethinkdb import RethinkDB
 
 from api import app
 
+from .._common.api_exceptions import Error
 from .api_desktop_events import desktops_delete
-from .api_exceptions import Error
 from .quotas import Quotas
 
 quotas = Quotas()

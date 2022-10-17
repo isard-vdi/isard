@@ -8,7 +8,7 @@ import traceback
 
 from api import app
 
-from ..libv2.api_exceptions import Error
+from .._common.api_exceptions import Error
 from ..libv2.api_templates import ApiTemplates
 from ..libv2.quotas import Quotas
 

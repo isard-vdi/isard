@@ -22,8 +22,8 @@ from datetime import datetime, timedelta
 
 import pytz
 
+from .._common.api_rest import ApiRest
 from .api_notify import notify_desktop, notify_user
-from .api_rest import ApiRest
 from .quotas import Quotas
 
 quotas = Quotas()

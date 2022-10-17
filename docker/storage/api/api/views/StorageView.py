@@ -24,7 +24,7 @@ from flask import request
 
 from api import app
 
-from ..libv2.api_exceptions import Error
+from .._common.api_exceptions import Error
 from ..libv2.api_storage import Storage
 
 # from ..libv2.api_storage_file import StorageFile

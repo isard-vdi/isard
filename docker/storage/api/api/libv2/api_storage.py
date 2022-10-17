@@ -25,8 +25,8 @@ from pathlib import Path
 
 from api import app
 
+from .._common.api_rest import ApiRest
 from ..libv2.storage.isard_qcow import IsardStorageQcow
-from .api_rest import ApiRest
 
 
 def ff(path_id):
@@ -52,9 +52,13 @@ class Storage:
             self.hostname = os.environ.get("DOMAIN")
         api_domain = os.environ.get("API_DOMAIN", False)
         if api_domain and api_domain != "isard-api":
-            self.api_rest = ApiRest("https://" + api_domain + "/api/v3/admin")
+            self.api_rest = ApiRest(
+                "https://" + api_domain + "/api/v3/admin", verify_cert=True
+            )
         else:
-            self.api_rest = ApiRest("http://isard-api:5000/api/v3/admin")
+            self.api_rest = ApiRest(
+                "http://isard-api:5000/api/v3/admin", verify_cert=True
+            )
 
         self.templates_path = "/isard/templates"
         self.desktops_path = "/isard/groups"

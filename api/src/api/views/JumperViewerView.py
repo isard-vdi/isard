@@ -10,7 +10,7 @@ import logging as log
 # coding=utf-8
 from api import app
 
-from ..libv2.api_exceptions import Error
+from .._common.api_exceptions import Error
 from ..libv2.quotas import Quotas
 from .decorators import maintenance
 

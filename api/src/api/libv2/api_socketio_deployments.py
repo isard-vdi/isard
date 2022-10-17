@@ -11,7 +11,7 @@ from rethinkdb import RethinkDB
 
 from api import app
 
-from .api_exceptions import Error
+from .._common.api_exceptions import Error
 
 r = RethinkDB()
 import json

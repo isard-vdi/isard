@@ -7,9 +7,9 @@ from flask import request
 
 from api import app
 
+from .._common.api_exceptions import Error
 from ..libv2.api_admin import admin_table_delete, admin_table_insert, admin_table_update
 from ..libv2.api_downloads import Downloads
-from ..libv2.api_exceptions import Error
 from ..libv2.log import log
 from .decorators import is_admin
 

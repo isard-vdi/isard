@@ -25,8 +25,8 @@ from flask import abort, request
 
 from api import app
 
+from .._common.api_exceptions import Error
 from ..auth.tokens import Error, get_auto_register_jwt_payload, get_header_jwt_payload
-from ..libv2.api_exceptions import Error
 
 
 def has_token(f):

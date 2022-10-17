@@ -28,9 +28,9 @@ from rethinkdb import RethinkDB
 from api import app
 
 from .. import socketio
+from .._common.api_exceptions import Error
+from .._common.api_rest import ApiRest
 from .api_desktop_events import desktops_stop_all
-from .api_exceptions import Error
-from .api_rest import ApiRest
 from .maintenance import Maintenance
 
 r = RethinkDB()
@@ -41,7 +41,7 @@ from .flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
-from .api_exceptions import Error
+from .._common.api_exceptions import Error
 
 
 def phy_storage_list(table, kind=None):

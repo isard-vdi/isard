@@ -21,8 +21,8 @@ import urllib
 
 from rethinkdb.errors import ReqlNonExistenceError
 
+from .._common.api_exceptions import Error
 from ..libv2.flask_rethink import RDB
-from .api_exceptions import Error
 
 db = RDB(app)
 db.init_app(app)

@@ -5,7 +5,7 @@ from flask import request
 
 from api import app
 
-from ...libv2.api_exceptions import Error
+from ..._common.api_exceptions import Error
 from ...libv2.bookings.api_booking import Bookings
 from ..decorators import has_token, is_admin
 

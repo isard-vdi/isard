@@ -17,9 +17,9 @@ from rethinkdb import RethinkDB
 
 from api import app
 
+from .._common.api_exceptions import Error
 from ..libv2.validators import _validate_item, check_user_duplicated_domain_name
 from .api_desktop_events import desktop_start
-from .api_exceptions import Error
 
 r = RethinkDB()
 

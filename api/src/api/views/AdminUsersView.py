@@ -15,13 +15,13 @@ from flask import request
 from api import app
 
 from .. import socketio
+from .._common.api_exceptions import Error
 from ..libv2.api_admin import (
     admin_table_delete,
     admin_table_insert,
     admin_table_list,
     admin_table_update,
 )
-from ..libv2.api_exceptions import Error
 from ..libv2.api_users import ApiUsers, Password
 from ..libv2.quotas import Quotas
 from ..libv2.validators import _validate_item

@@ -19,7 +19,7 @@ import traceback
 
 from rethinkdb.errors import ReqlDriverError, ReqlTimeoutError
 
-from .api_exceptions import Error
+from .._common.api_exceptions import Error
 from .flask_rethink import RDB
 from .log import log
 

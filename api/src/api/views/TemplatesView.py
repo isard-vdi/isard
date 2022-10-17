@@ -20,7 +20,7 @@ r = RethinkDB()
 db = RDB(app)
 db.init_app(app)
 
-from ..libv2.api_exceptions import Error
+from .._common.api_exceptions import Error
 from ..libv2.helpers import gen_payload_from_user
 from ..libv2.quotas import Quotas
 

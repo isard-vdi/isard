@@ -12,6 +12,7 @@ from flask import request
 # coding=utf-8
 from api import app
 
+from .._common.api_exceptions import Error
 from ..libv2.api_admin import (
     admin_table_delete,
     admin_table_get,
@@ -19,7 +20,6 @@ from ..libv2.api_admin import (
     admin_table_list,
     admin_table_update,
 )
-from ..libv2.api_exceptions import Error
 from .decorators import is_admin, is_admin_or_manager
 
 
