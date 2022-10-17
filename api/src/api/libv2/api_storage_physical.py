@@ -109,7 +109,7 @@ def phy_add_to_storage(path_id, user_id):
             "status": "ready",
             "type": qemu_img_info.get("format"),
             "user_id": user_id,
-            "status_logs": {"status": "ready", "time": int(time.time())},
+            "status_logs": [{"status": "ready", "time": int(time.time())}],
         }
         with app.app_context():
             r.table("storage").insert(new_disk).run(db.conn)
