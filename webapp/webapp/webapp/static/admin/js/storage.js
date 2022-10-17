@@ -295,12 +295,12 @@ $(document).ready(function() {
                 names+=value['path']+'\n';
                 ids.push(value['path']);
             });
-            var text = "You are about to "+action+" these physical disks:\n\n "+names
+            var text = "You are about to\n- Activate maintenance mode\n- Stop all desktops\n while executing "+action+" these physical disks:\n\n "+names
         }else{ 
             $.each(storage_physical.rows({filter: 'applied'}).data(),function(key, value){
               ids.push(value['path']);
             });
-            var text = "You are about to "+action+" "+storage_physical.rows({filter: 'applied'}).data().length+" disks!\n All the disks in list!"
+            var text = "You are about to\n- Activate maintenance mode\n- Stop all desktops\n while executing "+action+" "+storage_physical.rows({filter: 'applied'}).data().length+" disks!\n All the disks in list!"
         }
 
         new PNotify({
@@ -320,6 +320,15 @@ $(document).ready(function() {
               },
               addclass: 'pnotify-center'
             }).get().on('pnotify.confirm', function() {
+              new PNotify({
+                title: "Migrating disks.",
+                  text: "Activating maintenance mode and stopping domains",
+                  hide: true,
+                  delay: 4250,
+                  icon: 'fa fa-alert',
+                  opacity: 1,
+                  type: 'warning',
+              });
               $.ajax({
                 type: "POST",
                 url:"/api/v3/admin/storage/physical/multiple_actions/"+action,
@@ -367,20 +376,18 @@ $(document).ready(function() {
         var data = JSON.parse(data);
         if (storage_migration_progress == null){
           storage_migration_progress = new PNotify({
-            title: "Migrating disks.",
+            title: "Migrating disks. Maintenance mode active.",
               text: data.description+ "\nProgress: "+data.current+"/"+data.total,
-              hide: true,
-              delay: 10000,
+              hide: false,
               icon: 'fa fa-'+data.type,
               opacity: 1,
               type: data.type,
           });
         }else{
           storage_migration_progress.update({
-            title: "Migrating disks.",
-              text: data.description+ "\nProgress: "+data.current+"/"+data.total,
-              hide: true,
-              delay: 10000,
+            title: "Migrating disks. Maintenance mode active.",
+              text: data.description+ "\nProgress: "+data.current+"/"+data.total+"\nPLEASE WAIT!",
+              hide: false,
               icon: 'fa fa-'+data.type,
               opacity: 1,
               type: data.type,
@@ -392,7 +399,7 @@ $(document).ready(function() {
 
         if(data.current >= data.total){
           PNotify.removeAll()
-          storage.ajax.reload()}
+          storage_ready.ajax.reload()}
     });
 
   })

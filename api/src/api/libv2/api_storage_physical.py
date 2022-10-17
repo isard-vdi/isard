@@ -28,6 +28,7 @@ from rethinkdb import RethinkDB
 from api import app
 
 from .. import socketio
+from .api_desktop_events import desktops_stop_all
 from .api_exceptions import Error
 from .api_rest import ApiRest
 from .maintenance import Maintenance
@@ -109,7 +110,7 @@ def phy_add_to_storage(path_id, user_id):
             "status": "ready",
             "type": qemu_img_info.get("format"),
             "user_id": user_id,
-            "status_logs": {"status": "ready", "time": int(time.time())},
+            "status_logs": [{"status": "ready", "time": int(time.time())}],
         }
         with app.app_context():
             r.table("storage").insert(new_disk).run(db.conn)
@@ -121,7 +122,14 @@ def phy_add_to_storage(path_id, user_id):
 def phy_storage_upgrade_to_storage(data, user_id):
     # Set manteinance
     Maintenance.enabled = True
+
     # Stop domains started before upgrading? What happens with servers?
+    with app.app_context():
+        forceds = r.table("hypervisors").pluck("id", "only_forced").run(db.conn)
+        r.table("hypervisors").update({"only_forced": True}).run(db.conn)
+    time.sleep(2)
+    desktops_stop_all()
+    time.sleep(2)
     i = 0
     socketio.emit(
         "storage_migration_progress",
@@ -206,6 +214,11 @@ def phy_storage_upgrade_to_storage(data, user_id):
         )
         i += 1
     # take over manteinance
+    with app.app_context():
+        for hyper in forceds:
+            r.table("hypervisors").get(hyper["id"]).update(
+                {"only_forced": hyper["only_forced"]}
+            ).run(db.conn)
     Maintenance.enabled = False
     return errors
 
