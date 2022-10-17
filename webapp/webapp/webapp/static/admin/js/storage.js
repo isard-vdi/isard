@@ -367,20 +367,18 @@ $(document).ready(function() {
         var data = JSON.parse(data);
         if (storage_migration_progress == null){
           storage_migration_progress = new PNotify({
-            title: "Migrating disks.",
+            title: "Migrating disks. Maintenance mode active.",
               text: data.description+ "\nProgress: "+data.current+"/"+data.total,
-              hide: true,
-              delay: 10000,
+              hide: false,
               icon: 'fa fa-'+data.type,
               opacity: 1,
               type: data.type,
           });
         }else{
           storage_migration_progress.update({
-            title: "Migrating disks.",
-              text: data.description+ "\nProgress: "+data.current+"/"+data.total,
-              hide: true,
-              delay: 10000,
+            title: "Migrating disks. Maintenance mode active.",
+              text: data.description+ "\nProgress: "+data.current+"/"+data.total+"\nPLEASE WAIT!",
+              hide: false,
               icon: 'fa fa-'+data.type,
               opacity: 1,
               type: data.type,
@@ -392,7 +390,7 @@ $(document).ready(function() {
 
         if(data.current >= data.total){
           PNotify.removeAll()
-          storage.ajax.reload()}
+          storage_ready.ajax.reload()}
     });
 
   })
