@@ -16,8 +16,7 @@ import TemplateNew from '@/pages/TemplateNew.vue'
 import Templates from '@/pages/Templates.vue'
 import store from '@/store/index.js'
 import DirectViewer from '@/views/DirectViewer.vue'
-import ErrorPage from '@/views/ErrorPage.vue'
-import ExpiredSession from '@/views/ExpiredSession.vue'
+import Error from '@/views/Error.vue'
 import Login from '@/views/Login.vue'
 import Maintenance from '@/views/Maintenance.vue'
 import NotFound from '@/views/NotFound.vue'
@@ -249,7 +248,7 @@ const router = new VueRouter({
     {
       path: '/error/:code',
       name: 'Error',
-      component: ErrorPage,
+      component: Error,
       meta: {
         title: i18n.t('router.titles.error')
       }
@@ -268,14 +267,6 @@ const router = new VueRouter({
       component: Maintenance,
       meta: {
         title: i18n.t('router.titles.maintenance')
-      }
-    },
-    {
-      path: '/expired_session',
-      name: 'ExpiredSession',
-      component: ExpiredSession,
-      meta: {
-        title: i18n.t('router.titles.expired_session')
       }
     },
     {

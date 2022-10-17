@@ -34,8 +34,6 @@ export default {
 
         if (e.response.status === 503) {
           router.push({ name: 'Maintenance' })
-        } else if (e.response.status === 401 || e.response.status === 403) {
-          router.push({ name: 'ExpiredSession' })
         } else {
           ErrorUtils.showErrorMessage(this._vm.$snotify, e,
             i18n.t('components.navbar.vpn.downloadvpn-error.description'),

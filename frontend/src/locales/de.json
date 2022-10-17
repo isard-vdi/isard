@@ -163,15 +163,6 @@
                 "generic": "Ein Fehler ist aufgetreten"
             }
         },
-        "expired-session": {
-            "button": "Anmelden",
-            "subtitle": "Melden Sie sich erneut an, um die virtuelle Arbeitsoberfläche zu verwenden",
-            "title": "Die Sitzung ist abgelaufen"
-        },
-        "welcome": {
-            "button": "Anmelden",
-            "title": "Willkommen bei IsardVDI, dem Dienst für virtuelle Arbeitsoberflächen"
-        },
         "deployment": {
             "desktop": {
                 "not-available": "Arbeitoberfläche nicht verfügbar"

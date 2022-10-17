@@ -1005,7 +1005,7 @@ class ApiUsers:
             if group["parent_category"] != category:
                 category = self.CategoryGet(category)["name"]
                 raise Error(
-                    "unauthorized",
+                    "forbidden",
                     "Group "
                     + group["name"]
                     + " does not belong to category "

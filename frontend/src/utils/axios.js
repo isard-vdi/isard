@@ -43,7 +43,7 @@ export default function axiosSetUp () {
       // }
       if (error.response.status === 503) {
         router.replace({ name: 'Maintenance' })
-      } else if (error.response.status === 500) {
+      } else if (error.response.status === 500 || error.response.status === 401) {
         router.replace({
           name: 'Error',
           params: { code: error.response && error.response.status.toString() }

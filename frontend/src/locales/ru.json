@@ -153,11 +153,6 @@
                 "generic": "Произошла ошибка"
             }
         },
-        "expired-session": {
-            "subtitle": "Чтобы использовать виртуальный рабочий стол, войдите снова",
-            "title": "Сессия истекла",
-            "button": "Войти"
-        },
         "error": {
             "codes": {
                 "403": "У вас нет разрешений на доступ к этой странице",
@@ -166,10 +161,6 @@
             },
             "title": "Ошибка",
             "go-home": "Домой"
-        },
-        "welcome": {
-            "title": "Добро пожаловать в IsardVDI - Virtual Desktops Service",
-            "button": "Войти"
         },
         "deployments": {
             "no-deployments": {

@@ -92,11 +92,6 @@
             },
             "go-home": "Hasiera"
         },
-        "expired-session": {
-            "title": "Saioa iraungi egin da",
-            "subtitle": "Mahaigain birtuala berriz erabiltzeko, berriro sesioa hasi",
-            "button": "Sesioa hasi"
-        },
         "login": {
             "title": "Saioa hasi",
             "form": {
@@ -251,10 +246,6 @@
                 "subtitle": "Mahaigain berri bat sor dezakezu goiko eskuineko botoiarekin",
                 "title": "Erakusteko mahaigainik ez dago oraingo iragazkiekin"
             }
-        },
-        "welcome": {
-            "title": "Ongi etorri IsardVDI-era, mahaigain birtualen sistemara",
-            "button": "Identifikatu"
         },
         "cancel": "itxi",
         "deployment": {

@@ -10,10 +10,6 @@
                 "404": "Code introuvable"
             }
         },
-        "welcome": {
-            "button": "Se connecter",
-            "title": "Bienvenue chez IsardVDI, service de bureaux virtuels"
-        },
         "select-template": {
             "which-template": "Quel bureau voulez-vous utiliser ?",
             "no-templates": {
@@ -52,11 +48,6 @@
                 "admin": "Administration",
                 "isard-logo-alt": "Le logo d’IsardVDI est une tête de chamois.",
                 "powered-by": "Propulsé par"
-            },
-            "expired-session": {
-                "button": "Se connecter",
-                "subtitle": "Pour utiliser le bureau virtuel, connectez-vous à nouveau",
-                "title": "La session a expiré"
             },
             "error": {
                 "codes": {
@@ -174,11 +165,6 @@
             "the-service": "Le service sera de nouveau disponible dans quelques minutes",
             "title": "Actuellement, le service Isard est en maintenance",
             "go-login": "Aller à la connexion"
-        },
-        "expired-session": {
-            "subtitle": "Pour utiliser le bureau virtuel, connectez-vous à nouveau",
-            "title": "La session a expiré",
-            "button": "Se connecter"
         },
         "error": {
             "codes": {
