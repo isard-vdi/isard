@@ -3,11 +3,11 @@ import { get } from 'lodash'
 import router from '@/router'
 
 export class ErrorUtils {
-  static getErrorMessageText (errorMessageCode) {
+  static getErrorMessageText (errorMessageCode, params = {}) {
     let errorMessage = ''
 
     if (errorMessageCode) {
-      errorMessage = i18n.t(`errors.${errorMessageCode}`)
+      errorMessage = i18n.t(`errors.${errorMessageCode}`, params)
     } else {
       errorMessage = i18n.t('errors.generic_error')
     }
@@ -25,7 +25,7 @@ export class ErrorUtils {
   }
 
   static showErrorMessage (snotify, error, message = '', title = '', position = 'centerTop') {
-    const errorMessage = message.length > 0 ? message : ErrorUtils.getErrorMessageText(get(error, 'response.data.description_code'))
+    const errorMessage = message.length > 0 ? message : ErrorUtils.getErrorMessageText(get(error, 'response.data.description_code'), get(error, 'response.data.params'))
 
     this.showErrorNotification(snotify, errorMessage, position)
   }

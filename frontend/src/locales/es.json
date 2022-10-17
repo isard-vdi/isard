@@ -891,7 +891,9 @@
         "not_enough_rights_desktop": "Se necesitan más permisos para acceder a este escritorio",
         "incorrect_viewer_body_data": "Datos incorrectos en el visor del escritorio",
         "unable_to_get_viewer_started": "No es posible obtener el visor de un escritorio que no está arrancado",
-        "user_disabled": "El usuario está deshabilitado"
+        "user_disabled": "El usuario está deshabilitado",
+        "deployment_desktop_new_group_limit_exceeded": "Se ha excedido el límite de creación de escritorios del grupo '{group}'",
+        "deployment_desktop_new_category_limit_exceeded": "Se ha excedido el límite de creación de escritorios de la categoria '{category}'"
     },
     "router": {
         "titles": {

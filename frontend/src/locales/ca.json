@@ -821,7 +821,9 @@
         "not_enough_rights_desktop": "Es requereixen més permisos per accedir a aquest escriptori",
         "incorrect_viewer_body_data": "Dades incorrectes al visor de l'escriptori",
         "unable_to_get_viewer_started": "No es possible obtenir el visor d'un escriptori que no està arrencat",
-        "user_disabled": "L'usuari està deshabilitat"
+        "user_disabled": "L'usuari està deshabilitat",
+        "deployment_desktop_new_group_limit_exceeded": "S'ha excedit el límit per a crear nous escriptoris del grup '{group}'",
+        "deployment_desktop_new_category_limit_exceeded": "S'ha excedit el límit per a crear nous escriptoris de la categoria '{category}'"
     },
     "messages": {
         "title": {
