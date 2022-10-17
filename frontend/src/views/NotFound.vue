@@ -1,42 +1,51 @@
 <template>
   <b-container
     fluid
-    class="vh-100"
+    class="h-100 w-100 pt-5 pt-md-0 scrollable-div"
   >
     <b-row class="h-100 d-flex justify-content-center align-items-center">
-      <b-col md="1" />
-      <b-col md="10">
-        <h1>{{ $t('views.not-found.title') }}</h1>
-        <b-button
-          class="btn mt-4"
-          variant="primary"
-          size="lg"
-          @click="redirectLogin()"
-        >
-          <b-icon
-            icon="house-door-fill"
-            variant="white"
-          />
-          {{ $t('views.not-found.back') }}
-        </b-button>
+      <b-col
+        cols="3"
+      />
+      <b-col
+        cols="6"
+        class="text-center"
+      >
+        <b-img
+          src="@/assets/img/404.svg"
+          alt=""
+          style="max-height: 15rem; min-height: 10rem;"
+          fluid-grow
+        />
+        <span class="text-left">
+          <h1 class="mb-4">
+            <b>Oops...</b><br>
+            <b>{{ $t('views.not-found.title') }}</b>
+          </h1>
+          <p>
+            {{ $t('views.not-found.subtitle') }}<br>
+            {{ $t('views.not-found.home') }} <b
+              class="cursor-pointer"
+              @click="navigate('Login')"
+            ><u>{{ $t('views.not-found.here') }}</u></b>
+          </p>
+        </span>
       </b-col>
-      <b-col md="1" />
+      <b-col
+        cols="3"
+      />
     </b-row>
   </b-container>
 </template>
 
 <script>
-// @ is an alias to /src
+import { mapActions } from 'vuex'
 
 export default {
-  setup (props, context) {
-    const redirectLogin = () => {
-      context.root.$router.push({ path: '/' })
-    }
-    return {
-      redirectLogin
-    }
+  methods: {
+    ...mapActions([
+      'navigate'
+    ])
   }
 }
-
 </script>

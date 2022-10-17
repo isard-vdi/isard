@@ -264,8 +264,10 @@
             "go-login": "Anar al login"
         },
         "not-found": {
-            "title": "No hem pogut trobar l'adreça sol·licitada",
-            "back": "Tornar a l'inici"
+            "title": "Quelcom ha anat malament.",
+            "subtitle": "El contingut que buscaves sembla no estar aquí.",
+            "home": "Per trobar-hi alternatives pots anar ",
+            "here": "aquí."
         },
         "register": {
             "title": "Registre",

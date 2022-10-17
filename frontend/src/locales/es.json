@@ -422,8 +422,10 @@
             "go-login": "Ir al login"
         },
         "not-found": {
-            "title": "No hemos encontrado la dirección solicitada",
-            "back": "Volver al inicio"
+            "title": "Algo fue mal.",
+            "subtitle": "El contenido que buscabas parece no estar aquí.",
+            "home": "Para encontrar alternativas puedes ir ",
+            "here": "aquí."
         },
         "register": {
             "title": "Registro",

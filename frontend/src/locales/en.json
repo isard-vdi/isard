@@ -422,8 +422,10 @@
             "go-login": "Go to login"
         },
         "not-found": {
-            "title": "We couldn't find the requested address",
-            "back": "Go back to the start"
+            "title": "Something went wrong.",
+            "subtitle": "The content you were looking for seems to be no longer here.",
+            "home": "To find alternatives you can go ",
+            "here": "here."
         },
         "register": {
             "title": "Sign Up",
