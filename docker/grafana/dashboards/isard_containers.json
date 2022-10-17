@@ -26,7 +26,7 @@
   "fiscalYearStartMonth": 0,
   "gnetId": 14282,
   "graphTooltip": 0,
-  "id": 11,
+  "id": 5,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -76,7 +76,7 @@
         "showStarred": false,
         "tags": []
       },
-      "pluginVersion": "9.1.6",
+      "pluginVersion": "9.2.0",
       "tags": [],
       "targets": [
         {

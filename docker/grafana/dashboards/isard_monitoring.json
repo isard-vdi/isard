@@ -25,7 +25,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 10,
+  "id": 6,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -49,7 +49,7 @@
         "showStarred": false,
         "tags": []
       },
-      "pluginVersion": "9.1.6",
+      "pluginVersion": "9.2.0",
       "tags": [],
       "targets": [
         {
@@ -60,93 +60,6 @@
       "title": "Dashboards",
       "transparent": true,
       "type": "dashlist"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "description": "",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [
-            {
-              "options": {
-                "match": "null",
-                "result": {
-                  "text": "N/A"
-                }
-              },
-              "type": "special"
-            }
-          ],
-          "max": 100,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "rgba(50, 172, 45, 0.97)",
-                "value": null
-              },
-              {
-                "color": "rgba(237, 129, 40, 0.89)",
-                "value": 70
-              },
-              {
-                "color": "rgba(245, 54, 54, 0.9)",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 3,
-        "w": 1,
-        "x": 3,
-        "y": 0
-      },
-      "id": 211,
-      "links": [],
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "9.1.6",
-      "repeatDirection": "v",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "100 - (node_filesystem_avail_bytes{domain=~\"$domain\", mountpoint=\"/opt/isard/groups\", fstype!=\"rootfs\"} * 100 / node_filesystem_size_bytes{domain=~\"$domain\", mountpoint=\"/opt/isard/groups\", fstype!=\"rootfs\"})",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "range": true,
-          "refId": "A",
-          "step": 240
-        }
-      ],
-      "title": "Disk",
-      "type": "stat"
     },
     {
       "datasource": {
@@ -209,7 +122,7 @@
       "gridPos": {
         "h": 3,
         "w": 2,
-        "x": 4,
+        "x": 3,
         "y": 0
       },
       "id": 204,
@@ -228,7 +141,7 @@
         "text": {},
         "textMode": "name"
       },
-      "pluginVersion": "9.1.6",
+      "pluginVersion": "9.2.0",
       "targets": [
         {
           "datasource": {
@@ -316,7 +229,7 @@
       "gridPos": {
         "h": 3,
         "w": 2,
-        "x": 6,
+        "x": 5,
         "y": 0
       },
       "id": 205,
@@ -335,7 +248,7 @@
         "text": {},
         "textMode": "name"
       },
-      "pluginVersion": "9.1.6",
+      "pluginVersion": "9.2.0",
       "targets": [
         {
           "datasource": {
@@ -398,7 +311,7 @@
       },
       "gridPos": {
         "h": 2,
-        "w": 1,
+        "w": 2,
         "x": 0,
         "y": 4
       },
@@ -420,7 +333,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.6",
+      "pluginVersion": "9.2.0",
       "targets": [
         {
           "datasource": {
@@ -477,8 +390,8 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 1,
-        "x": 1,
+        "w": 3,
+        "x": 2,
         "y": 4
       },
       "hideTimeOverride": false,
@@ -498,7 +411,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.6",
+      "pluginVersion": "9.2.0",
       "targets": [
         {
           "datasource": {
@@ -565,8 +478,8 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 1,
-        "x": 2,
+        "w": 3,
+        "x": 5,
         "y": 4
       },
       "id": 218,
@@ -585,7 +498,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.6",
+      "pluginVersion": "9.2.0",
       "targets": [
         {
           "datasource": {
@@ -603,6 +516,93 @@
         }
       ],
       "title": "CPU %",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "N/A"
+                }
+              },
+              "type": "special"
+            }
+          ],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "rgba(50, 172, 45, 0.97)",
+                "value": null
+              },
+              {
+                "color": "rgba(237, 129, 40, 0.89)",
+                "value": 70
+              },
+              {
+                "color": "rgba(245, 54, 54, 0.9)",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 3,
+        "x": 8,
+        "y": 4
+      },
+      "id": 211,
+      "links": [],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "9.2.0",
+      "repeatDirection": "v",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "100 - (node_filesystem_avail_bytes{domain=~\"$domain\", mountpoint=\"/opt/isard/groups\", fstype!=\"rootfs\"} * 100 / node_filesystem_size_bytes{domain=~\"$domain\", mountpoint=\"/opt/isard/groups\", fstype!=\"rootfs\"})",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "range": true,
+          "refId": "A",
+          "step": 240
+        }
+      ],
+      "title": "Disk",
       "type": "stat"
     },
     {
@@ -676,7 +676,7 @@
       "gridPos": {
         "h": 4,
         "w": 3,
-        "x": 3,
+        "x": 11,
         "y": 4
       },
       "hideTimeOverride": false,
@@ -810,8 +810,8 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 3,
-        "x": 6,
+        "w": 4,
+        "x": 14,
         "y": 4
       },
       "id": 190,
@@ -930,7 +930,7 @@
       "gridPos": {
         "h": 4,
         "w": 3,
-        "x": 9,
+        "x": 18,
         "y": 4
       },
       "id": 200,
@@ -1033,7 +1033,7 @@
       "gridPos": {
         "h": 4,
         "w": 3,
-        "x": 12,
+        "x": 21,
         "y": 4
       },
       "id": 207,
@@ -1127,7 +1127,7 @@
       },
       "gridPos": {
         "h": 2,
-        "w": 1,
+        "w": 2,
         "x": 0,
         "y": 6
       },
@@ -1149,7 +1149,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "9.1.6",
+      "pluginVersion": "9.2.0",
       "targets": [
         {
           "datasource": {
@@ -1157,42 +1157,14 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "(count(present_over_time(isardvdi_domain_port_spice_tls{domain=~\"$domain\"}[1m]) * on(desktop) group_left isardvdi_domain_port_spice_tls{domain=~\"$domain\"} * on (port,hypervisor) group_left count_over_time(isardvdi_socket_recv_bytes{domain=~\"$domain\"}[1m])) or vector(0))  + \n(count(present_over_time(isardvdi_domain_net_rx_bytes{domain=~\"$domain\"}[1m]) * on (mac) group_left count_over_time(isardvdi_conntrack_rdp_recv_bytes{domain=~\"$domain\"}[1m])) or vector(0))",
+          "expr": "(count(present_over_time(isardvdi_domain_port_spice_tls{domain=~\"$domain\"}[1m]) * on(desktop) group_left isardvdi_domain_port_spice_tls{domain=~\"$domain\"} * on (port,hypervisor) group_left count_over_time(isardvdi_socket_recv_bytes{domain=~\"$domain\"}[1m])) or vector(0))  + \n(count(present_over_time(isardvdi_domain_net_rx_bytes{domain=~\"$domain\"}[1m]) * on (mac) group_left count_over_time(isardvdi_conntrack_rdp_recv_bytes{domain=~\"$domain\"}[1m])) or vector(0)) + (count(present_over_time(isardvdi_domain_port_vnc{domain=~\"$domain\"}[1m]) * on(desktop) group_left isardvdi_domain_port_vnc{domain=~\"$domain\"} * on (port, hypervisor) group_left count_over_time(isardvdi_socket_recv_bytes{domain=~\"$domain\"}[1m])) or vector(0))",
           "query": "from(bucket: \"isardvdi-tasks\")\n  |> range(start: -10s, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"hypervisor\")\n  |> filter(fn: (r) => r[\"_field\"] == \"visors_started\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
           "range": true,
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "(count(present_over_time(isardvdi_domain_port_vnc{domain=~\"$domain\"}[1m]) * on(desktop) group_left isardvdi_domain_port_vnc{domain=~\"$domain\"} * on (port, hypervisor) group_left count_over_time(isardvdi_socket_recv_bytes{domain=~\"$domain\"}[1m])) or vector(0))",
-          "hide": false,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "B"
         }
       ],
       "title": "Visors started",
-      "transformations": [
-        {
-          "id": "calculateField",
-          "options": {
-            "binary": {
-              "left": "(count(present_over_time(isardvdi_domain_port_spice_tls{domain=~\"()\"}[1m]) * on(desktop) group_left isardvdi_domain_port_spice_tls{domain=~\"()\"} * on (port,hypervisor) group_left count_over_time(isardvdi_socket_recv_bytes{domain=~\"()\"}[1m])) or vector(0))  + \n(count(present_over_time(isardvdi_domain_net_rx_bytes{domain=~\"()\"}[1m]) * on (mac) group_left count_over_time(isardvdi_conntrack_rdp_recv_bytes{domain=~\"()\"}[1m])) or vector(0))",
-              "reducer": "sum",
-              "right": "(count(present_over_time(isardvdi_domain_port_vnc{domain=~\"()\"}[1m]) * on(desktop) group_left isardvdi_domain_port_vnc{domain=~\"()\"} * on (port, hypervisor) group_left count_over_time(isardvdi_socket_recv_bytes{domain=~\"()\"}[1m])) or vector(0))"
-            },
-            "mode": "binary",
-            "reduce": {
-              "reducer": "sum"
-            },
-            "replaceFields": true
-          }
-        }
-      ],
+      "transformations": [],
       "type": "stat"
     }
   ],
@@ -1204,13 +1176,9 @@
     "list": [
       {
         "current": {
-          "selected": true,
-          "text": [
-            "server"
-          ],
-          "value": [
-            "server"
-          ]
+          "selected": false,
+          "text": "server",
+          "value": "server"
         },
         "datasource": {
           "type": "prometheus",
