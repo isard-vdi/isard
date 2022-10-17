@@ -634,8 +634,82 @@ class Quotas:
                 description_code="media_new_category_limit_exceeded",
             )
 
-    def deployment_create(self, user_id):
-        qp.check("NewDesktop", user_id)
+    def deployment_create(self, users):
+        # Group the users considering its groups and categories
+        groups_users = {}
+        categories_users = {}
+        for user in users:
+            groups_users.setdefault(user["group"], []).append(user)
+            categories_users.setdefault(user["category"], []).append(user)
+
+        # Check the group limits aren't exceeded
+        for group_id, users in groups_users.items():
+            try:
+                with app.app_context():
+                    group = (
+                        r.table("groups")
+                        .get(group_id)
+                        .pluck("name", "quota", "limits")
+                        .run(db.conn)
+                    )
+            except:
+                raise Error("not_found", "Group not found")
+
+            if group["limits"]:
+
+                with app.app_context():
+                    group_domains = (
+                        r.table("domains")
+                        .get_all(["desktop", group_id], index="kind_group")
+                        .count()
+                        .run(db.conn)
+                    )
+
+                if group_domains + len(users) > group["limits"].get("desktops"):
+                    raise Error(
+                        "precondition_required",
+                        "Group "
+                        + group["name"]
+                        + " limit exceeded for creating new desktop.",
+                        traceback.format_exc(),
+                        description_code="deployment_desktop_new_group_limit_exceeded",
+                        params={"group": group["name"]},
+                    )
+
+        # Check the category limits aren't exceeded
+        for category_id, users in categories_users.items():
+            try:
+                with app.app_context():
+                    category = (
+                        r.table("categories")
+                        .get(user["category"])
+                        .pluck("name", "quota", "limits")
+                        .run(db.conn)
+                    )
+            except:
+                raise Error("not_found", "Category not found")
+
+            if category["limits"]:
+
+                with app.app_context():
+                    category_domains = (
+                        r.table("domains")
+                        .get_all(["desktop", category_id], index="kind_category")
+                        .count()
+                        .run(db.conn)
+                    )
+
+                if category_domains + len(users) > category["limits"].get("desktops"):
+                    raise Error(
+                        "precondition_required",
+                        "Category "
+                        + category_id
+                        + " limit exceeded for creating new desktops",
+                        traceback.format_exc(),
+                        data=category_domains,
+                        description_code="deployment_desktop_new_category_limit_exceeded",
+                        params={"category": category["name"]},
+                    )
 
     def get_hardware_allowed(self, payload, domain_id=None):
         return qp.user_hardware_allowed(payload, kind=None, domain_id=domain_id)

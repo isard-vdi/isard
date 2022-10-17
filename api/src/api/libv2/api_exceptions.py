@@ -83,6 +83,7 @@ class Error(Exception):
         debug=False,
         description_code=None,
         data=None,
+        params=None,
     ):
         # NOTE: Description codes are defined at https://gitlab.com/isard/isardvdi/-/blob/main/frontend/src/locales/en.json#L340
         self.error = ex[error]["error"].copy()
@@ -133,6 +134,7 @@ class Error(Exception):
         )
         self.status_code = ex[error]["status_code"]
         self.content_type = content_type
+        self.error["params"] = params
         log.debug(
             "%s - %s - [%s -> %s]\r\n%s\r\n%s\r\n%s"
             % (

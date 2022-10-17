@@ -6,15 +6,11 @@
 import json
 
 from api.libv2.api_exceptions import Error
-from api.libv2.quotas import Quotas
+from api.libv2.deployments import api_deployments
 from api.libv2.validators import _validate_item
 from flask import request
 
 from api import app
-
-quotas = Quotas()
-
-from api.libv2.deployments import api_deployments
 
 from ..decorators import is_not_user, ownsDeploymentId
 
@@ -46,7 +42,6 @@ def api_v3_deployments_new(payload):
 
     data["id"] = data["name"]
     _validate_item("deployment", data)
-    quotas.deployment_create(payload["user_id"])
     deployment_id = api_deployments.new(
         payload,
         data["template_id"],

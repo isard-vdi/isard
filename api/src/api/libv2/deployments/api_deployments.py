@@ -8,6 +8,7 @@ import csv
 import io
 import os
 
+from api.libv2.quotas import Quotas
 from rethinkdb import RethinkDB
 
 from api import app
@@ -17,6 +18,9 @@ import logging as log
 
 from ..api_exceptions import Error
 from ..flask_rethink import RDB
+
+quotas = Quotas()
+
 
 db = RDB(app)
 db.init_app(app)
@@ -261,6 +265,9 @@ def new(
             )
         else:
             users = [u for u in users if u["id"] not in existing_desktops]
+
+    # Check qupotas
+    quotas.deployment_create(users)
 
     """Create deployment"""
     with app.app_context():

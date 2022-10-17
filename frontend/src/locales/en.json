@@ -907,7 +907,9 @@
         "desktop_is_not_visible": "Desktop is not visible to this user now.",
         "invalid_start_date": "Invalid start date",
         "invalid_end_date": "Invalid end date",
-        "incorrect_new_plan_body_data": " Incorrect new plan body data"
+        "incorrect_new_plan_body_data": " Incorrect new plan body data",
+        "deployment_desktop_new_group_limit_exceeded": "Group '{group}' desktop creation limit has been exceeded",
+        "deployment_desktop_new_category_limit_exceeded": "Category '{category}' desktop creation limit has been exceeded"
     },
     "router": {
         "titles": {
