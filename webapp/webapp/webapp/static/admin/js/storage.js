@@ -290,23 +290,23 @@ $(document).ready(function() {
             var text = "You are about to "+action+" "+storage_physical.rows({filter: 'applied'}).data().length+" disks!\n All the disks in list!"
         }
 
-				new PNotify({
-						title: 'Warning!',
-							text: text,
-							hide: false,
-							opacity: 0.9,
-							confirm: {
-								confirm: true
-							},
-							buttons: {
-								closer: false,
-								sticker: false
-							},
-							history: {
-								history: false
-							},
-							addclass: 'pnotify-center'
-						}).get().on('pnotify.confirm', function() {
+        new PNotify({
+            title: 'Warning!',
+              text: text,
+              hide: false,
+              opacity: 0.9,
+              confirm: {
+                confirm: true
+              },
+              buttons: {
+                closer: false,
+                sticker: false
+              },
+              history: {
+                history: false
+              },
+              addclass: 'pnotify-center'
+            }).get().on('pnotify.confirm', function() {
               $.ajax({
                 type: "POST",
                 url:"/api/v3/admin/storage/physical/multiple_actions/"+action,
@@ -323,10 +323,66 @@ $(document).ready(function() {
                   $('#mactions option[value="none"]').prop("selected",true);
                 }
               });
-    } )
+            } )
       })
     }
-})
+
+
+    socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/administrators', {
+        'query': {'jwt': localStorage.getItem("token")},
+        'path': '/api/v3/socket.io/',
+        'transports': ['websocket']
+    });
+
+    socket.on('connect', function() {
+        connection_done();
+        console.log('Listening aministrators namespace');
+    });
+
+    socket.on('connect_error', function(data) {
+      connection_lost();
+    });
+
+    socket.on('user_quota', function(data) {
+        console.log('Quota update')
+        var data = JSON.parse(data);
+        drawUserQuota(data);
+    });
+
+    var storage_migration_progress = null
+    socket.on('storage_migration_progress', function(data) {
+        var data = JSON.parse(data);
+        if (storage_migration_progress == null){
+          storage_migration_progress = new PNotify({
+            title: "Migrating disks.",
+              text: data.description+ "\nProgress: "+data.current+"/"+data.total,
+              hide: true,
+              delay: 10000,
+              icon: 'fa fa-'+data.type,
+              opacity: 1,
+              type: data.type,
+          });
+        }else{
+          storage_migration_progress.update({
+            title: "Migrating disks.",
+              text: data.description+ "\nProgress: "+data.current+"/"+data.total,
+              hide: true,
+              delay: 10000,
+              icon: 'fa fa-'+data.type,
+              opacity: 1,
+              type: data.type,
+          });
+        }
+        if ("id" in data){
+          storage_physical.row('#'+data.id).remove().draw();
+        }
+
+        if(data.current >= data.total){
+          PNotify.removeAll()
+          storage.ajax.reload()}
+    });
+
+  })
 
 function format(rowData) {
     var childTable =

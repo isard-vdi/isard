@@ -18,13 +18,16 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import json
 import random
+import time
 import uuid
 
 from rethinkdb import RethinkDB
 
 from api import app
 
+from .. import socketio
 from .api_exceptions import Error
 from .api_rest import ApiRest
 
@@ -105,6 +108,7 @@ def phy_add_to_storage(path_id, user_id):
             "status": "ready",
             "type": qemu_img_info.get("format"),
             "user_id": user_id,
+            "status_logs": {"status": "ready", "time": int(time.time())},
         }
         with app.app_context():
             r.table("storage").insert(new_disk).run(db.conn)
@@ -114,11 +118,40 @@ def phy_add_to_storage(path_id, user_id):
 
 
 def phy_storage_upgrade_to_storage(data, user_id):
+    # Set manteinance
+    # Stop domains started before upgrading? What happens with servers?
+    i = 0
+    socketio.emit(
+        "storage_migration_progress",
+        json.dumps(
+            {
+                "type": "info",
+                "description": "Starting...",
+                "current": i + 1,
+                "total": len(data["paths"]),
+            }
+        ),
+        namespace="/administrators",
+        room="admins",
+    )
     errors = []
     for path_id in data["paths"]:
         new_disk = phy_add_to_storage(path_id, user_id)
         if not new_disk:
             errors.append("disk path " + str(path_id) + ": bad format.")
+            socketio.emit(
+                "storage_migration_progress",
+                json.dumps(
+                    {
+                        "type": "error",
+                        "description": "Bad disk format for path " + str(path_id),
+                        "current": i,
+                        "total": len(data["paths"]),
+                    }
+                ),
+                namespace="/administrators",
+                room="admins",
+            )
             continue
         with app.app_context():
             domains_to_be_updated = (
@@ -156,6 +189,21 @@ def phy_storage_upgrade_to_storage(data, user_id):
             with app.app_context():
                 r.table("domains").get(domain["id"]).update(domain).run(db.conn)
         phy_storage_delete("domains", path_id)
+        socketio.emit(
+            "storage_migration_progress",
+            json.dumps(
+                {
+                    "type": "info",
+                    "description": "Correctly updated.",
+                    "current": i + 1,
+                    "total": len(data["paths"]),
+                }
+            ),
+            namespace="/administrators",
+            room="admins",
+        )
+        i += 1
+    # take over manteinance
     return errors
 
 
