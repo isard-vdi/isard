@@ -288,10 +288,7 @@ class ThreadBroom(threading.Thread):
                                 "CRITICAL, if domain is not in database, must be destroyed previously by broom"
                             )
                             continue
-                        if (
-                            d_status["status"] == "Started"
-                            or d_status["status"] == "Paused"
-                        ):
+                        if d_status["status"] == "Started":
                             logs.broom.error(
                                 f"broom find domain {id_domain} with status {d_status['status']} in hypervisor {hyp_id} and updated status and hyp_started in databse"
                             )
@@ -301,6 +298,21 @@ class ThreadBroom(threading.Thread):
                                 "State and hyp_started updated by broom",
                                 d_status["status"],
                             )
+                        elif d_status["status"] == "Paused":
+                            if d_status["detail"] == "paused on user request":
+                                logs.broom.error(
+                                    f"broom find domain {id_domain} with status {d_status['status']} with detail {d_status['detail']} in hypervisor {hyp_id} and updated status and hyp_started in databse"
+                                )
+                                update_domain_hyp_started(
+                                    id_domain,
+                                    hyp_id,
+                                    "State and hyp_started updated by broom",
+                                    d_status["status"],
+                                )
+                            else:
+                                logs.broom.info(
+                                    f"broom find domain {id_domain} with status {d_status['status']} in hypervisor {hyp_id} with detail {d_status['detail']} , domain starting-paused?"
+                                )
                         else:
                             logs.broom.error(
                                 f"CRITICAL: STATUS FROM LIBVIRT IS NOT STARTED OR PAUSED!! broom find domain {id_domain} with status {d_status['status']} in hypervisor {hyp_id}"
