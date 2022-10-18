@@ -15,12 +15,12 @@
       class="text-right"
     >
       <h6 class="mt-4">
-        {{ value }} / {{ max ? max : '&infin;' }}
+        {{ value }} / {{ max === false ? '&infin;' : max }}
       </h6>
     </b-col>
     <b-col cols="12">
       <b-progress
-        :max="max ? max : 9999"
+        :max="max === false ? 9999 : max"
         animated
       >
         <b-progress-bar
@@ -58,8 +58,8 @@ export default {
     },
     max: {
       required: true,
-      type: Number,
-      default: 0
+      type: [Number, Boolean],
+      default: false
     }
   }
 }
