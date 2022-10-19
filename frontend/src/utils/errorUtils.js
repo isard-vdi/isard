@@ -48,8 +48,8 @@ export class ErrorUtils {
       placeholder: '',
       position: position,
       buttons: [
-        { text: `${i18n.t('messages.confirmation.go-to-profile')}`, action: this.goToProfile, bold: true },
-        { text: `${i18n.t('messages.ok')}`, action: this.closeNotification(snotify), bold: true }
+        { text: `${i18n.t('messages.confirmation.go-to-profile')}`, action: () => this.goToProfile(snotify), bold: true },
+        { text: `${i18n.t('messages.ok')}`, action: () => this.closeNotification(snotify), bold: true }
       ]
     })
   }
@@ -58,8 +58,9 @@ export class ErrorUtils {
     snotify.clear()
   }
 
-  static goToProfile () {
+  static goToProfile (snotify) {
     router.push({ name: 'profile' })
+    snotify.clear()
   }
 
   static handleErrors (error, snotify) {

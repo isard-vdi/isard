@@ -850,7 +850,7 @@
         "desktop_incorrect_body_data": "Datos incorrectos para crear el escritorio",
         "user_new_category_cuota_exceeded": "Se ha excedido el límite de creación de usuarios de la categoria",
         "user_new_group_cuota_exceeded": "Se ha excedido el límite de creación de usuarios del grupo",
-        "template_new_user_quota_exceeded": "Has excedido la cuota de creación de plantillas del usuario. Es necesario que elimines alguna plantilla para poder crear más.",
+        "template_new_user_quota_exceeded": "Has excedido la cuota de plantillas del usuario. Es necesario que elimines o deshabilites alguna plantilla para poder crear o habilitar más.",
         "template_new_group_quota_exceeded": "Se ha excedido la cuota de creación de plantillas del grupo",
         "template_new_group_limit_exceeded": "Se ha excedido el límite de creación de plantillas del grupo",
         "template_new_category_quota_exceeded": "Se ha excedido la cuota de creación de plantillas de la categoria",
