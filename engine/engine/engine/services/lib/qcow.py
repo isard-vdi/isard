@@ -42,12 +42,17 @@ QCOW2_CLUSTER_SIZE = os.environ.get("QCOW2_CLUSTER_SIZE", "4k")
 QCOW2_EXTENDED_L2 = os.environ.get("QCOW2_EXTENDED_L2", "off")
 
 
-def create_cmds_delete_disk(path_disk):
+def create_cmds_delete_disk(path_disk, mv_to_extension_deleted=False):
     cmds = list()
     cmd = 'ls -l "{}"'.format(path_disk)
     cmds.append(cmd)
 
-    cmd = 'if [ -f "{}" ] ; then rm -f "{}"; fi'.format(path_disk, path_disk)
+    if mv_to_extension_deleted is True:
+        cmd = (
+            f'if [ -f "{path_disk}" ] ; then mv "{path_disk}" "{path_disk}.deleted; fi'
+        )
+    else:
+        cmd = 'if [ -f "{}" ] ; then rm -f "{}"; fi'.format(path_disk, path_disk)
     log.debug("delete disk or media cmd: {}".format(cmd))
     cmds.append(cmd)
 

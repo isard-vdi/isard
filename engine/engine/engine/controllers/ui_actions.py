@@ -440,7 +440,12 @@ class UiActions(object):
                                 disk_path, next_hyp
                             )
                         )
-                        cmds = create_cmds_delete_disk(disk_path)
+                        mv_to_extension_deleted = self.manager.pools[pool_id].conf.get(
+                            "mv_to_extension_deleted", False
+                        )
+                        cmds = create_cmds_delete_disk(
+                            disk_path, mv_to_extension_deleted=mv_to_extension_deleted
+                        )
 
                         action = dict()
                         action["id_domain"] = id_domain
