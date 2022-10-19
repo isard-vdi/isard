@@ -174,7 +174,7 @@ class Quotas:
                 "Group " + group["name"] + " quota exceeded for creating new " + kind,
                 traceback.format_exc(),
                 data=user_domains,
-                description_code=kind + "_new_group_quota_exceeded",
+                description_code=kind + "_new_user_quota_exceeded",
             )
 
         # Group limit
@@ -216,7 +216,7 @@ class Quotas:
                 + kind,
                 traceback.format_exc(),
                 data=user_domains,
-                description_code=kind + "_new_category_quota_exceeded",
+                description_code=kind + "_new_user_quota_exceeded",
             )
 
         # Category limit
@@ -370,7 +370,7 @@ class Quotas:
                     + " quota exceeded for starting new desktop.",
                     traceback.format_exc(),
                     data=desktops,
-                    description_code="desktop_start_group_quota_exceeded",
+                    description_code="desktop_start_user_quota_exceeded",
                 )
             if desktops["memory"] > group["quota"].get("memory"):
                 raise Error(
@@ -380,7 +380,7 @@ class Quotas:
                     + " quota exceeded for memory at starting new desktop.",
                     traceback.format_exc(),
                     data=desktops,
-                    description_code="desktop_start_group_memory_quota_exceeded",
+                    description_code="desktop_start_memory_quota_exceeded",
                 )
             if desktops["vcpus"] > group["quota"].get("vcpus"):
                 raise Error(
@@ -390,7 +390,7 @@ class Quotas:
                     + " quota exceeded for vCPUs at starting new desktop.",
                     traceback.format_exc(),
                     data=desktops,
-                    description_code="desktop_start_group_vcpu_quota_exceeded",
+                    description_code="desktop_start_vcpu_quota_exceeded",
                 )
 
         # Group limit
@@ -457,7 +457,7 @@ class Quotas:
                     + " quota exceeded for starting new desktop.",
                     traceback.format_exc(),
                     data=desktops,
-                    description_code="desktop_start_category_quota_exceeded",
+                    description_code="desktop_start_user_quota_exceeded",
                 )
             if desktops["memory"] > category["quota"].get("memory"):
                 raise Error(
@@ -467,7 +467,7 @@ class Quotas:
                     + " quota exceeded for memory at starting new desktop.",
                     traceback.format_exc(),
                     data=desktops,
-                    description_code="desktop_start_category_memory_quota_exceeded",
+                    description_code="desktop_start_memory_quota_exceeded",
                 )
             if desktops["vcpus"] > category["quota"].get("vcpus"):
                 raise Error(
@@ -477,7 +477,7 @@ class Quotas:
                     + " quota exceeded for vCPUs at starting new desktop.",
                     traceback.format_exc(),
                     data=desktops,
-                    description_code="desktop_start_category_vcpu_quota_exceeded",
+                    description_code="desktop_start_vcpu_quota_exceeded",
                 )
 
         # Category limit
@@ -578,7 +578,7 @@ class Quotas:
                 "Group " + user["group"] + " quota exceeded for uploading new media.",
                 traceback.format_exc(),
                 data=user_media,
-                description_code="media_new_group_quota_exceeded",
+                description_code="media_new_user_quota_exceeded",
             )
 
         # Group limit
@@ -619,7 +619,7 @@ class Quotas:
                 + " quota exceeded for uploading new media.",
                 traceback.format_exc(),
                 data=user_media,
-                description_code="media_new_category_quota_exceeded",
+                description_code="media_new_user_quota_exceeded",
             )
 
         # Category limit
