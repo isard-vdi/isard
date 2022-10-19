@@ -943,6 +943,20 @@ class DomainXML(object):
                 # else:
                 #     log.error('domain {} has not spice graphics and can not change password of spice connection'.format(self.vm_dict['name']))
 
+    def set_domain_type_and_emulator(self, type="kvm", emulator="/usr/bin/qemu-kvm"):
+        try:
+            # change type qemu that is the default in some xmls from virt-install
+            self.tree.xpath("/domain")[0].attrib.pop("type")
+            self.tree.xpath("/domain")[0].set("type", type)
+
+            # change <emulator>/usr/bin/qemu-system-x86_64</emulator>
+            # to     <emulator>/usr/bin/qemu-kvm</emulator>
+            # that set audio in spice previus to call qemu-system-x86_64
+            self.tree.xpath("/domain/devices/emulator")[0].text = emulator
+
+        except Exception as e:
+            log.error("Exception when setting domain type and emulator: {}".format(e))
+
     def remove_disk(self, order=-1):
         xpath = '/domain/devices/disk[@device="disk"]'
         self.remove_device(xpath, order_num=order)
@@ -1632,6 +1646,8 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
     recreate_xml_interfaces(dict_domain, x)
 
     x.remove_selinux_options()
+
+    x.set_domain_type_and_emulator()
 
     # remove boot order in disk definition that conflict with /os/boot order in xml
     x.remove_boot_order_and_danger_options_from_disks()
