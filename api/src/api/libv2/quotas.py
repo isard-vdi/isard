@@ -61,6 +61,7 @@ class Quotas:
             user_templates = (
                 r.table("domains")
                 .get_all(["template", user_id, False], index="kind_user_tag")
+                .filter({"enabled": True})
                 .count()
                 .run(db.conn)
             )
@@ -132,12 +133,13 @@ class Quotas:
 
         # User quota
         with app.app_context():
-            user_domains = (
-                r.table("domains")
-                .get_all([kind, user["id"], False], index="kind_user_tag")
-                .count()
-                .run(db.conn)
+            query = r.table("domains").get_all(
+                [kind, user["id"], False], index="kind_user_tag"
             )
+
+            if kind == "template":
+                query = query.filter({"enabled": True})
+            user_domains = query.count().run(db.conn)
         if user["quota"]:
             if user_domains >= user["quota"].get(quota_key):
                 raise Error(
