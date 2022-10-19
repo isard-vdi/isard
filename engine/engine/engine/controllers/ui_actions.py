@@ -10,6 +10,7 @@ import itertools
 import time
 import traceback
 from os.path import dirname as extract_dir_path
+from pprint import pformat
 
 # from qcow import create_disk_from_base, backing_chain, create_cmds_disk_from_base
 from time import sleep
@@ -383,6 +384,13 @@ class UiActions(object):
                     index_disk = 0
 
                     for d in dict_domain["hardware"]["disks"]:
+                        if "file" not in d.keys():
+                            log.error(
+                                "Deleting disk path not in hardware dict, key not in dictionary d: \n {}".format(
+                                    pformat(d)
+                                )
+                            )
+                            continue
                         disk_path = d["file"]
                         if len(domains_with_attached_disk(disk_path)) > 1 or (
                             d.get("storage_id")
