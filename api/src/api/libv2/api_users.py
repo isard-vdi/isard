@@ -499,9 +499,20 @@ class ApiUsers:
                     .pluck("id", "name")
                     .run(db.conn)
                 )
-
             for u in users:
                 u.update({"kind": "user", "user": u["id"]})
+
+            groups = []
+            if table == "category":
+                groups = list(
+                    r.table("groups")
+                    .get_all(item_id, index="parent_category")
+                    .pluck("id", "name")
+                    .run(db.conn)
+                )
+
+            for g in groups:
+                g.update({"kind": "group", "user": g["id"]})
 
             derivated = []
             for ut in templates:
@@ -515,7 +526,7 @@ class ApiUsers:
                     .run(db.conn)
                 )
 
-        domains = desktops + templates + derivated + users
+        domains = desktops + templates + derivated + users + groups
         return [i for n, i in enumerate(domains) if i not in domains[n + 1 :]]
 
     def OwnsDesktop(self, user_id, guess_ip):
