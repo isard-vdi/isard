@@ -48,10 +48,13 @@ class ApiClient:
         except:
             raise
 
-    def delete(self, url):
+    def delete(self, url, data={}):
         try:
             resp = requests.delete(
-                self.base_url + url, headers=self.header_auth(), verify=self.verifycert
+                self.base_url + url,
+                json=data,
+                headers=self.header_auth(),
+                verify=self.verifycert,
             )
             if resp.status_code == 200:
                 return json.loads(resp.text)

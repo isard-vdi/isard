@@ -22,57 +22,67 @@ db = RDB(app)
 db.init_app(app)
 
 
-class ApiVpn:
-    def active_client(
-        self,
-        kind,
-        client_ip,
-        remote_ip=None,
-        remote_port=None,
-        status=False,
-    ):
-        # NOTE: Kind will be users/hypers as this are the only two wireguard
-        #       interfaces. Remotevpn are handled in users wg interface.
-        if kind not in ["users", "hypers"]:
-            raise Error(
-                "not_found",
-                "Vpn kind not found",
-                traceback.format_exc(),
-                description_code="vpn_kind_not_found",
-            )
+def update_insert(dict):
+    """
+    These are the actions:
+    {u'skipped': 0, u'deleted': 1, u'unchanged': 0, u'errors': 0, u'replaced': 0, u'inserted': 0}
+    """
+    if dict["errors"]:
+        return False
+    if dict["inserted"] or dict["replaced"]:
+        return True
+    return False
 
-        connection_data = {
-            "connected": status,
-            "remote_ip": remote_ip,
-            "remote_port": remote_port,
-        }
 
-        # Find ip
-        if kind == "users":
-            with app.app_context():
-                if update_insert(
-                    r.table("users")
-                    .get_all(client_ip, index="wg_client_ip")
-                    .update({"vpn": {"wireguard": connection_data}})
-                    .run(db.conn)
-                ):
-                    return True
-                if update_insert(
-                    r.table("remotevpn")
-                    .get_all(client_ip, index="wg_client_ip")
-                    .update({"vpn": {"wireguard": connection_data}})
-                    .run(db.conn)
-                ):
-                    return True
-        else:  # kind = hypers
-            with app.app_context():
-                if update_insert(
-                    r.table("hypervisors")
-                    .get_all(client_ip, index="wg_client_ip")
-                    .update({"vpn": {"wireguard": connection_data}})
-                    .run(db.conn)
-                ):
-                    return True
+def active_client(
+    kind,
+    client_ip,
+    remote_ip=None,
+    remote_port=None,
+    status=False,
+):
+    # NOTE: Kind will be users/hypers as this are the only two wireguard
+    #       interfaces. Remotevpn are handled in users wg interface.
+    if kind not in ["users", "hypers"]:
+        raise Error(
+            "not_found",
+            "Active client vpn connection: Vpn kind " + str(kind) + " not found",
+            traceback.format_exc(),
+            description_code="vpn_kind_not_found",
+        )
+
+    connection_data = {
+        "connected": status,
+        "remote_ip": remote_ip,
+        "remote_port": remote_port,
+    }
+
+    # Find ip
+    if kind == "users":
+        with app.app_context():
+            if update_insert(
+                r.table("users")
+                .get_all(client_ip, index="wg_client_ip")
+                .update({"vpn": {"wireguard": connection_data}})
+                .run(db.conn)
+            ):
+                return True
+            if update_insert(
+                r.table("remotevpn")
+                .get_all(client_ip, index="wg_client_ip")
+                .update({"vpn": {"wireguard": connection_data}})
+                .run(db.conn)
+            ):
+                return True
+    else:  # kind = hypers
+        with app.app_context():
+            if update_insert(
+                r.table("hypervisors")
+                .get_all(client_ip, index="wg_client_ip")
+                .update({"vpn": {"wireguard": connection_data}})
+                .run(db.conn)
+            ):
+                return True
 
 
 def reset_connection_status(
@@ -81,7 +91,7 @@ def reset_connection_status(
     if kind not in ["users", "hypers", "all"]:
         raise Error(
             "not_found",
-            "Vpn kind not found",
+            "Reset vpn connection: Vpn kind " + str(kind) + " not found",
             traceback.format_exc(),
             description_code="vpn_kind_not_found",
         )
@@ -106,13 +116,24 @@ def reset_connection_status(
     return True
 
 
-def update_insert(dict):
-    """
-    These are the actions:
-    {u'skipped': 0, u'deleted': 1, u'unchanged': 0, u'errors': 0, u'replaced': 0, u'inserted': 0}
-    """
-    if dict["errors"]:
-        return False
-    if dict["inserted"] or dict["replaced"]:
-        return True
-    return False
+def reset_connections_list_status(
+    data,
+):
+    connection_data = {"connected": False, "remote_ip": None, "remote_port": None}
+    for client_vpn in data:
+        if client_vpn["kind"] == "users":
+            with app.app_context():
+                r.table("users").get_all(
+                    client_vpn["client_ip"], index="wg_client_ip"
+                ).update({"vpn": {"wireguard": connection_data}}).run(db.conn)
+        if client_vpn["kind"] == "remote_vpn":
+            with app.app_context():
+                r.table("remotevpn").get_all(
+                    client_vpn["client_ip"], index="wg_client_ip"
+                ).update({"vpn": {"wireguard": connection_data}}).run(db.conn)
+        if client_vpn["kind"] == "hypers":
+            with app.app_context():
+                r.table("hypervisors").get_all(
+                    client_vpn["client_ip"], index="wg_client_ip"
+                ).update({"vpn": {"wireguard": connection_data}}).run(db.conn)
+    return True
