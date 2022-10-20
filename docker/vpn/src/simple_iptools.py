@@ -78,34 +78,52 @@ class UserIpTools(object):
             print("EXCEPTION READING USERS: " + e)
             return
 
-        check_output(
-            (
-                "/sbin/iptables",
-                "-D",
-                "FORWARD",
-                "-s",
-                user_addr,
-                "-d",
-                desktop_ip,
-                "-j",
-                "ACCEPT",
-            ),
-            text=True,
-        ).strip()
-        check_output(
-            (
-                "/sbin/iptables",
-                "-D",
-                "FORWARD",
-                "-d",
-                user_addr,
-                "-s",
-                desktop_ip,
-                "-j",
-                "ACCEPT",
-            ),
-            text=True,
-        ).strip()
+        try:
+            check_output(
+                (
+                    "/sbin/iptables",
+                    "-D",
+                    "FORWARD",
+                    "-s",
+                    user_addr,
+                    "-d",
+                    desktop_ip,
+                    "-j",
+                    "ACCEPT",
+                ),
+                text=True,
+            ).strip()
+        except:
+            log.debug(
+                "REMOVE DESKTOP FROM USER TO DESKTOP: Desktop ip "
+                + str(desktop_ip)
+                + " for client addr "
+                + str(user_addr)
+                + " not found in iptables."
+            )
+        try:
+            check_output(
+                (
+                    "/sbin/iptables",
+                    "-D",
+                    "FORWARD",
+                    "-d",
+                    user_addr,
+                    "-s",
+                    desktop_ip,
+                    "-j",
+                    "ACCEPT",
+                ),
+                text=True,
+            ).strip()
+        except:
+            log.debug(
+                "REMOVE DESKTOP FROM DESKTOP TO USER: Desktop ip "
+                + str(desktop_ip)
+                + " for client addr "
+                + str(user_addr)
+                + " not found in iptables."
+            )
         self.remove_remote_vpn(user, desktop_ip)
         return
 
