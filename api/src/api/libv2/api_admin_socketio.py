@@ -500,7 +500,7 @@ class HypervisorsThread(threading.Thread):
                                         "cpu_current": {"used": True},
                                     }
                                 },
-                                {"vpn": {"wireguard": {"conneced": True}}},
+                                {"vpn": {"wireguard": {"connected": True}}},
                             ]
                         )
                         .changes(include_initial=False)
