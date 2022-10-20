@@ -244,7 +244,14 @@ $(document).ready(function() {
 
 });
 
-
+$('#modalEditQuotaForm #add-role').on('change', function() {
+    role = ($(this).val())
+    if (role=="all_roles"){
+        $('#propagate-form').css("display", "block");
+    } else {
+        $('#propagate-form').css("display", "none");
+    }
+})
 
 function renderCategoriesDetailPannel ( d ) {
     if(d.editable == false){
@@ -422,10 +429,13 @@ function actionsCategoryDetail(){
     
     $('.btn-edit-quotas').off('click').on('click', function () {
         var pk=$(this).closest("div").attr("data-pk");
-
         $("#modalEditQuotaForm")[0].reset();
         $('#modalEditQuotaForm #id').val(pk);
         $("#modalEditQuotaForm #propagate").removeAttr('checked').iCheck('update')
+        setModalUser();
+        $('#modalEditQuotaForm #add-role').append('<option selected="selected" value=all_roles> All roles</option>')
+        $('#modalEditQuotaForm #add-role').val('all_roles')
+        $('#modalEditQuotaForm #add-role').trigger("change")
         $('#modalEditQuota').modal({
             backdrop: 'static',
             keyboard: false
@@ -451,6 +461,7 @@ function actionsCategoryDetail(){
                 data['propagate']=true;
             }            
             data['table']='categories';
+            data['role']=formdata['role']
             var notice = new PNotify({
                 text: 'Updating quota...',
                 hide: false,

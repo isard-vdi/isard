@@ -292,19 +292,31 @@ function renderGroupsDetailPannel ( d ) {
     return $newPanel
 }
 
+$('#modalEditQuotaForm #add-role').on('change', function() {
+    role = ($(this).val())
+    if (role=="all_roles"){
+        $('#propagate-form').css("display", "block");
+    } else {
+        $('#propagate-form').css("display", "none");
+    }
+})
+
 
 function actionsGroupDetail(){
     $('.btn-edit-quotas').off('click').on('click', function () {
         var pk=$(this).closest("div").attr("data-pk");
-
         $("#modalEditQuotaForm")[0].reset();
         $("#modalEditQuotaForm #propagate").removeAttr('checked').iCheck('update')
         $('#modalEditQuotaForm #id').val(pk);
+        setModalUser();
+        $('#modalEditQuotaForm #add-role').append('<option selected="selected" value=all_roles> All roles</option>')
+        $('#modalEditQuotaForm #add-role').val('all_roles')
+        $('#modalEditQuotaForm #add-role').trigger("change")
         $('#modalEditQuota').modal({
             backdrop: 'static',
             keyboard: false
         }).modal('show');
-        setQuotaMax('#modalEditQuotaForm',kind='group',id=pk,disabled=false);        
+        setQuotaMax('#modalEditQuotaForm',kind='group',id=pk,disabled=false);
 	});
 
     $("#modalEditQuota #send").off('click').on('click', function(e){
@@ -324,6 +336,7 @@ function actionsGroupDetail(){
             if('propagate' in formdata){
                 data['propagate']=true;
             }
+            data['role']=formdata['role']
             var notice = new PNotify({
                 text: 'Updating quota...',
                 hide: false,
