@@ -143,6 +143,7 @@ def api_v3_template_update(payload):
     data = request.get_json(force=True)
     template_id = data.pop("id")
     ownsDomainId(payload, template_id)
+    _validate_item("template_update", data)
     if data.get("enabled"):
         quotas.TemplateCreate(payload["user_id"])
     return (
