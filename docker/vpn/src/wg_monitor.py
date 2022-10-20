@@ -101,6 +101,7 @@ def log_wireguard_peers(poll_delay: int, handshake_timeout: int):
 
     #  or not peer.latest_handshake
     t = threading.currentThread()
+    peers_to_delete = []
     while True:
         peers = get_peer_states()
         for peer in peers:
@@ -116,12 +117,11 @@ def log_wireguard_peers(poll_delay: int, handshake_timeout: int):
 
             if peer.public_key not in peer_state:
                 if not peer.latest_handshake:
-                    log.debug("DELETE: 1, LOST HANDSHAKE")
-                    apic.delete(
-                        "vpn_connection/"
-                        + payload["device"]
-                        + "/"
-                        + payload["allowed_ips"][0].split("/")[0]
+                    peers_to_delete.append(
+                        {
+                            "kind": payload["device"],
+                            "client_ip": payload["allowed_ips"][0].split("/")[0],
+                        }
                     )
                 else:
                     log.debug("POST: 1, NEW PEER FOUND, NOT PREVIOUSLY IN PEER STATE")
@@ -182,6 +182,14 @@ def log_wireguard_peers(poll_delay: int, handshake_timeout: int):
                 peer.latest_handshake,
                 peer.remote_addr,
             )
+
+        if len(peers_to_delete):
+            log.debug("DELETE (" + str(len(peers_to_delete)) + "): 1, LOST HANDSHAKE")
+            apic.delete(
+                "vpn_connections",
+                data=peers_to_delete,
+            )
+        peers_to_delete = []
         time.sleep(poll_delay)
 
 

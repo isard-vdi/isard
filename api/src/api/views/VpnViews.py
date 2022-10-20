@@ -16,10 +16,11 @@ from ..libv2.quotas import Quotas
 
 quotas = Quotas()
 
-from ..libv2.api_vpn import ApiVpn, reset_connection_status
-
-api_vpn = ApiVpn()
-
+from ..libv2.api_vpn import (
+    active_client,
+    reset_connection_status,
+    reset_connections_list_status,
+)
 from .decorators import is_admin
 
 
@@ -51,8 +52,7 @@ def api_v3_vpn_connection(payload, kind, client_ip=None):
                 "Vpn connection incorrect body data",
                 traceback.format_exc(),
             )
-
-        if api_vpn.active_client(kind, client_ip, remote_ip, remote_port, True):
+        if active_client(kind, client_ip, remote_ip, remote_port, True):
             log.debug(kind + "-" + client_ip + "-true")
             return (
                 json.dumps({}),
@@ -67,7 +67,7 @@ def api_v3_vpn_connection(payload, kind, client_ip=None):
     if request.method == "DELETE":
         if client_ip:
             return (
-                json.dumps(api_vpn.active_client(kind, client_ip)),
+                json.dumps(active_client(kind, client_ip)),
                 200,
                 {"Content-Type": "application/json"},
             )
@@ -80,3 +80,18 @@ def api_v3_vpn_connection(payload, kind, client_ip=None):
             traceback.format_exc(),
         )
     raise Error("bad_request", "Incorrect access method", traceback.format_exc())
+
+
+@app.route("/api/v3/vpn_connections", methods=["DELETE"])  # Disconnected
+@is_admin
+def api_v3_vpn_connections(payload):
+    try:
+        data = request.get_json(force=True)
+    except:
+        raise Error("bad_request", "Vpn connections delete bad data request")
+
+    return (
+        json.dumps(reset_connections_list_status(data)),
+        200,
+        {"Content-Type": "application/json"},
+    )
