@@ -621,7 +621,7 @@ def admin_users_validate(payload):
                     "Role " + user["role"] + " not in manager, advanced or user",
                     traceback.format_exc(),
                 )
-            user["category"] = users.CategoryGetByName(payload["category_id"])["name"]
+            payload["category_id"] = users.CategoryGetByName(user["category"])["name"]
 
         else:
             if user["role"] not in ["admin", "manager", "advanced", "user"]:
