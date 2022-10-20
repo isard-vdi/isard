@@ -369,7 +369,7 @@ function actionsGroupDetail(){
                         type: 'error',
                         hide: true,
                         icon: 'fa fa-warning',
-                        delay: 2000,
+                        delay: 5000,
                         opacity: 1
                     })
                 },

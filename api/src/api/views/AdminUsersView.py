@@ -308,7 +308,7 @@ def api_v3_admin_edit_category(payload, category_id):
 
 @app.route("/api/v3/admin/quota/group/<group_id>", methods=["PUT"])
 @is_admin_or_manager
-def api_v3_admin_quotas_category(payload, group_id):
+def api_v3_admin_quota_group(payload, group_id):
     data = request.get_json()
     propagate = True if "propagate" in data.keys() else False
     if data["quota"]:
@@ -318,12 +318,14 @@ def api_v3_admin_quotas_category(payload, group_id):
         data["role"] = False
     group = users.GroupGet(group_id)
     ownsCategoryId(payload, group["parent_category"])
-    users.UpdateGroupQuota(group, data["quota"], propagate, data["role"])
+    users.UpdateGroupQuota(
+        group, data["quota"], propagate, data["role"], payload["role_id"]
+    )
     return json.dumps(data), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/api/v3/admin/quota/category/<category_id>", methods=["PUT"])
-@is_admin_or_manager
+@is_admin
 def api_v3_admin_quota_category(payload, category_id):
     data = request.get_json()
     propagate = True if "propagate" in data.keys() else False
