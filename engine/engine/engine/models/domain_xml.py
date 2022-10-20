@@ -1749,6 +1749,21 @@ def recreate_xml_if_start_paused(xml, memory_mb=256):
         log.error("Traceback: {}".format(traceback.format_exc()))
         return xml
 
+    try:
+        type = "kvm"
+        emulator = "/usr/bin/qemu-kvm"
+        # change type qemu that is the default in some xmls from virt-install
+        tree.xpath("/domain")[0].attrib.pop("type")
+        tree.xpath("/domain")[0].set("type", type)
+
+        # change <emulator>/usr/bin/qemu-system-x86_64</emulator>
+        # to     <emulator>/usr/bin/qemu-kvm</emulator>
+        # that set audio in spice previus to call qemu-system-x86_64
+        tree.xpath("/domain/devices/emulator")[0].text = emulator
+
+    except Exception as e:
+        log.error("Exception when setting domain type and emulator: {}".format(e))
+
     for tag in ["memory", "currentMemory", "maxMemory"]:
         if tree.xpath(f"/domain/{tag}"):
             tree.xpath(f"/domain/{tag}")[0].set("unit", unit)
