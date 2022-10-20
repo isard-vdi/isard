@@ -313,9 +313,11 @@ def api_v3_admin_quotas_category(payload, group_id):
     if data["quota"]:
         data["id"] = group_id
         _validate_item("group_update", data)
+    if data["role"] == "all_roles":
+        data["role"] = False
     group = users.GroupGet(group_id)
     ownsCategoryId(payload, group["parent_category"])
-    users.UpdateGroupQuota(group, data["quota"], propagate)
+    users.UpdateGroupQuota(group, data["quota"], propagate, data["role"])
     return json.dumps(data), 200, {"Content-Type": "application/json"}
 
 
@@ -327,8 +329,10 @@ def api_v3_admin_quota_category(payload, category_id):
     if data["quota"]:
         data["id"] = category_id
         _validate_item("category_update", data)
+    if data["role"] == "all_roles":
+        data["role"] = False
     ownsCategoryId(payload, category_id)
-    users.UpdateCategoryQuota(category_id, data["quota"], propagate)
+    users.UpdateCategoryQuota(category_id, data["quota"], propagate, data["role"])
     return json.dumps(data), 200, {"Content-Type": "application/json"}
 
 

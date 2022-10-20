@@ -912,34 +912,39 @@ class ApiUsers:
                 }
         return False
 
-    def UpdateGroupQuota(self, group, quota, propagate):
+    def UpdateGroupQuota(self, group, quota, propagate, role=False):
         category = self.CategoryGet(group["parent_category"], True)
-
         # Limit group limits to it's category limits
         if category["limits"] != False:
             for k, v in category["limits"].items():
                 if quota and quota.get("users") and v < quota[k]:
                     quota[k] = v
 
-        with app.app_context():
-            r.table("groups").get(group["id"]).update({"quota": quota}).run(db.conn)
+        if not role:
+            with app.app_context():
+                r.table("groups").get(group["id"]).update({"quota": quota}).run(db.conn)
 
-        if propagate:
-            r.table("users").get_all(group["id"], index="group").update(
-                {"quota": quota}
-            ).run(db.conn)
+        if propagate or role:
+            query = r.table("users").get_all(group["id"], index="group")
+            if role:
+                query = query.filter({"role": role})
+            with app.app_context():
+                query.update({"quota": quota}).run(db.conn)
 
-    def UpdateCategoryQuota(self, category_id, quota, propagate):
-        with app.app_context():
-            r.table("categories").get(category_id).update({"quota": quota}).run(db.conn)
-        if propagate:
+    def UpdateCategoryQuota(self, category_id, quota, propagate, role=False):
+        if not role:
+            with app.app_context():
+                r.table("categories").get(category_id).update({"quota": quota}).run(
+                    db.conn
+                )
+        if propagate or role:
             with app.app_context():
                 for group in list(
                     r.table("groups")
                     .get_all(category_id, index="parent_category")
                     .run(db.conn)
                 ):
-                    self.UpdateGroupQuota(group, quota, propagate)
+                    self.UpdateGroupQuota(group, quota, propagate, role)
 
     def UpdateGroupLimits(self, group, limits):
         category = self.CategoryGet(group["parent_category"], True)
