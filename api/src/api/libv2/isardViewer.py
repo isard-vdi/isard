@@ -100,6 +100,14 @@ class isardViewer:
                     description_code="unable_to_get_viewer_inexistent",
                 )
 
+        if not domain.get("viewer", {}).get("base_port"):
+            raise Error(
+                "bad_request",
+                "Desktop does not have a viewer. Is it really started? Actual status: "
+                + str(domain.get("status")),
+                traceback.format_exc(),
+                description_code="unable_to_get_viewer",
+            )
         if not protocol in ["file-spice", "browser-vnc"] and not domain["status"] in [
             "Started",
             "Shutting-down",
