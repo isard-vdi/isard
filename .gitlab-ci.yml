@@ -120,8 +120,6 @@ docker-compose-build:
     - echo "FLAVOUR=video-standalone" >> isardvdi.video-standalone.build.cfg
     - cp isardvdi.build.cfg isardvdi.monitor.build.cfg
     - echo "FLAVOUR=monitor" >> isardvdi.monitor.build.cfg
-    - cp isardvdi.build.cfg isardvdi.toolbox.build.cfg
-    - echo "FLAVOUR=toolbox" >> isardvdi.toolbox.build.cfg
     - BACKUP_DB_ENABLED=true ./build.sh
   artifacts:
     paths:
@@ -166,6 +164,7 @@ docker-image:
           - static
           - stats-go
           - stats-rethinkdb
+          - storage
           - webapp
           - websockify
       - DOCKER_COMPOSE: build
@@ -175,8 +174,6 @@ docker-image:
         IMAGE: video
       - DOCKER_COMPOSE: monitor.build
         IMAGE: monitor-proxy
-      - DOCKER_COMPOSE: toolbox.build
-        IMAGE: toolbox
   script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
     - apk add git docker-compose
@@ -234,7 +231,6 @@ docker-tag:
           - vpn
           - video
           - monitor-proxy
-          - toolbox
   script:
     - test "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" -a ! -e ".VERSION" && exit 0
     - crane auth login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY

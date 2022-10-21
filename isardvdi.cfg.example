@@ -9,12 +9,11 @@
 ##  - hypervisor: hypervisor and related service to access to their desktops
 ##  - hypervisor-standalone: hypervisor without related services
 ##  - video-standalone: services to access to desktops
-##  - toolbox: service to manage desktops disks
-##  - toolbox-base: base image for toolbox, just to improve CI/CD build
+##  - storage: service to manage desktops disks
+##  - storage-base: base image for storage, just to improve CI/CD build
 ##  - web: services to manage desktops
 ##  - monitor: monitoring only host (grafana/loki/influxdb)
 ##  - backupninja: standalone backups
-##  - storage: services to get stats from the storage nodes
 #FLAVOUR=all-in-one
 
 ## This configuration should generate docker-compose file for the following

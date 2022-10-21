@@ -28,7 +28,7 @@ RUN useradd -ms /bin/bash v2v
 #USER v2v
 #WORKDIR /home/v2v
 
-COPY docker/toolbox/src /src
-COPY docker/toolbox/init.sh /init.sh
+COPY docker/storage/src /src
+COPY docker/storage/init.sh /init.sh
 
 CMD ["/bin/sh","/init.sh"]

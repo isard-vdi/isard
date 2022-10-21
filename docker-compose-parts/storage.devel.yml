@@ -1,0 +1,7 @@
+version: '3.5'
+services:
+  isard-storage:
+    volumes:
+    - ${BUILD_ROOT_PATH}/docker/storage/filebrowser:/fb
+    - ${BUILD_ROOT_PATH}/docker/storage/src:/src
+    - ${BUILD_ROOT_PATH}/docker/storage/api:/api

@@ -1,0 +1,8 @@
+version: '3.5'
+services:
+  isard-storage-base:
+    image: ${DOCKER_IMAGE_PREFIX}storage-base:${DOCKER_IMAGE_TAG-latest}
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: docker/storage/Dockerfile.base
+      target: production
