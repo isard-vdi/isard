@@ -369,6 +369,7 @@ $(document).ready(function() {
                 }
 
                 if(user["exists"] && $('#bulk-allow-update').prop("checked")){
+                    user['secondary_groups'] = data['secondary_groups']
                     $.ajax({
                         type: 'POST',
                         url: "/api/v3/admin/users/check/by/provider",
@@ -382,7 +383,7 @@ $(document).ready(function() {
                             $.ajax({
                                 type: 'PUT',
                                 url: "/api/v3/admin/user/"+data,
-                                data: JSON.stringify(Object.assign({},data,user)) ,
+                                data: JSON.stringify(user) ,
                                 contentType: "application/json",
                                 success: function(data)
                                 {

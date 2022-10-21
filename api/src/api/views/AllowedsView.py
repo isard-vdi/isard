@@ -42,7 +42,10 @@ def alloweds_table_term(payload, table):
                 table, "id", data["term"], pluck=["id", "name", "parent_category"]
             )
             if data.get("category"):
-                result = [g for g in result if g["parent_category"] == data["category"]]
+                if payload["role_id"] == "manager":
+                    result = [
+                        g for g in result if g["parent_category"] == data["category"]
+                    ]
         elif table == "users":
             result = alloweds.get_table_term(
                 table, "id", data["term"], pluck=["id", "name", "uid"]
