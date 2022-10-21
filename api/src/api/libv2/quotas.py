@@ -33,8 +33,8 @@ class Quotas:
     def __init__(self):
         None
 
-    # Return the user applied quota or limit
-    def Get(self, user_id):
+    # Get in user["quota"] the applied quota, either user, group or category
+    def Get(self, user_id, started_info=True):
         with app.app_context():
             user = (
                 r.table("users")
@@ -52,6 +52,7 @@ class Quotas:
                 .run(db.conn)
             )
 
+            # Used
             user_desktops = (
                 r.table("domains")
                 .get_all(["desktop", user_id, False], index="kind_user_tag")
@@ -69,16 +70,17 @@ class Quotas:
                 r.table("media").get_all(user_id, index="user").count().run(db.conn)
             )
 
-        started_desktops = self.get_started_desktops(user_id, "kind_user")
-
         used = {
             "desktops": user_desktops,
             "templates": user_templates,
-            "media": user_media,
-            "running": started_desktops["count"],
-            "memory": started_desktops["memory"],
-            "vcpus": started_desktops["vcpus"],
+            "isos": user_media,
         }
+
+        if started_info:
+            started_desktops = self.get_started_desktops(user_id, "kind_user")
+            used["running"] = started_desktops["count"]
+            used["memory"] = started_desktops["memory"]
+            used["vcpus"] = started_desktops["vcpus"]
 
         if user["quota"]:
             return {
@@ -113,42 +115,230 @@ class Quotas:
     def UserCreate(self, category_id, group_id):
         qp.check_new_autoregistered_user(category_id, group_id)
 
-    def TemplateCreate(self, user_id):
-        self.DomainCreate(user_id, kind="template", quota_key="templates")
-
-    def DesktopCreate(self, user_id):
-        self.DomainCreate(user_id, kind="desktop", quota_key="desktops")
-
-    def DomainCreate(self, user_id, kind="desktop", quota_key="desktops"):
+    def desktop_create(self, user_id):
         try:
             with app.app_context():
                 user = (
                     r.table("users")
                     .get(user_id)
-                    .pluck("id", "name", "category", "group", "quota")
+                    .merge(
+                        lambda d: {
+                            "category_name": r.table("categories").get(d["category"])[
+                                "name"
+                            ],
+                            "group_name": r.table("groups").get(d["group"])["name"],
+                            "role_name": r.table("roles").get(d["role"])["name"],
+                        }
+                    )
+                    .pluck(
+                        "id",
+                        "name",
+                        "category",
+                        "group",
+                        "quota",
+                        "category_name",
+                        "group_name",
+                        "role_name",
+                    )
+                    .run(db.conn)
+                )
+        except:
+            raise Error("not_found", "User not found")
+        with app.app_context():
+            group_quantity = (
+                r.table("domains")
+                .get_all(["desktop", user["group"]], index="kind_group")
+                .count()
+                .run(db.conn)
+            )
+        with app.app_context():
+            category_quantity = (
+                r.table("domains")
+                .get_all(["desktop", user["category"]], index="kind_category")
+                .count()
+                .run(db.conn)
+            )
+        quota_error = {
+            "error_description": user["name"]
+            + " quota exceeded for creating new desktop",
+            "error_description_code": "desktop_new_user_quota_exceeded",
+        }
+        limits_error = {
+            "group": {
+                "error_description": user["group_name"]
+                + " group limits exceeded for creating new desktop",
+                "error_description_code": "desktop_new_group_limit_exceeded",
+            },
+            "category": {
+                "error_description": user["name"]
+                + " category limits exceeded for creating new desktop",
+                "error_description_code": "desktop_new_category_limit_exceeded",
+            },
+        }
+        self.create(
+            user,
+            "desktops",
+            quota_error,
+            group_quantity,
+            category_quantity,
+            limits_error,
+        )
+
+    def template_create(self, user_id):
+        try:
+            with app.app_context():
+                user = (
+                    r.table("users")
+                    .get(user_id)
+                    .merge(
+                        lambda d: {
+                            "category_name": r.table("categories").get(d["category"])[
+                                "name"
+                            ],
+                            "group_name": r.table("groups").get(d["group"])["name"],
+                            "role_name": r.table("roles").get(d["role"])["name"],
+                        }
+                    )
+                    .pluck(
+                        "id",
+                        "name",
+                        "category",
+                        "group",
+                        "quota",
+                        "category_name",
+                        "group_name",
+                        "role_name",
+                    )
+                    .run(db.conn)
+                )
+        except:
+            raise Error("not_found", "User not found")
+        with app.app_context():
+            group_quantity = (
+                r.table("domains")
+                .get_all(["template", user["group"]], index="kind_group")
+                .count()
+                .run(db.conn)
+            )
+        with app.app_context():
+            category_quantity = (
+                r.table("domains")
+                .get_all(["template", user["category"]], index="kind_category")
+                .count()
+                .run(db.conn)
+            )
+        quota_error = {
+            "error_description": user["name"]
+            + " quota exceeded for creating new desktop",
+            "error_description_code": "template_new_user_quota_exceeded",
+        }
+        limits_error = {
+            "group": {
+                "error_description": user["group_name"]
+                + " group limits exceeded for creating new desktop",
+                "error_description_code": "template_new_group_limit_exceeded",
+            },
+            "category": {
+                "error_description": user["name"]
+                + " category limits exceeded for creating new desktop",
+                "error_description_code": "template_new_category_limit_exceeded",
+            },
+        }
+        self.create(
+            user,
+            "templates",
+            quota_error,
+            group_quantity,
+            category_quantity,
+            limits_error,
+        )
+
+    def media_create(self, user_id):
+        try:
+            with app.app_context():
+                user = (
+                    r.table("users")
+                    .get(user_id)
+                    .merge(
+                        lambda d: {
+                            "category_name": r.table("categories").get(d["category"])[
+                                "name"
+                            ],
+                            "group_name": r.table("groups").get(d["group"])["name"],
+                            "role_name": r.table("roles").get(d["role"])["name"],
+                        }
+                    )
+                    .pluck(
+                        "id",
+                        "name",
+                        "category",
+                        "group",
+                        "quota",
+                        "category_name",
+                        "group_name",
+                        "role_name",
+                    )
                     .run(db.conn)
                 )
         except:
             raise Error("not_found", "User not found")
 
-        # User quota
         with app.app_context():
-            query = r.table("domains").get_all(
-                [kind, user["id"], False], index="kind_user_tag"
+            group_quantity = (
+                r.table("media")
+                .get_all(user["group"], index="group")
+                .count()
+                .run(db.conn)
             )
 
-            if kind == "template":
-                query = query.filter({"enabled": True})
-            user_domains = query.count().run(db.conn)
-        if user["quota"]:
-            if user_domains >= user["quota"].get(quota_key):
-                raise Error(
-                    "precondition_required",
-                    "User " + user["name"] + " quota exceeded for creating new " + kind,
-                    traceback.format_exc(),
-                    data=user_domains,
-                    description_code=kind + "_new_user_quota_exceeded",
-                )
+        with app.app_context():
+            category_quantity = (
+                r.table("media")
+                .get_all(user["category"], index="category")
+                .count()
+                .run(db.conn)
+            )
+        quota_error = {
+            "error_description": user["name"]
+            + " quota exceeded for creating new desktop",
+            "error_description_code": "media_new_user_quota_exceeded",
+        }
+        limits_error = {
+            "group": {
+                "error_description": user["group_name"]
+                + " group limits exceeded for creating new media",
+                "error_description_code": "media_new_group_limit_exceeded",
+            },
+            "category": {
+                "error_description": user["name"]
+                + " category limits exceeded for creating new media",
+                "error_description_code": "media_new_category_limit_exceeded",
+            },
+        }
+        self.create(
+            user,
+            "isos",
+            quota_error,
+            group_quantity,
+            category_quantity,
+            limits_error,
+        )
+
+    def create(
+        self,
+        user,
+        quota_key,
+        quota_error,
+        group_quantity,
+        category_quantity,
+        limits_error,
+    ):
+
+        # We get the user applied quota and currently used info to check the quota
+        user_quota_data = self.Get(user_id=user["id"], started_info=False)
+        if user_quota_data["quota"]:
+            user_quota_data["used"][quota_key] = user_quota_data["used"][quota_key] + 1
+            self.check_quota(user_quota_data, quota_key, quota_error)
 
         try:
             with app.app_context():
@@ -161,32 +351,12 @@ class Quotas:
         except:
             raise Error("not_found", "Group not found")
 
-        with app.app_context():
-            group_domains = (
-                r.table("domains")
-                .get_all([kind, user["group"]], index="kind_group")
-                .count()
-                .run(db.conn)
-            )
-
-        # Group quota
-        if group["quota"] and user_domains >= group["quota"][quota_key]:
-            raise Error(
-                "precondition_required",
-                "Group " + group["name"] + " quota exceeded for creating new " + kind,
-                traceback.format_exc(),
-                data=user_domains,
-                description_code=kind + "_new_user_quota_exceeded",
-            )
-
-        # Group limit
-        if group["limits"] and group_domains >= group["limits"][quota_key]:
-            raise Error(
-                "precondition_required",
-                "Group " + user["group"] + " limit exceeded for creating new " + kind,
-                traceback.format_exc(),
-                data=group_domains,
-                description_code=kind + "_new_group_limit_exceeded",
+        if group["limits"]:
+            self.check_limits(
+                item=group,
+                quota_key=quota_key,
+                quantity=group_quantity + 1,
+                limits_error=limits_error["group"],
             )
 
         try:
@@ -200,41 +370,31 @@ class Quotas:
         except:
             raise Error("not_found", "Category not found")
 
-        with app.app_context():
-            category_domains = (
-                r.table("domains")
-                .get_all([kind, user["category"]], index="kind_category")
-                .count()
-                .run(db.conn)
+        if category["limits"]:
+            self.check_limits(
+                item=category,
+                quota_key=quota_key,
+                quantity=category_quantity + 1,
+                limits_error=limits_error["category"],
             )
 
-        # Category quota
-        if category["quota"] and user_domains >= category["quota"][quota_key]:
+    def check_quota(self, user, quota_key, quota_error):
+        if user["used"][quota_key] > user["quota"][quota_key]:
             raise Error(
                 "precondition_required",
-                "Category "
-                + user["category"]
-                + " quota exceeded for creating new "
-                + kind,
+                quota_error["error_description"],
                 traceback.format_exc(),
-                data=user_domains,
-                description_code=kind + "_new_user_quota_exceeded",
+                description_code=quota_error["error_description_code"],
             )
 
-        # Category limit
-        if not category["limits"]:
-            return
-
-        if category_domains >= category["limits"][quota_key]:
+    def check_limits(self, item, quota_key, quantity, limits_error):
+        if item["limits"] and quantity > item["limits"][quota_key]:
             raise Error(
                 "precondition_required",
-                "Category "
-                + user["category"]
-                + " limit exceeded for creating new "
-                + kind,
+                limits_error["error_description"],
                 traceback.format_exc(),
-                data=category_domains,
-                description_code=kind + "_new_category_limit_exceeded",
+                data=quantity,
+                description_code=limits_error["error_description_code"],
             )
 
     def get_started_desktops(self, query_id, query_index):
@@ -292,7 +452,7 @@ class Quotas:
 
         return started_desktops
 
-    def DesktopStart(self, user_id, desktop_id):
+    def desktop_start(self, user_id, desktop_id):
         with app.app_context():
             desktop = r.table("domains").get(desktop_id).run(db.conn)
         if not desktop:
@@ -302,56 +462,75 @@ class Quotas:
                 user = (
                     r.table("users")
                     .get(user_id)
-                    .pluck("id", "name", "category", "group", "quota")
+                    .merge(
+                        lambda d: {
+                            "category_name": r.table("categories").get(d["category"])[
+                                "name"
+                            ],
+                            "group_name": r.table("groups").get(d["group"])["name"],
+                            "role_name": r.table("roles").get(d["role"])["name"],
+                        }
+                    )
+                    .pluck(
+                        "id",
+                        "name",
+                        "category",
+                        "group",
+                        "quota",
+                        "category_name",
+                        "group_name",
+                        "role_name",
+                    )
                     .run(db.conn)
                 )
         except:
             raise Error("not_found", "User not found")
 
-        started_desktops = self.get_started_desktops(user_id, "kind_user")
+        # We get the user applied quota and currently used info to check the quota
+        user_quota_data = self.Get(user_id=user["id"], started_info=True)
+        if user_quota_data["quota"]:
+            user_quota_data["used"]["running"] = user_quota_data["used"]["running"] + 1
+            user_quota_data["used"]["vcpus"] = (
+                user_quota_data["used"]["vcpus"]
+                + desktop["create_dict"]["hardware"]["vcpus"]
+            )
+            user_quota_data["used"]["memory"] = (
+                user_quota_data["used"]["memory"]
+                + desktop["create_dict"]["hardware"]["memory"] / 1048576
+            )
 
-        desktops = {
-            "count": started_desktops["count"] + 1,  # Add the current desktop
-            "vcpus": started_desktops["vcpus"]
-            + desktop["create_dict"]["hardware"]["vcpus"],
-            "memory": started_desktops["memory"]
-            + desktop["create_dict"]["hardware"]["memory"] / 1048576,
-        }
+            # Check running
+            self.check_quota(
+                user_quota_data,
+                "running",
+                {
+                    "error_description": user["name"]
+                    + " quota exceeded for starting desktop",
+                    "error_description_code": "desktop_start_user_quota_exceeded",
+                },
+            )
+            # Check memory
+            self.check_quota(
+                user_quota_data,
+                "memory",
+                {
+                    "error_description": user["name"]
+                    + " memory quota exceeded for starting desktop",
+                    "error_description_code": "desktop_start_memory_quota_exceeded",
+                },
+            )
+            # Check vcpus
+            self.check_quota(
+                user_quota_data,
+                "vcpus",
+                {
+                    "error_description": user["name"]
+                    + " vcpus quota exceeded for starting desktop",
+                    "error_description_code": "desktop_start_vcpu_quota_exceeded",
+                },
+            )
 
-        # User quota
-        if user["quota"]:
-            if desktops["count"] > user["quota"].get("running"):
-                raise Error(
-                    "precondition_required",
-                    "User "
-                    + user["name"]
-                    + " quota exceeded for starting new desktop.",
-                    traceback.format_exc(),
-                    data=desktops,
-                    description_code="desktop_start_user_quota_exceeded",
-                )
-            if desktops["memory"] > user["quota"].get("memory"):
-                raise Error(
-                    "precondition_required",
-                    "User "
-                    + user["name"]
-                    + " quota exceeded for memory at starting new desktop.",
-                    traceback.format_exc(),
-                    data=desktops,
-                    description_code="desktop_start_memory_quota_exceeded",
-                )
-            if desktops["vcpus"] > user["quota"].get("vcpus"):
-                raise Error(
-                    "precondition_required",
-                    "User "
-                    + user["name"]
-                    + " quota exceeded for vCPUs at starting new desktop.",
-                    traceback.format_exc(),
-                    data=desktops,
-                    description_code="desktop_start_vcpu_quota_exceeded",
-                )
-
-        # Group quota
+        # Group limits
         try:
             with app.app_context():
                 group = (
@@ -363,82 +542,51 @@ class Quotas:
         except:
             raise Error("not_found", "Group not found")
 
-        if group["quota"]:
-            if desktops["count"] > group["quota"].get("running"):
-                raise Error(
-                    "precondition_required",
-                    "Group "
-                    + group["name"]
-                    + " quota exceeded for starting new desktop.",
-                    traceback.format_exc(),
-                    data=desktops,
-                    description_code="desktop_start_user_quota_exceeded",
-                )
-            if desktops["memory"] > group["quota"].get("memory"):
-                raise Error(
-                    "precondition_required",
-                    "Group "
-                    + group["name"]
-                    + " quota exceeded for memory at starting new desktop.",
-                    traceback.format_exc(),
-                    data=desktops,
-                    description_code="desktop_start_memory_quota_exceeded",
-                )
-            if desktops["vcpus"] > group["quota"].get("vcpus"):
-                raise Error(
-                    "precondition_required",
-                    "Group "
-                    + group["name"]
-                    + " quota exceeded for vCPUs at starting new desktop.",
-                    traceback.format_exc(),
-                    data=desktops,
-                    description_code="desktop_start_vcpu_quota_exceeded",
-                )
-
-        # Group limit
         if group["limits"]:
 
             started_desktops = self.get_started_desktops(user["group"], "kind_group")
-
             desktops = {
-                "count": started_desktops["count"] + 1,  # Add the current desktop
+                "running": started_desktops["count"] + 1,  # Add the current desktop
                 "vcpus": started_desktops["vcpus"]
                 + desktop["create_dict"]["hardware"]["vcpus"],
                 "memory": started_desktops["memory"]
                 + desktop["create_dict"]["hardware"]["memory"] / 1048576,
             }
-            if desktops["count"] > group["limits"].get("running"):
-                raise Error(
-                    "precondition_required",
-                    "Group "
-                    + group["name"]
-                    + " limit exceeded for starting new desktop.",
-                    traceback.format_exc(),
-                    data=desktops,
-                    description_code="desktop_start_group_limit_exceeded",
-                )
-            if desktops["memory"] > group["limits"].get("memory"):
-                raise Error(
-                    "precondition_required",
-                    "Group "
-                    + group["name"]
-                    + " limit exceeded for memory at starting new desktop.",
-                    traceback.format_exc(),
-                    data=desktops,
-                    description_code="desktop_start_group_memory_limit_exceeded",
-                )
-            if desktops["vcpus"] > group["limits"].get("vcpus"):
-                raise Error(
-                    "precondition_required",
-                    "Group "
-                    + group["name"]
-                    + " limit exceeded for vCPUs at starting new desktop.",
-                    traceback.format_exc(),
-                    data=desktops,
-                    description_code="desktop_start_group_vcpu_limit_exceeded",
-                )
+            # Check running limits
+            self.check_limits(
+                item=group,
+                quota_key="running",
+                quantity=desktops["running"],
+                limits_error={
+                    "error_description": user["group_name"]
+                    + " group limits exceeded for starting desktop",
+                    "error_description_code": "desktop_start_group_limit_exceeded",
+                },
+            )
+            # Check memory limits
+            self.check_limits(
+                item=group,
+                quota_key="memory",
+                quantity=desktops["memory"],
+                limits_error={
+                    "error_description": user["group_name"]
+                    + " group memory limits exceeded for starting desktop",
+                    "error_description_code": "desktop_start_group_memory_limit_exceeded",
+                },
+            )
+            # Check vcpus limits
+            self.check_limits(
+                item=group,
+                quota_key="vcpus",
+                quantity=desktops["vcpus"],
+                limits_error={
+                    "error_description": user["group_name"]
+                    + " group vcpu limits exceeded for starting desktop",
+                    "error_description_code": "desktop_start_group_vcpu_limit_exceeded",
+                },
+            )
 
-        # Category quota
+        # Category limits
         try:
             with app.app_context():
                 category = (
@@ -449,195 +597,52 @@ class Quotas:
                 )
         except:
             raise Error("not_found", "Category not found")
-
-        if category["quota"]:
-            if desktops["count"] > category["quota"].get("running"):
-                raise Error(
-                    "precondition_required",
-                    "Category "
-                    + category["name"]
-                    + " quota exceeded for starting new desktop.",
-                    traceback.format_exc(),
-                    data=desktops,
-                    description_code="desktop_start_user_quota_exceeded",
-                )
-            if desktops["memory"] > category["quota"].get("memory"):
-                raise Error(
-                    "precondition_required",
-                    "Category "
-                    + category["name"]
-                    + " quota exceeded for memory at starting new desktop.",
-                    traceback.format_exc(),
-                    data=desktops,
-                    description_code="desktop_start_memory_quota_exceeded",
-                )
-            if desktops["vcpus"] > category["quota"].get("vcpus"):
-                raise Error(
-                    "precondition_required",
-                    "Category "
-                    + category["name"]
-                    + " quota exceeded for vCPUs at starting new desktop.",
-                    traceback.format_exc(),
-                    data=desktops,
-                    description_code="desktop_start_vcpu_quota_exceeded",
-                )
 
         # Category limit
         if not category["limits"]:
             return
 
         started_desktops = self.get_started_desktops(user["category"], "kind_category")
-
         desktops = {
-            "count": started_desktops["count"] + 1,  # Add the current desktop
+            "running": started_desktops["count"] + 1,  # Add the current desktop
             "vcpus": started_desktops["vcpus"]
             + desktop["create_dict"]["hardware"]["vcpus"],
             "memory": started_desktops["memory"]
             + desktop["create_dict"]["hardware"]["memory"] / 1048576,
         }
-
-        if desktops["count"] > category["limits"].get("running"):
-            raise Error(
-                "precondition_required",
-                "Category "
-                + category["name"]
-                + " limit exceeded for starting new desktop.",
-                traceback.format_exc(),
-                data=desktops,
-                description_code="desktop_start_category_limit_exceeded",
-            )
-        if desktops["memory"] > category["limits"].get("memory"):
-            raise Error(
-                "precondition_required",
-                "Category "
-                + category["name"]
-                + " limit exceeded for memory at starting new desktop.",
-                traceback.format_exc(),
-                data=desktops,
-                description_code="desktop_start_category_memory_limit_exceeded",
-            )
-        if desktops["vcpus"] > category["limits"].get("vcpus"):
-            raise Error(
-                "precondition_required",
-                "Category "
-                + category["name"]
-                + " limit exceeded for vCPUs at starting new desktop.",
-                traceback.format_exc(),
-                data=desktops,
-                description_code="desktop_start_category_vcpu_limit_exceeded",
-            )
-
-    def MediaCreate(self, user_id):
-        try:
-            with app.app_context():
-                user = (
-                    r.table("users")
-                    .get(user_id)
-                    .pluck("id", "name", "category", "group", "quota")
-                    .run(db.conn)
-                )
-        except:
-            raise Error("not_found", "User not found")
-
-        # User quota
-        with app.app_context():
-            user_media = (
-                r.table("media").get_all(user["id"], index="user").count().run(db.conn)
-            )
-        if user["quota"]:
-            if user_media >= user["quota"].get("isos"):
-                raise Error(
-                    "precondition_required",
-                    "User " + user["name"] + " quota exceeded for uploading new media.",
-                    traceback.format_exc(),
-                    data=user_media,
-                    description_code="media_new_user_quota_exceeded",
-                )
-
-        try:
-            with app.app_context():
-                group = (
-                    r.table("groups")
-                    .get(user["group"])
-                    .pluck("name", "quota", "limits")
-                    .run(db.conn)
-                )
-        except:
-            raise Error("not_found", "Group not found")
-
-        with app.app_context():
-            group_media = (
-                r.table("media")
-                .get_all(user["group"], index="group")
-                .count()
-                .run(db.conn)
-            )
-
-        # Group quota
-        if group["quota"] and user_media >= group["quota"]["isos"]:
-            raise Error(
-                "precondition_required",
-                "Group " + user["group"] + " quota exceeded for uploading new media.",
-                traceback.format_exc(),
-                data=user_media,
-                description_code="media_new_user_quota_exceeded",
-            )
-
-        # Group limit
-        if group["limits"] and group_media >= group["limits"]["isos"]:
-            raise Error(
-                "precondition_required",
-                "Group " + user["group"] + " limit exceeded for uploading new media.",
-                traceback.format_exc(),
-                data=group_media,
-                description_code="media_new_group_limit_exceeded",
-            )
-
-        try:
-            with app.app_context():
-                category = (
-                    r.table("categories")
-                    .get(user["category"])
-                    .pluck("name", "quota", "limits")
-                    .run(db.conn)
-                )
-        except:
-            raise Error("not_found", "Category not found")
-
-        with app.app_context():
-            category_media = (
-                r.table("media")
-                .get_all(user["category"], index="category")
-                .count()
-                .run(db.conn)
-            )
-
-        # Category quota
-        if category["quota"] and user_media >= category["quota"]["isos"]:
-            raise Error(
-                "precondition_required",
-                "Category "
-                + user["category"]
-                + " quota exceeded for uploading new media.",
-                traceback.format_exc(),
-                data=user_media,
-                description_code="media_new_user_quota_exceeded",
-            )
-
-        # Category limit
-        if not category["limits"]:
-            return
-
-        if category_media >= category["limits"]["isos"]:
-            raise Error(
-                "precondition_required",
-                "Category "
-                + user["category"]
-                + " limit exceeded for creating new media.",
-                traceback.format_exc(),
-                data=category_media,
-                description_code="media_new_category_limit_exceeded",
-            )
+        # Check running limits
+        self.check_limits(
+            item=category,
+            quota_key="running",
+            quantity=desktops["running"],
+            limits_error={
+                "error_description": user["category_name"]
+                + " category limits exceeded for starting desktop",
+                "error_description_code": "desktop_start_category_limit_exceeded",
+            },
+        )
+        # Check memory limits
+        self.check_limits(
+            item=category,
+            quota_key="memory",
+            quantity=desktops["memory"],
+            limits_error={
+                "error_description": user["category_name"]
+                + " category memory limits exceeded for starting desktop",
+                "error_description_code": "desktop_start_category_memory_limit_exceeded",
+            },
+        )
+        # Check vcpus limits
+        self.check_limits(
+            item=category,
+            quota_key="vcpus",
+            quantity=desktops["vcpus"],
+            limits_error={
+                "error_description": user["category_name"]
+                + " group vcpu limits exceeded for starting desktop",
+                "error_description_code": "desktop_start_category_vcpu_limit_exceeded",
+            },
+        )
 
     def deployment_create(self, users):
         # Group the users considering its groups and categories

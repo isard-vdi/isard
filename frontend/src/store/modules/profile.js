@@ -6,7 +6,8 @@ import { ProfileUtils } from '../../utils/profileUtils'
 const getDefaultState = () => {
   return {
     profile: {
-      quota: {}
+      quota: {},
+      used: {}
     },
     modalShow: false,
     password: '',

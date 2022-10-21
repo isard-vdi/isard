@@ -174,7 +174,7 @@
                               />
                               <QuotaProgressBar
                                 :title="$t('components.profile.quota.media')"
-                                :value="getProfile.used.media"
+                                :value="getProfile.used.isos"
                                 :max="getProfile.quota.isos"
                               />
                               <QuotaProgressBar

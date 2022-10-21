@@ -981,7 +981,7 @@ class ApiUsers:
                     .get_all(category_id, index="parent_category")
                     .run(db.conn)
                 ):
-                    self.UpdateGroupQuota(group, quota, propagate, role)
+                    self.UpdateGroupQuota(group, quota, propagate, role, "admin")
 
     def UpdateGroupLimits(self, group, limits):
         category = self.CategoryGet(group["parent_category"], True)

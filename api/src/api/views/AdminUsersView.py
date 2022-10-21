@@ -106,7 +106,7 @@ def api_v3_admin_user_update(payload, user_id):
     if "active" in data:
         data["active"] = not data["active"]
 
-    admin_table_update("users", data)
+    admin_table_update("users", data, payload)
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
