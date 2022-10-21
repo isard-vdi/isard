@@ -29,7 +29,7 @@ isardviewer = isardViewer()
 
 import traceback
 
-from .api_exceptions import Error
+from .._common.api_exceptions import Error
 
 
 class InternalUsers(object):

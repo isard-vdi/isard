@@ -10,7 +10,7 @@ from rethinkdb import RethinkDB
 
 from api import app
 
-from .api_exceptions import Error
+from .._common.api_exceptions import Error
 
 r = RethinkDB()
 import csv
@@ -24,7 +24,7 @@ db.init_app(app)
 
 import logging as log
 
-from .api_exceptions import Error
+from .._common.api_exceptions import Error
 
 
 def get_disks(user_id=None, status=None):

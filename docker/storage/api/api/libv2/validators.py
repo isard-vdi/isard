@@ -22,7 +22,7 @@ import traceback
 
 from api import app
 
-from .api_exceptions import Error
+from .._common.api_exceptions import Error
 
 
 def _validate_item(item, data, normalize=True):

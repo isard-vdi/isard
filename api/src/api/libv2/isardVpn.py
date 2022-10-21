@@ -14,8 +14,8 @@ from rethinkdb import RethinkDB
 
 from api import app
 
+from .._common.api_exceptions import Error
 from ..libv2.log import *
-from .api_exceptions import Error
 
 r = RethinkDB()
 

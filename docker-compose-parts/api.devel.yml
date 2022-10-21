@@ -8,6 +8,7 @@ services:
       - "5000:5000"
     volumes:
     - ${BUILD_ROOT_PATH}/api/src:/api
+    - ${BUILD_ROOT_PATH}/component/_common/src:/api/api/_common
     - ${BUILD_ROOT_PATH}/api/srcv2:/apiv2
     # - ${BUILD_ROOT_PATH}/webapp/webapp/lib:/api/lib:ro
     build:

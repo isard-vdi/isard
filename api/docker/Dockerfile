@@ -12,6 +12,7 @@ RUN pip3 install --no-cache-dir -r requirements.pip3
 RUN apk del .build_deps
 
 COPY api/src /api
+COPY component/_common/src /api/api/_common
 COPY api/docker/run.sh /
 WORKDIR /api
 

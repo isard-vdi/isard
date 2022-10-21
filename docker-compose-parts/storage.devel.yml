@@ -5,3 +5,4 @@ services:
     - ${BUILD_ROOT_PATH}/docker/storage/filebrowser:/fb
     - ${BUILD_ROOT_PATH}/docker/storage/src:/src
     - ${BUILD_ROOT_PATH}/docker/storage/api:/api
+    - ${BUILD_ROOT_PATH}/component/_common/src:/api/api/_common

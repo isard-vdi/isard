@@ -39,8 +39,8 @@ threads = {}
 
 from flask import request
 
+from .._common.api_exceptions import Error
 from ..auth.tokens import Error, get_token_payload
-from .api_exceptions import Error
 from .api_scheduler import Scheduler
 from .helpers import (
     _is_frontend_desktop_status,

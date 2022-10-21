@@ -10,6 +10,7 @@ from flask import Response, request
 
 from api import app
 
+from .._common.api_exceptions import Error
 from ..auth.tokens import get_token_payload
 from ..libv2.api_admin import admin_table_insert, admin_table_update
 from ..libv2.api_backups import (
@@ -21,7 +22,6 @@ from ..libv2.api_backups import (
     restore_db,
     upload_backup,
 )
-from ..libv2.api_exceptions import Error
 from .decorators import is_admin
 
 backup_data = {}

@@ -24,7 +24,7 @@ from .api_desktop_events import (
 )
 
 quotas = Quotas()
-from .api_exceptions import Error
+from .._common.api_exceptions import Error
 from .flask_rethink import RDB
 
 db = RDB(app)

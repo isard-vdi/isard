@@ -14,8 +14,8 @@ from flask import request
 # coding=utf-8
 from api import app
 
+from .._common.api_exceptions import Error
 from ..libv2 import api_hypervisors
-from ..libv2.api_exceptions import Error
 from ..libv2.quotas import Quotas
 
 quotas = Quotas()

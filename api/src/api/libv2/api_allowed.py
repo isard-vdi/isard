@@ -11,8 +11,8 @@ from rethinkdb import RethinkDB
 
 from api import app
 
+from .._common.api_exceptions import Error
 from ..auth.authentication import *
-from .api_exceptions import Error
 from .flask_rethink import RDB
 
 r = RethinkDB()

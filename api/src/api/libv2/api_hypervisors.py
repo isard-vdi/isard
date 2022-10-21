@@ -22,9 +22,9 @@ from .flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
+from .._common.api_exceptions import Error
 from ..libv2.isardVpn import isardVpn
 from .api_desktop_events import desktops_stop
-from .api_exceptions import Error
 
 isardVpn = isardVpn()
 

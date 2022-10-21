@@ -13,8 +13,8 @@ from flask import request
 # coding=utf-8
 from api import app
 
+from .._common.api_exceptions import Error
 from ..libv2.api_allowed import ApiAllowed
-from ..libv2.api_exceptions import Error
 from ..libv2.api_templates import ApiTemplates
 
 templates = ApiTemplates()

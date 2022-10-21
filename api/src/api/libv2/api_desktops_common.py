@@ -20,10 +20,10 @@ from .flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
+from .._common.api_exceptions import Error
 from ..libv2.api_scheduler import Scheduler
 from ..libv2.helpers import gen_payload_from_user
 from .api_desktop_events import desktop_start
-from .api_exceptions import Error
 from .isardViewer import isardViewer, viewer_jwt
 
 isardviewer = isardViewer()

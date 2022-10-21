@@ -5,13 +5,13 @@
 
 import json
 
-from api.libv2.api_exceptions import Error
 from api.libv2.deployments import api_deployments
 from api.libv2.validators import _validate_item
 from flask import request
 
 from api import app
 
+from ..._common.api_exceptions import Error
 from ..decorators import is_not_user, ownsDeploymentId
 
 

@@ -19,7 +19,7 @@ db.init_app(app)
 
 import traceback
 
-from ..api_exceptions import Error
+from ..._common.api_exceptions import Error
 from ..helpers import _check, _parse_string
 
 

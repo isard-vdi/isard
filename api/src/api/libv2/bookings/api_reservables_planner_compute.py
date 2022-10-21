@@ -23,7 +23,7 @@ from pprint import pformat
 import portion as P
 import pytz
 
-from ..api_exceptions import Error
+from ..._common.api_exceptions import Error
 
 
 ## BOOKING PROVISIONING

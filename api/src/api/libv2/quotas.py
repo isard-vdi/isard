@@ -20,8 +20,8 @@ db.init_app(app)
 
 from rethinkdb.errors import ReqlNonExistenceError
 
+from .._common.api_exceptions import Error
 from .api_allowed import ApiAllowed
-from .api_exceptions import Error
 from .quotas_process import QuotasProcess
 
 allowed = ApiAllowed()

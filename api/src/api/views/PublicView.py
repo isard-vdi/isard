@@ -9,7 +9,7 @@ import os
 
 from api import app
 
-from ..libv2.api_exceptions import Error
+from .._common.api_exceptions import Error
 from ..libv2.api_users import ApiUsers
 from ..libv2.log import log
 

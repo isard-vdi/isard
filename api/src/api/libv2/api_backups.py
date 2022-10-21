@@ -14,7 +14,7 @@ from werkzeug.utils import secure_filename
 
 from api import app
 
-from .api_exceptions import Error
+from .._common.api_exceptions import Error
 
 r = RethinkDB()
 import logging as log
@@ -24,8 +24,8 @@ from .flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
+from .._common.api_exceptions import Error
 from ..auth.authentication import *
-from .api_exceptions import Error
 
 
 def remove_backup_db(id):
