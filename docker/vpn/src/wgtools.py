@@ -130,6 +130,9 @@ class Wg(object):
 
         self.uipt = UserIpTools()
 
+        if table == "users":
+            self.set_initial_rules()
+
     def init_server(self):
         ## Server config
         try:
@@ -490,3 +493,13 @@ PersistentKeepalive = 25
                 self.uipt.desktop_remove(
                     data["old_val"]["user"], data["old_val"]["viewer"]["guest_ip"]
                 )
+
+    def set_initial_rules(self):
+        started_desktops = (
+            r.table("domains")
+            .get_all(["Started"], index="status")
+            .pluck("id", "user", "vpn", "status", {"viewer": "guest_ip"})
+            .run()
+        )
+        for started_desktop in started_desktops:
+            self.desktop_iptables(started_desktop)
