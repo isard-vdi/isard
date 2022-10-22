@@ -12,6 +12,7 @@ services:
       - /opt/isard/backups:/src/backups:rw
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
+      - ${BUILD_ROOT_PATH}/frontend/src/locales:/src/scheduler/locales:ro
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.24

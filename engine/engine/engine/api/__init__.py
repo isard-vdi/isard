@@ -356,21 +356,12 @@ def send_qmp(desktop_id):
 @api.route("/qmp/notify/<string:desktop_id>", methods=["POST"])
 def qmp_notify(desktop_id):
     data = request.get_json(force=True)
-    logs.main.info(
-        "NOT IMPLEMENTED. DATA:\n desktop_id: "
-        + data.get("desktop_id", "-")
-        + ", type: "
-        + data.get("type", "-")
-        + ", code: "
-        + data.get("code", "-")
-        + ", params: "
-        + pformat(data.get("params", ""))
-    )
+    _send_message_qmp(data.get("desktop_id"), data.get("message"))
     return jsonify(True)
 
 
 def _send_message_qmp(desktop_id, message):
-    message_base64 = base64.b64encode(message)
+    message_base64 = base64.b64encode(bytes(message, "utf-8"))
     hypervisor = current_app.db.get_domain_hyp_started(desktop_id)
     if hypervisor:
         current_app.m.q.workers[hypervisor].put(

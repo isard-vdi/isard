@@ -134,6 +134,9 @@ class Scheduler:
                         "name": desktop.get("name"),
                     }
                     data["kwargs"]["msg"]["type"] = interval["type"]
+                    data["kwargs"]["msg"][
+                        "msg_lang"
+                    ] = "en"  # TODO Needs to be the frontend user lang
                     try:
                         self.api_rest.post(
                             "/advanced/date/desktop/desktop_notify", data

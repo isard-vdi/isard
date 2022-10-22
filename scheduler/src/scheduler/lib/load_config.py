@@ -19,10 +19,12 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 
+import json
 import logging as log
 import os
 import sys
 import time
+from pathlib import Path
 
 from rethinkdb import RethinkDB
 
@@ -81,6 +83,13 @@ class loadConfig:
             "role_id": "admin",
         }
         app.secret = os.environ["API_ISARDVDI_SECRET"]
+
+        # Load locales for QMP
+        files = Path("./scheduler/locales").glob("*.json")
+        app.langs = {}
+        for file in files:
+            f = open(file)
+            app.langs[file.stem] = json.load(f).get("message-modal")
 
     def init_app(self, app):
         """
