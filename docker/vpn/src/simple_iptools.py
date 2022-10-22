@@ -36,8 +36,16 @@ class UserIpTools(object):
             user = r.table("users").get(user_id).run()
             user_addr = user["vpn"]["wireguard"]["Address"]
         except Exception as e:
-            print("EXCEPTION READING USERS: " + str(e))
+            log.debug("EXCEPTION READING USERS: " + str(e))
             return
+
+        log.debug(
+            "Desktop added: [ DESKTOP "
+            + desktop_ip
+            + " ] <-> [ "
+            + user_addr
+            + " USER ]"
+        )
 
         check_output(
             (
@@ -75,8 +83,16 @@ class UserIpTools(object):
             user = r.table("users").get(user_id).run()
             user_addr = user["vpn"]["wireguard"]["Address"]
         except Exception as e:
-            print("EXCEPTION READING USERS: " + e)
+            log.error("EXCEPTION READING USERS: " + e)
             return
+
+        log.debug(
+            "Desktop remove: [ DESKTOP "
+            + desktop_ip
+            + " ] <-> [ "
+            + user_addr
+            + " USER ]"
+        )
 
         try:
             check_output(

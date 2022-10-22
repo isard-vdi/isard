@@ -76,13 +76,10 @@ def active_client(
                 return True
     else:  # kind = hypers
         with app.app_context():
-            if update_insert(
-                r.table("hypervisors")
-                .get_all(client_ip, index="wg_client_ip")
-                .update({"vpn": {"wireguard": connection_data}})
-                .run(db.conn)
-            ):
-                return True
+            r.table("hypervisors").get_all(client_ip, index="wg_client_ip").update(
+                {"vpn": {"wireguard": connection_data}}
+            ).run(db.conn)
+        return True
 
 
 def reset_connection_status(

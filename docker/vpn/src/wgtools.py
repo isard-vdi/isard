@@ -477,24 +477,17 @@ PersistentKeepalive = 25
             return
         else:
             # Updated
-            if (
-                data["new_val"]["status"] == "Started"
-                and data["old_val"].get("viewer") == {}
-                and "guest_ip" in data["new_val"].get("viewer", {})
-            ):
+            if data["new_val"]["status"] == "Started" and "guest_ip" in data[
+                "new_val"
+            ].get("viewer", {}):
                 # As the changes filters for guest_ip in viewer we won't have viewer field till guest_ip is set.
                 self.uipt.desktop_add(
                     data["new_val"]["user"], data["new_val"]["viewer"]["guest_ip"]
                 )
             elif (
-                data["new_val"]["status"] == "Stopped"
-                and data["old_val"]["status"] == "Stopped"
+                "viewer" not in data["new_val"].keys()
+                and "viewer" in data["old_val"].keys()
             ):
-                if (
-                    "viewer" not in data["new_val"].keys()
-                    and "viewer" in data["old_val"].keys()
-                    and "guest_ip" in data["old_val"]["viewer"].keys()
-                ):
-                    self.uipt.desktop_remove(
-                        data["old_val"]["user"], data["old_val"]["viewer"]["guest_ip"]
-                    )
+                self.uipt.desktop_remove(
+                    data["old_val"]["user"], data["old_val"]["viewer"]["guest_ip"]
+                )
