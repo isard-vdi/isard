@@ -484,10 +484,9 @@ PersistentKeepalive = 25
                 self.uipt.desktop_add(
                     data["new_val"]["user"], data["new_val"]["viewer"]["guest_ip"]
                 )
-            elif (
-                "viewer" not in data["new_val"].keys()
-                and "viewer" in data["old_val"].keys()
-            ):
+            elif "viewer" not in data["new_val"].keys() and data["old_val"].get(
+                "viewer", {}
+            ).get("guest_ip"):
                 self.uipt.desktop_remove(
                     data["old_val"]["user"], data["old_val"]["viewer"]["guest_ip"]
                 )
