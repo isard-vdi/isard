@@ -295,11 +295,10 @@ def get_domain_kind(id_domain):
 def get_domain_hyp_started(id_domain):
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
-    results = rtable.get(id_domain).pluck("hyp_started").run(r_conn)
+    results = rtable.get(id_domain).run(r_conn)
     close_rethink_connection(r_conn)
-    if results is None:
+    if not results:
         return False
-
     return results["hyp_started"]
 
 
