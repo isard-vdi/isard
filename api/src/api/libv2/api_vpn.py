@@ -112,8 +112,6 @@ def reset_connections_list_status(
                 r.table("users").get_all(
                     client_vpn["client_ip"], index="wg_client_ip"
                 ).update({"vpn": {"wireguard": connection_data}}).run(db.conn)
-        if client_vpn["kind"] == "remote_vpn":
-            with app.app_context():
                 r.table("remotevpn").get_all(
                     client_vpn["client_ip"], index="wg_client_ip"
                 ).update({"vpn": {"wireguard": connection_data}}).run(db.conn)
