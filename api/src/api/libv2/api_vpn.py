@@ -22,18 +22,6 @@ db = RDB(app)
 db.init_app(app)
 
 
-def update_insert(dict):
-    """
-    These are the actions:
-    {u'skipped': 0, u'deleted': 1, u'unchanged': 0, u'errors': 0, u'replaced': 0, u'inserted': 0}
-    """
-    if dict["errors"]:
-        return False
-    if dict["inserted"] or dict["replaced"]:
-        return True
-    return False
-
-
 def active_client(
     kind,
     client_ip,
@@ -60,20 +48,21 @@ def active_client(
     # Find ip
     if kind == "users":
         with app.app_context():
-            if update_insert(
-                r.table("users")
-                .get_all(client_ip, index="wg_client_ip")
-                .update({"vpn": {"wireguard": connection_data}})
-                .run(db.conn)
+            if len(
+                list(
+                    r.table("remotevpn")
+                    .get_all(client_ip, index="wg_client_ip")
+                    .run(db.conn)
+                )
             ):
+                r.table("remotevpn").get_all(client_ip, index="wg_client_ip").update(
+                    {"vpn": {"wireguard": connection_data}}
+                ).run(db.conn)
                 return True
-            if update_insert(
-                r.table("remotevpn")
-                .get_all(client_ip, index="wg_client_ip")
-                .update({"vpn": {"wireguard": connection_data}})
-                .run(db.conn)
-            ):
-                return True
+            r.table("users").get_all(client_ip, index="wg_client_ip").update(
+                {"vpn": {"wireguard": connection_data}}
+            ).run(db.conn)
+            return True
     else:  # kind = hypers
         with app.app_context():
             r.table("hypervisors").get_all(client_ip, index="wg_client_ip").update(
