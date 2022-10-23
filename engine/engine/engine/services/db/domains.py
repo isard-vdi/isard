@@ -190,7 +190,7 @@ def update_domain_status(
             "detail": json.dumps(detail),
         }
         if update_started_time is True:
-            d_update["status_logs"] = {"Started": time.time()}
+            d_update["status_logs"] = {"Started": int(time.time())}
 
         results = (
             rtable.get(id_domain).update(d_update, return_changes=True).run(r_conn)
@@ -1440,7 +1440,7 @@ def remove_fieds_when_stopped(id_domain, conn=False):
         {
             "create_dict": {"personal_vlans": False},
             "hyp_started": False,
-            "status_logs": {"Stopped": time.time()},
+            "status_logs": {"Stopped": int(time.time())},
         },
     ).run(r_conn)
 
