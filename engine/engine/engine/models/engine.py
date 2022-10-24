@@ -676,6 +676,10 @@ class Engine(object):
                             hyp_id=hyp_started,
                             delete_after_stopped=True,
                         )
+
+                    if new_domain is False and new_status == "ForceDeleting":
+                        ui.force_deleting(domain_id, old_status)
+
                 except Exception as e:
                     logs.exception_id.debug("0072")
                     logs.main.critical("EXCEPTION UNEXPECTED IN CHANGES_DOMAIN THREAD")

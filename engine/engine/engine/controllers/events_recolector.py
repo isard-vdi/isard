@@ -517,7 +517,7 @@ def myDomainEventCallbackRethink(conn, dom, event, detail, opaque):
 
         if dict_event["event"] == "Stopped":
             remove_domain_viewer_values(dom_id)
-            if get_domain_status(dict_event["domain"]) != "Stopped":
+            if domain_status != "Stopped" and domain_status not in ["ForceDeleting"]:
                 logs.status.debug(
                     "event {} ({}) in hypervisor {} changes status to Stopped in domain {}".format(
                         dict_event["event"],
@@ -546,7 +546,6 @@ def myDomainEventCallbackRethink(conn, dom, event, detail, opaque):
                         profile=vgpu_info.get("profile", False),
                     )
 
-        # TODO: Send event to influxdb?
         if dict_event["event"] in (
             "Defined",
             "Undefined",

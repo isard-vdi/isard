@@ -493,35 +493,34 @@ class HypWorkerThread(threading.Thread):
                         domain_handler.destroy()
                         # nvidia info updated in events_recolector
 
-                        logs.workers.debug(
-                            "STOPPED domain {}".format(action["id_domain"])
+                        logs.workers.info(
+                            "DESTROY OK domain {}".format(action["id_domain"])
                         )
 
                         check_if_delete = action.get("delete_after_stopped", False)
-
-                        if check_if_delete is True:
-                            update_domain_status(
-                                "Stopped", action["id_domain"], hyp_id=""
-                            )
-                            update_domain_status(
-                                "Deleting", action["id_domain"], hyp_id=""
-                            )
-                        else:
-                            update_domain_status(
-                                "Stopped", action["id_domain"], hyp_id=""
-                            )
+                        if action.get("not_change_status", False) is False:
+                            if check_if_delete is True:
+                                update_domain_status(
+                                    "Stopped", action["id_domain"], hyp_id=""
+                                )
+                                update_domain_status(
+                                    "Deleting", action["id_domain"], hyp_id=""
+                                )
+                            else:
+                                update_domain_status(
+                                    "Stopped", action["id_domain"], hyp_id=""
+                                )
 
                     except Exception as e:
                         logs.exception_id.debug("0065")
-                        update_domain_status(
-                            "Failed",
-                            action["id_domain"],
-                            hyp_id=self.hyp_id,
-                            detail=str(e),
-                        )
-                        logs.workers.debug(
-                            "exception in stopping domain {}: ".format(e)
-                        )
+                        if action.get("not_change_status", False) is False:
+                            update_domain_status(
+                                "Failed",
+                                action["id_domain"],
+                                hyp_id=self.hyp_id,
+                                detail=str(e),
+                            )
+                        logs.workers.info("exception in stopping domain {}: ".format(e))
 
                 elif action["type"] in ["create_disk", "delete_disk"]:
                     launch_action_disk(action, self.hostname, user, port)

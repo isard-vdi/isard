@@ -292,23 +292,25 @@ class ThreadBroom(threading.Thread):
                             logs.broom.error(
                                 f"broom find domain {id_domain} with status {d_status['status']} in hypervisor {hyp_id} and updated status and hyp_started in databse"
                             )
-                            update_domain_hyp_started(
-                                id_domain,
-                                hyp_id,
-                                "State and hyp_started updated by broom",
-                                d_status["status"],
-                            )
-                        elif d_status["status"] == "Paused":
-                            if d_status["detail"] == "paused on user request":
-                                logs.broom.error(
-                                    f"broom find domain {id_domain} with status {d_status['status']} with detail {d_status['detail']} in hypervisor {hyp_id} and updated status and hyp_started in databse"
-                                )
+                            if d_domain["status"] not in ["ForceDeleting"]:
                                 update_domain_hyp_started(
                                     id_domain,
                                     hyp_id,
                                     "State and hyp_started updated by broom",
                                     d_status["status"],
                                 )
+                        elif d_status["status"] == "Paused":
+                            if d_status["detail"] == "paused on user request":
+                                logs.broom.error(
+                                    f"broom find domain {id_domain} with status {d_status['status']} with detail {d_status['detail']} in hypervisor {hyp_id} and updated status and hyp_started in databse"
+                                )
+                                if d_domain["status"] not in ["ForceDeleting"]:
+                                    update_domain_hyp_started(
+                                        id_domain,
+                                        hyp_id,
+                                        "State and hyp_started updated by broom",
+                                        d_status["status"],
+                                    )
                             else:
                                 logs.broom.info(
                                     f"broom find domain {id_domain} with status {d_status['status']} in hypervisor {hyp_id} with detail {d_status['detail']} , domain starting-paused?"
