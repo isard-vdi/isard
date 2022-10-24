@@ -257,6 +257,14 @@ $(document).ready(function() {
         })
           .get()
           .on("pnotify.confirm", function () {
+            rescan_pnotify = new PNotify({
+              title: "Waiting storage",
+                text: "Storage is looking for files in storage. Please wait...",
+                hide: false,
+                icon: 'fa fa-alert-sign',
+                opacity: 1,
+                type: "warning",
+            });
             $.ajax({
               type: "GET",
               url:
@@ -269,7 +277,7 @@ $(document).ready(function() {
                   contentType: "application/json",
                   success: function (data) {
                     storage_physical.ajax.reload();
-                    new PNotify({
+                    rescan_pnotify.update({
                       title: "Physical storage",
                       text:  "Updated "+data.templates+" templates and "+data.desktops+" desktop disksfrom "+toolbox_host,
                       hide: true,
@@ -336,7 +344,7 @@ $(document).ready(function() {
                 contentType: 'application/json',
                 success: function(data)
                 {
-                  console.log(data)
+                  storage_physical.ajax.reload()
                 },
                 always: function(data)
                 {
