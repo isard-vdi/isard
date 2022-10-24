@@ -35,7 +35,6 @@ flow_add(){
     echo "priority=200,in_port=${nport},dl_vlan=0x4095,actions=drop" >> "${flowdir}/${domain_name}"
     # Outgoing to guest
     echo "priority=201,dl_dst=${mac},dl_vlan=4095,actions=strip_vlan,output:${nport}" >> "${flowdir}/${domain_name}"
-    echo "priority=201,dl_type=0x0806,dl_dst=ff:ff:ff:ff:ff:ff,dl_vlan=4095,arp_spa=10.2.0.1,actions=strip_vlan,output:${nport}" >> "${flowdir}/${domain_name}"
     ovs-ofctl add-flows ovsbr0 "${flowdir}/${domain_name}"
 }
 
