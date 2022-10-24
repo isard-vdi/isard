@@ -14,6 +14,7 @@ import uuid
 from os.path import dirname
 from time import sleep
 
+import humanfriendly as hf
 from engine.config import CONFIG_DICT
 from engine.services.db import (
     delete_domain,
@@ -27,6 +28,7 @@ from engine.services.db.db import (
     get_media_with_status,
     new_rethink_connection,
     remove_media,
+    update_table_dict,
 )
 from engine.services.db.domains import get_domains_with_status, update_domain_status
 from engine.services.db.downloads import (
@@ -364,7 +366,18 @@ class DownloadThread(threading.Thread, object):
                 update_domain_status("Updating", self.id, detail="downloaded disk")
             else:
                 update_table_field(self.table, self.id, "path_downloaded", self.path)
-                update_status_table(self.table, "Downloaded", self.id)
+                update_table_dict(
+                    self.table,
+                    self.id,
+                    {
+                        "status": "Downloaded",
+                        "progress": {
+                            "received": d_progress["total"],
+                            "total_percent": 100,
+                            "total_bytes": hf.parse_size(d_progress["total"] + "iB"),
+                        },
+                    },
+                )
         self.finalished_threads.append(self.path)
 
 

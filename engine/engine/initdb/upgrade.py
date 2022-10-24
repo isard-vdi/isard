@@ -3,10 +3,10 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
-
 import sys
 import time
 
+import humanfriendly as hf
 import rethinkdb as r
 
 from .lib import *
@@ -15,8 +15,9 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 61
+release_version = 62
 
+# release 62: Updated media progress fields and added total_bytes field.
 # release 61: Added indexes to table media.
 #             Added kind_user_tag index and updated all desktops to tag False.
 # release 60: Modify transitional_states_polling to 10 seconds by default
@@ -1323,6 +1324,26 @@ class Upgrade(object):
                 ).run(self.conn)
             except Exception as e:
                 print(e)
+
+        if version == 62:
+            medias = r.table(table).get_all("Downloaded", index="status").run(self.conn)
+            media_update = []
+            for media in medias:
+                media_update.append(
+                    {
+                        "id": media["id"],
+                        "progress": {
+                            "received": media["progress"]["total"],
+                            "total_percent": 100,
+                            "total_bytes": hf.parse_size(
+                                media["progress"]["total"] + "iB"
+                            )
+                            if media["progress"]["total"] != "0"
+                            else 0,
+                        },
+                    }
+                )
+            r.table(table).insert(media_update, conflict="update").run(self.conn)
 
     """
     GROUPS TABLE UPGRADES
