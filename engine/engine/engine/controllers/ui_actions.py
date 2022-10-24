@@ -68,7 +68,11 @@ from engine.services.lib.qcow import (
     get_host_long_operations_from_path,
     get_path_to_disk,
 )
-from engine.services.lib.storage import create_storage, insert_storage
+from engine.services.lib.storage import (
+    create_storage,
+    insert_storage,
+    update_storage_deleted_domain,
+)
 from engine.services.log import *
 
 DEFAULT_HOST_MODE = "host-passthrough"
@@ -378,7 +382,7 @@ class UiActions(object):
                 return False
 
             if dict_domain["kind"] != "desktop":
-                log.info(f"{id_domain} is a template, disks will be deleted")
+                log.warning(f"{id_domain} is a template, disks will be deleted")
 
             wait_for_disks_to_be_deleted = False
             if dict_domain.get("hardware"):
@@ -478,6 +482,10 @@ class UiActions(object):
                                     detail="Deleting disk {} in domain {}, queued in hypervisor thread {}".format(
                                         disk_path, id_domain, next_hyp
                                     ),
+                                )
+                            else:
+                                update_storage_deleted_domain(
+                                    action["storage_id"], dict_domain
                                 )
                             log.info(
                                 "Deleting disk {disk_path} in domain {id_domain}, queued in hypervisor thread {next_hyp}"

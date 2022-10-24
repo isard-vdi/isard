@@ -25,7 +25,7 @@ db.init_app(app)
 
 from .._common.api_exceptions import Error
 from ..auth.authentication import *
-from .api_desktop_events import desktops_delete, desktops_start, desktops_stop
+from .api_desktop_events import desktops_start, desktops_stop
 from .api_desktops_persistent import ApiDesktopsPersistent
 from .api_templates import ApiTemplates
 from .helpers import _check, _parse_string, get_user_data
@@ -752,19 +752,10 @@ class ApiAdmin:
                 return data
 
             if action == "delete":
-                domains = list(
-                    r.table(table)
-                    .get_all(r.args(ids))
-                    .pluck("id", "status")
-                    .run(db.conn)
-                )
-                desktops_delete(
-                    [
-                        desktop["id"]
-                        for desktop in domains
-                        if desktop["status"] in ["Stopped", "Failed"]
-                    ]
-                )
+                with app.app_context():
+                    r.table(table).get_all(r.args(ids)).update(
+                        {"status": "ForceDeleting"}
+                    ).run(db.conn)
                 return True
 
             if action == "force_failed":

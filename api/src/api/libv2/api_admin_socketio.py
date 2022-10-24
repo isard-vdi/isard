@@ -4,10 +4,8 @@
 #      Josep Maria Viñolas Auquer
 #      Alberto Larraz Dalmases
 # License: AGPLv3
-import os
+
 import time
-from datetime import datetime, timedelta
-from pprint import pprint
 
 from rethinkdb import RethinkDB
 
@@ -17,9 +15,8 @@ r = RethinkDB()
 import json
 import traceback
 
-from rethinkdb.errors import ReqlDriverError, ReqlTimeoutError
+from rethinkdb.errors import ReqlDriverError
 
-from .._common.api_exceptions import Error
 from .flask_rethink import RDB
 from .log import log
 
@@ -29,25 +26,15 @@ db.init_app(app)
 import threading
 
 from flask import request
-from flask_socketio import (
-    SocketIO,
-    close_room,
-    disconnect,
-    emit,
-    join_room,
-    leave_room,
-    rooms,
-    send,
-)
+from flask_socketio import join_room, leave_room
 
 from .. import socketio
 
 threads = {}
 
-from flask import Flask, _request_ctx_stack, jsonify, request
+from flask import request
 
 from ..auth.tokens import get_token_payload
-from .helpers import _parse_deployment_desktop, _parse_desktop
 from .quotas_process import QuotasProcess
 
 quotas = QuotasProcess()
@@ -88,6 +75,25 @@ class DomainsThread(threading.Thread):
                                 if data["kind"] == "desktop"
                                 else "template_delete"
                             )
+                            if event == "desktop_delete" and data.get("tag"):
+                                if (
+                                    not r.table("domains")
+                                    .get_all(data["tag"], index="tag")
+                                    .count()
+                                    .run(db.conn)
+                                ):
+                                    deployment = (
+                                        r.table("deployments")
+                                        .get(data["tag"])
+                                        .run(db.conn)
+                                    )
+                                    if (
+                                        deployment
+                                        and deployment.get("status", "") == "deleting"
+                                    ):
+                                        r.table("deployments").get(
+                                            data["tag"]
+                                        ).delete().run(db.conn)
                         else:
                             data = c["new_val"]
                             if data["kind"] == "desktop":
