@@ -63,6 +63,7 @@ HYPERVISOR_PARTS="
 	websockify
 	squid
 	stats
+	storage
 "
 HYPERVISOR_STANDALONE_KEY="hypervisor-standalone"
 HYPERVISOR_STANDALONE_PARTS="
