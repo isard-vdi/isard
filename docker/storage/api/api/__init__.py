@@ -22,6 +22,7 @@ import os
 from logging.config import dictConfig
 
 from flask import Flask
+from flask_cors import CORS
 
 dictConfig(
     {
@@ -44,6 +45,7 @@ dictConfig(
 )
 
 app = Flask(__name__, static_url_path="")
+CORS(app)
 app.url_map.strict_slashes = False
 
 # Max upload size
