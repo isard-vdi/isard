@@ -255,6 +255,6 @@ def api_v3_user_webapp_templates(payload):
 @is_not_user
 def groups_users_count(payload):
     data = request.get_json(force=True)
-    quantity = users.groups_users_count(data.get("groups"))
+    quantity = users.groups_users_count(data.get("groups"), payload["user_id"])
 
     return json.dumps({"quantity": quantity}), 200, {"Content-Type": "application/json"}

@@ -1006,14 +1006,25 @@ class ApiUsers:
             )
         return templates
 
-    def groups_users_count(self, groups):
+    def groups_users_count(self, groups, user_id):
+
+        query_groups = (
+            r.table("users").get_all(r.args(groups), index="group").pluck("id")["id"]
+        )
+        query_secondary_groups = (
+            r.table("users")
+            .get_all(r.args(groups), index="secondary_groups")
+            .pluck("id")["id"]
+        )
+
+        total_groups = (
+            list(query_groups.run(db.conn))
+            + list(query_secondary_groups.run(db.conn))
+            + [user_id]
+        )
+
         with app.app_context():
-            return (
-                r.table("users")
-                .get_all(r.args(groups), index="group")
-                .count()
-                .run(db.conn)
-            )
+            return len(list(set(total_groups)))
 
     def check_secondary_groups_category(self, category, secondary_groups):
         for group in secondary_groups:
