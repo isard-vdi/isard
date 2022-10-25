@@ -18,7 +18,7 @@ fi
 ovs-vsctl show
 
 # Every ARP request coming from isard-vpn should be flooded to all ports
-ovs-ofctl add-flow ovsbr0 "priority=202,dl_type=0x0806,dl_dst=ff:ff:ff:ff:ff:ff,dl_vlan=4095,arp_spa=10.2.0.1,actions=strip_vlan,output:all"
+ovs-ofctl add-flow ovsbr0 "priority=202,dl_type=0x0806,dl_dst=ff:ff:ff:ff:ff:ff,arp_spa=10.2.0.1,actions=strip_vlan,output:all"
 
 # ip a f eth0
 #ovs-vsctl add-port ovsbr0 eth0
