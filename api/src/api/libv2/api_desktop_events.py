@@ -108,7 +108,7 @@ def desktop_start(desktop_id, wait_seconds=0, paused=False):
             "precondition_required",
             "Desktop can't be started from " + status,
             traceback.format_exc(),
-            description_code="unable_to_start_desktop_from" + status,
+            description_code="unable_to_start_desktop_from",
         )
     with app.app_context():
         r.table("domains").get(desktop_id).update(
@@ -166,7 +166,7 @@ def desktop_stop(desktop_id, force=False, wait_seconds=0):
         "precondition_required",
         "Desktop can't be stopped from " + status,
         traceback.format_exc(),
-        description_code="unable_to_stop_desktop_from" + status,
+        description_code="unable_to_stop_desktop_from",
     )
 
 
@@ -222,7 +222,7 @@ def desktop_delete(desktop_id, from_started=False, wait_seconds=0):
             "precondition_required",
             "Unable to delete desktop " + desktop_id + " in status " + status,
             traceback.format_exc(),
-            description_code="unable_to_delete_desktop_from" + status,
+            description_code="unable_to_delete_desktop_from",
         )
     if wait_seconds:
         wait_delete_status(desktop_id, wait_seconds=wait_seconds)

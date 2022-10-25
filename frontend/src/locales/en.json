@@ -573,6 +573,10 @@
                 },
                 "downloading": {
                     "text": "Downloading"
+                },
+                "forcedeleting": {
+                    "text": "Deleting",
+                    "action": "Deleting"
                 }
             }
         },
@@ -890,8 +894,8 @@
         "desktop_same_id": "Already exists a desktop with this id",
         "unable_to_parse_media": "Unable to parse media info",
         "unable_to_parse_string": "Unable to parse string",
-        "unable_to_start_desktop_from": "Desktop can't be started from ",
-        "unable_to_stop_desktop_from": "Desktop can't be stopped from ",
+        "unable_to_start_desktop_from": "Desktop can't be started from its status",
+        "unable_to_stop_desktop_from": "Desktop can't be stopped from its status",
         "unable_to_change_desktop_status": "Unable to change desktop status",
         "unable_to_change_hypervisor_status": "Unable to change hypervisor status",
         "unable_to_get_domain_jumperurl": "  not get domain jumperurl as domain not exists",

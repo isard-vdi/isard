@@ -415,6 +415,10 @@
                 },
                 "downloading": {
                     "text": "Descarregant"
+                },
+                "forcedeleting": {
+                    "text": "Esborrant",
+                    "action": "Esborrant"
                 }
             }
         },
@@ -827,7 +831,9 @@
         "unable_to_get_viewer_started": "No es possible obtenir el visor d'un escriptori que no està arrencat",
         "user_disabled": "L'usuari està deshabilitat",
         "deployment_desktop_new_group_limit_exceeded": "S'ha excedit el límit per a crear nous escriptoris del grup '{group}'",
-        "deployment_desktop_new_category_limit_exceeded": "S'ha excedit el límit per a crear nous escriptoris de la categoria '{category}'"
+        "deployment_desktop_new_category_limit_exceeded": "S'ha excedit el límit per a crear nous escriptoris de la categoria '{category}'",
+        "unable_to_stop_desktop_from": "No és possible aturar un escriptori des d'el seu estat",
+        "unable_to_start_desktop_from": "No és possible engegar un escriptori des d'el seu estat"
     },
     "messages": {
         "title": {
