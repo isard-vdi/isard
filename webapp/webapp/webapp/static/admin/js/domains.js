@@ -620,7 +620,7 @@ $(document).ready(function() {
                             setViewerButtons(data,socket);
 
                             if('viewer' in data && 'guest_ip' in data['viewer']){
-                                viewerButtonsIP(data['viewer']['guest_ip'])
+                                viewerButtonsIP(data.id,data['viewer']['guest_ip'])
                             }
                             $('#modalOpenViewer').modal({
                                 backdrop: 'static',
@@ -663,7 +663,7 @@ $(document).ready(function() {
         if(data.status =='Started' && 'viewer' in data && 'guest_ip' in data['viewer']){
             if(!('viewer' in domains_table.row('#'+data.id).data()) || !('guest_ip' in domains_table.row('#'+data.id).data())){
                 //console.log('NEW IP ARRIVED!: '+data['viewer']['guest_ip'])
-                viewerButtonsIP(data['viewer']['guest_ip'])
+                viewerButtonsIP(data.id,data['viewer']['guest_ip'])
             }
         }        
         dtUpdateInsert(domains_table,data,false);
