@@ -196,7 +196,7 @@ $(document).ready(function() {
                 setViewerButtons(data,socket);
 
                 if('viewer' in data && 'guest_ip' in data['viewer']){
-                    viewerButtonsIP(data['viewer']['guest_ip'])
+                    viewerButtonsIP(data.id,data['viewer']['guest_ip'])
                 }
                 $('#modalOpenViewer').modal({
                     backdrop: 'static',
@@ -234,7 +234,7 @@ $(document).ready(function() {
 
         if(data.status =='Started' && 'viewer' in data && 'guest_ip' in data['viewer']){
             if(!('viewer' in table.row('#'+data.id).data()) || !('guest_ip' in table.row('#'+data.id).data())){
-                viewerButtonsIP(data['viewer']['guest_ip'])
+                viewerButtonsIP(data.id,data['viewer']['guest_ip'])
          }
         }
 
