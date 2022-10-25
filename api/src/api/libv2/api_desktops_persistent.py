@@ -321,7 +321,7 @@ class ApiDesktopsPersistent:
         users = list(set(users))
         for user_id in users:
             check_user_duplicated_domain_name("", data["name"], user_id)
-            quotas.DesktopCreate(user_id)
+            quotas.desktop_create(user_id)
 
         for user_id in users:
             self.NewFromTemplate(

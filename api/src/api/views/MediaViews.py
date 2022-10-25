@@ -33,8 +33,8 @@ from .decorators import has_token, is_admin_or_manager_or_advanced, ownsMediaId
 
 @app.route("/api/v3/media/new/check_quota", methods=["GET"])
 @has_token
-def api_v3_media_count(payload):
-    quotas.MediaCreate(payload["user_id"])
+def api_v3_media_check_quota(payload):
+    quotas.media_create(payload["user_id"])
     return (
         json.dumps({}),
         200,
@@ -54,7 +54,7 @@ def api_v3_admin_media_insert(payload):
             "Unable to parse body data.",
             traceback.format_exc(),
         )
-    quotas.MediaCreate(payload["user_id"])
+    quotas.media_create(payload["user_id"])
     with app.app_context():
         user = r.table("users").get(payload["user_id"]).run(db.conn)
         username = user["username"]

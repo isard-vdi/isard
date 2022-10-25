@@ -45,7 +45,7 @@ from .decorators import has_token, ownsDomainId
 @app.route("/api/v3/templates/new/check_quota", methods=["GET"])
 @has_token
 def api_v3_templates_check_quota(payload):
-    quotas.TemplateCreate(payload["user_id"])
+    quotas.template_create(payload["user_id"])
     return (
         json.dumps({}),
         200,
@@ -56,7 +56,7 @@ def api_v3_templates_check_quota(payload):
 @app.route("/api/v3/template", methods=["POST"])
 @has_token
 def api_v3_template_new(payload):
-    quotas.TemplateCreate(payload["user_id"])
+    quotas.template_create(payload["user_id"])
     data = request.get_json(force=True)
     data["user_id"] = payload["user_id"]
     data = _validate_item("template", data)
@@ -145,7 +145,7 @@ def api_v3_template_update(payload):
     ownsDomainId(payload, template_id)
     _validate_item("template_update", data)
     if data.get("enabled"):
-        quotas.TemplateCreate(payload["user_id"])
+        quotas.template_create(payload["user_id"])
     return (
         json.dumps(templates.UpdateTemplate(template_id, data)),
         200,
