@@ -83,7 +83,7 @@ class User(UserMixin):
         self.is_admin = True if self.role == "admin" else False
         self.active = dict["active"]
         self.tags = dict.get("tags", [])
-        self.photo = dict["photo"]
+        self.photo = dict.get("photo")
 
     def is_active(self):
         return self.active

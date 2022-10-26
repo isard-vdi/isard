@@ -9,6 +9,7 @@ import time
 import traceback
 
 from flask import request
+from flask_login import login_user, logout_user
 
 #!flask/bin/python
 # coding=utf-8
@@ -28,7 +29,7 @@ from ..libv2.validators import _validate_item
 
 quotas = Quotas()
 users = ApiUsers()
-
+from ..auth.authentication import LocalUsers
 from ..libv2.isardVpn import isardVpn
 
 vpn = isardVpn()
@@ -49,7 +50,11 @@ from .decorators import (
 @has_token
 def api_v3_admin_jwt(payload, user_id):
     ownsUserId(payload, user_id)
-    return users.Jwt(user_id)
+    logout_user()
+    jwt = users.Jwt(user_id)
+    user = users.Get(user_id)
+    LocalUsers().getUser(user.get("username"))
+    return jwt
 
 
 @app.route("/api/v3/admin/user/<user_id>", methods=["GET"])
