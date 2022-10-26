@@ -7,7 +7,9 @@ export default function axiosSetUp () {
   axios.defaults.baseURL = `${window.location.protocol}//${window.location.host}`
   // Add a request interceptor
   axios.interceptors.request.use(
+    // Spinning show
     function (config) {
+      document.body.classList.add('loading-cursor')
       config.headers.Authorization = `Bearer ${store.getters.getToken}`
       return config
     },
@@ -19,7 +21,9 @@ export default function axiosSetUp () {
 
   // Add a response interceptor
   axios.interceptors.response.use(
+    // Spinning hide
     function (response) {
+      document.body.classList.remove('loading-cursor')
       // Any status code that lie within the range of 2xx cause this function to trigger
       // Do something with response data
       return response

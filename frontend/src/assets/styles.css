@@ -627,3 +627,7 @@
   background-color: #0cc528 !important;
   cursor: pointer;
 }
+
+.loading-cursor {
+  cursor: wait !important;
+}
