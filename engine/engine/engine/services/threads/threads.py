@@ -281,21 +281,22 @@ def launch_action_disk(action, hostname, user, port, from_scratch=False):
                 )
             )
             log.error("ERROR: {}".format(array_out_err[0]["err"]))
-            update_domain_status(
-                "DiskDeleted",
-                id_domain,
-                detail="delete disk operation failed, disk not found: {}".format(
+            if action.get("not_change_status", False) is False:
+                detail = "delete disk operation failed, disk not found: {}".format(
                     array_out_err[0]["err"]
-                ),
-            )
+                )
+                update_domain_status("DiskDeleted", id_domain, detail=detail)
+                log.info(detail)
         elif len(array_out_err[1]["err"]) > 0:
             log.error(
                 "disk from domain {} found, but erase command fail".format(id_domain)
             )
             log.error("ERROR: {}".format(array_out_err[0]["err"]))
-            update_domain_status(
-                "DiskDeleted", id_domain, detail="delete disk command failed"
-            )
+            if action.get("not_change_status", False) is False:
+                update_domain_status(
+                    "DiskDeleted", id_domain, detail="delete disk command failed"
+                )
+                log.info(f"domain {id_domain}: delete disk command failed")
         elif len(array_out_err[2]["out"]) > 0:
             log.error(
                 "disk from domain {} found, erase command not failed with error message, but disk is in directory.".format(
@@ -303,21 +304,24 @@ def launch_action_disk(action, hostname, user, port, from_scratch=False):
                 )
             )
             log.error("ERROR: {}".format(array_out_err[0]["out"]))
-            update_domain_status(
-                "DiskDeleted",
-                id_domain,
-                detail="delete disk operation failed, disk in directory can not erase",
-            )
+            if action.get("not_change_status", False) is False:
+                update_domain_status(
+                    "DiskDeleted",
+                    id_domain,
+                    detail="delete disk operation failed, disk in directory can not erase",
+                )
         else:
             log.info("disk {} from domain {} erased".format(disk_path, id_domain))
             update_storage_status(action.get("storage_id"), "deleted")
-            update_disk_backing_chain(id_domain, index_disk, "DISK_ERASED", [])
-            update_domain_status(
-                "DiskDeleted",
-                id_domain,
-                detail="delete disk operation run ok",
-                storage_id=action.get("storage_id"),
-            )
+
+            if action.get("not_change_status", False) is False:
+                update_disk_backing_chain(id_domain, index_disk, "DISK_ERASED", [])
+                update_domain_status(
+                    "DiskDeleted",
+                    id_domain,
+                    detail="delete disk operation run ok",
+                    storage_id=action.get("storage_id"),
+                )
 
 
 def launch_action_create_template_disk(action, hostname, user, port):

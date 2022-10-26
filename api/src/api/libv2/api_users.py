@@ -458,8 +458,7 @@ class ApiUsers:
         self.Get(user_id)
         desktops_delete(
             [desktop["id"] for desktop in self._delete_checks(user_id, "user")],
-            from_started=True,
-            wait_seconds=30,
+            force=True,
         )
 
         change_user_items_owner("media", user_id)
@@ -718,8 +717,7 @@ class ApiUsers:
                     desktops_to_delete.append(d["id"])
         desktops_delete(
             desktops_to_delete,
-            from_started=True,
-            wait_seconds=30,
+            force=True,
         )
         change_category_items_owner("media", category_id)
 
@@ -839,8 +837,7 @@ class ApiUsers:
 
         desktops_delete(
             [desktop["id"] for desktop in desktops],
-            from_started=True,
-            wait_seconds=30,
+            force=True,
         )
 
         desktops_to_delete = []
@@ -854,8 +851,7 @@ class ApiUsers:
                     desktops_to_delete.append(d["id"])
         desktops_delete(
             desktops_to_delete,
-            from_started=True,
-            wait_seconds=30,
+            force=True,
         )
         change_group_items_owner("media", group_id)
 

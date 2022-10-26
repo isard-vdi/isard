@@ -29,6 +29,7 @@ from engine.services.lib.functions import clean_intermediate_status
 from engine.services.log import logs
 
 status_to_delete = [
+    "ForceDeleting",
     "Creating",
     "CreatingAndStarting",
     "CreatingDiskFromScratch",

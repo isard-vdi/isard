@@ -105,7 +105,7 @@ class ApiDesktopsNonPersistent:
         # This situation should not happen as there should only be a maximum of 1 non persistent desktop
         # So we delete all but the first one [0] as the descendant order_by lets this as the newer desktop
         if len(desktops) > 1:
-            desktops_delete(desktops[1:], from_started=True, wait_seconds=5)
+            desktops_delete(desktops[1:], force=True)
 
     def _nonpersistent_desktop_create_and_start(self, user_id, template_id):
         with app.app_context():

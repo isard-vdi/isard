@@ -25,7 +25,7 @@ quotas = Quotas()
 db = RDB(app)
 db.init_app(app)
 
-from ..api_desktop_events import desktops_delete, desktops_stop
+from ..api_desktop_events import desktops_stop
 from ..api_desktops_common import ApiDesktopsCommon
 from ..api_desktops_persistent import ApiDesktopsPersistent
 from ..ds import DS
@@ -294,13 +294,20 @@ def new(
 
 def delete(deployment_id):
     with app.app_context():
-        deployment_domains_ids = list(
-            r.table("domains").get_all(deployment_id, index="tag")["id"].run(db.conn)
-        )
-
-    desktops_delete(deployment_domains_ids, from_started=True)
-    with app.app_context():
-        r.table("deployments").get(deployment_id).delete().run(db.conn)
+        r.table("domains").get_all(deployment_id, index="tag").update(
+            {"status": "ForceDeleting"}
+        ).run(db.conn)
+        if (
+            not r.table("domains")
+            .get_all(deployment_id, index="tag")
+            .count()
+            .run(db.conn)
+        ):
+            r.table("deployments").get(deployment_id).delete().run(db.conn)
+        else:
+            r.table("deployments").get(deployment_id).update(
+                {"status": "deleting"}
+            ).run(db.conn)
 
 
 def recreate(payload, deployment_id):

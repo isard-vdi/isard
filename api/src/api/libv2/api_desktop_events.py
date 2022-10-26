@@ -229,39 +229,33 @@ def desktop_delete(desktop_id, from_started=False, wait_seconds=0):
     return True
 
 
-def desktops_delete(desktops_ids, from_started=False, wait_seconds=30):
-    if from_started:
-        for desktop_id in desktops_ids:
-            desktop_stop(desktop_id, force=True, wait_seconds=0)
-        time.sleep(wait_seconds)
-
-    with app.app_context():
-        r.table("bookings").get_all(
-            ["desktop", r.args(desktops_ids)], index="item_type-id"
-        ).delete().run(db.conn)
-        r.table("domains").get_all(r.args(desktops_ids), index="id").filter(
-            {"status": "Stopped"}
-        ).update({"status": "Deleting", "accessed": int(time.time())}).run(db.conn)
-        r.table("domains").get_all(r.args(desktops_ids), index="id").filter(
-            {"status": "Failed"}
-        ).update({"status": "Deleting", "accessed": int(time.time())}).run(db.conn)
+def desktops_delete(desktops_ids, force=False):
+    if force:
+        with app.app_context():
+            r.table("domains").get_all(r.args(desktops_ids)).update(
+                {"status": "ForceDeleting"}
+            ).run(db.conn)
+    else:
+        with app.app_context():
+            r.table("bookings").get_all(
+                ["desktop", r.args(desktops_ids)], index="item_type-id"
+            ).delete().run(db.conn)
+            r.table("domains").get_all(r.args(desktops_ids), index="id").filter(
+                {"status": "Stopped"}
+            ).update({"status": "Deleting", "accessed": int(time.time())}).run(db.conn)
+            r.table("domains").get_all(r.args(desktops_ids), index="id").filter(
+                {"status": "Failed"}
+            ).update({"status": "Deleting", "accessed": int(time.time())}).run(db.conn)
 
 
 def desktops_non_persistent_delete(user_id, template=False):
     if template == False:
         with app.app_context():
-            desktops_to_delete = (
-                r.table("domains")
-                .get_all(user_id, index="user")
-                .filter({"persistent": False})["id"]
-                .run(db.conn)
-            )
+            r.table("domains").get_all(user_id, index="user").filter(
+                {"persistent": False}
+            ).update({"status": "ForceDeleting"}).run(db.conn)
     else:
         with app.app_context():
-            desktops_to_delete = (
-                r.table("domains")
-                .get_all(user_id, index="user")
-                .filter({"from_template": template, "persistent": False})["id"]
-                .run(db.conn)
-            )
-    desktops_delete(desktops_to_delete, from_started=True, wait_seconds=3)
+            r.table("domains").get_all(user_id, index="user").filter(
+                {"from_template": template, "persistent": False}
+            ).update({"status": "ForceDeleting"}).run(db.conn)

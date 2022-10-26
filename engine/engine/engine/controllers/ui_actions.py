@@ -68,7 +68,11 @@ from engine.services.lib.qcow import (
     get_host_long_operations_from_path,
     get_path_to_disk,
 )
-from engine.services.lib.storage import create_storage, insert_storage
+from engine.services.lib.storage import (
+    create_storage,
+    insert_storage,
+    update_storage_deleted_domain,
+)
 from engine.services.log import *
 
 DEFAULT_HOST_MODE = "host-passthrough"
@@ -306,13 +310,15 @@ class UiActions(object):
 
         return True
 
-    def stop_domain(self, id_domain, hyp_id, delete_after_stopped=False):
+    def stop_domain(
+        self, id_domain, hyp_id, delete_after_stopped=False, not_change_status=False
+    ):
         action = {
             "type": "stop_domain",
             "id_domain": id_domain,
             "delete_after_stopped": delete_after_stopped,
+            "not_change_status": not_change_status,
         }
-
         self.manager.q.workers[hyp_id].put(action, Q_PRIORITY_STOP)
         logs.main.debug(
             f"desktop {id_domain} in queue to destroy action in hyp {hyp_id}"
@@ -365,7 +371,7 @@ class UiActions(object):
     # yo crearía el disco con una ruta relativa respecto a una variable de configuración
     # y el path que se guarda en el disco podría ser relativo, aunque igual no vale la pena...
 
-    def deleting_disks_from_domain(self, id_domain, force=False):
+    def deleting_disks_from_domain(self, id_domain, not_change_status=False):
 
         try:
             dict_domain = get_domain(id_domain)
@@ -375,8 +381,8 @@ class UiActions(object):
                 )
                 return False
 
-            if dict_domain["kind"] != "desktop" and force is False:
-                log.info(f"{id_domain} is a template, disks will be deleted")
+            if dict_domain["kind"] != "desktop":
+                log.warning(f"{id_domain} is a template, disks will be deleted")
 
             wait_for_disks_to_be_deleted = False
             if dict_domain.get("hardware"):
@@ -449,6 +455,7 @@ class UiActions(object):
 
                         action = dict()
                         action["id_domain"] = id_domain
+                        action["not_change_status"] = not_change_status
                         action["type"] = "delete_disk"
                         action["disk_path"] = disk_path
                         action["domain"] = id_domain
@@ -467,13 +474,21 @@ class UiActions(object):
                         )
 
                         try:
-                            update_domain_status(
-                                status="DeletingDomainDisk",
-                                id_domain=id_domain,
-                                hyp_id=False,
-                                detail="Deleting disk {} in domain {}, queued in hypervisor thread {}".format(
-                                    disk_path, id_domain, next_hyp
-                                ),
+                            if not_change_status is False:
+                                update_domain_status(
+                                    status="DeletingDomainDisk",
+                                    id_domain=id_domain,
+                                    hyp_id=False,
+                                    detail="Deleting disk {} in domain {}, queued in hypervisor thread {}".format(
+                                        disk_path, id_domain, next_hyp
+                                    ),
+                                )
+                            else:
+                                update_storage_deleted_domain(
+                                    action["storage_id"], dict_domain
+                                )
+                            log.info(
+                                "Deleting disk {disk_path} in domain {id_domain}, queued in hypervisor thread {next_hyp}"
                             )
                             self.manager.q.workers[next_hyp].put(
                                 action, Q_PRIORITY_DELETE
@@ -481,12 +496,13 @@ class UiActions(object):
                             wait_for_disks_to_be_deleted = True
                         except Exception as e:
                             logs.exception_id.debug("0011")
-                            update_domain_status(
-                                status="Stopped",
-                                id_domain=id_domain,
-                                hyp_id=False,
-                                detail="Creating delete disk operation failed when insert action in queue for disk operations",
-                            )
+                            if not_change_status is False:
+                                update_domain_status(
+                                    status="Stopped",
+                                    id_domain=id_domain,
+                                    hyp_id=False,
+                                    detail="Creating delete disk operation failed when insert action in queue for disk operations",
+                                )
                             log.error(
                                 "Creating delete disk operation failed when insert action in queue for disk operations in host {}. Exception: {}".format(
                                     next_hyp, e
@@ -831,6 +847,25 @@ class UiActions(object):
                 hyp_id=False,
                 detail="Creating domain withouth disks",
             )
+
+    def force_deleting(self, domain_id, old_status):
+        if old_status in ["Started", "Shutting-down", "Stopping", "Paused"]:
+            hyp_id = get_domain_hyp_started(domain_id)
+
+            if hyp_id is not None and hyp_id is not False:
+                self.stop_domain(domain_id, hyp_id, not_change_status=True)
+
+        self.deleting_disks_from_domain(domain_id, not_change_status=True)
+
+        result = delete_domain(domain_id)
+        log.info(
+            f"domain {domain_id} force deleting, launched force destroy domain if started and delete disks in threads."
+        )
+        if result["deleted"] == 1:
+            log.info(f"domain {domain_id} deleted from table domain")
+        else:
+            log.error(f"domain {domain_id} does not exist in table domain")
+        return result
 
     def creating_disk_from_virtbuilder(self, id_new):
         dict_domain = get_domain(id_new)
