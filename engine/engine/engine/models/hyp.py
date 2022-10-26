@@ -31,7 +31,6 @@ from engine.services.db import (
     get_hyp_info,
     get_id_hyp_from_uri,
     get_vgpu,
-    insert_table_dict,
     reset_vgpu_created_started,
     update_actual_stats_domain,
     update_actual_stats_hyp,
@@ -840,7 +839,6 @@ class hyp(object):
                 new_video_dict["profile"] = profile
                 new_video_dict["ram"] = ram
                 new_video_dict["vram"] = ram
-                insert_table_dict("videos", new_video_dict, ignore_if_exists=True)
 
     def get_types_from_a40(self, d):
 
