@@ -344,14 +344,15 @@ class HypWorkerThread(threading.Thread):
                         "xml to start some lines...: {}".format(action["xml"][30:100])
                     )
                     try:
-                        if self.h.info.get("get_mem_previous_start", True):
-                            min_free_mem_gb = self.h.info.get("min_free_mem_gb", 4)
+                        domain_memory_in_gb = action.get("memory_in_gb", 0)
+                        min_free_mem_gb = self.h.info.get("min_free_mem_gb", 0)
+                        if min_free_mem_gb:
                             try:
                                 d_stats = self.h.conn.getMemoryStats(-1)
                                 free_mem = (
                                     (d_stats["free"] + d_stats["cached"]) / 1024 / 1024
                                 )
-                                if free_mem < min_free_mem_gb:
+                                if (free_mem - domain_memory_in_gb) < min_free_mem_gb:
                                     update_domain_status(
                                         "Failed",
                                         action["id_domain"],

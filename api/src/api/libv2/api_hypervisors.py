@@ -67,6 +67,7 @@ class ApiHypervisors:
         force_get_hyp_info=False,
         user="root",
         only_forced=False,
+        min_free_mem_gb=0,
     ):
         data = {}
 
@@ -91,6 +92,7 @@ class ApiHypervisors:
                 description="Added via api",
                 user=user,
                 only_forced=only_forced,
+                min_free_mem_gb=min_free_mem_gb,
             )
             if not result:
                 raise Error("not_found", "Unable to ssh-keyscan")
@@ -115,6 +117,7 @@ class ApiHypervisors:
                 description="Added via api",
                 user=user,
                 only_forced=only_forced,
+                min_free_mem_gb=min_free_mem_gb,
             )
             # {'deleted': 0, 'errors': 0, 'inserted': 0, 'replaced': 1, 'skipped': 0, 'unchanged': 0}
             if not result:
@@ -162,6 +165,7 @@ class ApiHypervisors:
         force_get_hyp_info=False,
         user="root",
         only_forced=False,
+        min_free_mem_gb=0,
     ):
         # If we can't connect why we should add it? Just return False!
         if not self.update_fingerprint(hostname, port):
@@ -192,6 +196,7 @@ class ApiHypervisors:
             "only_forced": only_forced,
             "nvidia_enabled": nvidia_enabled,
             "force_get_hyp_info": force_get_hyp_info,
+            "min_free_mem_gb": min_free_mem_gb,
         }
 
         with app.app_context():

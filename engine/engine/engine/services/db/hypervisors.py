@@ -348,12 +348,20 @@ def get_hyp_info(hyp_id):
     r_conn = new_rethink_connection()
     rtable = r.table("hypervisors")
     try:
-        out = rtable.get(hyp_id).pluck("info").run(r_conn)
+        out = rtable.get(hyp_id).pluck("info", "min_free_mem_gb").run(r_conn)
     except ReqlNonExistenceError:
         close_rethink_connection(r_conn)
         return False
 
     close_rethink_connection(r_conn)
+    min_free_mem_gb = out.get("min_free_mem_gb", 0)
+    if min_free_mem_gb is None or min_free_mem_gb is False:
+        min_free_mem_gb = 0
+    if "info" in out.keys():
+        if type(out["info"]) is dict and len(out["info"]) > 0:
+            out["info"]["min_free_mem_gb"] = min_free_mem_gb
+            return out["info"]
+
     return out.get("info", False)
 
 

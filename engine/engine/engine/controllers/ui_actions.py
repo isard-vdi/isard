@@ -111,6 +111,15 @@ class UiActions(object):
         id_domain = id
 
         kind = get_table_field("domains", id_domain, "kind")
+        d = get_table_field(
+            "domains", id_domain, {"create_dict": {"hardware": "memory"}}
+        )
+        if type(d) is dict:
+            memory = d.get("create_dict", {}).get("hardware", {}).get("memory", 0)
+        if type(memory) is int or type(memory) is float:
+            memory_in_gb = memory / 1024 / 1024
+        else:
+            memory_in_gb = 0
         if kind != "desktop":
             domain_name = get_table_field("domains", id_domain, "name")
             log.error(
@@ -156,7 +165,9 @@ class UiActions(object):
                     xml, id_domain, pool_id=pool_id, action="start_paused_domain"
                 )
             else:
-                hyp = self.start_domain_from_xml(xml, id_domain, pool_id=pool_id)
+                hyp = self.start_domain_from_xml(
+                    xml, id_domain, pool_id=pool_id, memory_in_gb=memory_in_gb
+                )
             return hyp
 
     def start_paused_domain_from_xml(self, xml, id_domain, pool_id="default"):
@@ -166,7 +177,7 @@ class UiActions(object):
         )
 
     def start_domain_from_xml(
-        self, xml, id_domain, pool_id="default", action="start_domain"
+        self, xml, id_domain, pool_id="default", action="start_domain", memory_in_gb=0
     ):
         failed = False
         if pool_id in self.manager.pools.keys():
@@ -212,7 +223,12 @@ class UiActions(object):
                         "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
                     )
 
-                dict_action = {"type": action, "xml": xml, "id_domain": id_domain}
+                dict_action = {
+                    "type": action,
+                    "xml": xml,
+                    "id_domain": id_domain,
+                    "memory_in_gb": memory_in_gb,
+                }
 
                 if extra_info.get("nvidia", False) is True:
                     dict_action["nvidia_uid"] = extra_info.get("uid", False)
