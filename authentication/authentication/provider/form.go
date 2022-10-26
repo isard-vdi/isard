@@ -36,40 +36,40 @@ func InitForm(cfg cfg.Authentication, db r.QueryExecutor) *Form {
 	}
 }
 
-func (f *Form) Login(ctx context.Context, categoryID string, args map[string]string) (*model.User, string, error) {
+func (f *Form) Login(ctx context.Context, categoryID string, args map[string]string) (*model.Group, *model.User, string, error) {
 	invCreds := false
 
 	if f.cfg.Local.Enabled {
-		u, redirect, err := f.providers[LocalString].Login(ctx, categoryID, args)
+		g, u, redirect, err := f.providers[LocalString].Login(ctx, categoryID, args)
 		if err == nil {
-			return u, redirect, err
+			return g, u, redirect, err
 		}
 
 		if !errors.Is(err, ErrInvalidCredentials) {
-			return u, redirect, err
+			return g, u, redirect, err
 		}
 
 		invCreds = true
 	}
 
 	if f.cfg.LDAP.Enabled {
-		u, redirect, err := f.providers[LDAPString].Login(ctx, categoryID, args)
+		g, u, redirect, err := f.providers[LDAPString].Login(ctx, categoryID, args)
 		if !errors.Is(err, ErrInvalidCredentials) {
-			return u, redirect, err
+			return g, u, redirect, err
 		}
 
 		invCreds = true
 	}
 
 	if invCreds {
-		return nil, "", ErrInvalidCredentials
+		return nil, nil, "", ErrInvalidCredentials
 	}
 
-	return nil, "", ErrUnknownIDP
+	return nil, nil, "", ErrUnknownIDP
 }
 
-func (f *Form) Callback(context.Context, *CallbackClaims, map[string]string) (*model.User, string, error) {
-	return nil, "", errInvalidIDP
+func (f *Form) Callback(context.Context, *CallbackClaims, map[string]string) (*model.Group, *model.User, string, error) {
+	return nil, nil, "", errInvalidIDP
 }
 
 func (f *Form) AutoRegister() bool {

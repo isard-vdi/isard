@@ -1,4 +1,4 @@
-# Isard main config v2.2.2
+# Isard main config v2.3.0
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -124,6 +124,8 @@ API_HYPERVISORS_SECRET=B5/bUEUzIC+AjNQRmFh3vxR3VeIKirwdeL/xuHPVO+E=
 ### regex match tries to extract the first group, but if there's no group it will extract the whole match
 #AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_CATEGORY=
 #AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_CATEGORY=.*
+#AUTHENTICATION_AUTHENTICATION_LDAP_FIELD_GROUP=
+#AUTHENTICATION_AUTHENTICATION_LDAP_REGEX_GROUP=.*
 ### The base search for listing all the groups of a user
 #AUTHENTICATION_AUTHENTICATION_LDAP_GROUPS_SEARCH=
 ### Filter is the actual filter used to search all the groups of a user. The '%s' represents the user that is sent through the form

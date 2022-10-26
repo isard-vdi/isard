@@ -57,10 +57,10 @@ func parseLocalArgs(args map[string]string) (string, string, error) {
 	return username, password, nil
 }
 
-func (l *Local) Login(ctx context.Context, categoryID string, args map[string]string) (*model.User, string, error) {
+func (l *Local) Login(ctx context.Context, categoryID string, args map[string]string) (*model.Group, *model.User, string, error) {
 	usr, pwd, err := parseLocalArgs(args)
 	if err != nil {
-		return nil, "", err
+		return nil, nil, "", err
 	}
 
 	u := &model.User{
@@ -71,21 +71,21 @@ func (l *Local) Login(ctx context.Context, categoryID string, args map[string]st
 	}
 	if err := u.LoadWithoutID(ctx, l.db); err != nil {
 		if errors.Is(err, model.ErrNotFound) {
-			return nil, "", ErrInvalidCredentials
+			return nil, nil, "", ErrInvalidCredentials
 		}
 
-		return nil, "", fmt.Errorf("load user from DB: %w", err)
+		return nil, nil, "", fmt.Errorf("load user from DB: %w", err)
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(pwd)); err != nil {
-		return nil, "", ErrInvalidCredentials
+		return nil, nil, "", ErrInvalidCredentials
 	}
 
-	return u, args["redirect"], nil
+	return nil, u, "", nil
 }
 
-func (l *Local) Callback(context.Context, *CallbackClaims, map[string]string) (*model.User, string, error) {
-	return nil, "", errInvalidIDP
+func (l *Local) Callback(context.Context, *CallbackClaims, map[string]string) (*model.Group, *model.User, string, error) {
+	return nil, nil, "", errInvalidIDP
 }
 
 func (Local) AutoRegister() bool {

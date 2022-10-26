@@ -181,10 +181,6 @@ func (a *Authentication) registerGroup(g *model.Group) error {
 }
 
 func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args map[string]string) (string, string, error) {
-	var u *model.User
-	var redirect string
-	var err error
-
 	// Check if the user sends a token
 	if args[provider.TokenArgsKey] != "" {
 		tkn, tknType, err := a.verifyToken(args[provider.TokenArgsKey])
@@ -193,7 +189,7 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 			case tokenTypeRegister:
 				register := tkn.Claims.(*RegisterClaims)
 
-				u = &model.User{
+				u := &model.User{
 					Provider: register.Provider,
 					Category: register.CategoryID,
 					UID:      register.UserID,
@@ -213,35 +209,18 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 
 				a.Log.Info().Str("usr", u.ID).Str("tkn", ss).Msg("register succeeded")
 
-				return ss, redirect, nil
+				return ss, args[provider.RedirectArgsKey], nil
 
 			case tokenTypeExternal:
 				claims := tkn.Claims.(*ExternalClaims)
 
-				grp := &model.Group{
-					Category:      claims.CategoryID,
-					ExternalAppID: claims.KeyID,
-					ExternalGID:   claims.GroupID,
-				}
-				if err := grp.LoadExternal(ctx, a.DB); err != nil {
-					if !errors.Is(err, model.ErrNotFound) {
-						return "", "", fmt.Errorf("load the group from the DB: %w", err)
-					}
-
-					grp.Name = fmt.Sprintf("%s_%s_%s", provider.ExternalString, claims.KeyID, claims.GroupID)
-					grp.Description = "This is a auto register created by the authentication service. This group maps a group of an external app"
-
-					if err := a.registerGroup(grp); err != nil {
-						return "", "", fmt.Errorf("register group for the user: %w", err)
-					}
-				}
-
+				args["category_id"] = claims.CategoryID
+				args["external_app_id"] = claims.KeyID
+				args["external_group_id"] = claims.GroupID
 				args["user_id"] = claims.UserID
 				args["username"] = claims.Username
 				args["kid"] = claims.KeyID
-				args["category_id"] = claims.CategoryID
 				args["role"] = claims.Role
-				args["group_id"] = grp.ID
 				args["name"] = claims.Name
 				args["email"] = claims.Email
 				args["photo"] = claims.Photo
@@ -259,7 +238,7 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 	}
 
 	p := a.Provider(prv)
-	u, redirect, err = p.Login(ctx, categoryID, args)
+	g, u, redirect, err := p.Login(ctx, categoryID, args)
 	if err != nil {
 		a.Log.Info().Str("prv", p.String()).Err(err).Msg("login failed")
 
@@ -270,12 +249,12 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 		return "", redirect, nil
 	}
 
-	exists, err := u.Exists(ctx, a.DB)
+	uExists, err := u.Exists(ctx, a.DB)
 	if err != nil {
 		return "", "", fmt.Errorf("check if user exists: %w", err)
 	}
 
-	if !exists {
+	if !uExists {
 		// Manual registration
 		if !p.AutoRegister() {
 			// If the user has logged in correctly, but doesn't exist in the DB, they have to register first!
@@ -285,6 +264,21 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 
 			return ss, "", err
 		}
+
+		// Automatic group registration!
+		gExists, err := g.Exists(ctx, a.DB)
+		if err != nil {
+			return "", "", fmt.Errorf("check if group exists: %w", err)
+		}
+
+		if !gExists {
+			if err := a.registerGroup(g); err != nil {
+				return "", "", fmt.Errorf("auto register group: %w", err)
+			}
+		}
+
+		// Set the user group to the new group created
+		u.Group = g.ID
 
 		// Automatic registration!
 		if err := a.registerUser(u); err != nil {
@@ -314,7 +308,7 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 		return "", "", err
 	}
 
-	if redirect == "" && args[provider.RedirectArgsKey] != "" {
+	if redirect == "" {
 		redirect = args[provider.RedirectArgsKey]
 	}
 
@@ -341,7 +335,8 @@ func (a *Authentication) Callback(ctx context.Context, args map[string]string) (
 
 	p := a.Provider(claims.Provider)
 
-	u, redirect, err := p.Callback(ctx, claims, args)
+	// TODO: Add autoregister for more providers?
+	_, u, redirect, err := p.Callback(ctx, claims, args)
 	if err != nil {
 		return "", "", fmt.Errorf("callback: %w", err)
 	}

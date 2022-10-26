@@ -4,12 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
-
-const idsFieldSeparator = "-"
 
 type Group struct {
 	ID            string `rethinkdb:"id"`
@@ -21,8 +18,8 @@ type Group struct {
 	ExternalGID   string `rethinkdb:"external_gid"`
 }
 
-func (g *Group) JoinID() string {
-	return strings.Join([]string{g.Category, g.Name}, idsFieldSeparator)
+func (g *Group) GenerateNameExternal(prv string) {
+	g.Name = fmt.Sprintf("%s_%s_%s", prv, g.ExternalAppID, g.ExternalGID)
 }
 
 func (g *Group) LoadExternal(ctx context.Context, sess r.QueryExecutor) error {
@@ -44,4 +41,53 @@ func (g *Group) LoadExternal(ctx context.Context, sess r.QueryExecutor) error {
 	}
 
 	return nil
+}
+
+func (g *Group) Exists(ctx context.Context, sess r.QueryExecutor) (bool, error) {
+	// Check if the group is original of IsardVDI or is a group mapped from elsewhere
+	if g.ExternalAppID != "" && g.ExternalGID != "" {
+		res, err := r.Table("groups").Filter(r.And(
+			r.Eq(r.Row.Field("external_app_id"), g.ExternalAppID),
+			r.Eq(r.Row.Field("external_gid"), g.ExternalGID),
+		), r.FilterOpts{}).Run(sess)
+		if err != nil {
+			return false, err
+		}
+		defer res.Close()
+
+		if res.IsNil() {
+			return false, nil
+		}
+
+		if err := res.One(g); err != nil {
+			if errors.Is(err, r.ErrEmptyResult) {
+				return false, nil
+			}
+
+			return false, fmt.Errorf("read db response: %w", err)
+		}
+
+		return true, nil
+
+	} else {
+		res, err := r.Table("groups").Get(g.ID).Run(sess)
+		if err != nil {
+			return false, err
+		}
+		defer res.Close()
+
+		if res.IsNil() {
+			return false, nil
+		}
+
+		if err := res.One(g); err != nil {
+			if errors.Is(err, r.ErrEmptyResult) {
+				return false, nil
+			}
+
+			return false, fmt.Errorf("read db response: %w", err)
+		}
+
+		return true, nil
+	}
 }

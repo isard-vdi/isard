@@ -20,6 +20,7 @@ type LDAP struct {
 
 	ReUID          *regexp.Regexp
 	ReCategory     *regexp.Regexp
+	ReGroup        *regexp.Regexp
 	ReUsername     *regexp.Regexp
 	ReName         *regexp.Regexp
 	ReEmail        *regexp.Regexp
@@ -66,6 +67,12 @@ func InitLDAP(cfg cfg.AuthenticationLDAP) *LDAP {
 			log.Fatalf("invalid category regex: %v", err)
 		}
 		l.ReCategory = re
+
+		re, err = regexp.Compile(cfg.RegexGroup)
+		if err != nil {
+			log.Fatalf("invalid group regex: %v", err)
+		}
+		l.ReGroup = re
 
 		re, err = regexp.Compile(cfg.GroupsSearchRegex)
 		if err != nil {
@@ -164,15 +171,15 @@ func (l *LDAP) listAllGroups(usr string) ([]string, error) {
 	return groups, nil
 }
 
-func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]string) (*model.User, string, error) {
+func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]string) (*model.Group, *model.User, string, error) {
 	usr, pwd, err := parseLDAPArgs(args)
 	if err != nil {
-		return nil, "", err
+		return nil, nil, "", err
 	}
 
 	conn, err := l.newConn()
 	if err != nil {
-		return nil, "", err
+		return nil, nil, "", err
 	}
 	defer conn.Close()
 
@@ -193,14 +200,14 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]str
 	rsp, err := conn.Search(req)
 	if err != nil {
 		if ldap.IsErrorWithCode(err, ldap.LDAPResultNoSuchObject) {
-			return nil, "", ErrInvalidCredentials
+			return nil, nil, "", ErrInvalidCredentials
 		}
 
-		return nil, "", fmt.Errorf("serach the user: %w", err)
+		return nil, nil, "", fmt.Errorf("serach the user: %w", err)
 	}
 
 	if len(rsp.Entries) != 1 {
-		return nil, "", ErrInvalidCredentials
+		return nil, nil, "", ErrInvalidCredentials
 	}
 
 	entry := rsp.Entries[0]
@@ -209,11 +216,13 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]str
 
 	if err := conn.Bind(usr_dn, pwd); err != nil {
 		if ldap.IsErrorWithCode(err, ldap.LDAPResultInvalidCredentials) {
-			return nil, "", ErrInvalidCredentials
+			return nil, nil, "", ErrInvalidCredentials
 		}
 
-		return nil, "", fmt.Errorf("bind the user: %w", err)
+		return nil, nil, "", fmt.Errorf("bind the user: %w", err)
 	}
+
+	var g *model.Group
 
 	u := &model.User{
 		UID:      matchRegex(l.ReUID, entry.GetAttributeValue(l.cfg.FieldUID)),
@@ -231,9 +240,23 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]str
 
 	if l.AutoRegister() {
 		if !l.cfg.GuessCategory && u.Category != categoryID {
-			return nil, "", ErrInvalidCredentials
+			return nil, nil, "", ErrInvalidCredentials
 		}
 
+		g = &model.Group{
+			Category:      u.Category,
+			ExternalAppID: fmt.Sprintf("provider-%s", l.String()),
+			ExternalGID:   matchRegex(l.ReGroup, entry.GetAttributeValue(l.cfg.FieldGroup)),
+			Description:   "This is a auto register created by the authentication service. This group maps a LDAP group",
+		}
+		g.GenerateNameExternal(l.String())
+
+		// Ensure that we have found the group
+		if g.ExternalGID == "" {
+			return nil, nil, "", ErrInvalidCredentials
+		}
+
+		// List all the groups to setup the user role afterwards
 		gSearchID := usr
 		if l.cfg.GroupsSearchUseDN {
 			gSearchID = entry.DN
@@ -241,18 +264,16 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]str
 
 		allUsrGrps, err := l.listAllGroups(gSearchID)
 		if err != nil {
-			return nil, "", err
+			return nil, nil, "", err
 		}
 
-		grp := &model.Group{Category: u.Category}
-
+		// Get the role that has more privileges
 		roles := []model.Role{model.RoleAdmin, model.RoleManager, model.RoleAdvanced, model.RoleUser}
 		for i, groups := range [][]string{l.cfg.RoleAdminGroups, l.cfg.RoleManagerGroups, l.cfg.RoleAdvancedGroups, l.cfg.RoleUserGroups} {
 			for _, g := range groups {
 				for _, uGrp := range allUsrGrps {
 					if uGrp == g {
 						if roles[i].HasMorePrivileges(u.Role) {
-							grp.Name = g
 							u.Role = roles[i]
 						}
 					}
@@ -260,18 +281,15 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]str
 			}
 		}
 		if u.Role == "" {
-			grp.Name = allUsrGrps[0]
 			u.Role = l.cfg.RoleDefault
 		}
-
-		u.Group = grp.JoinID()
 	}
 
-	return u, "", nil
+	return g, u, "", nil
 }
 
-func (l *LDAP) Callback(context.Context, *CallbackClaims, map[string]string) (*model.User, string, error) {
-	return nil, "", errInvalidIDP
+func (l *LDAP) Callback(context.Context, *CallbackClaims, map[string]string) (*model.Group, *model.User, string, error) {
+	return nil, nil, "", errInvalidIDP
 }
 
 func (l *LDAP) AutoRegister() bool {
