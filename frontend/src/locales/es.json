@@ -155,7 +155,8 @@
         "clear": "Limpia",
         "cancel": "Cancela",
         "submit": "Envía",
-        "create": "Crea"
+        "create": "Crea",
+        "show-pages":  "Mostrar"
     },
     "components": {
         "select-search": {

@@ -41,6 +41,36 @@
               </b-input-group-append>
             </b-input-group>
           </b-col>
+          <b-row
+            class="ml-auto mr-2"
+          >
+            <b-col>
+              <b-form-group
+                :label="$t('forms.show-pages')"
+                label-for="per-page-select"
+                label-cols-md="5"
+                label-align-sm="right"
+                class="text-medium-gray mr-2 mr-lg-0"
+              >
+                <b-form-select
+                  id="per-page-select"
+                  v-model="perPage"
+                  :label="$t('forms.show-pages')"
+                  :options="pageOptions"
+                  size="sm"
+                />
+              </b-form-group>
+            </b-col>
+            <b-col>
+              <b-pagination
+                v-model="currentPage"
+                :total-rows="totalRows"
+                :per-page="perPage"
+                aria-controls="template-table"
+                size="sm"
+              />
+            </b-col>
+          </b-row>
         </b-row>
 
         <b-row>
@@ -182,7 +212,26 @@
                 </b-button>
               </template>
             </b-table>
-            <b-row>
+            <b-row
+              class="ml-auto mr-2"
+            >
+              <b-col>
+                <b-form-group
+                  :label="$t('forms.show-pages')"
+                  label-for="per-page-select"
+                  label-cols-md="5"
+                  label-align-sm="right"
+                  class="text-medium-gray mr-2 mr-lg-0"
+                >
+                  <b-form-select
+                    id="per-page-select"
+                    v-model="perPage"
+                    :label="$t('forms.show-pages')"
+                    :options="pageOptions"
+                    size="sm"
+                  />
+                </b-form-group>
+              </b-col>
               <b-col>
                 <b-pagination
                   v-model="currentPage"
@@ -225,7 +274,8 @@ export default {
   setup (props, context) {
     const $store = context.root.$store
 
-    const perPage = ref(7)
+    const perPage = ref(10)
+    const pageOptions = ref([10, 20, 30, 50, 100])
     const currentPage = ref(1)
     const totalRows = ref(1)
     const filter = ref('')
@@ -278,6 +328,7 @@ export default {
       filter,
       filterOn,
       perPage,
+      pageOptions,
       currentPage,
       totalRows,
       onClickGoToNewFromMedia,

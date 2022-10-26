@@ -15,14 +15,50 @@
             <list-item-skeleton class="mb-2" />
           </b-col>
         </template>
+        <b-row class="mt-4">
+          <b-row
+            class="ml-auto mr-2"
+          >
+            <b-col>
+              <b-form-group
+                :label="$t('forms.show-pages')"
+                label-for="per-page-select"
+                label-cols-md="5"
+                label-align-sm="right"
+                class="text-medium-gray mr-2 mr-lg-0"
+              >
+                <b-form-select
+                  id="per-page-select"
+                  v-model="perPage"
+                  :label="$t('forms.show-pages')"
+                  :options="pageOptions"
+                  size="sm"
+                />
+              </b-form-group>
+            </b-col>
+            <b-col>
+              <b-pagination
+                v-model="currentPage"
+                :total-rows="totalRows"
+                :per-page="perPage"
+                aria-controls="desktops-table"
+                size="sm"
+              />
+            </b-col>
+          </b-row>
+        </b-row>
         <b-row>
           <b-col
             cols="12"
-            class="py-3 p-5 pt-4 d-flex flex-row flex-wrap justify-content-start"
+            class="d-flex flex-row flex-wrap justify-content-end"
           >
             <b-table
+              id="desktops-table"
               :items="desktops"
               :fields="fields"
+              :responsive="true"
+              :per-page="perPage"
+              :current-page="currentPage"
             >
               <template #cell(image)="data">
                 <!-- INFO -->
@@ -193,6 +229,38 @@
                 </div>
               </template>
             </b-table>
+            <b-row class="mt-4">
+              <b-row
+                class="ml-auto mr-2"
+              >
+                <b-col>
+                  <b-form-group
+                    :label="$t('forms.show-pages')"
+                    label-for="per-page-select"
+                    label-cols-md="5"
+                    label-align-sm="right"
+                    class="text-medium-gray mr-2 mr-lg-0"
+                  >
+                    <b-form-select
+                      id="per-page-select"
+                      v-model="perPage"
+                      :label="$t('forms.show-pages')"
+                      :options="pageOptions"
+                      size="sm"
+                    />
+                  </b-form-group>
+                </b-col>
+                <b-col>
+                  <b-pagination
+                    v-model="currentPage"
+                    :total-rows="totalRows"
+                    :per-page="perPage"
+                    aria-controls="desktops-table"
+                    size="sm"
+                  />
+                </b-col>
+              </b-row>
+            </b-row>
           </b-col>
         </b-row>
       </b-skeleton-wrapper>
@@ -209,6 +277,7 @@ import DesktopButton from '@/components/desktops/Button.vue'
 import { mapActions, mapGetters } from 'vuex'
 import ListItemSkeleton from '@/components/ListItemSkeleton.vue'
 import { ErrorUtils } from '@/utils/errorUtils'
+import { ref, watch } from '@vue/composition-api'
 
 export default {
   components: { DesktopButton, IsardDropdown, ListItemSkeleton },
@@ -229,6 +298,23 @@ export default {
     loading: {
       required: true,
       type: Boolean
+    }
+  },
+  setup (props) {
+    const perPage = ref(10)
+    const pageOptions = ref([10, 20, 30, 50, 100])
+    const currentPage = ref(1)
+    const totalRows = ref(1)
+
+    watch(() => props.desktops, (newVal, prevVal) => {
+      totalRows.value = newVal.length
+    })
+
+    return {
+      perPage,
+      pageOptions,
+      currentPage,
+      totalRows
     }
   },
   data () {

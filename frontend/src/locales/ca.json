@@ -747,7 +747,8 @@
         "clear": "Neteja",
         "cancel": "Canceŀla",
         "submit": "Envia",
-        "create": "Crea"
+        "create": "Crea",
+        "show-pages": "Veure"
     },
     "errors": {
         "desktop_new_user_quota_exceeded": "Has excedit la teva quota per a crear nous escriptoris. Cal que eliminis algun escriptori per a poder-ne crear de nous.",

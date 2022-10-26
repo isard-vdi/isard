@@ -155,7 +155,8 @@
         "clear": "Clear",
         "cancel": "Cancel",
         "submit": "Submit",
-        "create": "Create"
+        "create": "Create",
+        "show-pages": "Show"
     },
     "components": {
         "select-search": {
