@@ -111,9 +111,19 @@ def desktop_start(desktop_id, wait_seconds=0, paused=False):
             description_code="unable_to_start_desktop_from" + status,
         )
     with app.app_context():
-        r.table("domains").get(desktop_id).update(
-            {"status": "Starting", "accessed": int(time.time())}
-        ).run(db.conn)
+        domain = (
+            r.table("domains")
+            .get(desktop_id)
+            .update(
+                {"status": "Starting", "accessed": int(time.time())},
+                return_changes=True,
+            )
+            .run(db.conn)
+        )
+        if domain.get("changes", [{}])[0].get("new_val", {}).get("viewer"):
+            r.table("domains").get(desktop_id).replace(r.row.without("viewer")).run(
+                db.conn
+            )
 
     return wait_status(desktop_id, "Starting", wait_seconds=wait_seconds)
 
