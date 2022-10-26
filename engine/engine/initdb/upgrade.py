@@ -15,8 +15,9 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 62
+release_version = 63
 
+# release 63: Updated "Only GPU" video "model": "nvidia" to "model": "none"
 # release 62: Updated media progress fields and added total_bytes field.
 # release 61: Added indexes to table media.
 #             Added kind_user_tag index and updated all desktops to tag False.
@@ -1472,6 +1473,12 @@ class Upgrade(object):
                     "vram": 0,
                 },
             ).run(self.conn)
+
+        if version == 63:
+            try:
+                r.table("videos").get("none").update({"model": "none"}).run(self.conn)
+            except:
+                None
 
         return True
 
