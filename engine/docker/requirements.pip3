@@ -14,3 +14,4 @@ pem==21.2.0
 flatten-dict==0.4.2
 yattag==1.14.0
 python-jose==3.3.0
+humanfriendly==10.0
