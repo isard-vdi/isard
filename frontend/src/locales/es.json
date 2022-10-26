@@ -574,6 +574,10 @@
                 },
                 "downloading": {
                     "text": "Descargando"
+                },
+                "forcedeleting": {
+                    "text": "Borrando",
+                    "action": "Borrando"
                 }
             }
         },
@@ -890,7 +894,7 @@
         "booking_new_event_end_error": "La hora de finalización no es válida",
         "booking_new_event_overlap_error": "El evento se solapa",
         "unable_to_update": "No se ha podido actualizar la base de datos",
-        "unable_to_insert": "No se ha podudo introducit en la base de datos",
+        "unable_to_insert": "No se ha podido introducir en la base de datos",
         "conflict": "Conflicto",
         "conflict_title": "Conflicto",
         "missing_required_data": "Faltan campos requerido",
@@ -900,7 +904,9 @@
         "unable_to_get_viewer_started": "No es posible obtener el visor de un escritorio que no está arrancado",
         "user_disabled": "El usuario está deshabilitado",
         "deployment_desktop_new_group_limit_exceeded": "Se ha excedido el límite de creación de escritorios del grupo '{group}'",
-        "deployment_desktop_new_category_limit_exceeded": "Se ha excedido el límite de creación de escritorios de la categoria '{category}'"
+        "deployment_desktop_new_category_limit_exceeded": "Se ha excedido el límite de creación de escritorios de la categoria '{category}'",
+        "unable_to_stop_desktop_from": "No se puede parar un escritorio desde su estado",
+        "unable_to_start_desktop_from": "No se puede arrancar un escritorio desde su estado"
     },
     "router": {
         "titles": {
