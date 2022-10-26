@@ -24,7 +24,8 @@ dhcp-range=10.2.0.21,10.2.255.254,255.255.0.0
 dhcp-no-override
 dhcp-authoritative
 dhcp-lease-max=100000
-dhcp-hostsfile=/var/lib/ovs-vlan-wg.hostsfile
+#dhcp-hostsfile=/var/lib/misc/vlan-wg.static_leases
+dhcp-hostsdir=/var/lib/static_leases
 dhcp-option=121,10.0.0.0/14,10.2.0.1
 dhcp-option=26,1366
 #dhcp-option=vlan-wg,3,10.2.0.1
@@ -35,31 +36,26 @@ dhcp-ignore-names
 dhcp-ignore-clid
 EOT
 
+if [ ! -f /var/lib/static_leases/SAMPLE ]
+then
+cat <<EOT > /var/lib/static_leases/SAMPLE
+# Static DHCP Wireguard leases
+## Does not need isard-vpn restart if guest yet doesn't have ip on vlan-wg.leases
+## NOTE: If MAC it's already on vlan-wg.leases you must stop desktop, delete entry, restart isard-vpn
+## One file for each host in this format:
+## <MAC>,<IP>,<NETWORK NAME>,<LEASE_TIME>
+## Example: 00:11:22:33:44:55,192.168.255.2,nas,24h
+EOT
+fi
 
+if [ ! -f /var/lib/misc/README ]
+then
+cat <<EOT > /var/lib/misc/README
+# Do not edit vlan-wg.leases file while isard-vpn is started, its not autoreloaded
+## If you really need to do that stop isard-vpn before doing it.
+## Your static dhcp assignment files should go at static_leases folder
+EOT
+fi
 
-
-# echo "dhcp-range=192.168.55.50,192.168.55.150,12h" > /etc/dnsmasq.d/vlan-wg.conf
-# echo "dhcp-script=/update-client-ips.sh"
 echo "$(date): INFO: Starting dnsmasq wireguard server"
 /usr/sbin/dnsmasq --conf-file=/etc/dnsmasq.d/vlan-wg.conf --dhcp-script=/dnsmasq-hook/update-client-ips.sh >> /var/log/dnsmasq 2>&1 &
-
-# ip a f eth0
-# #ovs-vsctl add-port ovsbr0 eth0
-# ovs-vsctl add-port ovsbr0 eth0 tag=1 vlan_mode=native-tagged
-
-# ip a a 172.31.255.17/24 dev ovsbr0
-# ip r a default via 172.31.255.1 dev ovsbr0
-
-# ovs-vsctl set bridge ovsbr0 protocols=OpenFlow10,OpenFlow11,OpenFlow12,OpenFlow13
-# # ovs-vsctl set-controller ovsbr0 tcp:172.31.255.99:6653
-
-# ovs-vsctl add-port ovsbr0 vxlan0 -- set interface vxlan0 type=vxlan options:remote_ip=<REMOTE_IP>
-
-
-
-## ADD INTERNAL VLAN PORT
-
-
-## SETUP DNSMASQ
-#(apk add dnsmasq)
-#echo "dhcp-range=192.168.55.50,192.168.55.150,12h" > /etc/dnsmasq.d/vlan-wg.conf
