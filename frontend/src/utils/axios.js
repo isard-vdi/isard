@@ -10,6 +10,9 @@ export default function axiosSetUp () {
     // Spinning show
     function (config) {
       document.body.classList.add('loading-cursor')
+      if (document.querySelector('[type="submit"]')) {
+        document.querySelector('[type="submit"]').setAttribute('disabled', 'disabled')
+      }
       config.headers.Authorization = `Bearer ${store.getters.getToken}`
       return config
     },
@@ -24,11 +27,18 @@ export default function axiosSetUp () {
     // Spinning hide
     function (response) {
       document.body.classList.remove('loading-cursor')
+      if (document.querySelector('[type="submit"]')) {
+        document.querySelector('[type="submit"]').removeAttribute('disabled')
+      }
       // Any status code that lie within the range of 2xx cause this function to trigger
       // Do something with response data
       return response
     },
     async function (error) {
+      document.body.classList.remove('loading-cursor')
+      if (document.querySelector('[type="submit"]')) {
+        document.querySelector('[type="submit"]').removeAttribute('disabled')
+      }
       // Any status codes that falls outside the range of 2xx cause this function to trigger
       // Do something with response error
 
