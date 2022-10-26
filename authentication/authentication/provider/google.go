@@ -41,14 +41,14 @@ func InitGoogle(cfg cfg.Authentication) *Google {
 	}
 }
 
-func (g *Google) Login(ctx context.Context, categoryID string, args map[string]string) (*model.User, string, error) {
+func (g *Google) Login(ctx context.Context, categoryID string, args map[string]string) (*model.Group, *model.User, string, error) {
 	redirect := args["redirect"]
 	redirect, err := g.provider.login(categoryID, redirect)
 	if err != nil {
-		return nil, "", err
+		return nil, nil, "", err
 	}
 
-	return nil, redirect, nil
+	return nil, nil, redirect, nil
 }
 
 type googleAPIUsr struct {
@@ -58,10 +58,10 @@ type googleAPIUsr struct {
 	Photo string `json:"picture,omitempty"`
 }
 
-func (g *Google) Callback(ctx context.Context, claims *CallbackClaims, args map[string]string) (*model.User, string, error) {
+func (g *Google) Callback(ctx context.Context, claims *CallbackClaims, args map[string]string) (*model.Group, *model.User, string, error) {
 	oTkn, err := g.provider.callback(ctx, args)
 	if err != nil {
-		return nil, "", err
+		return nil, nil, "", err
 	}
 
 	q := url.Values{"access_token": {oTkn}}
@@ -74,19 +74,19 @@ func (g *Google) Callback(ctx context.Context, claims *CallbackClaims, args map[
 
 	rsp, err := http.Get(url.String())
 	if err != nil {
-		return nil, "", fmt.Errorf("call Google API: %w", err)
+		return nil, nil, "", fmt.Errorf("call Google API: %w", err)
 	}
 	defer rsp.Body.Close()
 
 	if rsp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(rsp.Body)
 
-		return nil, "", fmt.Errorf("call Google API: HTTP Code %d: %s", rsp.StatusCode, b)
+		return nil, nil, "", fmt.Errorf("call Google API: HTTP Code %d: %s", rsp.StatusCode, b)
 	}
 
 	gUsr := &googleAPIUsr{}
 	if err := json.NewDecoder(rsp.Body).Decode(&gUsr); err != nil {
-		return nil, "", fmt.Errorf("unmarshal Google API json response: %w", err)
+		return nil, nil, "", fmt.Errorf("unmarshal Google API json response: %w", err)
 	}
 
 	u := &model.User{
@@ -99,7 +99,7 @@ func (g *Google) Callback(ctx context.Context, claims *CallbackClaims, args map[
 		Photo:    gUsr.Photo,
 	}
 
-	return u, "", nil
+	return nil, u, "", nil
 }
 
 func (Google) AutoRegister() bool {

@@ -92,7 +92,7 @@ func (u *User) Exists(ctx context.Context, sess r.QueryExecutor) (bool, error) {
 
 	if err := res.One(u); err != nil {
 		if errors.Is(err, r.ErrEmptyResult) {
-			return false, ErrNotFound
+			return false, nil
 		}
 
 		return false, fmt.Errorf("read db response: %w", err)
