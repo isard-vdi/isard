@@ -166,7 +166,13 @@ def log_wireguard_peers(poll_delay: int, handshake_timeout: int):
                 )
             elif previously_connected and remote_addr != peer.remote_addr:
                 # Peer roamed
-                log.debug("PUT")
+                log.debug(
+                    "PUT: User migrated IP from "
+                    + str(remote_addr)
+                    + " to "
+                    + str(peer.remote_addr)
+                    + ".\nWARNING! If happens often could be that user is connected to the same vpn from different locations at the same time!"
+                )
                 apic.update(
                     "vpn_connection/"
                     + payload["device"]
