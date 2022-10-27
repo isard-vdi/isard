@@ -280,7 +280,7 @@
 </template>
 
 <script>
-import { computed, onMounted } from '@vue/composition-api'
+import { computed, onMounted, watch } from '@vue/composition-api'
 import { hardwareWarningTitle } from '@/shared/constants'
 import useVuelidate from '@vuelidate/core'
 import { required, requiredIf } from '@vuelidate/validators'
@@ -354,6 +354,15 @@ export default {
       set: (value) => {
         domain.value.hardware.interfaces = value
         $store.commit('setDomain', domain.value)
+      }
+    })
+
+    // When creating a desktop from a media if the user has the iso boot option it will be selected by default
+    watch(availableHardware, (availableHardware, prevVal) => {
+      if (props.showDiskSize && availableHardware.bootOrder.filter(boot =>
+        boot.id === 'iso'
+      ).length > 0) {
+        bootOrder.value = 'iso'
       }
     })
 
