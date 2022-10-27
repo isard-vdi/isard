@@ -129,7 +129,7 @@ export default {
     const templates = computed(() => $store.getters.getTemplates)
     const filterDesktopsText = computed(() => $store.getters.getDesktopsFilter)
 
-    const persistentDesktops = computed(() => desktops.value.filter(desktop => showStarted.value ? desktop.type === 'persistent' && [desktopStates.started, desktopStates.waitingip].includes(desktop.state.toLowerCase()) : desktop.type === 'persistent'))
+    const persistentDesktops = computed(() => desktops.value.filter(desktop => showStarted.value ? desktop.type === 'persistent' && [desktopStates.started, desktopStates.waitingip, desktopStates['shutting-down']].includes(desktop.state.toLowerCase()) : desktop.type === 'persistent'))
     const nonpersistentDesktops = computed(() => templates.value.map(template => desktops.value.find((desktop) => template.id === desktop.template && desktop.type === 'nonpersistent') || template))
 
     const filteredPersistentDesktops = computed(() => persistentDesktops.value.filter(desktop => desktop.name.toLowerCase().includes(filterDesktopsText.value.toLowerCase())))

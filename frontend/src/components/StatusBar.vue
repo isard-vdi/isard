@@ -489,7 +489,7 @@ export default {
     ]),
     startedDesktops () {
       const startedDesktops = this.getDesktops.filter((item) => {
-        return item && [desktopStates.started, desktopStates.waitingip].includes(item.state.toLowerCase())
+        return item && [desktopStates.started, desktopStates.waitingip, desktopStates['shutting-down']].includes(item.state.toLowerCase())
       })
       return startedDesktops.length
     },
