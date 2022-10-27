@@ -37,6 +37,17 @@ cfg = loadConfig(app)
 if not cfg.init_app(app):
     exit(0)
 
+from flask_socketio import SocketIO
+
+debug = True if os.environ["LOG_LEVEL"] == "DEBUG" else False
+socketio = SocketIO(
+    app,
+    path="/api/v3/socket.io/",
+    cors_allowed_origins="*",
+    logger=debug,
+    engineio_logger=debug,
+)
+
 """
 Scheduler
 """

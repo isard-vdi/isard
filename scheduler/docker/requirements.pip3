@@ -1,4 +1,7 @@
 Flask==2.2.2
+Flask-Cors==3.0.10
+gevent-websocket==0.10.1
+Flask-SocketIO==5.1.0
 Jinja2==3.1.2
 rethinkdb==2.4.9
 requests==2.27.1
