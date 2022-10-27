@@ -52,6 +52,7 @@ RUN apk add --no-cache openssl shadow
 RUN useradd -u 1000 -ms /bin/sh qemu
 # Copy the isard source
 COPY engine/engine /isard
+COPY component/_common/src /isard/_common
 
 COPY engine/docker/genrsa.sh /
 COPY engine/docker/add-hypervisor.sh /
