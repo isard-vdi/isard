@@ -1,4 +1,4 @@
-# Isard main config v2.3.0
+# Isard main config v2.4.0
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -252,6 +252,12 @@ LOG_LEVEL=INFO
 ## - false (default): get any domain
 ## - true: only get domains with forced_hyp
 #ONLY_FORCED_HYP=false
+
+# Memory free at hypervisor
+## How much memory (in GB) has to be kept free while starting desktops.
+## Engine will fail starting desktops till it has enough free memory against
+## Máximum memory for starting guests = Hypervisor memory - HYPER_FREEMEM
+#HYPER_FREEMEM=0
 
 # ------ Database host -------------------------------------------------------
 ## Where is the database reacheable?

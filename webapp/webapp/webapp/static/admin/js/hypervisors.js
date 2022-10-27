@@ -209,10 +209,15 @@ $(document).ready(function() {
                             {
                                 "targets": 11,
                                 "render": function ( data, type, full, meta ) {
+                                    if( ! ( "min_free_mem_gb" in full ) ){full.min_free_mem_gb=0}
                                     memTotalGB=Math.round(data / 1024 * 10) / 10
                                     if( ! ("stats" in full) ){return "-% "+memTotalGB + 'GB'}
                                     memUsedGB=Math.round((full.stats.mem_stats.total-full.stats.mem_stats.available) / 1024 /1024)
-                                    return Math.round(memUsedGB*100/memTotalGB)+"% "+memTotalGB + 'GB'
+                                    limit=""
+                                    if(full.min_free_mem_gb>0){
+                                        limit=" Limit:"+(memUsedGB-full.min_free_mem_gb)+"GB"
+                                    }
+                                    return Math.round(memUsedGB*100/memTotalGB)+"% "+memTotalGB + "GB"+limit
                                 }},
                                 {
                                 "targets": 12,
@@ -232,6 +237,16 @@ $(document).ready(function() {
                                 "render": renderBoolean
                                 },
              ],
+             "createdRow": function( row, data, dataIndex){
+                if( ! ("min_free_mem_gb" in data) ){data.min_free_mem_gb=0}
+                memTotalGB=Math.round(data.info.memory_in_MB / 1024 * 10) / 10
+                memUsedGB=Math.round((data.stats.mem_stats.total-data.stats.mem_stats.available) / 1024 /1024)
+                if( memTotalGB-memUsedGB-data.min_free_mem_gb <= 2){
+                    $(row).css({"background-color":"#FFCCCB"})
+                }else{
+                    $(row).css({"background-color":"white"})
+                }
+            }
     } );
 
     $('#hypervisors').find('tbody').on('click', 'td.details-control', function () {

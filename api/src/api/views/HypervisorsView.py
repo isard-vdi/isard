@@ -115,6 +115,9 @@ def api_v3_hypervisor(hyper_id=False):
             force_get_hyp_info = (
                 True if request.form.get("force_get_hyp_info") == "True" else False
             )
+            min_free_mem_gb = int(
+                request.form.get("min_free_mem_gb", default="0", type=str)
+            )
 
         except:
             raise Error(
@@ -141,6 +144,7 @@ def api_v3_hypervisor(hyper_id=False):
             description=description,
             user=user,
             only_forced=only_forced,
+            min_free_mem_gb=min_free_mem_gb,
         )
         if not data["status"]:
             raise Error("internal_server", "Failed hypervisor: " + data["msg"])

@@ -507,6 +507,7 @@ class HypervisorsThread(threading.Thread):
                                     }
                                 },
                                 {"vpn": {"wireguard": {"connected": True}}},
+                                "min_free_mem_gb",
                             ]
                         )
                         .changes(include_initial=False)

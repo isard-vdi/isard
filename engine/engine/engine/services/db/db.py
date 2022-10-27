@@ -396,6 +396,8 @@ def get_table_field(table, id_item, field):
         close_rethink_connection(r_conn)
         return None
     close_rethink_connection(r_conn)
+    if type(field) is dict and type(result) is dict:
+        return result
     if type(result) is dict:
         return result.get(field, None)
     return None

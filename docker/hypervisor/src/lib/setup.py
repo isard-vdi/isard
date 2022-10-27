@@ -61,6 +61,7 @@ def SetupHypervisor():
         "force_get_hyp_info": True
         if os.environ.get("GPU_NVIDIA_RESCAN") == "true"
         else False,
+        "min_free_mem_gb": os.environ.get("HYPER_FREEMEM", "0"),
     }
 
     ## Adding hyper. Received dict with certs and number

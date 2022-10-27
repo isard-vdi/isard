@@ -344,6 +344,45 @@ class HypWorkerThread(threading.Thread):
                         "xml to start some lines...: {}".format(action["xml"][30:100])
                     )
                     try:
+                        domain_memory_in_gb = action.get("memory_in_gb", 0)
+                        min_free_mem_gb = self.h.info.get("min_free_mem_gb", 0)
+                        if min_free_mem_gb:
+                            try:
+                                d_stats = self.h.conn.getMemoryStats(-1)
+                                free_mem = (
+                                    (d_stats["free"] + d_stats["cached"]) / 1024 / 1024
+                                )
+                                if (free_mem - domain_memory_in_gb) < min_free_mem_gb:
+                                    update_domain_status(
+                                        "Failed",
+                                        action["id_domain"],
+                                        hyp_id=self.hyp_id,
+                                        detail=(
+                                            "Hypervisor can not start domain: not enough free memory"
+                                        ),
+                                    )
+                                    logs.workers.error(
+                                        f"hypervisor with hostname {self.h.hostname} has not enouth memory. "
+                                        f"free_mem: {free_mem} GB / min_free_mem: {min_free_mem_gb} GB"
+                                    )
+                                    continue
+
+                            except Exception as e:
+                                update_domain_status(
+                                    "Failed",
+                                    action["id_domain"],
+                                    hyp_id=self.hyp_id,
+                                    detail=(
+                                        "Hypervisor can not create get mem stats with exception: "
+                                        + str(e)
+                                    ),
+                                )
+                                logs.workers.error(
+                                    "Hypervisor can not create get mem stats with exception and domain "
+                                    "don't start: " + str(e)
+                                )
+                                continue
+
                         dom = self.h.conn.createXML(action["xml"])
                     except libvirtError as e:
                         if str(e)[-17:].find("is already active") == 0:
