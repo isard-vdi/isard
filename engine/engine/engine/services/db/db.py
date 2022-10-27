@@ -4,6 +4,7 @@
 # License: AGPLv3
 
 import time
+from functools import wraps
 from pprint import pformat, pprint
 
 from engine.config import (
@@ -51,6 +52,19 @@ def close_rethink_connection(r_conn):
     r_conn.close()
     del r_conn
     return True
+
+
+def rethink(function):
+    @wraps(function)
+    def decorate(*args, **kwargs):
+        connection = new_rethink_connection()
+        try:
+            result = function(connection, *args, **kwargs)
+        finally:
+            close_rethink_connection(connection)
+        return result
+
+    return decorate
 
 
 ## TO BE DELETED
