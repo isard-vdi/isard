@@ -5,9 +5,11 @@
 
 import sys
 import time
+from uuid import uuid4
 
 import humanfriendly as hf
 import rethinkdb as r
+from _common.storage_pool import DEFAULT_STORAGE_POOL_ID
 
 from .lib import *
 from .log import *
@@ -15,8 +17,9 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 63
+release_version = 64
 
+# release 64: Move hypervisor_pools paths to storage_pool
 # release 63: Updated "Only GPU" video "model": "nvidia" to "model": "none"
 # release 62: Updated media progress fields and added total_bytes field.
 # release 61: Added indexes to table media.
@@ -725,6 +728,51 @@ class Upgrade(object):
                         }
                     }
                 ).run(self.conn)
+        if version == 64:
+            hypervisors = {}
+            for hypervisor_pool in r.table("hypervisors_pools").run(self.conn):
+                if hypervisor_pool["id"] == "default":
+                    storage_pool_id = DEFAULT_STORAGE_POOL_ID
+                else:
+                    storage_pool_id = str(uuid4())
+                storage_pool = {
+                    "id": storage_pool_id,
+                    "name": hypervisor_pool["id"],
+                    "paths": {
+                        "desktop": [],
+                        "media": [],
+                        "template": [],
+                        "volatile": [],
+                    },
+                }
+                for path_type, paths in hypervisor_pool.get("paths", {}).items():
+                    if path_type == "bases":
+                        continue
+                    if path_type == "groups":
+                        path_type = "desktop"
+                    if path_type == "templates":
+                        path_type = "template"
+                    for path in paths:
+                        storage_pool["paths"][path_type].append(
+                            {
+                                "path": path["path"],
+                                "weight": path["weight"],
+                            }
+                        )
+                        for hypervisor_id in path["disk_operations"]:
+                            hypervisors.setdefault(hypervisor_id, set())
+                            hypervisors[hypervisor_id].add(storage_pool_id)
+                r.table("storage_pool").insert(storage_pool, conflict="update").run(
+                    self.conn
+                )
+                r.table("hypervisors_pools").get(hypervisor_pool["id"]).replace(
+                    r.row.without({"paths"})
+                ).run(self.conn)
+            for hypervisor_id, storage_pool_ids in hypervisors.items():
+                r.table("hypervisors").get(hypervisor_id).update(
+                    {"storage_pools": storage_pool_ids}
+                ).run(self.conn)
+
         return True
 
     """

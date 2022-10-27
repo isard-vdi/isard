@@ -210,7 +210,7 @@ def get_pool(id_pool):
 
 def update_pool_round_robin(round_robin_index, type_path, id_pool="default"):
     r_conn = new_rethink_connection()
-    rtable = r.table("hypervisors_pools")
+    rtable = r.table("storage_pool")
     result = (
         rtable.get(id_pool)
         .update({"round_robin_indexes": {type_path: round_robin_index}})

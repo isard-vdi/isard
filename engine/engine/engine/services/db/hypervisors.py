@@ -10,6 +10,8 @@ from engine.services.log import log, logs
 from rethinkdb import r
 from rethinkdb.errors import ReqlNonExistenceError
 
+from .db import rethink
+
 # def get_hyp_hostnames():
 #     """
 #     NOT USED
@@ -986,3 +988,14 @@ def get_hyp(hyp_id):
     out = rtable.get(hyp_id).run(r_conn)
     close_rethink_connection(r_conn)
     return out
+
+
+@rethink
+def get_storage_pool_hypervisor_ids(connection, storage_pool_id):
+    return [
+        hypervisor["id"]
+        for hypervisor in r.table("hypervisors")
+        .filter(r.row["storage_pools"].contains(storage_pool_id))
+        .pluck("id")
+        .run(connection)
+    ]
