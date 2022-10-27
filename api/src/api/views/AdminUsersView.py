@@ -159,6 +159,15 @@ def api_v3_admin_user_insert(payload):
 
     itemExists("categories", data["category"])
     itemExists("groups", data["group"])
+    if users.GroupGet(data["group"])["parent_category"] != data["category"]:
+        raise Error(
+            "bad_request",
+            "Group "
+            + data["group"]
+            + " does not belong to category "
+            + data["category"],
+        )
+
     quotas.UserCreate(category_id=data["category"], group_id=data["group"])
 
     admin_table_insert("users", data)
