@@ -23,6 +23,7 @@ db = RDB(app)
 db.init_app(app)
 
 from .._common.api_exceptions import Error
+from .._common.storage_pool import DEFAULT_STORAGE_POOL_ID
 from ..libv2.isardVpn import isardVpn
 from .api_desktop_events import desktops_stop
 
@@ -197,6 +198,7 @@ class ApiHypervisors:
             "nvidia_enabled": nvidia_enabled,
             "force_get_hyp_info": force_get_hyp_info,
             "min_free_mem_gb": min_free_mem_gb,
+            "storage_pools": [DEFAULT_STORAGE_POOL_ID],
         }
 
         with app.app_context():
