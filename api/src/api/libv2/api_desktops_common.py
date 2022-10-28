@@ -186,15 +186,13 @@ class ApiDesktopsCommon:
             )
         if "isos" in hardware["hardware"]:
             with app.app_context():
-                hardware["hardware"]["isos"] = list(
-                    r.table("media")
-                    .get_all(
-                        r.args([i["id"] for i in hardware["hardware"]["isos"]]),
-                        index="id",
+                isos = hardware["hardware"]["isos"]
+                hardware["hardware"]["isos"] = []
+                # Loop instead of a get_all query to keep the isos array order
+                for iso in isos:
+                    hardware["hardware"]["isos"].append(
+                        r.table("media").get(iso["id"]).pluck("id", "name").run(db.conn)
                     )
-                    .pluck("id", "name")
-                    .run(db.conn)
-                )
         if "floppies" in hardware["hardware"]:
             with app.app_context():
                 hardware["hardware"]["floppies"] = list(
