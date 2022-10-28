@@ -104,10 +104,13 @@ export default {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
-    deleteDeployment (_, payload) {
+    deleteDeployment (context, payload) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deleting-deployment'), '', true, 1000)
       axios.delete(`${apiV3Segment}/deployments/${payload.id}`).then(response => {
         this._vm.$snotify.clear()
+        if (payload.path) {
+          context.dispatch('navigate', payload.path)
+        }
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })

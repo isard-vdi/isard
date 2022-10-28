@@ -824,7 +824,8 @@
             "stopping-download": "Parando la descarga",
             "counting-desktops": "Contado cuántos escritorios se crearán",
             "new-template-server": "No se puede crear una plantilla de servidor",
-            "edit-desktop-server": "No se puede editar un servidor"
+            "edit-desktop-server": "No se puede editar un servidor",
+            "delete-desktop-stop": "Para eliminar un escritorio es necesario que esté parado"
         },
         "loading": "Cargando"
     },
@@ -906,7 +907,8 @@
         "deployment_desktop_new_group_limit_exceeded": "Se ha excedido el límite de creación de escritorios del grupo '{group}'",
         "deployment_desktop_new_category_limit_exceeded": "Se ha excedido el límite de creación de escritorios de la categoria '{category}'",
         "unable_to_stop_desktop_from": "No se puede parar un escritorio desde su estado",
-        "unable_to_start_desktop_from": "No se puede arrancar un escritorio desde su estado"
+        "unable_to_start_desktop_from": "No se puede arrancar un escritorio desde su estado",
+        "deployment_delete_stop": "Para eliminar un despliegue es necesario que sus escritorios estén parados"
     },
     "router": {
         "titles": {

@@ -834,7 +834,8 @@
         "deployment_desktop_new_group_limit_exceeded": "S'ha excedit el límit per a crear nous escriptoris del grup '{group}'",
         "deployment_desktop_new_category_limit_exceeded": "S'ha excedit el límit per a crear nous escriptoris de la categoria '{category}'",
         "unable_to_stop_desktop_from": "No és possible aturar un escriptori des d'el seu estat",
-        "unable_to_start_desktop_from": "No és possible engegar un escriptori des d'el seu estat"
+        "unable_to_start_desktop_from": "No és possible engegar un escriptori des d'el seu estat",
+        "deployment_delete_stop": "Per esborrar un desplegament és necessari que els seus escriptoris estiguin parats"
     },
     "messages": {
         "title": {
@@ -893,7 +894,8 @@
             "stopping-download": "Parant la descàrrega",
             "counting-desktops": "Comptant quants escriptoris es crearan",
             "new-template-server": "No es pot crear una plantilla d'un servidor",
-            "edit-desktop-server": "No es pot editar un servidor"
+            "edit-desktop-server": "No es pot editar un servidor",
+            "delete-desktop-stop": "Per esborrar un escriptori és necessari que estigui parat"
         },
         "loading": "Carregant"
     },

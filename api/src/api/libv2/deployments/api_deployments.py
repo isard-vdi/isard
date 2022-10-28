@@ -292,6 +292,27 @@ def new(
     return deployment["id"]
 
 
+def checkDesktopsStarted(deployment_id):
+    with app.app_context():
+        started_desktops = (
+            r.table("domains")
+            .get_all(deployment_id, index="tag")
+            .filter(
+                lambda desktop: r.not_(
+                    r.expr(["Stopped", "Failed", "Unknown"]).contains(desktop["status"])
+                )
+            )
+            .count()
+            .run(db.conn)
+        )
+    if started_desktops > 0:
+        raise Error(
+            "precondition_required",
+            "The deployment " + str(deployment_id) + " desktops must be stopped ",
+            description_code="deployment_delete_stop",
+        )
+
+
 def delete(deployment_id):
     with app.app_context():
         r.table("domains").get_all(deployment_id, index="tag").update(

@@ -235,6 +235,7 @@ import DesktopButton from '@/components/desktops/Button.vue'
 import { mapActions, mapGetters } from 'vuex'
 import ListItemSkeleton from '@/components/ListItemSkeleton.vue'
 import { onUnmounted, ref, reactive, watch } from '@vue/composition-api'
+import { ErrorUtils } from '@/utils/errorUtils'
 
 export default {
   components: { DesktopButton, IsardDropdown, ListItemSkeleton },
@@ -419,25 +420,29 @@ export default {
       return ''
     },
     onClickDeleteDesktop (desktop) {
-      this.$snotify.clear()
+      if ([desktopStates.failed, desktopStates.stopped].includes(this.getItemState(desktop))) {
+        this.$snotify.clear()
 
-      const yesAction = () => {
-        this.$snotify.remove()
-        this.deleteDesktop(desktop.id)
+        const yesAction = () => {
+          this.$snotify.remove()
+          this.deleteDesktop(desktop.id)
+        }
+
+        const noAction = () => {
+          this.$snotify.remove() // default
+        }
+
+        this.$snotify.prompt(`${i18n.t('messages.confirmation.delete-deployment-desktop', { name: desktop.userName })}`, {
+          position: 'centerTop',
+          buttons: [
+            { text: 'Yes', action: yesAction, bold: true },
+            { text: 'No', action: noAction }
+          ],
+          placeholder: ''
+        })
+      } else {
+        ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.delete-desktop-stop'), '', true, 2000)
       }
-
-      const noAction = () => {
-        this.$snotify.remove() // default
-      }
-
-      this.$snotify.prompt(`${i18n.t('messages.confirmation.delete-deployment-desktop', { name: desktop.userName })}`, {
-        position: 'centerTop',
-        buttons: [
-          { text: 'Yes', action: yesAction, bold: true },
-          { text: 'No', action: noAction }
-        ],
-        placeholder: ''
-      })
     }
   }
 }

@@ -22,7 +22,7 @@
           >
             <!-- Back to deployments -->
             <b-nav-item
-              v-if="locationDeployment"
+              v-if="checkLocation('deployment_desktops')"
               href="#"
               @click="goToDeployments"
             >
@@ -37,7 +37,7 @@
             </b-nav-item>
             <!-- Back to deployment desktop list -->
             <b-nav-item
-              v-if="locationVideowall"
+              v-if="checkLocation('deployment_videowall')"
               href="#"
               @click="redirectDeployment"
             >
@@ -52,12 +52,12 @@
             </b-nav-item>
             <!-- filter -->
             <DesktopsFilter
-              v-if="locationDesktops && !creationMode"
+              v-if="(checkLocation('desktops') || checkLocation('deployment_videowall')) && !creationMode"
               class="d-none d-lg-flex"
             />
             <!-- Only started checkbox -->
             <b-nav-item
-              v-if="(locationDesktops || locationVideowall) && !creationMode"
+              v-if="(checkLocation('desktops') || checkLocation('deployment_videowall')) && !creationMode"
               class="ml-2 ml-md-4"
               href="#"
               @click="startedFilter"
@@ -83,7 +83,7 @@
             </b-nav-item>
             <!-- Started count -->
             <b-nav-item
-              v-if="locationDesktops && !creationMode"
+              v-if="(checkLocation('desktops') || checkLocation('deployment_videowall')) && !creationMode"
               disabled
               class="d-none d-md-inline ml-4"
             >
@@ -94,7 +94,7 @@
               />
             </b-nav-item>
             <b-nav-item
-              v-if="locationDesktops && !creationMode"
+              v-if="(checkLocation('desktops') || checkLocation('deployment_videowall')) && !creationMode"
               disabled
             >
               <span class="d-none d-lg-inline text-medium-gray">{{ `${$t("components.statusbar.desktops-started")}:` }}</span><span class="text-medium-gray">{{ ` ${startedDesktops}` }}</span>
@@ -104,7 +104,7 @@
           <!-- Right aligned nav items-->
           <div class="pt-1">
             <b-button
-              v-if="locationDesktops && !creationMode"
+              v-if="checkLocation('desktops') && !creationMode"
               :pill="true"
               class="mr-0 mr-md-4"
               variant="outline-primary"
@@ -116,7 +116,7 @@
           </div>
           <div class="pt-1">
             <b-button
-              v-if="locationDeployments && !creationMode"
+              v-if="checkLocation('deployments') && !creationMode"
               :pill="true"
               class="mr-0 mr-md-4"
               variant="outline-primary"
@@ -128,7 +128,7 @@
           </div>
           <div class="pt-1">
             <b-button
-              v-if="locationMedia && !creationMode"
+              v-if="checkLocation('media') && !creationMode"
               :pill="true"
               class="mr-0 mr-md-4"
               variant="outline-primary"
@@ -139,7 +139,7 @@
             </b-button>
           </div>
           <div
-            v-if="locationDeployment"
+            v-if="checkLocation('deployment_desktops')"
             class="pt-1"
           >
             <!-- <b-button
@@ -215,12 +215,12 @@
             </b-button>
           </div>
           <b-navbar-nav
-            v-if="locationDesktops && !creationMode"
+            v-if="checkLocation('desktops') && !creationMode"
             class="ml-auto flex-row d-none d-xl-flex"
           >
             <b-nav-item
               href="#"
-              :class="{selectedView: getViewType === 'grid'}"
+              :class="{selectedView: viewType === 'grid'}"
               @click="setViewType('grid')"
             >
               <b-icon
@@ -231,7 +231,7 @@
             </b-nav-item>
             <b-nav-item
               href="#"
-              :class="{selectedView: getViewType === 'list'}"
+              :class="{selectedView: viewType === 'list'}"
               class="ml-sm-2 ml-xl-0"
               @click="setViewType('list')"
             >
@@ -244,12 +244,12 @@
           </b-navbar-nav>
           <!-- Videowall grid and individual view -->
           <b-navbar-nav
-            v-if="locationVideowall"
+            v-if="checkLocation('deployment_videowall')"
             class="ml-auto flex-row d-none d-xl-flex"
           >
             <b-nav-item
               href="#"
-              :class="{selectedView: getViewType === 'grid'}"
+              :class="{selectedView: viewType === 'grid'}"
               @click="changeView('grid')"
             >
               <b-icon
@@ -260,7 +260,7 @@
             </b-nav-item>
             <b-nav-item
               href="#"
-              :class="{selectedView: getViewType === 'youtube'}"
+              :class="{selectedView: viewType === 'youtube'}"
               class="ml-sm-2 ml-xl-0"
               @click="changeView('youtube')"
             >
@@ -279,7 +279,6 @@
 
 <script>
 import { desktopStates } from '@/shared/constants'
-import { mapActions, mapGetters } from 'vuex'
 import DesktopsFilter from '@/components/desktops/DesktopsFilter.vue'
 import { ref, computed, watch } from '@vue/composition-api'
 import i18n from '@/i18n'
@@ -302,10 +301,29 @@ export default {
     }
 
     const deployment = computed(() => $store.getters.getDeployment)
+    const desktops = computed(() => $store.getters.getDesktops)
+    const viewType = computed(() => $store.getters.getViewType)
 
     const goToDeployments = () => {
       context.root.$router.push({ name: 'deployments' })
     }
+
+    const urlTokens = computed(() => $store.getters.getUrlTokens)
+
+    const creationMode = computed(() => urlTokens.value.includes('new'))
+
+    const checkLocation = (location) => {
+      const tokens = urlTokens.value
+      return tokens === location
+    }
+
+    const startedDesktops = computed(() => {
+      const allDesktops = checkLocation('desktops') ? desktops.value : deployment.value.desktops
+      const startedDesktops = allDesktops.filter((item) => {
+        return item && [desktopStates.started, desktopStates.waitingip, desktopStates['shutting-down']].includes(item.state.toLowerCase())
+      })
+      return startedDesktops.length
+    })
 
     // Deployment buttons
     const startDesktops = () => {
@@ -418,9 +436,7 @@ export default {
 
       const yesAction = () => {
         context.root.$snotify.clear()
-        $store.dispatch('deleteDeployment', { id: deployment.value.id }).then(() => {
-          context.root.$router.push({ name: 'deployments' })
-        })
+        $store.dispatch('deleteDeployment', { id: deployment.value.id, path: 'deployments' })
       }
 
       const noAction = (toast) => {
@@ -459,9 +475,25 @@ export default {
       })
     }
 
+    const startedFilter = () => {
+      started.value = !started.value
+      if (checkLocation('desktops')) {
+        $store.dispatch('toggleShowStarted')
+      } else if (checkLocation('deployment_videowall')) {
+        $store.dispatch('toggleDeploymentsShowStarted')
+      }
+    }
+    const changeView = (type) => {
+      $store.dispatch('setViewType', type)
+    }
+
     watch(() => context.root.$route, () => {
       started.value = false
     }, { immediate: true })
+
+    const navigate = (path) => {
+      $store.dispatch('navigate', path)
+    }
 
     return {
       goToDeployments,
@@ -478,62 +510,14 @@ export default {
       recreateDeployment,
       createDesktop,
       createMedia,
-      started
-    }
-  },
-  computed: {
-    ...mapGetters([
-      'getViewType',
-      'getDesktops',
-      'getUrlTokens'
-    ]),
-    startedDesktops () {
-      const startedDesktops = this.getDesktops.filter((item) => {
-        return item && [desktopStates.started, desktopStates.waitingip, desktopStates['shutting-down']].includes(item.state.toLowerCase())
-      })
-      return startedDesktops.length
-    },
-    locationDesktops () {
-      const tokens = this.getUrlTokens
-      return tokens === 'desktops'
-    },
-    locationDeployments () {
-      const tokens = this.getUrlTokens
-      return tokens === 'deployments'
-    },
-    locationMedia () {
-      const tokens = this.getUrlTokens
-      return tokens === 'media'
-    },
-    locationDeployment () {
-      const tokens = this.getUrlTokens
-      return tokens === 'deployment_desktops'
-    },
-    locationVideowall () {
-      const tokens = this.getUrlTokens
-      return tokens === 'deployment_videowall'
-    },
-    creationMode () {
-      return this.getUrlTokens.includes('new')
-    }
-  },
-  methods: {
-    ...mapActions([
-      'setViewType',
-      'toggleShowStarted',
-      'navigate',
-      'toggleDeploymentsShowStarted'
-    ]),
-    startedFilter () {
-      this.started = !this.started
-      if (this.locationDesktops) {
-        this.toggleShowStarted()
-      } else if (this.locationVideowall) {
-        this.toggleDeploymentsShowStarted()
-      }
-    },
-    changeView (type) {
-      this.$store.dispatch('setViewType', type)
+      started,
+      checkLocation,
+      changeView,
+      startedFilter,
+      startedDesktops,
+      creationMode,
+      navigate,
+      viewType
     }
   }
 }

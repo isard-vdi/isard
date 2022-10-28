@@ -810,7 +810,8 @@
             "stopping-download": "Stopping download",
             "counting-desktops": "Counting how many desktops will be created",
             "new-template-server": "Can't create a template from a server",
-            "edit-desktop-server": "Can't edit a server"
+            "edit-desktop-server": "Can't edit a server",
+            "delete-desktop-stop": "To delete a desktop it must be stopped"
         },
         "loading": "Loading"
     },
@@ -920,7 +921,8 @@
         "invalid_end_date": "Invalid end date",
         "incorrect_new_plan_body_data": " Incorrect new plan body data",
         "deployment_desktop_new_group_limit_exceeded": "Group '{group}' desktop creation limit has been exceeded",
-        "deployment_desktop_new_category_limit_exceeded": "Category '{category}' desktop creation limit has been exceeded"
+        "deployment_desktop_new_category_limit_exceeded": "Category '{category}' desktop creation limit has been exceeded",
+        "deployment_delete_stop": "To delete a deployment its desktops must be stopped"
     },
     "router": {
         "titles": {
