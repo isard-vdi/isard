@@ -67,11 +67,15 @@
                      <tr>
                         <th></th>
                         <th>Icon</th>
+                        {% if nav == "Desktops" %}
                         <th>Server</th>
                         <th>Hypervisor</th>
+                        {% endif %}
                         <th>Name</th>
                         <th>Description</th>
                         {% if nav == "Desktops" %}
+                           <th>Memory(GB)</th>
+                           <th>VCPUs</th>
                            <th>Action</th>
                            <th>Status</th>
                         {% endif %}
@@ -95,11 +99,15 @@
                      <tr>
                         <th></th>
                         <th>Icon</th>
-                        <th>server</th>
+                        {% if nav == "Desktops" %}
+                        <th>Server</th>
                         <th>Hypervisor</th>
+                        {% endif %}
                         <th>Name</th>
                         <th>Description</th>
                         {% if nav == "Desktops" %}
+                           <th>Memory(GB)</th>
+                           <th>VCPUs</th>
                            <th>Action</th>
                            <th>Status</th>
                         {% endif %}
