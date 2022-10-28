@@ -26,6 +26,8 @@ columns= [
                 { "data": "hyp_started", "width": "100px"},
 				{ "data": "name"},
 				{ "data": "description"},
+				{ "data": "ram"},
+				{ "data": "create_dict.hardware.vcpus"},
 				{ "data": null},
 				{ "data": "status"},
 				{ "data": "username"},
@@ -70,15 +72,21 @@ columnDefs = [
         "targets": 6,
         "width": "100px",
         "render": function (data, type, full, meta) {
+            return (full.create_dict.hardware.memory / 1024 / 1024).toFixed(2) + "GB"
+        }
+    },{
+        "targets": 8,
+        "width": "100px",
+        "render": function (data, type, full, meta) {
             return renderAction(full) + renderDisplay(full)
         }
     },{
-        "targets": 7,
+        "targets": 9,
         "render": function (data, type, full, meta) {
             return renderStatus(full)
         }
     },{
-        "targets": 11,
+        "targets": 13,
         "render": function (data, type, full, meta) {
             if ( type === 'display' || type === 'filter' ) {
                 return moment.unix(full.accessed).fromNow()
@@ -88,10 +96,17 @@ columnDefs = [
     }
 ]
 
+// Templates table render
 if(url!="Desktops"){
-    columns.splice(12, 1)
+    // Remove the desktops last column (used for bulk actions)
+    columns.splice(14, 1)
+    // Remove the server and hypervisor column
+    columns.splice(2,2)
+    // Remove the ram, vcpu, viewer and status columns
+    columns.splice(4, 4)
+    // Add the enabled, derivates and allowed columns
     columns.splice(
-        11,
+        7,
         0,
         {
             "data": 'enabled',
@@ -103,11 +118,13 @@ if(url!="Desktops"){
         {"data": "derivates"},
         {"defaultContent": '<button id="btn-alloweds" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button>'},
     );
-    columns.splice(6, 2)
-    columnDefs.splice(3, 2)
-    columnDefs[3]["targets"]=12
-    columnDefs[4]={
-        "targets": 9,
+    // Remove the custom rendering of the ram, viewer and status
+    columnDefs.splice(1, 5)
+    // Change the last access column custom render target
+    columnDefs[1]["targets"]=10
+    // Add the enabled column render
+    columnDefs.push({
+        "targets": 7,
         "render": function ( data, type, full, meta ) {
             if( full.enabled ){
                 return '<input id="chk-enabled" type="checkbox" class="form-check-input" checked></input>'
@@ -115,7 +132,7 @@ if(url!="Desktops"){
                 return '<input id="chk-enabled" type="checkbox" class="form-check-input"></input>'
             }
         }
-    }
+    })
 }
 
 $(document).ready(function() {
