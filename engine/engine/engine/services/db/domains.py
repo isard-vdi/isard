@@ -4,6 +4,7 @@ import sys
 import time
 import traceback
 from copy import deepcopy
+from pathlib import PurePath
 
 import flatten_dict
 from engine.config import TRANSITIONAL_STATUS
@@ -15,7 +16,7 @@ from engine.services.db import (
 from engine.services.db.db import close_rethink_connection, new_rethink_connection
 from engine.services.db.domains_status import stop_last_domain_status
 from engine.services.lib.storage import (
-    update_qemu_img_info,
+    update_domain_createdict_qemu_img_info,
     update_storage_deleted_domain,
 )
 from engine.services.log import logs
@@ -171,6 +172,17 @@ def update_domain_status(
 
     # INFO TO DEVELOPER: OJO CON hyp_started a None... peligro si alguien lo chafa, por eso estos if/else
 
+    if status == "Stopped":
+        last_hyp_id = (
+            rtable.get(id_domain).pluck("hyp_started").run(r_conn)["hyp_started"]
+        )
+        if type(last_hyp_id) is str and len(last_hyp_id) > 0:
+            results = (
+                rtable.get_all(id_domain, index="id")
+                .update({"last_hyp_id": last_hyp_id})
+                .run(r_conn)
+            )
+
     if keep_hyp_id == True:
         hyp_id = rtable.get(id_domain).pluck("hyp_started").run(r_conn)["hyp_started"]
 
@@ -218,6 +230,23 @@ def update_domain_status(
     #     logs.main.debug('id_domain {} in hyperviros {} does not exist in domain table'.format(id_domain,hyp_id))
 
     return results
+
+
+def update_last_hyp_id(id_domain, last_hyp_id):
+    r_conn = new_rethink_connection()
+    rtable = r.table("domains")
+    try:
+        results = (
+            rtable.get_all(id_domain, index="id")
+            .update({"last_hyp_id": last_hyp_id})
+            .run(r_conn)
+        )
+        close_rethink_connection(r_conn)
+        return results
+    except Exception as e:
+        logs.main.debug(
+            f"error updating last_hyp_id in database with id_domain {id_domain} and last_hyp_id: {last_hyp_id}"
+        )
 
 
 def update_domain_hw_stats(hw_stats, id_domain):
@@ -503,7 +532,7 @@ def update_disk_backing_chain(
             domain["create_dict"]["template_dict"][
                 "disks_info"
             ] = list_backing_chain_template
-            update_qemu_img_info(
+            update_domain_createdict_qemu_img_info(
                 domain.get("create_dict", {})
                 .get("template_dict", {})
                 .get("create_dict", {}),
@@ -511,7 +540,7 @@ def update_disk_backing_chain(
                 list_backing_chain_template,
             )
         domain["disks_info"] = list_backing_chain
-        update_qemu_img_info(
+        update_domain_createdict_qemu_img_info(
             domain.get("create_dict", {}), index_disk, list_backing_chain
         )
         results = rtable.replace(domain).run(r_conn)
@@ -782,6 +811,71 @@ def get_if_delete_after_stop(id_domain):
         return True
     else:
         return False
+
+
+def get_storage_ids_from_domain(domain_id):
+    r_conn = new_rethink_connection()
+    rtable = r.table("domains")
+
+    d_storages_ids = (
+        rtable.get(domain_id)
+        .pluck({"create_dict": {"hardware": [{"disks": "storage_id"}]}})
+        .run(r_conn)
+    )
+    l_storage_ids = [
+        a["storage_id"]
+        for a in d_storages_ids.get("create_dict", {})
+        .get("hardware", {})
+        .get("disks", {})
+        if "storage_id" in a.keys()
+    ]
+
+    close_rethink_connection(r_conn)
+    return l_storage_ids
+
+
+def get_storage_ids_and_paths_from_domain(domain_id):
+    r_conn = new_rethink_connection()
+    rtable = r.table("domains")
+
+    try:
+        d_storages_ids = (
+            rtable.get(domain_id)
+            .pluck({"create_dict": {"hardware": [{"disks": "storage_id"}]}})
+            .run(r_conn)
+        )
+        l_storage_ids = [
+            a["storage_id"]
+            for a in d_storages_ids.get("create_dict", {})
+            .get("hardware", {})
+            .get("disks", {})
+            if "storage_id" in a.keys()
+        ]
+
+        d_out = {}
+        for storage_id in l_storage_ids:
+            try:
+                storage = (
+                    r.table("storage")
+                    .get(storage_id)
+                    .pluck("directory_path", "type", "readonly")
+                    .run(r_conn)
+                )
+                if storage.get("readonly", False) is True:
+                    continue
+                path = str(
+                    PurePath(storage.get("directory_path"))
+                    .joinpath(storage_id)
+                    .with_suffix(f".{storage.get('type')}")
+                )
+                d_out[storage_id] = path
+            except r.ReqlNonExistenceError:
+                continue
+        close_rethink_connection(r_conn)
+        return d_out
+    except r.ReqlNonExistenceError:
+        close_rethink_connection(r_conn)
+        return {}
 
 
 def get_disks_all_domains():

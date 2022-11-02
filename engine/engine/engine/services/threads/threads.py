@@ -3,6 +3,7 @@
 #      Josep Maria Viñolas Auquer
 # License: AGPLv3
 
+import json
 import pprint
 
 # /bin/python3
@@ -11,6 +12,7 @@ import queue
 import threading
 import time
 import traceback
+from datetime import datetime
 
 from engine.models.hyp import hyp
 from engine.services.db import (
@@ -24,6 +26,7 @@ from engine.services.db import (
 from engine.services.db.db import update_table_field
 from engine.services.db.domains import (
     get_domain_status,
+    get_storage_ids_and_paths_from_domain,
     update_domain_parents,
     update_domain_status,
 )
@@ -51,7 +54,7 @@ from engine.services.lib.qcow import (
     verify_output_cmds2,
     verify_output_cmds3,
 )
-from engine.services.lib.storage import update_qemu_img_info, update_storage_status
+from engine.services.lib.storage import update_storage_qemu_info, update_storage_status
 from engine.services.log import *
 
 # from pool_hypervisors. import PoolHypervisors
@@ -322,6 +325,24 @@ def launch_action_disk(action, hostname, user, port, from_scratch=False):
                     detail="delete disk operation run ok",
                     storage_id=action.get("storage_id"),
                 )
+
+
+def launch_action_update_size_storage_from_domain(action, hostname, user, port):
+    domain_id = action["domain_id"]
+    d_storage_id_paths = get_storage_ids_and_paths_from_domain(domain_id)
+
+    for storage_id, path_disk in d_storage_id_paths.items():
+        cmd_qemu_img_info = 'qemu-img info -U --output json "{}"'.format(path_disk)
+        cmds_done = execute_commands(
+            hostname,
+            ssh_commands=[cmd_qemu_img_info],
+            dict_mode=False,
+            user=user,
+            port=port,
+        )
+        update_storage_qemu_info(
+            storage_id, json.loads(cmds_done[0]["out"]), hierarchy=False
+        )
 
 
 def launch_action_create_template_disk(action, hostname, user, port):

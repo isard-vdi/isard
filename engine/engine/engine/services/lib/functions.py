@@ -58,9 +58,9 @@ def check_tables_populated():
 
 def backing_chain_cmd(path_disk, json_format=True):
     if json_format is True:
-        cmd = 'qemu-img info --output json --backing-chain "{}"'.format(path_disk)
+        cmd = 'qemu-img info -U --output json --backing-chain "{}"'.format(path_disk)
     else:
-        cmd = 'qemu-img info --backing-chain "{}"'.format(path_disk)
+        cmd = 'qemu-img info -U --backing-chain "{}"'.format(path_disk)
     return cmd
 
 

@@ -661,6 +661,21 @@ class Engine(object):
                                 )
                             )
 
+                    if old_status in [
+                        "Started",
+                        "Shutting-down",
+                        "Suspended",
+                        "Stopping",
+                    ] and new_status in ["Stopped"]:
+                        ui.update_info_after_stopped_domain(domain_id=domain_id)
+
+                    # when download domain or updating, status previous to stopped is CreatingDomain
+                    # and we can update disk info
+                    if old_status in [
+                        "CreatingDomain",
+                    ] and new_status in ["Stopped"]:
+                        ui.update_info_after_stopped_domain(domain_id=domain_id)
+
                     if (
                         old_status == "Started" and new_status == "StoppingAndDeleting"
                     ) or (
