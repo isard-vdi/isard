@@ -58,6 +58,7 @@ def api_v3_deployments_new(payload):
 @is_not_user
 def api_v3_deployments_delete(payload, deployment_id):
     ownsDeploymentId(payload, deployment_id)
+    api_deployments.checkDesktopsStarted(deployment_id)
     api_deployments.delete(deployment_id)
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 

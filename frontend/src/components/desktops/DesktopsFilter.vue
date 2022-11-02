@@ -4,7 +4,10 @@
       cols="2"
       class="mt-1"
     >
-      <label for="filterInput">{{ $t('components.desktop-cards.filter-label') }}</label>
+      <label
+        for="filterInput"
+        class="ml-2 text-medium-gray"
+      >{{ $t('components.desktop-cards.filter-label') }}</label>
     </b-col>
     <b-col cols="10">
       <b-input-group size="sm">
@@ -41,6 +44,10 @@ export default {
     watch(filterText, (currentValue, _) => {
       updateFilter(currentValue)
     })
+
+    watch(() => context.root.$route, () => {
+      filterText.value = ''
+    }, { immediate: true })
 
     return {
       filterText

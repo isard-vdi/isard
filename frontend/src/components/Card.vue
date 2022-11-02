@@ -479,26 +479,30 @@ export default {
       }
     },
     onClickDeleteDesktop (toast) {
-      this.$snotify.clear()
+      if ([desktopStates.failed, desktopStates.stopped].includes(this.desktopState)) {
+        this.$snotify.clear()
 
-      const yesAction = () => {
-        toast.valid = true // default value
-        this.$snotify.remove(toast.id)
-        this.deleteDesktop(this.desktop.id)
+        const yesAction = () => {
+          toast.valid = true // default value
+          this.$snotify.remove(toast.id)
+          this.deleteDesktop(this.desktop.id)
+        }
+
+        const noAction = (toast) => {
+          this.$snotify.remove(toast.id) // default
+        }
+
+        this.$snotify.prompt(`${i18n.t('messages.confirmation.delete-desktop', { name: this.getCardTitle })}`, {
+          position: 'centerTop',
+          buttons: [
+            { text: `${i18n.t('messages.yes')}`, action: yesAction, bold: true },
+            { text: `${i18n.t('messages.no')}`, action: noAction }
+          ],
+          placeholder: ''
+        })
+      } else {
+        ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.delete-desktop-stop'), '', true, 2000)
       }
-
-      const noAction = (toast) => {
-        this.$snotify.remove(toast.id) // default
-      }
-
-      this.$snotify.prompt(`${i18n.t('messages.confirmation.delete-desktop', { name: this.getCardTitle })}`, {
-        position: 'centerTop',
-        buttons: [
-          { text: `${i18n.t('messages.yes')}`, action: yesAction, bold: true },
-          { text: `${i18n.t('messages.no')}`, action: noAction }
-        ],
-        placeholder: ''
-      })
     },
     onClickBookingDesktop () {
       const data = { id: this.desktop.id, type: 'desktop', name: this.desktop.name }

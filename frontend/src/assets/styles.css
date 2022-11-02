@@ -593,7 +593,7 @@
 }
 
 .table-scrollable-div {
-  height: calc(100vh - 250px);
+  height: calc(100vh - 280px);
   overflow-y: auto;
   overflow-x: hidden;
 }
