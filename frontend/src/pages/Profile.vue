@@ -192,6 +192,45 @@
                                 :value="getProfile.used.vcpus"
                                 :max="getProfile.quota.vcpus"
                               />
+                              <b-row>
+                                <b-col
+                                  cols="12"
+                                  md="8"
+                                  class="text-left"
+                                >
+                                  <h6 class="font-weight-bold mt-4">
+                                    {{ $t('components.profile.quota.total-size') }}
+                                  </h6>
+                                </b-col>
+                                <b-col
+                                  cols="12"
+                                  md="4"
+                                  class="text-right"
+                                >
+                                  <h6 class="mt-4">
+                                    {{ getProfile.used.totalSize.toFixed(2) }} / {{ getProfile.quota === false ? '&infin;' : getProfile.quota.totalSize }}
+                                  </h6>
+                                </b-col>
+                                <b-col cols="12">
+                                  <b-progress
+                                    :max="getProfile.quota === false ? 9999 : getProfile.quota.totalSize"
+                                    animated
+                                  >
+                                    <b-progress-bar
+                                      variant="primary"
+                                      :value="getProfile.used.storageSize"
+                                    >
+                                      <b>{{ $t("components.navbar.desktops") }} / {{ $t("components.navbar.templates") }}</b>
+                                    </b-progress-bar>
+                                    <b-progress-bar
+                                      variant="secondary"
+                                      :value="getProfile.used.mediaSize"
+                                    >
+                                      <b>{{ $t("components.navbar.media") }}</b>
+                                    </b-progress-bar>
+                                  </b-progress>
+                                </b-col>
+                              </b-row>
                             </b-col>
                           </b-row>
                         </b-col>

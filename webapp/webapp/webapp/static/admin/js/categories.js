@@ -431,6 +431,8 @@ function actionsCategoryDetail(){
         var pk=$(this).closest("div").attr("data-pk");
         $("#modalEditQuotaForm")[0].reset();
         $('#modalEditQuotaForm #id').val(pk);
+        $('#modalEditQuota .kind').html('category');
+        $('#modalEditQuota .apply').html('unlimited quota');
         $("#modalEditQuotaForm #propagate").removeAttr('checked').iCheck('update')
         setModalUser();
         $('#modalEditQuotaForm #add-role').append('<option selected="selected" value=all_roles> All roles</option>')
@@ -506,12 +508,15 @@ function actionsCategoryDetail(){
         var pk=$(this).closest("div").attr("data-pk");
         $("#modalEditLimitsForm")[0].reset();
         $('#modalEditLimitsForm #id').val(pk);
+        $('#modalEditLimits .kind').html('category groups');
+        $('#modalEditLimits .apply').html('unlimited');
         $("#modalEditLimitsForm #propagate").removeAttr('checked').iCheck('update')
         $('#modalEditLimits').modal({
             backdrop: 'static',
             keyboard: false
         }).modal('show');
-        setLimitsMax('#modalEditLimitsForm',kind='category',id=pk,disabled=false);         
+        setLimitsMax('#modalEditLimitsForm',kind='category',id=pk,disabled=false);
+        $('#modalEditLimitsForm #propagate-form').css("display", "block");
     });
 
     $("#modalEditLimits #send").off('click').on('click', function(e){

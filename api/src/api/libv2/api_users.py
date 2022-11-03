@@ -139,7 +139,7 @@ class ApiUsers:
             },
         }
 
-    def Get(self, user_id):
+    def Get(self, user_id, get_quota=False):
         with app.app_context():
             user = (
                 r.table("users")
@@ -162,7 +162,9 @@ class ApiUsers:
                 "Not found user_id " + user_id,
                 traceback.format_exc(),
             )
-        return {**user, **quotas.Get(user_id)}
+        if get_quota:
+            user = {**user, **quotas.Get(user_id)}
+        return user
 
     def GetByProviderCategoryUID(self, provider, category, uid):
         with app.app_context():
@@ -981,12 +983,19 @@ class ApiUsers:
 
     def UpdateGroupLimits(self, group, limits):
         category = self.CategoryGet(group["parent_category"], True)
-
-        # Limit group limits to it's category limits
+        # Can't update a group limits with a higher value than its category limits
         if category["limits"] != False:
             for k, v in category["limits"].items():
-                if v < limits[k]:
-                    limits[k] = v
+                if limits and limits.get(k) and v < limits[k]:
+                    raise Error(
+                        "precondition_required",
+                        "Can't update "
+                        + group["name"]
+                        + " "
+                        + k
+                        + " limits value with a higher value than its category limits",
+                        traceback.format_exc(),
+                    )
 
         with app.app_context():
             r.table("groups").get(group["id"]).update({"limits": limits}).run(db.conn)
