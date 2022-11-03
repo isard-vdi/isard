@@ -221,7 +221,7 @@
             <b-nav-item
               href="#"
               :class="{selectedView: viewType === 'grid'}"
-              @click="setViewType('grid')"
+              @click="changeView('grid')"
             >
               <b-icon
                 icon="grid-fill"
@@ -233,7 +233,7 @@
               href="#"
               :class="{selectedView: viewType === 'list'}"
               class="ml-sm-2 ml-xl-0"
-              @click="setViewType('list')"
+              @click="changeView('list')"
             >
               <b-icon
                 icon="list"
@@ -489,6 +489,7 @@ export default {
 
     watch(() => context.root.$route, () => {
       started.value = false
+      $store.dispatch('setViewType', 'grid')
     }, { immediate: true })
 
     const navigate = (path) => {
