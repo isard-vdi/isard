@@ -288,6 +288,20 @@ $(document).ready(function() {
                   },
                 });
               },
+              error: function (xhr, ajaxOptions, thrownError) {
+                console.log(xhr)
+                if (xhr.status == 428) {
+                  new PNotify({
+                      title: "Unable to access storage",
+                      text: xhr.responseJSON.description,
+                      hide: true,
+                      delay: 3000,
+                      icon: 'fa fa-warning',
+                      opacity: 1,
+                      type: 'error'
+                  });
+                }
+              }
             });
           })
           .on("pnotify.cancel", function () {});
