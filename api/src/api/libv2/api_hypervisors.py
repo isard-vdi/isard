@@ -23,6 +23,7 @@ db = RDB(app)
 db.init_app(app)
 
 from .._common.api_exceptions import Error
+from .._common.storage_pool import DEFAULT_STORAGE_POOL_ID
 from ..libv2.isardVpn import isardVpn
 from .api_desktop_events import desktops_stop
 
@@ -197,6 +198,7 @@ class ApiHypervisors:
             "nvidia_enabled": nvidia_enabled,
             "force_get_hyp_info": force_get_hyp_info,
             "min_free_mem_gb": min_free_mem_gb,
+            "storage_pools": [DEFAULT_STORAGE_POOL_ID],
         }
 
         with app.app_context():
@@ -205,9 +207,6 @@ class ApiHypervisors:
                 .insert(hypervisor, conflict="update")
                 .run(db.conn)
             )
-        if cap_disk and self.check(result, "inserted"):
-            self.update_hypervisors_pools()
-            return result
         return result
 
     def enable_hyper(self, hyper_id):
@@ -237,7 +236,6 @@ class ApiHypervisors:
             time.sleep(1)
             with app.app_context():
                 if not r.table("hypervisors").get(hyper_id).run(db.conn):
-                    self.update_hypervisors_pools()
                     return {
                         "status": True,
                         "msg": "Removed from database",
@@ -450,35 +448,6 @@ class ApiHypervisors:
                     .delete()
                     .run(db.conn)
                 )
-
-    def update_hypervisors_pools(self):
-        with app.app_context():
-            hypervisors = [
-                h
-                for h in list(
-                    r.table("hypervisors")
-                    .pluck(
-                        "id", "hypervisors_pools", {"capabilities": "disk_operations"}
-                    )
-                    .run(db.conn)
-                )
-                if h["capabilities"]["disk_operations"]
-            ]
-            pools = list(r.table("hypervisors_pools").run(db.conn))
-        for hp in pools:
-            hypervisors_in_pool = [
-                hypervisor["id"]
-                for hypervisor in hypervisors
-                if hp["id"] in hypervisor["hypervisors_pools"]
-            ]
-            paths = hp["paths"]
-            for p in paths:
-                for i, item in enumerate(paths[p]):
-                    paths[p][i]["disk_operations"] = hypervisors_in_pool
-            with app.app_context():
-                r.table("hypervisors_pools").get(hp["id"]).update(
-                    {"paths": paths, "enabled": False}
-                ).run(db.conn)
 
     def check(self, dict, action):
         # ~ These are the actions:

@@ -15,6 +15,7 @@ from os.path import dirname
 from time import sleep
 
 import humanfriendly as hf
+from _common.storage_pool import DEFAULT_STORAGE_POOL_ID
 from engine.config import CONFIG_DICT
 from engine.services.db import (
     delete_domain,
@@ -427,8 +428,7 @@ class DownloadChangesThread(threading.Thread):
     def get_file_path(self, dict_changes):
         table = dict_changes["table"]
         if table == "domains":
-            type_path_selected = "groups"
-            pool_id = dict_changes["create_dict"]["hypervisors_pools"][0]
+            type_path_selected = "desktop"
             disk = dict_changes["create_dict"]["hardware"]["disks"][0]
             relative_path = None
             extension = disk.get(
@@ -436,17 +436,12 @@ class DownloadChangesThread(threading.Thread):
             )
 
         else:
-            if "hypervisors_pools" in dict_changes.keys():
-                if type(dict_changes["hypervisors_pools"]) is list:
-                    pool_id = dict_changes["hypervisors_pools"][0]
-                else:
-                    pool_id = "default"
-            else:
-                pool_id = "default"
-
             type_path_selected = "media"
             relative_path = dict_changes["id"]
             extension = dict_changes["kind"]
+        pool_id = dict_changes.get("create_dict", {}).get(
+            "storage_pool", DEFAULT_STORAGE_POOL_ID
+        )
 
         new_file_path, path_selected = get_path_to_disk(
             relative_path=relative_path,

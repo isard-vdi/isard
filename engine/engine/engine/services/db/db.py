@@ -4,6 +4,7 @@
 # License: AGPLv3
 
 import time
+from functools import wraps
 from pprint import pformat, pprint
 
 from engine.config import (
@@ -51,6 +52,19 @@ def close_rethink_connection(r_conn):
     r_conn.close()
     del r_conn
     return True
+
+
+def rethink(function):
+    @wraps(function)
+    def decorate(*args, **kwargs):
+        connection = new_rethink_connection()
+        try:
+            result = function(connection, *args, **kwargs)
+        finally:
+            close_rethink_connection(connection)
+        return result
+
+    return decorate
 
 
 ## TO BE DELETED
@@ -196,7 +210,7 @@ def get_pool(id_pool):
 
 def update_pool_round_robin(round_robin_index, type_path, id_pool="default"):
     r_conn = new_rethink_connection()
-    rtable = r.table("hypervisors_pools")
+    rtable = r.table("storage_pool")
     result = (
         rtable.get(id_pool)
         .update({"round_robin_indexes": {type_path: round_robin_index}})

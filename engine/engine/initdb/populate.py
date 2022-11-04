@@ -115,6 +115,7 @@ class Populate(object):
             "storage",
             "storage_physical_domains",
             "storage_physical_media",
+            "storage_pool",
             # config should be the last table to be created
             # api waits for config table to start
             "config",
@@ -1195,6 +1196,9 @@ class Populate(object):
             self.index_create("storage_physical_media", ["path", "kind"])
         except:
             None
+
+    def storage_pool(self):
+        self.create_table("storage_pool")
 
     def index_create(self, table, indexes):
 

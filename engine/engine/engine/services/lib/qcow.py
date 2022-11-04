@@ -13,6 +13,7 @@ from pprint import pformat, pprint
 from random import choices
 from uuid import uuid4
 
+from _common.storage_pool import DEFAULT_STORAGE_POOL_ID
 from engine.services.db import (
     get_hyp_hostname_user_port_from_id,
     update_pool_round_robin,
@@ -22,7 +23,11 @@ from engine.services.db.domains import (
     get_custom_dict_from_domain,
     update_custom_all_dict,
 )
-from engine.services.db.hypervisors import get_hypers_not_forced_disk_operations
+from engine.services.db.hypervisors import (
+    get_hypers_not_forced_disk_operations,
+    get_storage_pool_hypervisor_ids,
+)
+from engine.services.db.storage_pool import get_storage_pool
 from engine.services.lib.functions import (
     backing_chain_cmd,
     exec_remote_cmd,
@@ -858,13 +863,16 @@ def backing_chain(path_disk, disk_operations_hostname, json_format=True):
 
 
 def get_path_to_disk(
-    relative_path=None, pool="default", type_path="groups", extension=None
+    relative_path=None,
+    pool=DEFAULT_STORAGE_POOL_ID,
+    type_path="desktops",
+    extension=None,
 ):
     if not relative_path:
         relative_path = str(uuid4())
     if extension:
         relative_path += f".{extension}"
-    pool_paths = get_pool(pool)["paths"]
+    pool_paths = get_storage_pool(pool)["paths"]
     paths_for_type = pool_paths[type_path]
     path_selected = choices(
         [path["path"] for path in paths_for_type],
@@ -875,15 +883,11 @@ def get_path_to_disk(
 
 
 def get_host_long_operations_from_path(
-    path_selected, pool="default", type_path="groups"
+    path_selected, pool=DEFAULT_STORAGE_POOL_ID, type_path="desktops"
 ):
     l_threads = get_threads_names_running()
-    pool_paths = get_pool(pool)["paths"]
-    paths_for_type = pool_paths[type_path]
     online_not_forced_hypers = get_hypers_not_forced_disk_operations()
-    hyps = [v["disk_operations"] for v in paths_for_type if v["path"] == path_selected][
-        0
-    ]
+    hyps = get_storage_pool_hypervisor_ids(pool)
 
     # TODO must be revised to return random or less cpuload hypervisor
     for h in hyps:
@@ -899,12 +903,10 @@ def get_host_long_operations_from_path(
 
 
 def get_host_disk_operations_from_path(
-    path_selected, pool="default", type_path="groups"
+    path_selected, pool=DEFAULT_STORAGE_POOL_ID, type_path="desktops"
 ):
     l_threads = get_threads_names_running()
-    d_pool = get_pool(pool)
-    pool_paths = d_pool["paths"]
-    paths_for_type = pool_paths[type_path]
+    d_pool = get_storage_pool(pool)
     # TODO must find by weight
     pprint(d_pool)
     print("path_selected:")
@@ -918,9 +920,7 @@ def get_host_disk_operations_from_path(
     print(f"round robin index from pool: {round_robin_index}")
 
     try:
-        hyps = [
-            v["disk_operations"] for v in paths_for_type if v["path"] == path_selected
-        ][0]
+        hyps = get_storage_pool_hypervisor_ids(pool)
         print(
             f"hypervisores para disk-operations en path {path_selected}, type_path {type_path}"
         )

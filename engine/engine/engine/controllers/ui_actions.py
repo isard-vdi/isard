@@ -15,6 +15,7 @@ from pprint import pformat
 # from qcow import create_disk_from_base, backing_chain, create_cmds_disk_from_base
 from time import sleep
 
+from _common.storage_pool import DEFAULT_STORAGE_POOL_ID
 from engine.models.domain_xml import (
     BUS_TYPES,
     DomainXML,
@@ -556,8 +557,9 @@ class UiActions(object):
 
         create_dict = dict_domain["create_dict"]
 
-        pool_var = create_dict["template_dict"]["hypervisors_pools"]
-        pool_id = pool_var if type(pool_var) is str else pool_var[0]
+        pool_id = create_dict.get("template_dict", {}).get(
+            "storage_pool", DEFAULT_STORAGE_POOL_ID
+        )
 
         try:
             dict_new_template = create_dict["template_dict"]
@@ -583,7 +585,7 @@ class UiActions(object):
             for i in range(len(disk_list)):
                 # for disk in dict_domain['hardware']['disks']:
                 path_domain_disk = dict_domain["hardware"]["disks"][i]["file"]
-                type_path_selected = "templates"
+                type_path_selected = "template"
 
                 new_file, path_selected = get_path_to_disk(
                     pool=pool_id,
@@ -722,7 +724,7 @@ class UiActions(object):
         test_disk_relative_route,
         size_str="1M",
         type_path="media",
-        pool_id="default",
+        pool_id=DEFAULT_STORAGE_POOL_ID,
     ):
 
         path_new_disk, path_selected = get_path_to_disk(
@@ -749,8 +751,7 @@ class UiActions(object):
     def creating_disk_from_scratch(self, id_new):
         dict_domain = get_domain(id_new)
 
-        pool_var = dict_domain["hypervisors_pools"]
-        pool_id = pool_var if type(pool_var) is str else pool_var[0]
+        pool_id = dict_domain.get("storage_pool", DEFAULT_STORAGE_POOL_ID)
 
         dict_to_create = dict_domain["create_dict"]
 
@@ -822,7 +823,7 @@ class UiActions(object):
                 size_str = dict_to_create["hardware"]["disks"][0]["size"]
 
                 hyp_to_disk_create = get_host_disk_operations_from_path(
-                    path_selected, pool=pool_id, type_path="groups"
+                    path_selected, pool=pool_id, type_path="desktop"
                 )
 
                 cmds = create_cmd_disk_from_scratch(
@@ -892,8 +893,7 @@ class UiActions(object):
     def creating_disk_from_virtbuilder(self, id_new):
         dict_domain = get_domain(id_new)
 
-        pool_var = dict_domain["hypervisors_pools"]
-        pool_id = pool_var if type(pool_var) is str else pool_var[0]
+        pool_id = dict_domain.get("storage_pool", DEFAULT_STORAGE_POOL_ID)
 
         dict_to_create = dict_domain["create_dict"]
 
@@ -917,7 +917,7 @@ class UiActions(object):
         update_domain_dict_hardware(id_new, hardware_update)
 
         hyp_to_disk_create = get_host_long_operations_from_path(
-            path_selected, pool=pool_id, type_path="groups"
+            path_selected, pool=pool_id, type_path="desktop"
         )
 
         cmds = create_cmd_disk_from_virtbuilder(
@@ -969,14 +969,13 @@ class UiActions(object):
         dict_domain = get_domain(id_new)
         persistent = dict_domain.get("persistent", True)
         if persistent:
-            path_type = "groups"
+            path_type = "desktop"
         else:
             path_type = "volatile"
         if "create_dict" in dict_domain.keys():
             dict_to_create = dict_domain["create_dict"]
 
-        pool_var = dict_domain["hypervisors_pools"]
-        pool_id = pool_var if type(pool_var) is str else pool_var[0]
+        pool_id = dict_domain.get("storage_pool", DEFAULT_STORAGE_POOL_ID)
 
         # INFO TO DEVELOPER DEBERÍA SER UN FOR PARA CADA DISCO
         # y si el disco no tiene backing_chain, crear un disco vacío
