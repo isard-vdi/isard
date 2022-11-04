@@ -22,7 +22,7 @@ export class DateUtils {
   }
 
   static formatAsUTC (date) {
-    return moment(date).utc().format('YYYY-MM-DDTHH:mmZ')
+    return moment(date).utc().local().format('YYYY-MM-DDTHH:mmZ')
   }
 
   static dateToMoment (date) {
