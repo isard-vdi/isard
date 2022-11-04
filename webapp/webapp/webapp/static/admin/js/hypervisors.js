@@ -215,7 +215,7 @@ $(document).ready(function() {
                                     memUsedGB=Math.round((full.stats.mem_stats.total-full.stats.mem_stats.available) / 1024 /1024)
                                     limit=""
                                     if(full.min_free_mem_gb>0){
-                                        limit=" Limit:"+(memUsedGB-full.min_free_mem_gb)+"GB"
+                                        limit=" Limit:"+(memTotalGB-full.min_free_mem_gb)+"GB"
                                     }
                                     return Math.round(memUsedGB*100/memTotalGB)+"% "+memTotalGB + "GB"+limit
                                 }},
