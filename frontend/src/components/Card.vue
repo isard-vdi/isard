@@ -21,6 +21,17 @@
         :scroll-auto-hide="false"
       >
         <fab-item
+          v-if="desktop.editable && desktop.needsBooking"
+          v-b-tooltip="{ title: `${$t('components.desktop-cards.actions.booking')}`,
+                         placement: 'right',
+                         customClass: 'isard-tooltip',
+                         trigger: 'hover' }"
+          :idx="4"
+          icon="event"
+          color="#eead47"
+          @clickItem="onClickBookingDesktop"
+        />
+        <fab-item
           v-if="getUser.role_id != 'user'"
           v-b-tooltip="{ title: `${$t('components.desktop-cards.actions.direct-link')}`,
                          placement: 'right',

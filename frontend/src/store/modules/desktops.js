@@ -6,6 +6,7 @@ import { apiV3Segment } from '../../shared/constants'
 import { DesktopUtils } from '../../utils/desktopsUtils'
 import { DirectViewerUtils } from '../../utils/directViewerUtils'
 import { ErrorUtils } from '../../utils/errorUtils'
+import { DateUtils } from '../../utils/dateUtils'
 
 const getDefaultState = () => {
   return {
@@ -293,6 +294,10 @@ export default {
         context.commit('saveDirectViewer', DirectViewerUtils.parseDirectViewer(response.data))
       }).catch(e => {
         context.commit('setDirectViewerErrorState')
+        // If the error is that the desktop needs booking format he given time to the users local
+        if (e.response.data.description_code === 'desktop_not_booked_until') {
+          e.response.data.params.start = DateUtils.utcToLocalTime(e.response.data.params.start)
+        }
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },

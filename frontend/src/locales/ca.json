@@ -835,7 +835,9 @@
         "deployment_desktop_new_category_limit_exceeded": "S'ha excedit el límit per a crear nous escriptoris de la categoria '{category}'",
         "unable_to_stop_desktop_from": "No és possible aturar un escriptori des d'el seu estat",
         "unable_to_start_desktop_from": "No és possible engegar un escriptori des d'el seu estat",
-        "deployment_delete_stop": "Per esborrar un desplegament és necessari que els seus escriptoris estiguin parats"
+        "deployment_delete_stop": "Per esborrar un desplegament és necessari que els seus escriptoris estiguin parats",
+        "desktop_not_booked": "Per engegar l'escriptori ha d'estar reservat",
+        "desktop_not_booked_until": "No es pot engegar l'escriptori fins a la propera reserva {start}"
     },
     "messages": {
         "title": {

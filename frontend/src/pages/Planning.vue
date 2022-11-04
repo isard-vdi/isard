@@ -182,7 +182,7 @@ export default {
     const onCalendarEventClicked = (event, e) => {
       if (!eventClickActive.value) { return }
 
-      const type = 'view'
+      const type = 'edit'
       // if (DateUtils.dateToMoment(new Date()).isBefore(event.start)) {
       //   type = 'edit' // Endpoint pending
       // }

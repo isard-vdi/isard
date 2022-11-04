@@ -908,7 +908,9 @@
         "deployment_desktop_new_category_limit_exceeded": "Se ha excedido el límite de creación de escritorios de la categoria '{category}'",
         "unable_to_stop_desktop_from": "No se puede parar un escritorio desde su estado",
         "unable_to_start_desktop_from": "No se puede arrancar un escritorio desde su estado",
-        "deployment_delete_stop": "Para eliminar un despliegue es necesario que sus escritorios estén parados"
+        "deployment_delete_stop": "Para eliminar un despliegue es necesario que sus escritorios estén parados",
+        "desktop_not_booked": "Para arrancar el escritorio debe estar reservado",
+        "desktop_not_booked_until": "No se puede arrancar el escritorio hasta su próxima reserva: {start}"
     },
     "router": {
         "titles": {
