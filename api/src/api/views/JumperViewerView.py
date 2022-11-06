@@ -36,8 +36,11 @@ def api_v3_viewer(token):
                 "vmName": viewers.pop("vmName", None),
                 "vmDescription": viewers.pop("vmDescription", None),
                 "vmState": vmState,
-                "scheduled": viewers.pop("scheduled"),
+                "scheduled": viewers.pop("scheduled", None),
                 "viewers": viewers,
+                "needs_booking": viewers.pop("needs_booking", False),
+                "next_booking_start": viewers.pop("next_booking_start", None),
+                "next_booking_end": viewers.pop("next_booking_end", None),
             }
         ),
         200,

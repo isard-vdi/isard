@@ -102,7 +102,7 @@
         >
           Create event
         </b-button>
-        <b-button
+        <!-- <b-button
           v-if="modal.type === 'edit'"
           squared
           variant="primary"
@@ -110,7 +110,7 @@
           @click="editEvent"
         >
           Save changes
-        </b-button>
+        </b-button> -->
       </div>
     </template>
   </b-modal>

@@ -8,6 +8,7 @@
 import time
 import traceback
 
+import pytz
 from rethinkdb import RethinkDB
 
 from api import app
@@ -20,9 +21,12 @@ from .flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
+from datetime import datetime
+
 from .._common.api_exceptions import Error
 from ..libv2.api_scheduler import Scheduler
-from ..libv2.helpers import gen_payload_from_user
+from ..libv2.bookings.api_booking import is_future
+from ..libv2.helpers import _parse_desktop_booking, gen_payload_from_user
 from .api_desktop_events import desktop_start
 from .isardViewer import isardViewer, viewer_jwt
 
@@ -79,6 +83,31 @@ class ApiDesktopsCommon:
                 description_code="not_found",
             )
         if len(domains) == 1:
+            booking = _parse_desktop_booking(domains[0])
+            if booking.get("needs_booking"):
+                if not booking.get("next_booking_start"):
+                    raise Error(
+                        "precondition_required",
+                        "Bookable desktop can't be started without a booking",
+                        traceback.format_exc(),
+                        "desktop_not_booked",
+                    )
+                elif is_future(
+                    {
+                        "start": datetime.strptime(
+                            booking.get("next_booking_start"), "%Y-%m-%dT%H:%M%z"
+                        ).astimezone(pytz.UTC)
+                    }
+                ):
+                    raise Error(
+                        "precondition_required",
+                        "The next desktop booking is at "
+                        + booking.get("next_booking_start"),
+                        traceback.format_exc(),
+                        "desktop_not_booked_until",
+                        data=None,
+                        params={"start": booking.get("next_booking_start")},
+                    )
             scheduled = False
             if start_desktop and domains[0]["status"] == "Stopped":
                 desktop_start(domains[0]["id"], wait_seconds=60)
