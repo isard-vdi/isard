@@ -70,10 +70,29 @@ class Quotas:
                 r.table("media").get_all(user_id, index="user").count().run(db.conn)
             )
 
+            user_total_storage_size = (
+                r.table("storage")
+                .get_all([user_id, "ready"], index="user_status")
+                .sum(lambda size: size["qemu-img-info"]["actual-size"].default(0))
+                .run(db.conn)
+            ) / 1073741824
+
+            user_total_media_size = (
+                r.table("media")
+                .get_all(user_id, index="user")
+                .sum(lambda size: size["progress"]["total_bytes"].default(0))
+                .run(db.conn)
+            ) / 1073741824
+
+            user_total_size = user_total_storage_size + user_total_media_size
+
         used = {
             "desktops": user_desktops,
             "templates": user_templates,
             "isos": user_media,
+            "total_size": user_total_size,
+            "media_size": user_total_media_size,
+            "storage_size": user_total_storage_size,
         }
 
         if started_info:
@@ -106,11 +125,41 @@ class Quotas:
     def GetUserQuota(self, user_id):
         return qp.get_user(user_id)
 
+    """ Used to edit category/group/user in admin """
+
     def GetCategoryQuota(self, category_id):
-        return qp.get_category(category_id)
+        with app.app_context():
+            category = (
+                r.table("categories")
+                .get(category_id)
+                .pluck("limits", "quota")
+                .run(db.conn)
+            )
+        return {"quota": category["quota"], "limits": category["limits"]}
 
     def GetGroupQuota(self, group_id):
-        return qp.get_group(group_id)
+        ### Limits for group will be at least limits for its category
+        with app.app_context():
+            group = (
+                r.table("groups")
+                .get(group_id)
+                .pluck("parent_category", "limits", "quota")
+                .run(db.conn)
+            )
+        limits = group["limits"]
+        if limits == False:
+            with app.app_context():
+                limits = (
+                    r.table("categories")
+                    .get(group["parent_category"])
+                    .pluck("limits")
+                    .run(db.conn)["limits"]
+                )
+        return {
+            "quota": group["quota"],
+            "limits": limits,  ##Category limits as maximum
+            "grouplimits": group["limits"],
+        }
 
     def UserCreate(self, category_id, group_id):
         qp.check_new_autoregistered_user(category_id, group_id)
@@ -175,9 +224,10 @@ class Quotas:
                 "error_description_code": "desktop_new_category_limit_exceeded",
             },
         }
-        self.create(
+        self.check_field_quotas_and_limits(
             user,
             "desktops",
+            1,
             quota_error,
             group_quantity,
             category_quantity,
@@ -244,16 +294,17 @@ class Quotas:
                 "error_description_code": "template_new_category_limit_exceeded",
             },
         }
-        self.create(
+        self.check_field_quotas_and_limits(
             user,
             "templates",
+            1,
             quota_error,
             group_quantity,
             category_quantity,
             limits_error,
         )
 
-    def media_create(self, user_id):
+    def media_create(self, user_id, media_size=False):
         try:
             with app.app_context():
                 user = (
@@ -315,19 +366,78 @@ class Quotas:
                 "error_description_code": "media_new_category_limit_exceeded",
             },
         }
-        self.create(
+        self.check_field_quotas_and_limits(
             user,
             "isos",
+            1,
             quota_error,
             group_quantity,
             category_quantity,
             limits_error,
         )
 
-    def create(
+        # Check media size restrictions
+        if media_size:
+            # Get the group used disk size in GB
+            group_total_size = (
+                r.table("users")
+                .get_all(user["group"], index="group")
+                .eq_join(
+                    [r.row["id"], "ready"], r.table("storage"), index="user_status"
+                )
+                .sum(
+                    lambda right: right["right"]["qemu-img-info"][
+                        "actual-size"
+                    ].default(0)
+                )
+                .run(db.conn)
+            ) / 1073741824
+            # Get the category used disk size in GB
+            category_total_size = (
+                r.table("users")
+                .get_all(user["category"], index="category")
+                .eq_join(
+                    [r.row["id"], "ready"], r.table("storage"), index="user_status"
+                )
+                .sum(
+                    lambda right: right["right"]["qemu-img-info"][
+                        "actual-size"
+                    ].default(0)
+                )
+                .run(db.conn)
+            ) / 1073741824
+            quota_error = {
+                "error_description": user["name"]
+                + " disk size quota exceeded for creating new desktop",
+                "error_description_code": "total_size_quota_exceeded",
+            }
+            limits_error = {
+                "group": {
+                    "error_description": user["group_name"]
+                    + " groups disk size limits exceeded for creating new media",
+                    "error_description_code": "group_total_size_limit_exceeded",
+                },
+                "category": {
+                    "error_description": user["name"]
+                    + " category disk size limits exceeded for creating new media",
+                    "error_description_code": "category_total_size_limit_exceeded",
+                },
+            }
+            self.check_field_quotas_and_limits(
+                user,
+                "total_size",
+                media_size / 1073741824,  # Parse to GB
+                quota_error,
+                group_total_size,
+                category_total_size,
+                limits_error,
+            )
+
+    def check_field_quotas_and_limits(
         self,
         user,
         quota_key,
+        quantity,
         quota_error,
         group_quantity,
         category_quantity,
@@ -337,7 +447,9 @@ class Quotas:
         # We get the user applied quota and currently used info to check the quota
         user_quota_data = self.Get(user_id=user["id"], started_info=False)
         if user_quota_data["quota"]:
-            user_quota_data["used"][quota_key] = user_quota_data["used"][quota_key] + 1
+            user_quota_data["used"][quota_key] = (
+                user_quota_data["used"][quota_key] + quantity
+            )  # Sum to field to check if creating it would exceed the quota
             self.check_quota(user_quota_data, quota_key, quota_error)
 
         try:
@@ -355,7 +467,7 @@ class Quotas:
             self.check_limits(
                 item=group,
                 quota_key=quota_key,
-                quantity=group_quantity + 1,
+                quantity=group_quantity + quantity,
                 limits_error=limits_error["group"],
             )
 
@@ -374,7 +486,7 @@ class Quotas:
             self.check_limits(
                 item=category,
                 quota_key=quota_key,
-                quantity=category_quantity + 1,
+                quantity=category_quantity + quantity,
                 limits_error=limits_error["category"],
             )
 
@@ -486,20 +598,11 @@ class Quotas:
         except:
             raise Error("not_found", "User not found")
 
-        # We get the user applied quota and currently used info to check the quota
+        # We get the user applied quota (either user, group or category quota) and currently used info to check the quota
         user_quota_data = self.Get(user_id=user["id"], started_info=True)
         if user_quota_data["quota"]:
+            # Add the desktop that would be started to check if starting it would exceed the quota
             user_quota_data["used"]["running"] = user_quota_data["used"]["running"] + 1
-            user_quota_data["used"]["vcpus"] = (
-                user_quota_data["used"]["vcpus"]
-                + desktop["create_dict"]["hardware"]["vcpus"]
-            )
-            user_quota_data["used"]["memory"] = (
-                user_quota_data["used"]["memory"]
-                + desktop["create_dict"]["hardware"]["memory"] / 1048576
-            )
-
-            # Check running
             self.check_quota(
                 user_quota_data,
                 "running",
@@ -509,7 +612,13 @@ class Quotas:
                     "error_description_code": "desktop_start_user_quota_exceeded",
                 },
             )
-            # Check memory
+
+            # Add the desktop memory to check if starting it would exceed the quota
+            user_quota_data["used"]["memory"] = (
+                user_quota_data["used"]["memory"]
+                + desktop["create_dict"]["hardware"]["memory"] / 1048576
+            )
+
             self.check_quota(
                 user_quota_data,
                 "memory",
@@ -519,7 +628,13 @@ class Quotas:
                     "error_description_code": "desktop_start_memory_quota_exceeded",
                 },
             )
-            # Check vcpus
+
+            # Add the desktop vcpus to check if starting it would exceed the quota
+            user_quota_data["used"]["vcpus"] = (
+                user_quota_data["used"]["vcpus"]
+                + desktop["create_dict"]["hardware"]["vcpus"]
+            )
+
             self.check_quota(
                 user_quota_data,
                 "vcpus",
@@ -527,6 +642,21 @@ class Quotas:
                     "error_description": user["name"]
                     + " vcpus quota exceeded for starting desktop",
                     "error_description_code": "desktop_start_vcpu_quota_exceeded",
+                },
+            )
+
+            # Add 1GB to the desktop and parsing to GB to check if starting it would exceed the quota
+            user_quota_data["used"]["total_size"] = (
+                user_quota_data["used"]["total_size"] + 1
+            )
+
+            self.check_quota(
+                user_quota_data,
+                "total_size",
+                {
+                    "error_description": user["name"]
+                    + " disk size quota exceeded for starting desktop",
+                    "error_description_code": "total_size_quota_exceeded",
                 },
             )
 
@@ -586,6 +716,42 @@ class Quotas:
                 },
             )
 
+            # Get the group used disk size
+            total_size = (
+                r.table("users")
+                .get_all(user["group"], index="group")
+                .eq_join(
+                    [r.row["id"], "ready"], r.table("storage"), index="user_status"
+                )
+                .sum(
+                    lambda right: right["right"]["qemu-img-info"][
+                        "actual-size"
+                    ].default(0)
+                )
+                .run(db.conn)
+            )
+            total_media_size = (
+                r.table("media")
+                .get_all(user["group"], index="group")
+                .sum(lambda size: size["progress"]["total_bytes"].default(0))
+                .run(db.conn)
+            )
+            # Add 1GB to the desktop and parsing to GB to check if starting it would exceed the group quota
+            user_quota_data["used"]["total_size"] = (
+                total_size + total_media_size
+            ) / 1073741824 + 1
+
+            self.check_limits(
+                item=group,
+                quota_key="total_size",
+                quantity=user_quota_data["used"]["total_size"],
+                limits_error={
+                    "error_description": user["group_name"]
+                    + " group disk size limits exceeded for starting desktop",
+                    "error_description_code": "group_total_size_limit_exceeded",
+                },
+            )
+
         # Category limits
         try:
             with app.app_context():
@@ -641,6 +807,38 @@ class Quotas:
                 "error_description": user["category_name"]
                 + " group vcpu limits exceeded for starting desktop",
                 "error_description_code": "desktop_start_category_vcpu_limit_exceeded",
+            },
+        )
+
+        # Get the category used disk size
+        total_size = (
+            r.table("users")
+            .get_all(user["category"], index="category")
+            .eq_join([r.row["id"], "ready"], r.table("storage"), index="user_status")
+            .sum(
+                lambda right: right["right"]["qemu-img-info"]["actual-size"].default(0)
+            )
+            .run(db.conn)
+        )
+        total_media_size = (
+            r.table("media")
+            .get_all(user["category"], index="category")
+            .sum(lambda size: size["progress"]["total_bytes"].default(0))
+            .run(db.conn)
+        )
+        # Add 1GB to the desktop and parsing to GB to check if starting it would exceed the category quota
+        user_quota_data["used"]["total_size"] = (
+            total_size + total_media_size
+        ) / 1073741824 + 1
+
+        self.check_limits(
+            item=category,
+            quota_key="total_size",
+            quantity=user_quota_data["used"]["total_size"],
+            limits_error={
+                "error_description": user["category_name"]
+                + " category disk size limits exceeded for starting desktop",
+                "error_description_code": "category_total_size_limit_exceeded",
             },
         )
 

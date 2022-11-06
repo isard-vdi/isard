@@ -17,8 +17,11 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 64
+release_version = 65
 
+# release 65: Updated users quotas removing fields isos_disk_size and templates_disk_size.
+#             Updated users quotas adding fields total_size and total_soft_size.
+#             Added user_status index to table storage
 # release 64: Move hypervisor_pools paths to storage_pool
 # release 63: Updated "Only GPU" video "model": "nvidia" to "model": "none"
 # release 62: Updated media progress fields and added total_bytes field.
@@ -89,6 +92,7 @@ tables = [
     "storage_physical_media",
     "scheduler_jobs",
     "bookings_priority",
+    "categories",
 ]
 
 
@@ -1450,6 +1454,57 @@ class Upgrade(object):
                 self.conn
             )
 
+        if version == 65:
+            groups_quota = list(
+                r.table(table)
+                .filter(lambda group: r.not_(group["quota"] == False))
+                .run(self.conn)
+            )
+
+            for group in groups_quota:
+                ##### REMOVE FIELDS
+                self.del_keys(table, [{"quota": {"isos_disk_size"}}], group["id"])
+                self.del_keys(table, [{"quota": {"templates_disk_size"}}], group["id"])
+
+                ##### NEW FIELDS
+                self.add_keys(
+                    table,
+                    [
+                        {
+                            "quota": {
+                                "total_size": 999,
+                                "total_soft_size": 900,
+                            }
+                        },
+                    ],
+                    group["id"],
+                )
+
+            groups_limits = list(
+                r.table(table)
+                .filter(lambda group: r.not_(group["limits"] == False))
+                .run(self.conn)
+            )
+
+            for group in groups_limits:
+                ##### REMOVE FIELDS
+                self.del_keys(table, [{"limits": {"isos_disk_size"}}], group["id"])
+                self.del_keys(table, [{"limits": {"templates_disk_size"}}], group["id"])
+
+                ##### NEW FIELDS
+                self.add_keys(
+                    table,
+                    [
+                        {
+                            "limits": {
+                                "total_size": 9999,
+                                "total_soft_size": 9000,
+                            }
+                        },
+                    ],
+                    group["id"],
+                )
+
         return True
 
     """
@@ -1712,6 +1767,32 @@ class Upgrade(object):
                     }
                 ).run(self.conn)
 
+        if version == 65:
+            users = list(
+                r.table(table)
+                .filter(lambda user: r.not_(user["quota"] == False))
+                .run(self.conn)
+            )
+
+            for user in users:
+                ##### REMOVE FIELDS
+                self.del_keys(table, [{"quota": {"isos_disk_size"}}], user["id"])
+                self.del_keys(table, [{"quota": {"templates_disk_size"}}], user["id"])
+
+                ##### NEW FIELDS
+                self.add_keys(
+                    table,
+                    [
+                        {
+                            "quota": {
+                                "total_size": 999,
+                                "total_soft_size": 900,
+                            }
+                        },
+                    ],
+                    user["id"],
+                )
+
         return True
 
     """
@@ -1952,6 +2033,14 @@ class Upgrade(object):
                 }
             ).run(self.conn)
 
+        if version == 65:
+            try:
+                r.table(table).index_create(
+                    "user_status", [r.row["user_id"], r.row["status"]]
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
         return True
 
     def storage_physical_domains(self, version):
@@ -2052,6 +2141,69 @@ class Upgrade(object):
             )
 
     """
+    CATEGORIES TABLE UPGRADES
+    """
+
+    def categories(self, version):
+        table = "categories"
+        log.info("UPGRADING " + table + " VERSION " + str(version))
+
+        if version == 65:
+            categories_quota = list(
+                r.table(table)
+                .filter(lambda category: r.not_(category["quota"] == False))
+                .run(self.conn)
+            )
+
+            for category in categories_quota:
+                ##### REMOVE FIELDS
+                self.del_keys(table, [{"quota": {"isos_disk_size"}}], category["id"])
+                self.del_keys(
+                    table, [{"quota": {"templates_disk_size"}}], category["id"]
+                )
+
+                ##### NEW FIELDS
+                self.add_keys(
+                    table,
+                    [
+                        {
+                            "quota": {
+                                "total_size": 999,
+                                "total_soft_size": 900,
+                            }
+                        },
+                    ],
+                    category["id"],
+                )
+
+            categories_limits = list(
+                r.table(table)
+                .filter(lambda category: r.not_(category["limits"] == False))
+                .run(self.conn)
+            )
+
+            for category in categories_limits:
+                ##### REMOVE FIELDS
+                self.del_keys(table, [{"limits": {"isos_disk_size"}}], category["id"])
+                self.del_keys(
+                    table, [{"limits": {"templates_disk_size"}}], category["id"]
+                )
+
+                ##### NEW FIELDS
+                self.add_keys(
+                    table,
+                    [
+                        {
+                            "limits": {
+                                "total_size": 9999,
+                                "total_soft_size": 9000,
+                            }
+                        },
+                    ],
+                    category["id"],
+                )
+
+    """
     Upgrade general actions
     """
 
@@ -2063,7 +2215,6 @@ class Upgrade(object):
                 r.table(table).get(id).update(key).run(self.conn)
 
     def del_keys(self, table, keys, id=False):
-        log.info("Del keys init")
         for key in keys:
             if id is False:
                 r.table(table).replace(r.row.without(key)).run(self.conn)

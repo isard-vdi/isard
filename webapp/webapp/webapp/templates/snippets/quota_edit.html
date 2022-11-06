@@ -1,16 +1,18 @@
 {% if type is not defined %}
-    {% set type = 'quota' %}
+{% set type = 'quota' %}
 {% endif %}
 <div class="item form-group unlimited" style="display: block">
     <label class="control-label col-md-3 col-sm-3 col-xs-12" for="unlimited">
-        Unlimited
+        Apply <span class="apply"></span>
     </label>
     <div class="col-md-6 col-sm-6 col-xs-12">
         <div class="checkbox" style="display: block">
             <label>
                 <div class="icheckbox_flat-green" style="position: relative;">
-                    <input type="checkbox" id="unlimited" name="unlimited" class="flat"  style="position: absolute; opacity: 0;">
-                    <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                    <input type="checkbox" id="unlimited" name="unlimited" class="flat"
+                        style="position: absolute; opacity: 0;">
+                    <ins class="iCheck-helper"
+                        style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
                     </ins>
                 </div>
             </label>
@@ -20,59 +22,136 @@
 
 <div class="x_content found quota_form" style="display: block">
     <div class="row">
-        <div class="x_panel">
-            <div class="col-xs-3 form-group">
-                <label>Desktops</label>
-		<input id="{{ type }}-desktops" name="{{ type }}-desktops" class="form-control roundbox quota-form-input" disabled value="1" min="0" maxlength="5" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
-            </div>
-            <div class="col-xs-3 form-group">
-                <label>Concurrent</label>
-                <input id="{{ type }}-running" name="{{ type }}-running" class="form-control roundbox quota-form-input" disabled value="1" min="0" maxlength="5" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
-            </div>
-            <div class="col-xs-3 form-group">
-                <label>vCPU</label>
-                <input id="{{ type }}-vcpus" name="{{ type }}-vcpus" class="form-control col-md-7 col-xs-12 roundbox quota-form-input" disabled value="1" min="0"maxlength="5" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
-            </div>
-            <div class="col-xs-3 form-group">
-                <label>Memory(GB)</label>
-                <input id="{{ type }}-memory" name="{{ type }}-memory" class="form-control col-md-7 col-xs-12 roundbox quota-form-input" disabled value="2" min="0"maxlength="5" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
-            </div>
-            <div class="col-xs-3 form-group">
-                <label>Disk size(GB)</label>
-                <input id="{{ type }}-desktops_disk_size" name="{{ type }}-desktops_disk_size" class="form-control roundbox quota-form-input" disabled value="40" min="0"maxlength="5" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
-            </div>                   
-        </div>
-
-        <div class="x_panel">
-            <div class="col-xs-3 form-group">
-                <label>Templates</label>
-                <input id="{{ type }}-templates" name="{{ type }}-templates" class="form-control roundbox quota-form-input" disabled value="0" min="0" maxlength="5" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
-            </div>
-            <div class="col-xs-3 form-group" style="display:none">
-                <label>Disk size(GB)</label>
-                <input id="{{ type }}-templates_disk_size" name="{{ type }}-templates_disk_size" class="form-control roundbox quota-form-input" disabled value="0" min="0" maxlength="5" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
-            </div>                   
-        </div>    
-
-        <div class="x_panel">
-            <div class="col-xs-3 form-group">
-                <label>Isos</label>
-                <input id="{{ type }}-isos" name="{{ type }}-isos" class="form-control roundbox quota-form-input" disabled value="0" min="0" maxlength="5" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
-            </div>
-            <div class="col-xs-3 form-group" style="display:none">
-                <label>Disk size(GB)</label>
-                <input id="{{ type }}-isos_disk_size" name="{{ type }}-isos_disk_size" class="form-control roundbox quota-form-input" disabled value="0" min="0" maxlength="5" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
-            </div>                
-        </div> 
-{% if type == 'limits' %}
-        <div class="x_panel">
-            <div class="col-xs-3 form-group">
-                <label>Users</label>
-                <input id="{{ type }}-users" name="{{ type }}-users" class="form-control roundbox quota-form-input" disabled value="5" min="0" maxlength="5" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+        <div class="col-md-6">
+            <div class="x_panel">
+                <h4><i class="fa fa-plus" aria-hidden="true"></i>
+                    Creation quota<br>
+                    <small>Amount of each element that the <span class="kind"></span> is allowed to create</small>
+                </h4>
+                <div class="x_content" style="padding: 0px;">
+                    <div class="row">
+                        <div class="col-xs-4 form-group" title="Amount of desktops that can be created">
+                            <label>Desktops</label>
+                            <input id="{{ type }}-desktops" name="{{ type }}-desktops"
+                                class="form-control roundbox quota-form-input" disabled value="1" min="0" maxlength="5"
+                                pattern="[0-9@]+$" placeholder="" data-parsley-trigger="change" required
+                                type="number" />
+                        </div>
+                        <div class="col-xs-4 form-group" title="Amount of templates that can be created">
+                            <label>Templates</label>
+                            <input id="{{ type }}-templates" name="{{ type }}-templates"
+                                class="form-control roundbox quota-form-input" disabled value="0" min="0" maxlength="5"
+                                pattern="[0-9@]+$" placeholder="" data-parsley-trigger="change" required
+                                type="number" />
+                        </div>
+                        <div class="col-xs-4 form-group" title="Amount of media that can be uploaded">
+                            <label>Media</label>
+                            <input id="{{ type }}-isos" name="{{ type }}-isos"
+                                class="form-control roundbox quota-form-input" disabled value="0" min="0" maxlength="5"
+                                pattern="[0-9@]+$" placeholder="" data-parsley-trigger="change" required
+                                type="number" />
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-{% endif %}
-    </div>                   
+        <div class="col-md-6">
+            <div class="x_panel">
+                <h4><i class="fa fa-play" aria-hidden="true"></i>
+                    Running desktops quota<br>
+                    <small>Amount of resources that the <span class="kind"></span> is allowed to use
+                        concurrently</small>
+                </h4>
+                <div class="x_content" style="padding: 0px;">
+                    <div class="row">
+                        <div class="col-xs-4 form-group"
+                            title="Total amount of desktops that can be started at the same time">
+                            <label>Concurrent</label>
+                            <input id="{{ type }}-running" name="{{ type }}-running"
+                                class="form-control roundbox quota-form-input" disabled value="1" min="0" maxlength="5"
+                                pattern="[0-9@]+$" placeholder="" data-parsley-trigger="change" required
+                                type="number" />
+                        </div>
+                        <div class="col-xs-4 form-group"
+                            title="Total amount of vCPUS that can be used at the same time">
+                            <label>vCPUs</label>
+                            <input id="{{ type }}-vcpus" name="{{ type }}-vcpus"
+                                class="form-control col-md-7 col-xs-12 roundbox quota-form-input" disabled value="1"
+                                min="0" maxlength="5" pattern="[0-9@]+$" placeholder="" data-parsley-trigger="change"
+                                required type="number" />
+                        </div>
+                        <div class="col-xs-4 form-group"
+                            title="Total amount of memory that can be used at the same time">
+                            <label>Memory (GB)</label>
+                            <input id="{{ type }}-memory" name="{{ type }}-memory"
+                                class="form-control col-md-7 col-xs-12 roundbox quota-form-input" disabled value="2"
+                                min="0" maxlength="5" pattern="[0-9@]+$" placeholder="" data-parsley-trigger="change"
+                                required type="number" />
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="x_panel">
+                <h4><i class="fa fa-hdd-o" aria-hidden="true"></i>
+                    Size quota (GB)<br>
+                    <small>Amount of space that the <span class="kind"></span> is allowed to have</small>
+                </h4>
+                <div class="x_content" style="padding: 0px;">
+                    <div class="row">
+                        <div class="col-xs-4 form-group">
+                            <label>Disk size</label>
+                            <input id="{{ type }}-desktops_disk_size" name="{{ type }}-desktops_disk_size"
+                                title="Maximum size allowed when creating a desktop from a media"
+                                class="form-control roundbox quota-form-input" disabled value="40" min="0" maxlength="5"
+                                pattern="[0-9@]+$" placeholder="" data-parsley-trigger="change" required
+                                type="number" />
+                        </div>
+                        <div class="col-xs-4 form-group">
+                            <label>Total size</label>
+                            <input id="{{ type }}-total_size" name="{{ type }}-total_size"
+                                title="Total size that can be used" class="form-control roundbox quota-form-input"
+                                disabled value="50" min="0" maxlength="5" pattern="[0-9@]+$" placeholder=""
+                                data-parsley-trigger="change" required type="number" />
+                        </div>
+                        <div class="col-xs-4 form-group">
+                            <label>Soft size</label>
+                            <input id="{{ type }}-total_soft_size" name="{{ type }}-total_soft_size"
+                                title="When reaching this total size a warning will be shown"
+                                class="form-control roundbox quota-form-input" disabled value="40" min="0" maxlength="5"
+                                pattern="[0-9@]+$" placeholder="" data-parsley-trigger="change" required
+                                type="number" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if type == 'limits' %}
+        <div class="col-md-6">
+            <div class="x_panel">
+                <h4><i class="fa fa-user" aria-hidden="true"></i>
+                    Users<br>
+                    <small>Amount of users that the <span class="kind"></span> is allowed to have</small>
+                </h4>
+                <div class="x_content" style="padding: 0px;">
+                    <div class="row">
+                        <div class="col-xs-4 form-group">
+                            <label>Users</label>
+                            <input id="{{ type }}-users" name="{{ type }}-users"
+                                title="Total amount of users that can be created"
+                                class="form-control roundbox quota-form-input" disabled value="1" min="0" maxlength="5"
+                                pattern="[0-9@]+$" placeholder="" data-parsley-trigger="change" required
+                                type="number" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
 </div>
 {% if type == 'quota' %}
 <script src="/isard-admin/static/js/snippets/quota.js"></script>

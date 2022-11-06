@@ -169,8 +169,7 @@ export default {
     const mediaTypes = ref([
       { value: null, text: i18n.t('forms.new-media.select-type'), disabled: true },
       { value: 'iso', text: 'ISO CD/DVD' },
-      { value: 'floppy', text: 'Floppy' },
-      { value: 'qcow2', text: 'Qcow2' }
+      { value: 'floppy', text: 'Floppy' }
     ])
     const mediaUrl = ref('')
     const name = ref('')

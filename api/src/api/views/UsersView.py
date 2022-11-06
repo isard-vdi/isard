@@ -56,7 +56,7 @@ def api_v3_jwt(payload):
 @app.route("/api/v3/user", methods=["GET"])
 @has_token
 def api_v3_user_exists(payload):
-    user = users.Get(payload["user_id"])
+    user = users.Get(payload["user_id"], True)
     return json.dumps(user), 200, {"Content-Type": "application/json"}
 
 

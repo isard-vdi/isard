@@ -770,35 +770,6 @@ class QuotasProcess:
 
         return False
 
-    """ Used to edit category/group/user in admin """
-
-    def get_category(self, category_id):
-        with app.app_context():
-            category = r.table("categories").get(category_id).run(db.conn)
-        return {
-            "quota": category["quota"],
-            "limits": category["limits"] if "limits" in category else False,
-        }
-
-    def get_group(self, group_id):
-        ### Limits for group will be at least limits for its category
-        with app.app_context():
-            group = r.table("groups").get(group_id).run(db.conn)
-        limits = group["limits"]
-        if limits == False:
-            with app.app_context():
-                limits = (
-                    r.table("categories")
-                    .get(group["parent_category"])
-                    .pluck("limits")
-                    .run(db.conn)["limits"]
-                )
-        return {
-            "quota": group["quota"],
-            "limits": limits,  ##Category limits as maximum
-            "grouplimits": group["limits"],
-        }
-
     def get_user(self, user_id):
         with app.app_context():
             user = r.table("users").get(user_id).run(db.conn)

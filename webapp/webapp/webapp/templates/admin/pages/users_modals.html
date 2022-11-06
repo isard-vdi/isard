@@ -1,6 +1,6 @@
 <style>
-    .no-update { 
-        background:#e3e4e4
+    .no-update {
+        background: #e3e4e4
     }
 </style>
 <div class="modal fade" id="modalAddUser" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
@@ -13,7 +13,7 @@
                     <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title">
-                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-user"> </i>   User
+                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-user"> </i> User
                 </h4>
             </div>
 
@@ -27,63 +27,84 @@
                         <input id="id" hidden/>
 -->
                             <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Name <span class="required">*</span>
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Name <span
+                                        class="required">*</span>
                                 </label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <input id="name" name="name" class="form-control col-md-7 col-xs-12" data-parsley-length="[4, 40]" placeholder="Full name" required="required" type="text">
+                                    <input id="name" name="name" class="form-control col-md-7 col-xs-12"
+                                        data-parsley-length="[4, 40]" placeholder="Full name" required="required"
+                                        type="text">
                                 </div>
                             </div>
                             <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="id">Username <span class="required">*</span>
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="id">Username <span
+                                        class="required">*</span>
                                 </label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <input id="id" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$" data-parsley-length="[4, 20]" name="id" placeholder="Login username" data-parsley-trigger="change" required type="text">
+                                    <input id="id" class="form-control col-md-7 col-xs-12" maxlength="40"
+                                        pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$" data-parsley-length="[4, 20]"
+                                        name="id" placeholder="Login username" data-parsley-trigger="change" required
+                                        type="text">
                                 </div>
                             </div>
                             <div class="item form-group">
                                 <label class="control-label col-md-3 col-sm-3 col-xs-12" for="id">Email
                                 </label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <input id="email" class="form-control col-md-7 col-xs-12" data-validate-length-range="4,40" name="email" placeholder="Email" type="email" data-parsley-trigger="change">
+                                    <input id="email" class="form-control col-md-7 col-xs-12"
+                                        data-validate-length-range="4,40" name="email" placeholder="Email" type="email"
+                                        data-parsley-trigger="change">
                                 </div>
                             </div>
                             <div class="item form-group">
-                                <label for="password-add-user" class="control-label col-md-3 col-sm-3 col-xs-1">Password <span class="required">*</span></label>
+                                <label for="password-add-user" class="control-label col-md-3 col-sm-3 col-xs-1">Password
+                                    <span class="required">*</span></label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <input id="password-add-user" type="password" name="password-add-user" data-validate-length="6,8" class="form-control col-md-7 col-xs-12" required="required">
+                                    <input id="password-add-user" type="password" name="password-add-user"
+                                        data-validate-length="6,8" class="form-control col-md-7 col-xs-12"
+                                        required="required">
                                 </div>
                             </div>
                             <div class="item form-group">
-                                <label for="password2-add-user" class="control-label col-md-3 col-sm-3 col-xs-12">Repeat Password <span class="required">*</span></label>
+                                <label for="password2-add-user" class="control-label col-md-3 col-sm-3 col-xs-12">Repeat
+                                    Password <span class="required">*</span></label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <input id="password2-add-user" type="password" name="password2-add-user" data-validate-linked="password-add-user" class="form-control col-md-7 col-xs-12" required="required">
+                                    <input id="password2-add-user" type="password" name="password2-add-user"
+                                        data-validate-linked="password-add-user" class="form-control col-md-7 col-xs-12"
+                                        required="required">
                                 </div>
                             </div>
                             <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="role">Role: <span class="required">*</span></label>
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="role">Role: <span
+                                        class="required">*</span></label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <select id="add-role" name="role" class="form-control role" data-quota="users-quota" required>
+                                    <select id="add-role" name="role" class="form-control role" data-quota="users-quota"
+                                        required>
                                     </select>
                                 </div>
                             </div>
                             <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="category">Category: <span class="required">*</span></label>
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="category">Category: <span
+                                        class="required">*</span></label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
                                     <select id="add-category" name="category" class="form-control category" required>
                                     </select>
                                 </div>
                             </div>
                             <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="group">Group: <span class="required">*</span></label>
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="group">Group: <span
+                                        class="required">*</span></label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
                                     <select id="add-group" name="group" class="form-control group" required>
                                     </select>
                                 </div>
                             </div>
                             <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="group">Secondary group: </label>
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="group">Secondary group:
+                                </label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <select id="secondary_groups" name="secondary_groups[]" class="tags-select roundbox" multiple="multiple" style="width: 100%;">
+                                    <select id="secondary_groups" name="secondary_groups[]" class="tags-select roundbox"
+                                        multiple="multiple" style="width: 100%;">
                                     </select>
                                 </div>
                             </div>
@@ -95,7 +116,7 @@
 
                         <div class="x_panel" id="users-quota" style="padding: 5px;">
                             <div class="x_title">
-                                <h4></i> Quota  for this user</h4>
+                                <h4></i> Quota for this user</h4>
                                 <div class="clearfix"></div>
                             </div>
 
@@ -119,8 +140,9 @@
     </div>
 </div>
 
-<div class="modal fade" id="modalEditUser" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+<div class="modal fade" id="modalEditUser" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <!-- Modal Header -->
             <div class="modal-header">
@@ -141,51 +163,67 @@
                         <div class="x_content">
                             <input id="id" name="id" hidden>
                             <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Name <span class="required">*</span>
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Name <span
+                                        class="required">*</span>
                                 </label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <input id="name" name="name" class="form-control col-md-7 col-xs-12" data-parsley-length="[4, 40]" placeholder="Full name" required="required" type="text">
+                                    <input id="name" name="name" class="form-control col-md-7 col-xs-12"
+                                        data-parsley-length="[4, 40]" placeholder="Full name" required="required"
+                                        type="text">
                                 </div>
                             </div>
                             <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="uid">Username <span class="required">*</span>
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="uid">Username <span
+                                        class="required">*</span>
                                 </label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <input disabled id="uid" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="uid" placeholder="Login username" data-parsley-trigger="change" required type="text">
+                                    <input disabled id="uid" class="form-control col-md-7 col-xs-12" maxlength="40"
+                                        pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$" data-parsley-length="[4, 40]"
+                                        name="uid" placeholder="Login username" data-parsley-trigger="change" required
+                                        type="text">
                                 </div>
                             </div>
                             <div class="item form-group">
                                 <label class="control-label col-md-3 col-sm-3 col-xs-12" for="email">Email
                                 </label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <input id="email" class="form-control col-md-7 col-xs-12" data-validate-length-range="4,40" name="email" placeholder="Email" type="email" data-parsley-trigger="change">
+                                    <input id="email" class="form-control col-md-7 col-xs-12"
+                                        data-validate-length-range="4,40" name="email" placeholder="Email" type="email"
+                                        data-parsley-trigger="change">
                                 </div>
                             </div>
                             <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="role">Role: <span class="required">*</span></label>
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="role">Role: <span
+                                        class="required">*</span></label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <select id="role" name="role" class="form-control role" data-quota="users-quota" required>
+                                    <select id="role" name="role" class="form-control role" data-quota="users-quota"
+                                        required>
                                     </select>
                                 </div>
                             </div>
                             <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="category">Category: <span class="required">*</span></label>
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="category">Category: <span
+                                        class="required">*</span></label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <select id="category" name="category" class="form-control category" disabled required>
+                                    <select id="category" name="category" class="form-control category" disabled
+                                        required>
                                     </select>
                                 </div>
                             </div>
                             <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="group">Group: <span class="required">*</span></label>
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="group">Group: <span
+                                        class="required">*</span></label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
                                     <select id="group" name="group" class="form-control group" disabled required>
                                     </select>
                                 </div>
                             </div>
                             <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="group">Secondary group: </label>
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="group">Secondary group:
+                                </label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <select id="secondary_groups" name="secondary_groups[]" class="tags-select roundbox" multiple="multiple" style="width: 100%;">
+                                    <select id="secondary_groups" name="secondary_groups[]" class="tags-select roundbox"
+                                        multiple="multiple" style="width: 100%;">
                                     </select>
                                 </div>
                             </div>
@@ -194,12 +232,14 @@
 -->
 
                         </div>
-
                         <div class="x_panel" id="edit-users-quota" style="padding: 5px;">
-                            <p style="font-size: 18px;margin-bottom:0px;">Quota</p>
+                            <div class="x_title">
+                                <h4></i> Quota for this user</h4>
+                                <div class="clearfix"></div>
+                            </div>
+
                             {% include '/snippets/quota_edit.html' %}
                         </div>
-
                     </div>
 
                 </form>
@@ -217,7 +257,8 @@
     </div>
 </div>
 
-<div class="modal fade" id="modalPasswdUser" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+<div class="modal fade" id="modalPasswdUser" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
+    aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <!-- Modal Header -->
@@ -237,31 +278,41 @@
                 <form id="modalPasswdUserForm" class="form-horizontal form-label-left">
                     <div class="x_panel">
                         <div class="x_content">
-                            <input id="id" hidden/>
+                            <input id="id" hidden />
                             <div class="item form-group">
                                 <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Name
                                 </label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <input id="name" name="name" class="form-control col-md-7 col-xs-12" data-parsley-length="[4, 40]" placeholder="Full name" type="text" disabled>
+                                    <input id="name" name="name" class="form-control col-md-7 col-xs-12"
+                                        data-parsley-length="[4, 40]" placeholder="Full name" type="text" disabled>
                                 </div>
                             </div>
                             <div class="item form-group">
                                 <label class="control-label col-md-3 col-sm-3 col-xs-12" for="username">Username
                                 </label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <input id="username" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="username" placeholder="Login username" data-parsley-trigger="change" type="text" disabled>
+                                    <input id="username" class="form-control col-md-7 col-xs-12" maxlength="40"
+                                        pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$" data-parsley-length="[4, 40]"
+                                        name="username" placeholder="Login username" data-parsley-trigger="change"
+                                        type="text" disabled>
                                 </div>
                             </div>
                             <div class="item form-group">
-                                <label for="password-reset" class="control-label col-md-3">New Password</label><span class="required">*</span>
+                                <label for="password-reset" class="control-label col-md-3">New Password</label><span
+                                    class="required">*</span>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <input id="password-reset" type="password" name="password-reset" data-validate-length="6,8" class="form-control col-md-7 col-xs-12" required="required">
+                                    <input id="password-reset" type="password" name="password-reset"
+                                        data-validate-length="6,8" class="form-control col-md-7 col-xs-12"
+                                        required="required">
                                 </div>
                             </div>
                             <div class="item form-group">
-                                <label for="password2-reset" class="control-label col-md-3 col-sm-3 col-xs-12">Repeat Password</label><span class="required">*</span>
+                                <label for="password2-reset" class="control-label col-md-3 col-sm-3 col-xs-12">Repeat
+                                    Password</label><span class="required">*</span>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <input id="password2-reset" type="password" name="password2-reset" data-validate-linked="password-reset" class="form-control col-md-7 col-xs-12" required="required">
+                                    <input id="password2-reset" type="password" name="password2-reset"
+                                        data-validate-linked="password-reset" class="form-control col-md-7 col-xs-12"
+                                        required="required">
                                 </div>
                             </div>
 
@@ -283,7 +334,8 @@
     </div>
 </div>
 
-<div class="modal fade" id="modalAddBulkUsers" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+<div class="modal fade" id="modalAddBulkUsers" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
+    aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <!-- Modal Header -->
@@ -304,7 +356,8 @@
                     <div class="x_panel">
                         <div class="x_content">
                             <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Import CSV <span class="required">*</span>
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Import CSV <span
+                                        class="required">*</span>
                                 </label>
                                 <div class="col-md-9 col-sm-9 col-xs-12">
                                     <input type="file" id="csv" name="csv" enctype="multipart/form-data" />
@@ -316,12 +369,15 @@
                                             <li>Where <b>role</b> must be <i>manager, advanced</i> or <i>user</i></li>
                                         </ul>
                                     </small>
-                                    <button id="btn-download-bulkusers" type="button" class="btn btn-success" data-dismiss="modal">Download sample csv format</button>
+                                    <button id="btn-download-bulkusers" type="button" class="btn btn-success"
+                                        data-dismiss="modal">Download sample csv format</button>
                                 </div>
                             </div>
                             <div class="x_content">
-                                <div id="csv_error" style="display:none" class="alert alert-danger alert-dismissible " role="alert">
-                                    <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">×</span>
+                                <div id="csv_error" style="display:none" class="alert alert-danger alert-dismissible "
+                                    role="alert">
+                                    <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span
+                                            aria-hidden="true">×</span>
                                     </button>
                                     <div id="csv_error_html"></div>
                                 </div>
@@ -347,28 +403,29 @@
                                     </select>
                                 </div>
                             </div> -->
-                            <div id="csv_correct" class="x_content"  style="display:none">
+                            <div id="csv_correct" class="x_content" style="display:none">
                                 <div class="x_title">
-                                    <h4><i class="fa fa-check" style="color:lightgreen"></i> Imported data was validated</h4>
+                                    <h4><i class="fa fa-check" style="color:lightgreen"></i> Imported data was validated
+                                    </h4>
                                     <br>
                                     <h4><i> (grey columns are not updated on existing users)</i></h4>
                                     <div class="clearfix"></div>
                                 </div>
                                 <table id="csv_preview" class="cell-border hover stripe">
-                                  <thead>
-                                    <tr>
-                                      <th>exists</th>
-                                      <th>username</th>
-                                      <th>name</th>
-                                      <th>email</th>
-                                      <th>password</th>
-                                      <th>group</th>
-                                      <th>category</th>
-                                      <th>role</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                  </tbody>
+                                    <thead>
+                                        <tr>
+                                            <th>exists</th>
+                                            <th>username</th>
+                                            <th>name</th>
+                                            <th>email</th>
+                                            <th>password</th>
+                                            <th>group</th>
+                                            <th>category</th>
+                                            <th>role</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    </tbody>
                                 </table>
                                 <hr>
                                 <div class="x_title">
@@ -376,9 +433,11 @@
                                     <div class="clearfix"></div>
                                 </div>
                                 <div class="item form-group">
-                                    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="group">Secondary groups: </label>
+                                    <label class="control-label col-md-3 col-sm-3 col-xs-12" for="group">Secondary
+                                        groups: </label>
                                     <div class="col-md-6 col-sm-6 col-xs-12">
-                                        <select id="bulk_secondary_groups" name="secondary_groups[]" class="tags-select roundbox" multiple="multiple" style="width: 100%;">
+                                        <select id="bulk_secondary_groups" name="secondary_groups[]"
+                                            class="tags-select roundbox" multiple="multiple" style="width: 100%;">
                                         </select>
                                     </div>
                                 </div>
@@ -388,46 +447,49 @@
                                     {% include '/snippets/quota_edit.html' %}
                                 </div>
                             </div>
-                    </div>
-                    </form>
-                    </div>
+                        </div>
+                </form>
             </div>
-            
-            <!-- Modal Footer -->
-            <div class="modal-footer">
-                <ul class="nav navbar-left panel_toolbox">
-                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
-                </ul>
-                <ul class="nav navbar-right panel_toolbox">
-                    <li><button id="send" type="button" class="btn btn-success">Create users</button></li>
-                </ul>
-                <ul class="nav navbar-right panel_toolbox">
-                    <li>
-                        <div class="item form-group" style="display: block">
-                            <label class="control-label col-md-6 col-sm-6 col-xs-12" for="bulk-allow-update">
-                                Update existing users
-                            </label>
-                            <div class="col-md-3 col-sm-3 col-xs-12">
-                                <div class="checkbox" style="display: block">
-                                    <label>
-                                        <div class="icheckbox_flat-green" style="position: relative;">
-                                            <input type="checkbox" id="bulk-allow-update" name="bulk-allow-update" class="flat"  style="position: absolute; opacity: 0;">
-                                            <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
-                                            </ins>
-                                        </div>
-                                    </label>
-                                </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="modal-footer">
+            <ul class="nav navbar-left panel_toolbox">
+                <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+            </ul>
+            <ul class="nav navbar-right panel_toolbox">
+                <li><button id="send" type="button" class="btn btn-success">Create users</button></li>
+            </ul>
+            <ul class="nav navbar-right panel_toolbox">
+                <li>
+                    <div class="item form-group" style="display: block">
+                        <label class="control-label col-md-6 col-sm-6 col-xs-12" for="bulk-allow-update">
+                            Update existing users
+                        </label>
+                        <div class="col-md-3 col-sm-3 col-xs-12">
+                            <div class="checkbox" style="display: block">
+                                <label>
+                                    <div class="icheckbox_flat-green" style="position: relative;">
+                                        <input type="checkbox" id="bulk-allow-update" name="bulk-allow-update"
+                                            class="flat" style="position: absolute; opacity: 0;">
+                                        <ins class="iCheck-helper"
+                                            style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                        </ins>
+                                    </div>
+                                </label>
                             </div>
                         </div>
-                        
-                    </li>
-                </ul>
-            </div>
+                    </div>
+
+                </li>
+            </ul>
         </div>
     </div>
 </div>
+</div>
 
-<div class="modal fade" id="modalDeleteUser" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+<div class="modal fade" id="modalDeleteUser" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
+    aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <!-- Modal Header -->
@@ -445,23 +507,23 @@
             <div class="modal-body">
 
                 <form id="modalDeleteUserForm" class="form-horizontal form-label-left">
-                    <input id="id" hidden/>
+                    <input id="id" hidden />
                     <div class="x_panel">
                         <div class="x_content">
-                            <h4 style="color: red"><i class="fa fa-warning"> </i>  All these items will be deleted!</h4>
+                            <h4 style="color: red"><i class="fa fa-warning"> </i> All these items will be deleted!</h4>
                             <div class="item form-group">
                                 <table id="table_modal_delete" class="table">
                                     <thead>
-                                      <tr>
-                                        <th>kind</th>
-                                        <th>owner/id</th>
-                                        <th>name</th>
-                                      </tr>
+                                        <tr>
+                                            <th>kind</th>
+                                            <th>owner/id</th>
+                                            <th>name</th>
+                                        </tr>
                                     </thead>
-              
+
                                     <tbody>
                                     </tbody>
-                                  </table>
+                                </table>
                             </div>
                         </div>
 
@@ -482,7 +544,8 @@
     </div>
 </div>
 
-<div class="modal fade" id="modalDeleteCategory" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+<div class="modal fade" id="modalDeleteCategory" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
+    aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <!-- Modal Header -->
@@ -492,7 +555,7 @@
                     <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title">
-                    <i class="fa fa-delete fa-1x"> </i> <i class="fa fa-user"> </i>   Delete Category
+                    <i class="fa fa-delete fa-1x"> </i> <i class="fa fa-user"> </i> Delete Category
                 </h4>
             </div>
 
@@ -500,23 +563,23 @@
             <div class="modal-body">
 
                 <form id="modalDeleteCategoryForm" class="form-horizontal form-label-left">
-                    <input id="id" hidden/>
+                    <input id="id" hidden />
                     <div class="x_panel">
                         <div class="x_content">
-                            <h4 style="color: red"><i class="fa fa-warning"> </i>  All these items will be deleted!</h4>
+                            <h4 style="color: red"><i class="fa fa-warning"> </i> All these items will be deleted!</h4>
                             <div class="item form-group">
                                 <table id="table_modal_category_delete" class="table">
                                     <thead>
-                                      <tr>
-                                        <th>kind</th>
-                                        <th>owner/id</th>
-                                        <th>name</th>
-                                      </tr>
+                                        <tr>
+                                            <th>kind</th>
+                                            <th>owner/id</th>
+                                            <th>name</th>
+                                        </tr>
                                     </thead>
-              
+
                                     <tbody>
                                     </tbody>
-                                  </table>
+                                </table>
                             </div>
                         </div>
                     </div>
@@ -536,7 +599,8 @@
     </div>
 </div>
 
-<div class="modal fade" id="modalDeleteGroup" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+<div class="modal fade" id="modalDeleteGroup" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
+    aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <!-- Modal Header -->
@@ -546,7 +610,7 @@
                     <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title">
-                    <i class="fa fa-delete fa-1x"> </i> <i class="fa fa-user"> </i>   Delete group
+                    <i class="fa fa-delete fa-1x"> </i> <i class="fa fa-user"> </i> Delete group
                 </h4>
             </div>
 
@@ -554,23 +618,23 @@
             <div class="modal-body">
 
                 <form id="modalDeleteGroupForm" class="form-horizontal form-label-left">
-                    <input id="id" hidden/>
+                    <input id="id" hidden />
                     <div class="x_panel">
                         <div class="x_content">
-                            <h4 style="color: red"><i class="fa fa-warning"> </i>  All these items will be deleted!</h4>
+                            <h4 style="color: red"><i class="fa fa-warning"> </i> All these items will be deleted!</h4>
                             <div class="item form-group">
                                 <table id="table_modal_group_delete" class="table">
                                     <thead>
-                                      <tr>
-                                        <th>kind</th>
-                                        <th>owner/id</th>
-                                        <th>name</th>
-                                      </tr>
+                                        <tr>
+                                            <th>kind</th>
+                                            <th>owner/id</th>
+                                            <th>name</th>
+                                        </tr>
                                     </thead>
-              
+
                                     <tbody>
                                     </tbody>
-                                  </table>
+                                </table>
                             </div>
                         </div>
 
@@ -592,7 +656,8 @@
 </div>
 
 
-<div class="modal fade" id="modalDeleteUserTree" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+<div class="modal fade" id="modalDeleteUserTree" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
+    aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <!-- Modal Header -->
@@ -602,14 +667,14 @@
                     <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title">
-                    <i class="fa fa-delete fa-1x"> </i> <i class="fa fa-user"> </i>   Delete User
+                    <i class="fa fa-delete fa-1x"> </i> <i class="fa fa-user"> </i> Delete User
                 </h4>
             </div>
 
             <!-- Modal Body -->
             <div class="modal-body">
-                
-                
+
+
                 <div id="domains_tree">
                     <ul>
                         <li>
@@ -622,13 +687,16 @@
                                     <ul>
                                         <li>
                                             <input type="checkbox" />
-                                            Subchild 1</li>
+                                            Subchild 1
+                                        </li>
                                         <li>
                                             <input type="checkbox" />
-                                            Subchild 2</li>
+                                            Subchild 2
+                                        </li>
                                         <li>
                                             <input type="checkbox" />
-                                            Subchild 3</li>
+                                            Subchild 3
+                                        </li>
                                     </ul>
                                 </li>
                                 <li>
@@ -637,10 +705,12 @@
                                     <ul>
                                         <li>
                                             <input type="checkbox" />
-                                            Subchild 1</li>
+                                            Subchild 1
+                                        </li>
                                         <li>
                                             <input type="checkbox" />
-                                            Subchild 2</li>
+                                            Subchild 2
+                                        </li>
                                     </ul>
                                 </li>
                             </ul>
@@ -655,7 +725,8 @@
     </div>
 </div>
 
-<div class="modal fade" id="modalOldUsers" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+<div class="modal fade" id="modalOldUsers" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
+    aria-hidden="true">
     <div class="modal-dialog" style="width:800px">
         <div class="modal-content">
             <!-- Modal Header -->
@@ -676,7 +747,8 @@
               <form id="modalAddBackupInfo" class="form-horizontal form-label-left">
 -->
                 <ul class="nav navbar-right panel_toolbox">
-                    <li><a class="btn-disable-olds"><span style="color: #5499c7; "><i class="fa fa-ban"></i> Disable all</span></a>
+                    <li><a class="btn-disable-olds"><span style="color: #5499c7; "><i class="fa fa-ban"></i> Disable
+                                all</span></a>
                     </li>
                 </ul>
                 <!--
@@ -716,7 +788,7 @@
                     <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title" id="myModalLabel">
-                    <i class="fa fa-plus fa-1x"> </i>    Add new Role <i class="fa fa-key"> </i>
+                    <i class="fa fa-plus fa-1x"> </i> Add new Role <i class="fa fa-key"> </i>
                 </h4>
             </div>
 
@@ -731,12 +803,16 @@
                                 <div class="col-md-4 col-xs-12">
                                     <label class="control-label" for="name">Name <span class="required">*</span>
                                     </label>
-                                    <input id="name" class="roundbox" maxlength="15" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New role name" data-parsley-trigger="change" required type="text">
+                                    <input id="name" class="roundbox" maxlength="15"
+                                        pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$"
+                                        data-parsley-length="[4, 40]" name="name" placeholder="New role name"
+                                        data-parsley-trigger="change" required type="text">
                                 </div>
                                 <div class="col-md-8 col-xs-12">
                                     <label class="control-label" for="description">Description
                                     </label>
-                                    <input id="description" class="roundbox" name="description" placeholder="Role description" type="text" style="width:100%">
+                                    <input id="description" class="roundbox" name="description"
+                                        placeholder="Role description" type="text" style="width:100%">
                                 </div>
                             </div>
 
@@ -771,7 +847,8 @@
 
 </div>
 
-<div class="modal fade" id="modalAddCategory" tabindex="-1" role="dialog" aria-labelledby="modalAddCategory" aria-hidden="true">
+<div class="modal fade" id="modalAddCategory" tabindex="-1" role="dialog" aria-labelledby="modalAddCategory"
+    aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <!-- Modal Header -->
@@ -781,7 +858,7 @@
                     <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title" id="myModalLabel">
-                    <i class="fa fa-plus"></i><i class="fa fa-leaf"></i> Add new Category 
+                    <i class="fa fa-plus"></i><i class="fa fa-leaf"></i> Add new Category
                 </h4>
             </div>
 
@@ -791,16 +868,21 @@
                     <div class="row">
                         <div class="x_panel">
                             <div class="x_title">
-                                <h4><i class="fa fa-info-circle" aria-hidden="true"></i> Category name and description</h4>
+                                <h4><i class="fa fa-info-circle" aria-hidden="true"></i> Category name and description
+                                </h4>
                                 <div class="clearfix"></div>
                             </div>
                             <div class="col-md-4 col-sm-4 col-xs-12">
                                 <label class="control-label" for="name">Name <span class="required">*</span></label>
-                                <input id="name" class="roundbox" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9@]+$" data-parsley-length="[1, 40]" name="name" placeholder="New category name" data-parsley-trigger="change" required type="text" style="width:100%">
+                                <input id="name" class="roundbox" maxlength="40"
+                                    pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9@]+$" data-parsley-length="[1, 40]"
+                                    name="name" placeholder="New category name" data-parsley-trigger="change" required
+                                    type="text" style="width:100%">
                             </div>
                             <div class="col-md-8 col-sm-8 col-xs-12">
                                 <label class="control-label" for="description">Description</label>
-                                <input id="description" class="roundbox" name="description" placeholder="Role description" type="text" style="width:100%">
+                                <input id="description" class="roundbox" name="description"
+                                    placeholder="Role description" type="text" style="width:100%">
                             </div>
                             <div class="col-md-12 col-sm-12 col-xs-12">
                                 {% include '/snippets/category_modal_domain.html' %}
@@ -813,70 +895,81 @@
                                 <p style="font-size: 18px;margin-bottom:0px;">Frontend dropdown show</p>
                             </div>
                             <div class="col-md-3 col-sm-3 col-xs-12">
-                                  <label class="control-label" for="frontend-show">
+                                <label class="control-label" for="frontend-show">
                                     <div class="icheckbox_flat-green" style="position: relative;">
-                                        <input type="checkbox" id="frontend" name="frontend" class="flat" style="position: absolute; opacity: 0;">
-                                        <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                        <input type="checkbox" id="frontend" name="frontend" class="flat"
+                                            style="position: absolute; opacity: 0;">
+                                        <ins class="iCheck-helper"
+                                            style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
                                         </ins>
                                     </div>
-                                  Enabled</label>
+                                    Enabled
+                                </label>
                             </div>
                         </div>
                     </div>
-                    
-					<div class="x_panel" id="desktops_panel">
+
+                    <div class="x_panel" id="desktops_panel">
                         <div class="row">
                             <div class="col-md-9 col-sm-9 col-xs-12">
                                 <p style="font-size: 18px;margin-bottom:0px;">Auto desktops creation</p>
                             </div>
                             <div class="col-md-3 col-sm-3 col-xs-12">
                                 <label class="control-label" for="auto-desktops-enabled">
-                                <div class="icheckbox_flat-green" style="position: relative;">
-                                    <input type="checkbox" id="auto-desktops-enabled" name="auto-desktops-enabled" class="flat" style="position: absolute; opacity: 0;">
-                                    <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
-                                    </ins>
-                                </div>
-                                Enabled</label>
+                                    <div class="icheckbox_flat-green" style="position: relative;">
+                                        <input type="checkbox" id="auto-desktops-enabled" name="auto-desktops-enabled"
+                                            class="flat" style="position: absolute; opacity: 0;">
+                                        <ins class="iCheck-helper"
+                                            style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                        </ins>
+                                    </div>
+                                    Enabled
+                                </label>
                             </div>
                         </div>
                         <div class="row" id="auto-desktops-data" style="display:none">
-							<label class="control-label" for="auto-desktops">Desktops list to be created at user login
-							</label>
-							<select id="auto-desktops" name="auto-desktops[]" class="tags-select roundbox" multiple="multiple" style="width: 100%;">
-							</select>
+                            <label class="control-label" for="auto-desktops">Desktops list to be created at user login
+                            </label>
+                            <select id="auto-desktops" name="auto-desktops[]" class="tags-select roundbox"
+                                multiple="multiple" style="width: 100%;">
+                            </select>
                         </div>
-					</div>
+                    </div>
 
-					<div class="x_panel" id="ephimeral_panel">
+                    <div class="x_panel" id="ephimeral_panel">
                         <div class="row">
                             <div class="col-md-9 col-sm-9 col-xs-12">
                                 <p style="font-size: 18px;margin-bottom:0px;">Ephemeral desktops</p>
                             </div>
                             <div class="col-md-3 col-sm-3 col-xs-12">
                                 <label class="control-label" for="ephimeral-enabled">
-                                <div class="icheckbox_flat-green" style="position: relative;">
-                                    <input type="checkbox" id="ephimeral-enabled" name="ephimeral-enabled" class="flat" style="position: absolute; opacity: 0;">
-                                    <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
-                                    </ins>
-                                </div>
-                                Enabled</label>
+                                    <div class="icheckbox_flat-green" style="position: relative;">
+                                        <input type="checkbox" id="ephimeral-enabled" name="ephimeral-enabled"
+                                            class="flat" style="position: absolute; opacity: 0;">
+                                        <ins class="iCheck-helper"
+                                            style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                        </ins>
+                                    </div>
+                                    Enabled
+                                </label>
                             </div>
                         </div>
-                        
-                        
-						<div class="row" id="ephimeral-data" style="display:none">
-							<div class="col-md-9 col-xs-12">
-								<label for="ephimeral-minutes">Minutes</label>
-								<input id="ephimeral-minutes" name="ephimeral-minutes"></input>
-							</div>
 
-                            <label class="control-label col-md-3 col-sm-3 col-xs-12" for="ephimeral-action">Action on time: <span class="required">*</span></label>
+
+                        <div class="row" id="ephimeral-data" style="display:none">
+                            <div class="col-md-9 col-xs-12">
+                                <label for="ephimeral-minutes">Minutes</label>
+                                <input id="ephimeral-minutes" name="ephimeral-minutes"></input>
+                            </div>
+
+                            <label class="control-label col-md-3 col-sm-3 col-xs-12" for="ephimeral-action">Action on
+                                time: <span class="required">*</span></label>
                             <select id="ephimeral-action" name="ephimeral-action" class="form-control">
                                 <option value="Stopping">Stop</option>
                                 <option value="StoppingAndDeleting">Delete</option>
                             </select>
-						</div>
-					</div>	
+                        </div>
+                    </div>
                 </form>
             </div>
             <!-- Modal Footer -->
@@ -898,7 +991,8 @@
     </div>
 </div>
 
-<div class="modal fade" id="modalEditCategory" tabindex="-1" role="dialog" aria-labelledby="modalEditCategory" aria-hidden="true">
+<div class="modal fade" id="modalEditCategory" tabindex="-1" role="dialog" aria-labelledby="modalEditCategory"
+    aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <!-- Modal Header -->
@@ -916,22 +1010,26 @@
             <div class="modal-body">
 
                 <form id="modalEditCategoryForm" class="form-inline form-label-left">
-                    <input hidden id="id" name="id"/>
+                    <input hidden id="id" name="id" />
                     <div class="row">
                         <div class="x_panel">
                             <div class="x_title">
-                                <h4><i class="fa fa-info-circle" aria-hidden="true"></i> Category name and description</h4>
+                                <h4><i class="fa fa-info-circle" aria-hidden="true"></i> Category name and description
+                                </h4>
                                 <div class="clearfix"></div>
                             </div>
                             <div class="col-md-4 col-sm-4 col-xs-12">
                                 <label class="control-label" for="name">Name <span class="required">*</span>
                                 </label>
-                                <input id="name" class="roundbox" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9@]+$" data-parsley-length="[1, 40]" 
-                                name="name" placeholder="New category name" data-parsley-trigger="change" required type="text" disabled style="width:100%">
+                                <input id="name" class="roundbox" maxlength="40"
+                                    pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9@]+$" data-parsley-length="[1, 40]"
+                                    name="name" placeholder="New category name" data-parsley-trigger="change" required
+                                    type="text" disabled style="width:100%">
                             </div>
                             <div class="col-md-8 col-sm-8 col-xs-12">
                                 <label class="control-label" for="description">Description</label>
-                                <input id="description" class="roundbox" name="description" placeholder="Role description" type="text" style="width:100%">
+                                <input id="description" class="roundbox" name="description"
+                                    placeholder="Role description" type="text" style="width:100%">
                             </div>
                             <div class="col-md-12 col-sm-12 col-xs-12">
                                 {% include '/snippets/category_modal_domain.html' %}
@@ -945,70 +1043,81 @@
                                 <p style="font-size: 18px;margin-bottom:0px;">Frontend dropdown show</p>
                             </div>
                             <div class="col-md-3 col-sm-3 col-xs-12">
-                                  <label class="control-label" for="frontend">
+                                <label class="control-label" for="frontend">
                                     <div class="icheckbox_flat-green" style="position: relative;">
-                                        <input type="checkbox" id="frontend" name="frontend" class="flat" style="position: absolute; opacity: 0;">
-                                        <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                        <input type="checkbox" id="frontend" name="frontend" class="flat"
+                                            style="position: absolute; opacity: 0;">
+                                        <ins class="iCheck-helper"
+                                            style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
                                         </ins>
                                     </div>
-                                  Enabled</label>
+                                    Enabled
+                                </label>
                             </div>
                         </div>
                     </div>
-                    
-					<div class="x_panel" id="desktops_panel">
+
+                    <div class="x_panel" id="desktops_panel">
                         <div class="row">
                             <div class="col-md-9 col-sm-9 col-xs-12">
                                 <p style="font-size: 18px;margin-bottom:0px;">Auto desktops creation</p>
                             </div>
                             <div class="col-md-3 col-sm-3 col-xs-12">
-                                  <label class="control-label" for="auto-desktops-enabled">
+                                <label class="control-label" for="auto-desktops-enabled">
                                     <div class="icheckbox_flat-green" style="position: relative;">
-                                        <input type="checkbox" id="auto-desktops-enabled" name="auto-desktops-enabled" class="flat" style="position: absolute; opacity: 0;">
-                                        <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                        <input type="checkbox" id="auto-desktops-enabled" name="auto-desktops-enabled"
+                                            class="flat" style="position: absolute; opacity: 0;">
+                                        <ins class="iCheck-helper"
+                                            style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
                                         </ins>
                                     </div>
-                                  Enabled</label>
+                                    Enabled
+                                </label>
                             </div>
                         </div>
                         <div class="row" id="auto-desktops-data" style="display:none">
-							<label class="control-label" for="auto-desktops">Desktops list to be created at user login
-							</label>
-							<select id="auto-desktops" name="auto-desktops[]" class="tags-select roundbox" multiple="multiple" style="width: 100%;">
-							</select>
+                            <label class="control-label" for="auto-desktops">Desktops list to be created at user login
+                            </label>
+                            <select id="auto-desktops" name="auto-desktops[]" class="tags-select roundbox"
+                                multiple="multiple" style="width: 100%;">
+                            </select>
                         </div>
-					</div>
+                    </div>
 
-					<div class="x_panel" id="ephimeral_panel">
+                    <div class="x_panel" id="ephimeral_panel">
                         <div class="row">
                             <div class="col-md-9 col-sm-9 col-xs-12">
                                 <p style="font-size: 18px;margin-bottom:0px;">Ephimeral desktops</p>
                             </div>
                             <div class="col-md-3 col-sm-3 col-xs-12">
-                                  <label class="control-label" for="ephimeral-enabled">
+                                <label class="control-label" for="ephimeral-enabled">
                                     <div class="icheckbox_flat-green" style="position: relative;">
-                                        <input type="checkbox" id="ephimeral-enabled" name="ephimeral-enabled" class="flat" style="position: absolute; opacity: 0;">
-                                        <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                        <input type="checkbox" id="ephimeral-enabled" name="ephimeral-enabled"
+                                            class="flat" style="position: absolute; opacity: 0;">
+                                        <ins class="iCheck-helper"
+                                            style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
                                         </ins>
                                     </div>
-                                  Enabled</label>
+                                    Enabled
+                                </label>
                             </div>
                         </div>
-                        
-                        
-						<div class="row" id="ephimeral-data" style="display:none">
-							<div class="col-md-9 col-xs-12">
-								<label for="ephimeral-minutes">Minutes</label>
-								<input id="ephimeral-minutes" name="ephimeral-minutes"></input>
-							</div>
 
-                            <label class="control-label col-md-3 col-sm-3 col-xs-12" for="ephimeral-action">Action on time: <span class="required">*</span></label>
-                                <select id="ephimeral-action" name="ephimeral-action" class="form-control">
-                                    <option value="Stopping">Stop</option>
-                                    <option value="StoppingAndDeleting">Delete</option>
-                                </select>
-						</div>
-					</div>
+
+                        <div class="row" id="ephimeral-data" style="display:none">
+                            <div class="col-md-9 col-xs-12">
+                                <label for="ephimeral-minutes">Minutes</label>
+                                <input id="ephimeral-minutes" name="ephimeral-minutes"></input>
+                            </div>
+
+                            <label class="control-label col-md-3 col-sm-3 col-xs-12" for="ephimeral-action">Action on
+                                time: <span class="required">*</span></label>
+                            <select id="ephimeral-action" name="ephimeral-action" class="form-control">
+                                <option value="Stopping">Stop</option>
+                                <option value="StoppingAndDeleting">Delete</option>
+                            </select>
+                        </div>
+                    </div>
                 </form>
             </div>
             <!-- Modal Footer -->
@@ -1030,7 +1139,8 @@
     </div>
 </div>
 
-<div class="modal fade" id="modalAddGroup" tabindex="-1" role="dialog" aria-labelledby="modalAddGroup" aria-hidden="true">
+<div class="modal fade" id="modalAddGroup" tabindex="-1" role="dialog" aria-labelledby="modalAddGroup"
+    aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <!-- Modal Header -->
@@ -1057,89 +1167,106 @@
                             <div class="col-md-4 col-sm-4 col-xs-12">
                                 <label class="control-label" for="name">Name <span class="required">*</span>
                                 </label>
-                                <input id="name" class="roundbox" maxlength="15" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New group name" data-parsley-trigger="change" required type="text">
+                                <input id="name" class="roundbox" maxlength="15"
+                                    pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]"
+                                    name="name" placeholder="New group name" data-parsley-trigger="change" required
+                                    type="text">
                             </div>
                             <div class="col-md-8 col-sm-8 col-xs-12">
                                 <label class="control-label" for="description">Description
                                 </label>
-                                <input id="description" class="roundbox" name="description" placeholder="Group description" type="text" style="width:100%">
+                                <input id="description" class="roundbox" name="description"
+                                    placeholder="Group description" type="text" style="width:100%">
                             </div>
                             {% if current_user.role == 'manager' %}
                             <div class="col-md-8 col-sm-8 col-xs-12">
                                 <label class="control-label" for="parent_category">Parent Category
                                 </label>
-                                <input id="parent_category" class="roundbox" name="parent_category" type="text" style="width:100%" value ="{{ current_user.category }}" disabled>
+                                <input id="parent_category" class="roundbox" name="parent_category" type="text"
+                                    style="width:100%" value="{{ current_user.category }}" disabled>
                             </div>
                             {% else %}
                             <div class="col-md-12 col-sm-12 col-xs-12">
-                                <label class="control-label" for="parent_category">Parent category <span class="required">*</span></label>
-                                <select id="parent_category" name="parent_category" class="form-control category" style="width:100%" required>
+                                <label class="control-label" for="parent_category">Parent category <span
+                                        class="required">*</span></label>
+                                <select id="parent_category" name="parent_category" class="form-control category"
+                                    style="width:100%" required>
                                 </select>
                             </div>
                             {% endif %}
                             <div class="col-md-12 col-sm-12 col-xs-12">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="group">Linked groups </label>
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="group">Linked groups
+                                </label>
                                 <div>
-                                    <select id="linked_groups" name="linked_groups[]" class="tags-select roundbox" multiple="multiple" style="width: 100%;">
+                                    <select id="linked_groups" name="linked_groups[]" class="tags-select roundbox"
+                                        multiple="multiple" style="width: 100%;">
                                     </select>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-					<div class="x_panel" id="desktops_panel">
+                    <div class="x_panel" id="desktops_panel">
                         <div class="row">
                             <div class="col-md-9 col-sm-9 col-xs-12">
                                 <p style="font-size: 18px;margin-bottom:0px;">Auto desktops creation</p>
                             </div>
                             <div class="col-md-3 col-sm-3 col-xs-12">
-                                  <label class="control-label" for="auto-desktops-enabled">
+                                <label class="control-label" for="auto-desktops-enabled">
                                     <div class="icheckbox_flat-green" style="position: relative;">
-                                        <input type="checkbox" id="auto-desktops-enabled" name="auto-desktops-enabled" class="flat" style="position: absolute; opacity: 0;">
-                                        <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                        <input type="checkbox" id="auto-desktops-enabled" name="auto-desktops-enabled"
+                                            class="flat" style="position: absolute; opacity: 0;">
+                                        <ins class="iCheck-helper"
+                                            style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
                                         </ins>
                                     </div>
-                                  Enabled</label>
+                                    Enabled
+                                </label>
                             </div>
                         </div>
                         <div class="row" id="auto-desktops-data" style="display:none">
-							<label class="control-label" for="auto-desktops">Desktops list to be created at user login
-							</label>
-							<select id="auto-desktops" name="auto-desktops[]" class="tags-select roundbox" multiple="multiple" style="width: 100%;">
-							</select>
+                            <label class="control-label" for="auto-desktops">Desktops list to be created at user login
+                            </label>
+                            <select id="auto-desktops" name="auto-desktops[]" class="tags-select roundbox"
+                                multiple="multiple" style="width: 100%;">
+                            </select>
                         </div>
-					</div>
+                    </div>
 
-					<div class="x_panel" id="ephimeral_panel">
+                    <div class="x_panel" id="ephimeral_panel">
                         <div class="row">
                             <div class="col-md-9 col-sm-9 col-xs-12">
                                 <p style="font-size: 18px;margin-bottom:0px;">Ephemeral desktops</p>
                             </div>
                             <div class="col-md-3 col-sm-3 col-xs-12">
-                                  <label class="control-label" for="ephimeral-enabled">
+                                <label class="control-label" for="ephimeral-enabled">
                                     <div class="icheckbox_flat-green" style="position: relative;">
-                                        <input type="checkbox" id="ephimeral-enabled" name="ephimeral-enabled" class="flat" style="position: absolute; opacity: 0;">
-                                        <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                        <input type="checkbox" id="ephimeral-enabled" name="ephimeral-enabled"
+                                            class="flat" style="position: absolute; opacity: 0;">
+                                        <ins class="iCheck-helper"
+                                            style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
                                         </ins>
                                     </div>
-                                  Enabled</label>
+                                    Enabled
+                                </label>
                             </div>
                         </div>
-						<div class="row" id="ephimeral-data" style="display:none">
-							<div class="col-md-9 col-xs-12">
-								<label for="ephimeral-minutes">Minutes</label>
-								<input id="ephimeral-minutes" name="ephimeral-minutes"></input>
-							</div>
+                        <div class="row" id="ephimeral-data" style="display:none">
+                            <div class="col-md-9 col-xs-12">
+                                <label for="ephimeral-minutes">Minutes</label>
+                                <input id="ephimeral-minutes" name="ephimeral-minutes"></input>
+                            </div>
 
-                            <label class="control-label col-md-3 col-sm-3 col-xs-12" for="ephimeral-action">Action on time: <span class="required">*</span></label>
+                            <label class="control-label col-md-3 col-sm-3 col-xs-12" for="ephimeral-action">Action on
+                                time: <span class="required">*</span></label>
                             <select id="ephimeral-action" name="ephimeral-action" class="form-control">
                                 <option value="Stopping">Stop</option>
                                 <option value="StoppingAndDeleting">Delete</option>
                             </select>
-						</div>
-					</div>
+                        </div>
+                    </div>
                 </form>
-                    
+
             </div>
 
             <!-- Modal Footer -->
@@ -1161,7 +1288,8 @@
     </div>
 </div>
 
-<div class="modal fade" id="modalEnrollment" tabindex="-1" role="dialog" aria-labelledby="modalEnrollment" aria-hidden="true">
+<div class="modal fade" id="modalEnrollment" tabindex="-1" role="dialog" aria-labelledby="modalEnrollment"
+    aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <!-- Modal Header -->
@@ -1179,59 +1307,74 @@
             <div class="modal-body">
 
                 <form id="modalEnrollmentForm" class="form-inline">
-                    <input hidden id="id" name="id"/>
+                    <input hidden id="id" name="id" />
                     <div class="row text-center">
                         <div class="col-md-4 col-sm-4 col-xs-12">
                             <label>Managers</label>
                             <div class="checkbox">
-                            <label class="">
-                                <div class="icheckbox_flat-green" style="position: relative;">
-                                    <input type="checkbox" id="manager-check" name="manager-check" class="flat"  style="position: absolute; opacity: 0;">
-                                    <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
-                                    </ins>
-                                </div>
-                            </label>
+                                <label class="">
+                                    <div class="icheckbox_flat-green" style="position: relative;">
+                                        <input type="checkbox" id="manager-check" name="manager-check" class="flat"
+                                            style="position: absolute; opacity: 0;">
+                                        <ins class="iCheck-helper"
+                                            style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                        </ins>
+                                    </div>
+                                </label>
                             </div>
                         </div>
                         <div class="col-md-4 col-sm-4 col-xs-12">
                             <label>Advanced</label>
                             <div class="checkbox">
                                 <label class="">
-                                  <div class="icheckbox_flat-green" style="position: relative;">
-                                      <input type="checkbox" id="advanced-check" name="advanced-check" class="flat"  style="position: absolute; opacity: 0;">
-                                      <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
-                                      </ins>
-                                  </div>
+                                    <div class="icheckbox_flat-green" style="position: relative;">
+                                        <input type="checkbox" id="advanced-check" name="advanced-check" class="flat"
+                                            style="position: absolute; opacity: 0;">
+                                        <ins class="iCheck-helper"
+                                            style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                        </ins>
+                                    </div>
                                 </label>
                             </div>
-                        </div>                                            
+                        </div>
                         <div class="col-md-4 col-sm-4 col-xs-12">
                             <label>Users</label>
                             <div class="checkbox">
                                 <label class="">
-                                  <div class="icheckbox_flat-green" style="position: relative;">
-                                      <input type="checkbox" id="user-check" name="user-check" class="flat"  style="position: absolute; opacity: 0;">
-                                      <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
-                                      </ins>
-                                  </div>
+                                    <div class="icheckbox_flat-green" style="position: relative;">
+                                        <input type="checkbox" id="user-check" name="user-check" class="flat"
+                                            style="position: absolute; opacity: 0;">
+                                        <ins class="iCheck-helper"
+                                            style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                        </ins>
+                                    </div>
                                 </label>
                             </div>
-                        </div>                                                                     
+                        </div>
                     </div>
-                
-                    <div class="row text-center"> 
+
+                    <div class="row text-center">
                         <div class="col-md-4 col-sm-4 col-xs-12">
-                            <input id="manager-key" class="form-control roundbox" name="manager-key" placeholder="Manager enrollment key" disabled />
-                            <button class="btn btn-info btn-copy-manager" style="margin-top:5px;" type="button"  data-placement="top"><i class="fa fa-clipboard m-right-xs" ></i>Copy to clipboard</button>
+                            <input id="manager-key" class="form-control roundbox" name="manager-key"
+                                placeholder="Manager enrollment key" disabled />
+                            <button class="btn btn-info btn-copy-manager" style="margin-top:5px;" type="button"
+                                data-placement="top"><i class="fa fa-clipboard m-right-xs"></i>Copy to
+                                clipboard</button>
                         </div>
                         <div class="col-md-4 col-sm-4 col-xs-12">
-                            <input id="advanced-key" class="form-control roundbox" name="advanced-key" placeholder="Advanced enrollment key" disabled />
-                            <button class="btn btn-info btn-copy-advanced" style="margin-top:5px;" type="button"  data-placement="top"><i class="fa fa-clipboard m-right-xs" ></i>Copy to clipboard</button>
+                            <input id="advanced-key" class="form-control roundbox" name="advanced-key"
+                                placeholder="Advanced enrollment key" disabled />
+                            <button class="btn btn-info btn-copy-advanced" style="margin-top:5px;" type="button"
+                                data-placement="top"><i class="fa fa-clipboard m-right-xs"></i>Copy to
+                                clipboard</button>
                         </div>
                         <div class="col-md-4 col-sm-4 col-xs-12">
-                            <input id="user-key" class="form-control roundbox" name="user-key" placeholder="User enrollment key" disabled />
-                            <button class="btn btn-info btn-copy-user" style="margin-top:5px;" type="button"  data-placement="top"><i class="fa fa-clipboard m-right-xs" ></i>Copy to clipboard</button>
-                        </div>                                                                        
+                            <input id="user-key" class="form-control roundbox" name="user-key"
+                                placeholder="User enrollment key" disabled />
+                            <button class="btn btn-info btn-copy-user" style="margin-top:5px;" type="button"
+                                data-placement="top"><i class="fa fa-clipboard m-right-xs"></i>Copy to
+                                clipboard</button>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -1248,60 +1391,58 @@
     </div>
 </div>
 
-<div class="modal fade" id="modalEditQuota" tabindex="-1" role="dialog" aria-labelledby="modalEditQuota" aria-hidden="true">
-    <div class="modal-dialog">
+<div class="modal fade" id="modalEditQuota" tabindex="-1" role="dialog" aria-labelledby="modalEditQuota"
+    aria-hidden="true">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <!-- Modal Header -->
-            <div class="modal-header">   
-                <button type="button" class="close" 
-                   data-dismiss="modal">
-                       <span aria-hidden="true">&times;</span>
-                       <span class="sr-only">Close</span>
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title" id="myModalLabel">
-                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-circle-o"> </i> Edit quota (users)
+                    <i class="fa fa-edit fa-1x"> </i> Edit <span class="kind"></span> users quota
                 </h4>
-                <h5>The quota will be applied to individual users in this category/group.</h5>
-                <h5>Propagate will overwrite existing quotas on child items.</h5>
-                <h5>It is applied to a user in this order:</h5>
-                <h5><ul><li>User quota, if set, else</li>
-                    <li>User group quota, if set, else</li>
-                    <li>User category quota, if set.</li>
-                </ul>.</h5>
             </div>
-            
+
             <!-- Modal Body -->
             <div class="modal-body" style="padding: 7px;">
-              <form id="modalEditQuotaForm" class="form-horizontal form-label-left" method="POST" novalidate>
-                <div class="x_panel">
+                <form id="modalEditQuotaForm" class="form-horizontal form-label-left" method="POST" novalidate>
+                    <div class="x_panel">
                         <div class="x_content">
-                            <input id="id" hidden/>
+                            <input id="id" hidden />
                             <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="role">Role: <span class="required"></span></label>
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="role">Apply current
+                                    changes to: <span class="required"></span></label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <select id="add-role" name="role" class="form-control role" data-quota="users-quota" required>
+                                    <select id="add-role" name="role" class="form-control role" data-quota="users-quota"
+                                        required>
                                     </select>
                                 </div>
                             </div>
                             <div class="item form-group" id="propagate-form">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="propagate">Propagate to related
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="propagate"> Override <span
+                                        class="kind"></span> users current quota
                                 </label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                <div class="checkbox">
-                                    <label class="">
-                                    <div class="icheckbox_flat-green" style="position: relative;">
-                                        <input type="checkbox" id="propagate" name="propagate" class="flat"  style="position: absolute; opacity: 0;">
-                                        <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
-                                        </ins>
+                                    <div class="checkbox">
+                                        <label class="">
+                                            <div class="icheckbox_flat-green" style="position: relative;">
+                                                <input type="checkbox" id="propagate" name="propagate" class="flat"
+                                                    style="position: absolute; opacity: 0;">
+                                                <ins class="iCheck-helper"
+                                                    style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                                </ins>
+                                            </div>
+                                        </label>
                                     </div>
-                                    </label>
-                                </div>
                                 </div>
                             </div>
                             {% include '/snippets/quota_edit.html' %}
+                        </div>
                     </div>
-                </div>
-              </form>
+                </form>
             </div>
             <!-- Modal Footer -->
             <div class="modal-footer">
@@ -1312,57 +1453,53 @@
                     <li><button id="send" type="button" class="btn btn-success">Update quota</button></li>
                 </ul>
             </div>
-            </div>
         </div>
-    
+    </div>
+
 </div>
 
-<div class="modal fade" id="modalEditLimits" tabindex="-1" role="dialog" aria-labelledby="modalEditLimits" aria-hidden="true">
-    <div class="modal-dialog">
+<div class="modal fade" id="modalEditLimits" tabindex="-1" role="dialog" aria-labelledby="modalEditLimits"
+    aria-hidden="true">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <!-- Modal Header -->
-            <div class="modal-header">   
-                <button type="button" class="close" 
-                   data-dismiss="modal">
-                       <span aria-hidden="true">&times;</span>
-                       <span class="sr-only">Close</span>
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title" id="myModalLabel">
-                    <i class="fa fa-edit"> </i><i class="fa fa-circle-o"> </i> Edit limits (category/group)
+                    <i class="fa fa-edit"></i> Edit <span class="kind"></span> limits
                 </h4>
-                <h5>The limits will be applied as the absolute maximum for this category/group.</h5>
-                <h5>The limits for user category/group set have priority over user quota.</h5>
-                <h5>Propagate will overwrite existing limits on child items.</h5>
-                <h5>It is applied to a user in this order:</h5>
-                <h5><ul><li>User group limits, if set, else</li>
-                    <li>User category limits, if set</li>
-                </ul>.</h5>
             </div>
-            
+
             <!-- Modal Body -->
             <div class="modal-body">
                 <form id="modalEditLimitsForm" class="form-horizontal form-label-left" method="POST" novalidate>
                     <div class="x_panel">
                         <div class="x_content">
-                            <input id="id" hidden/>
+                            <input id="id" hidden />
 
-                            <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="propagate">Propagate to related
+                            <div class="item form-group" id="propagate-form" style="display: hidden">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="propagate">Override <span
+                                        class="kind"></span> current limits
                                 </label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
                                     <div class="checkbox">
                                         <label class="">
-                                        <div class="icheckbox_flat-green" style="position: relative;">
-                                            <input type="checkbox" id="propagate" name="propagate" class="flat"  style="position: absolute; opacity: 0;">
-                                            <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
-                                            </ins>
-                                        </div>
+                                            <div class="icheckbox_flat-green" style="position: relative;">
+                                                <input type="checkbox" id="propagate" name="propagate" class="flat"
+                                                    style="position: absolute; opacity: 0;">
+                                                <ins class="iCheck-helper"
+                                                    style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                                </ins>
+                                            </div>
                                         </label>
                                     </div>
                                 </div>
                             </div>
                             {% with type="limits" %}
-                                {% include '/snippets/quota_edit.html' %}
+                            {% include '/snippets/quota_edit.html' %}
                             {% endwith %}
                         </div>
                     </div>
@@ -1381,22 +1518,23 @@
     </div>
 </div>
 
-<div class="modal fade" id="modalAddSecret" tabindex="-1" role="dialog" aria-labelledby="modalAddSecret" aria-hidden="true">
+<div class="modal fade" id="modalAddSecret" tabindex="-1" role="dialog" aria-labelledby="modalAddSecret"
+    aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <!-- Modal Header -->
-            <div class="modal-header">   
+            <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal">
                     <span aria-hidden="true">&times;</span>
                     <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title">
-                    <i class="fa fa-plus fa-1x"> </i> 
-                    <i class="fa fa-external-link"> </i> 
+                    <i class="fa fa-plus fa-1x"> </i>
+                    <i class="fa fa-external-link"> </i>
                     Add new External app
                 </h4>
             </div>
-          
+
             <!-- Modal Body -->
             <div class="modal-body">
                 <form id="modalAddSecretForm" class="form-horizontal form-label-left">
@@ -1404,31 +1542,41 @@
                         <div class="x_content">
                             <!-- Name -->
                             <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Name: <span class="required"></span>*</label>
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Name: <span
+                                        class="required"></span>*</label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <input id="name" class="form-control col-md-7 col-xs-12" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$" data-parsley-length="[4, 60]" name="name" placeholder="Secret name" data-parsley-trigger="change" required type="text">
+                                    <input id="name" class="form-control col-md-7 col-xs-12" maxlength="40"
+                                        pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$" data-parsley-length="[4, 60]"
+                                        name="name" placeholder="Secret name" data-parsley-trigger="change" required
+                                        type="text">
                                 </div>
                             </div>
 
                             <!-- Description -->
                             <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="description">Description: </label>
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="description">Description:
+                                </label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <textarea id="textarea" name="description" class="form-control col-md-7 col-xs-12" placeholder="Description"></textarea>
+                                    <textarea id="textarea" name="description" class="form-control col-md-7 col-xs-12"
+                                        placeholder="Description"></textarea>
                                 </div>
                             </div>
 
                             <!-- Domain -->
                             <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="domain">Domain: <span class="required"></span>*</label>
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="domain">Domain: <span
+                                        class="required"></span>*</label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <input id="domain" class="form-control col-md-7 col-xs-12"  maxlength="255" pattern="[-_.a-zA-Z0-9\*]+$" data-parsley-length="[1, 100]" name="domain" placeholder="Domain name" required="required" type="text">
+                                    <input id="domain" class="form-control col-md-7 col-xs-12" maxlength="255"
+                                        pattern="[-_.a-zA-Z0-9\*]+$" data-parsley-length="[1, 100]" name="domain"
+                                        placeholder="Domain name" required="required" type="text">
                                 </div>
                             </div>
 
                             <!-- Role -->
                             <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="role">Role: <span class="required">*</span></label>
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="role">Role: <span
+                                        class="required">*</span></label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
                                     <select id="add-role" name="role" class="form-control role" required></select>
                                 </div>
@@ -1436,9 +1584,11 @@
 
                             <!-- Category -->
                             <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="category">Category: <span class="required">*</span></label>
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="category">Category: <span
+                                        class="required">*</span></label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <select id="add-category" name="category" class="form-control category" required></select>
+                                    <select id="add-category" name="category" class="form-control category"
+                                        required></select>
                                 </div>
                             </div>
                         </div>

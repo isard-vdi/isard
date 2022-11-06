@@ -1,6 +1,7 @@
 import json
 import time
 import traceback
+import urllib.request
 
 from flask import request
 from rethinkdb import RethinkDB
@@ -54,7 +55,8 @@ def api_v3_admin_media_insert(payload):
             "Unable to parse body data.",
             traceback.format_exc(),
         )
-    quotas.media_create(payload["user_id"])
+    media_size = float(urllib.request.urlopen(data["url"]).info()["content-Length"])
+    quotas.media_create(payload["user_id"], media_size)
     with app.app_context():
         user = r.table("users").get(payload["user_id"]).run(db.conn)
         username = user["username"]

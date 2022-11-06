@@ -308,6 +308,8 @@ function actionsGroupDetail(){
         $("#modalEditQuotaForm")[0].reset();
         $("#modalEditQuotaForm #propagate").removeAttr('checked').iCheck('update')
         $('#modalEditQuotaForm #id').val(pk);
+        $('#modalEditQuota .kind').html('group');
+        $('#modalEditQuota .apply').html('category quota');
         setModalUser();
         $('#modalEditQuotaForm #add-role').append('<option selected="selected" value=all_roles> All roles</option>')
         $('#modalEditQuotaForm #add-role').val('all_roles')
@@ -382,12 +384,13 @@ function actionsGroupDetail(){
         var pk=$(this).closest("div").attr("data-pk");
         $("#modalEditLimitsForm")[0].reset();
         $('#modalEditLimitsForm #id').val(pk);
-        $("#modalEditLimitsForm #propagate").removeAttr('checked').iCheck('update')
+        $('#modalEditLimits .apply').html('category limits');
         $('#modalEditLimits').modal({
             backdrop: 'static',
             keyboard: false
         }).modal('show');
-        setLimitsMax('#modalEditLimitsForm',kind='group',id=pk,disabled=false);         
+        setLimitsMax('#modalEditLimitsForm',kind='group',id=pk,disabled=false);
+        $('#modalEditLimitsForm #propagate-form').css("display", "none");
     });
 
     $("#modalEditLimits #send").off('click').on('click', function(e){
@@ -405,9 +408,6 @@ function actionsGroupDetail(){
             }
             data={}
             data['limits']=dataform['limits']
-            if('propagate' in formdata){
-                data['propagate']=true;
-            }
             var notice = new PNotify({
                 text: 'Updating limits...',
                 hide: false,

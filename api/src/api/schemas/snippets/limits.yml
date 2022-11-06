@@ -10,10 +10,6 @@ isos:
   type: integer
   required: true
   min: 0
-isos_disk_size:
-  type: integer
-  required: true
-  min: 0
 vcpus:
   type: integer
   required: true
@@ -30,11 +26,15 @@ templates:
   type: integer
   required: true
   min: 0
-templates_disk_size:
+users:
   type: integer
   required: true
   min: 0
-users:
+total_size:
+  type: integer
+  required: true
+  min: 0
+total_soft_size:
   type: integer
   required: true
   min: 0

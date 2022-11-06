@@ -14,6 +14,7 @@ $(document).ready(function() {
     
 	$('.btn-new-user').on('click', function () {
         setQuotaMax('#users-quota',kind='category',id=false,disabled=false);
+        $('#modalAddUser .apply').html('group quota');
         $('#modalAddUser').modal({backdrop: 'static', keyboard: false}).modal('show');
         $('#modalAddUserForm')[0].reset();
 
@@ -53,6 +54,7 @@ $(document).ready(function() {
 	$('.btn-new-bulkusers').on('click', function () {
         $('#bulk-allow-update').iCheck('uncheck').iCheck('update');
         setQuotaMax('#bulkusers-quota',kind='category',id=false,disabled=false);
+        $('#modalAddBulkUsers .apply').html('group quota');
         $("#modalAddBulkUsers #send").attr("disabled", true);
         $('#modalAddBulkUsers').modal({backdrop: 'static', keyboard: false}).modal('show');
         $('#modalAddBulkUsersForm')[0].reset();
@@ -370,6 +372,7 @@ $(document).ready(function() {
 
                 if(user["exists"] && $('#bulk-allow-update').prop("checked")){
                     user['secondary_groups'] = data['secondary_groups']
+                    user['quota'] = data['quota']
                     $.ajax({
                         type: 'POST',
                         url: "/api/v3/admin/users/check/by/provider",
@@ -572,8 +575,8 @@ $(document).ready(function() {
             }
             row.child(renderUsersDetailPannel(row.data())).show()
             actionsUserDetail()
-            tr.addClass('shown');
             id = row.data().id
+            $('#show-users-quota-' + id + ' .apply').html('group quota');
             setQuotaMax(
                 '#show-users-quota-' + id,
                 kind='user',
@@ -586,6 +589,7 @@ $(document).ready(function() {
                 id=id,
                 disabled=true
             )
+            tr.addClass('shown');
         }
     });
 
@@ -667,6 +671,7 @@ function actionsUserDetail(){
             var pk=$(this).closest("div").attr("data-pk");
             $("#modalEditUserForm")[0].reset();
             $("#modalEditUserForm #secondary_groups").empty().trigger('change')
+            $('#modalEditUserForm .apply').html('group quota');
 			$('#modalEditUser').modal({
 				backdrop: 'static',
 				keyboard: false
