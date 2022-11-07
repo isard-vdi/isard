@@ -62,7 +62,7 @@ class IsardStorageQcow:
     def get_file_info(self, file_path):
         return json.loads(
             check_output(
-                ("qemu-img", "info", "--output", "json", file_path), text=True
+                ("qemu-img", "info", "-U", "--output", "json", file_path), text=True
             ).strip()
         )
 
