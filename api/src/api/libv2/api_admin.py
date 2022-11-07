@@ -90,7 +90,8 @@ def admin_table_list(
 
 
 def admin_table_insert(table, data):
-    data["id"] = _parse_string(data["name"])
+    if data["id"] == None:
+        data["id"] = _parse_string(data["name"])
     _validate_table(table)
     if table == "interfaces":
         _validate_item(table, data)
