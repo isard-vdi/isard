@@ -216,24 +216,45 @@ $(document).ready(function() {
         switch($(this).attr('id')){
           case 'btn-info':
             $.ajax({
-              type: "POST",
-              url:"/toolbox/api/storage/disk/info",
-              headers: {"Authorization": "Bearer " +localStorage.getItem("token")},
-              data: JSON.stringify({
-                  'path_id': data.path
-              }),
-              contentType: 'application/json',
-              success: function(disk_info)
-              {
-                new PNotify({
-                  title: "Disk info.",
-                    text: JSON.stringify(disk_info),
-                    hide: true,
-                    delay: 10000,
-                    icon: 'fa fa-info',
-                    opacity: 1,
-                    type: 'info'
+              type: "GET",
+              url:
+                "/api/v3/admin/storage/physical/toolbox_host",
+              contentType: "application/json",
+              success: function (toolbox_host) {
+                $.ajax({
+                  type: "POST",
+                  url: toolbox_host+"/storage/disk/info",
+                  headers: {"Authorization": "Bearer " +localStorage.getItem("token")},
+                  data: JSON.stringify({
+                    'path_id': data.path
+                  }),
+                  contentType: "application/json",
+                  success: function (disk_info) {
+                    new PNotify({
+                      title: "Disk info.",
+                        text: JSON.stringify(disk_info),
+                        hide: true,
+                        delay: 10000,
+                        icon: 'fa fa-info',
+                        opacity: 1,
+                        type: 'info'
+                    });
+                  },
                 });
+              },
+              error: function (xhr, ajaxOptions, thrownError) {
+                console.log(xhr)
+                if (xhr.status == 428) {
+                  new PNotify({
+                      title: "Unable to access storage",
+                      text: xhr.responseJSON.description,
+                      hide: true,
+                      delay: 3000,
+                      icon: 'fa fa-warning',
+                      opacity: 1,
+                      type: 'error'
+                  });
+                }
               }
             });
         break;
