@@ -179,18 +179,49 @@ class ApiUsers:
         query = r.table("users")
         if category_id:
             query = query.get_all(category_id, index="category")
-        query = query.without("password", {"vpn": {"wireguard": "keys"}}).merge(
+        query = query.without(
+            "password",
+            {
+                "vpn": {
+                    "wireguard": {
+                        "keys": True,
+                        "remote_ip": True,
+                        "remote_port": True,
+                        "extra_client_nets": True,
+                        "AllowedIPs": True,
+                        "Address": True,
+                    },
+                    "iptables": True,
+                }
+            },
+        ).merge(
             lambda user: {
                 "desktops": r.table("domains")
                 .get_all(["desktop", user["id"]], index="kind_user")
+                .pluck("id")
                 .count(),
                 "templates": r.table("domains")
                 .get_all(["template", user["id"]], index="kind_user")
+                .pluck("id")
                 .count(),
                 "secondary_groups_data": r.table("groups")
                 .get_all(r.args(user["secondary_groups"]))
                 .pluck("id", "name")
                 .coerce_to("array"),
+                "media_size": (
+                    r.table("media")
+                    .get_all(user["id"], index="user")
+                    .pluck({"progress": "total_bytes"})
+                    .sum(lambda size: size["progress"]["total_bytes"].default(0))
+                )
+                / 1073741824,
+                "domains_size": (
+                    r.table("storage")
+                    .get_all([user["id"], "ready"], index="user_status")
+                    .pluck({"qemu-img-info": "actual-size"})
+                    .sum(lambda size: size["qemu-img-info"]["actual-size"].default(0))
+                )
+                / 1073741824,
             }
         )
         with app.app_context():

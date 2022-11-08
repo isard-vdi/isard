@@ -519,6 +519,9 @@ $(document).ready(function() {
             { "data": "accessed"},
             { "data": "templates", "width": "10px"},
             { "data": "desktops", "width": "10px"},
+            { "data": "media_size", className: "xe-desktops", defaultContent: "-"},
+            { "data": "domains_size", className: "xe-desktops", defaultContent: "-"},
+            { "data": null, className: "xe-desktops", defaultContent: "-"},
             {
                 "className": 'select-checkbox',
                 "data": null,
@@ -541,6 +544,24 @@ $(document).ready(function() {
                                     return data;
                             }},
                             {
+                                "targets": 13,
+                                "render": function ( data, type, full, meta ) {
+                                    return full.domains_size.toFixed(1);
+                                }
+                            },
+                            {
+                                "targets": 14,
+                                "render": function ( data, type, full, meta ) {
+                                    return full.media_size.toFixed(1);
+                                }
+                            },
+                            {
+                                "targets": 15,
+                                "render": function ( data, type, full, meta ) {
+                                    return (full.domains_size + full.media_size).toFixed(1);
+                                }
+                            },
+                            {
                             "targets": 9,
                             "render": function ( data, type, full, meta ) {
                                 if('vpn' in full && full['vpn']['wireguard']['connected']){
@@ -554,9 +575,44 @@ $(document).ready(function() {
 							"render": function ( data, type, full, meta ) {
                                         return moment.unix(full.accessed).toISOString("YYYY-MM-DDTHH:mm:ssZ"); //moment.unix(full.accessed).fromNow();
                                         }}
-             ]
+             ],
+             footerCallback: function (row, data, start, end, display) {
+                var api = this.api();
+
+                // Total over this page
+                pageTotal = api
+                    .column(15, { page: 'current' })
+                    .data()
+                    .reduce(function (a, b) {
+                        return a + b['domains_size'] + b['media_size']
+                    }, 0);
+
+                // Update footer
+                $('.users-total-size').html('Current page total storage size: ' + pageTotal.toFixed(1) + ' GB');
+            },
         });
     //~ });
+
+    // Setup - add a text input to each footer cell
+    $('#users tfoot tr:first th').each( function () {
+        var title = $(this).text();
+        if (['','Active','Templates', 'Desktops', 'Domains size (GB)', 'Media size (GB)', 'Total size (GB)', 'Select'].indexOf(title) == -1){
+            $(this).html( '<input type="text" placeholder="Search '+title+'" />' );
+        }
+    } );
+
+    // Apply the search
+    users_table.columns().every( function () {
+        var that = this;
+
+        $( 'input', this.footer() ).on( 'keyup change', function () {
+            if ( that.search() !== this.value ) {
+                that
+                .search( this.value )
+                .draw();
+            }
+        } );
+    } );
 
     users_table.on( 'click', 'tr[role="row"]', function (e) { 
         toggleRow(this, e);

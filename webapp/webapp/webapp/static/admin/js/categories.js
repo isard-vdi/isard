@@ -29,6 +29,11 @@ $(document).ready(function() {
             { "data": "name", className: "xe-name" },
             { "data": "description", className: "xe-description" },
             { "data": "limits.users", className: "xe-description", defaultContent: "-" },
+            { "data": "media_size", className: "xe-desktops", defaultContent: "-"},
+            { "data": "domains_size", className: "xe-desktops", defaultContent: "-"},
+            { "data": null, className: "xe-desktops", defaultContent: "-"},
+            { "data": "quota.total_size", className: "xe-desktops", defaultContent: "-"},
+            { "data": "limits.total_size", className: "xe-desktops", defaultContent: "-"},
             { "data": "quota.desktops", className: "xe-desktops", defaultContent: "-"},
             { "data": "limits.desktops", className: "xe-desktops", defaultContent: "-"},
             { "data": "quota.running", className: "xe-running", defaultContent: "-"},
@@ -54,7 +59,67 @@ $(document).ready(function() {
                     return data;
                 }
             }, 
-        ]
+            {
+                "targets": 4,
+                "render": function ( data, type, full, meta ) {
+                    return full.domains_size.toFixed(1);
+                }
+            },
+            {
+                "targets": 5,
+                "render": function ( data, type, full, meta ) {
+                    return full.media_size.toFixed(1);
+                }
+            },
+            {
+                "targets": 6,
+                "render": function ( data, type, full, meta ) {
+                    return (full.domains_size + full.media_size).toFixed(1);
+                }
+            }
+        ], footerCallback: function (row, data, start, end, display) {
+            var api = this.api();
+
+            // Total over all pages
+            total = api
+                .column(6)
+                .data()
+                .reduce(function (a, b) {
+                    return a + b['domains_size'] + b['media_size']
+                }, 0);
+
+            // Total over this page
+            pageTotal = api
+                .column(6, { page: 'current' })
+                .data()
+                .reduce(function (a, b) {
+                    return a + b['domains_size'] + b['media_size']
+                }, 0);
+
+            // Update footer
+            $('.categories-total-size').html('Current page total storage size: ' + pageTotal.toFixed(1) + ' GB ( Total storage size: ' + total.toFixed(1) + ' GB )');
+        },
+    } );
+
+    // Setup - add a text input to each footer cell
+    $('#categories tfoot tr:first th').each( function () {
+        var title = $(this).text();
+        if (['','Limits','Domains', 'Media', 'Total used', 'Quota'].indexOf(title) == -1){
+            $(this).html( '<input type="text" placeholder="Search '+title+'" />' );
+        }
+    } );
+
+    // Apply the search
+    categories_table.columns().every( function () {
+        var that = this;
+
+        $( 'input', this.footer() ).on( 'keyup change', function () {
+            if ( that.search() !== this.value ) {
+                that
+                .search( this.value )
+                .draw();
+            }
+        } );
     } );
 
     $('#categories').find('tbody').on('click', 'td.details-show', function () {
