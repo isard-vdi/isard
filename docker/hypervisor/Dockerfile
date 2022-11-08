@@ -10,7 +10,7 @@ FROM alpine:3.16 as build
 
 RUN apk add --no-cache cargo uuidgen py3-docutils make git
 
-RUN cd /opt && git clone https://github.com/mdevctl/mdevctl
+RUN cd /opt && git clone https://github.com/mdevctl/mdevctl -b v1.2.0
 
 WORKDIR /opt/mdevctl
 RUN CARGO_INCREMENTAL=0 cargo build --release
