@@ -190,10 +190,11 @@ $(document).ready(function() {
           "columns": [
             { "data": ""},
             { "data": "path",},
-            { "data": "kind",},
+            { "data": "correct-chain",},
             { "data": "size"},
             { "data": "hyper"},
             { "data": "domains"},
+            { "data": "tomigrate"},
             {
               "className": 'text-center',
               "data": null,
@@ -203,11 +204,17 @@ $(document).ready(function() {
         ],
         "columnDefs": [
           {
+            "targets": 3,
+            "render": function ( data, type, full, meta ) {
+              return Math.round(data/1000/1000/1000)+" GB"
+            }
+          },
+          {
             "targets": 0,
             "render": function ( data, type, full, meta ) {
               return '<button type="button" id="btn-info" class="btn btn-pill-right btn-success btn-xs"><i class="fa fa-info"></i></button>';
             }
-        }
+          }
         ],
       });
 
@@ -280,7 +287,7 @@ $(document).ready(function() {
           .on("pnotify.confirm", function () {
             rescan_pnotify = new PNotify({
               title: "Waiting storage",
-                text: "Storage is looking for files in storage. Please wait...",
+                text: "Storage is looking for files in storage. Please wait, it can take some minutes...",
                 hide: false,
                 icon: 'fa fa-alert-sign',
                 opacity: 1,

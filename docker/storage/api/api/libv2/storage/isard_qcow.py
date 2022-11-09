@@ -59,12 +59,28 @@ def Guestfs(file_path, readonly=1):
 
 
 class IsardStorageQcow:
-    def get_file_info(self, file_path):
-        return json.loads(
-            check_output(
-                ("qemu-img", "info", "-U", "--output", "json", file_path), text=True
-            ).strip()
-        )
+    def get_file_info(self, file_path, backing_chain=False):
+        if backing_chain:
+            return json.loads(
+                check_output(
+                    (
+                        "qemu-img",
+                        "info",
+                        "--backing-chain",
+                        "-U",
+                        "--output",
+                        "json",
+                        file_path,
+                    ),
+                    text=True,
+                ).strip()
+            )
+        else:
+            return json.loads(
+                check_output(
+                    ("qemu-img", "info", "-U", "--output", "json", file_path), text=True
+                ).strip()
+            )
 
     def get_file_size(self, file_path):
         with Qcow(file_path) as q:

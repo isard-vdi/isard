@@ -41,19 +41,12 @@ from .decorators import is_admin, ownsStorageId
 
 
 @app.route("/api/v3/admin/storage/physical/<table>", methods=["GET"])
-@app.route("/api/v3/admin/storage/physical/<table>/<kind>", methods=["GET"])
 @is_admin
-def api_v3_admin_get_storage_physical(payload, table, kind=None):
+def api_v3_admin_get_storage_physical(payload, table):
     if table not in ["domains", "media"]:
         raise Error("bad_request", "Table should be domains or media")
-    if table == "domains" and kind and kind not in ["desktop", "template"]:
-        raise Error(
-            "bad_request", "Kind for table domains should be desktop or template"
-        )
-    if table == "media" and kind and kind not in ["iso", "fd"]:
-        raise Error("bad_request", "Kind for table media should be iso or fd")
     return (
-        json.dumps(phy_storage_list(table, kind)),
+        json.dumps(phy_storage_list(table)),
         200,
         {"Content-Type": "application/json"},
     )
