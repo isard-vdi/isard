@@ -44,26 +44,61 @@ db.init_app(app)
 from .._common.api_exceptions import Error
 
 
-def phy_storage_list(table, kind=None):
+def phy_storage_list(table):
     query = r.table("storage_physical_" + table)
-    if kind:
-        query = query.get_all(kind, index="kind")
-    if table == "domains":
-        query = query.merge(
-            lambda store: {
-                "domains": r.table("domains")
-                .get_all(store["path"], index="disk_paths")
-                .count()
-            }
-        )
-    with app.app_context():
-        return list(query.run(db.conn))
+    return [{**d, **{"domains": "NaN"}} for d in list(query.run(db.conn))]
 
 
 def phy_storage_reset_domains(data):
     with app.app_context():
         instorage = list(r.table("storage")["qemu-img-info"]["filename"].run(db.conn))
-    data = [d for d in data if d["path"] not in instorage]
+    # data = [d for d in data if d["path"] not in instorage]
+    socketio.emit(
+        "storage_migration_progress",
+        json.dumps(
+            {
+                "type": "info",
+                "description": "Starting...",
+                "current": 0,
+                "total": data,
+            }
+        ),
+        namespace="/administrators",
+        room="admins",
+    )
+    i = 0
+    for d in data:
+        d["tomigrate"] = True if d["path"] not in instorage else False
+        if d.get("qemu-img-info").get("format") == "qcow2":
+            qemu_img_info = d.pop("qemu-img-info", None)
+            d["migrate_data"] = {
+                "directory_path": "/".join(d["path"].split("/")[:3]),
+                "id": str(uuid.uuid4()),
+                "parent": qemu_img_info.get("backing-filename")
+                if qemu_img_info
+                else None,
+                "parents": d["parents"],
+                "correct-chain": d["correct-chain"],
+                "qemu-img-info": qemu_img_info,
+                "status": "ready",
+                "type": qemu_img_info.get("format") if qemu_img_info else "Unknown",
+                "user_id": None,
+                "status_logs": [{"status": "ready", "time": int(time.time())}],
+            }
+            socketio.emit(
+                "storage_migration_progress",
+                json.dumps(
+                    {
+                        "type": "info",
+                        "description": "Correctly updated.",
+                        "current": i + 1,
+                        "total": len(data),
+                    }
+                ),
+                namespace="/administrators",
+                room="admins",
+            )
+            i += 1
     with app.app_context():
         r.table("storage_physical_domains").delete().run(db.conn)
         r.table("storage_physical_domains").insert(data).run(db.conn)

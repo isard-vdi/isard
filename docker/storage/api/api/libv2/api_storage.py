@@ -20,11 +20,13 @@
 
 # from subprocess import check_output
 import hashlib
+import json
 import os
 from pathlib import Path
 
 from api import app
 
+from .._common.api_exceptions import Error
 from .._common.api_rest import ApiRest
 from ..libv2.storage.isard_qcow import IsardStorageQcow
 
@@ -65,40 +67,58 @@ class Storage:
         self.media_path = "/isard/media"
 
     def get_file_info(self, path_id):
-        return self.storage[ff(path_id)].get_file_info(path_id)
+        try:
+            return self.storage[ff(path_id)].get_file_info(path_id)
+        except:
+            raise Error("not_found", "File " + str(path_id) + " not found in system.")
 
-    def update_disks(self):
-        self.template_files = [
-            {
-                "id": hashlib.md5(str(p).encode("utf-8")).hexdigest(),
-                "path": str(p),
-                "hyper": self.hostname,
-                "kind": "template",
-                "size": p.stat().st_size,
-            }
-            for p in Path(self.templates_path).rglob("*")
-            if p.is_file()
-        ]
-        self.desktop_files = [
-            {
-                "id": hashlib.md5(str(p).encode("utf-8")).hexdigest(),
-                "path": str(p),
-                "hyper": self.hostname,
-                "kind": "desktop",
-                "size": p.stat().st_size,
-            }
-            for p in Path(self.desktops_path).rglob("*")
-            if p.is_file()
-        ]
+    def update_disks(self, add_qemu_img_info=True):
+        qcows = []
+        total = list(Path("/isard").rglob("**/*.qcow2"))
+        for p in total:
+            if p.is_file():
+                try:
+                    disk_with_backing = self.storage[ff(str(p))].get_file_info(
+                        str(p), backing_chain=True
+                    )
+                except:
+                    qcows.append(
+                        {
+                            "id": hashlib.md5(str(p).encode("utf-8")).hexdigest(),
+                            "path": str(p),
+                            "parents": None,
+                            "correct-chain": False,
+                            "hyper": self.hostname,
+                            "size": p.stat().st_size,
+                            "qemu-img-info": self.storage[ff(str(p))].get_file_info(
+                                str(p)
+                            ),
+                        }
+                    )
+                    continue
+                qcows.append(
+                    {
+                        "id": hashlib.md5(str(p).encode("utf-8")).hexdigest(),
+                        "path": str(p),
+                        "parents": [
+                            p["full-backing-filename"]
+                            for p in disk_with_backing
+                            if p.get("full-backing-filename")
+                        ],
+                        "correct-chain": True,
+                        "hyper": self.hostname,
+                        "size": p.stat().st_size,
+                        "qemu-img-info": disk_with_backing[0],
+                    }
+                )
+                app.logger.info(
+                    "Reading info for disk " + str(len(qcows)) + "/" + str(len(total))
+                )
         self.api_rest.put(
             "/storage/physical/init/domains",
-            self.template_files + self.desktop_files,
+            qcows,
         )
-        app.logger.info("- updated disks to api")
-        return {
-            "templates": len(self.template_files),
-            "desktops": len(self.desktop_files),
-        }
+        return len(qcows)
 
     def update_media(self):
         self.media_files = [
