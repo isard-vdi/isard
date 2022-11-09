@@ -2,248 +2,342 @@
 {% extends "base.html" %}
 
 {% block content %}
-            <div class="row">
-              <div class="col-md-12 col-sm-12 col-xs-12">
-                <div class="x_panel">
-                  <div class="x_title">
-                    <h3><i class="fa fa-user"></i> Users <small></small></h3>
-					          <ul class="nav navbar-right panel_toolbox">
-                      <li><a class="btn-bulkdelete"><span
-                        style="color: #5499c7; "><i class="fa fa-trash"></i> Delete</span></a>
-                </li>
-                      <li><a class="btn-new-bulkusers"><span
-                              style="color: #5499c7; "><i class="fa fa-users"></i> Bulk create</span></a>
-                      </li>
-                      <li><a class="btn-new-user"><span
-                              style="color: #5499c7; "><i class="fa fa-user"></i> Add new</span></a>
-                      </li>
-                      <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
-                      </li>
-                      <li><a class="close-link"><i class="fa fa-close"></i></a>
-                      </li>
-                    </ul>
-                    <div class="clearfix"></div>
-                  </div>
-                  <div class="x_content">
-                    <table id="users" class="table">
-                      <thead>
-                        <tr>
-<!--
+<div class="row">
+  <div class="col-md-12 col-sm-12 col-xs-12">
+    <div class="x_panel">
+      <div class="x_title">
+        <h3><i class="fa fa-user"></i> Users <small></small></h3>
+        <ul class="nav navbar-right panel_toolbox">
+          <li><a class="btn-bulkdelete"><span style="color: #5499c7; "><i class="fa fa-trash"></i> Delete</span></a>
+          </li>
+          <li><a class="btn-new-bulkusers"><span style="color: #5499c7; "><i class="fa fa-users"></i> Bulk
+                create</span></a>
+          </li>
+          <li><a class="btn-new-user"><span style="color: #5499c7; "><i class="fa fa-user"></i> Add new</span></a>
+          </li>
+          <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+          </li>
+          <li><a class="close-link"><i class="fa fa-close"></i></a>
+          </li>
+        </ul>
+        <div class="clearfix"></div>
+      </div>
+      <div class="x_content">
+        <table id="users" class="table">
+          <thead>
+            <tr>
+              <!--
                             <th rowspan="2">Name</th>
 -->
-                            <th colspan="9">User info</th>
-                            <th colspan="4">Domains</th>
-<!--
+              <th colspan="9">User info</th>
+              <th colspan="8">Domains</th>
+              <!--
                             <th colspan="3">Contact</th>
 -->
-                        </tr>
-                        <tr>
-							<th></th>
-                          <th>active</th>
-                          <th>name</th>
-                          <th>provider</th>
-                          <th>category</th>
-                          <th>uid</th>
-                          <th>username</th>
-                          <th>role</th>
-                          <th>group</th>
-                          <th>vpn</th>
-                          <th>last access</th>
-                          <th>templates</th>
-                          <th>desktops</th>
-                          <th>select</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="row">
-                <div class="col-md-12 col-sm-12 col-xs-12">
-                  <div class="x_panel">
-                    <div class="x_title">
-                      <h3><i class="fa fa-leaf"></i> Categories <small></small></h3> 
-            <ul class="nav navbar-right panel_toolbox">
-                    {% if current_user.role != 'manager' %}
-                        <li><a class="btn-new-category"><span
-                                style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a>
-                        </li>
-                    {% endif %}
-                        <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
-                        </li>
-                        <li><a class="close-link"><i class="fa fa-close"></i></a>
-                        </li>
-                      </ul>
-                      <div class="clearfix"></div>
-                    </div>
-                    <div class="x_content">
-                      <table id="categories" class="table">
-                        <thead>
-                          <tr>
-                            <th rowspan="2"></th>
-                            <th rowspan="2">name</th>
-                            <th rowspan="2">description</th>
-                            <th colspan="1">user</th> 
-
-                            <th colspan="2">desktops</th>
-                            <th colspan="2">concurrent</th> 
-                            <th colspan="2">vCPU</th>
-                            <th colspan="2">memory</th>   
-                            <th colspan="2">templates</th>
-                            <th colspan="2">isos</th>                                                                                                                                                                            
-                          </tr>
-                          <tr>
-                            <th>limits</th>
-                            <th>quota</th>
-                            <th>limits</th>
-                            <th>quota</th>
-                            <th>limits</th>
-                            <th>quota</th>
-                            <th>limits</th>
-                            <th>quota</th>
-                            <th>limits</th>
-                            <th>quota</th>
-                            <th>limits</th>
-                            <th>quota</th>
-                            <th>limits</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-            </div>
-
-            <div class="row"> 
-                <div class="col-md-12 col-sm-12 col-xs-12">
-                  <div class="x_panel">
-                    <div class="x_title">
-                      <h3><i class="fa fa-group"></i> Groups <small></small></h3> 
-            <ul class="nav navbar-right panel_toolbox">
-                        <li><a class="btn-new-group"><span
-                                style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a>
-                        </li>
-                        <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
-                        </li>
-                        <li><a class="close-link"><i class="fa fa-close"></i></a>
-                        </li>
-                      </ul>
-                      <div class="clearfix"></div>
-                    </div>
-                    <div class="x_content">
-                      <table id="groups" class="table">
-                        <thead>
-                          <tr>
-                            <th rowspan="2"></th>
-                            <th rowspan="2">name</th>
-                            <th rowspan="2">description</th>
-                            <th colspan="1">user</th> 
-
-                            <th colspan="2">desktops</th>
-                            <th colspan="2">concurrent</th> 
-                            <th colspan="2">vCPU</th>
-                            <th colspan="2">memory</th>   
-                            <th colspan="2">templates</th>
-                            <th colspan="2">isos</th>                                                                                                                                                                          
-                          </tr>
-                          <tr>
-                            <th>limits</th>
-
-                            <th>quota</th>
-                            <th>limits</th>
-                            <th>quota</th>
-                            <th>limits</th>
-                            <th>quota</th>
-                            <th>limits</th>
-                            <th>quota</th>
-                            <th>limits</th>
-                            <th>quota</th>
-                            <th>limits</th>
-                            <th>quota</th>
-                            <th>limits</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-            </div>
-            {% if current_user.role != 'manager' %}
-            <div class="row">
-              <div class="col-md-12 col-sm-12 col-xs-12">
-                <div class="x_panel">
-                  <div class="x_title">
-                    <h3><i class="fa fa-external-link"></i> External apps <small></small></h3> 
-                    <ul class="nav navbar-right panel_toolbox">
-                      <li><a class="btn-new-secret">
-                        <span style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a>
-                      </li>
-                      <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
-                      </li>
-                      <li><a class="close-link"><i class="fa fa-close"></i></a>
-                      </li>
-                    </ul>
-                    <div class="clearfix"></div>
-                  </div>
-                  <div class="x_content">
-                    <table id="externalapps" class="table">
-                      <thead>
-                        <tr>
-                          <th>key id</th>
-                          <th>secret</th>
-                          <th>description</th>
-                          <th>role</th>
-                          <th>category</th>
-                          <th>domain</th>
-                          <th></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            </div>
-            {% endif %}
-            <div class="row">
-              <div class="col-md-12 col-sm-12 col-xs-12">
-                <div class="x_panel">
-                  <div class="x_title">
-                    <h3><i class="fa fa-key"></i> Roles <small></small></h3> 
-          <ul class="nav navbar-right panel_toolbox">
-                      <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
-                      </li>
-                      <li><a class="close-link"><i class="fa fa-close"></i></a>
-                      </li>
-                    </ul>
-                    <div class="clearfix"></div>
-                  </div>
-                  <div class="x_content">
-                    <table id="roles" class="table">
-                      <thead>
-                        <tr>
+            </tr>
+            <tr>
               <th></th>
-                          <th>name</th>
-                          <th>description</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            </div>
-		 </div>
+              <th>Active</th>
+              <th>Name</th>
+              <th>Provider</th>
+              <th>Category</th>
+              <th>Uid</th>
+              <th>Username</th>
+              <th>Role</th>
+              <th>Group</th>
+              <th>Vpn</th>
+              <th>Last access</th>
+              <th>Templates</th>
+              <th>Desktops</th>
+              <th>Domains size (GB)</th>
+              <th>Media size (GB)</th>
+              <th>Total size (GB)</th>
+              <th>Select</th>
+            </tr>
+          </thead>
+          <tbody>
+          </tbody>
+          <tfoot>
+            <tr>
+              <th></th>
+              <th>Active</th>
+              <th>Name</th>
+              <th>Provider</th>
+              <th>Category</th>
+              <th>Uid</th>
+              <th>Username</th>
+              <th>Role</th>
+              <th>Group</th>
+              <th>Vpn</th>
+              <th>Last access</th>
+              <th>Templates</th>
+              <th>Desktops</th>
+              <th>Domains size (GB)</th>
+              <th>Media size (GB)</th>
+              <th>Total size (GB)</th>
+              <th>Select</th>
+            </tr>
+            <tr>
+              <th colspan="17" style="text-align:right" class="users-total-size"></th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-12 col-sm-12 col-xs-12">
+    <div class="x_panel">
+      <div class="x_title">
+        <h3><i class="fa fa-leaf"></i> Categories <small></small></h3>
+        <ul class="nav navbar-right panel_toolbox">
+          {% if current_user.role != 'manager' %}
+          <li><a class="btn-new-category"><span style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a>
+          </li>
+          {% endif %}
+          <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+          </li>
+          <li><a class="close-link"><i class="fa fa-close"></i></a>
+          </li>
+        </ul>
+        <div class="clearfix"></div>
+      </div>
+      <div class="x_content">
+        <table id="categories" class="table">
+          <thead>
+            <tr>
+              <th rowspan="2"></th>
+              <th rowspan="2">Name</th>
+              <th rowspan="2">Description</th>
+              <th colspan="1">User</th>
+
+              <th colspan="5">Storage (GB)</th>
+              <th colspan="2">Desktops</th>
+              <th colspan="2">Concurrent</th>
+              <th colspan="2">VCPU</th>
+              <th colspan="2">Memory</th>
+              <th colspan="2">Templates</th>
+              <th colspan="2">Isos</th>
+            </tr>
+            <tr>
+              <th>Limits</th>
+
+              <th>Domains</th>
+              <th>Media</th>
+              <th>Total used</th>
+              <th>Quota</th>
+              <th>Limits</th>
+              <th>Quota</th>
+              <th>Limits</th>
+              <th>Quota</th>
+              <th>Limits</th>
+              <th>Quota</th>
+              <th>Limits</th>
+              <th>Quota</th>
+              <th>Limits</th>
+              <th>Quota</th>
+              <th>Limits</th>
+              <th>Quota</th>
+              <th>Limits</th>
+            </tr>
+          </thead>
+          <tbody>
+          </tbody>
+          <tfoot>
+            <tr>
+              <th></th>
+              <th>Name</th>
+              <th>Description</th>
+              <th>Limits</th>
+
+              <th>Domains</th>
+              <th>Media</th>
+              <th>Total used</th>
+              <th>Quota</th>
+              <th>Limits</th>
+              <th>Quota</th>
+              <th>Limits</th>
+              <th>Quota</th>
+              <th>Limits</th>
+              <th>Quota</th>
+              <th>Limits</th>
+              <th>Quota</th>
+              <th>Limits</th>
+              <th>Quota</th>
+              <th>Limits</th>
+              <th>Quota</th>
+              <th>Limits</th>
+            </tr>
+            <tr>
+              <th colspan="21" style="text-align:right" class="categories-total-size"></th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-12 col-sm-12 col-xs-12">
+    <div class="x_panel">
+      <div class="x_title">
+        <h3><i class="fa fa-group"></i> Groups <small></small></h3>
+        <ul class="nav navbar-right panel_toolbox">
+          <li><a class="btn-new-group"><span style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a>
+          </li>
+          <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+          </li>
+          <li><a class="close-link"><i class="fa fa-close"></i></a>
+          </li>
+        </ul>
+        <div class="clearfix"></div>
+      </div>
+      <div class="x_content">
+        <table id="groups" class="table">
+          <thead>
+            <tr>
+              <th rowspan="2"></th>
+              <th rowspan="2">Name</th>
+              <th rowspan="2">Description</th>
+              <th colspan="1">User</th>
+
+              <th colspan="5">Storage (GB)</th>
+              <th colspan="2">Desktops</th>
+              <th colspan="2">Concurrent</th>
+              <th colspan="2">VCPU</th>
+              <th colspan="2">Memory</th>
+              <th colspan="2">Templates</th>
+              <th colspan="2">Isos</th>
+            </tr>
+            <tr>
+              <th>Limits</th>
+
+              <th>Domains</th>
+              <th>Media</th>
+              <th>Total used</th>
+              <th>Quota</th>
+              <th>Limits</th>
+              <th>Quota</th>
+              <th>Limits</th>
+              <th>Quota</th>
+              <th>Limits</th>
+              <th>Quota</th>
+              <th>Limits</th>
+              <th>Quota</th>
+              <th>Limits</th>
+              <th>Quota</th>
+              <th>Limits</th>
+              <th>Quota</th>
+              <th>Limits</th>
+            </tr>
+          </thead>
+          <tbody>
+          </tbody>
+          <tfoot>
+            <tr>
+              <th></th>
+              <th>Name</th>
+              <th>Description</th>
+              <th>Limits</th>
+
+              <th>Domains</th>
+              <th>Media</th>
+              <th>Total used</th>
+              <th>Quota</th>
+              <th>Limits</th>
+              <th>Quota</th>
+              <th>Limits</th>
+              <th>Quota</th>
+              <th>Limits</th>
+              <th>Quota</th>
+              <th>Limits</th>
+              <th>Quota</th>
+              <th>Limits</th>
+              <th>Quota</th>
+              <th>Limits</th>
+              <th>Quota</th>
+              <th>Limits</th>
+            </tr>
+            <tr>
+              <th colspan="21" style="text-align:right" class="groups-total-size"></th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% if current_user.role != 'manager' %}
+<div class="row">
+  <div class="col-md-12 col-sm-12 col-xs-12">
+    <div class="x_panel">
+      <div class="x_title">
+        <h3><i class="fa fa-external-link"></i> External apps <small></small></h3>
+        <ul class="nav navbar-right panel_toolbox">
+          <li><a class="btn-new-secret">
+              <span style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a>
+          </li>
+          <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+          </li>
+          <li><a class="close-link"><i class="fa fa-close"></i></a>
+          </li>
+        </ul>
+        <div class="clearfix"></div>
+      </div>
+      <div class="x_content">
+        <table id="externalapps" class="table">
+          <thead>
+            <tr>
+              <th>key id</th>
+              <th>secret</th>
+              <th>description</th>
+              <th>role</th>
+              <th>category</th>
+              <th>domain</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+<div class="row">
+  <div class="col-md-12 col-sm-12 col-xs-12">
+    <div class="x_panel">
+      <div class="x_title">
+        <h3><i class="fa fa-key"></i> Roles <small></small></h3>
+        <ul class="nav navbar-right panel_toolbox">
+          <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+          </li>
+          <li><a class="close-link"><i class="fa fa-close"></i></a>
+          </li>
+        </ul>
+        <div class="clearfix"></div>
+      </div>
+      <div class="x_content">
+        <table id="roles" class="table">
+          <thead>
+            <tr>
+              <th></th>
+              <th>name</th>
+              <th>description</th>
+            </tr>
+          </thead>
+          <tbody>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
 
 
 {% include '/admin/pages/users_modals.html' %}
@@ -253,10 +347,10 @@
 {% endblock %}
 
 {% block pagescript %}
-    <script src="/isard-admin/static/js/restful.js"></script>
-    <script src="/isard-admin/static/admin/js/users.js"></script>
-    <script src="/isard-admin/static/admin/js/roles.js"></script>
-    <script src="/isard-admin/static/admin/js/categories.js"></script>
-    <script src="/isard-admin/static/admin/js/groups.js"></script>
-    <script src="/isard-admin/static/admin/js/external_apps.js"></script>
+<script src="/isard-admin/static/js/restful.js"></script>
+<script src="/isard-admin/static/admin/js/users.js"></script>
+<script src="/isard-admin/static/admin/js/roles.js"></script>
+<script src="/isard-admin/static/admin/js/categories.js"></script>
+<script src="/isard-admin/static/admin/js/groups.js"></script>
+<script src="/isard-admin/static/admin/js/external_apps.js"></script>
 {% endblock %}

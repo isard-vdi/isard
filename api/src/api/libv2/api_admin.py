@@ -79,6 +79,64 @@ def admin_table_list(
                 .get_all(r.args(group["linked_groups"]))
                 .pluck("id", "name")
                 .coerce_to("array"),
+                "media_size": (
+                    r.table("media")
+                    .get_all(group["id"], index="group")
+                    .pluck({"progress": "total_bytes"})
+                    .sum(lambda size: size["progress"]["total_bytes"].default(0))
+                )
+                / 1073741824,
+                "domains_size": (
+                    r.table("users")
+                    .get_all(group["id"], index="group")
+                    .pluck("id")
+                    .merge(
+                        lambda user: {
+                            "storage": r.table("storage")
+                            .get_all([user["id"], "ready"], index="user_status")
+                            .pluck({"qemu-img-info": "actual-size"})
+                            .sum(
+                                lambda right: right["qemu-img-info"][
+                                    "actual-size"
+                                ].default(0)
+                            ),
+                        }
+                    )
+                    .sum("storage")
+                )
+                / 1073741824,
+            }
+        )
+
+    if table == "categories":
+        query = query.merge(
+            lambda category: {
+                "media_size": (
+                    r.table("media")
+                    .get_all(category["id"], index="category")
+                    .pluck({"progress": "total_bytes"})
+                    .sum(lambda size: size["progress"]["total_bytes"].default(0))
+                )
+                / 1073741824,
+                "domains_size": (
+                    r.table("users")
+                    .get_all(category["id"], index="category")
+                    .pluck("id")
+                    .merge(
+                        lambda user: {
+                            "storage": r.table("storage")
+                            .get_all([user["id"], "ready"], index="user_status")
+                            .pluck({"qemu-img-info": "actual-size"})
+                            .sum(
+                                lambda right: right["qemu-img-info"][
+                                    "actual-size"
+                                ].default(0)
+                            ),
+                        }
+                    )
+                    .sum("storage")
+                )
+                / 1073741824,
             }
         )
 
