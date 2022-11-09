@@ -18,9 +18,20 @@ disks_info:
 group:
   required: true
   type: string
+guest_properties:
+  schema:
+    credentials:
+      schema:
+        password:
+          type: string
+        username:
+          type: string
+    fullscreen:
+      type: boolean
+    viewers:
+      type: dict
 hardware:
   type: dict
-  required: true
 hardware_from_xml:
   type: dict
 history_domain:
@@ -55,6 +66,9 @@ os:
   type: string
 parents:
   type: list
+persistent:
+  type: boolean
+  required: false
 server:
   type: boolean
 status:
@@ -66,7 +80,8 @@ username:
   type: string
 xml:
   type: string
+  nullable: true
 id:
   required: yes
   type: string
-  default: gendomainid
+  default_setter: genuuid

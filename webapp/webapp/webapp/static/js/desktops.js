@@ -809,7 +809,7 @@ function initalize_modal_all_desktops_events(){
                         error: function(data) {
                             notice.update({
                                 title: 'ERROR',
-                                text: 'Cannot create template ' + name,
+                                text: data.responseJSON.description,
                                 type: 'error',
                                 hide: true,
                                 icon: 'fa fa-warning',

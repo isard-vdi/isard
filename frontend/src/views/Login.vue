@@ -196,7 +196,7 @@ export default {
       )
     },
     category_by_path () {
-      return this.$route.params.category !== undefined
+      return this.$route.params.customUrlName !== undefined
     },
     category_name () {
       let name = ''
@@ -239,7 +239,13 @@ export default {
         defaultCategory = this.getCategories[0].id
       }
       if (this.category_by_path) {
-        this.category = this.$route.params.category
+        const customUrlName = this.$route.params.customUrlName
+        const urlCategory = this.getCategories.find(c => c.custom_url_name === customUrlName)
+        if (urlCategory) {
+          this.category = urlCategory.id
+        } else {
+          this.$router.push({ name: 'NotFound' })
+        }
       } else {
         if (this.getCategories.map(i => i.id).includes(localStorage.category)) {
           this.category = localStorage.category

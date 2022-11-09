@@ -516,7 +516,7 @@
                                     <thead>
                                         <tr>
                                             <th>kind</th>
-                                            <th>owner/id</th>
+                                            <th>owner</th>
                                             <th>name</th>
                                         </tr>
                                     </thead>
@@ -572,7 +572,7 @@
                                     <thead>
                                         <tr>
                                             <th>kind</th>
-                                            <th>owner/id</th>
+                                            <th>owner</th>
                                             <th>name</th>
                                         </tr>
                                     </thead>
@@ -627,7 +627,7 @@
                                     <thead>
                                         <tr>
                                             <th>kind</th>
-                                            <th>owner/id</th>
+                                            <th>owner</th>
                                             <th>name</th>
                                         </tr>
                                     </thead>
@@ -877,7 +877,7 @@
                                 <input id="name" class="roundbox" maxlength="40"
                                     pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9@]+$" data-parsley-length="[1, 40]"
                                     name="name" placeholder="New category name" data-parsley-trigger="change" required
-                                    type="text" style="width:100%">
+                                    type="text" style="width:100%" onkeyup='customURLChange(this.value);''>
                             </div>
                             <div class="col-md-8 col-sm-8 col-xs-12">
                                 <label class="control-label" for="description">Description</label>
@@ -886,6 +886,30 @@
                             </div>
                             <div class="col-md-12 col-sm-12 col-xs-12">
                                 {% include '/snippets/category_modal_domain.html' %}
+
+                                <div class="row">
+                                    <div class="col-md-12 col-sm-12 col-xs-12">
+                                       <label class="control-label" for="name">
+                                       Custom URL name login
+                                       </label>
+                                       <p>
+                                          <span id="span-custom-url">
+                                          </span>
+                                          <input
+                                             style="width:45%"
+                                             id="custom-url"
+                                             name="custom_url_name"
+                                             type="text"
+                                             class="roundbox"
+                                             pattern="^[a-zA-Z0-9-_]+$"
+                                             data-parsley-trigger="change"
+                                             data-parsley-pattern-message="The field can only contain numbers, letters, '_' or '-'"
+                                             placeholder="Custom URL name to login directly"
+                                             size="31"
+                                             />
+                                       </p>
+                                    </div>
+                                 </div>
                             </div>
                         </div>
                     </div>
@@ -1024,7 +1048,7 @@
                                 <input id="name" class="roundbox" maxlength="40"
                                     pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9@]+$" data-parsley-length="[1, 40]"
                                     name="name" placeholder="New category name" data-parsley-trigger="change" required
-                                    type="text" disabled style="width:100%">
+                                    type="text" style="width:100%">
                             </div>
                             <div class="col-md-8 col-sm-8 col-xs-12">
                                 <label class="control-label" for="description">Description</label>
@@ -1033,6 +1057,29 @@
                             </div>
                             <div class="col-md-12 col-sm-12 col-xs-12">
                                 {% include '/snippets/category_modal_domain.html' %}
+                                <div class="row">
+                                    <div class="col-md-12 col-sm-12 col-xs-12">
+                                       <label class="control-label" for="name">
+                                       Custom URL name login
+                                       </label>
+                                       <p>
+                                          <span id="span-custom-url">
+                                          </span>
+                                          <input
+                                             style="width:35%"
+                                             id="custom-url"
+                                             name="custom_url_name"
+                                             type="text"
+                                             class="roundbox"
+                                             data-parsley-pattern="^[a-zA-Z0-9-_]+$"
+                                             data-parsley-trigger="change"
+                                             data-parsley-pattern-message="The field can only contain numbers, letters, '_' or '-'"
+                                             placeholder="Custom URL name to login directly"
+                                             size="31"
+                                             />
+                                       </p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1182,8 +1229,9 @@
                             <div class="col-md-8 col-sm-8 col-xs-12">
                                 <label class="control-label" for="parent_category">Parent Category
                                 </label>
-                                <input id="parent_category" class="roundbox" name="parent_category" type="text"
+                                <select id="parent_category" class="roundbox" name="parent_category" type="text"
                                     style="width:100%" value="{{ current_user.category }}" disabled>
+                                </select>
                             </div>
                             {% else %}
                             <div class="col-md-12 col-sm-12 col-xs-12">

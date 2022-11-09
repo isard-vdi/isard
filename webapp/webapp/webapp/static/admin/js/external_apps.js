@@ -50,7 +50,7 @@ $(document).ready(function(){
             keyboard: false
         }).modal('show');
 
-        setModalUser();
+        setRoleCategory();
 
         $("#modalAddSecret #send").off('click').on('click', function(e){
             var form = $('#modalAddSecretForm');
@@ -127,7 +127,7 @@ $(document).ready(function(){
                     },
                     addclass: 'pnotify-center'
                 }).get().on('pnotify.confirm', function() {
-                    $.ajax({ 
+                    $.ajax({
                         type: "DELETE",
                         url: "/api/v3/admin/secret/" + id,
                     });
@@ -138,7 +138,7 @@ $(document).ready(function(){
     });
 });
 
-function setModalUser(){
+function setRoleCategory(){
     $.ajax({
         type: "POST",
         url: "/api/v3/admin/userschema",

@@ -33,6 +33,7 @@ import socket
 from subprocess import check_output
 
 from .helpers import _check, generate_db_media
+from .validators import _validate_item
 
 
 def get_hypervisors(status=None):
@@ -200,6 +201,8 @@ class ApiHypervisors:
             "min_free_mem_gb": min_free_mem_gb,
             "storage_pools": [DEFAULT_STORAGE_POOL_ID],
         }
+
+        hypervisor = _validate_item("hypervisors", hypervisor)
 
         with app.app_context():
             result = (

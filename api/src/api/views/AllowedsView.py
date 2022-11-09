@@ -21,7 +21,7 @@ alloweds = ApiAllowed()
 
 
 # Gets all list of roles, categories, groups and users from a 2+ chars term
-@app.route("/api/v3/admin/alloweds/term/<table>", methods=["POST"])
+@app.route("/api/v3/admin/allowed/term/<table>", methods=["POST"])
 @has_token
 def alloweds_table_term(payload, table):
     if table not in [
@@ -39,7 +39,10 @@ def alloweds_table_term(payload, table):
     if payload["role_id"] == "admin":
         if table == "groups":
             result = alloweds.get_table_term(
-                table, "id", data["term"], pluck=["id", "name", "parent_category"]
+                table,
+                "name",
+                data["term"],
+                pluck=["id", "name", "parent_category", "category_name"],
             )
             if data.get("category"):
                 if payload["role_id"] == "manager":
@@ -48,7 +51,7 @@ def alloweds_table_term(payload, table):
                     ]
         elif table == "users":
             result = alloweds.get_table_term(
-                table, "id", data["term"], pluck=["id", "name", "uid"]
+                table, "name", data["term"], pluck=["id", "name", "uid"]
             )
         elif table == "media":
             if data["kind"] == "isos":
@@ -80,7 +83,10 @@ def alloweds_table_term(payload, table):
             result = [c for c in result if c["id"] == payload["category_id"]]
         if table == "groups":
             result = alloweds.get_table_term(
-                table, "id", data["term"], pluck=["id", "name", "parent_category"]
+                table,
+                "name",
+                data["term"],
+                pluck=["id", "name", "parent_category", "category_name"],
             )
             result = [
                 g for g in result if g["parent_category"] == payload["category_id"]
@@ -114,7 +120,7 @@ def alloweds_table_term(payload, table):
     return json.dumps(result), 200, {"Content-Type": "application/json"}
 
 
-@app.route("/api/v3/admin/alloweds/update/<table>", methods=["POST"])
+@app.route("/api/v3/admin/allowed/update/<table>", methods=["POST"])
 @owns_table_item_id
 def admin_allowed_update(payload, table):
     data = request.get_json(force=True)

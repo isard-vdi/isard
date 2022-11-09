@@ -79,7 +79,7 @@ $(document).ready(function() {
             let data = {
                 kwargs: {}
             }
-            // For once at a date jobs we must parse the selected datetime as utc and call another endpoint 
+            // For once at a date jobs we must parse the selected datetime as utc and call another endpoint
             if (formData['kind'] == 'date') {
                 url = '/scheduler/advanced/date/system/' + formData['action']
                 data["date"] = moment(formData['daterangepicker_start'], "DD/MM/YYYY HH:mm").utc().format('YYYY-MM-DDTHH:mmZ')
@@ -90,7 +90,7 @@ $(document).ready(function() {
             }
             // If the action has kwargs we must add it to the data to be sent
             if ($('.kwargs_field').length > 0){
-                $('.kwargs_field').each(function() { 
+                $('.kwargs_field').each(function() {
                     data['kwargs'][this.id] = this.value
                 });
             }
@@ -166,11 +166,11 @@ $(document).ready(function() {
                             "render": function ( data, type, full, meta ) {
                               if ( type === 'display' || type === 'filter' ) {
                                     return moment.unix(full.when).fromNow();
-                              }                                 
-                              return data;  
+                              }
+                              return data;
                             }}]
     } );
- 
+
      $('#table-backups').find(' tbody').on( 'click', 'button', function () {
         var data = backups_table.row( $(this).parents('tr') ).data();
         if($(this).attr('id')=='btn-backups-delete'){
@@ -201,7 +201,7 @@ $(document).ready(function() {
                         addclass: 'pnotify-center'
                     }).get().on('pnotify.confirm', function() {
                         api.ajax('/api/v3/backup/restore/'+data["id"],'PUT',{}).done(function(data) {
-                        });  
+                        });
                     }).on('pnotify.cancel', function() {
             });
         }
@@ -353,7 +353,7 @@ $('#backup-tables').on('change', function (e) {
     socket.on('connect_error', function(data) {
       connection_lost();
     });
-    
+
     socket.on('user_quota', function(data) {
         var data = JSON.parse(data);
         drawUserQuota(data);
@@ -363,7 +363,7 @@ $('#backup-tables').on('change', function (e) {
         var data = JSON.parse(data);
         dtUpdateInsert(backups_table,data,false);
     });
-    
+
     socket.on('backups_deleted', function(data){
         var data = JSON.parse(data);
         backups_table.row('#'+data.id).remove().draw();
@@ -382,7 +382,7 @@ $('#backup-tables').on('change', function (e) {
         var data = JSON.parse(data);
         dtUpdateInsert(scheduler_table,data,false);
     });
-    
+
     socket.on('scheduler_jobs_deleted', function(data){
         var data = JSON.parse(data);
         scheduler_table.row('#'+data.id).remove().draw();

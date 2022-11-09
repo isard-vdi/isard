@@ -18,24 +18,24 @@ if (url!="Desktops") {
 order=13
 
 columns= [
-				{
+                {
                 "className":      'details-control',
                 "orderable":      false,
                 "data":           null,
                 "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
-				},
+                },
                 { "data": "icon" },
                 { "data": "server", "width": "10px", "defaultContent":"-"},
                 { "data": "hyp_started", "width": "100px"},
-				{ "data": "name"},
-				{ "data": "description"},
-				{ "data": "ram"},
-				{ "data": "create_dict.hardware.vcpus"},
-				{ "data": null, "className": 'viewer',},
-				{ "data": "status"},
-				{ "data": "username"},
-				{ "data": "category"},
-				{ "data": "group"},
+                { "data": "name"},
+                { "data": "description"},
+                { "data": "ram"},
+                { "data": "create_dict.hardware.vcpus"},
+                { "data": null, "className": 'viewer',},
+                { "data": "status"},
+                { "data": "username"},
+                { "data": "category_name"},
+                { "data": "group_name"},
                 { "data": "accessed",
                  'defaultContent': ''},
                 {
@@ -104,13 +104,13 @@ columnDefs = [
 if(url!="Desktops"){
     // Remove the desktops last column (used for bulk actions)
     columns.splice(14, 1)
-    // Remove the server and hypervisor column
-    columns.splice(2,2)
+    // Remove the server column
+    columns.splice(2,1)
     // Remove the ram, vcpu, viewer and status columns
-    columns.splice(4, 4)
+    columns.splice(5, 4)
     // Add the enabled, derivates and allowed columns
     columns.splice(
-        7,
+        8,
         0,
         {
             "data": 'enabled',
@@ -122,12 +122,14 @@ if(url!="Desktops"){
         {"defaultContent": '<button id="btn-alloweds" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button>'},
     );
     // Remove the custom rendering of the ram, viewer and status
-    columnDefs.splice(1, 5)
-    // Change the last access column custom render target
-    columnDefs[1]["targets"]=10
+    columnDefs.splice(1, 1)
+    columnDefs.splice(2, 3)
+    // Change the hypervisor and the last access column custom render target
+    columnDefs[1]["targets"]=2
+    columnDefs[2]["targets"]=11
     // Add the enabled column render
     columnDefs.push({
-        "targets": 7,
+        "targets": 8,
         "render": function ( data, type, full, meta ) {
             if( full.enabled ){
                 return '<input id="chk-enabled" type="checkbox" class="form-check-input" checked></input><span style="display: none;">' + data + '</span>'
@@ -145,13 +147,13 @@ if(url!="Desktops"){
                 return true;
             }
             else if (
-               searchData[7] == search_val
+               searchData[8] == search_val
             ) {
                 return true;
             }
             return false;
     });
-    
+
 }
 
 $(document).ready(function() {
@@ -176,7 +178,7 @@ $(document).ready(function() {
             var form = $('#modalAdd');
 
             form.parsley().validate();
-    
+
             if (form.parsley().isValid()){
                 template_id=$('#modalAddDesktop #template').val();
                 if (template_id !=''){
@@ -185,19 +187,14 @@ $(document).ready(function() {
                     name = data["name"]
                     description = data["description"]
                     allowed = data["allowed"]
-                    
+
                     var notice = new PNotify({
                         text: 'Creating desktops...',
                         hide: true,
                         opacity: 1,
                         icon: 'fa fa-spinner fa-pulse'
                     })
-                    
-                    $('form').each(function() {
-                        this.reset()
-                    })
-                    $('.modal').modal('hide')
-    
+
                     $.ajax({
                         type: "POST",
                         url:"/api/v3/persistent_desktop/bulk",
@@ -224,6 +221,10 @@ $(document).ready(function() {
                                 opacity: 1,
                                 type: 'success'
                             })
+                            $('form').each(function() {
+                                this.reset()
+                            })
+                            $('.modal').modal('hide')
                         }
                     });
                 }else{
@@ -243,7 +244,7 @@ $(document).ready(function() {
                     opacity: 1,
                     type: 'error'
                 });
-        }else{	
+        }else{
             setHardwareOptions('#modalAddDesktop');
             $("#modalAdd")[0].reset();
             $('#modalAddDesktop').modal({
@@ -265,7 +266,7 @@ $(document).ready(function() {
                     data=$('#modalTemplateDesktopForm').serializeObject();
                     data=replaceAlloweds_arrays('#modalTemplateDesktopForm #alloweds-add',data)
                     data['enabled']=$('#modalTemplateDesktopForm #enabled').prop('checked')
-                    
+
                     name=data["name"]
                     allowed=data["allowed"]
                     description=data["description"]
@@ -278,11 +279,6 @@ $(document).ready(function() {
                         icon: 'fa fa-spinner fa-pulse'
                     })
 
-                    $('form').each(function() {
-                        this.reset()
-                    })
-                    $('.modal').modal('hide');
-
                     $.ajax({
                         type: "POST",
                         url:"/api/v3/template",
@@ -291,7 +287,7 @@ $(document).ready(function() {
                         error: function(data) {
                             notice.update({
                                 title: 'ERROR',
-                                text: 'Cannot create template ' + name,
+                                text: data.responseJSON.description,
                                 type: 'error',
                                 hide: true,
                                 icon: 'fa fa-warning',
@@ -300,6 +296,10 @@ $(document).ready(function() {
                             })
                         },
                         success: function(data) {
+                            $('form').each(function() {
+                                this.reset()
+                            })
+                            $('.modal').modal('hide');
                             notice.update({
                                 title: 'New template',
                                 text: 'Template '+ name + ' created successfully',
@@ -311,14 +311,14 @@ $(document).ready(function() {
                             })
                         }
                     });
-                    
+
                 }else{
                     $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
                     $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
                 }
             }
         });
-        
+
     $("#modalDeleteTemplate #send").on('click', function(e){
 
         selected = $("#modalDeleteTemplate .tree_template_delete").fancytree('getTree').getSelectedNodes();
@@ -402,6 +402,8 @@ $(document).ready(function() {
                 },
                 success: function(data) {
                     domains_table.ajax.reload()
+                    $('form').each(function() { this.reset() });
+                    $('.modal').modal('hide');
                     notice.update({
                         title: data.title,
                         text: 'Template duplicated',
@@ -414,10 +416,6 @@ $(document).ready(function() {
                 }
             })
         }
-        $('form').each(function() {
-            this.reset()
-        })
-        $('.modal').modal('hide')
     });
 
     // Setup - add a text input to each footer cell
@@ -427,21 +425,21 @@ $(document).ready(function() {
             $(this).html( '<input type="text" placeholder="Search '+title+'" />' );
         }
     } );
-            
-		domains_table= $('#domains').DataTable({
-			"ajax": {
-				"url": "/admin/domains",
+
+        domains_table= $('#domains').DataTable({
+            "ajax": {
+                "url": "/admin/domains",
                 "type": "GET",
                 "dataSrc":'',
                 "data": { 'kind': kind }
-			},
-			"language": {
-				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
-			},
-			"rowId": "id",
-			"deferRender": true,
-			"columns": columns,
-			 "order": [[order, 'des']],
+            },
+            "language": {
+                "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+            },
+            "rowId": "id",
+            "deferRender": true,
+            "columns": columns,
+             "order": [[order, 'des']],
         "columnDefs": columnDefs,
         "rowCallback": function (row, data) {
             if('server' in data){
@@ -452,12 +450,12 @@ $(document).ready(function() {
                 }
             }
         }
-		} );
+        } );
 
     // Apply the search
     domains_table.columns().every( function () {
         var that = this;
- 
+
         $( 'input', this.footer() ).on( 'keyup change', function () {
             if ( that.search() !== this.value ) {
                 that
@@ -483,7 +481,7 @@ $(document).ready(function() {
         domains_table.draw();
     });
 
-    domains_table.on( 'click', 'tr[role="row"]', function (e) { 
+    domains_table.on( 'click', 'tr[role="row"]', function (e) {
         if (kind =='desktop') {
             toggleRow(this, e);
         }
@@ -590,7 +588,7 @@ $(document).ready(function() {
     $('#domains').find('tbody').on('click', 'td.details-control', function () {
         var tr = $(this).closest('tr');
         var row = domains_table.row( tr );
- 
+
         if ( row.child.isShown() ) {
             // This row is already open - close it
             row.child.hide();
@@ -604,15 +602,15 @@ $(document).ready(function() {
              if (row.data().status=='Creating'){
                  //In this case better not to open detail as ajax snippets will fail
                  //Maybe needs to be blocked also on other -ing's
-						new PNotify({
-						title: "Domain is being created",
-							text: "Wait till domain ["+row.data().name+"] creation completes to view details",
-							hide: true,
-							delay: 3000,
-							icon: 'fa fa-alert-sign',
-							opacity: 1,
-							type: 'error'
-						});
+                        new PNotify({
+                        title: "Domain is being created",
+                            text: "Wait till domain ["+row.data().name+"] creation completes to view details",
+                            hide: true,
+                            delay: 3000,
+                            icon: 'fa fa-alert-sign',
+                            opacity: 1,
+                            type: 'error'
+                        });
              }else{
                 // Open this row
                 row.child( addDomainDetailPannel(row.data()) ).show();
@@ -653,7 +651,7 @@ $(document).ready(function() {
                             type: 'error'
                         });
                         domains_table.ajax.reload()
-                }); 
+                });
             break;
         }
     })
@@ -665,17 +663,17 @@ $(document).ready(function() {
         var data = domains_table.row( $(this).parents('tr') ).data();
         switch($(this).attr('id')){
             case 'btn-play':
-				if($('.quota-play .perc').text() >=100){
-					new PNotify({
-						title: "Quota for running desktops full.",
-							text: "Can't start another desktop, quota full.",
-							hide: true,
-							delay: 3000,
-							icon: 'fa fa-alert-sign',
-							opacity: 1,
-							type: 'error'
-						});
-				}else{
+                if($('.quota-play .perc').text() >=100){
+                    new PNotify({
+                        title: "Quota for running desktops full.",
+                            text: "Can't start another desktop, quota full.",
+                            hide: true,
+                            delay: 3000,
+                            icon: 'fa fa-alert-sign',
+                            opacity: 1,
+                            type: 'error'
+                        });
+                }else{
                     $.ajax({
                         type: "GET",
                         url: '/api/v3/desktop/start/' + data["id"],
@@ -694,7 +692,7 @@ $(document).ready(function() {
                             })
                         },
                     })
-				}          
+                }
                 break;
             case 'btn-stop':
                 // When desktop is 'Shutting-down' and click on 'Force stop' button
@@ -705,24 +703,24 @@ $(document).ready(function() {
                 }
                 break;
             case 'btn-display':
-				new PNotify({
-						title: 'Connect to user viewer!',
-							text: "By connecting to desktop "+ name+" you will disconnect and gain access to that user current desktop.\n\n \
-								   Please, think twice before doing this as it could be illegal depending on your relation with the user. \n\n ",
-							hide: false,
-							opacity: 0.9,
-							confirm: {
-								confirm: true
-							},
-							buttons: {
-								closer: false,
-								sticker: false
-							},
-							history: {
-								history: false
-							},
-							addclass: 'pnotify-center'
-						}).get().on('pnotify.confirm', function() {
+                new PNotify({
+                        title: 'Connect to user viewer!',
+                            text: "By connecting to desktop "+ name+" you will disconnect and gain access to that user current desktop.\n\n \
+                                   Please, think twice before doing this as it could be illegal depending on your relation with the user. \n\n ",
+                            hide: false,
+                            opacity: 0.9,
+                            confirm: {
+                                confirm: true
+                            },
+                            buttons: {
+                                closer: false,
+                                sticker: false
+                            },
+                            history: {
+                                history: false
+                            },
+                            addclass: 'pnotify-center'
+                        }).get().on('pnotify.confirm', function() {
                             setViewerButtons(data,socket);
 
                             if('viewer' in data && 'guest_ip' in data['viewer']){
@@ -732,8 +730,8 @@ $(document).ready(function() {
                                 backdrop: 'static',
                                 keyboard: false
                             }).modal('show');
-						}).on('pnotify.cancel', function() {
-				});
+                        }).on('pnotify.cancel', function() {
+                });
                 break;
             case 'btn-alloweds':
                 modalAllowedsFormShow('domains',data)
@@ -771,7 +769,7 @@ $(document).ready(function() {
                 //console.log('NEW IP ARRIVED!: '+data['viewer']['guest_ip'])
                 viewerButtonsIP(data.id,data['viewer']['guest_ip'])
             }
-        }        
+        }
         dtUpdateInsert(domains_table,data,false);
         setDomainDetailButtonsStatus(data.id, data.status, data.server);
         $('#domains tr.active .form-check-input').prop("checked", true);
@@ -813,7 +811,7 @@ $(document).ready(function() {
             $("#modalAddFromBuilder #modalAdd")[0].reset();
             $("#modalAddFromBuilder").modal('hide');
             $("#modalAddFromMedia #modalAdd")[0].reset();
-            $("#modalAddFromMedia").modal('hide');   
+            $("#modalAddFromMedia").modal('hide');
             $("#modalTemplateDesktop #modalTemplateDesktopForm")[0].reset();
             $("#modalTemplateDesktop").modal('hide');
         }
@@ -832,26 +830,7 @@ $(document).ready(function() {
         var data = JSON.parse(data);
         if(data.result){
             $("#modalAddDesktop #modalAdd")[0].reset();
-            $("#modalAddDesktop").modal('hide');                   
-        }
-        new PNotify({
-                title: data.title,
-                text: data.text,
-                hide: true,
-                delay: 4000,
-                icon: 'fa fa-'+data.icon,
-                opacity: 1,
-                type: data.type
-        }); 
-    });
-
-    socket.on('edit_form_result', function (data) {
-        var data = JSON.parse(data);
-        if(data.result){
-            $("#modalEdit")[0].reset();
-            $("#modalEditDesktop").modal('hide');
-            $("#modalBulkEditForm")[0].reset();
-            $("#modalBulkEdit").modal('hide');            
+            $("#modalAddDesktop").modal('hide');
         }
         new PNotify({
                 title: data.title,
@@ -863,12 +842,31 @@ $(document).ready(function() {
                 type: data.type
         });
     });
-    
+
+    socket.on('edit_form_result', function (data) {
+        var data = JSON.parse(data);
+        if(data.result){
+            $("#modalEdit")[0].reset();
+            $("#modalEditDesktop").modal('hide');
+            $("#modalBulkEditForm")[0].reset();
+            $("#modalBulkEdit").modal('hide');
+        }
+        new PNotify({
+                title: data.title,
+                text: data.text,
+                hide: true,
+                delay: 4000,
+                icon: 'fa fa-'+data.icon,
+                opacity: 1,
+                type: data.type
+        });
+    });
+
 });
 
 function actionsDomainDetail(){
-    
-	$('.btn-edit').on('click', function () {
+
+    $('.btn-edit').on('click', function () {
         var pk=$(this).closest("[data-pk]").attr("data-pk");
         $("#modalEdit")[0].reset();
         setHardwareOptions('#modalEditDesktop','hd',pk);
@@ -879,15 +877,15 @@ function actionsDomainDetail(){
             keyboard: false
         }).modal('show');
         $('#modalEdit').parsley();
-	});
+    });
 
-	$('.btn-xml').on('click', function () {
+    $('.btn-xml').on('click', function () {
             var pk=$(this).closest("[data-pk]").attr("data-pk");
             $("#modalEditXmlForm")[0].reset();
-			$('#modalEditXml').modal({
-				backdrop: 'static',
-				keyboard: false
-			}).modal('show');
+            $('#modalEditXml').modal({
+                backdrop: 'static',
+                keyboard: false
+            }).modal('show');
             $('#modalEditXmlForm #id').val(pk);
             $.ajax({
                 type: "GET",
@@ -895,9 +893,9 @@ function actionsDomainDetail(){
                 success: function(data)
                 {
                     $('#modalEditXmlForm #xml').val(data);
-                }				
+                }
             });
-	});
+    });
 
     $('.btn-server').on('click', function () {
         var pk=$(this).closest("[data-pk]").attr("data-pk");
@@ -921,16 +919,16 @@ function actionsDomainDetail(){
                     $('#modalServerForm #server').iCheck('check').iCheck('update');
                 }else{
                     $('#modalServerForm #server').iCheck('unckeck').iCheck('update');
-                } 
-            }				
+                }
+            }
         });
 });
 
     if(kind=="desktop"){
         $('.btn-delete-template').remove()
 
-	$('.btn-template').on('click', function () {
-		if($('.quota-templates .perc').text() >=100){
+    $('.btn-template').on('click', function () {
+        if($('.quota-templates .perc').text() >=100){
             new PNotify({
                 title: "Quota for creating templates full.",
                 text: "Can't create another template, quota full.",
@@ -940,19 +938,19 @@ function actionsDomainDetail(){
                 opacity: 1,
                 type: 'error'
             });
-		}else{	
-			var pk=$(this).closest("[data-pk]").attr("data-pk");
-            
-			setDefaultsTemplate(pk);
-            
-			$('#modalTemplateDesktop').modal({
-				backdrop: 'static',
-				keyboard: false
-			}).modal('show');
+        }else{
+            var pk=$(this).closest("[data-pk]").attr("data-pk");
+
+            setDefaultsTemplate(pk);
+
+            $('#modalTemplateDesktop').modal({
+                backdrop: 'static',
+                keyboard: false
+            }).modal('show');
 
             setAlloweds_add('#modalTemplateDesktop #alloweds-add');
         }
-	});
+    });
 
     $('.btn-delete').on('click', function () {
                     var pk=$(this).closest("[data-pk]").attr("data-pk");
@@ -976,13 +974,13 @@ function actionsDomainDetail(){
                             }).get().on('pnotify.confirm', function() {
                                 api.ajax('/api/v3/desktop/' + pk, 'DELETE').done(function() {});
                             }).on('pnotify.cancel', function() {
-                    });	
+                    });
         });
     }else{
         $('.btn-delete').remove()
         $('.btn-template').remove()
 
-		$('.btn-delete-template').on('click', function () {	
+        $('.btn-delete-template').on('click', function () {
             var pk = $(this).closest("[data-pk]").attr("data-pk")
             $('#modalDeleteTemplate').modal({
                 backdrop: 'static',
@@ -992,7 +990,7 @@ function actionsDomainDetail(){
         });
 
     $('.btn-duplicate-template').on('click', function () {
-		if($('.quota-templates .perc').text() >=100){
+        if($('.quota-templates .perc').text() >=100){
             new PNotify({
                 title: "Quota for creating templates full.",
                 text: "Can't create another template, quota full.",
@@ -1002,7 +1000,7 @@ function actionsDomainDetail(){
                 opacity: 1,
                 type: 'error'
             });
-        }else{	
+        }else{
             var pk=$(this).closest("[data-pk]").attr("data-pk");
             setDefaultsTemplate(pk);
             populate_users();
@@ -1012,7 +1010,7 @@ function actionsDomainDetail(){
             }).modal('show');
             setAlloweds_add('#modalDuplicateTemplate #alloweds-add');
         }
-	});
+    });
     }
 
 
@@ -1025,7 +1023,7 @@ function actionsDomainDetail(){
             keyboard: false
         }).modal('show');
         // setModalUser()
-        // setQuotaTableDefaults('#edit-users-quota','users',pk) 
+        // setQuotaTableDefaults('#edit-users-quota','users',pk)
         api.ajax('/api/v3/desktop/jumperurl/' + pk,'GET',{}).done(function(data) {
             if(data.jumperurl != false){
                 $('#jumperurl').show();
@@ -1042,14 +1040,14 @@ function actionsDomainDetail(){
                 $('#jumperurl').hide();
                 $('.btn-copy-jumperurl').hide();
             }
-        }); 
+        });
     });
 
     $('#jumperurl-check').unbind('ifChecked').on('ifChecked', function(event){
         if($('#jumperurl').val()==''){
             pk=$('#modalJumperurlForm #id').val();
             $.ajax({
-                url: '/api/v3/desktop/jumperurl_reset/' + pk, 
+                url: '/api/v3/desktop/jumperurl_reset/' + pk,
                 type: 'PUT',
                 contentType: "application/json",
                 data: JSON.stringify({"disabled" : false}),
@@ -1060,7 +1058,7 @@ function actionsDomainDetail(){
             $('#jumperurl').show();
             $('.btn-copy-jumperurl').show();
         }
-        }); 	
+        });
     $('#jumperurl-check').unbind('ifUnchecked').on('ifUnchecked', function(event){
         pk=$('#modalJumperurlForm #id').val();
         new PNotify({
@@ -1082,7 +1080,7 @@ function actionsDomainDetail(){
             }).get().on('pnotify.confirm', function() {
                 pk=$('#modalJumperurlForm #id').val();
                 $.ajax({
-                    url: '/api/v3/desktop/jumperurl_reset/' + pk, 
+                    url: '/api/v3/desktop/jumperurl_reset/' + pk,
                     type: 'PUT',
                     contentType: "application/json",
                     data: JSON.stringify({"disabled" : true}),
@@ -1097,7 +1095,7 @@ function actionsDomainDetail(){
                 $('#jumperurl').show();
                 $('.btn-copy-jumperurl').show();
             });
-        }); 
+        });
 
     $('.btn-copy-jumperurl').on('click', function () {
         $('#jumperurl').prop('disabled',false).select().prop('disabled',true);
@@ -1112,7 +1110,7 @@ function actionsDomainDetail(){
             backdrop: 'static',
             keyboard: false
         }).modal('show');
-        api.ajax('/api/v3/admin/table/domains','POST',{'id':pk,'pluck':['id','forced_hyp']}).done(function(data) { 
+        api.ajax('/api/v3/admin/table/domains','POST',{'id':pk,'pluck':['id','forced_hyp']}).done(function(data) {
             if('forced_hyp' in data && data.forced_hyp != false && data.forced_hyp != []){
                 HypervisorsDropdown(data.forced_hyp[0]);
                 $('#modalForcedhypForm #forced_hyp').show();
@@ -1125,29 +1123,29 @@ function actionsDomainDetail(){
                 $('#forcedhyp-check').iCheck('update')[0].unchecked;
                 $('#modalForcedhypForm #forced_hyp').hide();
             }
-        }); 
+        });
     });
 
     $('#forcedhyp-check').unbind('ifChecked').on('ifChecked', function(event){
         if($('#forced_hyp').val()==''){
-            pk=$('#modalForcedhypForm #id').val();  
-            api.ajax('/api/v3/admin/table/domains','POST',{'id':pk,'pluck':['id','forced_hyp']}).done(function(data) {        
-                
+            pk=$('#modalForcedhypForm #id').val();
+            api.ajax('/api/v3/admin/table/domains','POST',{'id':pk,'pluck':['id','forced_hyp']}).done(function(data) {
+
                 if('forced_hyp' in data && data.forced_hyp != false && data.forced_hyp != []){
                     HypervisorsDropdown(data.forced_hyp[0]);
                 }else{
                     HypervisorsDropdown('');
                 }
-            });    
+            });
             $('#modalForcedhypForm #forced_hyp').show();
         }
-        }); 	
+        });
     $('#forcedhyp-check').unbind('ifUnchecked').on('ifUnchecked', function(event){
         pk=$('#modalForcedhypForm #id').val();
 
         $('#modalForcedhypForm #forced_hyp').hide();
         $("#modalForcedhypForm #forced_hyp").empty();
-    }); 
+    });
 
     $("#modalForcedhyp #send").off('click').on('click', function(e){
         var notice = new PNotify({
@@ -1168,7 +1166,7 @@ function actionsDomainDetail(){
             error: function(data) {
                 notice.update({
                     title: 'ERROR',
-                    text: 'Something went wrong when updating',
+                    text: data.responseJSON.description,
                     type: 'error',
                     hide: true,
                     icon: 'fa fa-warning',
@@ -1248,32 +1246,32 @@ function HypervisorsDropdown(selected) {
 }
 
 function setDefaultsTemplate(id) {
-	$.ajax({
-		type: "GET",
-		url:"/api/v3/domain/info/" + id,
-		success: function(data)
-		{
-			$('.template-id').val(id);
-			$('.template-id').attr('data-pk', id);
+    $.ajax({
+        type: "GET",
+        url:"/api/v3/domain/info/" + id,
+        success: function(data)
+        {
+            $('.template-id').val(id);
+            $('.template-id').attr('data-pk', id);
             $('.template-name').val('Template '+data.name);
             $('.template-description').val(data.description);
-		}
-	});
+        }
+    });
 }
 
-//~ RENDER DATATABLE	
+//~ RENDER DATATABLE
 function addDomainDetailPannel ( d ) {
-		$newPanel = $template_domain.clone();
+        $newPanel = $template_domain.clone();
         if(kind=='desktop'){
             $newPanel = $template_domain.clone();
             $newPanel.find('#derivates-d\\.id').remove();
         }else{
             $newPanel = $admin_template_domain.clone();
         }
-		$newPanel.html(function(i, oldHtml){
-			return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name);
-		});
-		return $newPanel
+        $newPanel.html(function(i, oldHtml){
+            return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name);
+        });
+        return $newPanel
 }
 
 function setDomainDetailButtonsStatus(id,status,server){
@@ -1297,13 +1295,13 @@ function icon(data){
            return "<i class='fa fa-"+data.icon+" fa-2x ' "+viewer+" title="+viewerIP+"></i>";
         }else{
             return "<span class='fl-"+data.icon+" fa-2x' "+viewer+" title="+viewerIP+"></span>";
-		}       
+        }
 }
 
 function renderDisplay(data){
         if(['Started', 'Shutting-down', 'Stopping'].includes(data.status)){
             return '<button type="button" id="btn-display" class="btn btn-pill-right btn-success btn-xs"> \
-					<i class="fa fa-desktop"></i> Show</button>';
+                    <i class="fa fa-desktop"></i> Show</button>';
         }
         return ''
 }
@@ -1337,10 +1335,10 @@ function renderAction(data){
     }
     if(status=='Shutting-down'){
         return '<button type="button" id="btn-stop" class="btn btn-pill-left btn-danger btn-xs"><i class="fa fa-spinner fa-pulse fa-fw"></i> Force stop</button>';
-    } 
+    }
     if(status=='Crashed'){
         return '<div class="Change"> <i class="fa fa-thumbs-o-down fa-2x"></i> </div>';
-    } 
+    }
     if(status=='Disabled'){
             return '<i class="fa fa-times fa-2x"></i>';
     }
@@ -1355,7 +1353,7 @@ function populate_tree_template_delete(id){
           indentation: 20,      // indent 20px per node level
           nodeColumnIdx: 2,     // render the node title into the 2nd column
           checkboxColumnIdx: 0  // render the checkboxes into the 1st column
-        },  
+        },
         source: {url: "/api/v3/admin/desktops/tree_list/" + id,
                 cache: false},
         lazyLoad: function(event, data){
@@ -1369,16 +1367,16 @@ function populate_tree_template_delete(id){
         renderColumns: function(event, data) {
             var node = data.node,
               $tdList = $(node.tr).find(">td");
-              
+
             // (index #0 is rendered by fancytree by adding the checkbox)
             $tdList.eq(1).text(node.getIndexHier());
             // (index #2 is rendered by fancytree)
             if(node.unselectable){
                 $tdList.eq(3).html('<i class="fa fa-exclamation-triangle"></i> '+node.data.user);
-                 
+
             }else{
                 $tdList.eq(3).text(node.data.user);
-            }           
+            }
             if(node.data.kind != "desktop"){
                 $tdList.eq(4).html('<p style="color:black">'+node.data.kind+'</p>');
                 $tdList.eq(5).html('<p style="color:black">'+node.data.category+'</p>');
@@ -1427,7 +1425,7 @@ function populate_tree_template_delete(id){
                     error: function(data) {
                         notice.update({
                             title: 'ERROR',
-                            text: 'Something went wrong when updating',
+                            text: data.responseJSON.description,
                             type: 'error',
                             hide: true,
                             icon: 'fa fa-warning',
@@ -1535,7 +1533,7 @@ function populate_tree_template_delete(id){
                 dropdownparent: $("#modalDuplicateTemplateForm"),
                 ajax: {
                     type: "POST",
-                    url: '/admin/alloweds/term/users',
+                    url: '/admin/allowed/term/users',
                     dataType: 'json',
                     contentType: "application/json",
                     delay: 250,
@@ -1556,6 +1554,6 @@ function populate_tree_template_delete(id){
                         };
                     }
                 },
-            });	
+            });
         };
 

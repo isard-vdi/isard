@@ -25,7 +25,9 @@ quotas = Quotas()
 db = RDB(app)
 db.init_app(app)
 
-from ..api_desktop_events import desktops_stop
+from api.libv2.quotas import Quotas
+
+from ..api_desktop_events import desktops_delete, desktops_stop
 from ..api_desktops_common import ApiDesktopsCommon
 from ..api_desktops_persistent import ApiDesktopsPersistent
 from ..ds import DS
@@ -34,6 +36,11 @@ from ..helpers import (
     _parse_deployment_desktop,
     _parse_string,
 )
+from ..validators import _validate_item
+
+quotas = Quotas()
+
+ds = DS()
 
 
 def lists(user_id):
@@ -143,13 +150,14 @@ def new(
     description,
     desktop_name,
     selected,
+    deployment_id,
     visible=False,
     skip_existing_desktops=False,
 ):
     # CREATE_DEPLOYMENT
     with app.app_context():
         try:
-            hardware = (
+            template = (
                 r.table("domains")
                 .get(template_id)
                 .pluck(
@@ -166,10 +174,10 @@ def new(
                                 "qos_id": True,
                                 "virtualization_nested": True,
                             }
-                        }
+                        },
                     }
                 )
-                .run(db.conn)["create_dict"]["hardware"]
+                .run(db.conn)
             )
         except:
             raise Error(
@@ -179,7 +187,7 @@ def new(
             )
 
     deployment_tag = {
-        "tag": payload["user_id"] + "=" + _parse_string(name),
+        "tag": deployment_id,
         "tag_name": name,
         "tag_visible": visible,
     }
@@ -187,14 +195,14 @@ def new(
         "create_dict": {
             "allowed": selected,
             "description": description,
-            "hardware": hardware,
+            "hardware": template["create_dict"]["hardware"],
             "name": desktop_name,
-            "tag": _parse_string(name),
+            "tag": deployment_id,
             "tag_name": name,
             "tag_visible": visible,
             "template": template_id,
         },
-        "id": payload["user_id"] + "=" + _parse_string(name),
+        "id": deployment_id,
         "name": name,
         "user": payload["user_id"],
     }
@@ -290,12 +298,21 @@ def new(
 
     """Create desktops for each user found"""
     for user in users:
+        data = {
+            "name": desktop_name,
+            "description": description,
+            "template_id": template_id,
+            "hardware": template["create_dict"]["hardware"],
+        }
+        data = _validate_item("desktop_from_template", data)
+
         ApiDesktopsPersistent().NewFromTemplate(
             desktop_name,
             description,
             template_id,
             user_id=user["id"],
             deployment_tag_dict=deployment_tag,
+            domain_id=data["id"],
         )
     return deployment["id"]
 
@@ -359,6 +376,7 @@ def recreate(payload, deployment_id):
         deployment["create_dict"]["description"],
         deployment["create_dict"]["name"],
         deployment["create_dict"]["allowed"],
+        deployment["create_dict"]["tag"],
         deployment["create_dict"]["tag_visible"],
         skip_existing_desktops=True,
     )

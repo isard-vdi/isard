@@ -927,7 +927,8 @@
         "booking_does_not_fit_date": "La reserva no se ajusta a la fecha solicitada",
         "unable_to_get_viewer_inexistent": "No se puede obtener un visor para un escritorio inexistente",
         "unable_to_parse_string": "No se puede analizar la cadena",
-        "new_desktop_name_exists": "Ya existe un escritorio con el mismo nombre para este usuario"
+        "new_desktop_name_exists": "Ya existe un escritorio con el mismo nombre para este usuario",
+        "new_template_name_exists": "Ya existe una plantilla con el mismo nombre para este usuario"
     },
     "router": {
         "titles": {

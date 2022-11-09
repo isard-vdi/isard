@@ -1,30 +1,30 @@
-	function setAlloweds_viewer(div_id,id, table = 'domains'){
-			api.ajax('/api/v3/allowed/table/' + table, 'POST', {'id':id}).done(function(alloweds) {
+    function setAlloweds_viewer(div_id,id, table = 'domains'){
+            api.ajax('/api/v3/allowed/table/' + table, 'POST', {'id':id}).done(function(alloweds) {
                 var all=false;
-                $.each(alloweds,function(key, value) 
+                $.each(alloweds,function(key, value)
                 {
                     if(typeof value !== 'undefined' && value.length == 0){all=true;}
                 });
                 if(all){
                     $(div_id+" #table-alloweds-"+id).append('<tr><td>Everyone</td><td>Has access</td></tr>');
                 }else{
-                    $.each(alloweds,function(key, value) 
-                    {   
+                    $.each(alloweds,function(key, value)
+                    {
                         if(value){
-			    var values=[];
-			    value.forEach(function(data)
-			    {
-				values.push(data.name);
-			    });			    
-			    $(div_id+" #table-alloweds-"+id).append('<tr><td>'+key+'</td><td>'+values.join(', ')+'</td></tr>');
+                var values=[];
+                value.forEach(function(data)
+                {
+                values.push(data.name);
+                });
+                $(div_id+" #table-alloweds-"+id).append('<tr><td>'+key+'</td><td>'+values.join(', ')+'</td></tr>');
                         }
 
                     });
                 }
-			}); 
-	}
+            });
+    }
 
-	function replaceAlloweds_arrays(parent_id,data){
+    function replaceAlloweds_arrays(parent_id,data){
         if(!$(parent_id+' #a-roles-cb').length ){
             data['allowed']={   'groups':parseAllowed(parent_id,'a-groups'),
                                 'users':parseAllowed(parent_id,'a-users')}
@@ -41,7 +41,7 @@
         delete data['a-roles-cb'];
         delete data['a-categories-cb'];
         delete data['a-groups-cb'];
-        delete data['a-users-cb'];        
+        delete data['a-users-cb'];
         return data
     }
 
@@ -55,21 +55,21 @@
         }
         return d
     }
-	
 
-	function setAlloweds_add(parentid){
+
+    function setAlloweds_add(parentid){
         ids=['a-roles','a-categories','a-groups','a-users']
-		$.each(ids,function(idx,id){
-			// https://github.com/dargullin/icheck/issues/159
-			$(parentid+' #'+id+'-cb').iCheck('uncheck').iCheck('update');
-			 $(parentid+' #'+id+'-cb').on('ifChecked', function(event){
-				  $(parentid+" #"+id).attr('disabled',false);
-			 });
-			 $(parentid+' #'+id+'-cb').on('ifUnchecked', function(event){
-				  $(parentid+" #"+id).attr('disabled',true);
+        $.each(ids,function(idx,id){
+            // https://github.com/dargullin/icheck/issues/159
+            $(parentid+' #'+id+'-cb').iCheck('uncheck').iCheck('update');
+             $(parentid+' #'+id+'-cb').on('ifChecked', function(event){
+                  $(parentid+" #"+id).attr('disabled',false);
+             });
+             $(parentid+' #'+id+'-cb').on('ifUnchecked', function(event){
+                  $(parentid+" #"+id).attr('disabled',true);
                   $(parentid+" #"+id).empty().trigger('change')
-			 });
-			 $(parentid+" #"+id).attr('disabled',true);
+             });
+             $(parentid+" #"+id).attr('disabled',true);
             var placeholder = 'Empty applies to all. Type at least 2 letters to search.'
             if (parentid == '#alloweds-block') {
                 placeholder = 'Type at least 2 letters to search.'
@@ -81,21 +81,20 @@
                     multiple: true,
                     ajax: {
                         type: "POST",
-                        url: '/admin/alloweds/term/'+id.replace('a-',''),
+                        url: '/admin/allowed/term/'+id.replace('a-',''),
                         dataType: 'json',
                         contentType: "application/json",
                         delay: 250,
                         data: function (params) {
                             return  JSON.stringify({
-                                term: params.term,
-                                pluck: ['id','name','parent_category']
+                                term: params.term
                             });
                         },
                         processResults: function (data) {
                             return {
                                 results: $.map(data, function (item, i) {
                                     return {
-                                        text: '['+item['parent_category']+'] '+item.name,
+                                        text: '['+item['category_name']+'] '+item.name,
                                         id: item.id
                                     }
                                 })
@@ -110,14 +109,13 @@
                     multiple: true,
                     ajax: {
                         type: "POST",
-                        url: '/admin/alloweds/term/'+id.replace('a-',''),
+                        url: '/admin/allowed/term/'+id.replace('a-',''),
                         dataType: 'json',
                         contentType: "application/json",
                         delay: 250,
                         data: function (params) {
                             return  JSON.stringify({
-                                term: params.term,
-                                pluck: ['id','name']
+                                term: params.term
                             });
                         },
                         processResults: function (data) {
@@ -131,7 +129,7 @@
                             };
                         }
                     },
-                });	
+                });
             } else{
                 $(parentid+" #"+id+"[type!=hidden]").select2({
                     placeholder,
@@ -139,14 +137,13 @@
                     multiple: true,
                     ajax: {
                         type: "POST",
-                        url: '/admin/alloweds/term/'+id.replace('a-',''),
+                        url: '/admin/allowed/term/'+id.replace('a-',''),
                         dataType: 'json',
                         contentType: "application/json",
                         delay: 250,
                         data: function (params) {
                             return  JSON.stringify({
-                                term: params.term,
-                                pluck: ['id','name']
+                                term: params.term
                             });
                         },
                         processResults: function (data) {
@@ -160,15 +157,15 @@
                             };
                         }
                     },
-                });	
-            }            
+                });
+            }
 
-		});
-	
-	}
-    
-    
-    
+        });
+
+    }
+
+
+
     function modalAllowedsFormShow(table,data){
         $('#modalAlloweds #alloweds_name').html(data.name)
         $('#modalAllowedsForm #id').val(data.id);
@@ -179,18 +176,18 @@
             keyboard: false
         }).modal('show');
         //~ $('#modalAllowedsForm').parsley();
-        setAlloweds_add('#modalAlloweds #alloweds-add'); 
+        setAlloweds_add('#modalAlloweds #alloweds-add');
         api.ajax('/api/v3/allowed/table/'+table,'POST',{'id':data.id}).done(function(alloweds) {
-            $.each(alloweds,function(key, value) 
-            {   
+            $.each(alloweds,function(key, value)
+            {
                 $("#modalAllowedsForm #alloweds-add #a-"+key).empty().trigger('change')
                 if(value){
                     $("#modalAllowedsForm #alloweds-add #a-"+key).attr('disabled',false)
                     $('#modalAllowedsForm #alloweds-add #a-'+key+'-cb').iCheck('check');
                     value.forEach(function(data)
-                    {  
-                        if('parent_category' in data){                                
-                            var newOption = new Option('['+data['parent_category']+'] '+data.name, data.id, true, true);
+                    {
+                        if('parent_category' in data){
+                            var newOption = new Option('['+data['category_name']+'] '+data.name, data.id, true, true);
                         }else{
                             var newOption = new Option(data.name, data.id, true, true);
                         }
@@ -205,7 +202,7 @@
         socket.off('allowed_result').on('allowed_result', function (data) {
             var data = JSON.parse(data);
             if(data.result){
-                $("#modalAlloweds").modal('hide');       
+                $("#modalAlloweds").modal('hide');
             }
             new PNotify({
                     title: data.title,
@@ -216,7 +213,7 @@
                     opacity: 1,
                     type: data.type
             });
-        });	                    
+        });
 
         $("#modalAlloweds #send").off('click').on('click', function(e){
                 var form = $('#modalAllowedsForm');
@@ -229,7 +226,7 @@
                     data['table']=table
                     $.ajax({
                         type: "POST",
-                        url: '/admin/alloweds/update/' + table,
+                        url: '/admin/allowed/update/' + table,
                         dataType: 'json',
                         contentType: "application/json",
                         data: JSON.stringify(data),
@@ -240,9 +237,9 @@
                     })
                 }
 
-                
 
-            });                    
+
+            });
     }
 
 

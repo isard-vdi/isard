@@ -1,0 +1,43 @@
+id:
+  required: true
+  empty: false
+  default_setter: genuuid
+allowed:
+  type: dict
+  schema: allowed
+description:
+  type: string
+name:
+  type: string
+  required: true
+  empty: false
+iotune:
+  type: dict
+  required: true
+  schema:
+    read_bytes_sec:
+      type: integer
+    read_bytes_sec_max:
+      type: integer
+    read_bytes_sec_max_length:
+      type: integer
+    read_iops_sec:
+      type: integer
+    read_iops_sec_max:
+      type: integer
+    read_iops_sec_max_length:
+      type: integer
+    size_iops_sec:
+      type: integer
+    write_bytes_sec:
+      type: integer
+    write_bytes_sec_max:
+      type: integer
+    write_bytes_sec_max_length:
+      type: integer
+    write_iops_sec:
+      type: integer
+    write_iops_sec_max:
+      type: integer
+    write_iops_sec_max_length:
+      type: integer

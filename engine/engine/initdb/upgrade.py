@@ -17,8 +17,9 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 65
+release_version = 66
 
+# release 66: Added secondary indexes for uuids
 # release 65: Updated users quotas removing fields isos_disk_size and templates_disk_size.
 #             Updated users quotas adding fields total_size and total_soft_size.
 #             Added user_status index to table storage
@@ -93,6 +94,8 @@ tables = [
     "scheduler_jobs",
     "bookings_priority",
     "categories",
+    "qos_net",
+    "qos_disk",
 ]
 
 
@@ -610,6 +613,12 @@ class Upgrade(object):
                     + "!"
                 )
                 log.error("Error detail: " + str(e))
+
+        if version == 66:
+            try:
+                r.table("gpus").index_create("name").run(self.conn)
+            except Exception as e:
+                print(e)
 
         return True
 
@@ -1216,6 +1225,14 @@ class Upgrade(object):
             except Exception as e:
                 print(e)
 
+        if version == 66:
+            try:
+                r.table(table).index_create(
+                    "name_user", [r.row["name"], r.row["user"]]
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
         return True
 
     """
@@ -1237,6 +1254,12 @@ class Upgrade(object):
                     r.table(table).insert(deployment).run(self.conn)
             except:
                 None
+
+        if version == 66:
+            try:
+                r.table(table).index_create("name").run(self.conn)
+            except Exception as e:
+                print(e)
 
         return True
 
@@ -1400,6 +1423,14 @@ class Upgrade(object):
                 )
             r.table(table).insert(media_update, conflict="update").run(self.conn)
 
+        if version == 66:
+            try:
+                r.table(table).index_create("name").run(self.conn)
+            except Exception as e:
+                print(e)
+
+        return True
+
     """
     GROUPS TABLE UPGRADES
     """
@@ -1507,6 +1538,12 @@ class Upgrade(object):
                     group["id"],
                 )
 
+        if version == 66:
+            try:
+                r.table(table).index_create("name").run(self.conn)
+            except Exception as e:
+                print(e)
+
         return True
 
     """
@@ -1584,6 +1621,12 @@ class Upgrade(object):
                 r.table("videos").get("none").update({"model": "none"}).run(self.conn)
             except:
                 None
+
+        if version == 66:
+            try:
+                r.table(table).index_create("name").run(self.conn)
+            except Exception as e:
+                print(e)
 
         return True
 
@@ -1795,6 +1838,20 @@ class Upgrade(object):
                     user["id"],
                 )
 
+        if version == 66:
+            try:
+                r.table(table).index_create("name").run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).index_create(
+                    "uid_category_provider",
+                    [r.row["uid"], r.row["category"], r.row["provider"]],
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
         return True
 
     """
@@ -1986,6 +2043,12 @@ class Upgrade(object):
                 {"qos_id": "unlimited"}
             ).run(self.conn)
 
+        if version == 66:
+            try:
+                r.table(table).index_create("name").run(self.conn)
+            except Exception as e:
+                print(e)
+
         return True
 
     """
@@ -2070,6 +2133,12 @@ class Upgrade(object):
                 ).run(self.conn)
             except:
                 None
+
+        if version == 66:
+            try:
+                r.table(table).index_create("name").run(self.conn)
+            except Exception as e:
+                print(e)
 
     """
     SCHEDULER_JOBS TABLE UPGRADES
@@ -2204,6 +2273,52 @@ class Upgrade(object):
                     ],
                     category["id"],
                 )
+
+    def qos_net(self, version):
+        table = "qos_net"
+        log.info("UPGRADING " + table + " VERSION " + str(version))
+        if version == 66:
+            try:
+                r.table(table).index_create("name").run(self.conn)
+            except Exception as e:
+                print(e)
+        return True
+
+    def qos_disk(self, version):
+        table = "qos_disk"
+        log.info("UPGRADING " + table + " VERSION " + str(version))
+        if version == 66:
+            try:
+                r.table(table).index_create("name").run(self.conn)
+            except Exception as e:
+                print(e)
+        return True
+
+    """
+    CATEGORIES TABLE UPGRADES
+    """
+
+    def categories(self, version):
+        table = "categories"
+        if version == 66:
+            try:
+                r.table(table).index_create("name").run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table("categories").update({"custom_url_name": r.row["id"]}).run(
+                    self.conn
+                )
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).index_create("custom_url_name").run(self.conn)
+            except Exception as e:
+                print(e)
+
+        return True
 
     """
     Upgrade general actions

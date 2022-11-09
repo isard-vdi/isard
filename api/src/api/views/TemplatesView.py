@@ -39,7 +39,13 @@ from ..libv2.api_allowed import ApiAllowed
 allowed = ApiAllowed()
 
 from ..libv2.validators import _validate_item, check_user_duplicated_domain_name
-from .decorators import has_token, ownsDomainId
+from .decorators import (
+    allowedTemplateId,
+    checkDuplicate,
+    has_token,
+    itemExists,
+    ownsDomainId,
+)
 
 
 @app.route("/api/v3/templates/new/check_quota", methods=["GET"])
@@ -68,7 +74,9 @@ def api_v3_template_new(payload):
             traceback.format_exc(),
             description_code="new_template_bad_body_data",
         )
-    template_id = templates.New(
+
+    check_user_duplicated_domain_name(data["name"], data["user_id"], "template")
+    templates.New(
         payload["user_id"],
         data["template_id"],
         data["name"],
@@ -77,8 +85,9 @@ def api_v3_template_new(payload):
         description=data["description"],
         enabled=data["enabled"],
     )
+
     return (
-        json.dumps({"id": template_id}),
+        json.dumps({"id": data["id"]}),
         200,
         {"Content-Type": "application/json"},
     )
@@ -95,10 +104,10 @@ def api_v3_template_duplicate(payload, template_id):
     data = _validate_item("template_duplicate", data)
 
     check_user_duplicated_domain_name(
-        template_id,
         data["name"],
         payload["user_id"],
-        kind="template",
+        "template",
+        template_id,
     )
 
     new_template_id = templates.Duplicate(

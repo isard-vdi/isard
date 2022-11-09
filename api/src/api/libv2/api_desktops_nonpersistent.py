@@ -31,6 +31,7 @@ db = RDB(app)
 db.init_app(app)
 
 from ..libv2.isardViewer import isardViewer
+from .validators import _validate_item
 
 isardviewer = isardViewer()
 
@@ -38,7 +39,7 @@ from .ds import DS
 
 ds = DS()
 
-from .helpers import _check, _parse_media_info, _parse_string
+from .helpers import _check, _parse_media_info
 
 
 class ApiDesktopsNonPersistent:
@@ -131,9 +132,6 @@ class ApiDesktopsNonPersistent:
             if not group:
                 raise Error("not_found", "NewNonPersistent: group id not found.")
 
-        timestamp = time.strftime("%Y%m%d%H%M%S")
-        parsed_name = (timestamp + "-" + _parse_string(template["name"]))[:40]
-
         parent_disk = template["hardware"]["disks"][0]["file"]
 
         create_dict = template["create_dict"]
@@ -146,7 +144,6 @@ class ApiDesktopsNonPersistent:
             create_dict["hardware"].pop("interfaces_mac")
 
         new_desktop = {
-            "id": "_" + user_id + "-" + parsed_name,
             "name": template["name"],
             "description": template["description"],
             "kind": "desktop",
@@ -177,6 +174,8 @@ class ApiDesktopsNonPersistent:
             "persistent": False,
             "from_template": template["id"],
         }
+
+        new_desktop = _validate_item("domains", new_desktop)
 
         with app.app_context():
             if _check(r.table("domains").insert(new_desktop).run(db.conn), "inserted"):

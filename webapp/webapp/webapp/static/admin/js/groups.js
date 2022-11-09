@@ -112,7 +112,7 @@ $(document).ready(function() {
     $('#groups').find('tbody').on('click', 'td.details-show', function () {
         var tr = $(this).closest('tr');
         var row = groups_table.row( tr );
- 
+
         if ( row.child.isShown() ) {
             // This row is already open - close it
             row.child.hide();
@@ -126,7 +126,7 @@ $(document).ready(function() {
             actionsGroupDetail()
             tr.addClass('shown');
             //setQuotaMax('.show-groups-quota-'+row.data().id,kind='group',id=row.data().id,disabled=true);
-            //setLimitsMax('.show-groups-limits-'+row.data().id,kind='group',id=row.data().id,disabled=true);            
+            //setLimitsMax('.show-groups-limits-'+row.data().id,kind='group',id=row.data().id,disabled=true);
         }
     });
 
@@ -135,7 +135,7 @@ $(document).ready(function() {
         socket.on('groups_data', function (data) {
             groups_table.ajax.reload()
         });
-    
+
         socket.on('groups_delete', function (data) {
             groups_table.ajax.reload()
         });
@@ -179,14 +179,14 @@ $(document).ready(function() {
                 })
             }
         });
-        }); 
+        });
 
-	$('.btn-new-group').on('click', function () {
+    $('.btn-new-group').on('click', function () {
         //setQuotaMax('#roles-quota');
-			$('#modalAddGroup').modal({
-				backdrop: 'static',
-				keyboard: false
-			}).modal('show');
+            $('#modalAddGroup').modal({
+                backdrop: 'static',
+                keyboard: false
+            }).modal('show');
             removeError($('#modalAddGroup'))
             $('#modalAddGroupForm')[0].reset();
 
@@ -195,7 +195,7 @@ $(document).ready(function() {
                 multiple: true,
                 ajax: {
                     type: "POST",
-                    url: '/api/v3/admin/alloweds/term/groups/',
+                    url: '/api/v3/admin/allowed/term/groups/',
                     dataType: 'json',
                     contentType: "application/json",
                     delay: 250,
@@ -215,8 +215,8 @@ $(document).ready(function() {
                         };
                     }
                 },
-            });   
-    
+            });
+
 
             //~ setModalAddUser();
 
@@ -229,8 +229,8 @@ $(document).ready(function() {
                         }
                         //$("."+key+' option[value="local"]').prop("selected",true);
                     }
-                });   
-            }); 
+                });
+            });
 
              $('#modalAddGroupForm #auto-desktops').select2({
                 minimumInputLength: 2,
@@ -258,8 +258,8 @@ $(document).ready(function() {
                         };
                     }
                 },
-            });   
-		
+            });
+
         $("#modalAddGroupForm #ephimeral-minutes").ionRangeSlider({
                   type: "single",
                   min: 5,
@@ -268,24 +268,24 @@ $(document).ready(function() {
                   grid: true,
                   disable: false
                   }).data("ionRangeSlider").update();
-                  
+
         $("#modalAddGroupForm #ephimeral-enabled").on('ifChecked', function(event){
-				  $("#modalAddGroupForm #ephimeral-data").show();
-		});
+                  $("#modalAddGroupForm #ephimeral-data").show();
+        });
         $("#modalAddGroupForm #ephimeral-enabled").on('ifUnchecked', function(event){
-				  $("#modalAddGroupForm #ephimeral-data").hide();
-		});        
+                  $("#modalAddGroupForm #ephimeral-data").hide();
+        });
 
         $("#modalAddGroupForm #auto-desktops-enabled").on('ifChecked', function(event){
-				  $("#modalAddGroupForm #auto-desktops-data").show();
-		});
+                  $("#modalAddGroupForm #auto-desktops-data").show();
+        });
         $("#modalAddGroupForm #auto-desktops-enabled").on('ifUnchecked', function(event){
-				  $("#modalAddGroupForm #auto-desktops-data").hide();
-		});            
-	});    
+                  $("#modalAddGroupForm #auto-desktops-data").hide();
+        });
+    });
 
 
-                          
+
     $("#modalAddGroup #send").on('click', function(e){
             var form = $('#modalAddGroupForm');
             form.parsley().validate();
@@ -308,7 +308,7 @@ $(document).ready(function() {
                     opacity: 1,
                     icon: 'fa fa-spinner fa-pulse'
                 })
-                $.ajax({ 
+                $.ajax({
                     type: "POST",
                     url:"/api/v3/admin/group",
                     data: JSON.stringify(data),
@@ -330,7 +330,7 @@ $(document).ready(function() {
                     error: function (data) {
                         notice.update({
                             title: 'ERROR',
-                            text: "Couldn't create group",
+                            text: data.responseJSON.description,
                             type: 'error',
                             hide: true,
                             icon: 'fa fa-warning',
@@ -339,10 +339,10 @@ $(document).ready(function() {
                         })
                     }
 
-                });  
+                });
             }
-        });     
-    
+        });
+
 });
 
 function renderGroupsDetailPannel ( d ) {
@@ -384,7 +384,7 @@ function actionsGroupDetail(){
             keyboard: false
         }).modal('show');
         setQuotaMax('#modalEditQuotaForm',kind='group',id=pk,disabled=false);
-	});
+    });
 
     $("#modalEditQuota #send").off('click').on('click', function(e){
         form = $('#modalEditQuotaForm')
@@ -397,7 +397,7 @@ function actionsGroupDetail(){
                 dataform['quota']=false
             }else{
                 dataform=quota2dict(formdata)
-            } 
+            }
             data={}
             data['quota']=dataform['quota']
             if('propagate' in formdata){
@@ -410,7 +410,7 @@ function actionsGroupDetail(){
                 opacity: 1,
                 icon: 'fa fa-spinner fa-pulse'
             })
-    
+
             $.ajax({
                 type: "PUT",
                 url:"/api/v3/admin/quota/group/"+pk ,
@@ -440,7 +440,7 @@ function actionsGroupDetail(){
                         opacity: 1
                     })
                 },
-    
+
             });
         }
     });
@@ -463,7 +463,7 @@ function actionsGroupDetail(){
         pk=$('#modalEditLimitsForm #id').val();
 
         form.parsley().validate();
-        formdata=form.serializeObject()        
+        formdata=form.serializeObject()
         if (form.parsley().isValid() || 'unlimited' in formdata){
             if('unlimited' in formdata){
                 dataform={}
@@ -508,11 +508,11 @@ function actionsGroupDetail(){
                         opacity: 1
                     })
                 },
-            });  
+            });
         }
     });
 
-	$('.btn-delete').on('click', function () {
+    $('.btn-delete').on('click', function () {
         var pk=$(this).closest("div").attr("data-pk");
         var data = {
             'id': pk,
@@ -526,7 +526,7 @@ function actionsGroupDetail(){
             keyboard: false
         }).modal('show');
         // setModalUser()
-        // setQuotaTableDefaults('#edit-users-quota','users',pk) 
+        // setQuotaTableDefaults('#edit-users-quota','users',pk)
         $.ajax({
             type: "POST",
             url: "/api/v3/admin/delete/check",
@@ -536,7 +536,7 @@ function actionsGroupDetail(){
             $('#table_modal_group_delete tbody').empty()
             $.each(domains, function(key, value) {
                 infoDomains(value, $('#table_modal_group_delete tbody'));
-            });  
+            });
         });
     });
 
@@ -592,7 +592,7 @@ $('.btn-enrollment').on('click', function () {
                 $('#user-key').hide();
                 $('.btn-copy-user').hide();
             }
-        }); 
+        });
     });
 
     $('#manager-check').unbind('ifChecked').on('ifChecked', function(event){
@@ -609,11 +609,11 @@ $('.btn-enrollment').on('click', function () {
                 {
                     $('#manager-key').val(data);
                 }
-                });         
+                });
             $('#manager-key').show();
             $('.btn-copy-manager').show();
         }
-      }); 
+      });
     $('#manager-check').unbind('ifUnchecked').on('ifUnchecked', function(event){
         pk=$('#modalEnrollmentForm #id').val();
         data['role']="manager";
@@ -645,7 +645,7 @@ $('.btn-enrollment').on('click', function () {
             {
                 $('#manager-key').val('');
             }
-            })     
+            })
                 $('#manager-key').hide();
                 $('.btn-copy-manager').hide();
             }).on('pnotify.cancel', function() {
@@ -654,7 +654,7 @@ $('.btn-enrollment').on('click', function () {
                 $('#manager-key').show();
                 $('.btn-copy-manager').show();
             });
-        }); 
+        });
 
         $('#advanced-check').unbind('ifChecked').on('ifChecked', function(event){
             if($('#advanced-key').val()==''){
@@ -670,11 +670,11 @@ $('.btn-enrollment').on('click', function () {
                     {
                         $('#advanced-key').val(data);
                     }
-                    }); 
+                    });
                 $('#advanced-key').show();
                 $('.btn-copy-advanced').show();
             }
-          }); 
+          });
         $('#advanced-check').unbind('ifUnchecked').on('ifUnchecked', function(event){
             pk=$('#modalEnrollmentForm #id').val();
             data['role']="advanced";
@@ -706,7 +706,7 @@ $('.btn-enrollment').on('click', function () {
                     {
                         $('#advanced-key').val('');
                     }
-                    })              
+                    })
                     $('#advanced-key').hide();
                     $('.btn-copy-advanced').hide();
                 }).on('pnotify.cancel', function() {
@@ -716,7 +716,7 @@ $('.btn-enrollment').on('click', function () {
                     $('.btn-copy-advanced').show();
                 });
             });
-            
+
             $('#user-check').unbind('ifChecked').on('ifChecked', function(event){
                 if($('#user-key').val()==''){
                     pk=$('#modalEnrollmentForm #id').val();
@@ -731,11 +731,11 @@ $('.btn-enrollment').on('click', function () {
                         {
                             $('#user-key').val(data);
                         }
-                        });      
+                        });
                     $('#user-key').show();
                     $('.btn-copy-user').show();
                 }
-              }); 
+              });
             $('#user-check').unbind('ifUnchecked').on('ifUnchecked', function(event){
                 pk=$('#modalEnrollmentForm #id').val();
                 data['role']="user";
@@ -767,7 +767,7 @@ $('.btn-enrollment').on('click', function () {
                             {
                                 $('#user-key').val('');
                             }
-                        })         
+                        })
                         $('#user-key').hide();
                         $('.btn-copy-user').hide();
                     }).on('pnotify.cancel', function() {
@@ -776,7 +776,7 @@ $('.btn-enrollment').on('click', function () {
                         $('#user-key').show();
                         $('.btn-copy-user').show();
                     });
-                });            
+                });
 
     $('.btn-copy-manager').on('click', function () {
         $('#manager-key').prop('disabled',false).select().prop('disabled',true);
@@ -789,5 +789,5 @@ $('.btn-enrollment').on('click', function () {
     $('.btn-copy-user').on('click', function () {
         $('#user-key').prop('disabled',false).select().prop('disabled',true);
         document.execCommand("copy");
-    });            
+    });
 }

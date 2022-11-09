@@ -8,7 +8,7 @@ from api import app
 from ..._common.api_exceptions import Error
 from ...libv2.bookings.api_reservables import Reservables
 from ...libv2.bookings.api_reservables_planner import ReservablesPlanner
-from ..decorators import has_token, is_admin
+from ..decorators import checkDuplicate, has_token, is_admin
 
 api_ri = Reservables()
 api_rp = ReservablesPlanner()
@@ -35,6 +35,7 @@ def api_v3_profiles(payload, reservable_type):
 def api_v3_reservable_types(payload, reservable_type):
     if request.method == "POST":
         data = request.get_json()
+        checkDuplicate("gpus", data["name"])
         return json.dumps(api_ri.add_item(reservable_type, data)), 200
     else:
         return json.dumps(api_ri.list_items(reservable_type)), 200

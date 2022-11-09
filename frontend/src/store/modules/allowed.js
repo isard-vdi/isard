@@ -80,7 +80,7 @@ export default {
       context.commit('resetAllowedState')
     },
     fetchAllowedTerm (context, data) {
-      return axios.post(`${apiV3Segment}/admin/alloweds/term/${data.table}`, data).then(response => {
+      return axios.post(`${apiV3Segment}/admin/allowed/term/${data.table}`, data).then(response => {
         if (data.table === 'media') {
           context.commit(tablesConfig[data.kind].mutations.set, AllowedUtils.parseAllowed(data.kind, response.data))
         } else {
@@ -107,7 +107,7 @@ export default {
       })
     },
     updateAllowed (context, data) {
-      axios.post(`${apiV3Segment}/admin/alloweds/update/${data.table}`, data).catch(e => {
+      axios.post(`${apiV3Segment}/admin/allowed/update/${data.table}`, data).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },

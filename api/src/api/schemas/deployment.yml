@@ -1,7 +1,7 @@
 id:
   type: string
   empty: false
-  default_setter: gendeploymentid
+  default_setter: genuuid
 name:
   required: true
   type: string

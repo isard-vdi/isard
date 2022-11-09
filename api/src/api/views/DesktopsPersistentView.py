@@ -139,16 +139,21 @@ def api_v3_persistent_desktop_new(payload):
     template = templates.Get(data["template_id"])
     allowed.is_allowed(payload, template, "domains")
     quotas.desktop_create(payload["user_id"])
+    check_user_duplicated_domain_name(
+        data["name"],
+        payload["user_id"],
+    )
 
-    desktop_id = desktops.NewFromTemplate(
+    desktops.NewFromTemplate(
         desktop_name=data["name"],
         desktop_description=data["description"],
         template_id=data["template_id"],
         user_id=payload["user_id"],
         new_data=data,
         image=data.get("image"),
+        domain_id=data["id"],
     )
-    return json.dumps({"id": desktop_id}), 200, {"Content-Type": "application/json"}
+    return json.dumps({"id": data["id"]}), 200, {"Content-Type": "application/json"}
 
 
 # Bulk desktops action
@@ -184,6 +189,10 @@ def api_v3_desktop_from_media(payload):
         )
     data["user_id"] = payload["user_id"]
     data = _validate_item("desktop_from_media", data)
+    check_user_duplicated_domain_name(
+        data["name"],
+        payload["user_id"],
+    )
     quotas.desktop_create(payload["user_id"])
     desktop_id = desktops.NewFromMedia(payload, data)
     return json.dumps({"id": desktop_id}), 200, {"Content-Type": "application/json"}
@@ -225,7 +234,9 @@ def api_v3_domain_edit(payload, domain_id):
         )
 
     if data.get("name"):
-        check_user_duplicated_domain_name(data["id"], data["name"], desktop["user"])
+        check_user_duplicated_domain_name(
+            data["name"], desktop["user"], desktop.get("kind"), data["id"]
+        )
 
     if data.get("forced_hyp") and payload["role_id"] != "admin":
         raise Error(

@@ -1,0 +1,25 @@
+id:
+  required: true
+  empty: false
+  default_setter: genuuid
+allowed:
+  type: dict
+  schema: allowed
+description:
+  type: string
+name:
+  type: string
+  required: true
+  empty: false
+rule_id:
+  type: string
+max_items:
+  type: integer
+max_time:
+  type: integer
+forbid_time:
+  type: integer
+priority_id:
+  type: string
+priority_table:
+  type: string

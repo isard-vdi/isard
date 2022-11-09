@@ -348,7 +348,7 @@ class isard:
         if category.get("frontend", False):
             return "/login/"
         else:
-            return "/login/" + category.get("id")
+            return "/login/" + category.get("custom_url_name")
 
     def get_user_templates(self, user):
         with app.app_context():

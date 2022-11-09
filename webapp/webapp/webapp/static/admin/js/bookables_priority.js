@@ -205,7 +205,6 @@ $(document).ready(function () {
     form.parsley().validate();
     if (form.parsley().isValid()) {
       //Insert
-      data["id"] = data["name"];
       $.ajax({
         type: "POST",
         url: "/admin/table/add/bookings_priority",
@@ -240,7 +239,7 @@ $(document).ready(function () {
     form.parsley().validate();
     data = $("#modalEdit").serializeObject();
     data = data2integers(data)
-    
+
     data["id"]=data.priority_id
     $.ajax({
       type: "PUT",
@@ -393,11 +392,11 @@ $(".btn-compute").on("click", function () {
 
   function renderBookableDetailPannel ( d ) {
 
-		$newPanel = $bookable.clone();
+        $newPanel = $bookable.clone();
     $newPanel.html(function(i, oldHtml){
       return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name).replace(/d.description/g, d.description);
     });
-		return $newPanel
+        return $newPanel
 }
 
 });

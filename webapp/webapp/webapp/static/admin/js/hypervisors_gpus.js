@@ -111,9 +111,9 @@ $(document).ready(function () {
                 }else{
                   text= response.vgpu_profile
                 }
-              }).error(function (XMLHttpRequest, textStatus, errorThrown) { 
-                console.log("Status: " + textStatus); console.log("Error: " + errorThrown); 
-              })       
+              }).error(function (XMLHttpRequest, textStatus, errorThrown) {
+                console.log("Status: " + textStatus); console.log("Error: " + errorThrown);
+              })
           }else{
             text = "-"
           }

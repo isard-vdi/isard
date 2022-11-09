@@ -24,9 +24,9 @@ function removeError(form){
 }
 /**
  * Resize function without multiple trigger
- * 
+ *
  * Usage:
- * $(window).smartresize(function(){  
+ * $(window).smartresize(function(){
  *     // code here
  * });
  */
@@ -40,8 +40,8 @@ function removeError(form){
             var obj = this, args = arguments;
             function delayed () {
                 if (!execAsap)
-                    func.apply(obj, args); 
-                timeout = null; 
+                    func.apply(obj, args);
+                timeout = null;
             }
 
             if (timeout)
@@ -49,11 +49,11 @@ function removeError(form){
             else if (execAsap)
                 func.apply(obj, args);
 
-            timeout = setTimeout(delayed, threshold || 100); 
+            timeout = setTimeout(delayed, threshold || 100);
         };
     };
 
-    // smartresize 
+    // smartresize
     jQuery.fn[sr] = function(fn){  return fn ? this.bind('resize', debounce(fn)) : this.trigger(sr); };
 
 })(jQuery,'smartresize');
@@ -64,7 +64,7 @@ function removeError(form){
  */
 
 // Validator.js
-	  // initialize the validator function
+      // initialize the validator function
       validator.message.date = 'not a real date';
 
       // validate a field on "blur" event, a 'select' on 'change' event & a '.reuired' classed multifield on 'keyup':
@@ -91,14 +91,14 @@ function removeError(form){
           this.submit();
 
         return false;
-		});
+        });
 // /Validator.js
 
 //PNotify
-		var stack_center = {"dir1": "down", "dir2": "right", "firstpos1": 25, "firstpos2": ($(window).width() / 2) - (Number(PNotify.prototype.options.width.replace(/\D/g, '')) / 2)};
-				$(window).resize(function(){
-					stack_center.firstpos2 = ($(window).width() / 2) - (Number(PNotify.prototype.options.width.replace(/\D/g, '')) / 2);
-				});
+        var stack_center = {"dir1": "down", "dir2": "right", "firstpos1": 25, "firstpos2": ($(window).width() / 2) - (Number(PNotify.prototype.options.width.replace(/\D/g, '')) / 2)};
+                $(window).resize(function(){
+                    stack_center.firstpos2 = ($(window).width() / 2) - (Number(PNotify.prototype.options.width.replace(/\D/g, '')) / 2);
+                });
     PNotify.prototype.options.styling = "bootstrap3";
 // /PNotify
 
@@ -129,18 +129,18 @@ function notify(data) {
 function init_sidebar() {
 // TODO: This is some kind of easy fix, maybe we can improve this
 var setContentHeight = function () {
-	// reset height
-	$RIGHT_COL.css('min-height', $(window).height());
+    // reset height
+    $RIGHT_COL.css('min-height', $(window).height());
 
-	var bodyHeight = $BODY.outerHeight(),
-		footerHeight = $BODY.hasClass('footer_fixed') ? -10 : $FOOTER.height(),
-		leftColHeight = $LEFT_COL.eq(1).height() + $SIDEBAR_FOOTER.height(),
-		contentHeight = bodyHeight < leftColHeight ? leftColHeight : bodyHeight;
+    var bodyHeight = $BODY.outerHeight(),
+        footerHeight = $BODY.hasClass('footer_fixed') ? -10 : $FOOTER.height(),
+        leftColHeight = $LEFT_COL.eq(1).height() + $SIDEBAR_FOOTER.height(),
+        contentHeight = bodyHeight < leftColHeight ? leftColHeight : bodyHeight;
 
-	// normalize content
-	contentHeight -= $NAV_MENU.height() + footerHeight;
+    // normalize content
+    contentHeight -= $NAV_MENU.height() + footerHeight;
 
-	$RIGHT_COL.css('min-height', contentHeight);
+    $RIGHT_COL.css('min-height', contentHeight);
 };
 
   $SIDEBAR_MENU.find('a').on('click', function(ev) {
@@ -158,12 +158,12 @@ var setContentHeight = function () {
                 $SIDEBAR_MENU.find('li ul').slideUp();
             }else
             {
-				if ( $BODY.is( ".nav-sm" ) )
-				{
-					$SIDEBAR_MENU.find( "li" ).removeClass( "active active-sm" );
-					$SIDEBAR_MENU.find( "li ul" ).slideUp();
-				}
-			}
+                if ( $BODY.is( ".nav-sm" ) )
+                {
+                    $SIDEBAR_MENU.find( "li" ).removeClass( "active active-sm" );
+                    $SIDEBAR_MENU.find( "li ul" ).slideUp();
+                }
+            }
             $li.addClass('active');
 
             $('ul:first', $li).slideDown(function() {
@@ -172,45 +172,45 @@ var setContentHeight = function () {
         }
     });
 
-// toggle small or large menu 
+// toggle small or large menu
 $MENU_TOGGLE.on('click', function() {
-		if ($BODY.hasClass('nav-md')) {
-			$SIDEBAR_MENU.find('li.active ul').hide();
-			$SIDEBAR_MENU.find('li.active').addClass('active-sm').removeClass('active');
-		} else {
-			$SIDEBAR_MENU.find('li.active-sm ul').show();
-			$SIDEBAR_MENU.find('li.active-sm').addClass('active').removeClass('active-sm');
-		}
+        if ($BODY.hasClass('nav-md')) {
+            $SIDEBAR_MENU.find('li.active ul').hide();
+            $SIDEBAR_MENU.find('li.active').addClass('active-sm').removeClass('active');
+        } else {
+            $SIDEBAR_MENU.find('li.active-sm ul').show();
+            $SIDEBAR_MENU.find('li.active-sm').addClass('active').removeClass('active-sm');
+        }
 
-	$BODY.toggleClass('nav-md nav-sm');
+    $BODY.toggleClass('nav-md nav-sm');
 
-	setContentHeight();
+    setContentHeight();
 });
 
-	// check active menu
-	$SIDEBAR_MENU.find('a[href="' + CURRENT_URL + '"]').parent('li').addClass('current-page');
+    // check active menu
+    $SIDEBAR_MENU.find('a[href="' + CURRENT_URL + '"]').parent('li').addClass('current-page');
 
-	$SIDEBAR_MENU.find('a').filter(function () {
-		return this.href == CURRENT_URL;
-	}).parent('li').addClass('current-page').parents('ul').slideDown(function() {
-		setContentHeight();
-	}).parent().addClass('active');
+    $SIDEBAR_MENU.find('a').filter(function () {
+        return this.href == CURRENT_URL;
+    }).parent('li').addClass('current-page').parents('ul').slideDown(function() {
+        setContentHeight();
+    }).parent().addClass('active');
 
-	// recompute content when resizing
-	$(window).smartresize(function(){  
-		setContentHeight();
-	});
+    // recompute content when resizing
+    $(window).smartresize(function(){
+        setContentHeight();
+    });
 
-	setContentHeight();
+    setContentHeight();
 
-	// fixed sidebar
-	if ($.fn.mCustomScrollbar) {
-		$('.menu_fixed').mCustomScrollbar({
-			autoHideScrollbar: true,
-			theme: 'minimal',
-			mouseWheel:{ preventDefault: true }
-		});
-	}
+    // fixed sidebar
+    if ($.fn.mCustomScrollbar) {
+        $('.menu_fixed').mCustomScrollbar({
+            autoHideScrollbar: true,
+            theme: 'minimal',
+            mouseWheel:{ preventDefault: true }
+        });
+    }
 };
 // /Sidebar
 
@@ -249,9 +249,9 @@ JSON.unflatten = function(data) {
                     json = {},
                     push_counters = {},
                     patterns = {
-						  "validate": /^[a-z][a-z0-9_-]*(?:\[(?:\d*|[a-z0-9_-]+)\])*$/i,
-						  "key":      /[a-z0-9_-]+|(?=\[\])/gi,
-						  "named":    /^[a-z0-9_-]+$/i,				
+                          "validate": /^[a-z][a-z0-9_-]*(?:\[(?:\d*|[a-z0-9_-]+)\])*$/i,
+                          "key":      /[a-z0-9_-]+|(?=\[\])/gi,
+                          "named":    /^[a-z0-9_-]+$/i,
                         //~ "validate": /^[a-zA-Z][a-zA-Z0-9_]*(?:\[(?:\d*|[a-zA-Z0-9_]+)\])*$/,
                         //~ "key":      /[a-zA-Z0-9_]+|(?=\[\])/g,
                         "push":     /^$/,
@@ -310,17 +310,17 @@ JSON.unflatten = function(data) {
 
                 return json;
             };
-        })(jQuery); 
+        })(jQuery);
 
 
 function dtUpdateInsertoLD(table, data, append){
     //Quickly appends new data rows.  Does not update rows
     if(append == true){
         table.rows.add(data);
-         
+
     //Locate and update rows by rowId or add if new
     }else{
-			
+
             found=false;
             table.rows().every( function ( rowIdx, tableLoop, rowLoop ) {
                 if(this.data().id==data.id){
@@ -333,7 +333,7 @@ function dtUpdateInsertoLD(table, data, append){
                 table.row.add(data);
                 }
     }
- 
+
     //Redraw table maintaining paging
     table.draw(false);
 }
@@ -346,28 +346,28 @@ function dtUpdateInsert(table, data, append){
         new_id=true
     //Locate and update rows by rowId or add if new
     }else{
-		if(typeof(table.row('#'+data.id).id())=='undefined'){
-			// Does not exists yes
-			table.row.add(data);
+        if(typeof(table.row('#'+data.id).id())=='undefined'){
+            // Does not exists yes
+            table.row.add(data);
             new_id=true
-		}else{
-			// Exists, do update
-			table.row('#'+data.id).data(data).invalidate();
-		}
+        }else{
+            // Exists, do update
+            table.row('#'+data.id).data(data).invalidate();
+        }
     }
- 
+
     //Redraw table maintaining paging
     table.draw(false);
     return new_id
 }
 
 function dtUpdateOnly(table, data){
-		if(typeof(table.row('#'+data.id).id())=='undefined'){
-			// Does not exists yes
-		}else{
-			// Exists, do update
-			table.row('#'+data.id).data(data).invalidate();
-		}
+        if(typeof(table.row('#'+data.id).id())=='undefined'){
+            // Does not exists yes
+        }else{
+            // Exists, do update
+            table.row('#'+data.id).data(data).invalidate();
+        }
     //Redraw table maintaining paging
     table.draw(false);
 }
@@ -384,13 +384,15 @@ function toggleRow(table_row, e) {
 }
 
 function infoDomains(value, tbody) {
-    return tbody.append(
-        `<tr>
-        <th>${value['kind']}</th>
-        <th>${value['user']}</th>
-        <th>${value['name']}</th>
-        </tr>`
-    );
+    var html = `<tr><th>${value['kind']}</th>`
+    if (value['user_name']) {
+        html += `<th>${value['user_name']}</th>`
+    } else {
+        html += `<th>-</th>`
+    }
+    html += `<th>${value['name']}</th>
+    </tr>`
+    return tbody.append(html);
 }
 
 // Panel toolbox
@@ -399,15 +401,15 @@ $(document).ready(function() {
         var $BOX_PANEL = $(this).closest('.x_panel'),
             $ICON = $(this).find('i'),
             $BOX_CONTENT = $BOX_PANEL.find('.x_content');
-        
+
         // fix for some div with hardcoded fix class
         if ($BOX_PANEL.attr('style')) {
             $BOX_CONTENT.slideToggle(200, function(){
                 $BOX_PANEL.removeAttr('style');
             });
         } else {
-            $BOX_CONTENT.slideToggle(200); 
-            $BOX_PANEL.css('height', 'auto');  
+            $BOX_CONTENT.slideToggle(200);
+            $BOX_PANEL.css('height', 'auto');
         }
 
         $ICON.toggleClass('fa-chevron-up fa-chevron-down');

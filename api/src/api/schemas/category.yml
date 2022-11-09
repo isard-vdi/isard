@@ -2,7 +2,7 @@ id:
   required: true
   type: string
   empty: false
-  default_setter: genidlower
+  default_setter: genuuid
 name:
   required: true
   empty: false
@@ -61,3 +61,5 @@ quota:
     - boolean
   default: false
   schema: quotas
+custom_url_name:
+  type: string

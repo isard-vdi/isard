@@ -14,11 +14,11 @@ export class AllowedUtils {
   }
 
   static parseGroup (group) {
-    const { id, parent_category: parentCategory, name } = group
+    const { id, category_name: categoryName, name } = group
     return {
       id,
-      label: `${name}[${parentCategory}]`,
-      parentCategory,
+      label: `${name}[${categoryName}]`,
+      categoryName,
       name
     }
   }

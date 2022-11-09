@@ -17,8 +17,8 @@ $(document).ready(function() {
 
     $('.admin-status').show()
     $template = $(".template-detail-users");
-    
-	$('.btn-new-user').on('click', function () {
+
+    $('.btn-new-user').on('click', function () {
         setQuotaMax('#users-quota',kind='category',id=false,disabled=false);
         $('#modalAddUser .apply').html('group quota');
         $('#modalAddUser').modal({backdrop: 'static', keyboard: false}).modal('show');
@@ -29,7 +29,7 @@ $(document).ready(function() {
             multiple: true,
             ajax: {
                 type: "POST",
-                url: '/api/v3/admin/alloweds/term/groups/',
+                url: '/api/v3/admin/allowed/term/groups/',
                 dataType: 'json',
                 contentType: "application/json",
                 delay: 250,
@@ -50,14 +50,14 @@ $(document).ready(function() {
                     };
                 }
             },
-        });   
+        });
 
         setModalUser();
-	});
+    });
 
 
-    
-	$('.btn-new-bulkusers').on('click', function () {
+
+    $('.btn-new-bulkusers').on('click', function () {
         $('#bulk-allow-update').iCheck('uncheck').iCheck('update');
         setQuotaMax('#bulkusers-quota',kind='category',id=false,disabled=false);
         $('#modalAddBulkUsers .apply').html('group quota');
@@ -76,7 +76,7 @@ $(document).ready(function() {
             multiple: true,
             ajax: {
                 type: "POST",
-                url: '/api/v3/admin/alloweds/term/groups/',
+                url: '/api/v3/admin/allowed/term/groups/',
                 dataType: 'json',
                 contentType: "application/json",
                 delay: 250,
@@ -97,14 +97,14 @@ $(document).ready(function() {
                     };
                 }
             },
-        });   
-	});
+        });
+    });
 
     $('.btn-bulkdelete').on('click', function () {
         let usersToDelete = [];
             $.each(users_table.rows('.active').data(),function(key, value){
                 usersToDelete.push(value);
-            });        
+            });
 
         if (!(usersToDelete.length == 0)) {
             $("#modalDeleteUserForm")[0].reset();
@@ -134,29 +134,28 @@ $(document).ready(function() {
         }
     });
 
-	$('#btn-download-bulkusers').on('click', function () {
+    $('#btn-download-bulkusers').on('click', function () {
         var viewerFile = new Blob(["username,name,email,password,group,category,role\njdoe,John Doe,jdoe@isardvdi.com,sup3rs3cr3t,Default,Default,advanced\nauser,Another User,auser@domain.com,a1sera1ser,Default,Default,user"], {type: "text/csv"});
         var a = document.createElement('a');
             a.download = 'bulk-users-template.csv';
             a.href = window.URL.createObjectURL(viewerFile);
         var ev = document.createEvent("MouseEvents");
             ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
-            a.dispatchEvent(ev);  
-	});
+            a.dispatchEvent(ev);
+    });
 
     function filter_groups(category_select, group_select) {
-        let category = category_select.val()
-        group_select.find('option').each(function () {
-            if (this.value.startsWith(category + "-")) {
-                this.disabled = false
-            } else {
-                this.disabled = true
-                if (this.selected) {
-                    $(this).prop('selected', false)
-                }
-            }
-        })
+
+        // Hide all options
+        group_select.find('option').attr("hidden","hidden")
+        // Show groups from the selected category
+        group_select.find('option[parent-category='+ category_select.val() + ']').removeAttr('hidden')
+        // Select the first group option from the category
+        let group = group_select.find('option:not(option[hidden="hidden"])').first().val()
+        group_select.val(group)
+
     }
+
     $("#add-category").on('change', function () {
         current_category = ($(this).val())
         filter_groups($(this), $('#add-group'))
@@ -172,7 +171,7 @@ $(document).ready(function() {
         var form = $('#modalAddUserForm');
         formdata = form.serializeObject()
         form.parsley().validate();
-        if (form.parsley().isValid()){   // || 'unlimited' in formdata){   
+        if (form.parsley().isValid()){   // || 'unlimited' in formdata){
             data=userQuota2dict(formdata);
             data['password']=data['password-add-user'];
             delete data['password-add-user'];
@@ -220,7 +219,7 @@ $(document).ready(function() {
                 }
             });
         }
-    }); 
+    });
 
     $("#modalEditUser #send").on('click', function(e){
         var form = $('#modalEditUserForm');
@@ -228,7 +227,7 @@ $(document).ready(function() {
         formdata = form.serializeObject();
         disabled.attr('disabled', 'disabled');
         form.parsley().validate();
-        if (form.parsley().isValid()){     // || 'unlimited' in formdata){   
+        if (form.parsley().isValid()){     // || 'unlimited' in formdata){
             data=userQuota2dict(formdata);
             delete data['unlimited']
             var notice = new PNotify({
@@ -267,9 +266,9 @@ $(document).ready(function() {
                         type: 'success'
                     })
                 }
-            });     
+            });
         }
-    }); 
+    });
 
     $("#modalPasswdUser #send").on('click', function(e){
         var form = $('#modalPasswdUserForm');
@@ -288,8 +287,8 @@ $(document).ready(function() {
                 {
                     $('form').each(function() { this.reset() });
                     $('.modal').modal('hide');
-                }
-            }); 
+                },
+            });
         }
     });
 
@@ -333,13 +332,13 @@ $(document).ready(function() {
                 })
             }
         })
-    });  
+    });
 
        document.getElementById('csv').addEventListener('change', readFile, false);
        var filecontents=''
        function readFile (evt) {
            var files = evt.target.files;
-           var file = files[0];           
+           var file = files[0];
            var reader = new FileReader();
            reader.onload = function(event) {
              filecontents=event.target.result;
@@ -418,7 +417,7 @@ $(document).ready(function() {
                                         opacity: 1
                                     });
                                  }
-                            }); 
+                            });
 
 
                         }
@@ -454,11 +453,11 @@ $(document).ready(function() {
                                 opacity: 1
                             });
                         }
-                    }); 
+                    });
                 }
             });
         }
-    }); 
+    });
 
     $("#add-category").on('change', function(e){
         setQuotaMax('#users-quota',kind='category',id=$(this).val(),disabled=false);
@@ -484,8 +483,8 @@ $(document).ready(function() {
      });
      $('#domains_tree input:checkbox').on('ifUnchecked', function(event){
           $(this).closest('div').next('ul').find('input:checkbox').iCheck('uncheck').attr('disabled',false)
-     });        
-            
+     });
+
     users_table=$('#users').DataTable( {
         "initComplete": function(settings, json) {
             initUsersSockets()
@@ -496,19 +495,19 @@ $(document).ready(function() {
             "type" : "GET",
             "data": function(d){return JSON.stringify({})}
         },
-			"language": {
-				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+            "language": {
+                "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
         },
         "rowId": "id",
         "deferRender": true,
         "columns": [
-				{
+                {
                 "className":      'details-control',
                 "orderable":      false,
                 "data":           null,
                 "width": "10px",
                 "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
-				},
+                },
             { "data": "active", "width": "10px"},
             { "data": "name"},
             { "data": "provider"},
@@ -540,10 +539,10 @@ $(document).ready(function() {
             },
             { "data": "id", "visible": false}],
 
-			 "columnDefs": [
-							{
-							"targets": 1,
-							"render": function ( data, type, full, meta ) {
+             "columnDefs": [
+                            {
+                            "targets": 1,
+                            "render": function ( data, type, full, meta ) {
                                     if(type === "display"){
                                         if(full.active==true){
                                             return '<i class="fa fa-check" style="color:lightgreen"></i>';
@@ -580,10 +579,10 @@ $(document).ready(function() {
                                     return '<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>'
                                 }
                             }},
-							{
-							"targets":10,
-							"render": function ( data, type, full, meta ) {
-                                        return moment.unix(full.accessed).toISOString("YYYY-MM-DDTHH:mm:ssZ"); //moment.unix(full.accessed).fromNow();
+                            {
+                            "targets":10,
+                            "render": function ( data, type, full, meta ) {
+                                        return moment.unix(full.accessed).format("YYYY-MM-DD HH:mm"); //moment.unix(full.accessed).fromNow();
                                         }}
              ],
              footerCallback: function (row, data, start, end, display) {
@@ -626,7 +625,7 @@ $(document).ready(function() {
         } );
     } );
 
-    users_table.on( 'click', 'tr[role="row"]', function (e) { 
+    users_table.on( 'click', 'tr[role="row"]', function (e) {
         toggleRow(this, e);
      });
 
@@ -724,44 +723,26 @@ function initUsersSockets () {
                 type: data.type
         });
         users_table.ajax.reload()
-    });   
+    });
 }
 
 function actionsUserDetail(){
-	$('.btn-edit').on('click', function () {            
+    $('.btn-edit').on('click', function () {
             var pk=$(this).closest("div").attr("data-pk");
             $("#modalEditUserForm")[0].reset();
             $("#modalEditUserForm #secondary_groups").empty().trigger('change')
             $('#modalEditUserForm .apply').html('group quota');
-			$('#modalEditUser').modal({
-				backdrop: 'static',
-				keyboard: false
+            $('#modalEditUser').modal({
+                backdrop: 'static',
+                keyboard: false
             }).modal('show');
-            setModalUser();
-            api.ajax('/api/v3/admin/table/users','POST',{'id':pk}).done(function(user) {
-                $('#modalEditUserForm #name').val(user.name);
-                $('#modalEditUserForm #id').val(user.id);
-                $('#modalEditUserForm #uid').val(user.uid);
-                $('#modalEditUserForm #email').val(user.email);
-                $('#modalEditUserForm #role option:selected').prop("selected", false);
-                $('#modalEditUserForm #role option[value="'+user.role+'"]').prop("selected",true);
-                $('#modalEditUserForm #category option:selected').prop("selected", false);
-                $('#modalEditUserForm #category option[value="'+user.category+'"]').prop("selected",true);
-                current_category=user.category;
-                $('#modalEditUserForm #group option:selected').prop("selected", false);
-                $('#modalEditUserForm #group option[value="'+user.group+'"]').prop("selected",true);                
-                $('#modalEditUserForm').parsley().validate();
-                $.each(user.secondary_groups, function(i, group) {
-                    var newOption = new Option(group, group, true, true);
-                    $("#modalEditUserForm #secondary_groups").append(newOption).trigger('change');
-                })
-            });
+
             $('#modalEditUserForm #secondary_groups').select2({
                 minimumInputLength: 2,
                 multiple: true,
                 ajax: {
                     type: "POST",
-                    url: '/api/v3/admin/alloweds/term/groups/',
+                    url: '/api/v3/admin/allowed/term/groups/',
                     dataType: 'json',
                     contentType: "application/json",
                     delay: 250,
@@ -775,34 +756,54 @@ function actionsUserDetail(){
                         return {
                             results: $.map(data, function (item, i) {
                                 return {
-                                    text: item.name,
+                                    text: item.name + ' [' + item.category_name + ']',
                                     id: item.id
                                 }
                             })
                         };
                     }
                 },
-            });   
+            });
+            setModalUser();
+            api.ajax('/api/v3/admin/table/users','POST',{'id':pk}).done(function(user) {
+                $('#modalEditUserForm #name').val(user.name);
+                $('#modalEditUserForm #id').val(user.id);
+                $('#modalEditUserForm #uid').val(user.uid);
+                $('#modalEditUserForm #email').val(user.email);
+                $('#modalEditUserForm #role option:selected').prop("selected", false);
+                $('#modalEditUserForm #role option[value="'+user.role+'"]').prop("selected",true);
+                $('#modalEditUserForm #category option:selected').prop("selected", false);
+                $('#modalEditUserForm #category option[value="'+user.category+'"]').prop("selected",true);
+                $('#modalEditUserForm #group option:selected').prop("selected", false);
+                $('#modalEditUserForm #group option[value="'+user.group+'"]').prop("selected",true);
+                $('#modalEditUserForm').parsley().validate();
+                $.each(user.secondary_groups_data, function(i, group) {
+                    var newOption = new Option(group.name, group.id, true, true);
+                    $("#modalEditUserForm #secondary_groups").append(newOption).trigger('change');
+                })
+            });
             setQuotaMax('#edit-users-quota',kind='user',id=pk,disabled=false);
-	});
+        });
 
-	$('.btn-passwd').on('click', function () {
+
+
+    $('.btn-passwd').on('click', function () {
             var closest=$(this).closest("div");
             var pk=closest.attr("data-pk");
             var name=closest.attr("data-name");
             var username=closest.attr("data-username");
             $("#modalPasswdUserForm")[0].reset();
-			$('#modalPasswdUser').modal({
-				backdrop: 'static',
-				keyboard: false
-			}).modal('show');
+            $('#modalPasswdUser').modal({
+                backdrop: 'static',
+                keyboard: false
+            }).modal('show');
             $('#modalPasswdUserForm #name').val(name);
             $('#modalPasswdUserForm #id').val(pk);
             $('#modalPasswdUserForm #username').val(username);
-	});
+    });
 
-    
-	$('.btn-delete').on('click', function () {
+
+    $('.btn-delete').on('click', function () {
             var pk=$(this).closest("div").attr("data-pk");
             var data = {
                 'id': pk,
@@ -811,10 +812,10 @@ function actionsUserDetail(){
 
             $("#modalDeleteUserForm")[0].reset();
             $('#modalDeleteUserForm #id').val(JSON.stringify([data]));
-			$('#modalDeleteUser').modal({
-				backdrop: 'static',
-				keyboard: false
-			}).modal('show');
+            $('#modalDeleteUser').modal({
+                backdrop: 'static',
+                keyboard: false
+            }).modal('show');
             $.ajax({
                 type: "POST",
                 url: "/api/v3/admin/delete/check",
@@ -824,9 +825,9 @@ function actionsUserDetail(){
                 $('#table_modal_delete tbody').empty()
                 $.each(domains, function(key, value) {
                     infoDomains(value, $('#table_modal_delete tbody'));
-                });  
+                });
             });
-	});
+    });
 
 
     $('.btn-active').on('click', function () {
@@ -924,24 +925,24 @@ function actionsUserDetail(){
             });
         }).on('pnotify.cancel', function() {});
     });
-}
+};
 
 function renderUsersDetailPannel ( d ) {
-    if(d.id == 'local-default-admin-admin'){
+    if(d.username == 'admin'){
         $('.template-detail-users .btn-delete').hide()
     }else{
         $('.template-detail-users .btn-delete').show()
     }
 
-		$newPanel = $template.clone();
-		$newPanel.html(function(i, oldHtml){
+        $newPanel = $template.clone();
+        $newPanel.html(function(i, oldHtml){
             var secondary_groups_names = []
             $.each(d.secondary_groups_data, function(i, group) {
                 secondary_groups_names.push(group.name)
             })
-			return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name).replace(/d.username/g, d.username).replace(/d.secondary_groups/g, secondary_groups_names);
+            return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name).replace(/d.username/g, d.username).replace(/d.secondary_groups/g, secondary_groups_names);
         });
-		return $newPanel
+        return $newPanel
 }
 
 function setModalUser(){
@@ -949,18 +950,26 @@ function setModalUser(){
         type: "POST",
         url: "/api/v3/admin/userschema",
         data: '',
-        contentType: "application/json"
+        contentType: "application/json",
+        async: false,
+        cache: false,
     }).done(function (d) {
         $.each(d, function (key, value) {
             $("." + key).find('option').remove().end();
             for(var i in d[key]){
+                if (key == 'group') {
+                    $("."+key).append('<option value=' + value[i].id + ' parent-category=' + value[i].parent_category + '>' + value[i].name + '</option>');
+                } else {
                     $("."+key).append('<option value=' + value[i].id + '>' + value[i].name + '</option>');
+                }
             }
         });
         $('#add-category').trigger("change")
+        $('#bulk-category').trigger("change")
         current_category = ($('#add-category').val())
     });
 }
+
 
 function csv2datatables(csv){
     var exists = false

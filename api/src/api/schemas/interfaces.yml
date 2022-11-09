@@ -1,6 +1,7 @@
 id:
   required: true
   type: string
+  default_setter: genuuid
 name:
   required: true
   type: string

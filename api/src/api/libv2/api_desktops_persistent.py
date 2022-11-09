@@ -8,6 +8,7 @@
 import secrets
 import time
 import traceback
+import uuid
 
 from ..libv2.quotas import Quotas
 
@@ -103,6 +104,7 @@ class ApiDesktopsPersistent:
         desktop_description,
         template_id,
         user_id,
+        domain_id=str(uuid.uuid4()),
         deployment_tag_dict=False,
         new_data=None,
         image=None,
@@ -129,16 +131,6 @@ class ApiDesktopsPersistent:
                     "not_found",
                     "NewFromTemplate: group id not found.",
                     description_code="not_found",
-                )
-
-        parsed_name = _parse_string(desktop_name)
-        new_desktop_id = "_" + user_id + "-" + parsed_name
-        with app.app_context():
-            if r.table("domains").get(new_desktop_id).run(db.conn):
-                raise Error(
-                    "conflict",
-                    "NewFromTemplate: user already has a desktop with the same id.",
-                    description_code="new_desktop_name_exists",
                 )
 
         if new_data:
@@ -174,7 +166,7 @@ class ApiDesktopsPersistent:
             payload = gen_payload_from_user(user_id)
             create_dict = quotas.limit_user_hardware_allowed(payload, create_dict)
         new_desktop = {
-            "id": new_desktop_id,
+            "id": domain_id,
             "name": desktop_name,
             "description": desktop_description,
             "kind": "desktop",
@@ -227,10 +219,8 @@ class ApiDesktopsPersistent:
             }
 
         with app.app_context():
-            if (
-                _check(r.table("domains").insert(new_desktop).run(db.conn), "inserted")
-                == False
-            ):
+            query = r.table("domains").insert(new_desktop).run(db.conn)
+            if not _check(query, "inserted"):
                 raise Error(
                     "internal_server",
                     "NewFromTemplate: unable to insert new desktop in database",
@@ -241,17 +231,34 @@ class ApiDesktopsPersistent:
                     image_data = image
                     if not image_data.get("file"):
                         img_uuid = api_cards.update(
-                            new_desktop_id, image_data["id"], image_data["type"]
+                            domain_id, image_data["id"], image_data["type"]
                         )
                         card = api_cards.get_card(img_uuid, image_data["type"])
                     else:
-                        img_uuid = api_cards.upload(new_desktop_id, image_data)
+                        img_uuid = api_cards.upload(domain_id, image_data)
                         card = api_cards.get_card(img_uuid, image_data["type"])
-                return new_desktop_id
+                return domain_id
 
     def BulkDesktops(self, payload, data):
         selected = data["allowed"]
         users = []
+
+        with app.app_context():
+            try:
+                template = (
+                    r.table("domains")
+                    .get(data["template_id"])
+                    .pluck(
+                        {
+                            "create_dict": {"hardware": True},
+                            "guest_properties": True,
+                            "image": True,
+                        }
+                    )
+                    .run(db.conn)
+                )
+            except:
+                raise Error("not_found", "Template to create desktops not found")
 
         if payload["role_id"] == "admin":
             if selected["roles"] is not False:
@@ -321,12 +328,26 @@ class ApiDesktopsPersistent:
 
         users = list(set(users))
         for user_id in users:
-            check_user_duplicated_domain_name("", data["name"], user_id)
+            check_user_duplicated_domain_name(data["name"], user_id)
             quotas.desktop_create(user_id)
 
         for user_id in users:
+            desktop_data = {
+                "name": data["name"],
+                "description": data["description"],
+                "template_id": data["template_id"],
+                "hardware": template["create_dict"]["hardware"],
+                "guest_properties": template["guest_properties"],
+                "image": template["image"],
+            }
+            desktop_data = _validate_item("desktop_from_template", desktop_data)
             self.NewFromTemplate(
-                data["name"], data["description"], data["template_id"], user_id
+                desktop_data["name"],
+                desktop_data["description"],
+                desktop_data["template_id"],
+                user_id,
+                desktop_data["id"],
+                image=desktop_data["image"],
             )
 
     def NewFromMedia(self, payload, data):

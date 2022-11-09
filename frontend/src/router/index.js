@@ -262,7 +262,7 @@ const router = new VueRouter({
       }
     },
     {
-      path: '/login/:category?',
+      path: '/login/:customUrlName?',
       name: 'Login',
       component: Login,
       meta: {
