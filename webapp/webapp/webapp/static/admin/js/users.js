@@ -674,9 +674,9 @@ $(document).ready(function() {
 
     socket.on('users_data', function(data) {
         var data = JSON.parse(data);
+        data = {...users_table.row("#"+data.id).data(),...data}
         dtUpdateInsert(users_table,data,false);
-        //var data = JSON.parse(data);
-        //drawUserQuota(data);
+        users_table.draw(false)
     });
 
     socket.on('users_delete', function(data) {

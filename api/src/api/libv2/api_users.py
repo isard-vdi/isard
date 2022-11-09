@@ -185,8 +185,6 @@ class ApiUsers:
                 "vpn": {
                     "wireguard": {
                         "keys": True,
-                        "remote_ip": True,
-                        "remote_port": True,
                         "extra_client_nets": True,
                         "AllowedIPs": True,
                         "Address": True,
