@@ -11,6 +11,7 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/authentication/provider"
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/authentication/model"
+	"gitlab.com/isard/isardvdi/pkg/db"
 
 	"github.com/crewjam/saml/samlsp"
 	"github.com/rs/zerolog"
@@ -195,7 +196,7 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 					UID:      register.UserID,
 				}
 				if err := u.LoadWithoutID(ctx, a.DB); err != nil {
-					if errors.Is(err, model.ErrNotFound) {
+					if errors.Is(err, db.ErrNotFound) {
 						return "", "", errors.New("user not registered")
 					}
 
