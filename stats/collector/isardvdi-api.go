@@ -5,10 +5,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/golang-jwt/jwt"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog"
 	"gitlab.com/isard/isardvdi-cli/pkg/client"
+	"gitlab.com/isard/isardvdi/pkg/jwt"
 )
 
 type IsardVDIAPI struct {
@@ -134,24 +134,14 @@ func (a *IsardVDIAPI) Describe(ch chan<- *prometheus.Desc) {
 func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 	start := time.Now()
 
-	tkn := jwt.NewWithClaims(jwt.SigningMethodHS256, &jwt.MapClaims{
-		"kid": "isardvdi",
-		"exp": start.Add(20 * time.Second).Unix(),
-		"data": map[string]interface{}{
-			"role_id":     "admin", // we need the role to be admin in order
-			"category_id": "default",
-			"user_id":     "local-default-admin-admin",
-		},
-	})
-
 	success := 1
-	ss, err := tkn.SignedString([]byte(a.secret))
+	tkn, err := jwt.SignAPIJWT(a.secret)
 	if err != nil {
 		a.Log.Info().Str("collector", a.String()).Err(err).Msg("sign client token")
 		success = 0
 	}
 
-	a.cli.SetToken(ss)
+	a.cli.Token = tkn
 
 	usr, err := a.cli.StatsUsers(context.Background())
 	if err != nil {

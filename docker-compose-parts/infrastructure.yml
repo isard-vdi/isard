@@ -1,0 +1,15 @@
+version: '3.5'
+services:
+  isard-orchestrator:
+    container_name: isard-orchestrator
+    image: ${DOCKER_IMAGE_PREFIX}orchestrator:${DOCKER_IMAGE_TAG:-latest}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    networks:
+      isard-network:
+        ipv4_address: ${DOCKER_NET:-172.31.255}.25
+    env_file:
+      - .env

@@ -498,3 +498,39 @@ WG_GUESTS_RESERVED_HOSTS=20
 ## CHECK PARAMETERS                                             ##
 ##################################################################
 #CHECK_CHECK_IMAGE=registry.gitlab.com/isard/isardvdi/check-client:main
+
+
+##################################################################
+## INFRASTRUCTURE                                               ##
+##################################################################
+
+# Set this to true to enable IsardVDI infrastructure management (with isard-operations and isard-orchestrator)
+#INFRASTRUCTURE_MANAGEMENT=false
+
+# ------ Orchestrator -----------------------------------------------------
+# The interval at which the infrastructure status is going to be checked
+# The format is the Go time duration: https://pkg.go.dev/time#ParseDuration
+#ORCHESTRATOR_ORCHESTRATOR_POLLING_INTERVAL=30s
+# The timeout of the operations. If the timeout is reached, the operation fails and throws an error
+# The format is the Go time duration: https://pkg.go.dev/time#ParseDuration
+#ORCHESTRATOR_ORCHESTRATOR_OPERATIONS_TIMEOUT=5m
+# The address of the gRPC service
+#ORCHESTRATOR_ORCHESTRATOR_OPERATIONS_ADDRESS=isard-operations:1312
+# The director is the decision taker of the orchestrator.
+# Available directors:
+# - rata: It has minimum resources thresholds for the whole hypervisor pools and the hypervisors themselves.
+#         It doesnt take action unless those thresholds are not met
+#ORCHESTRATOR_ORCHESTRATOR_DIRECTOR=
+# The API secret is the secret used to sign JWT tokens in order to talk with isard-api. By default, it gets the
+# value of API_ISARDVDI_SECRET
+#ORCHESTRATOR_ORCHESTRATOR_DIRECTOR_RATA_API_SECRET=
+# This value is the minimum number of CPUs free in the whole hypervisor pool. If it's set to 0, there's no minimum
+#ORCHESTRATOR_ORCHESTRATOR_DIRECTOR_RATA_MIN_CPU=0
+# This value is the minimum number of MB of RAM free in the whole hypervisor pool. If it's set to 0, there's no minimum
+#ORCHESTRATOR_ORCHESTRATOR_DIRECTOR_RATA_MIN_RAM=0
+# This value is the minimum CPU number that a hypervisor needs to have in order to run.
+# If it reaches the limit, the hypervisor is put at OnlyForced, which prevents more desktops to be started in the hypervisor
+#ORCHESTRATOR_ORCHESTRATOR_DIRECTOR_RATA_HYPER_MIN_CPU=0
+# This value is the minimum MB of RAM that a hypervisor needs to have in order to run.
+# If it reaches the limit, the hypervisor is put at OnlyForced, which prevents more desktops to be started in the hypervisor
+#ORCHESTRATOR_ORCHESTRATOR_DIRECTOR_RATA_HYPER_MIN_RAM=0

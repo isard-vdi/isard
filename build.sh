@@ -59,6 +59,7 @@ ALLINONE_PARTS="
 	core_worker
 	nc
 	postgres
+	infrastructure
 "
 HYPERVISOR_KEY="hypervisor"
 HYPERVISOR_PARTS="
@@ -115,6 +116,7 @@ WEB_PARTS="
 	core_worker
 	nc
 	postgres
+	infrastructure
 "
 MONITOR_STANDALONE_KEY="monitor"
 MONITOR_STANDALONE_PARTS="
@@ -399,6 +401,12 @@ create_docker_compose_file(){
 		parts="$(echo $parts | sed 's/squid-hypervisor//' )"
 	fi
 
+	if [ -z "$INFRASTRUCTURE_MANAGEMENT" ] || [ "$INFRASTRUCTURE_MANAGEMENT" != "true" ]
+	then
+		parts="$(echo $parts | sed 's/infrastructure//')"
+	fi
+
+	# Build the docker-compose.yml
 	flavour "$config_name" $parts
 
 	if [ "$BACKUP_NFS_ENABLED" = "true" ]

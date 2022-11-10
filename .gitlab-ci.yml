@@ -164,6 +164,8 @@ docker-compose-build:
     - echo "DOCKER_IMAGE_PREFIX=${CI_REGISTRY_IMAGE}/" >> isardvdi.build.cfg
     - echo "DOCKER_IMAGE_TAG=$CI_COMMIT_REF_SLUG" >> isardvdi.build.cfg
     - echo "USAGE=build" >> isardvdi.build.cfg
+    - cp isardvdi.build.cfg isardvdi.infrastructure.build.cfg
+    - echo "INFRASTRUCTURE_MANAGEMENT=true" >> isardvdi.infrastructure.build.cfg
     - cp isardvdi.build.cfg isardvdi.video-standalone.build.cfg
     - echo "FLAVOUR=video-standalone" >> isardvdi.video-standalone.build.cfg
     - cp isardvdi.build.cfg isardvdi.monitor.build.cfg
@@ -227,6 +229,8 @@ docker-image:
       - DOCKER_COMPOSE: build
         IMAGE_DEPENDENCY: isard-rdpgw
         IMAGE: vpn
+      - DOCKER_COMPOSE: infrastructure.build
+        IMAGE: orchestrator
       - DOCKER_COMPOSE: video-standalone.build
         IMAGE: video
       - DOCKER_COMPOSE: monitor.build
@@ -299,6 +303,7 @@ docker-tag:
           - check
           - check-client
           - vpn
+          - orchestrator
           - video
           - monitor-proxy
           - nc-proxy
