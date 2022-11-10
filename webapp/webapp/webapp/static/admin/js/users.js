@@ -581,14 +581,14 @@ $(document).ready(function() {
 
                 // Total over this page
                 pageTotal = api
-                    .column(15, { page: 'current' })
+                    .column(15, {search: 'applied'})
                     .data()
                     .reduce(function (a, b) {
                         return a + b['domains_size'] + b['media_size']
                     }, 0);
 
                 // Update footer
-                $('.users-total-size').html('Current page total storage size: ' + pageTotal.toFixed(1) + ' GB');
+                $('.users-total-size').html('Applied  filter storage size: ' + pageTotal.toFixed(1) + ' GB');
             },
         });
     //~ });
