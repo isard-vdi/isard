@@ -865,7 +865,7 @@ def backing_chain(path_disk, disk_operations_hostname, json_format=True):
 def get_path_to_disk(
     relative_path=None,
     pool=DEFAULT_STORAGE_POOL_ID,
-    type_path="desktops",
+    type_path="desktop",
     extension=None,
 ):
     if not relative_path:
@@ -883,7 +883,7 @@ def get_path_to_disk(
 
 
 def get_host_long_operations_from_path(
-    path_selected, pool=DEFAULT_STORAGE_POOL_ID, type_path="desktops"
+    path_selected, pool=DEFAULT_STORAGE_POOL_ID, type_path="desktop"
 ):
     l_threads = get_threads_names_running()
     online_not_forced_hypers = get_hypers_not_forced_disk_operations()
@@ -903,7 +903,7 @@ def get_host_long_operations_from_path(
 
 
 def get_host_disk_operations_from_path(
-    path_selected, pool=DEFAULT_STORAGE_POOL_ID, type_path="desktops"
+    path_selected, pool=DEFAULT_STORAGE_POOL_ID, type_path="desktop"
 ):
     l_threads = get_threads_names_running()
     d_pool = get_storage_pool(pool)
