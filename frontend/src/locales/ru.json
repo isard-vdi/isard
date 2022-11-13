@@ -318,7 +318,15 @@
         },
         "new-deployment": {
             "filter": "Фильтр",
-            "section-title-template": "Выберите шаблон:"
+            "section-title-template": "Выберите шаблон:",
+            "title": "Создайте новое развертывание:",
+            "desktop": {
+                "name": "Имя рабочего стола",
+                "title": "Новые данные рабочего стола:"
+            },
+            "visible": "Видимые для пользователей",
+            "not-visible": "Не видны пользователям",
+            "name": "Имя развертывания"
         },
         "new-template": {
             "description": "Описание",
