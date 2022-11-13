@@ -331,7 +331,9 @@
         "new-template": {
             "description": "Описание",
             "enabled": "Включено",
-            "title": "Создайте новый шаблон"
+            "title": "Создайте новый шаблон",
+            "name": "Название",
+            "disabled": "Выключено"
         },
         "password": {
             "modal": {
