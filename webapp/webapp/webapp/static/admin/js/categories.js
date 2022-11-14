@@ -9,6 +9,9 @@
 $(document).ready(function() {
     $template_category = $(".template-detail-categories");
     var categories_table=$('#categories').DataTable( {
+        "initComplete": function(settings, json) {
+            initCategorySockets()
+        },
         "ajax": {
             "url": "/admin/table/categories",
             "dataSrc": "",
@@ -143,15 +146,16 @@ $(document).ready(function() {
         }
     } );
 
-    socket.on('categories_data', function (data) {
-        categories_table.ajax.reload()
-        console.log('form_result')
-        socket.emit('user_quota','')        
-    });
-
-    socket.on('categories_delete', function (data) {
-        categories_table.ajax.reload()
-    });
+    function initCategorySockets() {
+        socket.on('categories_data', function (data) {
+            categories_table.ajax.reload()
+            socket.emit('user_quota','')        
+        });
+    
+        socket.on('categories_delete', function (data) {
+            categories_table.ajax.reload()
+        });
+    }
 
     $("#modalDeleteCategory #send").on('click', function(e){
         id=$('#modalDeleteCategoryForm #id').val();
