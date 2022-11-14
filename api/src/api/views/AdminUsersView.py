@@ -494,6 +494,14 @@ def api_v3_admin_groups(payload):
 @app.route("/api/v3/admin/group/<group_id>", methods=["DELETE"])
 @is_admin_or_manager
 def api_v3_admin_group_delete(group_id, payload):
+
+    if payload["group_id"] == group_id:
+        raise Error(
+            "precondition_required",
+            "Can't delete your own group " + group_id,
+            traceback.format_exc(),
+        )
+
     ownsCategoryId(payload, users.GroupGet(group_id)["parent_category"])
     users.GroupDelete(group_id)
     return (
