@@ -471,24 +471,43 @@ class Actions:
         return []
 
     def domain_reservable_set(**kwargs):
-        with app.app_context():
-            if kwargs["item_type"] == "deployment":
-                domains = (
-                    r.table("domains")
-                    .get_all(kwargs["item_id"], index="tag")
-                    .run(db.conn)
-                )
-                domains_ids = [d["id"] for d in domains]
-            if kwargs["item_type"] == "desktop":
-                domains_ids = [
-                    r.table("domains")
-                    .get(kwargs["item_id"])
-                    .pluck("id")
-                    .run(db.conn)["id"]
-                ]
-        log.debug("-> We got " + str(domains_ids) + " domains id to update booking_id")
-        if len(domains_ids):
+        if kwargs["item_type"] == "deployment":
             with app.app_context():
-                r.table("domains").get_all(r.args(domains_ids), index="id").update(
+                r.table("domains").get_all(kwargs["item_id"], index="tag").update(
                     {"booking_id": kwargs["booking_id"]}
                 ).run(db.conn)
+            if not kwargs["booking_id"]:
+                try:
+                    answer = api_client.put("/deployments/stop/" + kwargs["item_id"])
+                    log.debug(
+                        "-> Stopping deployment "
+                        + kwargs["item_id"]
+                        + " desktops: "
+                        + str(answer)
+                    )
+                except:
+                    log.error(
+                        "Exception when stopping deployment "
+                        + kwargs["item_id"]
+                        + " desktops: "
+                        + traceback.format_exc()
+                    )
+
+        if kwargs["item_type"] == "desktop":
+            with app.app_context():
+                r.table("domains").get(kwargs["item_id"]).update(
+                    {"booking_id": kwargs["booking_id"]}
+                ).run(db.conn)
+            if not kwargs["booking_id"]:
+                try:
+                    answer = api_client.get("/desktop/stop/" + kwargs["item_id"])
+                    log.debug(
+                        "-> Stopping desktop " + kwargs["item_id"] + ": " + str(answer)
+                    )
+                except:
+                    log.error(
+                        "Exception when stopping desktop "
+                        + kwargs["item_id"]
+                        + ": "
+                        + traceback.format_exc()
+                    )
