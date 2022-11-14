@@ -11,27 +11,18 @@
         lg="10"
       >
         <b-row class="justify-content-center align-content-center">
-          <!-- <b-skeleton-wrapper :loading="false" class='card-body pt-4 d-flex flex-row flex-wrap justify-content-start'>
-            <template #loading>
-              <profile-card-skeleton></profile-card-skeleton>
-            </template>
-            <ProfileCard :profile="getProfile"/>
-          </b-skeleton-wrapper> -->
           <b-col class="px-0">
             <b-row
               style="background: #fbfbfb;"
-              class="m-0 rounded-bottom-30 rounded-top-30 pt-4 pb-4"
+              class="m-0 rounded-bottom-30 rounded-top-30 pb-4"
             >
-              <!-- MACHINE ACCESS METHODS -->
               <b-col
                 cols="12"
-                class="rounded-bottom-30 pt-4"
+                class="rounded-bottom-30"
               >
-                <!-- machine access methods  -->
                 <b-row class="justify-content-center">
-                  <!-- single method start -->
                   <b-skeleton-wrapper
-                    :loading="!getProfileLoaded"
+                    :loading="!profileLoaded"
                     class="card-body pt-4 d-flex flex-row flex-wrap justify-content-center"
                   >
                     <template #loading>
@@ -40,21 +31,24 @@
                     <b-col sm="10">
                       <b-row class="justify-content-center text-center py-4">
                         <!-- User info -->
-                        <b-col xl="6">
+                        <b-col
+                          xl="6"
+                          class="pt-4"
+                        >
                           <b-avatar
-                            :src="getProfile.photo"
+                            :src="profile.photo"
                             size="8rem"
                           />
                           <!-- User name -->
                           <h4 class="font-weight-bold mt-4">
-                            {{ getProfile.name }}
+                            {{ profile.name }}
                           </h4>
                           <!-- User role -->
                           <h5 class="text-medium-gray">
-                            {{ getProfile.username }}
+                            {{ profile.username }}
                           </h5>
                           <div
-                            v-if="getProfile.provider === 'local'"
+                            v-if="profile.provider === 'local'"
                             class="pt-1"
                           >
                             <PasswordModal />
@@ -80,7 +74,7 @@
                                 </b-col>
                                 <b-col>
                                   <h6 class="mt-4">
-                                    {{ getProfile.name }}
+                                    {{ profile.name }}
                                   </h6>
                                 </b-col>
                               </b-row>
@@ -92,7 +86,7 @@
                                 </b-col>
                                 <b-col>
                                   <h6 class="mt-4">
-                                    {{ getProfile.email }}
+                                    {{ profile.email }}
                                   </h6>
                                 </b-col>
                               </b-row>
@@ -104,7 +98,7 @@
                                 </b-col>
                                 <b-col>
                                   <h6 class="mt-4">
-                                    {{ getProfile.provider }}
+                                    {{ profile.provider }}
                                   </h6>
                                 </b-col>
                               </b-row>
@@ -116,7 +110,7 @@
                                 </b-col>
                                 <b-col>
                                   <h6 class="mt-4">
-                                    {{ getProfile.role }}
+                                    {{ profile.role }}
                                   </h6>
                                 </b-col>
                               </b-row>
@@ -128,7 +122,7 @@
                                 </b-col>
                                 <b-col>
                                   <h6 class="mt-4">
-                                    {{ getProfile.category }}
+                                    {{ profile.category }}
                                   </h6>
                                 </b-col>
                               </b-row>
@@ -140,7 +134,7 @@
                                 </b-col>
                                 <b-col>
                                   <h6 class="mt-4">
-                                    {{ getProfile.group }}
+                                    {{ profile.group }}
                                   </h6>
                                 </b-col>
                               </b-row>
@@ -148,8 +142,11 @@
                           </b-row>
                         </b-col>
                         <!-- User quota -->
-                        <b-col xl="6">
-                          <h5 class="font-weight-bold mt-4">
+                        <b-col
+                          xl="6"
+                          class="mt-4"
+                        >
+                          <h5 class="font-weight-bold">
                             {{ $t('components.profile.language') }}
                           </h5>
                           <b-row class="justify-content-center text-center">
@@ -158,39 +155,39 @@
                             </b-col>
                           </b-row>
                           <h5 class="font-weight-bold mt-4">
-                            {{ $t('components.profile.quota.title', { restriction: $t(`components.profile.quota.restrictions.${getProfile.restrictionApplied}` )}) }}
+                            {{ $t('components.profile.quota.title', { restriction: $t(`components.profile.quota.restrictions.${profile.restrictionApplied}` )}) }}
                           </h5>
                           <b-row class="justify-content-center text-center pb-4">
                             <b-col cols="12">
                               <QuotaProgressBar
                                 :title="$t('components.profile.quota.desktops')"
-                                :value="getProfile.used.desktops"
-                                :max="getProfile.quota.desktops"
+                                :value="profile.used.desktops"
+                                :max="profile.quota.desktops"
                               />
                               <QuotaProgressBar
                                 :title="$t('components.profile.quota.templates')"
-                                :value="getProfile.used.templates"
-                                :max="getProfile.quota.templates"
+                                :value="profile.used.templates"
+                                :max="profile.quota.templates"
                               />
                               <QuotaProgressBar
                                 :title="$t('components.profile.quota.media')"
-                                :value="getProfile.used.isos"
-                                :max="getProfile.quota.isos"
+                                :value="profile.used.isos"
+                                :max="profile.quota.isos"
                               />
                               <QuotaProgressBar
                                 :title="$t('components.profile.quota.running')"
-                                :value="getProfile.used.running"
-                                :max="getProfile.quota.running"
+                                :value="profile.used.running"
+                                :max="profile.quota.running"
                               />
                               <QuotaProgressBar
                                 :title="$t('components.profile.quota.memory')"
-                                :value="getProfile.used.memory"
-                                :max="getProfile.quota.memory"
+                                :value="profile.used.memory"
+                                :max="profile.quota.memory"
                               />
                               <QuotaProgressBar
                                 :title="$t('components.profile.quota.vcpus')"
-                                :value="getProfile.used.vcpus"
-                                :max="getProfile.quota.vcpus"
+                                :value="profile.used.vcpus"
+                                :max="profile.quota.vcpus"
                               />
                               <b-row>
                                 <b-col
@@ -208,23 +205,23 @@
                                   class="text-right"
                                 >
                                   <h6 class="mt-4">
-                                    {{ getProfile.used.totalSize.toFixed(2) }} / {{ getProfile.quota === false ? '&infin;' : getProfile.quota.totalSize }}
+                                    {{ profile.used.totalSize ? profile.used.totalSize.toFixed(2) : 0.0 }} / {{ profile.quota === false ? '&infin;' : profile.quota.totalSize }}
                                   </h6>
                                 </b-col>
                                 <b-col cols="12">
                                   <b-progress
-                                    :max="getProfile.quota === false ? 9999 : getProfile.quota.totalSize"
+                                    :max="profile.quota === false ? 9999 : profile.quota.totalSize"
                                     animated
                                   >
                                     <b-progress-bar
                                       variant="primary"
-                                      :value="getProfile.used.storageSize"
+                                      :value="profile.used.storageSize"
                                     >
                                       <b>{{ $t("components.navbar.desktops") }} / {{ $t("components.navbar.templates") }}</b>
                                     </b-progress-bar>
                                     <b-progress-bar
                                       variant="secondary"
-                                      :value="getProfile.used.mediaSize"
+                                      :value="profile.used.mediaSize"
                                     >
                                       <b>{{ $t("components.navbar.media") }}</b>
                                     </b-progress-bar>
@@ -236,7 +233,6 @@
                         </b-col>
                       </b-row>
                     </b-col>
-                  <!-- single method end -->
                   </b-skeleton-wrapper>
                 </b-row>
               </b-col>
@@ -249,11 +245,12 @@
 </template>
 
 <script>
-import { mapGetters, mapActions } from 'vuex'
+import { mapActions } from 'vuex'
 import ProfileCardSkeleton from '@/components/profile/ProfileCardSkeleton.vue'
 import Language from '@/components/Language.vue'
 import PasswordModal from '@/components/profile/PasswordModal.vue'
 import QuotaProgressBar from '@/components/profile/QuotaProgressBar.vue'
+import { computed } from '@vue/composition-api'
 
 export default {
   components: {
@@ -266,13 +263,10 @@ export default {
     const $store = context.root.$store
 
     $store.dispatch('fetchProfile')
-  },
-  computed: {
-    ...mapGetters([
-      'getUser',
-      'getProfile',
-      'getProfileLoaded'
-    ])
+    const profile = computed(() => $store.getters.getProfile)
+    const profileLoaded = computed(() => $store.getters.getProfileLoaded)
+
+    return { profile, profileLoaded }
   },
   destroyed () {
     this.$store.dispatch('resetProfileState')
