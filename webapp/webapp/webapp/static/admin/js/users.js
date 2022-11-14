@@ -9,6 +9,12 @@ var users_table= ''
 var current_category = ''
 
 $(document).ready(function() {
+    socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/administrators', {
+        'query': {'jwt': localStorage.getItem("token")},
+        'path': '/api/v3/socket.io/',
+        'transports': ['websocket']
+    });
+
     $('.admin-status').show()
     $template = $(".template-detail-users");
     
@@ -481,6 +487,9 @@ $(document).ready(function() {
      });        
             
     users_table=$('#users').DataTable( {
+        "initComplete": function(settings, json) {
+            initUsersSockets()
+        },
         "ajax": {
             "url": "/admin/users",
             "dataSrc": "",
@@ -649,14 +658,9 @@ $(document).ready(function() {
         }
     });
 
+});
 
-
-    socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/administrators', {
-        'query': {'jwt': localStorage.getItem("token")},
-        'path': '/api/v3/socket.io/',
-        'transports': ['websocket']
-    });
-     
+function initUsersSockets () {
     socket.on('connect', function() {
         connection_done();
         console.log('Listening users namespace');
@@ -717,10 +721,8 @@ $(document).ready(function() {
                 type: data.type
         });
         users_table.ajax.reload()
-    });    
-    
-});
-
+    });   
+}
 
 function actionsUserDetail(){
 	$('.btn-edit').on('click', function () {            

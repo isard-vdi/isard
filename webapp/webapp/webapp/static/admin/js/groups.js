@@ -9,6 +9,9 @@
 $(document).ready(function() {
     $template_group = $(".template-detail-groups");
     var groups_table=$('#groups').DataTable( {
+        "initComplete": function(settings, json) {
+            initGroupSockets()
+        },
         "ajax": {
             "url": "/admin/table/groups",
             "dataSrc": "",
@@ -125,14 +128,15 @@ $(document).ready(function() {
     });
 
 
-
-    socket.on('groups_data', function (data) {
-        groups_table.ajax.reload()
-    });
-
-    socket.on('groups_delete', function (data) {
-        groups_table.ajax.reload()
-    });
+    function initGroupSockets() {
+        socket.on('groups_data', function (data) {
+            groups_table.ajax.reload()
+        });
+    
+        socket.on('groups_delete', function (data) {
+            groups_table.ajax.reload()
+        });
+    }
 
     $("#modalDeleteGroup #send").on('click', function(e){
         id=$('#modalDeleteGroupForm #id').val();
