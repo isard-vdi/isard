@@ -377,7 +377,12 @@ class UsersThread(threading.Thread):
                     for c in (
                         r.table("users")
                         .merge({"table": "users"})
-                        .without("password", {"vpn": {"wireguard": "keys"}})
+                        .without(
+                            "password",
+                            {"vpn": {"wireguard": "keys"}},
+                            "photo",
+                            "email",
+                        )
                         .changes(include_initial=False)
                         .union(
                             r.table("categories")
@@ -402,19 +407,31 @@ class UsersThread(threading.Thread):
                             table = c["new_val"]["table"]
                             event = table + "_data"
 
-                        if table == "users":
-                            data["desktops"] = (
-                                r.table("domains")
-                                .get_all(["desktop", data["id"]], index="kind_user")
-                                .count()
-                                .run(db.conn)
-                            )
-                            data["templates"] = (
-                                r.table("domains")
-                                .get_all(["template", data["id"]], index="kind_user")
-                                .count()
-                                .run(db.conn)
-                            )
+                            if table == "users":
+                                data["role"] = (
+                                    r.table("roles")
+                                    .get(data["role"])
+                                    .run(db.conn)["name"]
+                                )
+                                data["secondary_groups_data"] = (
+                                    r.table("groups")
+                                    .get_all(r.args(data["secondary_groups"]))
+                                    .pluck("id", "name")
+                                    .coerce_to("array")
+                                    .run(db.conn)
+                                )
+                                # Add new user
+                                if c["old_val"]:
+                                    data["category"] = (
+                                        r.table("categories")
+                                        .get(data["category"])
+                                        .run(db.conn)["name"]
+                                    )
+                                    data["group"] = (
+                                        r.table("groups")
+                                        .get(data["group"])
+                                        .run(db.conn)["name"]
+                                    )
                         # Admins receive all events
                         socketio.emit(
                             event,

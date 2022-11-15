@@ -579,29 +579,40 @@ def admin_userschema(payload):
         order_by="sortorder",
         without=False,
     )
-    if payload["role_id"] == "manager":
-        dict["role"] = [
-            r for r in dict["role"] if r["id"] in ["manager", "advanced", "user"]
-        ]
-        # dict["category"] = payload["category_id"]
+    if payload["role_id"] == "admin":
 
-    if payload["role_id"] == "manager":
-        dict["category"] = [
-            admin_table_list(
-                "categories",
-                pluck=["id", "name", "description"],
-                id=payload["category_id"],
-            )
-        ]
-    else:
         dict["category"] = admin_table_list(
             "categories",
             pluck=["id", "name", "description"],
             order_by="name",
             without=False,
+            merge=False,
         )
 
-    if payload["role_id"] == "manager":
+        dict["group"] = admin_table_list(
+            "groups",
+            pluck=["id", "name", "description", "parent_category", "linked_groups"],
+            order_by="name",
+            without=False,
+            merge=False,
+        )
+        for g in dict["group"]:
+            if "parent_category" in g.keys():
+                category_name = users.CategoryGet(g["parent_category"])["name"]
+                g["name"] = "[" + category_name + "] " + g["name"]
+
+    elif payload["role_id"] == "manager":
+        dict["role"] = [
+            r for r in dict["role"] if r["id"] in ["manager", "advanced", "user"]
+        ]
+        dict["category"] = admin_table_list(
+            "groups",
+            pluck=["id", "name", "description", "parent_category", "linked_groups"],
+            order_by="name",
+            without=False,
+            id=payload["category_id"],
+            merge=False,
+        )
         dict["group"] = admin_table_list(
             "groups",
             pluck=["id", "name", "description", "parent_category", "linked_groups"],
@@ -609,17 +620,8 @@ def admin_userschema(payload):
             without=False,
             id=payload["category_id"],
             index="parent_category",
+            merge=False,
         )
-    else:
-        dict["group"] = admin_table_list(
-            "groups",
-            pluck=["id", "name", "description", "parent_category", "linked_groups"],
-            order_by="name",
-            without=False,
-        )
-        for g in dict["group"]:
-            if "parent_category" in g.keys():
-                g["name"] = "[" + g["parent_category"] + "] " + g["name"]
     return json.dumps(dict), 200, {"Content-Type": "application/json"}
 
 
