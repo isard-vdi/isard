@@ -25,7 +25,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 9,
+  "id": 6,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -50,7 +50,7 @@
         "showStarred": false,
         "tags": []
       },
-      "pluginVersion": "9.2.0",
+      "pluginVersion": "9.2.5",
       "tags": [],
       "targets": [
         {
@@ -110,7 +110,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.2.0",
+      "pluginVersion": "9.2.5",
       "targets": [
         {
           "datasource": {
@@ -174,7 +174,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.2.0",
+      "pluginVersion": "9.2.5",
       "targets": [
         {
           "datasource": {
@@ -237,7 +237,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "9.2.0",
+      "pluginVersion": "9.2.5",
       "targets": [
         {
           "datasource": {
@@ -302,7 +302,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.2.0",
+      "pluginVersion": "9.2.5",
       "targets": [
         {
           "datasource": {
@@ -370,7 +370,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.2.0",
+      "pluginVersion": "9.2.5",
       "targets": [
         {
           "datasource": {
@@ -433,7 +433,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "9.2.0",
+      "pluginVersion": "9.2.5",
       "targets": [
         {
           "datasource": {
@@ -549,7 +549,7 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true
       },
-      "pluginVersion": "9.2.0",
+      "pluginVersion": "9.2.5",
       "targets": [
         {
           "datasource": {
@@ -633,7 +633,7 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true
       },
-      "pluginVersion": "9.2.0",
+      "pluginVersion": "9.2.5",
       "targets": [
         {
           "datasource": {
@@ -710,7 +710,7 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true
       },
-      "pluginVersion": "9.2.0",
+      "pluginVersion": "9.2.5",
       "targets": [
         {
           "datasource": {
@@ -778,7 +778,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "9.2.0",
+      "pluginVersion": "9.2.5",
       "targets": [
         {
           "datasource": {
@@ -843,7 +843,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "9.2.0",
+      "pluginVersion": "9.2.5",
       "targets": [
         {
           "datasource": {
@@ -908,7 +908,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "9.2.0",
+      "pluginVersion": "9.2.5",
       "targets": [
         {
           "datasource": {
@@ -974,7 +974,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "9.2.0",
+      "pluginVersion": "9.2.5",
       "targets": [
         {
           "datasource": {
@@ -1042,7 +1042,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "9.2.0",
+      "pluginVersion": "9.2.5",
       "targets": [
         {
           "datasource": {
@@ -1110,7 +1110,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "9.2.0",
+      "pluginVersion": "9.2.5",
       "targets": [
         {
           "datasource": {
@@ -1196,7 +1196,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.2.0",
+      "pluginVersion": "9.2.5",
       "targets": [
         {
           "datasource": {
@@ -1276,7 +1276,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "9.2.0",
+      "pluginVersion": "9.2.5",
       "targets": [
         {
           "datasource": {
@@ -1359,7 +1359,7 @@
         },
         "textMode": "value"
       },
-      "pluginVersion": "9.2.0",
+      "pluginVersion": "9.2.5",
       "targets": [
         {
           "datasource": {
@@ -1426,7 +1426,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "9.2.0",
+      "pluginVersion": "9.2.5",
       "targets": [
         {
           "datasource": {
@@ -1500,7 +1500,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "9.2.0",
+      "pluginVersion": "9.2.5",
       "targets": [
         {
           "datasource": {

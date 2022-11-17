@@ -24,7 +24,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 1,
+  "id": 5,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -48,7 +48,7 @@
         "showStarred": false,
         "tags": []
       },
-      "pluginVersion": "9.2.0",
+      "pluginVersion": "9.2.5",
       "tags": [],
       "targets": [
         {
@@ -371,7 +371,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "9.2.0",
+      "pluginVersion": "9.2.5",
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
