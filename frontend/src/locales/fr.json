@@ -198,6 +198,10 @@
             },
             "desktop": {
                 "not-available": "Bureau non disponible"
+            },
+            "visibility": {
+                "visible": "Visible",
+                "not-visible": "Non visible"
             }
         },
         "deployments": {
@@ -219,7 +223,9 @@
             "table-header": {
                 "actions": "Actions",
                 "name": "Nom",
-                "visible": "Visible"
+                "visible": "Visible",
+                "template": "Modèle",
+                "description": "Description"
             }
         },
         "cancel": "Annuler",
@@ -229,7 +235,25 @@
                 "browser-rdp": "Navigateur RDP"
             },
             "local-client-help": "Instructions d'installation pour le client local",
-            "title": "Visionneur direct"
+            "title": "Visionneur direct",
+            "help": {
+                "rdp": {
+                    "close-guide": "Fermer le guide",
+                    "here": "ici."
+                },
+                "spice": {
+                    "close-guide": "Fermer le guide",
+                    "install": "Installer",
+                    "other-windows-versions": "autres version de Windows"
+                }
+            }
+        },
+        "templates": {
+            "table-header": {
+                "actions": "Actions",
+                "name": "Nom",
+                "description": "Description"
+            }
         }
     },
     "components": {
@@ -247,7 +271,14 @@
                 "download": "RPV"
             },
             "help": "Aide",
-            "deployments": "Déploiements"
+            "deployments": "Déploiements",
+            "profile": "Profil",
+            "bookings": {
+                "summary": "Résumé",
+                "planning": "Planning"
+            },
+            "templates": "Modèles",
+            "desktops": "Bureaux"
         },
         "not-found": {
             "home": "Retour",
@@ -313,7 +344,20 @@
             "checkbox-text-short": "Démarrés",
             "select": "Sélectionner",
             "cancel": "Annuler",
-            "upload-file": "Envoyer un fichier"
+            "upload-file": "Envoyer un fichier",
+            "deployment": {
+                "buttons": {
+                    "make-not-visible": {
+                        "title": "Rendre non visible"
+                    },
+                    "delete": {
+                        "title": "Supprimer le déploiement"
+                    },
+                    "make-visible": {
+                        "title": "Rendre visible"
+                    }
+                }
+            }
         },
         "deployment-desktop-list": {
             "actions": {
@@ -327,6 +371,45 @@
             },
             "open-with": "Ouvrir avec",
             "filter-label": "Filtre"
+        },
+        "profile": {
+            "info": {
+                "role": "Rôle",
+                "group": "Groupe",
+                "name": "Nom",
+                "category": "Catégorie",
+                "email": "E-mail",
+                "authentication": "Authentification"
+            },
+            "change-password": "Changer le mot de passe"
+        },
+        "bookings": {
+            "item": {
+                "event-titles": {
+                    "available": "Disponible"
+                },
+                "split-labels": {
+                    "availability": "Disponibilité"
+                },
+                "modal": {
+                    "edit": {
+                        "button": "Enregistrer les modifications"
+                    },
+                    "start-date": "Date de début",
+                    "start-time": "Heure de début",
+                    "end-date": "Date de fin",
+                    "end-time": "Heure de fin",
+                    "profile": "Profil",
+                    "delete": {
+                        "button": "Supprimer"
+                    },
+                    "title": "Titre"
+                },
+                "units": "unités"
+            }
+        },
+        "select-search": {
+            "empty": "Aucune option disponible"
         }
     },
     "errors": {
@@ -373,7 +456,8 @@
         "maxLengthValue": "Le champ {property} a {model} caractères, mais sa longueur maximale doit être de {max}.",
         "inputFormat": "Les caractères valides sont les lettres, les chiffres, la virgule, le point, -, _",
         "required": "{property} est requis.",
-        "minLengthValue": "Le champ {property} a {model} caractères, mais sa longueur minimale doit être de {min}."
+        "minLengthValue": "Le champ {property} a {model} caractères, mais sa longueur minimale doit être de {min}.",
+        "url": "Le champ {property} doit être une URL."
     },
     "forms": {
         "new-desktop": {
@@ -413,7 +497,8 @@
             "modal": {
                 "buttons": {
                     "update": "Mettre à jour"
-                }
+                },
+                "title": "Mise à jour autorisée"
             }
         },
         "new-deployment": {
@@ -431,7 +516,31 @@
                 "category": "Catégorie",
                 "user": "Utilisateur",
                 "group": "Groupe"
+            },
+            "title": "Créer un nouveau déploiement :",
+            "name": "Nom de déploiement",
+            "visible": "Visible aux utilisateurs",
+            "section-title-template": "Sélectionner un modèle :"
+        },
+        "password": {
+            "modal": {
+                "buttons": {
+                    "update": "Mettre à jour"
+                },
+                "password": {
+                    "label": "Mot de passe",
+                    "placeholder": "Mot de passe"
+                },
+                "title": "Changer le mot de passe",
+                "confirmation-password": {
+                    "placeholder": "Confirmer le mot de passe"
+                }
             }
+        },
+        "new-template": {
+            "title": "Créer un nouveau modèle",
+            "name": "Nom",
+            "description": "Description"
         }
     },
     "messages": {

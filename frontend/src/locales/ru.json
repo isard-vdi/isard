@@ -318,12 +318,22 @@
         },
         "new-deployment": {
             "filter": "Фильтр",
-            "section-title-template": "Выберите шаблон:"
+            "section-title-template": "Выберите шаблон:",
+            "title": "Создайте новое развертывание:",
+            "desktop": {
+                "name": "Имя рабочего стола",
+                "title": "Новые данные рабочего стола:"
+            },
+            "visible": "Видимые для пользователей",
+            "not-visible": "Не видны пользователям",
+            "name": "Имя развертывания"
         },
         "new-template": {
             "description": "Описание",
             "enabled": "Включено",
-            "title": "Создайте новый шаблон"
+            "title": "Создайте новый шаблон",
+            "name": "Название",
+            "disabled": "Выключено"
         },
         "password": {
             "modal": {
@@ -333,7 +343,11 @@
                     "placeholder": "Пароль"
                 },
                 "confirmation-password": {
-                    "label": "Подтверждение пароля"
+                    "label": "Подтверждение пароля",
+                    "placeholder": "Подтверждение пароля"
+                },
+                "buttons": {
+                    "update": "Обновить"
                 }
             }
         }
