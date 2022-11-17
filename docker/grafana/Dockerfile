@@ -1,4 +1,4 @@
-FROM grafana/grafana-oss:9.2.0
+FROM grafana/grafana-oss:9.2.5
 
 COPY docker/grafana/grafana.ini /etc/grafana/grafana.ini
 COPY docker/grafana/datasources /etc/grafana/provisioning/datasources
