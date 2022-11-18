@@ -357,7 +357,8 @@ $(document).ready(function() {
             sent_data = {"name": data.name,
                         "description": data.description,
                         "enabled": $('#modalDuplicateTemplateForm #enabled').prop('checked'),
-                        "allowed": data.allowed}
+                        "allowed": data.allowed,
+                        ...("user_id" in data) && {"user_id": data["user_id"]}}
             var notice = new PNotify({
                 text: 'Creating duplicate template...',
                 hide: false,
@@ -912,14 +913,14 @@ function actionsDomainDetail(){
                 opacity: 1,
                 type: 'error'
             });
-		}else{	
-			var pk=$(this).closest("[data-pk]").attr("data-pk");
-			setDefaultsTemplate(pk);
-			$('#modalDuplicateTemplate').modal({
-				backdrop: 'static',
-				keyboard: false
-			}).modal('show');
-
+        }else{	
+            var pk=$(this).closest("[data-pk]").attr("data-pk");
+            setDefaultsTemplate(pk);
+            populate_users();
+            $('#modalDuplicateTemplate').modal({
+                backdrop: 'static',
+                keyboard: false
+            }).modal('show');
             setAlloweds_add('#modalDuplicateTemplate #alloweds-add');
         }
 	});
@@ -1432,3 +1433,40 @@ function populate_tree_template_delete(id){
                   },
                 }
         }
+
+        function populate_users(){
+            if($("#user_id").data('select2')){
+                $("#user_id").select2('destroy');
+            }
+            $("#user_id").select2({
+                placeholder:"Type at least 2 letters to search.",
+                minimumInputLength: 2,
+                maximumSelectionLength: 1,
+                multiple: true,
+                dropdownparent: $("#modalDuplicateTemplateForm"),
+                ajax: {
+                    type: "POST",
+                    url: '/admin/alloweds/term/users',
+                    dataType: 'json',
+                    contentType: "application/json",
+                    delay: 250,
+                    data: function (params) {
+                        return  JSON.stringify({
+                            term: params.term,
+                            pluck: ['id','name']
+                        });
+                    },
+                    processResults: function (data) {
+                        return {
+                            results: $.map(data, function (item, i) {
+                                return {
+                                    text: item.name + '['+item['uid']+'] ',
+                                    id: item.id
+                                }
+                            })
+                        };
+                    }
+                },
+            });	
+        };
+
