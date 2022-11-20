@@ -819,12 +819,16 @@ class ApiAdmin:
             if action == "force_failed":
                 res = r.table(table).get_all(r.args(ids)).pluck("status").run(db.conn)
                 for item in res:
-                    if item.get("status") in ["Stopped", "Started", "Downloading"]:
+                    if item.get("status") in [
+                        "Stopped",
+                        "Started",
+                        "Downloading",
+                    ]:
                         return "Cannot change to Failed status desktops from Stopped, Started or Downloading status"
                 res_deleted = (
                     r.table(table)
                     .get_all(r.args(ids))
-                    .update({"status": "Failed"})
+                    .update({"status": "Failed", "hyp_started": False})
                     .run(db.conn)
                 )
                 return True
