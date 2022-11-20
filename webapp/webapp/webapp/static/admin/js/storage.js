@@ -342,15 +342,19 @@ $(document).ready(function() {
 
         if(storage_physical.rows('.active').data().length){
             $.each(storage_physical.rows('.active').data(),function(key, value){
-                names+=value['path']+'\n';
-                ids.push(value['path']);
+                if(value["tomigrate"] == true){
+                  names+=value['path']+'\n';
+                  ids.push(value['path']);
+                }
             });
-            var text = "You are about to\n- Activate maintenance mode\n- Stop all desktops\n while executing "+action+" these physical disks:\n\n "+names
+            var text = "You are about to\n- Activate maintenance mode\n- Stop all desktops\n while executing "+action+" these 'To Migrate' physical disks:\n\n "+names
         }else{ 
             $.each(storage_physical.rows({filter: 'applied'}).data(),function(key, value){
-              ids.push(value['path']);
+              if(value["tomigrate"] == true){
+                ids.push(value['path']);
+              }
             });
-            var text = "You are about to\n- Activate maintenance mode\n- Stop all desktops\n while executing "+action+" "+storage_physical.rows({filter: 'applied'}).data().length+" disks!\n All the disks in list!"
+            var text = "You are about to\n- Activate maintenance mode\n- Stop all desktops\n while executing "+action+" "+ids.length+" disks!\n All the 'To Migrate' disks in list!"
         }
 
         new PNotify({
