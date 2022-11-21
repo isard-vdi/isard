@@ -526,8 +526,8 @@ $(document).ready(function() {
                               //~ </div>'
             //~ },
             { "data": "accessed"},
-            { "data": "templates", "width": "10px"},
-            { "data": "desktops", "width": "10px"},
+            { "data": "templates", "width": "10px", defaultContent: "0"},
+            { "data": "desktops", "width": "10px", defaultContent: "0"},
             { "data": "media_size", className: "xe-desktops", defaultContent: "-"},
             { "data": "domains_size", className: "xe-desktops", defaultContent: "-"},
             { "data": null, className: "xe-desktops", defaultContent: "-"},
@@ -555,19 +555,19 @@ $(document).ready(function() {
                             {
                                 "targets": 13,
                                 "render": function ( data, type, full, meta ) {
-                                    return full.domains_size.toFixed(1);
+                                    return full.domains_size ? full.domains_size.toFixed(1) : 0.0;
                                 }
                             },
                             {
                                 "targets": 14,
                                 "render": function ( data, type, full, meta ) {
-                                    return full.media_size.toFixed(1);
+                                    return full.media_size ? full.media_size.toFixed(1) : 0.0;
                                 }
                             },
                             {
                                 "targets": 15,
                                 "render": function ( data, type, full, meta ) {
-                                    return (full.domains_size + full.media_size).toFixed(1);
+                                    return (full.domains_size && full.media_size) ? (full.domains_size + full.media_size).toFixed(1) : 0.0;
                                 }
                             },
                             {

@@ -33,7 +33,7 @@ from .validators import _validate_item, _validate_table
 
 
 def admin_table_list(
-    table, order_by=None, pluck=None, without=None, id=None, index=None
+    table, order_by=None, pluck=None, without=None, id=None, index=None, merge=True
 ):
     _validate_table(table)
 
@@ -72,7 +72,7 @@ def admin_table_list(
     if without:
         query = query.without(without)
 
-    if table == "groups":
+    if table == "groups" and merge:
         query = query.merge(
             lambda group: {
                 "linked_groups_data": r.table("groups")
@@ -108,7 +108,7 @@ def admin_table_list(
             }
         )
 
-    if table == "categories":
+    if table == "categories" and merge:
         query = query.merge(
             lambda category: {
                 "media_size": (
