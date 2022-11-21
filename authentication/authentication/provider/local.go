@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"gitlab.com/isard/isardvdi/authentication/model"
+	"gitlab.com/isard/isardvdi/pkg/db"
 
 	"golang.org/x/crypto/bcrypt"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
@@ -70,7 +71,7 @@ func (l *Local) Login(ctx context.Context, categoryID string, args map[string]st
 		Category: categoryID,
 	}
 	if err := u.LoadWithoutID(ctx, l.db); err != nil {
-		if errors.Is(err, model.ErrNotFound) {
+		if errors.Is(err, db.ErrNotFound) {
 			return nil, nil, "", ErrInvalidCredentials
 		}
 

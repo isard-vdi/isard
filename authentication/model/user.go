@@ -5,10 +5,10 @@ import (
 	"errors"
 	"fmt"
 
+	"gitlab.com/isard/isardvdi/pkg/db"
+
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
-
-var ErrNotFound = errors.New("not found")
 
 // User is an user of IsardVDI
 type User struct {
@@ -39,7 +39,7 @@ func (u *User) Load(ctx context.Context, sess r.QueryExecutor) error {
 
 	if err := res.One(u); err != nil {
 		if errors.Is(err, r.ErrEmptyResult) {
-			return ErrNotFound
+			return db.ErrNotFound
 		}
 
 		return fmt.Errorf("read db response: %w", err)
@@ -61,7 +61,7 @@ func (u *User) LoadWithoutID(ctx context.Context, sess r.QueryExecutor) error {
 
 	if err := res.One(u); err != nil {
 		if errors.Is(err, r.ErrEmptyResult) {
-			return ErrNotFound
+			return db.ErrNotFound
 		}
 
 		return fmt.Errorf("read db response: %w", err)

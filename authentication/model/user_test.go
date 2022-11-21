@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"gitlab.com/isard/isardvdi/authentication/model"
+	"gitlab.com/isard/isardvdi/pkg/db"
 
 	"github.com/stretchr/testify/assert"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
@@ -78,7 +79,7 @@ func TestUserLoad(t *testing.T) {
 				Username: "fakeuser",
 			},
 			ExpectedUser: &model.User{},
-			ExpectedErr:  model.ErrNotFound.Error(),
+			ExpectedErr:  db.ErrNotFound.Error(),
 		},
 	}
 
