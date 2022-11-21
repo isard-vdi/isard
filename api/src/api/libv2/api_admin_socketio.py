@@ -408,7 +408,7 @@ class UsersThread(threading.Thread):
                             event = table + "_data"
 
                             if table == "users":
-                                data["role"] = (
+                                data["role_name"] = (
                                     r.table("roles")
                                     .get(data["role"])
                                     .run(db.conn)["name"]
@@ -422,12 +422,12 @@ class UsersThread(threading.Thread):
                                 )
                                 # Add new user
                                 if c["old_val"]:
-                                    data["category"] = (
+                                    data["category_name"] = (
                                         r.table("categories")
                                         .get(data["category"])
                                         .run(db.conn)["name"]
                                     )
-                                    data["group"] = (
+                                    data["group_name"] = (
                                         r.table("groups")
                                         .get(data["group"])
                                         .run(db.conn)["name"]

@@ -605,14 +605,15 @@ def admin_userschema(payload):
         dict["role"] = [
             r for r in dict["role"] if r["id"] in ["manager", "advanced", "user"]
         ]
-        dict["category"] = admin_table_list(
-            "groups",
-            pluck=["id", "name", "description", "parent_category", "linked_groups"],
-            order_by="name",
-            without=False,
-            id=payload["category_id"],
-            merge=False,
-        )
+        dict["category"] = [
+            admin_table_list(
+                "categories",
+                pluck=["id", "name", "description", "parent_category", "linked_groups"],
+                without=False,
+                id=payload["category_id"],
+                merge=False,
+            )
+        ]
         dict["group"] = admin_table_list(
             "groups",
             pluck=["id", "name", "description", "parent_category", "linked_groups"],
