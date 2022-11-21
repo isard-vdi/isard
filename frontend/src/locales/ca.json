@@ -106,7 +106,8 @@
                 "state": "Estat",
                 "group": "Grup",
                 "action": "Acció",
-                "viewers": "Visors"
+                "viewers": "Visors",
+                "last": "Últim accés"
             },
             "open-with": "Obrir amb",
             "filter-label": "Filtre"

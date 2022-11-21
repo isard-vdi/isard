@@ -105,6 +105,7 @@ def get(deployment_id):
                 "create_dict",
                 "viewer",
                 "guest_properties",
+                "accessed",
             )
             .run(db.conn)
         )

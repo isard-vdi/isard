@@ -90,6 +90,7 @@ class DomainsThread(threading.Thread):
                                 "booking_id",
                                 "scheduled",
                                 "server",
+                                "accessed",
                             ]
                         )
                         .changes(include_initial=False)

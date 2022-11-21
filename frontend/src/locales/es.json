@@ -245,7 +245,8 @@
                 "state": "Estado",
                 "description": "Descripción",
                 "action": "Acción",
-                "viewers": "Visores"
+                "viewers": "Visores",
+                "last": "Último acceso"
             },
             "notification-bar": {
                 "next-booking": "Próxima reserva",
