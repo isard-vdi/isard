@@ -194,8 +194,9 @@ class ApiUsers:
             },
         ).merge(
             lambda user: {
-                "category": r.table("categories").get(user["category"])["name"],
-                "group": r.table("groups").get(user["group"])["name"],
+                "category_name": r.table("categories").get(user["category"])["name"],
+                "group_name": r.table("groups").get(user["group"])["name"],
+                "role_name": r.table("roles").get(user["role"])["name"],
                 "desktops": r.table("domains")
                 .get_all(["desktop", user["id"]], index="kind_user")
                 .pluck("id")
