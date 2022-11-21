@@ -112,6 +112,11 @@
                   {{ data.item.groupName }}
                 </p>
               </template>
+              <template #cell(last)="data">
+                <p class="text-dark-gray m-0">
+                  {{ getDate(data.item.last) }}
+                </p>
+              </template>
               <template #cell(ip)="data">
                 <p class="text-dark-gray m-0">
                   {{ data.item.ip }}
@@ -236,6 +241,7 @@ import { mapActions, mapGetters } from 'vuex'
 import ListItemSkeleton from '@/components/ListItemSkeleton.vue'
 import { onUnmounted, ref, reactive, watch } from '@vue/composition-api'
 import { ErrorUtils } from '@/utils/errorUtils'
+import { DateUtils } from '@/utils/dateUtils'
 
 export default {
   components: { DesktopButton, IsardDropdown, ListItemSkeleton },
@@ -270,6 +276,10 @@ export default {
       currentPage.value = 1
     }
 
+    const getDate = (date) => {
+      return DateUtils.dateAbsolute(date)
+    }
+
     watch(() => props.desktops, (newVal) => {
       totalRows.value = newVal.length
     })
@@ -285,7 +295,8 @@ export default {
       perPage,
       pageOptions,
       currentPage,
-      totalRows
+      totalRows,
+      getDate
     }
   },
   data () {
@@ -313,6 +324,13 @@ export default {
           label: `${i18n.t('components.deployment-desktop-list.table-header.group')}`,
           thStyle: { width: '30%' },
           tdClass: 'description'
+        },
+        {
+          key: 'last',
+          sortable: true,
+          label: `${i18n.t('components.deployment-desktop-list.table-header.last')}`,
+          thStyle: { width: '10%' },
+          tdClass: 'last'
         },
         {
           key: 'ip',

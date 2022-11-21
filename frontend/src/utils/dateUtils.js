@@ -29,6 +29,10 @@ export class DateUtils {
     return moment(date)
   }
 
+  static dateAbsolute (date) {
+    return moment.unix(date).format('DD-MM-YYYY HH:mm')
+  }
+
   static dateIsBefore (date1, date2) {
     return moment(date1).isBefore(moment(date2))
   }

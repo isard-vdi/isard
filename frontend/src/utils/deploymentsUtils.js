@@ -33,7 +33,7 @@ export class DeploymentsUtils {
   }
 
   static parseDeploymentDesktop (desktop) {
-    const { id, ip, user, userName, userPhoto, categoryName, groupName, state, viewer, viewers, image } = desktop
+    const { id, ip, user, userName, userPhoto, categoryName, groupName, state, viewer, viewers, image, accessed } = desktop
     return {
       id,
       ip,
@@ -46,7 +46,8 @@ export class DeploymentsUtils {
       state,
       viewer,
       viewers,
-      buttonIconName: desktop.state ? DesktopUtils.buttonIconName(desktop) : ''
+      buttonIconName: desktop.state ? DesktopUtils.buttonIconName(desktop) : '',
+      last: accessed
     }
   }
 }

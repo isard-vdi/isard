@@ -321,6 +321,7 @@ def _parse_desktop(desktop):
             "editable": editable,
             "scheduled": desktop.get("scheduled", {"shutdown": False}),
             "server": desktop.get("server"),
+            "accessed": desktop.get("accessed"),
         },
         **_parse_desktop_booking(desktop),
     }

@@ -265,7 +265,8 @@
                 "state": "State",
                 "group": "Group",
                 "action": "Action",
-                "viewers": "Viewers"
+                "viewers": "Viewers",
+                "last": "Last access"
             },
             "open-with": "Open with",
             "filter-label": "Filter"
