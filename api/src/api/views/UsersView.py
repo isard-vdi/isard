@@ -258,3 +258,11 @@ def groups_users_count(payload):
     quantity = users.groups_users_count(data.get("groups"), payload["user_id"])
 
     return json.dumps({"quantity": quantity}), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/user/appliedquota", methods=["GET"])
+@has_token
+def get_user_applied_quota(payload):
+    applied_quota = quotas.getAppliedQuota(payload["user_id"])
+
+    return json.dumps(applied_quota), 200, {"Content-Type": "application/json"}

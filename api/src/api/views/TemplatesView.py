@@ -177,6 +177,14 @@ def api_v3_user_templates(payload):
             "allowed": t["allowed"],
             "description": t["description"],
             "enabled": t["enabled"],
+            "desktop_size": (
+                r.table("storage")
+                .get(t["create_dict"]["hardware"]["disks"][0]["storage_id"])
+                .pluck({"qemu-img-info": {"actual-size"}})
+                .run(db.conn)
+            )["qemu-img-info"]["actual-size"]
+            if t["create_dict"]["hardware"].get("disks", [{}])[0].get("storage_id")
+            else 0,
         }
         for t in users.Templates(payload)
     ]

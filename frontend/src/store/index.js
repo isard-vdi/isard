@@ -20,6 +20,7 @@ import planning from './modules/planning'
 import profile from './modules/profile'
 import snotify from './modules/snotify'
 import sockets from './modules/sockets'
+import storage from './modules/storage'
 import template from './modules/template'
 import templates from './modules/templates'
 import vpn from './modules/vpn'
@@ -253,6 +254,7 @@ export default new Vuex.Store({
     snotify,
     planning,
     profile,
-    media
+    media,
+    storage
   }
 })

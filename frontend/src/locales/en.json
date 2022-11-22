@@ -187,7 +187,8 @@
             "logout": "Logout",
             "profile": "Profile",
             "media": "Media",
-            "viewers": "Viewers"
+            "viewers": "Viewers",
+            "storage": "Storage"
         },
         "statusbar": {
             "desktops-started": "Desktops started",
@@ -244,6 +245,7 @@
                 "name": "Name",
                 "state": "State",
                 "description": "Description",
+                "desktop-size": "Size",
                 "action": "Action",
                 "viewers": "Viewers"
             },
@@ -681,7 +683,8 @@
             "table-header": {
                 "name": "Name",
                 "description": "Description",
-                "actions": "Actions"
+                "actions": "Actions",
+                "template-size": "Size"
             },
             "buttons": {
                 "allowed": {
@@ -754,6 +757,19 @@
                     "user": "User",
                     "kind": "Kind"
                 }
+            }
+        },
+        "storage": {
+            "no-storage": {
+                "title": "There are no disks from this user",
+                "subtitle": "If you think this is an error, please contact the administrator"
+            },
+            "table-header" : {
+                "domains": "Desktops/templates",
+                "quantity-domains": "№ desktops/templates",
+                "actual-size": "Size",
+                "percentage": "% Quota",
+                "last": "Last access"
             }
         }
     },
@@ -938,7 +954,8 @@
             "not_found": "Not found",
             "maintenance": "Maintenance",
             "direct_viewer": "Direct viewer",
-            "edit-domain": "Edit domain"
+            "edit-domain": "Edit domain",
+            "storage": "Storage"
         }
     },
     "message-modal": {

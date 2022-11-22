@@ -305,6 +305,19 @@ def _parse_desktop(desktop):
         except:
             log.debug(traceback.format_exc())
             editable = False
+    # TODO: Sum all the desktop storages instead of getting only the first one
+    desktop_size = 0
+    if desktop.get("type") == "persistent" and desktop["create_dict"]["hardware"].get(
+        "disks", [{}]
+    )[0].get("storage_id"):
+        desktop_storage = (
+            r.table("storage")
+            .get(desktop["create_dict"]["hardware"]["disks"][0]["storage_id"])
+            .pluck({"qemu-img-info": {"actual-size"}})
+            .run(db.conn)
+        )
+        if desktop_storage.get("qemu-img-info"):
+            desktop_size = desktop_storage["qemu-img-info"]["actual-size"]
     return {
         **{
             "id": desktop["id"],
@@ -322,6 +335,7 @@ def _parse_desktop(desktop):
             "scheduled": desktop.get("scheduled", {"shutdown": False}),
             "server": desktop.get("server"),
             "accessed": desktop.get("accessed"),
+            "desktop_size": desktop_size,
         },
         **_parse_desktop_booking(desktop),
     }

@@ -22,6 +22,7 @@ import Maintenance from '@/views/Maintenance.vue'
 import NotFound from '@/views/NotFound.vue'
 import Rdp from '@/views/Rdp.vue'
 import Register from '@/views/Register.vue'
+import Storage from '@/pages/Storage.vue'
 import Vue from 'vue'
 import VueRouter from 'vue-router'
 import { appTitle } from '../shared/constants'
@@ -226,6 +227,27 @@ const router = new VueRouter({
         }
       ],
       meta: {
+        requiresAuth: true
+      }
+    },
+    {
+      path: '/',
+      name: 'Storage',
+      redirect: '/userstorage',
+      component: MainLayout,
+      children: [
+        {
+          path: 'userstorage',
+          name: 'userstorage',
+          component: Storage,
+          meta: {
+            title: i18n.t('router.titles.storage'),
+            allowedRoles: ['admin', 'manager', 'advanced', 'user']
+          }
+        }
+      ],
+      meta: {
+        title: i18n.t('router.titles.storage'),
         requiresAuth: true
       }
     },

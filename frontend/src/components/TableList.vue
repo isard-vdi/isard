@@ -83,6 +83,11 @@
                   {{ data.item.description }}
                 </p>
               </template>
+              <template #cell(desktopSize)="data">
+                <p class="text-dark-gray m-0">
+                  {{ (data.item.desktopSize / 1024 / 1024 / 1024).toFixed(1) + 'GB' }}
+                </p>
+              </template>
               <template #cell(ip)="data">
                 <p class="text-dark-gray m-0">
                   {{ data.item.ip }}
@@ -310,73 +315,85 @@ export default {
       totalRows.value = newVal.length
     })
 
+    const desktopFields = [
+      {
+        key: 'image',
+        sortable: false,
+        label: '',
+        thStyle: { width: '5%' },
+        tdClass: 'image position-relative'
+      },
+      {
+        key: 'name',
+        sortable: true,
+        label: `${i18n.t('components.desktop-cards.table-header.name')}`,
+        thStyle: { width: '20%' },
+        tdClass: 'name'
+      },
+      {
+        key: 'description',
+        sortable: true,
+        label: `${i18n.t('components.desktop-cards.table-header.description')}`,
+        thStyle: { width: '30%' },
+        tdClass: 'description'
+      },
+      {
+        key: 'ip',
+        sortable: true,
+        label: 'IP',
+        thStyle: { width: '10%' },
+        tdClass: 'ip'
+      },
+      {
+        key: 'state',
+        sortable: true,
+        label: `${i18n.t('components.desktop-cards.table-header.state')}`,
+        thStyle: { width: '10%' },
+        tdClass: 'state'
+      },
+      {
+        key: 'viewers',
+        thStyle: { width: '15%' },
+        label: `${i18n.t('components.desktop-cards.table-header.viewers')}`,
+        tdClass: 'viewers'
+      },
+      {
+        key: 'action',
+        label: `${i18n.t('components.desktop-cards.table-header.action')}`,
+        thStyle: { width: '10%' },
+        tdClass: 'px-4 action'
+      },
+      {
+        key: 'options',
+        label: '',
+        thStyle: { width: '5%' },
+        thClass: `${props.desktops[0].type === 'persistent' ? '' : 'd-none'}`,
+        tdClass: `${props.desktops[0].type === 'persistent' ? '' : 'd-none'}`
+      }
+    ]
+
+    if (props.persistent) {
+      desktopFields.splice(3, 0, {
+        key: 'desktopSize',
+        sortable: true,
+        label: `${i18n.t('components.desktop-cards.table-header.desktop-size')}`,
+        thStyle: { width: '5%' },
+        tdClass: 'desktopSize'
+      })
+    }
+
     return {
       perPage,
       pageOptions,
       currentPage,
-      totalRows
+      totalRows,
+      fields: desktopFields
     }
   },
   data () {
     return {
       desktopStates,
-      status,
-      fields: [
-        {
-          key: 'image',
-          sortable: false,
-          label: '',
-          thStyle: { width: '5%' },
-          tdClass: 'image position-relative'
-        },
-        {
-          key: 'name',
-          sortable: true,
-          label: `${i18n.t('components.desktop-cards.table-header.name')}`,
-          thStyle: { width: '20%' },
-          tdClass: 'name'
-        },
-        {
-          key: 'description',
-          sortable: true,
-          label: `${i18n.t('components.desktop-cards.table-header.description')}`,
-          thStyle: { width: '30%' },
-          tdClass: 'description'
-        },
-        {
-          key: 'ip',
-          sortable: true,
-          label: 'IP',
-          thStyle: { width: '10%' },
-          tdClass: 'ip'
-        },
-        {
-          key: 'state',
-          sortable: true,
-          label: `${i18n.t('components.desktop-cards.table-header.state')}`,
-          thStyle: { width: '10%' },
-          tdClass: 'state'
-        },
-        {
-          key: 'viewers',
-          thStyle: { width: '15%' },
-          label: `${i18n.t('components.desktop-cards.table-header.viewers')}`,
-          tdClass: 'viewers'
-        },
-        {
-          key: 'action',
-          label: `${i18n.t('components.desktop-cards.table-header.action')}`,
-          thStyle: { width: '10%' },
-          tdClass: 'px-4 action'
-        },
-        {
-          key: 'options',
-          label: '',
-          thStyle: { width: '5%' },
-          thClass: `${this.desktops[0].type === 'persistent' ? '' : 'd-none'}`,
-          tdClass: `${this.desktops[0].type === 'persistent' ? '' : 'd-none'}`
-        }
-      ]
+      status
     }
   },
   computed: {
