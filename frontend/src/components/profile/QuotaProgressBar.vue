@@ -1,6 +1,7 @@
 <template>
   <b-row>
     <b-col
+      v-if="title"
       cols="12"
       md="8"
       class="text-left"
@@ -10,6 +11,7 @@
       </h6>
     </b-col>
     <b-col
+      v-if="title"
       cols="12"
       md="4"
       class="text-right"
@@ -47,9 +49,9 @@
 export default {
   props: {
     title: {
-      required: true,
-      type: String,
-      default: ''
+      required: false,
+      type: [String, Boolean],
+      default: false
     },
     value: {
       required: true,

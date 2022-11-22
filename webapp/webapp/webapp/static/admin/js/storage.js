@@ -43,7 +43,7 @@ $(document).ready(function() {
                 "targets": 4,
                 "render": function ( data, type, full, meta ) {
                     if( full['status'] == 'ready' && 'qemu-img-info' in full){
-                        return Math.round(full["qemu-img-info"]["virtual-size"]/1000/1000/1000)+" GB"
+                        return Math.round(full["qemu-img-info"]["virtual-size"]/1024/1024/1024)+" GB"
                     }else{
                         return '-'
                     }
@@ -52,11 +52,18 @@ $(document).ready(function() {
                 "targets": 5,
                 "render": function ( data, type, full, meta ) {
                     if( full['status'] == 'ready' && 'qemu-img-info' in full){
-                        return Math.round(full["qemu-img-info"]["actual-size"]/1000/1000/1000)+' GB ('+Math.round(full["qemu-img-info"]["actual-size"]*100/full["qemu-img-info"]["virtual-size"])+'%)'
+                        return Math.round(full["qemu-img-info"]["actual-size"]/1024/1024/1024)+' GB ('+Math.round(full["qemu-img-info"]["actual-size"]*100/full["qemu-img-info"]["virtual-size"])+'%)'
                     }else{
                         return '-'
                     }
                 }},
+                {
+                  "targets": 9,
+                  "render": function ( data, type, full, meta ) {
+                    console.log('full: ')
+                    console.log(full['domains'])
+                      return full['domains'].length
+                  }},
                 {
                   "targets": 10,
                   "render": function ( data, type, full, meta ) {
@@ -152,7 +159,7 @@ $(document).ready(function() {
             "targets": 2,
             "render": function ( data, type, full, meta ) {
                 if( 'qemu-img-info' in full){
-                    return Math.round(full["qemu-img-info"]["virtual-size"]/1000/1000/1000)+" GB"
+                    return Math.round(full["qemu-img-info"]["virtual-size"]/1024/1024/1024)+" GB"
                 }else{
                     return '-'
                 }
@@ -161,7 +168,7 @@ $(document).ready(function() {
             "targets": 3,
             "render": function ( data, type, full, meta ) {
                 if( 'qemu-img-info' in full){
-                    return Math.round(full["qemu-img-info"]["actual-size"]/1000/1000/1000)+' GB ('+Math.round(full["qemu-img-info"]["actual-size"]*100/full["qemu-img-info"]["virtual-size"])+'%)'
+                    return Math.round(full["qemu-img-info"]["actual-size"]/1024/1024/1024)+' GB ('+Math.round(full["qemu-img-info"]["actual-size"]*100/full["qemu-img-info"]["virtual-size"])+'%)'
                 }else{
                     return '-'
                 }

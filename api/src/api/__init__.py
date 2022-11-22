@@ -112,6 +112,7 @@ from .views import (
     NotifyView,
     PublicView,
     Stats,
+    StorageView,
     TemplatesView,
     UsersView,
     VpnViews,

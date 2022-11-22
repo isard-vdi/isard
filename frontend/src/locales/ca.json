@@ -28,7 +28,8 @@
             "logout": "Tancar la sessió",
             "profile": "Perfil",
             "media": "Mitjans",
-            "viewers": "Visors"
+            "viewers": "Visors",
+            "storage": "Emmagatzematge"
         },
         "statusbar": {
             "desktops-started": "Desktops arrencats",
@@ -78,6 +79,7 @@
                 "name": "Nom",
                 "state": "Estat",
                 "description": "Descripció",
+                "desktop-size": "Mida",
                 "action": "Acció",
                 "viewers": "Visors"
             },
@@ -523,7 +525,8 @@
             "table-header": {
                 "name": "Nom",
                 "description": "Descripció",
-                "actions": "Accions"
+                "actions": "Accions",
+                "template-size": "Mida"
             },
             "buttons": {
                 "allowed": {
@@ -596,6 +599,19 @@
                     "user": "Usuari",
                     "kind": "Tipus"
                 }
+            }
+        },
+        "storage": {
+            "no-storage": {
+                "title": "No hi ha cap disc de l'usuari actual",
+                "subtitle": "Si creus que es tracta d'un error, contacta a l'administrador"
+            },
+            "table-header" : {
+                "domains": "Escriptoris/plantilles",
+                "quantity-domains": "№ escriptoris/plantilles",
+                "actual-size": "Mida",
+                "percentage": "% Quota",
+                "last": "Últim accés"
             }
         }
     },
@@ -916,7 +932,8 @@
             "not_found": "No trobat",
             "maintenance": "Manteniment",
             "direct_viewer": "Visor directe",
-            "edit-domain": "Editar domini"
+            "edit-domain": "Editar domini",
+            "storage": "Emmagatzematge"
         }
     },
     "message-modal": {

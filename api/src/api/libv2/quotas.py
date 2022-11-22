@@ -33,7 +33,44 @@ class Quotas:
     def __init__(self):
         None
 
+    def getAppliedQuota(self, user_id):
+        with app.app_context():
+            user = (
+                r.table("users")
+                .get(user_id)
+                .pluck("id", "name", "category", "group", "quota")
+                .run(db.conn)
+            )
+            group = (
+                r.table("groups").get(user["group"]).pluck("name", "quota").run(db.conn)
+            )
+            category = (
+                r.table("categories")
+                .get(user["category"])
+                .pluck("name", "quota")
+                .run(db.conn)
+            )
+
+        if user["quota"]:
+            return {
+                "quota": user["quota"],
+                "restriction_applied": "user_quota",
+            }
+        elif group["quota"]:
+            return {
+                "quota": group["quota"],
+                "restriction_applied": "group_quota",
+            }
+        elif category["quota"]:
+            return {
+                "quota": category["quota"],
+                "restriction_applied": "category_quota",
+            }
+        else:
+            return {"quota": False, "restriction_applied": "user_quota"}
+
     # Get in user["quota"] the applied quota, either user, group or category
+    # TODO: Use getAppliedQuota function
     def Get(self, user_id, started_info=True):
         with app.app_context():
             user = (

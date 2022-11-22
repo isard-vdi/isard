@@ -354,7 +354,7 @@ class ApiUsers:
     def Templates(self, payload):
         try:
             with app.app_context():
-                return list(
+                templates = (
                     r.table("domains")
                     .get_all(["template", payload["user_id"]], index="kind_user")
                     .order_by("name")
@@ -371,10 +371,12 @@ class ApiUsers:
                             "image",
                             "user",
                             "description",
-                        }
+                        },
+                        {"create_dict": {"hardware": {"disks": {"storage_id": True}}}},
                     )
                     .run(db.conn)
                 )
+            return templates
         except Exception:
             raise Error(
                 "internal_server", "Internal server error", traceback.format_exc()
@@ -406,7 +408,7 @@ class ApiUsers:
                             {"viewer": "guest_ip"},
                             {
                                 "create_dict": {
-                                    "hardware": ["interfaces", "videos"],
+                                    "hardware": ["interfaces", "videos", "disks"],
                                     "reservables": True,
                                 }
                             },

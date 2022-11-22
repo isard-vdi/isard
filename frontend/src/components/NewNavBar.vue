@@ -113,6 +113,15 @@
               </b-dropdown-item>
             </b-nav-item-dropdown>
             <b-nav-item
+              :to="{ name: 'userstorage' }"
+              active-class="active"
+            >
+              <b-icon
+                icon="folder-fill"
+              />
+              {{ $t("components.navbar.storage") }}
+            </b-nav-item>
+            <b-nav-item
               v-if="['admin', 'manager'].includes(getUser.role_id)"
               @click="loginAdmin()"
             >

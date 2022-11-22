@@ -187,7 +187,8 @@
             "logout": "Cerrar sesión",
             "profile": "Perfil",
             "media": "Medios",
-            "viewers": "Visores"
+            "viewers": "Visores",
+            "storage": "Almacenamiento"
         },
         "statusbar": {
             "desktops-started": "Escritorios arrancados",
@@ -244,6 +245,7 @@
                 "name": "Nombre",
                 "state": "Estado",
                 "description": "Descripción",
+                "desktop-size": "Tamaño",
                 "action": "Acción",
                 "viewers": "Visores",
                 "last": "Último acceso"
@@ -695,7 +697,8 @@
             "table-header": {
                 "name": "Nombre",
                 "description": "Descripción",
-                "actions": "Acciones"
+                "actions": "Acciones",
+                "template-size": "Tamaño"
             },
             "buttons": {
                 "allowed": {
@@ -768,6 +771,19 @@
                     "user": "Usuario",
                     "kind": "Tipo"
                 }
+            }
+        },
+        "storage": {
+            "no-storage": {
+                "title": "No hay discos para este usuario",
+                "subtitle": "Si crees que se trata de un error, contacta con el administrador"
+            },
+            "table-header" : {
+                "domains": "Escritorios/plantillas",
+                "quantity-domains": "№ escritorios/plantillas",
+                "actual-size": "Tamaño",
+                "percentage": "% Cuota",
+                "last": "Último acceso"
             }
         }
     },
@@ -931,7 +947,8 @@
             "not_found": "No encontrado",
             "maintenance": "Mantenimiento",
             "direct_viewer": "Visor directo",
-            "edit-domain": "Editar dominio"
+            "edit-domain": "Editar dominio",
+            "storage": "Almacenamiento"
         }
     },
     "message-modal": {
