@@ -879,6 +879,13 @@ class ApiAdmin:
                 domains = domains_stopped + domains_failed
                 desktops_start(domains, paused=True)
                 return True
+
+            if action == "remove_forced_hyper":
+                with app.app_context():
+                    r.table("domains").get_all(r.args(ids)).update(
+                        {"forced_hyp": False}
+                    ).run(db.conn)
+                return True
         return False
 
     def CheckField(self, table, field, value, ids):
