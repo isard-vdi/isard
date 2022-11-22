@@ -55,7 +55,36 @@ def api_v3_admin_media_insert(payload):
             "Unable to parse body data.",
             traceback.format_exc(),
         )
-    media_size = float(urllib.request.urlopen(data["url"]).info()["content-Length"])
+    try:
+        response = urllib.request.urlopen(data["url"])
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            raise Error(
+                "not_found",
+                "The url could not be found.",
+                traceback.format_exc(),
+                "media_url_not_found",
+            )
+        # Set Mozilla as user agent to avoid getting forbidden from the download servers
+        req = urllib.request.Request(
+            data["url"],
+            data=None,
+            headers={
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36"
+            },
+        )
+        response = urllib.request.urlopen(req)
+    except:
+        raise Error(
+            "bad_request",
+            "The url is not valid.",
+            traceback.format_exc(),
+            "media_url_not_valid",
+        )
+    if response.info()["content-Length"]:
+        media_size = float(response.info()["content-Length"])
+    else:
+        media_size = 0
     quotas.media_create(payload["user_id"], media_size)
     with app.app_context():
         user = r.table("users").get(payload["user_id"]).run(db.conn)
