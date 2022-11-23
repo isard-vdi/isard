@@ -14,6 +14,9 @@ if (url!="Desktops") {
     kind='desktop'
 }
 
+// column to sort by 'last accessed' in desktops table
+order=13
+
 columns= [
 				{
                 "className":      'details-control',
@@ -111,7 +114,6 @@ if(url!="Desktops"){
         {
             "data": 'enabled',
             "className": 'text-center',
-            "data": null,
             "orderable": false,
             "defaultContent": '<input type="checkbox" class="form-check-input" checked></input>'
         },
@@ -127,12 +129,28 @@ if(url!="Desktops"){
         "targets": 7,
         "render": function ( data, type, full, meta ) {
             if( full.enabled ){
-                return '<input id="chk-enabled" type="checkbox" class="form-check-input" checked></input>'
+                return '<input id="chk-enabled" type="checkbox" class="form-check-input" checked></input><span style="display: none;">' + data + '</span>'
             }else{
-                return '<input id="chk-enabled" type="checkbox" class="form-check-input"></input>'
+                return '<input id="chk-enabled" type="checkbox" class="form-check-input"></input><span style="display: none;">' +data + '</span>'
             }
         }
     })
+    // sort by 'last accessed' in templates table
+    order = 10;
+
+    $.fn.dataTable.ext.search.push(function (settings, searchData, index, rowData, counter ) {
+            search_val = $('.panel_toolbox .btn-disabled').attr('view')
+            if (search_val == 'false') {
+                return true;
+            }
+            else if (
+               searchData[7] == search_val
+            ) {
+                return true;
+            }
+            return false;
+    });
+    
 }
 
 $(document).ready(function() {
@@ -422,7 +440,7 @@ $(document).ready(function() {
 			"rowId": "id",
 			"deferRender": true,
 			"columns": columns,
-			 "order": [[7, 'asc']],
+			 "order": [[order, 'des']],
         "columnDefs": columnDefs,
         "rowCallback": function (row, data) {
             if('server' in data){
@@ -447,6 +465,22 @@ $(document).ready(function() {
             }
         } );
     } );
+
+    $('.btn-disabled').on('click', function(e) {
+    if ($('.btn-disabled').attr('view')=='false') {
+        $('.btn-disabled #view-disabled').show();
+        $('.btn-disabled #hide-disabled').hide();
+        $('.btn-disabled').attr('view', 'true')
+    }
+    else {
+        $('.btn-disabled #view-disabled').hide();
+        $('.btn-disabled #hide-disabled').show();
+        $('.btn-disabled').attr('view', 'false')
+    }
+    })
+    $('.panel_toolbox .btn-disabled').click(function () {
+        domains_table.draw();
+    });
 
     domains_table.on( 'click', 'tr[role="row"]', function (e) { 
         if (kind =='desktop') {
