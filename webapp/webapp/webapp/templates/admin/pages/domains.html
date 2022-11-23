@@ -26,6 +26,22 @@
                      </a>
                   </li>
                {% endif %}
+               {% if nav == "Templates" %}
+                  <li>
+                     <a class="btn-disabled" view="false" >
+
+                        <span style="color: #5499c7; display: none;" id="view-disabled">
+                           <i class="fa fa-eye"></i>
+                           View Disabled</span>
+
+                           <span style="color: #5499c7;" id="hide-disabled">
+                              <i class="fa fa-eye-slash"></i>
+                              Hide Disabled</span>
+                        </a>
+                     </a>
+                  </li>
+               {% endif %}
+
                <!--<li>
                   <a class="btn btn-app add-new-media" style="background-color:#F5FFDC;">
                      <i class="fa fa-circle-o"></i> New from ISO
