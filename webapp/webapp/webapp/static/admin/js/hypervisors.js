@@ -158,8 +158,6 @@ $(document).ready(function() {
             { "data": "hostname" , "width": "100px" },
             { "data": "viewer.static" , "width": "10px" },
             { "data": "viewer.proxy_video" , "width": "10px" },
-            { "data": "capabilities.disk_operations" , "width": "10px" },
-            { "data": "capabilities.hypervisor" , "width": "10px" },
             { "data": "dom_started", "width": "10px", "defaultContent": 0},
             { "data": "info.memory_in_MB" , "width": "10px", "defaultContent": 'NaN' },
             { "data": "info.cpu_cores" , "width": "10px", "defaultContent": 'NaN' },
@@ -189,14 +187,6 @@ $(document).ready(function() {
                             "render": function ( data, type, full, meta ) {
                                 return full.viewer.proxy_video + ' ('+full.viewer.spice_ext_port + ',' + full.viewer.html5_ext_port + ')';
                             }},
-                            {
-                            "targets": 8,
-                            "render": renderBoolean
-                            },
-                            {
-                            "targets": 9,
-                            "render": renderBoolean
-                            },
                             {
                                 "targets": 10,
                                 "render": function ( data, type, full, meta ) {
