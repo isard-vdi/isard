@@ -1,4 +1,5 @@
 import { DesktopUtils } from './desktopsUtils'
+import { DateUtils } from './dateUtils'
 
 export class DeploymentsUtils {
   static parseDeployments (items) {
@@ -23,17 +24,28 @@ export class DeploymentsUtils {
   }
 
   static parseDeployment (deployment) {
-    const { id, name, desktop_name: desktopName, description, visible } = deployment
+    const { id, name, desktop_name: desktopName, description, visible, needs_booking: needsBooking, next_booking_start: nextBookingStart, next_booking_end: nextBookingEnd, booking_id: bookingId } = deployment
     const desktops = deployment.desktops
       ? deployment.desktops.map((desktop) => {
         return DeploymentsUtils.parseDeploymentDesktop(desktop)
       })
       : []
-    return { id, name, desktops, description, desktopName, visible }
+    return {
+      id,
+      name,
+      desktops,
+      description,
+      desktopName,
+      visible,
+      needsBooking,
+      bookingId,
+      nextBookingStart: nextBookingStart ? DateUtils.utcToLocalTime(nextBookingStart) : '',
+      nextBookingEnd: nextBookingEnd ? DateUtils.utcToLocalTime(nextBookingEnd) : ''
+    }
   }
 
   static parseDeploymentDesktop (desktop) {
-    const { id, ip, user, userName, userPhoto, categoryName, groupName, state, viewer, viewers, image, accessed } = desktop
+    const { id, ip, user, userName, userPhoto, categoryName, groupName, state, viewer, viewers, image, accessed, needs_booking: needsBooking, next_booking_start: nextBookingStart, next_booking_end: nextBookingEnd, booking_id: bookingId } = desktop
     return {
       id,
       ip,
@@ -47,7 +59,11 @@ export class DeploymentsUtils {
       viewer,
       viewers,
       buttonIconName: desktop.state ? DesktopUtils.buttonIconName(desktop) : '',
-      last: accessed
+      last: accessed,
+      bookingId,
+      needsBooking,
+      nextBookingStart: nextBookingStart ? DateUtils.utcToLocalTime(nextBookingStart) : '',
+      nextBookingEnd: nextBookingEnd ? DateUtils.utcToLocalTime(nextBookingEnd) : ''
     }
   }
 }

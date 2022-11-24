@@ -81,7 +81,6 @@
               id="deployment-desktops-table"
               :items="desktops"
               :fields="fields"
-              tbody-tr-class="cursor-pointer"
               :responsive="true"
               :per-page="perPage"
               :current-page="currentPage"
@@ -173,8 +172,8 @@
                 <DesktopButton
                   v-if="![desktopStates.working].includes(getItemState(data.item))"
                   class="table-action-button"
-                  :active="true"
-                  :button-class="buttCssColor(getItemState(data.item))"
+                  :active="canStart(data.item)"
+                  :button-class="canStart(data.item) ? buttCssColor(getItemState(data.item)) : ''"
                   :spinner-active="false"
                   :butt-text="$t(`views.select-template.status.${getItemState(data.item)}.action`)"
                   :icon-name="data.item.buttonIconName"
@@ -288,6 +287,14 @@ export default {
       $store.dispatch('resetDeploymentState')
     })
 
+    const canStart = (desktop) => {
+      if (desktop.needsBooking) {
+        return desktop.bookingId
+      } else {
+        return true
+      }
+    }
+
     return {
       onFiltered,
       filter,
@@ -296,7 +303,8 @@ export default {
       pageOptions,
       currentPage,
       totalRows,
-      getDate
+      getDate,
+      canStart
     }
   },
   data () {

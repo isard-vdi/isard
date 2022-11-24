@@ -106,6 +106,8 @@ def get(deployment_id):
                 "viewer",
                 "guest_properties",
                 "accessed",
+                "tag",
+                "booking_id",
             )
             .run(db.conn)
         )
@@ -119,14 +121,19 @@ def get(deployment_id):
         desktop_description = tmp_desktop.pop("description")
         parsed_desktops.append(tmp_desktop)
 
-    return {
-        "id": deployment["id"],
-        "name": deployment["name"],
-        "desktop_name": desktop_name,
-        "description": desktop_description,
-        "desktops": parsed_desktops,
-        "visible": deployment["create_dict"]["tag_visible"],
+    deployment = {
+        **{
+            "id": deployment["id"],
+            "name": deployment["name"],
+            "desktop_name": desktop_name,
+            "description": desktop_description,
+            "desktops": parsed_desktops,
+            "visible": deployment["create_dict"]["tag_visible"],
+        },
+        **_parse_deployment_booking(deployment),
     }
+
+    return deployment
 
 
 def new(
@@ -319,6 +326,9 @@ def delete(deployment_id):
         r.table("domains").get_all(deployment_id, index="tag").update(
             {"status": "ForceDeleting"}
         ).run(db.conn)
+        r.table("bookings").get_all(
+            ["deployment", deployment_id], index="item_type-id"
+        ).delete().run(db.conn)
         if (
             not r.table("domains")
             .get_all(deployment_id, index="tag")

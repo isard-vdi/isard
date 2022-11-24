@@ -395,7 +395,6 @@ def _parse_desktop_booking(desktop):
                 .run(db.conn)
             )
         except:
-            # log.debug("PLAN IS " + str(len(plan)) + " LENGTH")
             return {
                 "needs_booking": True,
                 "next_booking_start": None,

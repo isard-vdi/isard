@@ -4,9 +4,35 @@
     fluid
   >
     <h5 class="font-weight-bold">
-      {{ getDeployment.name }}
+      <b-iconstack
+        v-if="deployment.needsBooking"
+        font-scale="1"
+        role="button"
+        :title="$t('components.desktop-cards.actions.booking')"
+        @click="onClickBookingDesktop(deployment)"
+      >
+        <b-icon
+          stacked
+          icon="calendar"
+          variant="warning"
+        />
+        <b-icon
+          stacked
+          icon="exclamation-triangle-fill"
+          scale="0.5"
+          shift-v="-1"
+          variant="warning"
+        />
+      </b-iconstack>
+      {{ deployment.name }}
       <b-badge :variant="badgeVariant">
         {{ badgeText }}
+      </b-badge>
+      <b-badge
+        class="ml-2"
+        variant="warning"
+      >
+        {{ bookingBadge }}
       </b-badge>
     </h5>
     <hr class="mb-0">
@@ -20,7 +46,7 @@
     <DeploymentDesktopsList
       :desktops="sortedDesktops"
       :loading="!getDeploymentLoaded"
-      :visible="getDeployment.visible"
+      :visible="deployment.visible"
     />
   </b-container>
 </template>
@@ -30,6 +56,7 @@ import DeploymentDesktopsList from '@/components/deployments/DeploymentDesktopsL
 import { mapGetters } from 'vuex'
 import { desktopStates } from '@/shared/constants'
 import { computed } from '@vue/composition-api'
+import { DateUtils } from '@/utils/dateUtils'
 import i18n from '@/i18n'
 
 export default {
@@ -46,11 +73,20 @@ export default {
 
     const badgeText = computed(() => deployment.value.visible ? i18n.t('views.deployment.visibility.visible') : i18n.t('views.deployment.visibility.not-visible'))
 
+    const onClickBookingDesktop = (deployment) => {
+      const data = { id: deployment.id, type: 'deployment', name: deployment.name }
+      $store.dispatch('goToItemBooking', data)
+    }
+
+    const bookingBadge = computed(() => deployment.value.nextBookingStart ? i18n.t('components.desktop-cards.notification-bar.next-booking') + ': ' + DateUtils.formatAsTime(deployment.value.nextBookingStart) + ' ' + DateUtils.formatAsDayMonth(deployment.value.nextBookingStart) : i18n.t('components.desktop-cards.notification-bar.no-next-booking'))
+
     return {
       deployment,
       badgeVariant,
       badgeText,
-      deploymentVariant
+      deploymentVariant,
+      onClickBookingDesktop,
+      bookingBadge
     }
   },
   computed: {

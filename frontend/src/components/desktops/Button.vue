@@ -21,7 +21,7 @@ export default {
     spinnerActive: Boolean,
     buttonClass: String,
     buttText: String,
-    active: Boolean,
+    active: [Boolean, String],
     iconName: String
   }
 }
