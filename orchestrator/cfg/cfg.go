@@ -23,10 +23,12 @@ type Orchestrator struct {
 }
 
 type DirectorRata struct {
-	MinCPU      int `mapstructure:"min_cpu"`
-	MinRAM      int `mapstructure:"min_ram"`
-	HyperMinCPU int `mapstructure:"hyper_min_cpu"`
-	HyperMinRAM int `mapstructure:"hyper_min_ram"`
+	MinCPU       int               `mapstructure:"min_cpu"`
+	MinRAM       int               `mapstructure:"min_ram"`
+	MinCPUHourly map[time.Time]int `mapstructure:"min_cpu_hourly"`
+	MinRAMHourly map[time.Time]int `mapstructure:"min_ram_hourly"`
+	HyperMinCPU  int               `mapstructure:"hyper_min_cpu"`
+	HyperMinRAM  int               `mapstructure:"hyper_min_ram"`
 }
 
 func New() Cfg {
@@ -49,10 +51,12 @@ func setDefaults() {
 		"api_secret":         "",
 		"director":           "",
 		"director_rata": map[string]interface{}{
-			"min_cpu":       0,
-			"min_ram":       0,
-			"hyper_min_cpu": 0,
-			"hyper_min_ram": 0,
+			"min_cpu":        0,
+			"min_ram":        0,
+			"min_cpu_hourly": nil,
+			"min_ram_hourly": nil,
+			"hyper_min_cpu":  0,
+			"hyper_min_ram":  0,
 		},
 	})
 }

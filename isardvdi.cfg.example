@@ -526,8 +526,20 @@ WG_GUESTS_RESERVED_HOSTS=20
 #ORCHESTRATOR_ORCHESTRATOR_DIRECTOR_RATA_API_SECRET=
 # This value is the minimum number of CPUs free in the whole hypervisor pool. If it's set to 0, there's no minimum
 #ORCHESTRATOR_ORCHESTRATOR_DIRECTOR_RATA_MIN_CPU=0
+# This value is the same as ORCHESTRATOR_ORCHESTRATOR_DIRECTOR_RATA_MIN_CPU. However, it's separated by hours.
+# The syntax is a JSON map, with the keys being the hours in a HH:MM format and the value being the RAM.
+# If there's only one value, it's going to take it, even when it's out of range
+# So, if for example, the map looks like `{"00:00": 50, "10:30": 100, "20:30": 150}` and the current hour is 15:00h,
+# the value is going to be "100"
+#ORCHESTRATOR_ORCHESTRATOR_DIRECTOR_RATA_MIN_CPU_HOURLY=
 # This value is the minimum number of MB of RAM free in the whole hypervisor pool. If it's set to 0, there's no minimum
 #ORCHESTRATOR_ORCHESTRATOR_DIRECTOR_RATA_MIN_RAM=0
+# This value is the same as ORCHESTRATOR_ORCHESTRATOR_DIRECTOR_RATA_MIN_RAM. However, it's separated by hours.
+# The syntax is a JSON map, with the keys being the hours in a HH:MM format and the value being the RAM.
+# If there's only one value, it's going to take it, even when it's out of range
+# So, if for example, the map looks like `{"00:00": 50, "10:30": 100, "20:30": 150}` and the current hour is 15:00h,
+# the value is going to be "100"
+#ORCHESTRATOR_ORCHESTRATOR_DIRECTOR_RATA_MIN_RAM_HOURLY=
 # This value is the minimum CPU number that a hypervisor needs to have in order to run.
 # If it reaches the limit, the hypervisor is put at OnlyForced, which prevents more desktops to be started in the hypervisor
 #ORCHESTRATOR_ORCHESTRATOR_DIRECTOR_RATA_HYPER_MIN_CPU=0

@@ -10,6 +10,7 @@ require (
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	// https://github.com/grafana/loki/issues/2826. This is the equivalent of 2.4.2
 	github.com/grafana/loki v0.0.0-20220112164614-525040a32657
+	github.com/mitchellh/mapstructure v1.4.2
 	github.com/oracle/oci-go-sdk/v65 v65.6.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/prometheus/client_golang v1.12.1

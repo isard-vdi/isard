@@ -3,6 +3,8 @@ package director
 import (
 	"context"
 	"fmt"
+	"sort"
+	"time"
 
 	"gitlab.com/isard/isardvdi-cli/pkg/client"
 	"gitlab.com/isard/isardvdi/orchestrator/cfg"
@@ -18,10 +20,7 @@ const DirectorTypeRata = "rata"
 // Rata is a director that has some minimum values required.
 // It waits until there are less values than the minimum, then it takes action
 type Rata struct {
-	// minCPU is the minimum CPU number that need to be free in the pool. If it's zero, it's not going to use it
-	minCPU int
-	// minRAM is the minimum MB of RAM that need to be free in the pool. If it's zero, it's not going to use it
-	minRAM int
+	cfg cfg.DirectorRata
 	// hyperMinCPU is the minimum CPU number that a hypervisor needs to have in order to run.
 	// If it reaches the limit, the hypervisor is put at OnlyForced, which prevents more desktops to be started in the hypervisor
 	hyperMinCPU int
@@ -37,8 +36,7 @@ type Rata struct {
 
 func NewRata(cfg cfg.Orchestrator, log *zerolog.Logger, apiCli client.Interface) *Rata {
 	return &Rata{
-		minCPU:      cfg.DirectorRata.MinCPU,
-		minRAM:      cfg.DirectorRata.MinRAM,
+		cfg:         cfg.DirectorRata,
 		hyperMinCPU: cfg.DirectorRata.HyperMinCPU,
 		hyperMinRAM: cfg.DirectorRata.HyperMinRAM,
 
@@ -51,6 +49,56 @@ func NewRata(cfg cfg.Orchestrator, log *zerolog.Logger, apiCli client.Interface)
 
 func (r *Rata) String() string {
 	return DirectorTypeRata
+}
+
+func getCurrentHourlyLimit(limit map[time.Time]int, now time.Time) int {
+	times := []time.Time{}
+	for k := range limit {
+		times = append(times, k)
+	}
+
+	sort.Slice(times, func(i, j int) bool {
+		return times[i].Before(times[j])
+	})
+
+	for i, t := range times {
+		hour := time.Date(0, time.January, 1, now.Hour(), now.Minute(), 0, 0, time.UTC)
+
+		if hour.Before(t) {
+			// If is the first hour, it will take it as the first
+			if i == 0 {
+				return limit[t]
+			}
+
+			// If it's not the first, take the previous limit, since it's the active right now
+			return limit[times[i-1]]
+		}
+
+		// If it's the last item in the list, take it, since it's the active right now
+		if i == len(times)-1 {
+			return limit[t]
+		}
+	}
+
+	panic("invalid rata director hourly minimum")
+}
+
+// minCPU is the minimum CPU number that need to be free in the pool. If it's zero, it's not going to use it
+func (r *Rata) minCPU() int {
+	if r.cfg.MinCPUHourly == nil {
+		return r.cfg.MinCPU
+	}
+
+	return getCurrentHourlyLimit(r.cfg.MinCPUHourly, time.Now())
+}
+
+// minRAM is the minimum MB of RAM that need to be free in the pool. If it's zero, it's not going to use it
+func (r *Rata) minRAM() int {
+	if r.cfg.MinRAMHourly == nil {
+		return r.cfg.MinRAM
+	}
+
+	return getCurrentHourlyLimit(r.cfg.MinRAMHourly, time.Now())
 }
 
 // TODO: Stop hypervisors
@@ -66,18 +114,18 @@ func (r *Rata) NeedToScaleHypervisors(ctx context.Context, hypers []*model.Hyper
 	}
 
 	reqHypersCPU := 0
-	if r.minCPU > 0 {
-		hasEnough := cpuAvail / r.minCPU
+	if r.minCPU() > 0 {
+		hasEnough := cpuAvail / r.minCPU()
 		if hasEnough == 0 {
-			reqHypersCPU = r.minCPU - cpuAvail
+			reqHypersCPU = r.minCPU() - cpuAvail
 		}
 	}
 
 	reqHypersRAM := 0
-	if r.minRAM > 0 {
-		hasEnough := ramAvail / r.minRAM
+	if r.minRAM() > 0 {
+		hasEnough := ramAvail / r.minRAM()
 		if hasEnough == 0 {
-			reqHypersRAM = r.minRAM - ramAvail
+			reqHypersRAM = r.minRAM() - ramAvail
 		}
 	}
 
