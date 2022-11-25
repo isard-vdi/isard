@@ -28,6 +28,7 @@ db.init_app(app)
 import threading
 
 from .. import socketio
+from .helpers import _parse_deployment_booking
 
 threads = {}
 
@@ -65,6 +66,7 @@ class DeploymentsThread(threading.Thread):
                                 .run(db.conn),
                                 "startedDesktops": 0,
                                 "visible": c["new_val"]["create_dict"]["tag_visible"],
+                                "desktop_name": c["new_val"]["create_dict"]["name"],
                             }
                         else:
                             event = "update"
@@ -83,15 +85,14 @@ class DeploymentsThread(threading.Thread):
                                 .count()
                                 .run(db.conn),
                                 "visible": c["new_val"]["create_dict"]["tag_visible"],
+                                "desktop_name": c["new_val"]["create_dict"]["name"],
+                            }
+                            deployment = {
+                                **deployment,
+                                **_parse_deployment_booking(deployment),
                             }
                             socketio.emit(
                                 "deployment_update",
-                                json.dumps(deployment),
-                                namespace="/userspace",
-                                room=user,
-                            )
-                            socketio.emit(
-                                "deployments_update",
                                 json.dumps(deployment),
                                 namespace="/userspace",
                                 room=user,

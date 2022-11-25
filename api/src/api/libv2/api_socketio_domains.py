@@ -239,7 +239,7 @@ class DomainsThread(threading.Thread):
                                     "id",
                                     "name",
                                     "user",
-                                    {"create_dict": {"tag_visible"}},
+                                    {"create_dict": {"tag_visible", "name"}},
                                 )
                                 .merge(
                                     lambda d: {
@@ -251,6 +251,7 @@ class DomainsThread(threading.Thread):
                                         .filter({"status": "Started"})
                                         .count(),
                                         "visible": d["create_dict"]["tag_visible"],
+                                        "desktop_name": d["create_dict"]["name"],
                                     }
                                 )
                                 .run(db.conn)

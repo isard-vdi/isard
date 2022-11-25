@@ -155,8 +155,8 @@
                 <DesktopButton
                   v-if="(data.item.type === 'persistent' || (data.item.type === 'nonpersistent' && data.item.state && getItemState(data.item) === desktopStates.stopped )) && ![desktopStates.working].includes(getItemState(data.item))"
                   class="table-action-button"
-                  :active="true"
-                  :button-class="buttCssColor(getItemState(data.item))"
+                  :active="canStart(data.item)"
+                  :button-class="canStart(data.item) ? buttCssColor(getItemState(data.item)) : ''"
                   :spinner-active="false"
                   :butt-text="$t(`views.select-template.status.${getItemState(data.item)}.action`)"
                   :icon-name="data.item.buttonIconName"
@@ -382,12 +382,21 @@ export default {
       })
     }
 
+    const canStart = (desktop) => {
+      if (desktop.needsBooking) {
+        return desktop.bookingId
+      } else {
+        return true
+      }
+    }
+
     return {
       perPage,
       pageOptions,
       currentPage,
       totalRows,
-      fields: desktopFields
+      fields: desktopFields,
+      canStart
     }
   },
   data () {
