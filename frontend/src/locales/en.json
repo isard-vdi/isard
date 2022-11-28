@@ -252,7 +252,8 @@
             "notification-bar": {
                 "next-booking": "Next booking",
                 "no-next-booking": "The desktop isn't booked!",
-                "shutdown": "Automatic shutdown at {date}"
+                "shutdown": "Automatic shutdown at {date}",
+                "booking-ends": "Booking ends at "
             },
             "no-info-default": "No description available",
             "open-with": "Open with",

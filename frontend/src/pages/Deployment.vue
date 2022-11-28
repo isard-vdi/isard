@@ -78,7 +78,15 @@ export default {
       $store.dispatch('goToItemBooking', data)
     }
 
-    const bookingBadge = computed(() => deployment.value.nextBookingStart ? i18n.t('components.desktop-cards.notification-bar.next-booking') + ': ' + DateUtils.formatAsTime(deployment.value.nextBookingStart) + ' ' + DateUtils.formatAsDayMonth(deployment.value.nextBookingStart) : i18n.t('components.desktop-cards.notification-bar.no-next-booking'))
+    const bookingBadge = computed(() => {
+      if (DateUtils.dateIsAfter(deployment.value.nextBookingEnd, new Date()) && DateUtils.dateIsBefore(deployment.value.nextBookingStart, new Date())) {
+        return i18n.t('components.desktop-cards.notification-bar.booking-ends') + DateUtils.formatAsTime(deployment.value.nextBookingEnd) + ' ' + DateUtils.formatAsDayMonth(deployment.value.nextBookingEnd)
+      } else if (deployment.value.nextBookingStart) {
+        return i18n.t('components.desktop-cards.notification-bar.next-booking') + ': ' + DateUtils.formatAsTime(deployment.value.nextBookingStart) + ' ' + DateUtils.formatAsDayMonth(deployment.value.nextBookingStart)
+      } else {
+        return i18n.t('components.desktop-cards.notification-bar.no-next-booking')
+      }
+    })
 
     return {
       deployment,

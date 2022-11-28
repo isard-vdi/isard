@@ -86,7 +86,8 @@
             "notification-bar": {
                 "next-booking": "Propera reserva",
                 "no-next-booking": "L'escriptori no està reservat!",
-                "shutdown": "Aturada automàtica a les {date}"
+                "shutdown": "Aturada automàtica a les {date}",
+                "booking-ends": "La reserva s'acaba a les "
             },
             "no-info-default": "No hi ha cap descripció disponible",
             "open-with": "Accedeix amb",
