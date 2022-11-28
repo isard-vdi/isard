@@ -85,7 +85,7 @@ class Actions:
 
         # Send to QMP
         engine_client.post(
-            "/qmp/notify/" + kwargs["desktop_id"],
+            "/engine/qmp/notify/" + kwargs["desktop_id"],
             {
                 "desktop_id": kwargs["desktop_id"],
                 "message": kwargs["msg"]["type"]
@@ -246,7 +246,7 @@ class Actions:
 
     def domain_qmp_notification(**kwargs):
         engine_client.put(
-            "/qmp/" + kwargs["domain_id"],
+            "/engine/qmp/" + kwargs["domain_id"],
             {"action": "message", "kwargs": {"message": kwargs["message"]}},
         )
 
@@ -289,7 +289,7 @@ class Actions:
         )
         for domain_id in domains_ids:
             engine_client.put(
-                "/qmp/" + domain_id,
+                "/engine/qmp/" + domain_id,
                 {"action": "message", "kwargs": {"message": kwargs["message"]}},
             )
 
@@ -335,11 +335,13 @@ class Actions:
                 traceback.format_exc(),
             )
 
-        domains_ids = engine_client.get("/profile/gpu/started_domains/" + gpu_device)
+        domains_ids = engine_client.get(
+            "/engine/profile/gpu/started_domains/" + gpu_device
+        )
         log.debug("-> We got " + str(domains_ids) + " domains id to be notified...")
         for domain_id in domains_ids:
             engine_client.put(
-                "/qmp/" + domain_id,
+                "/engine/qmp/" + domain_id,
                 {"action": "message", "message": kwargs["message"]},
             )
 
@@ -378,7 +380,9 @@ class Actions:
                 traceback.format_exc(),
             )
 
-        domains_ids = engine_client.get("/profile/gpu/started_domains/" + gpu_device)
+        domains_ids = engine_client.get(
+            "/engine/profile/gpu/started_domains/" + gpu_device
+        )
         log.debug("-> We got " + str(domains_ids) + " domains id to be destroyed...")
 
         for domain_id in domains_ids:
@@ -442,7 +446,7 @@ class Actions:
             )
             return
 
-        answer = engine_client.get("/profile/gpu/" + gpu_device)
+        answer = engine_client.get("/engine/profile/gpu/" + gpu_device)
         if (
             answer.get("vgpu_profile")
             and answer["vgpu_profile"] == kwargs["subitem_id"].split("-")[-1]
@@ -455,7 +459,7 @@ class Actions:
             )
 
         answer = engine_client.put(
-            "/profile/gpu/" + gpu_device,
+            "/engine/profile/gpu/" + gpu_device,
             {"profile_id": kwargs["subitem_id"]},
         )
         log.debug(

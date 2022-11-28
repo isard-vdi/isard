@@ -249,8 +249,9 @@ def get_domains(username):
     return jsonify(domains=json_domains)
 
 
-@api.route("/profile/gpu/<string:gpu_id>", methods=["PUT"])
-def set_gpu_profile(gpu_id):
+@api.route("/engine/profile/gpu/<string:gpu_id>", methods=["PUT"])
+@is_admin
+def set_gpu_profile(payload, gpu_id):
     logs.main.info("set_gpu_profile: {}".format(gpu_id))
     d = request.get_json(force=True)
     pci_id = gpu_id.split("-")[-1]
@@ -265,7 +266,8 @@ def set_gpu_profile(gpu_id):
     return jsonify(True)
 
 
-@api.route("/profile/gpu/<string:gpu_id>", methods=["GET"])
+@api.route("/engine/profile/gpu/<string:gpu_id>", methods=["GET"])
+@is_admin
 def get_gpu_profile(payload, gpu_id):
     logs.main.info("get_gpu_profile: {}".format(gpu_id))
     d = get_vgpu_model_profile_change(gpu_id)
@@ -332,15 +334,17 @@ def get_gpu_from_mdevcmd_profile_jwt(payload, gpu_id):
     return jsonify({"gpu_id": gpu_id, "profile": profile})
 
 
-@api.route("/profile/gpu/started_domains/<string:gpu_id>", methods=["GET"])
-def get_gpu_started_domains(gpu_id):
+@api.route("/engine/profile/gpu/started_domains/<string:gpu_id>", methods=["GET"])
+@is_admin
+def get_gpu_started_domains(payload, gpu_id):
     logs.main.info("get_gpu_started_domains: {}".format(gpu_id))
     l_domains = get_domains_started_in_vgpu(gpu_id)
     return jsonify(l_domains)
 
 
-@api.route("/qmp/<string:desktop_id>", methods=["PUT"])
-def send_qmp(desktop_id):
+@api.route("/engine/qmp/<string:desktop_id>", methods=["PUT"])
+@is_admin
+def send_qmp(payload, desktop_id):
     ## This was done at bookings and only used from there.
     ## Should be reformulated as per qmp/notify endpoint
     ## maybe as /qmp/notify/custom/... for custom message.
@@ -353,8 +357,9 @@ def send_qmp(desktop_id):
     return jsonify(True)
 
 
-@api.route("/qmp/notify/<string:desktop_id>", methods=["POST"])
-def qmp_notify(desktop_id):
+@api.route("/engine/qmp/notify/<string:desktop_id>", methods=["POST"])
+@is_admin
+def qmp_notify(payload, desktop_id):
     data = request.get_json(force=True)
     _send_message_qmp(data.get("desktop_id"), data.get("message"))
     return jsonify(True)
