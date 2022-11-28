@@ -22,7 +22,7 @@ name:
   required: true
   type: string
   empty: false
-  minlength: 4
+  minlength: 1
 category:
   required: true
   empty: false
