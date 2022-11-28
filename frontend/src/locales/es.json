@@ -253,7 +253,8 @@
             "notification-bar": {
                 "next-booking": "Próxima reserva",
                 "no-next-booking": "El escritorio no está reservado!",
-                "shutdown": "Apagado automático a las {date}"
+                "shutdown": "Apagado automático a las {date}",
+                "booking-ends": "La reserva acaba a las "
             },
             "no-info-default": "No hay descripción disponible",
             "open-with": "Accede con",

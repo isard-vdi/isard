@@ -87,7 +87,7 @@
         :class="notificationBarCssClass"
       >
         <p class="mb-0 py-2 text-white">
-          {{ getBookingNotificationBar(desktop.nextBookingStart) }}
+          {{ getBookingNotificationBar(desktop.nextBookingStart, desktop.nextBookingEnd) }}
         </p>
       </div>
       <!-- Desktop next booking -->
@@ -438,9 +438,11 @@ export default {
       'fetchDirectLink',
       'goToNewTemplate'
     ]),
-    getBookingNotificationBar (date) {
-      if (date) {
-        return i18n.t('components.desktop-cards.notification-bar.next-booking') + ': ' + DateUtils.formatAsTime(date) + ' ' + DateUtils.formatAsDayMonth(date)
+    getBookingNotificationBar (dateStart, dateEnd) {
+      if (DateUtils.dateIsAfter(dateEnd, new Date()) && DateUtils.dateIsBefore(dateStart, new Date())) {
+        return i18n.t('components.desktop-cards.notification-bar.booking-ends') + DateUtils.formatAsTime(dateEnd) + ' ' + DateUtils.formatAsDayMonth(dateEnd)
+      } else if (dateStart) {
+        return i18n.t('components.desktop-cards.notification-bar.next-booking') + ': ' + DateUtils.formatAsTime(dateStart) + ' ' + DateUtils.formatAsDayMonth(dateStart)
       } else {
         return i18n.t('components.desktop-cards.notification-bar.no-next-booking')
       }
