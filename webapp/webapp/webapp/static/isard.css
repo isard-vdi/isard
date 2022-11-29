@@ -27,6 +27,11 @@ body {
    right: calc(50% - 150px) !important;
 }
 
+.pnotify-center-large {
+  font-size: large;
+  right: calc(50% - 350px) !important;
+}
+
 .ui-select-match-text{
   width: 100%;
   overflow: hidden;
@@ -41,7 +46,7 @@ body {
 }
 
 
-.fancytree-plain` span.fancytree-selected span.fancytree-title {
+.fancytree-plain span.fancytree-selected span.fancytree-title {
   background-color: yellow;
   color: black;
 }
