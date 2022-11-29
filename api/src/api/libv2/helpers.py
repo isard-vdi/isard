@@ -336,6 +336,7 @@ def _parse_desktop(desktop):
             "server": desktop.get("server"),
             "accessed": desktop.get("accessed"),
             "desktop_size": desktop_size,
+            "tag": desktop.get("tag"),
         },
         **_parse_desktop_booking(desktop),
     }
