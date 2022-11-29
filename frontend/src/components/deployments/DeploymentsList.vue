@@ -111,22 +111,22 @@
               <template #cell(actions)="data">
                 <div class="d-flex justify-content-center align-items-center">
                   <b-button
-                    v-if="data.item.needsBooking"
-                    class="rounded-circle btn-orange px-2 mr-2"
-                    @click="onClickBookingDesktop(data.item)"
-                  >
-                    <b-icon
-                      icon="calendar"
-                      scale="0.75"
-                    />
-                  </b-button>
-                  <b-button
                     class="rounded-circle btn btn-red px-2 mr-2"
                     :title="$t('components.statusbar.deployment.buttons.delete.title')"
                     @click="deleteDeployment(data.item)"
                   >
                     <b-icon
                       icon="trash-fill"
+                      scale="0.75"
+                    />
+                  </b-button>
+                  <b-button
+                    v-if="data.item.needsBooking"
+                    class="rounded-circle btn-orange px-2 mr-2"
+                    @click="onClickBookingDesktop(data.item)"
+                  >
+                    <b-icon
+                      icon="calendar"
                       scale="0.75"
                     />
                   </b-button>
