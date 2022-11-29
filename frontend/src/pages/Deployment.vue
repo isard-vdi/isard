@@ -29,6 +29,7 @@
         {{ badgeText }}
       </b-badge>
       <b-badge
+        v-if="deployment.needsBooking"
         class="ml-2"
         variant="warning"
       >
