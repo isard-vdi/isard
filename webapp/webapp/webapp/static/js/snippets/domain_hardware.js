@@ -134,7 +134,11 @@ function setHardwareDomainDefaults(div_id,domain){
 	$(div_id+' #guest_properties-credentials-username').val(domain["guest_properties"]["credentials"]["username"]);
 	$(div_id+' #guest_properties-credentials-password').val(domain["guest_properties"]["credentials"]["password"]);
 	setViewers('#modalEditDesktop',domain)
-	$(div_id+' #hardware-virtualization_nested option:selected').val(domain.virtualization_nested);
+	if (domain.hardware.virtualization_nested) {
+		$(div_id+' #hardware-virtualization_nested').prop('checked',true).iCheck('update');
+	} else {
+		$(div_id+' #hardware-virtualization_nested').prop('checked',false).iCheck('update');
+	}
 	$(div_id+' #hardware-interfaces option:selected').prop("selected", false);
 	$(div_id+' #hardware-videos option:selected').prop("selected", false);
 	$(div_id+' #hardware-boot_order option:selected').prop("selected", false);
