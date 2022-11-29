@@ -416,6 +416,7 @@ class ApiUsers:
                             "progress",
                             "booking_id",
                             "scheduled",
+                            "tag",
                         ]
                     )
                     .run(db.conn)

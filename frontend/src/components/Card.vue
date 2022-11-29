@@ -21,7 +21,7 @@
         :scroll-auto-hide="false"
       >
         <fab-item
-          v-if="desktop.editable && desktop.needsBooking"
+          v-if="desktop.editable && desktop.needsBooking && !desktop.tag"
           v-b-tooltip="{ title: `${$t('components.desktop-cards.actions.booking')}`,
                          placement: 'right',
                          customClass: 'isard-tooltip',
@@ -111,7 +111,7 @@
             class="font-weight-bold card-title ml-2 mt-2 mb-2"
           >
             <b-iconstack
-              v-if="desktop.editable && desktop.needsBooking"
+              v-if="desktop.editable && desktop.needsBooking && !desktop.tag"
               font-scale="1"
               role="button"
               :title="$t('components.desktop-cards.actions.booking')"
