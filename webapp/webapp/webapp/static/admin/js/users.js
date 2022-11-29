@@ -537,7 +537,8 @@ $(document).ready(function() {
                 "orderable": false,
                 "width": "10px",
                 "defaultContent": '<input type="checkbox" class="form-check-input"></input>'
-            },],
+            },
+            { "data": "id", "visible": false}],
 
 			 "columnDefs": [
 							{
@@ -601,6 +602,8 @@ $(document).ready(function() {
             },
         });
     //~ });
+
+    adminShowIdCol(users_table)
 
     // Setup - add a text input to each footer cell
     $('#users tfoot tr:first th').each( function () {

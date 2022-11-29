@@ -49,6 +49,7 @@ $(document).ready(function() {
             { "data": "limits.templates", className: "xe-templates", defaultContent: "-"},
             { "data": "quota.isos", className: "xe-isos", defaultContent: "-"},
             { "data": "limits.isos", className: "xe-isos", defaultContent: "-"},
+            { "data": "id", "visible": false}
         ],
         "columnDefs": [
             {
@@ -84,6 +85,8 @@ $(document).ready(function() {
             $('.groups-total-size').html('Applied filter total storage size: ' + pageTotal.toFixed(1) + ' GB');
         },
     } );
+
+    adminShowIdCol(groups_table)
 
     // Setup - add a text input to each footer cell
     $('#groups tfoot tr:first th').each( function () {

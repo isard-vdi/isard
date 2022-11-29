@@ -445,3 +445,19 @@ function getOS() {
     }
     return os;
 }
+
+// Id must always be the last column
+function adminShowIdCol (datatable, table_id) {
+    if ($('meta[id=user_data]').attr('data-role') == 'admin'){
+        document.addEventListener('keydown', KeyPress)
+        function KeyPress(e) {
+            var evtobj = window.event? event : e
+            if (evtobj.keyCode == 73 && evtobj.ctrlKey && evtobj.altKey) {
+                // Get the column API object
+                var column = datatable.column(datatable.columns().header().length-1);
+                // Toggle the visibility
+                column.visible(!column.visible());
+            }
+      }
+    }
+}
