@@ -31,7 +31,7 @@ columns= [
 				{ "data": "description"},
 				{ "data": "ram"},
 				{ "data": "create_dict.hardware.vcpus"},
-				{ "data": null},
+				{ "data": null, "className": 'viewer',},
 				{ "data": "status"},
 				{ "data": "username"},
 				{ "data": "category"},
@@ -488,51 +488,102 @@ $(document).ready(function() {
         }
      });
 
+    // Bulk actions
     $('#mactions').on('change', function () {
         action=$(this).val();
-        names=''
         ids=[]
 
+        // Selected desktops
         if(domains_table.rows('.active').data().length){
+            names = '<ul>'
             $.each(domains_table.rows('.active').data(),function(key, value){
-                names+=value['name']+'\n';
+                names+= "<li>" + value['name']+'</li>';
                 ids.push(value['id']);
             });
-            var text = "You are about to "+action+" these desktops:\n\n "+names
-        }else{ 
-            $.each(domains_table.rows({filter: 'applied'}).data(),function(key, value){
-                ids.push(value['id']);
-            });
-            var text = "You are about to "+action+" "+domains_table.rows({filter: 'applied'}).data().length+" desktops!\n All the desktops in list!"
-        }
-				new PNotify({
-						title: 'Warning!',
-							text: text,
-							hide: false,
-							opacity: 0.9,
-							confirm: {
-								confirm: true
-							},
-							buttons: {
-								closer: false,
-								sticker: false
-							},
-							history: {
-								history: false
-							},
-							addclass: 'pnotify-center'
-						}).get().on('pnotify.confirm', function() {
+            names += '</ul>'
+            new PNotify({
+                title: 'Warning!',
+                text: "You are about to " + action + " these desktops:\n\n" + names,
+                hide: false,
+                opacity: 0.9,
+                type: "error",
+                confirm: {
+                    confirm: true
+                },
+                buttons: {
+                    closer: false,
+                    sticker: false
+                },
+                history: {
+                    history: false
+                },
+                addclass: 'pnotify-center-large',
+                width: '550'
+            }).get().on('pnotify.confirm', function() {
                 api.ajax('/api/v3/admin/multiple_actions', 'POST', {'ids':ids, 'action':action}).done(function(data) {
                     notify(data)
                 }).fail(function(jqXHR) {
                     notify(jqXHR.responseJSON)
                 }).always(function() {
                     $('#mactions option[value="none"]').prop("selected", true);
-                    $('#domains tr.active').removeClass('active')
+                    $('#domains tr.active .form-check-input').prop("checked", true);
                 })
-                    }).on('pnotify.cancel', function() {
-                        $('#mactions option[value="none"]').prop("selected",true);
-				});
+            }).on('pnotify.cancel', function() {
+                $('#mactions option[value="none"]').prop("selected",true);
+            })
+        // All desktops
+        } else {
+            $.each(domains_table.rows({filter: 'applied'}).data(),function(key, value){
+                ids.push(value['id']);
+            });
+            new PNotify({
+                title: 'Warning!',
+                text: "You are about to " + action + " all the desktops in the list (" + domains_table.rows({filter: 'applied'}).data().length + " desktops)!\nPlease write <b>\"I'm aware\"</b> in order to confirm the action",
+                hide: false,
+                opacity: 0.9,
+                type: 'error',
+                confirm: {
+                    confirm: true,
+                    prompt: true,
+                    prompt_multi_line: false,
+                    buttons: [
+                        {
+                            text: "Ok",
+                            addClass: "",
+                            promptTrigger: true,
+                            click: function(notice, value){
+                                if (value == "I'm aware") {
+                                    notice.remove();
+                                    api.ajax('/api/v3/admin/multiple_actions', 'POST', {'ids':ids, 'action':action}).done(function(data) {
+                                        notify(data)
+                                    }).fail(function(jqXHR) {
+                                        notify(jqXHR.responseJSON)
+                                    }).always(function() {
+                                        $('#mactions option[value="none"]').prop("selected", true);
+                                    })
+                                }
+                            }
+                        },
+                        {
+                            text: "Cancel",
+                            addClass: "",
+                            click: function(notice){
+                                notice.remove();
+                                $('#mactions option[value="none"]').prop("selected",true);
+                        }
+                    }]
+                },
+                buttons: {
+                    closer: false,
+                    sticker: false
+                },
+                history: {
+                    history: false
+                },
+                addclass: 'pnotify-center-large',
+                width: '550'
+            })
+        }
     } );
 
     $('#domains').find('tbody').on('click', 'td.details-control', function () {
@@ -720,6 +771,7 @@ $(document).ready(function() {
         }        
         dtUpdateInsert(domains_table,data,false);
         setDomainDetailButtonsStatus(data.id, data.status, data.server);
+        $('#domains tr.active .form-check-input').prop("checked", true);
     });
 
     socket.on(kind+'_delete', function(data){
