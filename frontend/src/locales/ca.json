@@ -32,7 +32,7 @@
             "storage": "Emmagatzematge"
         },
         "statusbar": {
-            "desktops-started": "Desktops arrencats",
+            "desktops-started": "Escriptoris arrencats",
             "checkbox-text": "Només arrencats",
             "checkbox-text-short": "Arrencats",
             "new-desktop": "Escriptori nou",
@@ -63,7 +63,7 @@
                         "title": "Recrear desplegament"
                     },
                     "download-direct-viewer": {
-                        "title": "Descargar fichero de visores directos"
+                        "title": "Descarregar fitxer de visors directes"
                     },
                     "delete": {
                         "title": "Esborrar desplegament"
@@ -71,7 +71,7 @@
                 }
             },
             "videowall": {
-                "back": "Volver a despliegues"
+                "back": "Tornar a desplegaments"
             }
         },
         "desktop-cards": {
@@ -96,7 +96,7 @@
                 "template": "Convertir en plantilla",
                 "booking": "Reservar",
                 "edit": "Editar",
-                "direct-link": "Link directe"
+                "direct-link": "Enllaç directe"
             },
             "filter-label": "Filtre"
         },
@@ -119,11 +119,11 @@
             "close-guide": "Tancar la guia",
             "local-client": "Fer servir el client local (recomanat)",
             "best-performance": "És l'opció amb el millor rendiment",
-            "install": "Instaŀlar",
+            "install": "Instal·lar",
             "other-windows-versions": "altres versions de Windows",
-            "once-installed": "Un cop instaŀlat, has de fer clic al botó de «client local», i es descarregarà el fitxer de l'escriptori virtual",
+            "once-installed": "Un cop instal·lat, has de fer clic al botó de «client local», i es descarregarà el fitxer de l'escriptori virtual",
             "use-browser": "Utilitzar el navegador",
-            "no-install": "No és necessari instaŀlar cap aplicatiu extern, {worse-performance}. Simplement has de fer clic al botó i s'obrirà l'escriptori virtual en una pestanya nova",
+            "no-install": "No és necessari instal·lar cap aplicatiu extern, {worse-performance}. Simplement has de fer clic al botó i s'obrirà l'escriptori virtual en una pestanya nova",
             "worse-performance": "però el rendiment serà pitjor",
             "spice-client-required": "És necessari instal·lar un aplicatiu extern.",
             "text": {
@@ -135,7 +135,7 @@
             }
         },
         "not-found": {
-            "title": "No hem trobat l'adreça soŀlicitada",
+            "title": "No hem trobat l'adreça sol·licitada",
             "home": "Tornar a l'inici"
         },
         "title": {
@@ -143,7 +143,7 @@
         },
         "rdp-modal": {
             "message": {
-                "connecting": "Connectant amb el servidor…",
+                "connecting": "Connectant amb el servidor...",
                 "disconnected": "S'ha perdut la connexió",
                 "unstable": "La connexió amb el servidor és inestable",
                 "error": "Error de connexió"
@@ -161,7 +161,7 @@
                 "event-titles": {
                     "available": "Disponible",
                     "unavailable": "No disponible",
-                    "overridable": "Sobreescribible"
+                    "overridable": "Sobreescrivible"
                 },
                 "units": "unitats",
                 "split-labels": {
@@ -225,9 +225,9 @@
                 "running": "Escriptoris arrencats / Total d'escriptoris arrencats",
                 "templates": "Plantilles creades / Total de plantilles",
                 "vcpus": "Vcpus utilitzades / Total de vcpus",
-                "total-disk-size": "Mida de disc utilitzat / Total de mida de disc",
-                "total-media-size": "Mida de mitjans utilitzats / Total de mida dels mitjans",
-                "total-size": "Mida utilitzada / Mida total"
+                "total-disk-size": "Mida de disc utilitzat / Total de mida de disc (GB)",
+                "total-media-size": "Mida de mitjans utilitzats / Total de mida dels mitjans (GB)",
+                "total-size": "Mida utilitzada / Mida total (GB)"
             }
         }
     },
@@ -431,7 +431,7 @@
         },
         "deployments": {
             "no-deployments": {
-                "title": "No hi ha cap deployment de l'usuari actual",
+                "title": "No hi ha cap desplegament de l'usuari actual",
                 "subtitle": "Si creus que es tracta d'un error, contacta a l'administrador"
             },
             "table-header": {
@@ -446,7 +446,7 @@
         },
         "deployment": {
             "no-started-desktops": {
-                "title": "Aquest deployment no té cap escriptori iniciat"
+                "title": "Aquest desplegmanet no té cap escriptori iniciat"
             },
             "desktop": {
                 "not-available": "Escriptori no disponible"
@@ -461,7 +461,7 @@
             "title": "Accés a visors de l'escriptori:",
             "file": {
                 "title": "Accedir amb aplicació",
-                "subtitle": "Es necessari tenir instal·lat programmari específic (més fluidesa)"
+                "subtitle": "Es necessari tenir instal·lat programmari específic (més fluïdesa)"
             },
             "browser": {
                 "title": "Accedir des d'aquest navegador",
@@ -531,7 +531,7 @@
             },
             "buttons": {
                 "allowed": {
-                    "title": "Canviar permissos"
+                    "title": "Canviar permisos"
                 },
                 "enable": {
                     "title": "Habilitar"
@@ -571,7 +571,7 @@
             },
             "buttons": {
                 "allowed": {
-                    "title": "Canviar permissos"
+                    "title": "Canviar permisos"
                 },
                 "delete": {
                     "title": "Esborrar mitjà"
@@ -605,11 +605,11 @@
         "storage": {
             "no-storage": {
                 "title": "No hi ha cap disc de l'usuari actual",
-                "subtitle": "Si creus que es tracta d'un error, contacta a l'administrador"
+                "subtitle": "Si creus que es tracta d'un error, contacta amb l'administrador"
             },
-            "table-header" : {
+            "table-header": {
                 "domains": "Escriptoris/plantilles",
-                "quantity-domains": "№ escriptoris/plantilles",
+                "quantity-domains": "Nº escriptoris/plantilles",
                 "actual-size": "Mida",
                 "percentage": "% Quota",
                 "last": "Últim accés"
@@ -626,12 +626,12 @@
     },
     "forms": {
         "allowed": {
-            "title": "Permissos",
+            "title": "Permisos",
             "groups": "Grups:",
             "users": "Usuaris:",
             "placeholder": "Escriu almenys 2 caràcters per cercar.",
             "modal": {
-                "title": "Actualitzar permissos",
+                "title": "Actualitzar permisos",
                 "buttons": {
                     "update": "Actualitzar"
                 }
@@ -739,7 +739,7 @@
                 }
             },
             "hardware": {
-                "warning": "ATENCIÓ: El següent hardware ha estat modificat per permissos:",
+                "warning": "ATENCIÓ: El següent hardware ha estat modificat per permisos:",
                 "title": "Hardware",
                 "vcpus": "vCPUS",
                 "memory": "Memoria (GB)",
@@ -770,7 +770,7 @@
         },
         "filter-placeholder": "Escriu per cercar",
         "clear": "Neteja",
-        "cancel": "Canceŀla",
+        "cancel": "Cancel·la",
         "submit": "Envia",
         "create": "Crea",
         "show-pages": "Veure"
@@ -858,9 +858,9 @@
             "create-nonpersistent": "ATENCIÓ! Aquest escriptori és temporal. Al parar-ho totes les dades seràn esborrades. Crear escriptori?",
             "visible-deployment": "'{name}' serà visible pels seus usuaris, continuar?",
             "not-visible-deployment": "'{name}' serà invisible pels seus usuaris, continuar?",
-            "recreate-deployment": "Els escriptoris esborrats de '{name}' es crearàn de nou, continuar?",
+            "recreate-deployment": "Els escriptoris esborrats de '{name}' es crearan de nou, continuar?",
             "delete-deployment": "'{name}' s'esborrarà, continuar?",
-            "delete-deployment-desktop": "L'escriptori de '{name}' se borrará, continuar?",
+            "delete-deployment-desktop": "L'escriptori de '{name}' s'esborrarà, continuar?",
             "start-deployment-desktops": "Els escriptoris de '{name}' s'iniciaran, continuar?",
             "stop-deployment-desktops": "Els escriptoris de '{name}' es pararan, continuar?",
             "delete-event": "La reserva '{name}' s'esborrarà, continuar?",
@@ -869,7 +869,7 @@
             "direct-viewer-reset": "Es descarregarà el fitxer de visors directes. Reestablir les adreces dels visors?",
             "delete-media": "El mitjà '{name}' s'esborrarà, continuar?",
             "image-uploaded": "Imatge pujada correctament",
-            "edit-domain": "El hardware de '{name}' es Límitarà i les seves dades es modificaran, continuar?",
+            "edit-domain": "El hardware de '{name}' es limitarà i les seves dades es modificaran, continuar?",
             "new-deployment": "Es crearan {quantity} escriptoris, un per cada usuari seleccionat. Continuar?",
             "go-to-profile": "Veure quota"
         },
@@ -889,7 +889,7 @@
             "starting-desktops": "Iniciant els escriptoris del desplegament",
             "stopping-desktops": "Parant els escriptoris del desplegament",
             "creating-template": "Creant plantilla",
-            "new-template-stop": "Per crear una plantilla és necessari que el escriptori estigui parat",
+            "new-template-stop": "Per crear una plantilla és necessari que l'escriptori estigui parat",
             "no-availability-event": "No hi ha disponibilitat al rang seleccionat",
             "not-created-event": "No s'ha pogut crear l'esdeveniment",
             "missing-data": "Falten dades",
@@ -941,7 +941,7 @@
         "title": "Informació important",
         "messages": {
             "desktop-time-limit": "L'escriptori '{name}' s'apagarà automàticament a les {date}.",
-            "searching-resources": "Estem buscan recursos per l'escriptori. S'iniciarà en breus minuts, si-us-play esperi."
+            "searching-resources": "Estem buscant recursos per l'escriptori. S'iniciarà en breus minuts, si us plau esperi."
         }
     }
 }
