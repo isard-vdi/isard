@@ -222,7 +222,7 @@ export default {
     const perPage = ref(5)
     const currentPage = ref(1)
     const filter = ref('')
-    const filterOn = reactive([])
+    const filterOn = reactive(['name', 'description', 'categoryName', 'groupName', 'userName'])
     const selected = ref([])
     const selectedTemplateId = computed(() => selected.value[0] ? selected.value[0].id : '')
     const totalRows = ref(1)
