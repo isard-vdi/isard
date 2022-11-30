@@ -181,7 +181,7 @@ class DomainsThread(threading.Thread):
                                     room=data["id"],
                                 )
                         # Event delete for users when tag becomes hidden
-                        if not data.get("tag_visible", True):
+                        if data.get("tag", False) and not data.get("tag_visible", True):
                             if c["old_val"] is None or c["old_val"].get("tag_visible"):
                                 socketio.emit(
                                     "desktop_delete",
