@@ -138,6 +138,7 @@ class ApiDesktopsPersistent:
                 raise Error(
                     "conflict",
                     "NewFromTemplate: user already has a desktop with the same id.",
+                    description_code="new_desktop_name_exists",
                 )
 
         if new_data:
