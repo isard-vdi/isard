@@ -340,7 +340,8 @@ username:s:%s
 password:s:%s
 domain:s:
 bitmapcachesize:i:32000
-smart sizing:i:1""" % (
+smart sizing:i:1
+audiomode:i: value:0""" % (
             ip,
             proxy_video,
             proxy_port,
