@@ -473,3 +473,11 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.table-scrollable-div {
+  height: calc(100vh - 300px);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+</style>
