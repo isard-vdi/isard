@@ -188,7 +188,7 @@ $(document).ready(function() {
                                 return full.viewer.proxy_video + ' ('+full.viewer.spice_ext_port + ',' + full.viewer.html5_ext_port + ')';
                             }},
                             {
-                                "targets": 10,
+                                "targets": 8,
                                 "render": function ( data, type, full, meta ) {
                                     if( full.status != "Online" ){
                                         return "0"
@@ -197,7 +197,7 @@ $(document).ready(function() {
                                 }
                             },
                             {
-                                "targets": 11,
+                                "targets": 9,
                                 "render": function ( data, type, full, meta ) {
                                     if( ! ( "min_free_mem_gb" in full ) ){full.min_free_mem_gb=0}
                                     memTotalGB=Math.round(data / 1024 * 10) / 10
@@ -210,7 +210,7 @@ $(document).ready(function() {
                                     return Math.round(memUsedGB*100/memTotalGB)+"% "+memTotalGB + "GB"+limit
                                 }},
                                 {
-                                "targets": 12,
+                                "targets": 10,
                                 "render": function ( data, type, full, meta ) {
                                     if (full.info) {
                                         if( ! ("stats" in full) ){ return "-% "+full.info.cpu_cores*full.info.threads_x_core+"th"}
@@ -218,12 +218,12 @@ $(document).ready(function() {
                                     }
                                 }},
                             {
-                            "targets": 14,
+                            "targets": 12,
                             "render": function ( data, type, full, meta ) {
                               return moment.unix(full.status_time).fromNow();
                             }},
                             {
-                                "targets": 15,
+                                "targets": 13,
                                 "render": renderBoolean
                                 },
              ],
