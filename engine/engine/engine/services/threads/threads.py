@@ -340,9 +340,15 @@ def launch_action_update_size_storage_from_domain(action, hostname, user, port):
             user=user,
             port=port,
         )
-        update_storage_qemu_info(
-            storage_id, json.loads(cmds_done[0]["out"]), hierarchy=False
-        )
+        try:
+            update_storage_qemu_info(
+                storage_id, json.loads(cmds_done[0]["out"]), hierarchy=False
+            )
+        except Exception as e:
+            logs.main.error(
+                f"Exception {e} \n extracting qemu-img info in json format for domain {domain_id}. Command: {cmd_qemu_img_info}"
+            )
+            logs.main.error("Output of command: \n" + pprint.pformat(cmds_done))
 
 
 def launch_action_create_template_disk(action, hostname, user, port):
