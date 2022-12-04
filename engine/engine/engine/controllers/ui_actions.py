@@ -71,6 +71,7 @@ from engine.services.lib.qcow import (
 )
 from engine.services.lib.storage import (
     create_storage,
+    get_storage_id_filename,
     insert_storage,
     update_storage_deleted_domain,
 )
@@ -407,24 +408,47 @@ class UiActions(object):
                     index_disk = 0
 
                     for d in dict_domain["hardware"]["disks"]:
-                        if "file" not in d.keys():
-                            log.error(
-                                "Deleting disk path not in hardware dict, key not in dictionary d: \n {}".format(
-                                    pformat(d)
+                        storage_id = d.get("storage_id")
+                        if not storage_id:
+                            # Old disks in domain
+                            disk_path = d.get("file")
+                            if not disk_path:
+                                log.error(
+                                    "Deleting old disk path not in hardware dict, key file not in dictionary d: \n {}".format(
+                                        pformat(d)
+                                    )
                                 )
-                            )
-                            continue
-                        disk_path = d["file"]
-                        if len(domains_with_attached_disk(disk_path)) > 1 or (
-                            d.get("storage_id")
-                            and len(domains_with_attached_storage_id(d["storage_id"]))
-                            > 1
-                        ):
-                            log.debug(
-                                "Others than this domain have this disk attached. Skipping deleting disk."
-                            )
-                            index_disk += 1
-                            continue
+                                index_disk += 1
+                                continue
+                            # Check for duplicates
+                            if len(domains_with_attached_disk(disk_path)) > 1:
+                                log.debug(
+                                    "Others than this domain have this disk attached. Skipping deleting disk."
+                                )
+                                index_disk += 1
+                                continue
+                        else:
+                            # New disks in storage
+                            disk_path = get_storage_id_filename(storage_id)
+                            if not disk_path:
+                                log.error(
+                                    "Deleting disk path not in hardware dict, storage_id {} not in storage table.".format(
+                                        storage_id
+                                    )
+                                )
+                                index_disk += 1
+                                continue
+                            # Check for duplicates
+                            if (
+                                len(domains_with_attached_storage_id(d["storage_id"]))
+                                > 1
+                            ):
+                                log.debug(
+                                    "Others than this domain have this disk attached. Skipping deleting disk."
+                                )
+                                index_disk += 1
+                                continue
+
                         pool_id = dict_domain["hypervisors_pools"][0]
                         if pool_id not in self.manager.pools.keys():
                             log.error(
