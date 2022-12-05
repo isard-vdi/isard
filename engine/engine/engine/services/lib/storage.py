@@ -38,6 +38,13 @@ def _get_filename(storage):
     )
 
 
+def get_storage_id_filename(storage_id):
+    storage = get_dict_from_item_in_table("storage", storage_id)
+    if not storage:
+        return None
+    return _get_filename(storage)
+
+
 def create_storage(disk, user, force_parent=False):
     directory_path = disk.pop("path_selected")
     relative_path = PurePath(disk.pop("file")).relative_to(directory_path)
