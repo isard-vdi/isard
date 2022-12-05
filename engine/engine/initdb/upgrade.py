@@ -735,6 +735,8 @@ class Upgrade(object):
         if version == 64:
             hypervisors = {}
             for hypervisor_pool in r.table("hypervisors_pools").run(self.conn):
+                if not hypervisor_pool.get("paths"):
+                    continue
                 if hypervisor_pool["id"] == "default":
                     storage_pool_id = DEFAULT_STORAGE_POOL_ID
                 else:
