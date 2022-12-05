@@ -80,4 +80,4 @@ app.validators = load_validators()
 """'
 Import all views
 """
-from .views import StorageView
+from .views import StorageView, check

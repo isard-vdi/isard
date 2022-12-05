@@ -303,6 +303,14 @@ LOG_LEVEL=INFO
 ## https://mail.openvswitch.org/pipermail/ovs-discuss/2018-June/046932.html
 #VPN_MTU=1600
 
+# ------ Storage host --------------------------------------------------------
+## Where can api host reach the isard-storage host?
+## Need to be set for flavours:
+##   - storage
+##   - hypervisor
+##   - hypervisor-standalone
+#STORAGE_DOMAIN=$DOMAIN
+
 # ------ Video proxy host ----------------------------------------------------
 ## Where will the client browser reach isard-video to this host?
 ## Need to be set for flavours: 
