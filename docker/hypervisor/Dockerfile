@@ -193,6 +193,7 @@ COPY --from=build /usr/sbin/mdevctl /usr/sbin/mdevctl
 
 # RUNTIME
 COPY docker/hypervisor/src /src
+COPY component/_common/src /src/_common
 COPY docker/hypervisor/kvm/hooks /etc/libvirt/hooks
 WORKDIR /src
 CMD [ "/src/start.sh"]
