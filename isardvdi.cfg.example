@@ -247,6 +247,8 @@ LOG_LEVEL=INFO
 #HYPER_ENABLED=true
 ## Hypervisor with hypervisor capabilities
 #CAPABILITIES_HYPER=true
+## Disk capabilities
+#CAPABILITIES_DISK=true
 
 # ------ Hypervisor options ---------------------------------------------------
 ## ONLY_FORCED_HYP enables only_forced option to only get domains with
