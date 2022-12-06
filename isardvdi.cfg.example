@@ -249,6 +249,8 @@ LOG_LEVEL=INFO
 #CAPABILITIES_HYPER=true
 ## Disk capabilities
 #CAPABILITIES_DISK=true
+## Comma-separated storage pool ids that can be used
+#CAPABILITIES_STORAGE_POOLS=00000000-0000-0000-0000-000000000000
 
 # ------ Hypervisor options ---------------------------------------------------
 ## ONLY_FORCED_HYP enables only_forced option to only get domains with
