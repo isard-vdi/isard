@@ -354,6 +354,10 @@
                         <div class="x_panel">
                             <p style="font-size: 16px;margin-bottom:0px;">Maximum read I/O operations per second.</p> 
                             <div class="col-xs-6 form-group">
+                                <label>read_iops_sec_max</label>
+                                <input id="iotune-read_iops_sec_max" name="iotune-read_iops_sec_max" class="form-control" value="15000" min="0" max="500000" class="roundbox" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+                            </div>
+                            <div class="col-xs-6 form-group">
                                 <label>write_iops_sec_max</label>
                                 <input id="iotune-write_iops_sec_max" name="iotune-write_iops_sec_max" class="form-control" value="25000" min="0" max="500000" class="roundbox" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
                             </div>
