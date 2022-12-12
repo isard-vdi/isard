@@ -221,11 +221,11 @@ export default {
     }
 
     const enabledClass = (template) => {
-      return template.enabled ? 'btn-grey' : 'btn-blue'
+      return template.enabled ? 'btn-blue' : 'btn-grey'
     }
 
     const toggleEnabledIcon = (template) => {
-      return template.enabled ? 'eye-slash-fill' : 'eye-fill'
+      return template.enabled ? 'eye-fill' : 'eye-slash-fill'
     }
 
     const toggleEnabled = (template) => {
