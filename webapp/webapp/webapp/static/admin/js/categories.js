@@ -49,6 +49,7 @@ $(document).ready(function() {
             { "data": "limits.templates", className: "xe-templates", defaultContent: "-"},
             { "data": "quota.isos", className: "xe-isos", defaultContent: "-"},
             { "data": "limits.isos", className: "xe-isos", defaultContent: "-"},            
+            { "data": "id", "visible": false}
         ],
         "columnDefs": [
             {
@@ -103,6 +104,8 @@ $(document).ready(function() {
             $('.categories-total-size').html('Applied  filter storage size: ' + pageTotal.toFixed(1) + ' GB ( Total storage size: ' + total.toFixed(1) + ' GB )');
         },
     } );
+
+    adminShowIdCol(categories_table)
 
     // Setup - add a text input to each footer cell
     $('#categories tfoot tr:first th').each( function () {

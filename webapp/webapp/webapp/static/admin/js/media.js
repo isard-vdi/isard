@@ -89,6 +89,7 @@ $(document).ready(function() {
             { "data": null,"width": "150px", "className": "text-center"},
             { "data": "domains", 'defaultContent': 0,"width": "80px"},
             { "data": null, 'defaultContent': ''},
+            { "data": "id", "visible": false},
         ],
         "columnDefs": [ 
 							{
@@ -147,6 +148,8 @@ $(document).ready(function() {
                                 }
                                 }}],
     } );
+
+    adminShowIdCol(table)
 
     $('#media tbody').on('click', 'td.details-control', function () {
         var tr = $(this).closest("tr");

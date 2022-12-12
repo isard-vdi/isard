@@ -43,7 +43,8 @@ columns= [
                     "data": null,
                     "orderable": false,
                     "defaultContent": '<input type="checkbox" class="form-check-input"></input>'
-                }
+                },
+                { "data": "id", "visible": false},
                 ]
 
 columnDefs = [
@@ -656,6 +657,8 @@ $(document).ready(function() {
             break;
         }
     })
+
+    adminShowIdCol(domains_table)
 
 	// DataTable buttons
     $('#domains tbody').on( 'click', 'button', function () {
