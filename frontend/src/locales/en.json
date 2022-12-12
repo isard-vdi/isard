@@ -394,11 +394,6 @@
         "cancel": "Cancel",
         "error": {
             "codes": {
-                "401": {
-                    "title": "The session has expired.",
-                    "subtitle": "In order to use the virtual desktop re-accessing the system is required.",
-                    "home": "Login again "
-                },
                 "403": {
                     "title": "Forbidden.",
                     "subtitle": "You don't have enough permission to access the content.",
