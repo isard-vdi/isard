@@ -394,11 +394,6 @@
         "cancel": "Cancelar",
         "error": {
             "codes": {
-                "401": {
-                    "title": "La sesión ha caducado.",
-                    "subtitle": "Para volver a utilizar el escritorio virtual es necesario volver a acceder al sistema.",
-                    "home": "Inicia sesión de nuevo "
-                },
                 "403": {
                     "title": "Acceso denegado.",
                     "subtitle": "No dispones de permisos suficientes para acceder a este contenido.",

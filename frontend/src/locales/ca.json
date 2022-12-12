@@ -235,11 +235,6 @@
         "cancel": "Cancel·lar",
         "error": {
             "codes": {
-                "401": {
-                    "title": "La sessió ha caducat.",
-                    "subtitle": "Per a tornar a utilitzar l'escriptori virtual és necessari tornar a accedir al sistema.",
-                    "home": "Inicia sessió de nou "
-                },
                 "403": {
                     "title": "Accés denegat.",
                     "subtitle": "No disposes de permisos suficients per accedir al contingut sol·licitat.",
