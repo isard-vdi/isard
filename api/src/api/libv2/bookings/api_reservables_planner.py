@@ -70,6 +70,24 @@ class ReservablesPlanner:
             )
         with app.app_context():
             data = list(query.run(db.conn))
+        if not len(data):
+            # Check whether the plan is bigger than the interval asked.
+            with app.app_context():
+                data = list(
+                    r.table("resource_planner")
+                    .get_all(item_id, index="item_id")
+                    .filter(
+                        lambda plan: plan["start"]
+                        < datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(
+                            pytz.UTC
+                        )
+                        and plan["end"]
+                        > datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(
+                            pytz.UTC
+                        )
+                    )
+                    .run(db.conn)
+                )
         ## An item/subitem planning should not overlap
         return data
 
