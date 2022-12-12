@@ -56,14 +56,14 @@ func New(name string, setDefaults func(), target interface{}) {
 
 	if err := viper.ReadInConfig(); err != nil {
 		if !errors.As(err, &viper.ConfigFileNotFoundError{}) {
-			log.Fatal().Err(err).Msg("read configuration")
+			log.Fatal().Str("service", name).Err(err).Msg("read configuration")
 		}
 
-		log.Warn().Msg("Configuration file not found, using environment variables and defaults")
+		log.Warn().Str("service", name).Msg("Configuration file not found, using environment variables and defaults")
 	}
 
 	if err := viper.Unmarshal(target); err != nil {
-		log.Fatal().Err(err).Msg("unmarshal configuration")
+		log.Fatal().Str("service", name).Err(err).Msg("unmarshal configuration")
 	}
 
 }
