@@ -10,7 +10,6 @@ import (
 	"gitlab.com/isard/isardvdi/orchestrator/cfg"
 	"gitlab.com/isard/isardvdi/orchestrator/model"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
-	"gitlab.com/isard/isardvdi/pkg/jwt"
 
 	"github.com/rs/zerolog"
 )
@@ -28,20 +27,18 @@ type Rata struct {
 	// If it reaches the limit, the hypervisor is put at OnlyForced, which prevents more desktops to be started in the hypervisor
 	hyperMinRAM int
 
-	apiCli    client.Interface
-	apiSecret string
+	apiCli client.Interface
 
 	log *zerolog.Logger
 }
 
-func NewRata(cfg cfg.Orchestrator, log *zerolog.Logger, apiCli client.Interface) *Rata {
+func NewRata(cfg cfg.DirectorRata, log *zerolog.Logger, apiCli client.Interface) *Rata {
 	return &Rata{
-		cfg:         cfg.DirectorRata,
-		hyperMinCPU: cfg.DirectorRata.HyperMinCPU,
-		hyperMinRAM: cfg.DirectorRata.HyperMinRAM,
+		cfg:         cfg,
+		hyperMinCPU: cfg.HyperMinCPU,
+		hyperMinRAM: cfg.HyperMinRAM,
 
-		apiSecret: cfg.APISecret,
-		apiCli:    apiCli,
+		apiCli: apiCli,
 
 		log: log,
 	}
@@ -148,14 +145,6 @@ func (r *Rata) ExtraOperations(ctx context.Context, hypers []*model.Hypervisor) 
 			r.hyperMinRAM != 0 && (h.RAM.Free <= r.hyperMinRAM)) &&
 			h.Status == client.HypervisorStatusOnline &&
 			!h.OnlyForced {
-
-			var err error
-			tkn, err := jwt.SignAPIJWT(r.apiSecret)
-			if err != nil {
-				return fmt.Errorf("sign JWT token for calling the API: %w", err)
-			}
-
-			r.apiCli.SetToken(tkn)
 
 			if err := r.apiCli.AdminHypervisorOnlyForced(ctx, h.ID, true); err != nil {
 				return fmt.Errorf("set hypervisor '%s' to only_forced: %w", h.ID, err)

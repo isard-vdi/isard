@@ -60,11 +60,9 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			log := zerolog.New(os.Stdout)
-			rata := director.NewRata(cfg.Orchestrator{
-				DirectorRata: cfg.DirectorRata{
-					MinCPU: tc.RataMinCPU,
-					MinRAM: tc.RataMinRAM,
-				},
+			rata := director.NewRata(cfg.DirectorRata{
+				MinCPU: tc.RataMinCPU,
+				MinRAM: tc.RataMinRAM,
 			}, &log, nil)
 
 			create, destroy, err := rata.NeedToScaleHypervisors(context.Background(), tc.Hypers)
@@ -110,7 +108,6 @@ func TestRataExtraOperations(t *testing.T) {
 		},
 		"if there's not enough RAM, it should set the hypervisor to only forced": {
 			PrepareAPI: func(c *apiMock.Client) {
-				c.Mock.On("SetToken", mock.AnythingOfType("string")).Return()
 				c.Mock.On("AdminHypervisorOnlyForced", mock.AnythingOfType("*context.emptyCtx"), "second", true).Return(nil)
 			},
 			Hypers: []*model.Hypervisor{{
@@ -137,11 +134,9 @@ func TestRataExtraOperations(t *testing.T) {
 
 			tc.PrepareAPI(api)
 
-			rata := director.NewRata(cfg.Orchestrator{
-				DirectorRata: cfg.DirectorRata{
-					HyperMinCPU: tc.HyperMinCPU,
-					HyperMinRAM: tc.HyperMinRAM,
-				},
+			rata := director.NewRata(cfg.DirectorRata{
+				HyperMinCPU: tc.HyperMinCPU,
+				HyperMinRAM: tc.HyperMinRAM,
 			}, &log, api)
 
 			err := rata.ExtraOperations(context.Background(), tc.Hypers)

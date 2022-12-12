@@ -8,13 +8,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog"
 	"gitlab.com/isard/isardvdi-cli/pkg/client"
-	"gitlab.com/isard/isardvdi/pkg/jwt"
 )
 
 type IsardVDIAPI struct {
-	Log    *zerolog.Logger
-	cli    *client.Client
-	secret string
+	Log *zerolog.Logger
+	cli client.Interface
 
 	descScrapeDuration               *prometheus.Desc
 	descScrapeSuccess                *prometheus.Desc
@@ -30,11 +28,10 @@ type IsardVDIAPI struct {
 	descDeploymentNumberCategory     *prometheus.Desc
 }
 
-func NewIsardVDIAPI(log *zerolog.Logger, cli *client.Client, secret string) *IsardVDIAPI {
+func NewIsardVDIAPI(log *zerolog.Logger, cli *client.Client) *IsardVDIAPI {
 	a := &IsardVDIAPI{
-		Log:    log,
-		cli:    cli,
-		secret: secret,
+		Log: log,
+		cli: cli,
 	}
 
 	a.descScrapeDuration = prometheus.NewDesc(
@@ -135,13 +132,6 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 	start := time.Now()
 
 	success := 1
-	tkn, err := jwt.SignAPIJWT(a.secret)
-	if err != nil {
-		a.Log.Info().Str("collector", a.String()).Err(err).Msg("sign client token")
-		success = 0
-	}
-
-	a.cli.Token = tkn
 
 	usr, err := a.cli.StatsUsers(context.Background())
 	if err != nil {

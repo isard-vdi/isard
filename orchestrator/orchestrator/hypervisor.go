@@ -11,7 +11,6 @@ import (
 	"gitlab.com/isard/isardvdi/orchestrator/model"
 	"gitlab.com/isard/isardvdi/pkg/db"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
-	"gitlab.com/isard/isardvdi/pkg/jwt"
 )
 
 func (o *Orchestrator) createHypervisor(ctx context.Context, req *operationsv1.CreateHypervisorRequest) {
@@ -25,14 +24,6 @@ func (o *Orchestrator) createHypervisor(ctx context.Context, req *operationsv1.C
 	defer func() {
 		o.scaling = false
 	}()
-
-	tkn, err := jwt.SignAPIJWT(o.apiSecret)
-	if err != nil {
-		o.log.Error().Err(err).Msg("sign JWT token for calling the API")
-		return
-	}
-
-	o.apiCli.SetToken(tkn)
 
 	if err := o.openBufferingHypervisor(ctx); err != nil {
 		o.log.Error().Err(err).Msg("open buffering hypervisors")
@@ -163,9 +154,9 @@ func (o *Orchestrator) bufferingHypervisorOperation(ctx context.Context, onlyFor
 	}
 
 	for _, h := range hypers {
-		if client.GetBool(h.Buffering) && !client.GetBool(h.OnlyForced) {
-			if err := o.apiCli.AdminHypervisorOnlyForced(ctx, client.GetString(h.ID), false); err != nil {
-				return fmt.Errorf("set hypervisor only forced state: %w", err)
+		if client.GetBool(h.Buffering) && client.GetBool(h.OnlyForced) != onlyForced {
+			if err := o.apiCli.AdminHypervisorOnlyForced(ctx, client.GetString(h.ID), onlyForced); err != nil {
+				return fmt.Errorf("set hypervisor only forced state '%t': %w", onlyForced, err)
 			}
 		}
 	}
@@ -174,9 +165,17 @@ func (o *Orchestrator) bufferingHypervisorOperation(ctx context.Context, onlyFor
 }
 
 func (o *Orchestrator) openBufferingHypervisor(ctx context.Context) error {
-	return o.bufferingHypervisorOperation(ctx, false)
+	if err := o.bufferingHypervisorOperation(ctx, false); err != nil {
+		return fmt.Errorf("open buffering hypervisor: %w", err)
+	}
+
+	return nil
 }
 
 func (o *Orchestrator) closeBufferingHypervisor(ctx context.Context) error {
-	return o.bufferingHypervisorOperation(ctx, true)
+	if err := o.bufferingHypervisorOperation(ctx, true); err != nil {
+		return fmt.Errorf("close buffering hypervisor: %w", err)
+	}
+
+	return nil
 }

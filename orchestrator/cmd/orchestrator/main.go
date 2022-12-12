@@ -14,6 +14,7 @@ import (
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/director"
 	"gitlab.com/isard/isardvdi/pkg/db"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
+	"gitlab.com/isard/isardvdi/pkg/jwt"
 	"gitlab.com/isard/isardvdi/pkg/log"
 	"google.golang.org/grpc"
 )
@@ -38,10 +39,21 @@ func main() {
 		log.Fatal().Err(err).Msg("create API client")
 	}
 
+	api.SetBeforeRequestHook(func(c *client.Client) error {
+		tkn, err := jwt.SignAPIJWT(cfg.Orchestrator.APISecret)
+		if err != nil {
+			return fmt.Errorf("sign JWT token for calling the API: %w", err)
+		}
+
+		c.SetToken(tkn)
+
+		return nil
+	})
+
 	var dir director.Director
 	switch cfg.Orchestrator.Director {
 	case director.DirectorTypeRata:
-		dir = director.NewRata(cfg.Orchestrator, log, api)
+		dir = director.NewRata(cfg.Orchestrator.DirectorRata, log, api)
 
 	default:
 		log.Fatal().Str("director", cfg.Orchestrator.Director).Strs("available_directors", director.Available).Msg("unknown director type!")
@@ -64,7 +76,6 @@ func main() {
 		DB:                db,
 		Director:          dir,
 		OperationsCli:     operationsCli,
-		APISecret:         cfg.Orchestrator.APISecret,
 		APICli:            api,
 	})
 	go orchestrator.Start(ctx)

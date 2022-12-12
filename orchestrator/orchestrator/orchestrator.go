@@ -24,7 +24,6 @@ type Orchestrator struct {
 
 	db            r.QueryExecutor
 	operationsCli operationsv1.OperationsServiceClient
-	apiSecret     string
 	apiCli        client.Interface
 
 	scaleMux sync.Mutex
@@ -45,8 +44,7 @@ type NewOrchestratorOpts struct {
 	Director      director.Director
 	OperationsCli operationsv1.OperationsServiceClient
 
-	APISecret string
-	APICli    client.Interface
+	APICli client.Interface
 }
 
 func New(cfg *NewOrchestratorOpts) *Orchestrator {
@@ -60,7 +58,6 @@ func New(cfg *NewOrchestratorOpts) *Orchestrator {
 
 		db:            cfg.DB,
 		operationsCli: cfg.OperationsCli,
-		apiSecret:     cfg.APISecret,
 		apiCli:        cfg.APICli,
 
 		log: &log2,
