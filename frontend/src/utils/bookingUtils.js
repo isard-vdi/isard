@@ -26,7 +26,7 @@ export class BookingUtils {
       itemId,
       itemType,
       title: item.event_type === 'event' ? title : this.getItemTitle(item.event_type),
-      subtitle: units + ' ' + i18n.t('components.bookings.item.units'),
+      subtitle: i18n.t('components.bookings.item.enough-units'),
       start: DateUtils.utcToLocalTime(start),
       end: DateUtils.utcToLocalTime(end),
       eventType,
@@ -42,9 +42,9 @@ export class BookingUtils {
     const checkMaxTime = payload.end ? this.checkMaxTime(payload.date, payload.end, priority.maxTime) : true
 
     if (!checkForbidTime) {
-      return { priorityAllowed: false, error: 'Forbid Time' }
+      return { priorityAllowed: false, error: i18n.t('components.bookings.errors.forbid') }
     } else if (!checkMaxTime) {
-      return { priorityAllowed: false, error: 'Exceeded maximum booking time' }
+      return { priorityAllowed: false, error: i18n.t('components.bookings.errors.maximum-time') }
     }
 
     return { priorityAllowed: checkForbidTime && checkMaxTime, error: '' }

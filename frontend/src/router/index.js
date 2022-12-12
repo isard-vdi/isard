@@ -1,5 +1,6 @@
 import MainLayout from '@/layouts/MainLayout.vue'
 import Booking from '@/pages/Booking'
+import BookingsSummary from '@/pages/BookingsSummary'
 import Deployment from '@/pages/Deployment.vue'
 import DeploymentNew from '@/pages/DeploymentNew.vue'
 import Deployments from '@/pages/Deployments.vue'
@@ -70,6 +71,15 @@ const router = new VueRouter({
           path: 'booking',
           name: 'booking',
           component: Booking,
+          meta: {
+            title: i18n.t('router.titles.booking'),
+            allowedRoles: ['admin', 'manager', 'advanced', 'user']
+          }
+        },
+        {
+          path: 'booking/summary',
+          name: 'bookingsummary',
+          component: BookingsSummary,
           meta: {
             title: i18n.t('router.titles.booking'),
             allowedRoles: ['admin', 'manager', 'advanced', 'user']

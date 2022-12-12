@@ -322,6 +322,7 @@
                     "unavailable": "No disponible",
                     "overridable": "Sobreescribible"
                 },
+                "enough-units": "Suficientes unidades",
                 "units": "unidades",
                 "split-labels": {
                     "availability": "Disponibilidad",
@@ -358,6 +359,13 @@
                         "button": "Eliminar"
                     }
                 }
+            },
+            "errors": {
+                "forbid": "Necesitas más antelación para crear esta reserva",
+                "maximum-time": "No puedes crear una reserva de tanta duración"
+            },
+            "summary": {
+                "title": "Todas tus reservas"
             }
         },
         "profile": {
