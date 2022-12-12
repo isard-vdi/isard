@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/bolkedebruin/rdpgw v1.0.4
-	github.com/crewjam/saml v0.4.6
+	github.com/crewjam/saml v0.4.9
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/go-ldap/ldap/v3 v3.4.1
 	github.com/golang-jwt/jwt v3.2.2+incompatible
