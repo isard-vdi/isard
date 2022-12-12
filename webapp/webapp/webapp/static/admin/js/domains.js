@@ -1274,7 +1274,7 @@ function addDomainDetailPannel ( d ) {
 }
 
 function setDomainDetailButtonsStatus(id,status,server){
-    if(status=='Started' || status=='Starting'){
+    if(status=='Started' || status=='Starting' || status == 'Shutting-down'){
         $('#actions-'+id+' *[class^="btn"]').prop('disabled', true);
         $('#actions-'+id+' .btn-jumperurl').prop('disabled', false);
     }else{
