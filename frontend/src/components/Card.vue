@@ -110,26 +110,6 @@
             v-b-tooltip="{ title: `${getCardTitle.length > MAX_TITLE_SIZE ? getCardTitle : ''}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
             class="font-weight-bold card-title ml-2 mt-2 mb-2"
           >
-            <b-iconstack
-              v-if="desktop.editable && desktop.needsBooking && !desktop.tag"
-              font-scale="1"
-              role="button"
-              :title="$t('components.desktop-cards.actions.booking')"
-              @click="onClickBookingDesktop"
-            >
-              <b-icon
-                stacked
-                icon="calendar"
-                variant="warning"
-              />
-              <b-icon
-                stacked
-                icon="exclamation-triangle-fill"
-                scale="0.5"
-                shift-v="-1"
-                variant="warning"
-              />
-            </b-iconstack>
             {{ getCardTitle | truncate(MAX_TITLE_SIZE) }}
           </div>
 
@@ -195,7 +175,16 @@
             />
             <!-- Main action button persistent-->
             <DesktopButton
-              v-if="desktop.type === 'persistent' || (desktop.type === 'nonpersistent' && desktop.state && desktopState === desktopStates.stopped )"
+              v-if="desktop.editable && desktop.needsBooking && !desktop.nextBookingStart && !canStart && !desktop.tag"
+              class="card-button"
+              :active="true"
+              button-class="btn-orange"
+              :butt-text="$t('components.desktop-cards.actions.booking')"
+              icon-name="calendar"
+              @buttonClicked="onClickBookingDesktop"
+            />
+            <DesktopButton
+              v-else-if="desktop.type === 'persistent' || (desktop.type === 'nonpersistent' && desktop.state && desktopState === desktopStates.stopped )"
               class="card-button"
               :active="canStart"
               :button-class="canStart ? buttCssColor : ''"

@@ -226,11 +226,10 @@ export default {
       'logout',
       'fetchVpn',
       'loginAdmin',
-      'goToBookingSummary',
       'navigate'
     ]),
     menuGoToBookingSummary () {
-      this.goToBookingSummary()
+      this.$store.dispatch('navigate', 'bookingsummary')
     },
     menuGoToPlanning () {
       this.$store.dispatch('navigate', 'Planning')

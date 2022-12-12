@@ -30,7 +30,10 @@
           </b-navbar-nav>
 
           <!-- Right aligned nav items-->
-          <b-navbar-nav class="ml-auto flex-row">
+          <b-navbar-nav
+            v-if="item.id"
+            class="ml-auto flex-row"
+          >
             <div class="pt-1">
               <b-button
                 :pill="true"
@@ -54,6 +57,7 @@ import { computed } from '@vue/composition-api'
 export default {
   setup (_, context) {
     const $store = context.root.$store
+    const item = computed(() => $store.getters.getBookingItem)
 
     const priority = computed(() => $store.getters.getBookingPriority)
 
@@ -65,7 +69,7 @@ export default {
       })
     }
 
-    return { createEvent, priority }
+    return { createEvent, priority, item }
   }
 }
 </script>

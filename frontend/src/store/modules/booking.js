@@ -261,7 +261,7 @@ export default {
     resetSchedulerState (context) {
       context.commit('resetSchedulerState')
     },
-    goToBookingSummary (context) {
+    fetchBookingsSummary (context) {
       const start = DateUtils.localTimeToUtc(DateUtils.pastMonday().format('YYYY-MM-DD HH:mm'))
       const end = DateUtils.localTimeToUtc(DateUtils.nextSunday().format('YYYY-MM-DD HH:mm'))
       context.dispatch('setBookingCurrentCalendarView', { type: 'week', viewType: 'summary', start: start, end: end })
@@ -270,7 +270,6 @@ export default {
         endDate: end
       }
       context.dispatch('fetchAllEvents', eventsData)
-      context.dispatch('navigate', 'booking')
     }
   }
 }
