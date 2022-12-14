@@ -7,6 +7,7 @@
 
 import json
 import time
+import uuid
 from datetime import datetime, timedelta
 
 from rethinkdb import RethinkDB
@@ -205,6 +206,9 @@ class ApiUsers:
                 .get_all(["template", user["id"]], index="kind_user")
                 .pluck("id")
                 .count(),
+                "category": r.table("categories").get(user["category"])["name"],
+                "group": r.table("groups").get(user["group"])["name"],
+                "role": r.table("roles").get(user["role"])["name"],
                 "secondary_groups_data": r.table("groups")
                 .get_all(r.args(user["secondary_groups"]))
                 .pluck("id", "name")
@@ -246,9 +250,7 @@ class ApiUsers:
     ):
         # password=False generates a random password
         with app.app_context():
-            user_id = (
-                provider + "-" + category_id + "-" + user_uid + "-" + user_username
-            )
+            user_id = str(uuid.uuid4())
             if r.table("users").get(user_id).run(db.conn) != None:
                 raise Error(
                     "conflict",
@@ -517,6 +519,11 @@ class ApiUsers:
                 .get_all(item_id, index=table)
                 .filter({"kind": "desktop"})
                 .pluck("id", "name", "kind", "user", "status", "parents")
+                .merge(
+                    lambda d: {
+                        "user_name": r.table("users").get(d["user"])["name"],
+                    }
+                )
                 .run(db.conn)
             )
             templates = list(
@@ -524,6 +531,11 @@ class ApiUsers:
                 .get_all("template", index="kind")
                 .filter({table: item_id})
                 .pluck("id", "name", "kind", "user", "status", "parents")
+                .merge(
+                    lambda d: {
+                        "user_name": r.table("users").get(d["user"])["name"],
+                    }
+                )
                 .run(db.conn)
             )
 
@@ -558,6 +570,11 @@ class ApiUsers:
                     .pluck("id", "name", "kind", "user", "status", "parents")
                     .filter(
                         lambda derivates: derivates["parents"].contains(template_id)
+                    )
+                    .merge(
+                        lambda d: {
+                            "user_name": r.table("users").get(d["user"])["name"],
+                        }
                     )
                     .run(db.conn)
                 )
@@ -671,7 +688,7 @@ class ApiUsers:
         with app.app_context():
             return list(
                 r.table("categories")
-                .pluck({"id", "name", "frontend"})
+                .pluck({"id", "name", "frontend", "custom_url_name"})
                 .filter({"frontend": True})
                 .order_by("name")
                 .run(db.conn)
@@ -1105,6 +1122,15 @@ class ApiUsers:
                     + category,
                     traceback.format_exc(),
                 )
+
+    def check_group_category(self, data):
+        with app.app_context():
+            return list(
+                r.table("groups")
+                .get_all(r.args[data["groups"]], index="id")
+                .filter({"parent_category": data["category"]})
+                .run(db.conn)
+            )
 
 
 """

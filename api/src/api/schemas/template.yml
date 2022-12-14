@@ -2,7 +2,7 @@ template_id:
   required: true
   type: string
   empty: false
-  default_setter: gendomainid
+  default_setter: genuuid
 name:
   required: true
   type: string
@@ -22,3 +22,6 @@ allowed:
   schema: allowed
 user_id:
   type: string
+id:
+  empty: false
+  default_setter: genuuid

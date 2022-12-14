@@ -1,7 +1,7 @@
 id:
   required: yes
   type: string
-  default_setter: gendomainid
+  default_setter: genuuid
 name:
   required: true
   type: string
@@ -21,6 +21,7 @@ kind:
   type: string
   allowed:
     - iso
+    - floppy
   default: iso
 xml_id:
   type: string

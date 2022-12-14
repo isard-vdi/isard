@@ -50,6 +50,14 @@ class ApiAllowed:
                 query = query.get_all(index_value, index=index_key)
             if query_filter:
                 query = query.filter(query_filter)
+            if table == "groups":
+                query = query.merge(
+                    lambda d: {
+                        "category_name": r.table("categories")
+                        .get(d["parent_category"])
+                        .default({"name": "[deleted]"})["name"],
+                    }
+                )
             return list(
                 query.filter(lambda doc: doc[field].match("(?i)" + value))
                 .pluck(pluck)
@@ -58,7 +66,22 @@ class ApiAllowed:
 
     def get_allowed(self, allowed):
         for k, v in allowed.items():
-            if v != False and len(v):
+            if k == "groups" and v != False and len(v):
+                with app.app_context():
+                    allowed[k] = list(
+                        r.table(k)
+                        .get_all(r.args(v), index="id")
+                        .merge(
+                            lambda d: {
+                                "category_name": r.table("categories")
+                                .get(d["parent_category"])
+                                .default({"name": "[deleted]"})["name"],
+                            }
+                        )
+                        .pluck("id", "name", "uid", "parent_category", "category_name")
+                        .run(db.conn)
+                    )
+            elif v != False and len(v):
                 with app.app_context():
                     allowed[k] = list(
                         r.table(k)

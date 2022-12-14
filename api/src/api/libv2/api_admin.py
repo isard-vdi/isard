@@ -28,7 +28,7 @@ from ..auth.authentication import *
 from .api_desktop_events import desktops_start, desktops_stop
 from .api_desktops_persistent import ApiDesktopsPersistent
 from .api_templates import ApiTemplates
-from .helpers import _check, _parse_string, get_user_data
+from .helpers import _check, get_user_data
 from .validators import _validate_item, _validate_table
 
 
@@ -49,7 +49,9 @@ def admin_table_list(
             lambda media: {
                 "domains": r.table("domains")
                 .get_all(media["id"], index="media_ids")
-                .count()
+                .count(),
+                "category_name": r.table("categories").get(media["category"])["name"],
+                "group_name": r.table("groups").get(media["group"])["name"],
             }
         )
 
@@ -148,11 +150,17 @@ def admin_table_list(
 
 
 def admin_table_insert(table, data):
-    if data["id"] == None:
-        data["id"] = _parse_string(data["name"])
     _validate_table(table)
-    if table == "interfaces":
-        _validate_item(table, data)
+    if table in [
+        "interfaces",
+        "graphics",
+        "videos",
+        "qos_net",
+        "qos_disk",
+        "remotevpn",
+        "bookings_priority",
+    ]:
+        data = _validate_item(table, data)
     with app.app_context():
         if r.table(table).get(data["id"]).run(db.conn) == None:
             if not _check(r.table(table).insert(data).run(db.conn), "inserted"):
@@ -264,6 +272,15 @@ def admin_table_get(table, id, pluck=None):
         )
     if pluck:
         query = query.pluck(pluck)
+    if table == "users":
+        query = query.merge(
+            lambda d: {
+                "secondary_groups_data": r.table("groups")
+                .get_all(r.args(d["secondary_groups"]))
+                .pluck("id", "name")
+                .coerce_to("array")
+            }
+        )
     with app.app_context():
         return query.run(db.conn)
 
@@ -367,7 +384,6 @@ class ApiAdmin:
                 domains = list(
                     r.table("domains")
                     .get_all("desktop", index="kind")
-                    .order_by("name")
                     .pluck(
                         "id",
                         "icon",
@@ -406,6 +422,15 @@ class ApiAdmin:
                         "os",
                         "guest_properties",
                     )
+                    .merge(
+                        lambda d: {
+                            "category_name": r.table("categories").get(d["category"])[
+                                "name"
+                            ],
+                            "group_name": r.table("groups").get(d["group"])["name"],
+                        }
+                    )
+                    .order_by("name")
                     .run(db.conn)
                 )
             return domains
@@ -460,7 +485,16 @@ class ApiAdmin:
                             .table("domains")
                             .get_all([1, template_id], index="parents")
                             .distinct()
-                            .count()
+                            .count(),
+                            "category_name": r.table("categories").get(
+                                domain["category"]
+                            )["name"],
+                            "group_name": r.table("groups").get(domain["group"])[
+                                "name"
+                            ],
+                            "group_name": r.table("groups").get(domain["group"])[
+                                "name"
+                            ],
                         }
                     )
                     .order_by("name")
@@ -520,6 +554,7 @@ class ApiAdmin:
                                 "reservables": True,
                             }
                         },
+                        "forced_hyp",
                     )
                     .merge(
                         lambda domain: {
@@ -527,7 +562,13 @@ class ApiAdmin:
                             .table("domains")
                             .get_all([1, domain["id"]], index="parents")
                             .distinct()
-                            .count()
+                            .count(),
+                            "category_name": r.table("categories").get(
+                                domain["category"]
+                            )["name"],
+                            "group_name": r.table("groups").get(domain["group"])[
+                                "name"
+                            ],
                         }
                     )
                     .order_by("name")

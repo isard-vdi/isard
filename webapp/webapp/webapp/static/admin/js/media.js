@@ -10,8 +10,8 @@ $(document).ready(function() {
     $template = $(".template-media-detail");
     $('.admin-status').show()
     modal_add_install = $('#modal_add_install').DataTable()
-	initialize_modal_all_install_events()
-	$('.btn-new').on('click', function () {
+    initialize_modal_all_install_events()
+    $('.btn-new').on('click', function () {
         if($('.quota-isos .perc').text() >=100){
             new PNotify({
                 title: "Quota for adding CD/DVD.",
@@ -31,13 +31,13 @@ $(document).ready(function() {
                     icon: 'fa fa-alert-sign',
                     opacity: 1,
                     type: 'error'
-                });                
-        }else{      
+                });
+        }else{
             $("#modalAddMediaForm")[0].reset();
-			$('#modalAddMedia').modal({
-				backdrop: 'static',
-				keyboard: false
-			}).modal('show');
+            $('#modalAddMedia').modal({
+                backdrop: 'static',
+                keyboard: false
+            }).modal('show');
             $('#modalAddMediaForm').parsley();
             $('#modalAddMediaForm #name').focus(function(){
                 if($(this).val()=='' && $('#modalAddMediaForm #url').val() !=''){
@@ -46,32 +46,32 @@ $(document).ready(function() {
             });
             setAlloweds_add('#modalAddMediaForm #alloweds-add');
         }
-	});
+    });
 
-	$('.btn-new-local').on('click', function () {
+    $('.btn-new-local').on('click', function () {
             $("#modal-add-media-form-local")[0].reset();
-			$('#modalAddMediaLocal').modal({
-				backdrop: 'static',
-				keyboard: false
-			}).modal('show');
-            
+            $('#modalAddMediaLocal').modal({
+                backdrop: 'static',
+                keyboard: false
+            }).modal('show');
+
             $('#modal-add-media-form-local').parsley();
             setAlloweds_add('#modalAddMediaLocal #upload-alloweds-add');
-	});
-    
+    });
+
     var table=$('#media').DataTable( {
         "ajax": {
-				"url": "/api/v3/admin/table/media",
+                "url": "/api/v3/admin/table/media",
                 "contentType": "application/json",
                 "type": 'POST',
-                "data": function(d){return JSON.stringify({'flatten':false})}            
+                "data": function(d){return JSON.stringify({'flatten':false})}
         },
         "sAjaxDataProp": "",
-			"language": {
-				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
-			},
-			"rowId": "id",
-			"deferRender": true,
+            "language": {
+                "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+            },
+            "rowId": "id",
+            "deferRender": true,
         "columns": [
             {
                 "className":      'details-control',
@@ -84,35 +84,35 @@ $(document).ready(function() {
             { "data": "name",},
             { "data": "status", "width": "10px"},
             { "data": null, "width": "10px"},
-            { "data": "category", "width": "10px"},
-            { "data": "group", "width": "10px"},          
+            { "data": "category_name", "width": "10px"},
+            { "data": "group_name", "width": "10px"},
             { "data": null,"width": "150px", "className": "text-center"},
             { "data": "domains", 'defaultContent': 0,"width": "80px"},
             { "data": null, 'defaultContent': ''},
             { "data": "id", "visible": false},
         ],
-        "columnDefs": [ 
-							{
-							"targets": 1,
-							"render": function ( data, type, full, meta ) {
-							  return renderIcon(full);
-							}},
-							{
-							"targets": 2,
-							"render": function ( data, type, full, meta ) {
-							  return renderName(full);
+        "columnDefs": [
+                            {
+                            "targets": 1,
+                            "render": function ( data, type, full, meta ) {
+                              return renderIcon(full);
                             }},
-							{
+                            {
+                            "targets": 2,
+                            "render": function ( data, type, full, meta ) {
+                              return renderName(full);
+                            }},
+                            {
                                 "targets": 3,
                                 "render": function ( data, type, full, meta ) {
                                   return full.status;
-                                }},                               
-							{
-							"targets": 4,
-							"render": function ( data, type, full, meta ) {
+                                }},
+                            {
+                            "targets": 4,
+                            "render": function ( data, type, full, meta ) {
                                 if(!('username' in full)){return full.user;}
-							  return full.username;
-							}},
+                              return full.username;
+                            }},
                             {
                                 "targets": 7,
                                 "render": function ( data, type, full, meta ) {
@@ -127,8 +127,8 @@ $(document).ready(function() {
                                     }
                                 }},
                             {
-							"targets": 9,
-							"render": function ( data, type, full, meta ) { 
+                            "targets": 9,
+                            "render": function ( data, type, full, meta ) {
                                     if(full.status == 'Available' || full.status == "DownloadFailed"){
                                         return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button> \
                                                 <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
@@ -144,7 +144,7 @@ $(document).ready(function() {
                                         return '<button id="btn-createfromiso" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-desktop" style="color:darkgreen"></i></button> \
                                         <button id="btn-alloweds" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button> \
                                         <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
-                                    } 
+                                    }
                                 }
                                 }}],
     } );
@@ -213,7 +213,7 @@ $(document).ready(function() {
                     $.each(domains, function(key, value) {
                         infoDomains(value, $('#table_modal_media_delete tbody'));
                     });
-                }); 
+                });
                 break;
              case 'btn-abort':
                     new PNotify({
@@ -233,12 +233,12 @@ $(document).ready(function() {
                                 },
                                 addclass: 'pnotify-center'
                             }).get().on('pnotify.confirm', function() {
-                                $.ajax({ 
+                                $.ajax({
                                     type: "POST",
                                     url:"/api/v3/media/abort/" + data['id'],
                                 });
                             }).on('pnotify.cancel', function() {
-                    });	             
+                    });
                 break;
              case 'btn-download':
                 new PNotify({
@@ -258,7 +258,7 @@ $(document).ready(function() {
                         },
                         addclass: 'pnotify-center'
                     }).get().on('pnotify.confirm', function() {
-                        $.ajax({ 
+                        $.ajax({
                             type: "POST",
                             url:"/api/v3/media/download/" + data['id'],
                         });
@@ -267,7 +267,7 @@ $(document).ready(function() {
                 break;
              case 'btn-alloweds':
                     modalAllowedsFormShow('media',data)
-                break;                
+                break;
             case 'btn-createfromiso':
                 if($('.quota-desktops .perc').text() >=100){
                     new PNotify({
@@ -305,14 +305,14 @@ $(document).ready(function() {
                         backdrop: 'static',
                         keyboard: false
                     }).modal('show');
-                    
+
                     $('#modalAddFromMedia #modalAdd').parsley();
                     modal_add_install_datatables();
                 }
-            break;		
+            break;
         };
-    });    
-    
+    });
+
     $("#modalAddMedia #send").on('click', function(e){
             var form = $('#modalAddMediaForm');
 
@@ -329,7 +329,7 @@ $(document).ready(function() {
                     opacity: 1,
                     icon: 'fa fa-spinner fa-pulse'
                 })
-                $.ajax({ 
+                $.ajax({
                     type: "POST",
                     url:"/api/v3/media",
                     data: JSON.stringify(data),
@@ -372,7 +372,7 @@ $(document).ready(function() {
                 opacity: 1,
                 icon: 'fa fa-spinner fa-pulse'
             })
-    
+
             $.ajax({
                 type: 'DELETE',
                 url: '/api/v3/media/'+media_id,
@@ -395,7 +395,7 @@ $(document).ready(function() {
                     notice.remove()
                 }
             })
-        });  
+        });
 
         if( $("#media_physical").length != 0){
             var media_physical=$('#media_physical').DataTable( {
@@ -467,7 +467,7 @@ $(document).ready(function() {
         'path': '/api/v3/socket.io/',
         'transports': ['websocket']
     });
-     
+
     socket.on('connect', function() {
         connection_done();
         console.log('Listening media namespace');
@@ -476,7 +476,7 @@ $(document).ready(function() {
     socket.on('connect_error', function(data) {
       connection_lost();
     });
-    
+
     socket.on('user_quota', function(data) {
         console.log('Quota update')
         var data = JSON.parse(data);
@@ -522,7 +522,7 @@ $(document).ready(function() {
             $("#modalAddMediaForm")[0].reset();
             $("#modalAddMedia").modal('hide');
             $("#modalAddFromMedia #modalAdd")[0].reset();
-            $("#modalAddFromMedia").modal('hide');  	    
+            $("#modalAddFromMedia").modal('hide');
         }
         new PNotify({
                 title: data.title,
@@ -552,11 +552,11 @@ $(document).ready(function() {
         });
     });
 
-    
+
  } );
 
 
-function renderProgress(data){ 
+function renderProgress(data){
             perc = data.progress.received_percent
             return data.progress.total+' - '+data.progress.speed_download_average+'/s - '+data.progress.time_left+'<div class="progress"> \
                   <div id="pbid_'+data.id+'" class="progress-bar" role="progressbar" aria-valuenow="'+perc+'" \
@@ -567,16 +567,16 @@ function renderProgress(data){
 }
 
 function renderName(data){
-		return '<div class="block_content" > \
-      			<h4 class="title" style="height: 4px; margin-top: 0px;"> \
+        return '<div class="block_content" > \
+                  <h4 class="title" style="height: 4px; margin-top: 0px;"> \
                 <a>'+data.name+'</a> \
                 </h4> \
-      			<p class="excerpt" >'+data.description+'</p> \
-           		</div>'
+                  <p class="excerpt" >'+data.description+'</p> \
+                   </div>'
 }
 
 function renderIcon(data){
-		return '<span class="xe-icon" data-pk="'+data.id+'">'+icon(data.icon)+'</span>'
+        return '<span class="xe-icon" data-pk="'+data.id+'">'+icon(data.icon)+'</span>'
 }
 
 function icon(name){
@@ -586,7 +586,7 @@ function icon(name){
            return "<i class='fa fa-"+name+" fa-2x '></i>";
         }else{
             return "<span class='fl-"+name+" fa-2x'></span>";
-		}       
+        }
 }
 
 
@@ -606,50 +606,50 @@ function initialize_modal_all_install_events(){
             $('#modalInstall #datatables-install-error-status').empty().removeClass('my-error');   //.html('Selected: '+rdata['name']+'')
             $('#modalInstall #install').val(rdata['id']);
         }
-    } );	
-        	
+    } );
+
 }
 
 function modal_add_install_datatables(){
     modal_add_install.destroy()
     $('#modalInstall #install').val('');
     $('#modalInstall #datatables-error-status').empty()
-    
+
     $('#modal_add_install thead th').each( function () {
         var title = $(this).text();
         if(title=='Name'){
             $(this).html( '<input type="text" placeholder="Search '+title+'" />' );
         }
     } );
-    
-	modal_add_install = $('#modal_add_install').DataTable({
-			"ajax": {
-				"url": "/api/v3/media/installs",
-				"dataSrc": ""
-			},
+
+    modal_add_install = $('#modal_add_install').DataTable({
+            "ajax": {
+                "url": "/api/v3/media/installs",
+                "dataSrc": ""
+            },
             "scrollY":        "125px",
             "scrollCollapse": true,
             "paging":         false,
-			"language": {
-				"loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
+            "language": {
+                "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
                 "zeroRecords":    "No matching templates found",
                 "info":           "Showing _START_ to _END_ of _TOTAL_ templates",
                 "infoEmpty":      "Showing 0 to 0 of 0 templates",
                 "infoFiltered":   "(filtered from _MAX_ total templates)"
-			},
-			"rowId": "id",
-			"deferRender": true,
-			"columns": [
-				{ "data": "name"},
+            },
+            "rowId": "id",
+            "deferRender": true,
+            "columns": [
+                { "data": "name"},
                 { "data": "vers"},
-				],
-			 "order": [[0, 'asc']],	
-             "pageLength": 10,	 
-	} );  
+                ],
+             "order": [[0, 'asc']],
+             "pageLength": 10,
+    } );
 
     modal_add_install.columns().every( function () {
         var that = this;
- 
+
         $( 'input', this.header() ).on( 'keyup change', function () {
             if ( that.search() !== this.value ) {
                 that
@@ -658,11 +658,11 @@ function modal_add_install_datatables(){
             }
         } );
     } );
-    
+
     $("#modalAddFromMedia #send").off('click').on('click', function(e){
         var form = $('#modalAddFromMedia #modalAdd');
         form.parsley().validate();
-        
+
         if (form.parsley().isValid()){
             install=$('#modalAddFromMedia #install').val();
             if (install !=''){
@@ -680,9 +680,7 @@ function modal_add_install_datatables(){
                     contentType: "application/json",
                     data: JSON.stringify(data),
                     error: function(data){
-                        $('form').each(function() { this.reset() });
-                        $('.modal').modal('hide');
-                        notice.update = new PNotify({
+                        notice.update({
                             title: "ERROR",
                             text: data.responseJSON.description,
                             type: 'error',
@@ -710,7 +708,7 @@ function modal_add_install_datatables(){
                 show_no_os_hardware_template_selected()
             }
         }
-        });    
+        });
 }
 
 function parse_media(data){

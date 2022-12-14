@@ -1,0 +1,20 @@
+id:
+  required: true
+  empty: false
+  default_setter: genuuid
+allowed:
+  type: dict
+  schema: allowed
+description:
+  type: string
+name:
+  type: string
+  required: true
+  empty: false
+bandwith:
+  type: dict
+  schema:
+    inbound:
+      type: dict
+    outbound:
+      type: dict

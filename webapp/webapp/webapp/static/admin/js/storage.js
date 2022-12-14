@@ -38,7 +38,7 @@ $(document).ready(function() {
             { "data": "domains",},
             { "data": "status_logs",}
         ],
-        "columnDefs": [ 
+        "columnDefs": [
             {
                 "targets": 4,
                 "render": function ( data, type, full, meta ) {
@@ -79,13 +79,13 @@ $(document).ready(function() {
         var tr = $(this).closest("tr");
         var row = storage_ready.row(tr);
         var rowData = row.data();
-    
+
         if (row.child.isShown()) {
           // This row is already open - close it
           row.child.hide();
           tr.removeClass("shown");
         //   storage_ready.ajax.reload();
-    
+
           // Destroy the Child Datatable
           $("#cl" + rowData.clientID)
             .DataTable()
@@ -94,7 +94,7 @@ $(document).ready(function() {
             // Open this row
             row.child(format(rowData)).show();
             var id = rowData.id;
-      
+
             childTable = $("#cl" + id).DataTable({
               dom: "t",
               ajax: {
@@ -115,7 +115,7 @@ $(document).ready(function() {
               ],
               select: false,
             });
-      
+
             tr.addClass("shown");
           }
     } );
@@ -355,7 +355,7 @@ $(document).ready(function() {
                 }
             });
             var text = "You are about to\n- Activate maintenance mode\n- Stop all desktops\n while executing "+action+" these 'To Migrate' physical disks:\n\n "+names
-        }else{ 
+        }else{
             $.each(storage_physical.rows({filter: 'applied'}).data(),function(key, value){
               if(value["tomigrate"] == true){
                 ids.push(value['path']);
@@ -481,7 +481,7 @@ function populateDiskTree(){
     table: {
       indentation: 20,      // indent 20px per node level
       nodeColumnIdx: 1,     // render the node title into the 2nd column
-    },  
+    },
     source: {
       url: "/api/v3/admin/storage/tree_list",
       cache: false

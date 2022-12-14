@@ -1,0 +1,57 @@
+capabilities:
+  schema:
+    disk_operations:
+      type: boolean
+      required: false
+    hypervisor:
+      type: boolean
+      required: false
+description:
+  type: string
+detail:
+  type: string
+enabled:
+  type: boolean
+hostname:
+  type: string
+  required: true
+isard_hyper_vpn_host:
+  type: string
+hypervisors_pools:
+  type: list
+id:
+  required: true
+  empty: false
+port:
+  type: string
+status:
+  type: string
+status_time:
+  type: boolean
+uri:
+  type: string
+user:
+  type: string
+viewer:
+  schema:
+    static:
+      type: string
+    proxy_video:
+      type: string
+    spice_ext_port:
+      type: string
+    html5_ext_port:
+      type: string
+    proxy_hyper_host:
+      type: string
+info: 
+  type: dict
+only_forced:
+  type: boolean
+nvidia_enabled:
+  type: boolean
+force_get_hyp_info:
+  type: boolean
+storage_pools:
+  type: list
+  default_setter: storagepools

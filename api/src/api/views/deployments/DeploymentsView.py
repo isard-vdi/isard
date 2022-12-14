@@ -12,7 +12,12 @@ from flask import request
 from api import app
 
 from ..._common.api_exceptions import Error
-from ..decorators import is_not_user, ownsDeploymentId
+from ..decorators import (
+    allowedTemplateId,
+    checkDuplicate,
+    is_not_user,
+    ownsDeploymentId,
+)
 
 
 @app.route("/api/v3/deployment/<deployment_id>", methods=["GET"])
@@ -40,9 +45,11 @@ def api_v3_deployments_new(payload):
             "bad_request", "Could not decode body data", description_code="bad_request"
         )
 
-    data["id"] = data["name"]
-    _validate_item("deployment", data)
-    deployment_id = api_deployments.new(
+    data = _validate_item("deployment", data)
+    allowedTemplateId(payload, data["template_id"])
+    checkDuplicate("deployments", data["name"], user=payload["user_id"])
+
+    api_deployments.new(
         payload,
         data["template_id"],
         data["name"],
@@ -50,8 +57,9 @@ def api_v3_deployments_new(payload):
         data["desktop_name"],
         data["allowed"],
         visible=data["visible"],
+        deployment_id=data["id"],
     )
-    return json.dumps({"id": deployment_id}), 200, {"Content-Type": "application/json"}
+    return json.dumps({"id": data["id"]}), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/api/v3/deployments/<deployment_id>", methods=["DELETE"])

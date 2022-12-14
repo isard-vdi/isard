@@ -1,8 +1,7 @@
 id:
   required: true
-  type: string
   empty: false
-  default_setter: genuserid
+  default_setter: genuuid
 accessed:
   type: float
 active:
@@ -53,6 +52,7 @@ uid:
   required: true
   empty: false
   type: string
+  default_setter: genuuid
 quota:
   type: 
     - dict

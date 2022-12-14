@@ -29,7 +29,12 @@ db.init_app(app)
 
 from ..libv2.api_admin import admin_table_insert
 from ..libv2.validators import _validate_item
-from .decorators import has_token, is_admin_or_manager_or_advanced, ownsMediaId
+from .decorators import (
+    checkDuplicate,
+    has_token,
+    is_admin_or_manager_or_advanced,
+    ownsMediaId,
+)
 
 
 @app.route("/api/v3/media/new/check_quota", methods=["GET"])
@@ -99,6 +104,7 @@ def api_v3_admin_media_insert(payload):
     data["accessed"] = int(time.time())
 
     data = _validate_item("media", data)
+    checkDuplicate("media", data["name"], user=payload["user_id"])
 
     urlpath = (
         data["category"]

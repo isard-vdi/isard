@@ -64,7 +64,7 @@ $(document).ready(function() {
     socket.on('connect_error', function(data) {
       connection_lost();
     });
-    
+
     socket.on('user_quota', function(data) {
         var data = JSON.parse(data);
         drawUserQuota(data);

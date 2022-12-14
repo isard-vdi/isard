@@ -1,0 +1,20 @@
+id:
+  required: true
+  type: string
+  default_setter: genuuid
+name:
+  required: true
+  type: string
+memory:
+  required: true
+  type: string
+model:
+  type: string
+description:
+  type: string
+brand:
+  type: string
+reservable_type:
+  allowed:
+    - gpus
+    - usbs

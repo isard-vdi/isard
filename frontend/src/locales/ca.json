@@ -809,6 +809,7 @@
         "quota_general_exception": "S'ha produït un error relacionat amb les quotes de usuari",
         "desktop_new_template_forbidden": "Error de permisos creant l'escriptori",
         "new_desktop_name_exists": "Ja existeix un escriptori amb el mateix nom per aquest usuari",
+        "new_template_name_exists": "Ja existeix una plantilla amb el mateix nom per aquest usuari",
         "username_exists": "Ja existeix un usuari amb el mateix nom",
         "login_failed": "L'inici de sessió ha fallat",
         "forbidden": "S'ha produït un error relacionat amb els permisos del recurs",

@@ -36,6 +36,9 @@ vpn = isardVpn()
 
 from .decorators import (
     CategoryNameGroupNameMatch,
+    checkDuplicate,
+    checkDuplicateCustomURL,
+    checkDuplicateUser,
     has_token,
     is_admin,
     is_admin_or_manager,
@@ -148,6 +151,7 @@ def api_v3_admin_user_insert(payload):
     if data["provider"] == "local":
         data["uid"] = data["username"]
     data = _validate_item("user", data)
+    checkDuplicateUser(data["uid"], data["category"], data["provider"])
 
     ownsCategoryId(payload, data["category"])
 
@@ -315,7 +319,8 @@ def api_v3_admin_edit_category(payload, category_id):
         )
 
     data = _validate_item("category", data)
-
+    checkDuplicate("categories", data["name"], item_id=data["id"])
+    checkDuplicateCustomURL(data["custom_url_name"], category_id=data["id"])
     admin_table_update("categories", data)
     return json.dumps(data), 200, {"Content-Type": "application/json"}
 
@@ -349,6 +354,7 @@ def api_v3_admin_quota_category(payload, category_id):
     if data["role"] == "all_roles":
         data["role"] = False
     ownsCategoryId(payload, category_id)
+    checkDuplicateCustomURL(data["custom_url_name"], data["id"])
     users.UpdateCategoryQuota(category_id, data["quota"], propagate, data["role"])
     return json.dumps(data), 200, {"Content-Type": "application/json"}
 
@@ -404,6 +410,9 @@ def api_v3_admin_category_insert(payload):
 
     group = _validate_item("group", group)
 
+    checkDuplicate("categories", category["name"])
+    checkDuplicateCustomURL(category["custom_url_name"])
+
     admin_table_insert("categories", category)
     admin_table_insert("groups", group)
     return (
@@ -429,12 +438,14 @@ def api_v3_admin_group_insert(payload):
     if payload["role_id"] == "manager":
         data["parent_category"] = payload["category_id"]
 
-    data["description"] = "[" + data["parent_category"] + "] " + data["description"]
+    category_name = users.CategoryGet(data["parent_category"])["name"]
+    data["description"] = "[" + category_name + "] " + data["description"]
 
     ownsCategoryId(payload, data["parent_category"])
     itemExists("categories", data["parent_category"])
 
     data = _validate_item("group", data)
+    checkDuplicate("groups", data["name"], category=data["parent_category"])
 
     admin_table_insert("groups", data)
 
@@ -517,9 +528,15 @@ def api_v3_admin_delete_check(payload):
 
     data = request.get_json()
 
+    if data["table"] == "category":
+        ownsCategoryId(payload, data["id"])
+    elif data["table"] == "groups":
+        ownsCategoryId(payload, users.GroupGet(data["id"])["parent_category"])
+    elif data["table"] == "users":
+        ownsUserId(payload, data["id"])
+
     desktops = []
     for desktop in users._delete_checks(data["id"], data["table"]):
-        ownsDomainId(payload, desktop["id"])
         desktops.append(desktop)
 
     return (
@@ -588,7 +605,6 @@ def admin_userschema(payload):
         without=False,
     )
     if payload["role_id"] == "admin":
-
         dict["category"] = admin_table_list(
             "categories",
             pluck=["id", "name", "description"],
@@ -604,10 +620,6 @@ def admin_userschema(payload):
             without=False,
             merge=False,
         )
-        for g in dict["group"]:
-            if "parent_category" in g.keys():
-                category_name = users.CategoryGet(g["parent_category"])["name"]
-                g["name"] = "[" + category_name + "] " + g["name"]
 
     elif payload["role_id"] == "manager":
         dict["role"] = [
@@ -631,6 +643,7 @@ def admin_userschema(payload):
             index="parent_category",
             merge=False,
         )
+
     return json.dumps(dict), 200, {"Content-Type": "application/json"}
 
 
@@ -677,6 +690,22 @@ def admin_users_validate(payload):
             user_list[i]["exists"] = False
 
     return json.dumps(user_list), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/admin/check/group/category", methods=["POST"])
+@is_admin_or_manager
+def check_group_category(payload):
+
+    data = request.get_json()
+    enabled = []
+
+    users.check_group_category(data)
+
+    return (
+        json.dumps(enabled),
+        200,
+        {"Content-Type": "application/json"},
+    )
 
 
 @app.route("/api/v3/admin/users/check/by/provider", methods=["POST"])

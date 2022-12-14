@@ -2,7 +2,7 @@ id:
   required: true
   type: string
   empty: false
-  default_setter: gengroupid
+  default_setter: genuuid
 name:
   required: true
   empty: false
@@ -21,7 +21,7 @@ uid:
   required: true
   empty: false
   type: string
-  default_setter: genidlower
+  default_setter: genuuid
 external_app_id:
   required: false
   type: string

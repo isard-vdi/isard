@@ -57,3 +57,5 @@ quota:
     - boolean
   default: false
   schema: quotas
+custom_url_name:
+  type: string  

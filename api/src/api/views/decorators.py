@@ -4,6 +4,7 @@
 # License: AGPLv3
 
 import json
+import logging as log
 from functools import wraps
 
 from flask import request
@@ -395,3 +396,129 @@ def itemExists(item_table, item_id):
             item_table + " not found id: " + item_id,
             traceback.format_exc(),
         )
+
+
+def userNotExists(uid, category_id, provider="local"):
+    if list(
+        r.table("users")
+        .get_all([uid, category_id, provider], index="uid_category_provider")
+        .run(db.conn)
+    ):
+        raise Error(
+            "bad_request",
+            "UID " + uid + " already exists in category_id " + category_id,
+            traceback.format_exc(),
+        )
+
+
+def checkDuplicate(item_table, item_name, category=False, user=False, item_id=None):
+
+    query = (
+        r.table(item_table)
+        .get_all(item_name, index="name")
+        .filter(lambda item: (item["id"] != item_id))
+    )
+
+    ## check duplicate in the same category
+    if category:
+        if item_table == "groups":
+            query = query.filter({"parent_category": category})
+
+        else:
+            query = query.filter({"category": category})
+
+    ## check duplicate in the same user
+    elif user:
+        query = query.filter({"user": user})
+
+    item = list(query.run(db.conn))
+
+    if item:
+        raise Error(
+            "conflict",
+            "Item with this name: " + item_name + " already exists in " + item_table,
+            traceback.format_exc(),
+            description_code="duplicated_name",
+        )
+
+
+def checkDuplicateUser(item_uid, category, provider):
+    query = r.table("users").get_all(
+        [item_uid, category, provider], index="uid_category_provider"
+    )
+
+    item = list(query.run(db.conn))
+
+    if item:
+        raise Error(
+            "conflict",
+            "User with this username: "
+            + item_uid
+            + " already exists in this category.",
+            traceback.format_exc(),
+        )
+
+
+def checkDuplicateCustomURL(custom_url, category_id=None):
+    query = (
+        r.table("categories")
+        .get_all(custom_url, index="custom_url_name")
+        .filter(lambda item: (item["id"] != category_id))
+    )
+
+    if len(list(query.run(db.conn))) > 0:
+        raise Error(
+            "conflict", "Custom URL name already exists", traceback.format_exc()
+        )
+
+
+def allowedTemplateId(payload, template_id):
+    with app.app_context():
+        template = (
+            r.table("domains")
+            .get(template_id)
+            .pluck("user", "allowed", "category")
+            .default(None)
+            .run(db.conn)
+        )
+    if not template:
+        raise Error(
+            "not_found",
+            "Not found template_id " + str(template_id),
+            traceback.format_exc(),
+        )
+    if payload["user_id"] == template["user"]:
+        return True
+    alloweds = template["allowed"]
+    if payload["role_id"] == "admin":
+        return True
+    if (
+        payload["role_id"] == "manager"
+        and payload["category_id"] == template["category"]
+    ):
+        return True
+    if alloweds["roles"] != False:
+        if alloweds["roles"] == []:
+            return True
+        if payload["role_id"] in alloweds["roles"]:
+            return True
+    if alloweds["categories"] != False:
+        if alloweds["categories"] == []:
+            return True
+        if payload["category_id"] in alloweds["categories"]:
+            return True
+    if alloweds["groups"] != False:
+        if alloweds["groups"] == []:
+            return True
+        if payload["group_id"] in alloweds["groups"]:
+            return True
+    if alloweds["users"] != False:
+        if alloweds["users"] == []:
+            return True
+        if payload["user_id"] in alloweds["users"]:
+            return True
+    raise Error(
+        "forbidden",
+        "Not enough access rights for this template_id " + str(template_id),
+        traceback.format_exc(),
+    )

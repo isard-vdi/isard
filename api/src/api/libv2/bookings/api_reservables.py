@@ -21,6 +21,7 @@ import traceback
 
 from ..._common.api_exceptions import Error
 from ..helpers import _check, _parse_string
+from ..validators import _validate_item, _validate_table
 
 
 class Reservables:
@@ -106,13 +107,14 @@ class ResourceItemsGpus:
             "description": data["description"]
             if data["description"]
             else gpu_profile["description"],
-            "id": _parse_string(data["name"]),
             "memory": gpu_profile["memory"],
             "model": gpu_profile["model"],
             "name": data["name"],
             "profiles_enabled": [],
             "physical_device": None,
         }
+        _validate_item("gpus", new_gpu)
+
         if not _check(
             r.table("gpus").insert(new_gpu, conflict="update").run(db.conn), "inserted"
         ):

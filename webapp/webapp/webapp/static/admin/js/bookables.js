@@ -98,7 +98,7 @@ $(document).ready(function () {
                   "<option value=" + rule.rule_id + ">" + rule.rule_id + "</option>"
                 );
               })
-              $('#priority option[value="' + data.priority_id + '"]').prop("selected",true);  
+              $('#priority option[value="' + data.priority_id + '"]').prop("selected",true);
             },
           });
           break;

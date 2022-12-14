@@ -768,7 +768,7 @@
                 "title": "There are no disks from this user",
                 "subtitle": "If you think this is an error, please contact the administrator"
             },
-            "table-header" : {
+            "table-header": {
                 "domains": "Desktops/templates",
                 "quantity-domains": "№ desktops/templates",
                 "actual-size": "Size",
@@ -870,6 +870,7 @@
         "quota_general_exception": "An error related to user quotas occured",
         "desktop_new_template_forbidden": "Permission error during creation of the desktop",
         "new_desktop_name_exists": "A desktop with the same name already exists for this user",
+        "new_template_name_exists": "A template with the same name already exists for this user",
         "username_exists": "A user with the same username already exists",
         "login_failed": "Login failed",
         "forbidden": "An error occurred related to resource permissions",
@@ -931,12 +932,14 @@
         "desktop_is_not_visible": "Desktop is not visible to this user now.",
         "invalid_start_date": "Invalid start date",
         "invalid_end_date": "Invalid end date",
-        "incorrect_new_plan_body_data": " Incorrect new plan body data",
         "deployment_desktop_new_group_limit_exceeded": "Group '{group}' desktop creation limit has been exceeded",
         "deployment_desktop_new_category_limit_exceeded": "Category '{category}' desktop creation limit has been exceeded",
         "deployment_delete_stop": "To delete a deployment its desktops must be stopped",
         "desktop_not_booked": "The desktop needs a booking to be started",
-        "desktop_not_booked_until": "The desktop can't be started until its next booking: {start}"
+        "desktop_not_booked_until": "The desktop can't be started until its next booking: {start}",
+        "incorrect_new_plan_body_data": " Incorrect new plan body data",
+        "duplicated_name": "Duplicated name",
+        "user_disabled": "The user is disabled"
     },
     "router": {
         "titles": {

@@ -4,6 +4,7 @@
 # License: AGPLv3
 
 import os
+import uuid
 from base64 import b64encode
 from secrets import token_bytes
 
@@ -12,44 +13,16 @@ from cerberus import Validator, schema_registry
 
 from api import app
 
+from .._common.storage_pool import DEFAULT_STORAGE_POOL_ID
 from .helpers import _parse_string
 
 
 class IsardValidator(Validator):
-    def _normalize_default_setter_genid(self, document):
-        return _parse_string(document["name"])
+    def _normalize_default_setter_storagepools(self):
+        return DEFAULT_STORAGE_POOL_ID
 
-    def _normalize_default_setter_genidlower(self, document):
-        return _parse_string(document["name"]).lower()
-
-    def _normalize_default_setter_gengroupid(self, document):
-        return _parse_string(
-            document["parent_category"] + "-" + document["uid"]
-        ).lower()
-
-    def _normalize_default_setter_gendomainid(self, document):
-        return _parse_string(
-            "_" + document["user_id"] + "-" + _parse_string(document["name"])
-        )
-
-    def _normalize_default_setter_genmediaid(self, document):
-        return _parse_string("_" + document["user"] + "-" + document["name"]).replace(
-            ".", "_"
-        )
-
-    def _normalize_default_setter_genuserid(self, document):
-        return _parse_string(
-            document["provider"]
-            + "-"
-            + document["category"]
-            + "-"
-            + document["uid"]
-            + "-"
-            + document["username"]
-        )
-
-    def _normalize_default_setter_gendeploymentid(self, document):
-        return _parse_string(document["uid"] + "=" + document["name"])
+    def _normalize_default_setter_genuuid(self, document):
+        return str(uuid.uuid4())
 
     def _normalize_default_setter_mediaicon(self, document):
         if document["kind"] == "iso":
