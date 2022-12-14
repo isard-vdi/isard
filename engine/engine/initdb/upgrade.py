@@ -17,8 +17,9 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 66
+release_version = 67
 
+# release 67: Updated qos_disk adding field read_iops_sec_max
 # release 66: Added secondary indexes for uuids
 # release 65: Updated users quotas removing fields isos_disk_size and templates_disk_size.
 #             Updated users quotas adding fields total_size and total_soft_size.
@@ -2050,6 +2051,29 @@ class Upgrade(object):
                 print(e)
 
         return True
+
+    """
+    QOS DISK TABLE UPGRADES
+    """
+
+    def qos_disk(self, version):
+        table = "qos_disk"
+        log.info("UPGRADING " + table + " VERSION " + str(version))
+        if version == 66:
+            try:
+                qos_disks = list(r.table(table).run(self.conn))
+
+                for qos_disk in qos_disks:
+                    ##### NEW FIELDS
+                    self.add_keys(
+                        table,
+                        [
+                            {"iotune": {"read_iops_sec_max": 0}},
+                        ],
+                        qos_disk["id"],
+                    )
+            except Exception as e:
+                print(e)
 
     """
     STORAGE TABLE UPGRADES

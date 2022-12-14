@@ -275,9 +275,13 @@ $(document).ready(function () {
                     $('#modalQosNetForm #name').val(qos.name);
                     $('#modalQosNetForm #id').val(qos.id);
                     $('#modalQosNetForm #description').val(qos.description);
-                    qos = removeQosAd(qos)
-                    $.each(qos, function (key, value) {
-                        $('#modalQosNetForm #qos-' + key).val(value)
+                    qos['bandwidth']['inbound'] = removeQosAd(data.bandwidth.inbound)
+                    qos['bandwidth']['outbound'] = removeQosAd(data.bandwidth.outbound)
+                    $.each(qos.bandwidth.inbound, function (key, value) {
+                        $('#modalQosNetForm #qos-bandwidth-inbound-' + key).val(value)
+                    });
+                    $.each(qos.bandwidth.outbound, function (key, value) {
+                        $('#modalQosNetForm #qos-bandwidth-outbound-' + key).val(value)
                     });
                 });
                 break;
@@ -296,13 +300,11 @@ $(document).ready(function () {
     });
 
     $("#modalQosNet #send").on('click', function (e) {
-        console.log('send net')
         var form = $('#modalQosNetForm');
         data = form.serializeObject()
         form.parsley().validate();
         if (form.parsley().isValid()) {
 
-            data['table'] = 'qos_net'
             data = QosNetParse(data)
             if (data['id'] == "") {
                 //Insert
@@ -443,9 +445,8 @@ $(document).ready(function () {
                     $('#modalQosDiskForm #name').val(qos.name);
                     $('#modalQosDiskForm #id').val(qos.id);
                     $('#modalQosDiskForm #description').val(qos.description);
-                    qos = removeQosAd(qos)
-                    $.each(qos, function (key, value) {
-                        $('#modalQosDiskForm #' + key).val(value)
+                    $.each(data.iotune, function (key, value) {
+                        $('#modalQosDiskForm #iotune-' + key).val(value)
                     });
                 });
                 break;
@@ -471,7 +472,6 @@ $(document).ready(function () {
         if (form.parsley().isValid()) {
             data['allowed'] = { 'roles': false, 'categories': false, 'groups': false, 'users': false }
             data = QosDiskParse(data)
-            data['table'] = 'qos_disk'
             if (data['id'] == "") {
                 //Insert
                 data['id'] = data['name'];
@@ -1110,9 +1110,8 @@ function QosDiskParse(data) {
     data['iotune'] = {}
     $.each(data, function (key, value) {
         if (key.startsWith('iotune-')) {
-            data['iotune']['@' + key.split('-')[1]] = parseInt(value) || 0
+            data['iotune'][key.split('-')[1]] = parseInt(value) || 0
             delete data[key];
-            //console.log('Key: '+key+'   - Parsed key: '+'@'+key.split('-')[1])
         }
     });
     return data;
