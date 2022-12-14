@@ -17,8 +17,9 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 67
+release_version = 68
 
+# release 68: Removed table field from interfaces, videos, remotevpn, qos_disk and qos_net.
 # release 67: Updated qos_disk adding field read_iops_sec_max
 # release 66: Added secondary indexes for uuids
 # release 65: Updated users quotas removing fields isos_disk_size and templates_disk_size.
@@ -1629,6 +1630,20 @@ class Upgrade(object):
             except Exception as e:
                 print(e)
 
+        if version == 68:
+            try:
+                videos = list(r.table(table).run(self.conn))
+
+                for video in videos:
+                    ##### REMOVE FIELDS
+                    self.del_keys(
+                        table,
+                        ["table"],
+                        video["id"],
+                    )
+            except Exception as e:
+                print(e)
+
         return True
 
     """
@@ -2050,6 +2065,20 @@ class Upgrade(object):
             except Exception as e:
                 print(e)
 
+        if version == 68:
+            try:
+                interfaces = list(r.table(table).run(self.conn))
+
+                for interface in interfaces:
+                    ##### REMOVE FIELDS
+                    self.del_keys(
+                        table,
+                        ["table"],
+                        interface["id"],
+                    )
+            except Exception as e:
+                print(e)
+
         return True
 
     """
@@ -2071,6 +2100,41 @@ class Upgrade(object):
                             {"iotune": {"read_iops_sec_max": 0}},
                         ],
                         qos_disk["id"],
+                    )
+            except Exception as e:
+                print(e)
+
+        if version == 68:
+            try:
+                qos_disks = list(r.table(table).run(self.conn))
+
+                for qos_disk in qos_disks:
+                    ##### NEW FIELDS
+                    self.del_keys(
+                        table,
+                        ["table"],
+                        qos_disk["id"],
+                    )
+            except Exception as e:
+                print(e)
+
+    """
+    QOS NET TABLE UPGRADES
+    """
+
+    def qos_net(self, version):
+        table = "qos_net"
+        log.info("UPGRADING " + table + " VERSION " + str(version))
+        if version == 68:
+            try:
+                qos_nets = list(r.table(table).run(self.conn))
+
+                for qos_net in qos_nets:
+                    ##### REMOVE FIELDS
+                    self.del_keys(
+                        table,
+                        ["table"],
+                        qos_net["id"],
                     )
             except Exception as e:
                 print(e)
@@ -2161,6 +2225,20 @@ class Upgrade(object):
         if version == 66:
             try:
                 r.table(table).index_create("name").run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 68:
+            try:
+                remotevpns = list(r.table(table).run(self.conn))
+
+                for remotevpn in remotevpns:
+                    ##### REMOVE FIELDS
+                    self.del_keys(
+                        table,
+                        ["table"],
+                        remotevpn["id"],
+                    )
             except Exception as e:
                 print(e)
 
