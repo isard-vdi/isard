@@ -567,7 +567,7 @@ $(document).ready(function() {
                             {
                                 "targets": 15,
                                 "render": function ( data, type, full, meta ) {
-                                    return (full.domains_size && full.media_size) ? (full.domains_size + full.media_size).toFixed(1) : 0.0;
+                                    return ((full.domains_size ? full.domains_size : 0) + (full.media_size ? full.media_size : 0)).toFixed(1);
                                 }
                             },
                             {
