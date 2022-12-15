@@ -113,6 +113,7 @@ class Populate(object):
             "reservables_vgpus",
             "vgpus",
             "storage",
+            "storage_node",
             "storage_physical_domains",
             "storage_physical_media",
             "storage_pool",
@@ -1182,6 +1183,9 @@ class Populate(object):
 
     def storage(self):
         self.create_table("storage")
+
+    def storage_node(self):
+        self.create_table("storage_node")
 
     def storage_physical_domains(self):
         self.create_table("storage_physical_domains")
