@@ -245,6 +245,8 @@ LOG_LEVEL=INFO
 #HYPER_ID=isard-hypervisor
 ## Hypervisor can be disabled when entering system with false value
 #HYPER_ENABLED=true
+## Hypervisor with hypervisor capabilities
+#CAPABILITIES_HYPER=true
 
 # ------ Hypervisor options ---------------------------------------------------
 ## ONLY_FORCED_HYP enables only_forced option to only get domains with

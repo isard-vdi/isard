@@ -2,6 +2,7 @@ import json
 import os
 import sys
 import traceback
+from distutils.util import strtobool
 from pprint import pprint
 from time import sleep
 
@@ -41,7 +42,7 @@ def SetupHypervisor():
         "hostname": hostname,
         "port": "2022",
         "cap_disk": True,
-        "cap_hyper": True,
+        "cap_hyper": strtobool(os.environ.get("CAPABILITIES_HYPER", "true")),
         "enabled": False,
         "description": "Added through api",
         "browser_port": os.environ["VIEWER_BROWSER"]
