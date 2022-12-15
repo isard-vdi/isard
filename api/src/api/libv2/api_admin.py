@@ -582,6 +582,38 @@ class ApiAdmin:
                 traceback.format_exc(),
             )
 
+    def get_domain_storage(self, domain_id):
+        with app.app_context():
+            desktop_disks = (
+                r.table("domains")
+                .get(domain_id)
+                .pluck({"create_dict": "hardware"})["create_dict"]["hardware"]["disks"]
+                .run(db.conn)
+            )
+
+            storage_ids = []
+            for storage in desktop_disks:
+                if storage.get("storage_id"):
+                    storage_ids.append(storage.get("storage_id"))
+            desktop_storage = list(
+                r.table("storage")
+                .get_all(r.args(storage_ids))
+                .merge(
+                    lambda storage: {
+                        "actual_size": storage["qemu-img-info"]["actual-size"].default(
+                            0
+                        )
+                        / 1073741824,
+                        "virtual_size": storage["qemu-img-info"][
+                            "virtual-size"
+                        ].default(0)
+                        / 1073741824,
+                    }
+                )
+                .run(db.conn)
+            )
+        return desktop_storage
+
     def GetTemplateTreeList(self, template_id, user_id):
         levels = {}
         derivated = self.TemplateTreeList(template_id, user_id)

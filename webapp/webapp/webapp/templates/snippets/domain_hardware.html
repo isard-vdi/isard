@@ -1,48 +1,72 @@
-    <div class="x_panel">
-      <div class="x_title">
-        <h3>Hardware <small></small></h3>
-        <div class="clearfix"></div>
-      </div>
-      <div class="x_content">
-        <table id="hyper-pools-paths-d.id" class="table">
-          <thead>
-            <tr>
-            <th>Device</th>
-            <th>Detail</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-                <td>Processor</td>
-                <td><strong id="vcpu" ></strong></td>
-            </tr>
-            <tr>
-                <td>Memory</td>
-                <td><strong id="ram" ></strong></td>
-            </tr>
-            <tr>
-                <td>GPU</td>
-                <td><strong id="gpu" ></strong></td>
-            </tr>
-            <tr>
-                <td>Video</td>
-                <td><strong id="video" ></strong></td>
-            </tr>
-            <tr>
-                <td>Networks</td>
-                <td><strong id="net" ></strong></td>
-            </tr>
-            <tr>
-                <td>Boot</td>
-                <td><strong id="boot" ></strong></td>
-            </tr>
-            <tr>
-                <td>Forced Hypervisor</td>
-                <td><strong id="forced_hyp" ></strong></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-    
-    <script src="/isard-admin/static/js/snippets/domain_hardware.js"></script>  
+<div class="x_panel">
+  <div class="x_title">
+    <h3>Hardware</h3>
+    <div class="clearfix"></div>
+  </div>
+  <div class="x_content">
+    <table id="hardware-d.id" class="table">
+      <thead>
+        <tr>
+          <th>Device</th>
+          <th>Detail</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Processor</td>
+          <td><strong id="vcpu"></strong></td>
+        </tr>
+        <tr>
+          <td>Memory</td>
+          <td><strong id="ram"></strong></td>
+        </tr>
+        <tr>
+          <td>GPU</td>
+          <td><strong id="gpu"></strong></td>
+        </tr>
+        <tr>
+          <td>Video</td>
+          <td><strong id="video"></strong></td>
+        </tr>
+        <tr>
+          <td>Networks</td>
+          <td><strong id="net"></strong></td>
+        </tr>
+        <tr>
+          <td>Boot</td>
+          <td><strong id="boot"></strong></td>
+        </tr>
+        <tr>
+          <td>Forced Hypervisor</td>
+          <td><strong id="forced_hyp"></strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="x_title">
+    <h3>Storage</h3>
+    <div class="clearfix"></div>
+  </div>
+  <div class="x_content">
+    <table id="table-storage-d.id" class="table">
+      <thead>
+        <tr>
+          <th>Id</th>
+          <th>Actual Size (GB)</th>
+          <th>Virtual Size (GB)</th>
+        </tr>
+      </thead>
+      <tbody>
+      </tbody>
+      <tfoot>
+        <tr>
+          <th>Id</th>
+          <th>Actual Size (GB)</th>
+          <th>Virtual Size (GB)</th>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+<script src="/isard-admin/static/js/snippets/domain_hardware.js"></script>

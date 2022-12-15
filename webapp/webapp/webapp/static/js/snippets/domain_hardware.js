@@ -251,6 +251,7 @@ function populate_tree_template(id){
 }
 
 function setHardwareDomainDefaults_viewer(div_id,data){
+    div_id = div_id.replaceAll('.', '\\.')
     data['hardware']=data['create_dict']['hardware']
     $(div_id+" #vcpu").html(data.hardware.vcpus+' CPU(s)');
     $(div_id+" #ram").html((data.hardware.memory/1048576).toFixed(2)+'GB');
@@ -273,4 +274,46 @@ function setHardwareDomainDefaults_viewer(div_id,data){
     if (data.kind == 'desktop') {
         populate_tree_template(data.create_dict.origin ? data.create_dict.origin : data.id);
     }
+}
+
+function setDomainStorage(domain_id) {
+    storage_table = $("#table-storage-" + domain_id.replaceAll('.', '\\.')).DataTable({
+        "ajax": {
+            "url": "/api/v3/admin/domain/storage/" + domain_id,
+            "contentType": "application/json",
+            "type": 'GET'
+        },
+        "sAjaxDataProp": "",
+        "language": {
+            "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+        },
+        "rowId": "id",
+        "deferRender": true,
+        "columns": [
+            { "data": "id" },
+            { 'data': 'actual_size' },
+            { 'data': 'virtual_size' }
+        ],
+        "columnDefs": [
+            {
+                "targets": 0,
+                "render": function ( data, type, full, meta ) {
+                    return '<a href="/isard-admin/admin/domains/render/Storage?searchStorageId='+ full.id +'">'+ full.id +'</a>'
+                }
+            },
+            {
+                "targets": 1,
+                "render": function (data, type, full, meta) {
+                    return full.actual_size.toFixed(1)
+                }
+            },
+            {
+                "targets": 2,
+                "render": function (data, type, full, meta) {
+                    return full.virtual_size.toFixed(1)
+                }
+            }
+        ],
+        "order": [[1, 'desc']]
+    })
 }

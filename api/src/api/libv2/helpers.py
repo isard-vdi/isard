@@ -305,7 +305,7 @@ def _parse_desktop(desktop):
         except:
             log.debug(traceback.format_exc())
             editable = False
-    # TODO: Sum all the desktop storages instead of getting only the first one
+    # TODO: Sum all the desktop storages instead of getting only the first one, call get_domain_storage function to retrieve them
     desktop_size = 0
     if desktop.get("type") == "persistent" and desktop["create_dict"]["hardware"].get(
         "disks", [{}]
