@@ -199,6 +199,20 @@ def admin_hypervisors():
     )
 
 
+@app.route("/isard-admin/admin/storage_nodes", methods=["GET"])
+@login_required
+@isAdmin
+def storage_nodes():
+    """
+    Storage Nodes
+    """
+    return render_template(
+        "admin/pages/storage_nodes.html",
+        title="Storage Nodes",
+        nav="Storage Nodes",
+    )
+
+
 """
 UPDATES
 """
