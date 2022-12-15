@@ -228,9 +228,7 @@ def ownsCategoryId(payload, category_id):
 def CategoryNameGroupNameMatch(category_name, group_name):
     with app.app_context():
         category = list(
-            r.table("categories")
-            .filter(lambda category: category["name"].match("(?i)" + category_name))
-            .run(db.conn)
+            r.table("categories").filter({"name": category_name.strip()}).run(db.conn)
         )
     if not len(category):
         raise Error(
@@ -243,7 +241,7 @@ def CategoryNameGroupNameMatch(category_name, group_name):
         group = list(
             r.table("groups")
             .get_all(category[0]["id"], index="parent_category")
-            .filter(lambda group: group["name"].match("(?i)" + group_name))
+            .filter({"name": group_name.strip()})
             .run(db.conn)
         )
 

@@ -471,3 +471,10 @@ function waitDefined (name, callback) {
         callback()
     }, 100)
 }
+
+function getUrlParam(paramName){
+    let searchParam = window.location.href.slice(window.location.href.indexOf('?') + 1).split(paramName + "=")
+    if (searchParam.length > 1) {
+        return searchParam[1].replaceAll("%20", " ");;
+    }
+}    

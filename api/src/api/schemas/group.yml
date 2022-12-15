@@ -64,6 +64,16 @@ quota:
     - boolean
   default: false
   schema: quotas
+auto:
+  type:
+    - dict
+    - boolean
+  default: false
+  schema:
+    desktops:
+      required: true
+      type: list
+      minlength: 1
 ephimeral:
   type: dict
   schema:

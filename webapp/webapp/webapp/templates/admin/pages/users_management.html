@@ -1,0 +1,262 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="row">
+  <div class="col-md-12 col-sm-12 col-xs-12">
+     <div class="x_panel">
+        <div class="page-title">
+           <div class="title_left">
+              <h3><i class="fa fa-book"></i> Management <small>Add, edit and remove users</small></h3>
+           </div>
+           <div class="clearfix"></div>
+        </div>
+     </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-12 col-sm-12 col-xs-12">
+    <div class="x_panel">
+      <div class="x_title">
+        <h3><i class="fa fa-user"></i> Users <small></small></h3>
+        <ul class="nav navbar-right panel_toolbox">
+          <li><a class="btn-bulkdelete"><span style="color: #5499c7; "><i class="fa fa-trash"></i> Delete</span></a>
+          </li>
+          <li><a class="btn-new-bulkusers"><span style="color: #5499c7; "><i class="fa fa-users"></i> Bulk
+                create</span></a>
+          </li>
+          <li><a class="btn-new-user"><span style="color: #5499c7; "><i class="fa fa-user"></i> Add new</span></a>
+          </li>
+          <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+          </li>
+          <li><a class="close-link"><i class="fa fa-close"></i></a>
+          </li>
+        </ul>
+        <div class="clearfix"></div>
+      </div>
+      <div class="x_content">
+        <table id="users" class="table">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Active</th>
+              <th>Name</th>
+              <th>Provider</th>
+              <th>Category</th>
+              <th>Uid</th>
+              <th>Username</th>
+              <th>Role</th>
+              <th>Group</th>
+              <th>Secondary groups</th>
+              <th>Vpn</th>
+              <th>Last access</th>
+              <th>Select</th>
+              <th>Id</th>
+            </tr>
+          </thead>
+          <tbody>
+          </tbody>
+          <tfoot>
+            <tr>
+              <th></th>
+              <th>Active</th>
+              <th>Name</th>
+              <th>Provider</th>
+              <th>Category</th>
+              <th>Uid</th>
+              <th>Username</th>
+              <th>Role</th>
+              <th>Group</th>
+              <th>Secondary groups</th>
+              <th>Vpn</th>
+              <th>Last access</th>
+              <th>Select</th>
+              <th>Id</th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-12 col-sm-12 col-xs-12">
+    <div class="x_panel">
+      <div class="x_title">
+        <h3><i class="fa fa-leaf"></i> Categories <small></small></h3>
+        <ul class="nav navbar-right panel_toolbox">
+          {% if current_user.role != 'manager' %}
+          <li><a class="btn-new-category"><span style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a>
+          </li>
+          {% endif %}
+          <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+          </li>
+          <li><a class="close-link"><i class="fa fa-close"></i></a>
+          </li>
+        </ul>
+        <div class="clearfix"></div>
+      </div>
+      <div class="x_content">
+        <table id="categories" class="table">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Name</th>
+              <th>Description</th>
+              <th>Frontend dropdown show</th>
+              <th>Allowed domain</th>
+              <th>Ephemeral desktops</th>
+              <th>Id</th>
+            </tr>
+          </thead>
+          <tbody>
+          </tbody>
+          <tfoot>
+            <tr>
+              <th></th>
+              <th>Name</th>
+              <th>Description</th>
+              <th>Frontend dropdown show</th>
+              <th>Allowed domain</th>
+              <th>Ephemeral desktops</th>
+              <th>Id</th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-12 col-sm-12 col-xs-12">
+    <div class="x_panel">
+      <div class="x_title">
+        <h3><i class="fa fa-group"></i> Groups <small></small></h3>
+        <ul class="nav navbar-right panel_toolbox">
+          <li><a class="btn-new-group"><span style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a>
+          </li>
+          <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+          </li>
+          <li><a class="close-link"><i class="fa fa-close"></i></a>
+          </li>
+        </ul>
+        <div class="clearfix"></div>
+      </div>
+      <div class="x_content">
+        <table id="groups" class="table">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Name</th>
+              <th>Description</th>
+              <th>Linked groups</th>
+              <th>Ephemeral desktops</th>
+              <th>Id</th>
+            </tr>
+          </thead>
+          <tbody>
+          </tbody>
+          <tfoot>
+            <tr>
+              <th></th>
+              <th>Name</th>
+              <th>Description</th>
+              <th>Linked groups</th>
+              <th>Ephemeral desktops</th>
+              <th>Id</th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% if current_user.role != 'manager' %}
+<div class="row">
+  <div class="col-md-12 col-sm-12 col-xs-12">
+    <div class="x_panel">
+      <div class="x_title">
+        <h3><i class="fa fa-external-link"></i> External apps <small></small></h3>
+        <ul class="nav navbar-right panel_toolbox">
+          <li><a class="btn-new-secret">
+              <span style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a>
+          </li>
+          <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+          </li>
+          <li><a class="close-link"><i class="fa fa-close"></i></a>
+          </li>
+        </ul>
+        <div class="clearfix"></div>
+      </div>
+      <div class="x_content">
+        <table id="externalapps" class="table">
+          <thead>
+            <tr>
+              <th>key id</th>
+              <th>secret</th>
+              <th>description</th>
+              <th>role</th>
+              <th>category</th>
+              <th>domain</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+<div class="row">
+  <div class="col-md-12 col-sm-12 col-xs-12">
+    <div class="x_panel">
+      <div class="x_title">
+        <h3><i class="fa fa-key"></i> Roles <small></small></h3>
+        <ul class="nav navbar-right panel_toolbox">
+          <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+          </li>
+          <li><a class="close-link"><i class="fa fa-close"></i></a>
+          </li>
+        </ul>
+        <div class="clearfix"></div>
+      </div>
+      <div class="x_content">
+        <table id="roles" class="table">
+          <thead>
+            <tr>
+              <th></th>
+              <th>name</th>
+              <th>description</th>
+            </tr>
+          </thead>
+          <tbody>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+
+{% include '/admin/pages/users_modals_management.html' %}
+{% include '/admin/pages/users_detail_management.html' %}
+{% include '/admin/pages/categories_detail_management.html' %}
+{% include '/admin/pages/groups_detail_management.html' %}
+{% endblock %}
+
+{% block pagescript %}
+<script src="/isard-admin/static/js/restful.js"></script>
+<script src="/isard-admin/static/admin/js/users_management.js"></script>
+<script src="/isard-admin/static/admin/js/categories_management.js"></script>
+<script src="/isard-admin/static/admin/js/groups_management.js"></script>
+<script src="/isard-admin/static/admin/js/external_apps.js"></script>
+<script src="/isard-admin/static/admin/js/roles.js"></script>
+<script src="/isard-admin/static/js/snippets/quota.js"></script>
+{% endblock %}

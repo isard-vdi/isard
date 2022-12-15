@@ -67,14 +67,64 @@ def api_v3_admin_user_exists(payload, user_id):
     return json.dumps(users.Get(user_id)), 200, {"Content-Type": "application/json"}
 
 
-@app.route("/api/v3/admin/users", methods=["GET"])
+# Users table list admin panel Management and QuotasLimits
+@app.route("/api/v3/admin/users/<nav>/users", methods=["GET"])
 @is_admin_or_manager
-def api_v3_admin_users(payload):
-    if payload["role_id"] == "manager":
-        userslist = users.List(payload["category_id"])
-    else:
-        userslist = users.List()
+def api_v3_admin_users(payload, nav):
+
+    if nav == "management":
+        if payload["role_id"] == "manager":
+            userslist = users.list_users("management", payload["category_id"])
+        else:
+            userslist = users.list_users("management")
+
+    elif nav == "quotas_limits":
+        if payload["role_id"] == "manager":
+            userslist = users.list_users("quotas_limits", payload["category_id"])
+        else:
+            userslist = users.list_users("quotas_limits")
+
     return json.dumps(userslist), 200, {"Content-Type": "application/json"}
+
+
+# Groups table list admin panel Management and QuotasLimits
+@app.route("/api/v3/admin/users/<nav>/groups", methods=["GET"])
+@is_admin_or_manager
+def api_v3_admin_groups_nav(payload, nav):
+    if nav == "management":
+        if payload["role_id"] == "manager":
+            groupslist = users.list_groups("management", payload["category_id"])
+        else:
+            groupslist = users.list_groups("management")
+
+    elif nav == "quotas_limits":
+        if payload["role_id"] == "manager":
+            groupslist = users.list_groups("quotas_limits", payload["category_id"])
+        else:
+            groupslist = users.list_groups("quotas_limits")
+
+    return json.dumps(groupslist), 200, {"Content-Type": "application/json"}
+
+
+# Categories table list admin panel Management and QuotasLimits
+@app.route("/api/v3/admin/users/<nav>/categories", methods=["GET"])
+@is_admin_or_manager
+def api_v3_admin_categories_nav(payload, nav):
+    if nav == "management":
+        if payload["role_id"] == "manager":
+            categorieslist = users.list_categories("management", payload["category_id"])
+        else:
+            categorieslist = users.list_categories("management")
+
+    elif nav == "quotas_limits":
+        if payload["role_id"] == "manager":
+            categorieslist = users.list_categories(
+                "quotas_limits", payload["category_id"]
+            )
+        else:
+            categorieslist = users.list_categories("quotas_limits")
+
+    return json.dumps(categorieslist), 200, {"Content-Type": "application/json"}
 
 
 # Update user
@@ -106,13 +156,17 @@ def api_v3_admin_user_update(payload, user_id):
     itemExists("groups", user["group"])
 
     data["id"] = user_id
-    data = _validate_item("user_update", data)
 
     if "password" in data:
         data["password"] = Password().encrypt(data["password"])
 
     if "active" in data:
         data["active"] = not data["active"]
+
+    if "quota" in data:
+        data = _validate_item("user_update_quota", data)
+    else:
+        data = _validate_item("user_update", data)
 
     admin_table_update("users", data, payload)
     return json.dumps({}), 200, {"Content-Type": "application/json"}
@@ -134,11 +188,11 @@ def api_v3_admin_user_insert(payload):
             "Unable to parse body data.",
             traceback.format_exc(),
         )
-
     p = Password()
     data["password"] = p.encrypt(data["password"])
     data["id"] = None
     data["accessed"] = int(time.time())
+    data["quota"] = False
 
     if data["bulk"]:
         match = CategoryNameGroupNameMatch(data["category"], data["group"])

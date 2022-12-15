@@ -124,7 +124,7 @@ def admin_domains(nav="Domains"):
     if nav == "Desktops":
         icon = "desktop"
     if nav == "Templates":
-        icon = "cube"
+        icon = "cubes"
     if nav == "Storage":
         icon = "folder-open"
         return render_template(
@@ -175,11 +175,22 @@ USERS
 """
 
 
-@app.route("/isard-admin/admin/users", methods=["POST", "GET"])
+@app.route("/isard-admin/admin/users/<nav>", methods=["POST", "GET"])
 @login_required
 @isAdminManager
-def admin_users():
-    return render_template("admin/pages/users.html", nav="Users", title="Users")
+def admin_users(nav):
+    if nav == "Management":
+        return render_template(
+            "admin/pages/users_management.html",
+            nav=nav,
+            title="Management",
+        )
+    elif nav == "QuotasLimits":
+        return render_template(
+            "admin/pages/users_quotas_limits.html",
+            nav=nav,
+            title="Quotas / Limits",
+        )
 
 
 """

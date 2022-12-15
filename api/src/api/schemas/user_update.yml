@@ -13,13 +13,9 @@ role:
     - admin
     - advanced
 secondary_groups:
+  required: false
   type: list
   default: []
-quota:
-  type: 
-    - dict
-    - boolean
-  schema: quotas
 password:
   type: string
   empty: false

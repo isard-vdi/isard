@@ -6,6 +6,7 @@
 <div class="modal fade" id="modalAddUser" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
+
             <!-- Modal Header -->
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal">
@@ -19,13 +20,9 @@
 
             <!-- Modal Body -->
             <div class="modal-body">
-
                 <form id="modalAddUserForm" class="form-horizontal form-label-left">
                     <div class="x_panel">
                         <div class="x_content">
-                            <!--
-                        <input id="id" hidden/>
--->
                             <div class="item form-group">
                                 <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Name <span
                                         class="required">*</span>
@@ -78,7 +75,7 @@
                                 <label class="control-label col-md-3 col-sm-3 col-xs-12" for="role">Role: <span
                                         class="required">*</span></label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <select id="add-role" name="role" class="form-control role" data-quota="users-quota"
+                                    <select id="add-role" name="role" class="form-control role"
                                         required>
                                     </select>
                                 </div>
@@ -108,25 +105,11 @@
                                     </select>
                                 </div>
                             </div>
-                            <!--
-                     </div>
--->
-
                         </div>
-
-                        <div class="x_panel" id="users-quota" style="padding: 5px;">
-                            <div class="x_title">
-                                <h4></i> Quota for this user</h4>
-                                <div class="clearfix"></div>
-                            </div>
-
-                            {% include '/snippets/quota_edit.html' %}
-                        </div>
-
                     </div>
-
                 </form>
             </div>
+
             <!-- Modal Footer -->
             <div class="modal-footer">
                 <ul class="nav navbar-left panel_toolbox">
@@ -144,6 +127,7 @@
     aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
+
             <!-- Modal Header -->
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal">
@@ -157,7 +141,6 @@
 
             <!-- Modal Body -->
             <div class="modal-body">
-
                 <form id="modalEditUserForm" class="form-horizontal form-label-left">
                     <div class="x_panel">
                         <div class="x_content">
@@ -196,7 +179,7 @@
                                 <label class="control-label col-md-3 col-sm-3 col-xs-12" for="role">Role: <span
                                         class="required">*</span></label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <select id="role" name="role" class="form-control role" data-quota="users-quota"
+                                    <select id="role" name="role" class="form-control role"
                                         required>
                                     </select>
                                 </div>
@@ -227,23 +210,11 @@
                                     </select>
                                 </div>
                             </div>
-                            <!--
-                     </div>
--->
-
-                        </div>
-                        <div class="x_panel" id="edit-users-quota" style="padding: 5px;">
-                            <div class="x_title">
-                                <h4></i> Quota for this user</h4>
-                                <div class="clearfix"></div>
-                            </div>
-
-                            {% include '/snippets/quota_edit.html' %}
                         </div>
                     </div>
-
                 </form>
             </div>
+
             <!-- Modal Footer -->
             <div class="modal-footer">
                 <ul class="nav navbar-left panel_toolbox">
@@ -261,6 +232,7 @@
     aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
+
             <!-- Modal Header -->
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal">
@@ -274,7 +246,6 @@
 
             <!-- Modal Body -->
             <div class="modal-body">
-
                 <form id="modalPasswdUserForm" class="form-horizontal form-label-left">
                     <div class="x_panel">
                         <div class="x_content">
@@ -315,12 +286,11 @@
                                         required="required">
                                 </div>
                             </div>
-
                         </div>
                     </div>
-
                 </form>
             </div>
+
             <!-- Modal Footer -->
             <div class="modal-footer">
                 <ul class="nav navbar-left panel_toolbox">
@@ -338,6 +308,7 @@
     aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
+
             <!-- Modal Header -->
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal">
@@ -351,7 +322,6 @@
 
             <!-- Modal Body -->
             <div class="modal-body">
-
                 <form id="modalAddBulkUsersForm" class="form-horizontal form-label-left">
                     <div class="x_panel">
                         <div class="x_content">
@@ -382,27 +352,6 @@
                                     <div id="csv_error_html"></div>
                                 </div>
                             </div>
-                            <!-- <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="role">Role: <span class="required">*</span></label>
-                                <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <select id="bulk-role" name="role" class="form-control role" data-quota="bulkusers-quota" required>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="category">Category: <span class="required">*</span></label>
-                                <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <select id="bulk-category" name="category" class="form-control category" required>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="group">Group: <span class="required">*</span></label>
-                                <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <select id="bulk-group" name="group" class="form-control group" required>
-                                    </select>
-                                </div>
-                            </div> -->
                             <div id="csv_correct" class="x_content" style="display:none">
                                 <div class="x_title">
                                     <h4><i class="fa fa-check" style="color:lightgreen"></i> Imported data was validated
@@ -441,11 +390,6 @@
                                         </select>
                                     </div>
                                 </div>
-
-                                <div class="x_panela" id="bulkusers-quota" style="padding: 5px; margin-left:50px;">
-                                    <label class="control-label" style="margin-left:20px;""">Quotas</label>
-                                    {% include '/snippets/quota_edit.html' %}
-                                </div>
                             </div>
                         </div>
                 </form>
@@ -480,7 +424,6 @@
                             </div>
                         </div>
                     </div>
-
                 </li>
             </ul>
         </div>
@@ -492,6 +435,7 @@
     aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
+
             <!-- Modal Header -->
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal">
@@ -505,7 +449,6 @@
 
             <!-- Modal Body -->
             <div class="modal-body">
-
                 <form id="modalDeleteUserForm" class="form-horizontal form-label-left">
                     <input id="id" hidden />
                     <div class="x_panel">
@@ -520,17 +463,15 @@
                                             <th>name</th>
                                         </tr>
                                     </thead>
-
                                     <tbody>
                                     </tbody>
                                 </table>
                             </div>
                         </div>
-
                     </div>
-
                 </form>
             </div>
+
             <!-- Modal Footer -->
             <div class="modal-footer">
                 <ul class="nav navbar-left panel_toolbox">
@@ -548,6 +489,7 @@
     aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
+
             <!-- Modal Header -->
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal">
@@ -561,7 +503,6 @@
 
             <!-- Modal Body -->
             <div class="modal-body">
-
                 <form id="modalDeleteCategoryForm" class="form-horizontal form-label-left">
                     <input id="id" hidden />
                     <div class="x_panel">
@@ -576,16 +517,15 @@
                                             <th>name</th>
                                         </tr>
                                     </thead>
-
                                     <tbody>
                                     </tbody>
                                 </table>
                             </div>
                         </div>
                     </div>
-
                 </form>
             </div>
+
             <!-- Modal Footer -->
             <div class="modal-footer">
                 <ul class="nav navbar-left panel_toolbox">
@@ -603,6 +543,7 @@
     aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
+
             <!-- Modal Header -->
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal">
@@ -616,7 +557,6 @@
 
             <!-- Modal Body -->
             <div class="modal-body">
-
                 <form id="modalDeleteGroupForm" class="form-horizontal form-label-left">
                     <input id="id" hidden />
                     <div class="x_panel">
@@ -631,17 +571,15 @@
                                             <th>name</th>
                                         </tr>
                                     </thead>
-
                                     <tbody>
                                     </tbody>
                                 </table>
                             </div>
                         </div>
-
                     </div>
-
                 </form>
             </div>
+
             <!-- Modal Footer -->
             <div class="modal-footer">
                 <ul class="nav navbar-left panel_toolbox">
@@ -655,202 +593,11 @@
     </div>
 </div>
 
-
-<div class="modal fade" id="modalDeleteUserTree" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
-    aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <!-- Modal Header -->
-            <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal">
-                    <span aria-hidden="true">&times;</span>
-                    <span class="sr-only">Close</span>
-                </button>
-                <h4 class="modal-title">
-                    <i class="fa fa-delete fa-1x"> </i> <i class="fa fa-user"> </i> Delete User
-                </h4>
-            </div>
-
-            <!-- Modal Body -->
-            <div class="modal-body">
-
-
-                <div id="domains_tree">
-                    <ul>
-                        <li>
-                            <input type="checkbox" />
-                            Root
-                            <ul>
-                                <li>
-                                    <input type="checkbox" />
-                                    Child 1
-                                    <ul>
-                                        <li>
-                                            <input type="checkbox" />
-                                            Subchild 1
-                                        </li>
-                                        <li>
-                                            <input type="checkbox" />
-                                            Subchild 2
-                                        </li>
-                                        <li>
-                                            <input type="checkbox" />
-                                            Subchild 3
-                                        </li>
-                                    </ul>
-                                </li>
-                                <li>
-                                    <input type="checkbox" />
-                                    Child 2
-                                    <ul>
-                                        <li>
-                                            <input type="checkbox" />
-                                            Subchild 1
-                                        </li>
-                                        <li>
-                                            <input type="checkbox" />
-                                            Subchild 2
-                                        </li>
-                                    </ul>
-                                </li>
-                            </ul>
-                        </li>
-                    </ul>
-                </div>
-
-
-
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="modalOldUsers" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
-    aria-hidden="true">
-    <div class="modal-dialog" style="width:800px">
-        <div class="modal-content">
-            <!-- Modal Header -->
-            <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal">
-                    <span aria-hidden="true">&times;</span>
-                    <span class="sr-only">Close</span>
-                </button>
-                <h4 class="modal-title">
-                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-desktop"> </i> Old LDAP users in system
-                </h4>
-            </div>
-
-            <!-- Modal Body -->
-            <div class="modal-body">
-
-                <!--
-              <form id="modalAddBackupInfo" class="form-horizontal form-label-left">
--->
-                <ul class="nav navbar-right panel_toolbox">
-                    <li><a class="btn-disable-olds"><span style="color: #5499c7; "><i class="fa fa-ban"></i> Disable
-                                all</span></a>
-                    </li>
-                </ul>
-                <!--
-			  <div class="x_panel">
-                 <div class="x_content">
-                     <div class="item form-group">
-                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="kind">Table: <span class="required">*</span></label>
-                     </div> 
-				 </div>
-			  </div>
--->
-
-                <!-- Modal Footer -->
-                <div class="modal-footer">
-                    <table id="oldusers_table" class="display" width="100%">
-                        <thead>
-                            <tr>
-                                <th>Id</th>
-                                <th>Name</th>
-                                <th>Accessed</th>
-                            </tr>
-                        </thead>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="modalAddRole" tabindex="-1" role="dialog" aria-labelledby="modalAddRole" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <!-- Modal Header -->
-            <div class="modal-header" style="padding: 5px;">
-                <button type="button" class="close" data-dismiss="modal">
-                    <span aria-hidden="true">&times;</span>
-                    <span class="sr-only">Close</span>
-                </button>
-                <h4 class="modal-title" id="myModalLabel">
-                    <i class="fa fa-plus fa-1x"> </i> Add new Role <i class="fa fa-key"> </i>
-                </h4>
-            </div>
-
-            <!-- Modal Body -->
-            <div class="modal-body" style="padding: 7px;">
-
-                <form id="modalAddRoleForm" class="form-inline form-label-left">
-                    <div class="x_panel">
-                        <p style="font-size: 18px;">Role</p>
-                        <div class="x_content">
-                            <div class="row">
-                                <div class="col-md-4 col-xs-12">
-                                    <label class="control-label" for="name">Name <span class="required">*</span>
-                                    </label>
-                                    <input id="name" class="roundbox" maxlength="15"
-                                        pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$"
-                                        data-parsley-length="[4, 40]" name="name" placeholder="New role name"
-                                        data-parsley-trigger="change" required type="text">
-                                </div>
-                                <div class="col-md-8 col-xs-12">
-                                    <label class="control-label" for="description">Description
-                                    </label>
-                                    <input id="description" class="roundbox" name="description"
-                                        placeholder="Role description" type="text" style="width:100%">
-                                </div>
-                            </div>
-
-                        </div>
-                    </div>
-
-                    <div class="x_panel" id="roles-quota" style="padding: 5px;">
-                        <p style="font-size: 18px;margin-bottom:0px;">Quota for users in this role</p>
-                        {% include '/snippets/quota_edit.html' %}
-                    </div>
-
-            </div>
-
-            <!-- Modal Footer -->
-            <div class="modal-footer" style="padding: 5px;">
-                <ul class="nav navbar-left panel_toolbox">
-                    <li>
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                    </li>
-                    </li>
-                </ul>
-                <ul class="nav navbar-right panel_toolbox">
-                    <li>
-                        <button id="send" type="button" class="btn btn-success">Create Role</button>
-                    </li>
-                    </li>
-                </ul>
-            </div>
-            </form>
-        </div>
-    </div>
-
-</div>
-
 <div class="modal fade" id="modalAddCategory" tabindex="-1" role="dialog" aria-labelledby="modalAddCategory"
     aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
+
             <!-- Modal Header -->
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal">
@@ -886,30 +633,28 @@
                             </div>
                             <div class="col-md-12 col-sm-12 col-xs-12">
                                 {% include '/snippets/category_modal_domain.html' %}
-
                                 <div class="row">
                                     <div class="col-md-12 col-sm-12 col-xs-12">
-                                       <label class="control-label" for="name">
-                                       Custom URL name login
-                                       </label>
-                                       <p>
-                                          <span id="span-custom-url">
-                                          </span>
-                                          <input
-                                             style="width:45%"
-                                             id="custom-url"
-                                             name="custom_url_name"
-                                             type="text"
-                                             class="roundbox"
-                                             pattern="^[a-zA-Z0-9-_]+$"
-                                             data-parsley-trigger="change"
-                                             data-parsley-pattern-message="The field can only contain numbers, letters, '_' or '-'"
-                                             placeholder="Custom URL name to login directly"
-                                             size="31"
-                                             />
+                                        <label class="control-label" for="name">
+                                            Custom URL name login
+                                        </label>
+                                        <p>
+                                            <span id="span-custom-url"></span>
+                                        <input
+                                            style="width:45%"
+                                            id="custom-url"
+                                            name="custom_url_name"
+                                            type="text"
+                                            class="roundbox"
+                                            pattern="^[a-zA-Z0-9-_]+$"
+                                            data-parsley-trigger="change"
+                                            data-parsley-pattern-message="The field can only contain numbers, letters, '_' or '-'"
+                                            placeholder="Custom URL name to login directly"
+                                            size="31"
+                                        />
                                        </p>
                                     </div>
-                                 </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -932,7 +677,6 @@
                             </div>
                         </div>
                     </div>
-
                     <div class="x_panel" id="desktops_panel">
                         <div class="row">
                             <div class="col-md-9 col-sm-9 col-xs-12">
@@ -959,7 +703,6 @@
                             </select>
                         </div>
                     </div>
-
                     <div class="x_panel" id="ephimeral_panel">
                         <div class="row">
                             <div class="col-md-9 col-sm-9 col-xs-12">
@@ -978,14 +721,11 @@
                                 </label>
                             </div>
                         </div>
-
-
                         <div class="row" id="ephimeral-data" style="display:none">
                             <div class="col-md-9 col-xs-12">
                                 <label for="ephimeral-minutes">Minutes</label>
                                 <input id="ephimeral-minutes" name="ephimeral-minutes"></input>
                             </div>
-
                             <label class="control-label col-md-3 col-sm-3 col-xs-12" for="ephimeral-action">Action on
                                 time: <span class="required">*</span></label>
                             <select id="ephimeral-action" name="ephimeral-action" class="form-control">
@@ -996,6 +736,7 @@
                     </div>
                 </form>
             </div>
+
             <!-- Modal Footer -->
             <div class="modal-footer">
                 <ul class="nav navbar-left panel_toolbox">
@@ -1019,6 +760,7 @@
     aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
+
             <!-- Modal Header -->
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal">
@@ -1032,7 +774,6 @@
 
             <!-- Modal Body -->
             <div class="modal-body">
-
                 <form id="modalEditCategoryForm" class="form-inline form-label-left">
                     <input hidden id="id" name="id" />
                     <div class="row">
@@ -1059,31 +800,29 @@
                                 {% include '/snippets/category_modal_domain.html' %}
                                 <div class="row">
                                     <div class="col-md-12 col-sm-12 col-xs-12">
-                                       <label class="control-label" for="name">
-                                       Custom URL name login
-                                       </label>
-                                       <p>
-                                          <span id="span-custom-url">
-                                          </span>
-                                          <input
-                                             style="width:35%"
-                                             id="custom-url"
-                                             name="custom_url_name"
-                                             type="text"
-                                             class="roundbox"
-                                             data-parsley-pattern="^[a-zA-Z0-9-_]+$"
-                                             data-parsley-trigger="change"
-                                             data-parsley-pattern-message="The field can only contain numbers, letters, '_' or '-'"
-                                             placeholder="Custom URL name to login directly"
-                                             size="31"
-                                             />
-                                       </p>
+                                        <label class="control-label" for="name">
+                                            Custom URL name login
+                                        </label>
+                                        <p>
+                                            <span id="span-custom-url"></span>
+                                            <input
+                                                style="width:35%"
+                                                id="custom-url"
+                                                name="custom_url_name"
+                                                type="text"
+                                                class="roundbox"
+                                                data-parsley-pattern="^[a-zA-Z0-9-_]+$"
+                                                data-parsley-trigger="change"
+                                                data-parsley-pattern-message="The field can only contain numbers, letters, '_' or '-'"
+                                                placeholder="Custom URL name to login directly"
+                                                size="31"
+                                            />
+                                        </p>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-
                     <div class="x_panel" id="frontend_panel">
                         <div class="row">
                             <div class="col-md-9 col-sm-9 col-xs-12">
@@ -1103,7 +842,6 @@
                             </div>
                         </div>
                     </div>
-
                     <div class="x_panel" id="desktops_panel">
                         <div class="row">
                             <div class="col-md-9 col-sm-9 col-xs-12">
@@ -1130,11 +868,10 @@
                             </select>
                         </div>
                     </div>
-
                     <div class="x_panel" id="ephimeral_panel">
                         <div class="row">
                             <div class="col-md-9 col-sm-9 col-xs-12">
-                                <p style="font-size: 18px;margin-bottom:0px;">Ephimeral desktops</p>
+                                <p style="font-size: 18px;margin-bottom:0px;">Ephemeral desktops</p>
                             </div>
                             <div class="col-md-3 col-sm-3 col-xs-12">
                                 <label class="control-label" for="ephimeral-enabled">
@@ -1149,8 +886,6 @@
                                 </label>
                             </div>
                         </div>
-
-
                         <div class="row" id="ephimeral-data" style="display:none">
                             <div class="col-md-9 col-xs-12">
                                 <label for="ephimeral-minutes">Minutes</label>
@@ -1167,6 +902,7 @@
                     </div>
                 </form>
             </div>
+
             <!-- Modal Footer -->
             <div class="modal-footer">
                 <ul class="nav navbar-left panel_toolbox">
@@ -1190,6 +926,7 @@
     aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
+
             <!-- Modal Header -->
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal">
@@ -1203,7 +940,6 @@
 
             <!-- Modal Body -->
             <div class="modal-body">
-
                 <form id="modalAddGroupForm" class="form-inline form-label-left">
                     <div class="row">
                         <div class="x_panel">
@@ -1253,7 +989,6 @@
                             </div>
                         </div>
                     </div>
-
                     <div class="x_panel" id="desktops_panel">
                         <div class="row">
                             <div class="col-md-9 col-sm-9 col-xs-12">
@@ -1280,7 +1015,6 @@
                             </select>
                         </div>
                     </div>
-
                     <div class="x_panel" id="ephimeral_panel">
                         <div class="row">
                             <div class="col-md-9 col-sm-9 col-xs-12">
@@ -1314,7 +1048,6 @@
                         </div>
                     </div>
                 </form>
-
             </div>
 
             <!-- Modal Footer -->
@@ -1340,6 +1073,7 @@
     aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
+
             <!-- Modal Header -->
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal">
@@ -1353,7 +1087,6 @@
 
             <!-- Modal Body -->
             <div class="modal-body">
-
                 <form id="modalEnrollmentForm" class="form-inline">
                     <input hidden id="id" name="id" />
                     <div class="row text-center">
@@ -1400,7 +1133,6 @@
                             </div>
                         </div>
                     </div>
-
                     <div class="row text-center">
                         <div class="col-md-4 col-sm-4 col-xs-12">
                             <input id="manager-key" class="form-control roundbox" name="manager-key"
@@ -1426,6 +1158,7 @@
                     </div>
                 </form>
             </div>
+
             <!-- Modal Footer -->
             <div class="modal-footer">
                 <ul class="nav navbar-left panel_toolbox">
@@ -1433,133 +1166,6 @@
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                     </li>
                     </li>
-                </ul>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="modalEditQuota" tabindex="-1" role="dialog" aria-labelledby="modalEditQuota"
-    aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <!-- Modal Header -->
-            <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal">
-                    <span aria-hidden="true">&times;</span>
-                    <span class="sr-only">Close</span>
-                </button>
-                <h4 class="modal-title" id="myModalLabel">
-                    <i class="fa fa-edit fa-1x"> </i> Edit <span class="kind"></span> users quota
-                </h4>
-            </div>
-
-            <!-- Modal Body -->
-            <div class="modal-body" style="padding: 7px;">
-                <form id="modalEditQuotaForm" class="form-horizontal form-label-left" method="POST" novalidate>
-                    <div class="x_panel">
-                        <div class="x_content">
-                            <input id="id" hidden />
-                            <div class="item form-group">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="role">Apply current
-                                    changes to: <span class="required"></span></label>
-                                <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <select id="add-role" name="role" class="form-control role" data-quota="users-quota"
-                                        required>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="item form-group" id="propagate-form">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="propagate"> Override <span
-                                        class="kind"></span> users current quota
-                                </label>
-                                <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <div class="checkbox">
-                                        <label class="">
-                                            <div class="icheckbox_flat-green" style="position: relative;">
-                                                <input type="checkbox" id="propagate" name="propagate" class="flat"
-                                                    style="position: absolute; opacity: 0;">
-                                                <ins class="iCheck-helper"
-                                                    style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
-                                                </ins>
-                                            </div>
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                            {% include '/snippets/quota_edit.html' %}
-                        </div>
-                    </div>
-                </form>
-            </div>
-            <!-- Modal Footer -->
-            <div class="modal-footer">
-                <ul class="nav navbar-left panel_toolbox">
-                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
-                </ul>
-                <ul class="nav navbar-right panel_toolbox">
-                    <li><button id="send" type="button" class="btn btn-success">Update quota</button></li>
-                </ul>
-            </div>
-        </div>
-    </div>
-
-</div>
-
-<div class="modal fade" id="modalEditLimits" tabindex="-1" role="dialog" aria-labelledby="modalEditLimits"
-    aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <!-- Modal Header -->
-            <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal">
-                    <span aria-hidden="true">&times;</span>
-                    <span class="sr-only">Close</span>
-                </button>
-                <h4 class="modal-title" id="myModalLabel">
-                    <i class="fa fa-edit"></i> Edit <span class="kind"></span> limits
-                </h4>
-            </div>
-
-            <!-- Modal Body -->
-            <div class="modal-body">
-                <form id="modalEditLimitsForm" class="form-horizontal form-label-left" method="POST" novalidate>
-                    <div class="x_panel">
-                        <div class="x_content">
-                            <input id="id" hidden />
-
-                            <div class="item form-group" id="propagate-form" style="display: hidden">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="propagate">Override <span
-                                        class="kind"></span> current limits
-                                </label>
-                                <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <div class="checkbox">
-                                        <label class="">
-                                            <div class="icheckbox_flat-green" style="position: relative;">
-                                                <input type="checkbox" id="propagate" name="propagate" class="flat"
-                                                    style="position: absolute; opacity: 0;">
-                                                <ins class="iCheck-helper"
-                                                    style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
-                                                </ins>
-                                            </div>
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                            {% with type="limits" %}
-                            {% include '/snippets/quota_edit.html' %}
-                            {% endwith %}
-                        </div>
-                    </div>
-                </form>
-            </div>
-            <!-- Modal Footer -->
-            <div class="modal-footer">
-                <ul class="nav navbar-left panel_toolbox">
-                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
-                </ul>
-                <ul class="nav navbar-right panel_toolbox">
-                    <li><button id="send" type="button" class="btn btn-success">Update limits</button></li>
                 </ul>
             </div>
         </div>

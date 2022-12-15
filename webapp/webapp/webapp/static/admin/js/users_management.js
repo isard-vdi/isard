@@ -15,7 +15,7 @@ $(document).ready(function() {
 function socketio_on(){
     $template = $(".template-detail-users");
 
-    $('.btn-new-user').on('click', function () {
+	$('.btn-new-user').on('click', function () {
         setQuotaMax('#users-quota',kind='category',id=false,disabled=false);
         $('#modalAddUser .apply').html('group quota');
         $('#modalAddUser').modal({backdrop: 'static', keyboard: false}).modal('show');
@@ -50,11 +50,9 @@ function socketio_on(){
         });
 
         setModalUser();
-    });
+	});
 
-
-
-    $('.btn-new-bulkusers').on('click', function () {
+	$('.btn-new-bulkusers').on('click', function () {
         $('#bulk-allow-update').iCheck('uncheck').iCheck('update');
         setQuotaMax('#bulkusers-quota',kind='category',id=false,disabled=false);
         $('#modalAddBulkUsers .apply').html('group quota');
@@ -95,7 +93,7 @@ function socketio_on(){
                 }
             },
         });
-    });
+	});
 
     $('.btn-bulkdelete').on('click', function () {
         let usersToDelete = [];
@@ -131,7 +129,7 @@ function socketio_on(){
         }
     });
 
-    $('#btn-download-bulkusers').on('click', function () {
+	$('#btn-download-bulkusers').on('click', function () {
         var viewerFile = new Blob(["username,name,email,password,group,category,role\njdoe,John Doe,jdoe@isardvdi.com,sup3rs3cr3t,Default,Default,advanced\nauser,Another User,auser@domain.com,a1sera1ser,Default,Default,user"], {type: "text/csv"});
         var a = document.createElement('a');
             a.download = 'bulk-users-template.csv';
@@ -139,10 +137,9 @@ function socketio_on(){
         var ev = document.createEvent("MouseEvents");
             ev.initMouseEvent("click", true, false, self, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
             a.dispatchEvent(ev);
-    });
+	});
 
     function filter_groups(category_select, group_select) {
-
         // Hide all options
         group_select.find('option').attr("hidden","hidden")
         // Show groups from the selected category
@@ -150,7 +147,6 @@ function socketio_on(){
         // Select the first group option from the category
         let group = group_select.find('option:not(option[hidden="hidden"])').first().val()
         group_select.val(group)
-
     }
 
     $("#add-category").on('change', function () {
@@ -169,7 +165,7 @@ function socketio_on(){
         formdata = form.serializeObject()
         form.parsley().validate();
         if (form.parsley().isValid()){   // || 'unlimited' in formdata){
-            data=userQuota2dict(formdata);
+            data=formdata;
             data['password']=data['password-add-user'];
             delete data['password-add-user'];
             delete data['password2-add-user'];
@@ -224,8 +220,8 @@ function socketio_on(){
         formdata = form.serializeObject();
         disabled.attr('disabled', 'disabled');
         form.parsley().validate();
-        if (form.parsley().isValid()){     // || 'unlimited' in formdata){
-            data=userQuota2dict(formdata);
+        if (form.parsley().isValid()){
+            data=formdata;
             delete data['unlimited']
             var notice = new PNotify({
                 text: 'Updating user...',
@@ -284,7 +280,7 @@ function socketio_on(){
                 {
                     $('form').each(function() { this.reset() });
                     $('.modal').modal('hide');
-                },
+                }
             });
         }
     });
@@ -350,7 +346,7 @@ function socketio_on(){
         formdata = form.serializeObject()
         form.parsley().validate();
         if (form.parsley().isValid()){
-            data=userQuota2dict(formdata);
+            data=formdata;
             delete data['unlimited']
             data['provider']='local';
             users=csv_preview.data().toArray()
@@ -415,8 +411,6 @@ function socketio_on(){
                                     });
                                  }
                             });
-
-
                         }
                     })
                 }else{
@@ -458,75 +452,57 @@ function socketio_on(){
 
     $("#add-category").on('change', function(e){
         setQuotaMax('#users-quota',kind='category',id=$(this).val(),disabled=false);
-        //setQuotaTableDefaults('#users-quota','categories',$(this).val())
     });
     $("#add-group").on('change', function(e){
         setQuotaMax('#users-quota',kind='group',id=$(this).val(),disabled=false);
-        //setQuotaTableDefaults('#users-quota','groups',$(this).val())
     });
 
     $("#bulk-category").on('change', function(e){
         setQuotaMax('#bulkusers-quota',kind='category',id=$(this).val(),disabled=false);
-        /* setQuotaTableDefaults('#bulkusers-quota','categories',$(this).val()) */
     });
     $("#bulk-group").on('change', function(e){
         setQuotaMax('#bulkusers-quota',kind='group',id=$(this).val(),disabled=false);
-        /* setQuotaTableDefaults('#bulkusers-quota','groups',$(this).val()) */
     });
-
-
-     $('#domains_tree input:checkbox').on('ifChecked', function(event){
-        $(this).closest('div').next('ul').find('input:checkbox').iCheck('check').attr('disabled',true) //.prop('disabled',true);
-     });
-     $('#domains_tree input:checkbox').on('ifUnchecked', function(event){
-          $(this).closest('div').next('ul').find('input:checkbox').iCheck('uncheck').attr('disabled',false)
-     });
 
     users_table=$('#users').DataTable( {
         "initComplete": function(settings, json) {
             initUsersSockets()
+            let searchUserId = getUrlParam('searchUser');
+            if (searchUserId) {
+                this.api().column([6]).search("(^" + searchUserId + "$)", true, false).draw();
+                $('#users .xe-username input').val(searchUserId)
+            }
         },
         "ajax": {
-            "url": "/admin/users",
+            "url": "/admin/users/management/users",
             "dataSrc": "",
             "type" : "GET",
             "data": function(d){return JSON.stringify({})}
         },
-            "language": {
-                "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+        "language": {
+            "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
         },
         "rowId": "id",
         "deferRender": true,
         "columns": [
-                {
-                "className":      'details-control',
-                "orderable":      false,
-                "data":           null,
+            {
+                "className": 'details-control',
+                "orderable": false,
+                "data": null,
                 "width": "10px",
                 "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
-                },
+            },
             { "data": "active", "width": "10px"},
             { "data": "name"},
             { "data": "provider"},
             { "data": "category_name"},
             { "data": "uid"},
-            { "data": "username"},
+            { "data": "username", className: "xe-username" },
             { "data": "role_name", "width": "10px"},
             { "data": "group_name", "width": "10px"},
+            { "data": "secondary_groups"},
             { "data": "vpn.wireguard.connected", "width": "10px", "defaultContent": 'NaN'},
-            //~ {
-                //~ "data": null,
-                //~ className: "center xe-password",
-                //~ "defaultContent": '  \
-                                //~ <div><i class="fa fa-lock"></i> \
-                              //~ </div>'
-            //~ },
             { "data": "accessed"},
-            { "data": "templates", "width": "10px", defaultContent: "0"},
-            { "data": "desktops", "width": "10px", defaultContent: "0"},
-            { "data": "media_size", className: "xe-desktops", defaultContent: "-"},
-            { "data": "domains_size", className: "xe-desktops", defaultContent: "-"},
-            { "data": null, className: "xe-desktops", defaultContent: "-"},
             {
                 "className": 'select-checkbox',
                 "data": null,
@@ -534,77 +510,72 @@ function socketio_on(){
                 "width": "10px",
                 "defaultContent": '<input type="checkbox" class="form-check-input"></input>'
             },
-            { "data": "id", "visible": false}],
+            { "data": "id", "visible": false}
+        ],
 
-             "columnDefs": [
-                            {
-                            "targets": 1,
-                            "render": function ( data, type, full, meta ) {
-                                    if(type === "display"){
-                                        if(full.active==true){
-                                            return '<i class="fa fa-check" style="color:lightgreen"></i>';
-                                        }else{
-                                            return '<i class="fa fa-close" style="color:darkgray"></i>';
-                                        }
-                                    }
-                                    return data;
-                            }},
-                            {
-                                "targets": 13,
-                                "render": function ( data, type, full, meta ) {
-                                    return full.domains_size ? full.domains_size.toFixed(1) : 0.0;
-                                }
-                            },
-                            {
-                                "targets": 14,
-                                "render": function ( data, type, full, meta ) {
-                                    return full.media_size ? full.media_size.toFixed(1) : 0.0;
-                                }
-                            },
-                            {
-                                "targets": 15,
-                                "render": function ( data, type, full, meta ) {
-                                    return ((full.domains_size ? full.domains_size : 0) + (full.media_size ? full.media_size : 0)).toFixed(1);
-                                }
-                            },
-                            {
-                            "targets": 9,
-                            "render": function ( data, type, full, meta ) {
-                                if('vpn' in full && full['vpn']['wireguard']['connected']){
-                                    return '<i class="fa fa-circle" aria-hidden="true"  style="color:green" title="'+full["vpn"]["wireguard"]["remote_ip"]+':'+full["vpn"]["wireguard"]["remote_port"]+'"></i>'
-                                }else{
-                                    return '<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>'
-                                }
-                            }},
-                            {
-                            "targets":10,
-                            "render": function ( data, type, full, meta ) {
-                                        return moment.unix(full.accessed).format("YYYY-MM-DD HH:mm"); //moment.unix(full.accessed).fromNow();
-                                        }}
-             ],
-             footerCallback: function (row, data, start, end, display) {
-                var api = this.api();
-
-                // Total over this page
-                pageTotal = api
-                    .column(15, {search: 'applied'})
-                    .data()
-                    .reduce(function (a, b) {
-                        return a + b['domains_size'] + b['media_size']
-                    }, 0);
-
-                // Update footer
-                $('.users-total-size').html('Applied  filter storage size: ' + pageTotal.toFixed(1) + ' GB');
+		"columnDefs": [
+            {
+                "targets": 1,
+                "render": function ( data, type, full, meta ) {
+                    if (type === "display") {
+                        if(full.active==true){
+                            return '<i class="fa fa-check" style="color:lightgreen"></i>';
+                        } else {
+                            return '<i class="fa fa-close" style="color:darkgray"></i>';
+                        }
+                    }
+                    return data;
+                }
             },
-        });
-    //~ });
+            {
+                "targets": 4,
+                "render": function ( data, type, full, meta ) {
+                    return full.category_name ? full.category_name : ''
+                }
+            },
+            {
+                "targets": 6,
+                "render": function ( data, type, full, meta ) {
+                    return '<a href="/isard-admin/admin/users/QuotasLimits?searchUser='+ full.username +'">'+ full.username +'</a>'
+                }
+            },
+            {
+                "targets": 9,
+                "render": function ( data, type, full, meta ) {
+                    return full.secondary_groups_names
+                }
+            },
+            {
+                "targets": 10,
+                "render": function ( data, type, full, meta ) {
+                    if ('vpn' in full && full['vpn']['wireguard']['connected']) {
+                        return '<i class="fa fa-circle" aria-hidden="true"  style="color:green" title="'+full["vpn"]["wireguard"]["remote_ip"]+':'+full["vpn"]["wireguard"]["remote_port"]+'"></i>'
+                    }else{
+                        return '<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>'
+                    }
+                }
+            },
+            {
+                "targets":11,
+                "render": function ( data, type, full, meta ) {
+                    return moment.unix(full.accessed).toISOString("YYYY-MM-DDTHH:mm:ssZ");
+                }
+            }
+        ]
+    });
 
     adminShowIdCol(users_table)
+
+    // Hide 'Category' users list column when manager
+    if ($('meta[id=user_data]').attr('data-role') == 'manager') {
+        var column = users_table.column(4);
+        column.visible(!column.visible());
+    }
 
     // Setup - add a text input to each footer cell
     $('#users tfoot tr:first th').each( function () {
         var title = $(this).text();
-        if (['','Active','Templates', 'Desktops', 'Domains size (GB)', 'Media size (GB)', 'Total size (GB)', 'Select'].indexOf(title) == -1){
+        if (['', 'Active', 'Select'].indexOf(title) == -1){
             $(this).html( '<input type="text" placeholder="Search '+title+'" />' );
         }
     } );
@@ -624,7 +595,7 @@ function socketio_on(){
 
     users_table.on( 'click', 'tr[role="row"]', function (e) {
         toggleRow(this, e);
-     });
+    });
 
     $('#users').find('tbody').on('click', 'td.details-control', function () {
         var tr = $(this).closest('tr');
@@ -633,26 +604,13 @@ function socketio_on(){
         if ( row.child.isShown() ) {
             row.child.hide();
             tr.removeClass('shown');
-        }else {
+        } else {
             if ( users_table.row( '.shown' ).length ) {
                 $('.details-control', users_table.row( '.shown' ).node()).click();
             }
             row.child(renderUsersDetailPannel(row.data())).show()
             actionsUserDetail()
             id = row.data().id
-            $('#show-users-quota-' + id + ' .apply').html('group quota');
-            setQuotaMax(
-                '#show-users-quota-' + id,
-                kind='user',
-                id=id,
-                disabled=true
-            )
-            setLimitsMax(
-                '#show-users-limits-' + id,
-                kind='user',
-                id=id,
-                disabled=true
-            )
             tr.addClass('shown');
         }
     });
@@ -669,17 +627,13 @@ function initUsersSockets () {
     socket.on('users_delete', function(data) {
         var data = JSON.parse(data);
         users_table.row('#'+data.id).remove().draw();
-        //var data = JSON.parse(data);
-        //drawUserQuota(data);
     });
 
     socket.on('add_form_result', function (data) {
         var data = JSON.parse(data);
-        //if(data.result){
-            $('form').each(function() { this.reset() });
-            $('.modal').modal('hide');
-            $('#modalAddBulkUsers #send').prop('disabled', false);
-        //}
+        $('form').each(function() { this.reset() });
+        $('.modal').modal('hide');
+        $('#modalAddBulkUsers #send').prop('disabled', false);
         new PNotify({
                 title: data.title,
                 text: data.text,
@@ -708,80 +662,78 @@ function initUsersSockets () {
 }
 
 function actionsUserDetail(){
-    $('.btn-edit').on('click', function () {
-            var pk=$(this).closest("div").attr("data-pk");
-            $("#modalEditUserForm")[0].reset();
-            $("#modalEditUserForm #secondary_groups").empty().trigger('change')
-            $('#modalEditUserForm .apply').html('group quota');
-            $('#modalEditUser').modal({
-                backdrop: 'static',
-                keyboard: false
-            }).modal('show');
+	$('.btn-edit').on('click', function () {
+        var pk=$(this).closest("div").attr("data-pk");
+        $("#modalEditUserForm")[0].reset();
+        $("#modalEditUserForm #secondary_groups").empty().trigger('change')
+        $('#modalEditUserForm .apply').html('group quota');
+        $('#modalEditUser').modal({
+            backdrop: 'static',
+            keyboard: false
+        }).modal('show');
 
-            $('#modalEditUserForm #secondary_groups').select2({
-                minimumInputLength: 2,
-                multiple: true,
-                ajax: {
-                    type: "POST",
-                    url: '/api/v3/admin/allowed/term/groups/',
-                    dataType: 'json',
-                    contentType: "application/json",
-                    delay: 250,
-                    data: function (params) {
-                        return  JSON.stringify({
-                            term: params.term,
-                            category: current_category,
-                        });
-                    },
-                    processResults: function (data) {
-                        return {
-                            results: $.map(data, function (item, i) {
-                                return {
-                                    text: item.name + ' [' + item.category_name + ']',
-                                    id: item.id
-                                }
-                            })
-                        };
-                    }
+        $('#modalEditUserForm #secondary_groups').select2({
+            minimumInputLength: 2,
+            multiple: true,
+            ajax: {
+                type: "POST",
+                url: '/api/v3/admin/allowed/term/groups/',
+                dataType: 'json',
+                contentType: "application/json",
+                delay: 250,
+                data: function (params) {
+                    return  JSON.stringify({
+                        term: params.term,
+                        category: current_category,
+                    });
                 },
-            });
-            setModalUser();
-            api.ajax('/api/v3/admin/table/users','POST',{'id':pk}).done(function(user) {
-                $('#modalEditUserForm #name').val(user.name);
-                $('#modalEditUserForm #id').val(user.id);
-                $('#modalEditUserForm #uid').val(user.uid);
-                $('#modalEditUserForm #email').val(user.email);
-                $('#modalEditUserForm #role option:selected').prop("selected", false);
-                $('#modalEditUserForm #role option[value="'+user.role+'"]').prop("selected",true);
-                $('#modalEditUserForm #category option:selected').prop("selected", false);
-                $('#modalEditUserForm #category option[value="'+user.category+'"]').prop("selected",true);
-                $('#modalEditUserForm #group option:selected').prop("selected", false);
-                $('#modalEditUserForm #group option[value="'+user.group+'"]').prop("selected",true);
-                $('#modalEditUserForm').parsley().validate();
-                $.each(user.secondary_groups_data, function(i, group) {
-                    var newOption = new Option(group.name, group.id, true, true);
-                    $("#modalEditUserForm #secondary_groups").append(newOption).trigger('change');
-                })
-            });
-            setQuotaMax('#edit-users-quota',kind='user',id=pk,disabled=false);
+                processResults: function (data) {
+                    return {
+                        results: $.map(data, function (item, i) {
+                            return {
+                                text: item.name + ' [' + item.category_name + ']',
+                                id: item.id
+                            }
+                        })
+                    };
+                }
+            },
+        });
+        setModalUser();
+        api.ajax('/api/v3/admin/table/users','POST',{'id':pk}).done(function(user) {
+            $('#modalEditUserForm #name').val(user.name);
+            $('#modalEditUserForm #id').val(user.id);
+            $('#modalEditUserForm #uid').val(user.uid);
+            $('#modalEditUserForm #email').val(user.email);
+            $('#modalEditUserForm #role option:selected').prop("selected", false);
+            $('#modalEditUserForm #role option[value="'+user.role+'"]').prop("selected",true);
+            $('#modalEditUserForm #category option:selected').prop("selected", false);
+            $('#modalEditUserForm #category option[value="'+user.category+'"]').prop("selected",true);
+            $('#modalEditUserForm #group option:selected').prop("selected", false);
+            $('#modalEditUserForm #group option[value="'+user.group+'"]').prop("selected",true);
+            $('#modalEditUserForm').parsley().validate();
+            $.each(user.secondary_groups_data, function(i, group) {
+                var newOption = new Option(group.name, group.id, true, true);
+                $("#modalEditUserForm #secondary_groups").append(newOption).trigger('change');
+            })
         });
 
+	});
 
-
-    $('.btn-passwd').on('click', function () {
+	$('.btn-passwd').on('click', function () {
             var closest=$(this).closest("div");
             var pk=closest.attr("data-pk");
             var name=closest.attr("data-name");
             var username=closest.attr("data-username");
             $("#modalPasswdUserForm")[0].reset();
-            $('#modalPasswdUser').modal({
-                backdrop: 'static',
-                keyboard: false
-            }).modal('show');
+			$('#modalPasswdUser').modal({
+				backdrop: 'static',
+				keyboard: false
+			}).modal('show');
             $('#modalPasswdUserForm #name').val(name);
             $('#modalPasswdUserForm #id').val(pk);
             $('#modalPasswdUserForm #username').val(username);
-    });
+	});
 
 
     $('#users .btn-delete').on('click', function () {
@@ -791,25 +743,24 @@ function actionsUserDetail(){
                 'table': 'user'
             }
 
-            $("#modalDeleteUserForm")[0].reset();
-            $('#modalDeleteUserForm #id').val(JSON.stringify([data]));
-            $('#modalDeleteUser').modal({
-                backdrop: 'static',
-                keyboard: false
-            }).modal('show');
-            $.ajax({
-                type: "POST",
-                url: "/api/v3/admin/delete/check",
-                data: JSON.stringify(data),
-                contentType: "application/json"
-            }).done(function(domains) {
-                $('#table_modal_delete tbody').empty()
-                $.each(domains, function(key, value) {
-                    infoDomains(value, $('#table_modal_delete tbody'));
-                });
+        $("#modalDeleteUserForm")[0].reset();
+        $('#modalDeleteUserForm #id').val(JSON.stringify([data]));
+        $('#modalDeleteUser').modal({
+            backdrop: 'static',
+            keyboard: false
+        }).modal('show');
+        $.ajax({
+            type: "POST",
+            url: "/api/v3/admin/delete/check",
+            data: JSON.stringify(data),
+            contentType: "application/json"
+        }).done(function(domains) {
+            $('#table_modal_delete tbody').empty()
+            $.each(domains, function(key, value) {
+                infoDomains(value, $('#table_modal_delete tbody'));
             });
-    });
-
+        });
+	});
 
     $('.btn-active').on('click', function () {
         var closest=$(this).closest("div");
@@ -915,15 +866,15 @@ function renderUsersDetailPannel ( d ) {
         $('.template-detail-users .btn-delete').show()
     }
 
-        $newPanel = $template.clone();
-        $newPanel.html(function(i, oldHtml){
-            var secondary_groups_names = []
-            $.each(d.secondary_groups_data, function(i, group) {
-                secondary_groups_names.push(group.name)
-            })
-            return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name).replace(/d.username/g, d.username).replace(/d.secondary_groups/g, secondary_groups_names);
-        });
-        return $newPanel
+    $newPanel = $template.clone();
+    $newPanel.html(function(i, oldHtml){
+        var secondary_groups_names = []
+        $.each(d.secondary_groups_data, function(i, group) {
+            secondary_groups_names.push(group.name)
+        })
+        return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name).replace(/d.username/g, d.username).replace(/d.secondary_groups/g, secondary_groups_names);
+    });
+    return $newPanel
 }
 
 function setModalUser(){
@@ -950,7 +901,6 @@ function setModalUser(){
         current_category = ($('#add-category').val())
     });
 }
-
 
 function csv2datatables(csv){
     var exists = false
