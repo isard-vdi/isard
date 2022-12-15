@@ -162,6 +162,8 @@ class HypWorkerThread(threading.Thread):
                     init_vgpu_profiles=init_vgpu_profiles,
                 )
 
+                self.h.get_system_stats()
+
                 # load info and nvidia info from db
                 self.h.load_info_from_db()
 
@@ -194,7 +196,11 @@ class HypWorkerThread(threading.Thread):
                     self.stop = True
 
         if self.stop is not True:
+            update_table_field(
+                "hypervisors", self.hyp_id, "stats", self.h.stats, soft=True
+            )
             update_hyp_status(self.hyp_id, "Online")
+
         while self.stop is not True:
             try:
                 # do={type:'start_domain','xml':'xml','id_domain'='prova'}
