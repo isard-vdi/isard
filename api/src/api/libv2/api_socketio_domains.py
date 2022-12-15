@@ -289,7 +289,16 @@ def start_domains_thread():
 # Domains namespace
 @socketio.on("connect", namespace="/userspace")
 def socketio_users_connect():
-    payload = get_token_payload(request.args.get("jwt"))
+    try:
+        payload = get_token_payload(request.args.get("jwt"))
+
+    except Error as e:
+        if e.error["error"] == "unauthorized":
+            return json.dumps({"status": "unauthorized"}), 401
+
+        else:
+            raise e
+
     if payload.get("desktop_id"):
         try:
             with app.app_context():

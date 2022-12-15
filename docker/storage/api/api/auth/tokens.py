@@ -117,7 +117,7 @@ def get_token_payload(token):
             options=dict(verify_aud=False, verify_sub=False, verify_exp=True),
         )
     except jwt.ExpiredSignatureError:
-        log.info("Token expired")
+        log.debug("Token expired")
         raise Error("unauthorized", "Token is expired")
     except jwt.JWTClaimsError:
         raise Error(
