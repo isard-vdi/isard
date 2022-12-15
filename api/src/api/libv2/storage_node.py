@@ -17,6 +17,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import json
 from time import time
 
 from cachetools import TTLCache, cached
@@ -24,6 +25,7 @@ from rethinkdb import r
 
 from api import app
 
+from .. import socketio
 from .flask_rethink import RDB
 
 
@@ -48,6 +50,14 @@ class StorageNode:
                 .insert(kwargs, conflict="update")
                 .run(self._rdb.conn)
                 .get("generated_keys", [kwargs.get("id")])[0]
+            )
+            if not "id" in kwargs:
+                kwargs["id"] = self.id
+            socketio.emit(
+                "storage_nodes",
+                json.dumps(kwargs),
+                namespace="/administrators",
+                room="admins",
             )
 
     @cached(TTLCache(maxsize=10, ttl=5))
@@ -74,3 +84,10 @@ class StorageNode:
                 r.table("storage_node").get(self.id).update(updated_data).run(
                     self._rdb.conn
                 )
+            updated_data["id"] = self.id
+            socketio.emit(
+                "storage_nodes",
+                json.dumps(updated_data),
+                namespace="/administrators",
+                room="admins",
+            )
