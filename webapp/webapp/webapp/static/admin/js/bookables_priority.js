@@ -350,28 +350,9 @@ $(".btn-compute").on("click", function () {
       $('#priority option[value="' + response.priority_id + '"]').prop("selected",true);
     },
   });
-
-  // SocketIO
-  socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/administrators', {
-    'query': {'jwt': localStorage.getItem("token")},
-    'path': '/api/v3/socket.io/',
-    'transports': ['websocket']
-  });
-
-  socket.on("connect", function () {
-    connection_done();
-    console.log("Listening admins namespace");
-  });
-
-  socket.on("connect_error", function (data) {
-    connection_lost();
-  });
-
-  socket.on('user_quota', function(data) {
-    var data = JSON.parse(data);
-    drawUserQuota(data);
-  });
-
+    $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
+})
+function socketio_on(){
   socket.on("add_form_result", function (data) {
     console.log("received result");
     var data = JSON.parse(data);
@@ -398,8 +379,7 @@ $(".btn-compute").on("click", function () {
     });
         return $newPanel
 }
-
-});
+}
 
 function data2integers(data){
   data["forbid_time"]=parseInt(data["forbid_time"]);

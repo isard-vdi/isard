@@ -9,13 +9,10 @@ var users_table= ''
 var current_category = ''
 
 $(document).ready(function() {
-    socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/administrators', {
-        'query': {'jwt': localStorage.getItem("token")},
-        'path': '/api/v3/socket.io/',
-        'transports': ['websocket']
-    });
-
     $('.admin-status').show()
+    $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
+})
+function socketio_on(){
     $template = $(".template-detail-users");
 
     $('.btn-new-user').on('click', function () {
@@ -659,25 +656,9 @@ $(document).ready(function() {
             tr.addClass('shown');
         }
     });
-
-});
+}
 
 function initUsersSockets () {
-    socket.on('connect', function() {
-        connection_done();
-        console.log('Listening users namespace');
-    });
-
-    socket.on('connect_error', function(data) {
-      connection_lost();
-    });
-
-    socket.on('user_quota', function(data) {
-        console.log('Quota update')
-        var data = JSON.parse(data);
-        drawUserQuota(data);
-    });
-
     socket.on('users_data', function(data) {
         var data = JSON.parse(data);
         data = {...users_table.row("#"+data.id).data(),...data}

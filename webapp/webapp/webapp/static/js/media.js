@@ -480,29 +480,9 @@ $(document).ready(function() {
                 });
             }
         });
-
-
-    // SocketIO
-        socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/administrators', {
-        'query': {'jwt': localStorage.getItem("token")},
-        'path': '/api/v3/socket.io/',
-        'transports': ['websocket']
-    });
-     
-    socket.on('connect', function() {
-        connection_done();
-        console.log('Listening users namespace');
-    });
-
-    socket.on('connect_error', function(data) {
-      connection_lost();
-    });
-
-    socket.on('user_quota', function(data) {
-        var data = JSON.parse(data);
-        drawUserQuota(data);
-    });
-
+    $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
+})
+function socketio_on(){
     socket.on('media_data', function(data){
         //~ console.log('add or update')
         var data = JSON.parse(data);
@@ -576,7 +556,7 @@ $(document).ready(function() {
                 type: data.type
         });
     });
- } );
+}
 
 function renderProgress(data){ 
     perc = data.progress.received_percent

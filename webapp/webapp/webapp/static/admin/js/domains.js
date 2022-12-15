@@ -739,30 +739,10 @@ $(document).ready(function() {
                 break;
         }
     });
-
-    // SocketIO
-    socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/administrators', {
-        'query': {'jwt': localStorage.getItem("token")},
-        'path': '/api/v3/socket.io/',
-        'transports': ['websocket']
-    });
-
-    socket.on('connect', function() {
-        connection_done();
-        console.log('Listening admins namespace');
-    });
-
-    socket.on('connect_error', function(data) {
-      connection_lost();
-    });
-
+    $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
+})
+function socketio_on(){
     startClientVpnSocket(socket)
-    socket.on('user_quota', function(data) {
-        console.log('Quota update')
-        var data = JSON.parse(data);
-        drawUserQuota(data);
-    });
-
     socket.on(kind+'_data', function(data){
         var data = JSON.parse(data);
         if(data.status =='Started' && 'viewer' in data && 'guest_ip' in data['viewer']){
@@ -863,8 +843,7 @@ $(document).ready(function() {
                 type: data.type
         });
     });
-
-});
+}
 
 function actionsDomainDetail(){
 

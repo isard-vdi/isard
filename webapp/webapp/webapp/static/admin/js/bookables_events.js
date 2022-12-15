@@ -47,27 +47,5 @@ $(document).ready(function() {
                             return JSON.stringify(full.kwargs);
                         }}]
         } )
-
-    // SocketIO
-    socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/administrators', {
-        'query': {'jwt': localStorage.getItem("token")},
-        'path': '/api/v3/socket.io/',
-        'transports': ['websocket']
-    });
-
-    socket.on('connect', function() {
-        connection_done();
-        console.log('Listening admins namespace');
-        console.log('Listening config updates');
-    });
-
-    socket.on('connect_error', function(data) {
-      connection_lost();
-    });
-
-    socket.on('user_quota', function(data) {
-        var data = JSON.parse(data);
-        drawUserQuota(data);
-    });
-
+    $.getScript("/isard-admin/static/admin/js/socketio.js")
 });
