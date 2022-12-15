@@ -5,9 +5,20 @@
 * License: AGPLv3
 */
 
+
+function getGroupParam() {
+  return window.location.href.slice(window.location.href.indexOf('?') + 1).split('searchStorageId=')[1];
+}
+
 $(document).ready(function() {
     $template = $(".template-storage-detail");
     var storage_ready=$('#storage').DataTable({
+      "initComplete": function (settings, json) {
+        let searchStorageId = getGroupParam()
+        if (searchStorageId) {
+          this.api().search(searchStorageId).draw()
+        }
+      },
       "ajax": {
         "url": "/api/v3/admin/storage/ready",
         "contentType": "application/json",
@@ -60,8 +71,6 @@ $(document).ready(function() {
                 {
                   "targets": 9,
                   "render": function ( data, type, full, meta ) {
-                    console.log('full: ')
-                    console.log(full['domains'])
                       return full['domains'].length
                   }},
                 {

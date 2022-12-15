@@ -620,6 +620,7 @@ $(document).ready(function() {
                 setDomainDetailButtonsStatus(row.data().id,row.data().status,row.data().server)
                 setDomainHotplug(row.data().id, row.data());
                 setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data());
+                setDomainStorage(row.data().id)
                 if(kind!="desktop"){
                     setAlloweds_viewer('#alloweds-'+row.data().id,row.data().id);
                 }

@@ -44,6 +44,17 @@ def api_v3_admin_domains(payload):
     )
 
 
+@app.route("/api/v3/admin/domain/storage/<domain_id>", methods=["GET"])
+@is_admin_or_manager
+def api_v3_admin_desktop_storage(payload, domain_id):
+    ownsDomainId(payload, domain_id)
+    return (
+        json.dumps(admins.get_domain_storage(domain_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
 @app.route("/api/v3/admin/domains/xml/<domain_id>", methods=["POST", "GET"])
 @is_admin_or_manager
 def api_v3_admin_domains_xml(payload, domain_id):
