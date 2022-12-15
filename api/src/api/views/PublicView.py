@@ -42,3 +42,12 @@ def api_v3_categories():
         200,
         {"Content-Type": "application/json"},
     )
+
+
+@app.route("/api/v3/category/<custom_url>", methods=["GET"])
+def api_v3_category(custom_url):
+    return (
+        json.dumps(users.category_get_by_custom_url(custom_url)),
+        200,
+        {"Content-Type": "application/json"},
+    )

@@ -184,6 +184,7 @@ export default {
   computed: {
     ...mapGetters([
       'getCategories',
+      'getCategory',
       'getProviders',
       'getPageErrorMessage'
     ]),
@@ -199,16 +200,7 @@ export default {
       return this.$route.params.customUrlName !== undefined
     },
     category_name () {
-      let name = ''
-      this.getCategories.forEach(category => {
-        if (this.category === category.id) {
-          name = category.name
-        }
-      })
-      if (!name) {
-        name = this.category
-      }
-      return name
+      return this.getCategory.name ? this.getCategory.name : ''
     },
     show_login_form () {
       return this.getCategories.length || this.category_by_path
@@ -240,12 +232,9 @@ export default {
       }
       if (this.category_by_path) {
         const customUrlName = this.$route.params.customUrlName
-        const urlCategory = this.getCategories.find(c => c.custom_url_name === customUrlName)
-        if (urlCategory) {
-          this.category = urlCategory.id
-        } else {
-          this.$router.push({ name: 'NotFound' })
-        }
+        this.$store.dispatch('fetchCategory', customUrlName).then(() => {
+          this.category = this.getCategory.id
+        })
       } else {
         if (this.getCategories.map(i => i.id).includes(localStorage.category)) {
           this.category = localStorage.category

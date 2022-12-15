@@ -44,6 +44,7 @@ export function toast (titol, missatge) {
 export default new Vuex.Store({
   state: {
     categories: [],
+    category: {},
     pageErrorMessage: '',
     currentInternalTime: '',
     messageModal: {
@@ -56,6 +57,9 @@ export default new Vuex.Store({
     getCategories: state => {
       return state.categories
     },
+    getCategory: state => {
+      return state.category
+    },
     getPageErrorMessage: state => {
       return state.pageErrorMessage
     },
@@ -66,6 +70,9 @@ export default new Vuex.Store({
   mutations: {
     setCategories (state, categories) {
       state.categories = categories
+    },
+    setCategory (state, category) {
+      state.category = category
     },
     setPageErrorMessage (state, errorMessage) {
       state.pageErrorMessage = errorMessage
@@ -109,6 +116,15 @@ export default new Vuex.Store({
     fetchCategories ({ commit }) {
       return axios.get(`${apiV3Segment}/categories`).then(response => {
         commit('setCategories', response.data)
+      })
+    },
+    fetchCategory (context, customUrl) {
+      return axios.get(`${apiV3Segment}/category/` + customUrl).then(response => {
+        context.commit('setCategory', response.data)
+      }).catch(e => {
+        if (e.response.status === 404) {
+          context.dispatch('navigate', 'NotFound')
+        }
       })
     },
     maintenance (context) {

@@ -673,6 +673,23 @@ class ApiUsers:
         else:
             return category[0]
 
+    def category_get_by_custom_url(self, custom_url):
+        with app.app_context():
+            category = list(
+                r.table("categories")
+                .filter({"custom_url_name": custom_url})
+                .pluck("id", "name")
+                .run(db.conn)
+            )
+        if not category:
+            raise Error(
+                "not_found",
+                "Category with custom url " + custom_url + " not found",
+                traceback.format_exc(),
+            )
+        else:
+            return category[0]
+
     ### USER Schema
 
     def CategoriesGet(self):
