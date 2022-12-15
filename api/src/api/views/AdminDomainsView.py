@@ -75,6 +75,8 @@ def api_v3_admin_desktops_tree_list(payload, id):
 def admin_multiple_actions_domains(payload):
     dict = request.get_json(force=True)
     selected_desktops = admins.CheckField("domains", "kind", "desktop", dict["ids"])
+    for id in dict.get("ids"):
+        ownsDomainId(payload, id)
     res = admins.MultipleActions("domains", dict["action"], selected_desktops)
     if res is True:
         json_data = json.dumps(
