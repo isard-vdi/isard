@@ -771,6 +771,7 @@ $(document).ready(function() {
                 viewerButtonsIP(data.id,data['viewer']['guest_ip'])
             }
         }
+        data = {...domains_table.row("#"+data.id).data(),...data}
         dtUpdateInsert(domains_table,data,false);
         setDomainDetailButtonsStatus(data.id, data.status, data.server);
         $('#domains tr.active .form-check-input').prop("checked", true);

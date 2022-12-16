@@ -485,6 +485,7 @@ $(document).ready(function() {
 
     socket.on('media_data', function(data){
         var data = JSON.parse(data);
+        data = {...table.row("#"+data.id).data(),...data}
         dtUpdateInsert(table,data,false);
     });
 
