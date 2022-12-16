@@ -41,7 +41,7 @@ def SetupHypervisor():
         "hyper_id": os.environ.get("HYPER_ID", "isard-hypervisor"),
         "hostname": hostname,
         "port": "2022",
-        "cap_disk": True,
+        "cap_disk": bool(strtobool(os.environ.get("CAPABILITIES_DISK", "true"))),
         "cap_hyper": bool(strtobool(os.environ.get("CAPABILITIES_HYPER", "true"))),
         "enabled": False,
         "description": "Added through api",
