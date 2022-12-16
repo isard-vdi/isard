@@ -1201,6 +1201,7 @@ class Quotas:
             "qos_id",
             "reservables",
             "forced_hyp",
+            "favourite_hyp",
             "quota",
             "isos",
             "floppies",
@@ -1311,6 +1312,9 @@ class Quotas:
             )
         if not kind or kind == "forced_hyp":
             dict["forced_hyp"] = []
+
+        if not kind or kind == "favourite_hyp":
+            dict["favourite_hyp"] = []
 
         if not kind or kind == "quota":
             quota = self.Get(payload["user_id"])

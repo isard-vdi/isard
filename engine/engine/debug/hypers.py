@@ -77,6 +77,7 @@ new_domain_from_iso = {
     "create_dict": {
         "create_from_virt_install_xml": "win10Virtio",
         "forced_hyp": False,
+        "favourite_hyp": False,
         "hardware": {
             "boot_order": ["iso"],
             "disk_bus": "virtio",

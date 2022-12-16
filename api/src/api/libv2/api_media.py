@@ -355,6 +355,11 @@ def parseHardwareFromIso(create_dict, payload):
     else:
         None  # use passed forced_hyp from form
 
+    if "favourite_hyp" not in create_dict.keys():
+        create_dict["favourite_hyp"] = False
+    else:
+        None
+
     if "memory" not in create_dict["hardware"].keys():
         create_dict["hardware"]["memory"] = int(1.5 * 1048576)
     else:

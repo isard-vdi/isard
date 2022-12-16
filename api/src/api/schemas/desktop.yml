@@ -18,6 +18,11 @@ forced_hyp:
     - boolean
     - list
   required: false
+favourite_hyp:
+  type:
+    - boolean
+    - list
+  required: false
 image:
   type: dict
   required: false

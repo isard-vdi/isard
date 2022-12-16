@@ -19,5 +19,9 @@ forced_hyp:
   type:
     - boolean
     - list
+favourite_hyp:
+  type:
+    - boolean
+    - list
 xml:
   type: string

@@ -151,7 +151,7 @@ class PoolHypervisors:
         to_create_disk=False,
         path_selected="",
         force_hyp=False,
-        preferred_hyp=False,
+        favourite_hyp=False,
         reservables=True,
     ):
         kwargs = {
@@ -222,7 +222,7 @@ class PoolHypervisors:
                     next_available_uid,
                     next_gpu_id,
                 ) = self.get_hyp_with_uuid_available(
-                    gpu_profile, force_hyp, preferred_hyp
+                    gpu_profile, force_hyp, favourite_hyp
                 )
                 extra = {
                     "nvidia": True,
@@ -244,7 +244,7 @@ class PoolHypervisors:
                     next_id_pci,
                     next_model,
                     next_profile,
-                ) = self.get_next_hyp_with_gpu(type_gpu, force_hyp, preferred_hyp)
+                ) = self.get_next_hyp_with_gpu(type_gpu, force_hyp, favourite_hyp)
 
                 extra = {
                     "nvidia": True,
@@ -269,19 +269,19 @@ class PoolHypervisors:
                         )
                         return False, {}
 
-                if preferred_hyp != False:
-                    if preferred_hyp in [
+                if favourite_hyp != False:
+                    if favourite_hyp in [
                         a["id"] for a in hypers_online_exclude_only_forced
                     ]:
-                        return preferred_hyp, {}
+                        return favourite_hyp, {}
                     else:
                         logs.hmlog.info(
-                            f"preferred hypervisor {preferred_hyp} is no online, trying other hypervisor online in pool"
+                            f"favourite hypervisor {favourite_hyp} is no online, trying other hypervisor online in pool"
                         )
         return self.balancer.get_next(**kwargs), {}
 
     def get_hyp_with_uuid_available(
-        self, gpu_profile, force_hyp=False, preferred_hyp=False
+        self, gpu_profile, force_hyp=False, favourite_hyp=False
     ):
         if gpu_profile.rfind("NVIDIA-") == 0:
             gpu_profile = gpu_profile.split("NVIDIA-")[1]
@@ -332,20 +332,20 @@ class PoolHypervisors:
                 ]
             else:
                 logs.hmlog.error(
-                    f"force hypervisor {preferred_hyp} is not online, desktop will not start"
+                    f"force hypervisor {favourite_hyp} is not online, desktop will not start"
                 )
                 return False, False, False
         else:
             hypers_online_with_gpu = hypers_online_with_gpu_excluded_only_forced
 
-        if preferred_hyp != False:
-            if preferred_hyp in hypers_online_with_gpu:
+        if favourite_hyp != False:
+            if favourite_hyp in hypers_online_with_gpu:
                 hypers_online_with_gpu = [
-                    h for h in hypers_online_with_gpu if h["id"] == preferred_hyp
+                    h for h in hypers_online_with_gpu if h["id"] == favourite_hyp
                 ]
             else:
                 logs.hmlog.info(
-                    f"preferred hypervisor {preferred_hyp} is not online, trying other hypervisor online in pool"
+                    f"favourite hypervisor {favourite_hyp} is not online, trying other hypervisor online in pool"
                 )
                 pass
 
@@ -377,7 +377,7 @@ class PoolHypervisors:
                     break
         return False, False, False
 
-    def get_next_hyp_with_gpu(self, video_id, force_hyp=False, preferred_hyp=False):
+    def get_next_hyp_with_gpu(self, video_id, force_hyp=False, favourite_hyp=False):
         hypers_online = get_hypers_info(id_pool=self.id_pool)
         hypers_online_exclude_only_forced = get_hypers_info(
             id_pool=self.id_pool, exclude_only_forced=True
@@ -403,20 +403,20 @@ class PoolHypervisors:
                 ]
             else:
                 logs.hmlog.error(
-                    f"force hypervisor {preferred_hyp} is not online, desktop will not start"
+                    f"force hypervisor {favourite_hyp} is not online, desktop will not start"
                 )
                 return False, False, False, False, False
         else:
             hypers_online_with_gpu = hypers_online_with_gpu_excluded_only_forced
 
-        if preferred_hyp != False:
-            if preferred_hyp in hypers_online_with_gpu:
+        if favourite_hyp != False:
+            if favourite_hyp in hypers_online_with_gpu:
                 hypers_online_with_gpu = [
-                    h for h in hypers_online_with_gpu if h["id"] == preferred_hyp
+                    h for h in hypers_online_with_gpu if h["id"] == favourite_hyp
                 ]
             else:
                 logs.hmlog.info(
-                    f"preferred hypervisor {preferred_hyp} is not online, trying other hypervisor online in pool"
+                    f"favourite hypervisor {favourite_hyp} is not online, trying other hypervisor online in pool"
                 )
                 pass
 

@@ -17,7 +17,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 72
+release_version = 73
+# release 73: 'favourite_hyp' domains field should be a list if it isn't False
 # release 72: Remove existing storage_node entries
 # release 71: Added bookings_priority name index
 # release 70: Add hypervisor execution time
@@ -1266,6 +1267,9 @@ class Upgrade(object):
                 ).run(self.conn)
             except Exception as e:
                 print(e)
+
+        if version == 73:
+            r.table(table).update({"favourite_hyp": False}).run(self.conn)
 
         return True
 
