@@ -20,14 +20,14 @@ class ApiClient:
         self.verifycert = False
         print("Api base url set to " + self.base_url)
 
-    def post(self, url, data={}):
+    def post(self, url, **kwargs):
         try:
             logging.info("POST api url: " + self.base_url + url)
             resp = requests.post(
                 self.base_url + url,
-                data=data,
                 headers=self.header_auth(),
                 verify=self.verifycert,
+                **kwargs
             )
             if resp.status_code == 200:
                 return json.loads(resp.text)
@@ -48,10 +48,13 @@ class ApiClient:
         except:
             raise
 
-    def delete(self, url):
+    def delete(self, url, **kwargs):
         try:
             resp = requests.delete(
-                self.base_url + url, headers=self.header_auth(), verify=self.verifycert
+                self.base_url + url,
+                headers=self.header_auth(),
+                verify=self.verifycert,
+                **kwargs
             )
             if resp.status_code == 200:
                 return json.loads(resp.text)
