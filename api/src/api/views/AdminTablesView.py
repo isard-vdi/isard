@@ -23,10 +23,13 @@ from ..libv2.api_admin import (
 from .decorators import checkDuplicate, is_admin, is_admin_or_manager
 
 
-@app.route("/api/v3/admin/table/<table>", methods=["POST"])
+@app.route("/api/v3/admin/table/<table>", methods=["GET", "POST"])
 @is_admin_or_manager
 def api_v3_admin_table(payload, table):
-    options = request.get_json(force=True)
+    if request.method == "GET":
+        options = request.args
+    else:
+        options = request.get_json(force=True)
     if options.get("id") and not options.get("index"):
         result = admin_table_get(table, options.get("id"), pluck=options.get("pluck"))
     else:
