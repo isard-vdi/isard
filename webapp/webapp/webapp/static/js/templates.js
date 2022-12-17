@@ -179,29 +179,9 @@ $(document).ready(function() {
       modal.find('.modal-title').text('Do you really want to remove "' + name + '" desktop?');
       modal.find('.modal-body').text('The desktop will be permanently deleted (unrecoverable)')
     });
-
-    // SocketIO
-        socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/administrators', {
-        'query': {'jwt': localStorage.getItem("token")},
-        'path': '/api/v3/socket.io/',
-        'transports': ['websocket']
-    });
-
-    socket.on('connect', function() {
-        connection_done();
-        console.log('Listening user namespace');
-    });
-
-    socket.on('connect_error', function(data) {
-      connection_lost();
-    });
-    
-    socket.on('user_quota', function(data) {
-        console.log('Quota update')
-        var data = JSON.parse(data);
-        drawUserQuota(data);
-    });
-
+    $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
+})
+function socketio_on(){
     socket.on('template_data', function(data){
         //~ console.log('update')
         var data = JSON.parse(data);
@@ -284,9 +264,7 @@ $(document).ready(function() {
       //~ // var row =
         //~ table.row('#'+data.id).remove().draw();
     //~ }, false);
-
-
-});   // document ready
+}
 
 function formatTmplDetails(data){
         var row=$('*[data-pk="'+data.id+'"]');

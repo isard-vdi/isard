@@ -6,28 +6,9 @@
 */
 table={}
 $(document).ready(function() {
-    // SocketIO
-    socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/administrators', {
-        'query': {'jwt': localStorage.getItem("token")},
-        'path': '/api/v3/socket.io/',
-        'transports': ['websocket']
-    });
-
-    socket.on('connect', function() {
-        connection_done();
-        console.log('Listening media namespace');
-    });
-
-    socket.on('connect_error', function(data) {
-      connection_lost();
-    });
-
-    socket.on('user_quota', function(data) {
-        console.log('Quota update')
-        var data = JSON.parse(data);
-        drawUserQuota(data);
-    });
-
+    $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
+})
+function socketio_on(){
     socket.on('desktop_delete', function(){
         table['domains'].ajax.reload();
     });
@@ -472,8 +453,7 @@ $(document).ready(function() {
                                     return '<a href="'+full['url-web']+'"><button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button></a>'
                             }}]
     } );
-
-});
+}
 
 function renderName(data){
         return '<div class="block_content" > \

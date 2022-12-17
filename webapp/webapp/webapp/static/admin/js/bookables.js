@@ -150,29 +150,9 @@ $(document).ready(function () {
         setAlloweds_viewer('#alloweds-' + row.data().id, row.data().id, "reservables_vgpus");
     }
 });
-
-
-  // SocketIO
-  socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/administrators', {
-    'query': {'jwt': localStorage.getItem("token")},
-    'path': '/api/v3/socket.io/',
-    'transports': ['websocket']
-  });
-
-  socket.on("connect", function () {
-    connection_done();
-    console.log("Listening admins namespace");
-  });
-
-  socket.on("connect_error", function (data) {
-    connection_lost();
-  });
-
-  socket.on('user_quota', function(data) {
-    var data = JSON.parse(data);
-    drawUserQuota(data);
-  });
-
+    $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
+})
+function socketio_on(){
   socket.on("add_form_result", function (data) {
     console.log("received result");
     var data = JSON.parse(data);
@@ -190,7 +170,7 @@ $(document).ready(function () {
       type: data.type,
     });
   });
-});
+}
 
 function renderVGPUPannel ( d ) {
 

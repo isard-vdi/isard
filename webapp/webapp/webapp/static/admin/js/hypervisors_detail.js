@@ -5,6 +5,7 @@ $(document).ready(function() {
 //~ table=$('#hypervisors')
 
 /////////////// DOMAINS STATUS EVENTS
+  waitDefined("socket", function () {
     socket.on('domain_stats', function(data){
       var data = JSON.parse(data);
       if($('#domains-table-'+data.hyp_started).is(':visible')){
@@ -20,7 +21,7 @@ $(document).ready(function() {
           var row = domains_table[data.hyp_started].row('#'+data.id).remove().draw();
       }
     });
-
+  })
 });
 
 //////// DOMAINS STATUS EVENTS

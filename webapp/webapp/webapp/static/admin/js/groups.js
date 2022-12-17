@@ -10,7 +10,7 @@ $(document).ready(function() {
     $template_group = $(".template-detail-groups");
     var groups_table=$('#groups').DataTable( {
         "initComplete": function(settings, json) {
-            initGroupSockets()
+            waitDefined('socket', initGroupSockets)
         },
         "ajax": {
             "url": "/admin/table/groups",

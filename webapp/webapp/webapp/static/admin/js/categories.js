@@ -13,7 +13,7 @@ $(document).ready(function() {
 
     var categories_table=$('#categories').DataTable( {
         "initComplete": function(settings, json) {
-            initCategorySockets()
+            waitDefined('socket', initCategorySockets)
         },
         "ajax": {
             "url": "/admin/table/categories",

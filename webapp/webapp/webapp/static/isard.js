@@ -463,3 +463,11 @@ function adminShowIdCol (datatable, table_id) {
       }
     }
 }
+
+function waitDefined (name, callback) {
+    var interval = setInterval(function () {
+        if (!window.hasOwnProperty(name)) return
+        clearInterval(interval)
+        callback()
+    }, 100)
+}

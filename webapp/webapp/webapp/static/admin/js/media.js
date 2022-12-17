@@ -460,29 +460,9 @@ $(document).ready(function() {
                   .on("pnotify.cancel", function () {});
               });
           }
-
-    // SocketIO
-    socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/administrators', {
-        'query': {'jwt': localStorage.getItem("token")},
-        'path': '/api/v3/socket.io/',
-        'transports': ['websocket']
-    });
-
-    socket.on('connect', function() {
-        connection_done();
-        console.log('Listening media namespace');
-    });
-
-    socket.on('connect_error', function(data) {
-      connection_lost();
-    });
-
-    socket.on('user_quota', function(data) {
-        console.log('Quota update')
-        var data = JSON.parse(data);
-        drawUserQuota(data);
-    });
-
+    $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
+})
+function socketio_on(){
     socket.on('media_data', function(data){
         var data = JSON.parse(data);
         data = {...table.row("#"+data.id).data(),...data}
@@ -552,9 +532,7 @@ $(document).ready(function() {
                 type: data.type
         });
     });
-
-
- } );
+}
 
 
 function renderProgress(data){

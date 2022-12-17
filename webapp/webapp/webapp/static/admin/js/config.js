@@ -336,29 +336,9 @@ $('#backup-tables').on('change', function (e) {
         $('#maintenance_spinner').hide()
         $('#maintenance_wrapper').show()
     })
-
-    // SocketIO
-    socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/administrators', {
-        'query': {'jwt': localStorage.getItem("token")},
-        'path': '/api/v3/socket.io/',
-        'transports': ['websocket']
-    });
-
-    socket.on('connect', function() {
-        connection_done();
-        console.log('Listening admins namespace');
-        console.log('Listening config updates');
-    });
-
-    socket.on('connect_error', function(data) {
-      connection_lost();
-    });
-
-    socket.on('user_quota', function(data) {
-        var data = JSON.parse(data);
-        drawUserQuota(data);
-    });
-
+    $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
+})
+function socketio_on(){
     socket.on('backups_data', function(data){
         var data = JSON.parse(data);
         dtUpdateInsert(backups_table,data,false);
@@ -428,7 +408,7 @@ $('#backup-tables').on('change', function (e) {
                 type: data.type
         });
     });
-});
+}
 
 function scheduler_init(){
     $("#modalScheduler #modalAddScheduler").each(function () {

@@ -979,29 +979,9 @@ $(document).ready(function () {
 
         }
     });
-
-    // SocketIO
-    socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port + '/administrators', {
-        'query': { 'jwt': localStorage.getItem("token") },
-        'path': '/api/v3/socket.io/',
-        'transports': ['websocket']
-    });
-
-    socket.on('connect', function () {
-        connection_done();
-        console.log('Listening resources namespace');
-    });
-
-    socket.on('connect_error', function (data) {
-        connection_lost();
-    });
-
-    socket.on('user_quota', function (data) {
-        console.log('Quota update')
-        var data = JSON.parse(data);
-        drawUserQuota(data);
-    });
-
+    $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
+})
+function socketio_on(){
     socket.on('data', function (data) {
         var dict = JSON.parse(data);
         switch (dict['table']) {
@@ -1092,9 +1072,7 @@ $(document).ready(function () {
             type: 'success'
         });
     });
-
-
-});
+}
 
 function removeQosAd(data) {
     $.each(data, function (key, value) {
