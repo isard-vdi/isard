@@ -3,10 +3,17 @@ import os
 import sys
 import traceback
 from distutils.util import strtobool
+from importlib.machinery import SourceFileLoader
 from pprint import pprint
 from time import sleep
 
 from api_client import ApiClient
+
+DEFAULT_STORAGE_POOL_ID = (
+    SourceFileLoader("storage_pool", "/src/_common/storage_pool.py")
+    .load_module()
+    .DEFAULT_STORAGE_POOL_ID
+)
 
 # Instantiate connection
 try:
@@ -63,6 +70,9 @@ def SetupHypervisor():
         if os.environ.get("GPU_NVIDIA_RESCAN") == "true"
         else False,
         "min_free_mem_gb": os.environ.get("HYPER_FREEMEM", "0"),
+        "storage_pools": os.environ.get(
+            "CAPABILITIES_STORAGE_POOLS", DEFAULT_STORAGE_POOL_ID
+        ),
     }
 
     ## Adding hyper. Received dict with certs and number
