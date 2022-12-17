@@ -15,6 +15,7 @@ from flask import request
 from api import app
 
 from .._common.api_exceptions import Error
+from .._common.storage_pool import DEFAULT_STORAGE_POOL_ID
 from ..libv2 import api_hypervisors
 from ..libv2.quotas import Quotas
 
@@ -118,6 +119,9 @@ def api_v3_hypervisor(hyper_id=False):
             min_free_mem_gb = int(
                 request.form.get("min_free_mem_gb", default="0", type=str)
             )
+            storage_pools = request.form.get(
+                "storage_pools", default=DEFAULT_STORAGE_POOL_ID, type=str
+            ).split(",")
 
         except:
             raise Error(
@@ -145,6 +149,7 @@ def api_v3_hypervisor(hyper_id=False):
             user=user,
             only_forced=only_forced,
             min_free_mem_gb=min_free_mem_gb,
+            storage_pools=storage_pools,
         )
         if not data["status"]:
             raise Error("internal_server", "Failed hypervisor: " + data["msg"])

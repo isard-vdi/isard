@@ -70,6 +70,7 @@ class ApiHypervisors:
         user="root",
         only_forced=False,
         min_free_mem_gb=0,
+        storage_pools=[DEFAULT_STORAGE_POOL_ID],
     ):
         data = {}
 
@@ -95,6 +96,7 @@ class ApiHypervisors:
                 user=user,
                 only_forced=only_forced,
                 min_free_mem_gb=min_free_mem_gb,
+                storage_pools=storage_pools,
             )
             if not result:
                 raise Error("not_found", "Unable to ssh-keyscan")
@@ -168,6 +170,7 @@ class ApiHypervisors:
         user="root",
         only_forced=False,
         min_free_mem_gb=0,
+        storage_pools=[DEFAULT_STORAGE_POOL_ID],
     ):
         # If we can't connect why we should add it? Just return False!
         if not self.update_fingerprint(hostname, port):
@@ -199,7 +202,7 @@ class ApiHypervisors:
             "nvidia_enabled": nvidia_enabled,
             "force_get_hyp_info": force_get_hyp_info,
             "min_free_mem_gb": min_free_mem_gb,
-            "storage_pools": [DEFAULT_STORAGE_POOL_ID],
+            "storage_pools": storage_pools,
         }
 
         hypervisor = _validate_item("hypervisors", hypervisor)
