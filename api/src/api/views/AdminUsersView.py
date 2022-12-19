@@ -348,13 +348,12 @@ def api_v3_admin_quota_group(payload, group_id):
 def api_v3_admin_quota_category(payload, category_id):
     data = request.get_json()
     propagate = True if "propagate" in data.keys() else False
-    if data["quota"]:
+    if data.get("quota"):
         data["id"] = category_id
         _validate_item("category_update", data)
     if data["role"] == "all_roles":
         data["role"] = False
     ownsCategoryId(payload, category_id)
-    checkDuplicateCustomURL(data["custom_url_name"], data["id"])
     users.UpdateCategoryQuota(category_id, data["quota"], propagate, data["role"])
     return json.dumps(data), 200, {"Content-Type": "application/json"}
 
