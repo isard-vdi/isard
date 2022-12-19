@@ -176,61 +176,455 @@ class ApiUsers:
             )
         return user
 
-    def List(self, category_id=None):
-        query = r.table("users")
-        if category_id:
-            query = query.get_all(category_id, index="category")
-        query = query.without(
-            "password",
-            {
-                "vpn": {
-                    "wireguard": {
-                        "keys": True,
-                        "extra_client_nets": True,
-                        "AllowedIPs": True,
-                        "Address": True,
-                    },
-                    "iptables": True,
-                }
-            },
-        ).merge(
-            lambda user: {
-                "category_name": r.table("categories").get(user["category"])["name"],
-                "group_name": r.table("groups").get(user["group"])["name"],
-                "role_name": r.table("roles").get(user["role"])["name"],
-                "desktops": r.table("domains")
-                .get_all(["desktop", user["id"]], index="kind_user")
-                .pluck("id")
-                .count(),
-                "templates": r.table("domains")
-                .get_all(["template", user["id"]], index="kind_user")
-                .pluck("id")
-                .count(),
-                "category": r.table("categories").get(user["category"])["name"],
-                "group": r.table("groups").get(user["group"])["name"],
-                "role": r.table("roles").get(user["role"])["name"],
-                "secondary_groups_data": r.table("groups")
-                .get_all(r.args(user["secondary_groups"]))
-                .pluck("id", "name")
-                .coerce_to("array"),
-                "media_size": (
-                    r.table("media")
-                    .get_all(user["id"], index="user")
-                    .pluck({"progress": "total_bytes"})
-                    .sum(lambda size: size["progress"]["total_bytes"].default(0))
+    def list_users(self, nav, category_id=None):
+        query = []
+        if nav == "management":
+            if category_id:
+                with app.app_context():
+                    query = (
+                        r.table("users")
+                        .get_all(category_id, index="category")
+                        .pluck(
+                            "id",
+                            "active",
+                            "name",
+                            "provider",
+                            "category",
+                            "uid",
+                            "username",
+                            "role",
+                            "group",
+                            "secondary_groups",
+                            "accessed",
+                        )
+                        .without(
+                            "password",
+                            {
+                                "vpn": {
+                                    "wireguard": {
+                                        "keys": True,
+                                        "extra_client_nets": True,
+                                        "AllowedIPs": True,
+                                        "Address": True,
+                                    },
+                                    "iptables": True,
+                                }
+                            },
+                        )
+                        .merge(
+                            lambda user: {
+                                "group_name": r.table("groups").get(user["group"])[
+                                    "name"
+                                ],
+                                "role_name": r.table("roles").get(user["role"])["name"],
+                                "secondary_groups_names": r.table("groups")
+                                .get_all(r.args(user["secondary_groups"]))["name"]
+                                .coerce_to("array"),
+                            }
+                        )
+                    )
+            else:
+                with app.app_context():
+                    query = (
+                        r.table("users")
+                        .pluck(
+                            "id",
+                            "active",
+                            "name",
+                            "provider",
+                            "category",
+                            "uid",
+                            "username",
+                            "role",
+                            "group",
+                            "secondary_groups",
+                            "accessed",
+                        )
+                        .without(
+                            "password",
+                            {
+                                "vpn": {
+                                    "wireguard": {
+                                        "keys": True,
+                                        "extra_client_nets": True,
+                                        "AllowedIPs": True,
+                                        "Address": True,
+                                    },
+                                    "iptables": True,
+                                }
+                            },
+                        )
+                        .merge(
+                            lambda user: {
+                                "category_name": r.table("categories").get(
+                                    user["category"]
+                                )["name"],
+                                "group_name": r.table("groups").get(user["group"])[
+                                    "name"
+                                ],
+                                "role_name": r.table("roles").get(user["role"])["name"],
+                                "secondary_groups_names": r.table("groups")
+                                .get_all(r.args(user["secondary_groups"]))["name"]
+                                .coerce_to("array"),
+                            }
+                        )
+                    )
+
+        if nav == "quotas_limits":
+            if category_id:
+                with app.app_context():
+                    query = (
+                        r.table("users")
+                        .get_all(category_id, index="category")
+                        .pluck(
+                            "id",
+                            "name",
+                            "username",
+                            "role",
+                            "category",
+                            "group",
+                        )
+                        .without(
+                            "password",
+                            {
+                                "vpn": {
+                                    "wireguard": {
+                                        "keys": True,
+                                        "extra_client_nets": True,
+                                        "AllowedIPs": True,
+                                        "Address": True,
+                                    },
+                                    "iptables": True,
+                                }
+                            },
+                        )
+                        .merge(
+                            lambda user: {
+                                "group_name": r.table("groups").get(user["group"])[
+                                    "name"
+                                ],
+                                "role_name": r.table("roles").get(user["role"])["name"],
+                                "desktops": r.table("domains")
+                                .get_all(["desktop", user["id"]], index="kind_user")
+                                .pluck("id")
+                                .count(),
+                                "templates": r.table("domains")
+                                .get_all(["template", user["id"]], index="kind_user")
+                                .pluck("id")
+                                .count(),
+                                "media_size": (
+                                    r.table("media")
+                                    .get_all(user["id"], index="user")
+                                    .pluck({"progress": "total_bytes"})
+                                    .sum(
+                                        lambda size: size["progress"][
+                                            "total_bytes"
+                                        ].default(0)
+                                    )
+                                )
+                                / 1073741824,
+                                "domains_size": (
+                                    r.table("storage")
+                                    .get_all([user["id"], "ready"], index="user_status")
+                                    .pluck({"qemu-img-info": "actual-size"})
+                                    .sum(
+                                        lambda size: size["qemu-img-info"][
+                                            "actual-size"
+                                        ].default(0)
+                                    )
+                                )
+                                / 1073741824,
+                            }
+                        )
+                    )
+            else:
+                query = (
+                    r.table("users")
+                    .pluck("id", "name", "username", "role", "category", "group")
+                    .without(
+                        "password",
+                        {
+                            "vpn": {
+                                "wireguard": {
+                                    "keys": True,
+                                    "extra_client_nets": True,
+                                    "AllowedIPs": True,
+                                    "Address": True,
+                                },
+                                "iptables": True,
+                            }
+                        },
+                    )
+                    .merge(
+                        lambda user: {
+                            "category_name": r.table("categories").get(
+                                user["category"]
+                            )["name"],
+                            "group_name": r.table("groups").get(user["group"])["name"],
+                            "role_name": r.table("roles").get(user["role"])["name"],
+                            "desktops": r.table("domains")
+                            .get_all(["desktop", user["id"]], index="kind_user")
+                            .pluck("id")
+                            .count(),
+                            "templates": r.table("domains")
+                            .get_all(["template", user["id"]], index="kind_user")
+                            .pluck("id")
+                            .count(),
+                            "media_size": (
+                                r.table("media")
+                                .get_all(user["id"], index="user")
+                                .pluck({"progress": "total_bytes"})
+                                .sum(
+                                    lambda size: size["progress"][
+                                        "total_bytes"
+                                    ].default(0)
+                                )
+                            )
+                            / 1073741824,
+                            "domains_size": (
+                                r.table("storage")
+                                .get_all([user["id"], "ready"], index="user_status")
+                                .pluck({"qemu-img-info": "actual-size"})
+                                .sum(
+                                    lambda size: size["qemu-img-info"][
+                                        "actual-size"
+                                    ].default(0)
+                                )
+                            )
+                            / 1073741824,
+                        }
+                    )
                 )
-                / 1073741824,
-                "domains_size": (
-                    r.table("storage")
-                    .get_all([user["id"], "ready"], index="user_status")
-                    .pluck({"qemu-img-info": "actual-size"})
-                    .sum(lambda size: size["qemu-img-info"]["actual-size"].default(0))
+
+        return list(query.run(db.conn))
+
+    def list_categories(self, nav, category_id=False):
+        query = []
+        if nav == "management":
+            with app.app_context():
+                if category_id:
+                    query = (
+                        r.table("categories")
+                        .get_all(category_id)
+                        .without("quota", "limits")
+                    )
+                else:
+                    query = r.table("categories").without("quota", "limits")
+
+        elif nav == "quotas_limits":
+            with app.app_context():
+                if category_id:
+                    query = (
+                        r.table("categories")
+                        .get_all(category_id)
+                        .merge(
+                            {
+                                "media_size": (
+                                    r.table("media")
+                                    .get_all(category_id, index="category")
+                                    .pluck({"progress": "total_bytes"})
+                                    .sum(
+                                        lambda size: size["progress"][
+                                            "total_bytes"
+                                        ].default(0)
+                                    )
+                                )
+                                / 1073741824,
+                                "domains_size": (
+                                    r.table("users")
+                                    .get_all(category_id, index="category")
+                                    .pluck("id")
+                                    .merge(
+                                        lambda user: {
+                                            "storage": r.table("storage")
+                                            .get_all(
+                                                [user["id"], "ready"],
+                                                index="user_status",
+                                            )
+                                            .pluck({"qemu-img-info": "actual-size"})
+                                            .sum(
+                                                lambda right: right["qemu-img-info"][
+                                                    "actual-size"
+                                                ].default(0)
+                                            ),
+                                        }
+                                    )
+                                    .sum("storage")
+                                )
+                                / 1073741824,
+                            }
+                        )
+                    )
+
+                else:
+                    query = r.table("categories").merge(
+                        lambda category: {
+                            "media_size": (
+                                r.table("media")
+                                .get_all(category["id"], index="category")
+                                .pluck({"progress": "total_bytes"})
+                                .sum(
+                                    lambda size: size["progress"][
+                                        "total_bytes"
+                                    ].default(0)
+                                )
+                            )
+                            / 1073741824,
+                            "domains_size": (
+                                r.table("users")
+                                .get_all(category["id"], index="category")
+                                .pluck("id")
+                                .merge(
+                                    lambda user: {
+                                        "storage": r.table("storage")
+                                        .get_all(
+                                            [user["id"], "ready"],
+                                            index="user_status",
+                                        )
+                                        .pluck({"qemu-img-info": "actual-size"})
+                                        .sum(
+                                            lambda right: right["qemu-img-info"][
+                                                "actual-size"
+                                            ].default(0)
+                                        ),
+                                    }
+                                )
+                                .sum("storage")
+                            )
+                            / 1073741824,
+                        }
+                    )
+
+        return list(query.run(db.conn))
+
+    def list_groups(self, nav, category_id=False):
+        query = []
+        if nav == "management":
+            if category_id:
+                query = (
+                    r.table("groups")
+                    .get_all(category_id, index="parent_category")
+                    .without("quota", "limits")
+                    .merge(
+                        lambda group: {
+                            "linked_groups_names": r.table("groups")
+                            .get_all(r.args(group["linked_groups"]))["name"]
+                            .coerce_to("array")
+                        }
+                    )
                 )
-                / 1073741824,
-            }
-        )
-        with app.app_context():
-            return list(query.run(db.conn))
+
+            else:
+                query = (
+                    r.table("groups")
+                    .without("quota", "limits")
+                    .merge(
+                        lambda group: {
+                            "linked_groups_names": r.table("groups")
+                            .get_all(r.args(group["linked_groups"]))["name"]
+                            .coerce_to("array")
+                        }
+                    )
+                )
+
+        elif nav == "quotas_limits":
+            if category_id:
+                query = (
+                    r.table("groups")
+                    .get_all(category_id, index="parent_category")
+                    .merge(
+                        lambda group: {
+                            "linked_groups_data": r.table("groups")
+                            .get_all(r.args(group["linked_groups"]))
+                            .pluck("id", "name")
+                            .coerce_to("array"),
+                            "media_size": (
+                                r.table("media")
+                                .get_all(group["id"], index="group")
+                                .pluck({"progress": "total_bytes"})
+                                .sum(
+                                    lambda size: size["progress"][
+                                        "total_bytes"
+                                    ].default(0)
+                                )
+                            )
+                            / 1073741824,
+                            "domains_size": (
+                                r.table("users")
+                                .get_all(group["id"], index="group")
+                                .pluck("id")
+                                .merge(
+                                    lambda user: {
+                                        "storage": r.table("storage")
+                                        .get_all(
+                                            [user["id"], "ready"], index="user_status"
+                                        )
+                                        .pluck({"qemu-img-info": "actual-size"})
+                                        .sum(
+                                            lambda right: right["qemu-img-info"][
+                                                "actual-size"
+                                            ].default(0)
+                                        ),
+                                    }
+                                )
+                                .sum("storage")
+                            )
+                            / 1073741824,
+                        }
+                    )
+                    .without(
+                        "enrollment", "external_app_id", "external_gid", "linked_groups"
+                    )
+                )
+            else:
+                query = (
+                    r.table("groups")
+                    .merge(
+                        lambda group: {
+                            "linked_groups_data": r.table("groups")
+                            .get_all(r.args(group["linked_groups"]))
+                            .pluck("id", "name")
+                            .coerce_to("array"),
+                            "media_size": (
+                                r.table("media")
+                                .get_all(group["id"], index="group")
+                                .pluck({"progress": "total_bytes"})
+                                .sum(
+                                    lambda size: size["progress"][
+                                        "total_bytes"
+                                    ].default(0)
+                                )
+                            )
+                            / 1073741824,
+                            "domains_size": (
+                                r.table("users")
+                                .get_all(group["id"], index="group")
+                                .pluck("id")
+                                .merge(
+                                    lambda user: {
+                                        "storage": r.table("storage")
+                                        .get_all(
+                                            [user["id"], "ready"], index="user_status"
+                                        )
+                                        .pluck({"qemu-img-info": "actual-size"})
+                                        .sum(
+                                            lambda right: right["qemu-img-info"][
+                                                "actual-size"
+                                            ].default(0)
+                                        ),
+                                    }
+                                )
+                                .sum("storage")
+                            )
+                            / 1073741824,
+                        }
+                    )
+                    .without(
+                        "enrollment", "external_app_id", "external_gid", "linked_groups"
+                    )
+                )
+
+        return list(query.run(db.conn))
 
     # this method is needed for user auto-registering
     # It will get the quota from the user group provided
@@ -661,7 +1055,7 @@ class ApiUsers:
         with app.app_context():
             category = list(
                 r.table("categories")
-                .filter(lambda category: category["name"].match("(?i)" + category_name))
+                .filter({"name": category_name.strip()})
                 .run(db.conn)
             )
         if not category:

@@ -1,0 +1,182 @@
+<style>
+    .no-update {
+        background: #e3e4e4
+    }
+</style>
+
+<div class="modal fade" id="modalEditUser" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title">
+                    <i class="fa fa-user"></i> Edit User
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <form id="modalEditUserForm" class="form-horizontal form-label-left">
+                    <div class="x_panel">
+                        <div class="x_content">
+                            <input id="id" name="id" hidden>
+                            <div class="x_panel" id="edit-users-quota" style="padding: 5px;">
+                                <div class="x_title">
+                                    <h4></i> Quota for this user</h4>
+                                    <div class="clearfix"></div>
+                                </div>
+                                {% include '/snippets/quota_edit.html' %}
+                            </div>
+                        </div>
+                    </div>
+
+                </form>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><button id="send" type="button" class="btn btn-success">Update user</button></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalEditQuota" tabindex="-1" role="dialog" aria-labelledby="modalEditQuota"
+    aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel">
+                    <i class="fa fa-edit fa-1x"> </i> Edit <span class="kind"></span> users quota
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body" style="padding: 7px;">
+                <form id="modalEditQuotaForm" class="form-horizontal form-label-left" method="POST" novalidate>
+                    <div class="x_panel">
+                        <div class="x_content">
+                            <input id="id" hidden />
+                            <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="role">Apply current
+                                    changes to: <span class="required"></span></label>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                    <select id="add-role" name="role" class="form-control role" data-quota="users-quota"
+                                        required>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="item form-group" id="propagate-form">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="propagate"> Override <span
+                                        class="kind"></span> users current quota
+                                </label>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                    <div class="checkbox">
+                                        <label class="">
+                                            <div class="icheckbox_flat-green" style="position: relative;">
+                                                <input type="checkbox" id="propagate" name="propagate" class="flat"
+                                                    style="position: absolute; opacity: 0;">
+                                                <ins class="iCheck-helper"
+                                                    style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                                </ins>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            {% include '/snippets/quota_edit.html' %}
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><button id="send" type="button" class="btn btn-success">Update quota</button></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalEditLimits" tabindex="-1" role="dialog" aria-labelledby="modalEditLimits"
+    aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel">
+                    <i class="fa fa-edit"></i> Edit <span class="kind"></span> limits
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <form id="modalEditLimitsForm" class="form-horizontal form-label-left" method="POST" novalidate>
+                    <div class="x_panel">
+                        <div class="x_content">
+                            <input id="id" hidden />
+                            <div class="item form-group" id="propagate-form" style="display: hidden">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="propagate">Override <span
+                                        class="kind"></span> current limits
+                                </label>
+                                <div class="col-md-6 col-sm-6 col-xs-12">
+                                    <div class="checkbox">
+                                        <label class="">
+                                            <div class="icheckbox_flat-green" style="position: relative;">
+                                                <input type="checkbox" id="propagate" name="propagate" class="flat"
+                                                    style="position: absolute; opacity: 0;">
+                                                <ins class="iCheck-helper"
+                                                    style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                                </ins>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            {% with type="limits" %}
+                            {% include '/snippets/quota_edit.html' %}
+                            {% endwith %}
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><button id="send" type="button" class="btn btn-success">Update limits</button></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
