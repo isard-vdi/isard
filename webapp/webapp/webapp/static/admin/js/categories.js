@@ -537,7 +537,7 @@ function actionsCategoryDetail(){
         });
     });
 
-    $('.btn-edit-quotas').off('click').on('click', function () {
+    $('#categories .btn-edit-quotas').off('click').on('click', function () {
         var pk=$(this).closest("div").attr("data-pk");
         $("#modalEditQuotaForm")[0].reset();
         $('#modalEditQuotaForm #id').val(pk);
@@ -614,11 +614,11 @@ function actionsCategoryDetail(){
         }
     });
 
-    $('.btn-edit-limits').off('click').on('click', function () {
+    $('#categories .btn-edit-limits').off('click').on('click', function () {
         var pk=$(this).closest("div").attr("data-pk");
         $("#modalEditLimitsForm")[0].reset();
         $('#modalEditLimitsForm #id').val(pk);
-        $('#modalEditLimits .kind').html('category groups');
+        $('#modalEditLimits .kind').html('category');
         $('#modalEditLimits .apply').html('unlimited');
         $("#modalEditLimitsForm #propagate").removeAttr('checked').iCheck('update')
         $('#modalEditLimits').modal({
@@ -686,7 +686,7 @@ function actionsCategoryDetail(){
         }
     });
 
-    $('.btn-delete').off('click').on('click', function () {
+    $('#categories .btn-delete').off('click').on('click', function () {
             var pk=$(this).closest("div").attr("data-pk");
             var data = {
                 'id': pk,

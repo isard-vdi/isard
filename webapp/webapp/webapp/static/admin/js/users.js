@@ -784,7 +784,7 @@ function actionsUserDetail(){
     });
 
 
-    $('.btn-delete').on('click', function () {
+    $('#users .btn-delete').on('click', function () {
             var pk=$(this).closest("div").attr("data-pk");
             var data = {
                 'id': pk,

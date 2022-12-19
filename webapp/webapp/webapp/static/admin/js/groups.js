@@ -368,7 +368,7 @@ $('#modalEditQuotaForm #add-role').on('change', function() {
 
 
 function actionsGroupDetail(){
-    $('.btn-edit-quotas').off('click').on('click', function () {
+    $('#groups .btn-edit-quotas').off('click').on('click', function () {
         var pk=$(this).closest("div").attr("data-pk");
         $("#modalEditQuotaForm")[0].reset();
         $("#modalEditQuotaForm #propagate").removeAttr('checked').iCheck('update')
@@ -445,10 +445,11 @@ function actionsGroupDetail(){
         }
     });
 
-    $('.btn-edit-limits').off('click').on('click', function () {
+    $('#groups .btn-edit-limits').off('click').on('click', function () {
         var pk=$(this).closest("div").attr("data-pk");
         $("#modalEditLimitsForm")[0].reset();
         $('#modalEditLimitsForm #id').val(pk);
+        $('#modalEditLimits .kind').html('group');
         $('#modalEditLimits .apply').html('category limits');
         $('#modalEditLimits').modal({
             backdrop: 'static',
@@ -512,7 +513,7 @@ function actionsGroupDetail(){
         }
     });
 
-    $('.btn-delete').on('click', function () {
+    $('#groups .btn-delete').on('click', function () {
         var pk=$(this).closest("div").attr("data-pk");
         var data = {
             'id': pk,
