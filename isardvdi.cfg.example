@@ -1,4 +1,4 @@
-# Isard main config v2.4.0
+# Isard main config v2.5.0
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -264,6 +264,11 @@ LOG_LEVEL=INFO
 ## Engine will fail starting desktops till it has enough free memory against
 ## Máximum memory for starting guests = Hypervisor memory - HYPER_FREEMEM
 #HYPER_FREEMEM=0
+
+# Buffering hypervisor
+## If this is set to true, the hypervisor will be used as a "buffer" when
+## the orchestrator needs to scale up
+#BUFFERING_HYPER=false
 
 # ------ Database host -------------------------------------------------------
 ## Where is the database reacheable?

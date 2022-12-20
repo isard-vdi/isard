@@ -73,6 +73,9 @@ def SetupHypervisor():
         "storage_pools": os.environ.get(
             "CAPABILITIES_STORAGE_POOLS", DEFAULT_STORAGE_POOL_ID
         ),
+        "buffering_hyper": json.loads(
+            os.environ.get("BUFFERING_HYPER", "false").lower()
+        ),
     }
 
     ## Adding hyper. Received dict with certs and number
