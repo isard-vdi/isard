@@ -122,6 +122,9 @@ def api_v3_hypervisor(hyper_id=False):
             storage_pools = request.form.get(
                 "storage_pools", default=DEFAULT_STORAGE_POOL_ID, type=str
             ).split(",")
+            buffering_hyper = json.loads(
+                request.form.get("buffering_hyper", default="false", type=str).lower()
+            )
 
         except:
             raise Error(
@@ -150,6 +153,7 @@ def api_v3_hypervisor(hyper_id=False):
             only_forced=only_forced,
             min_free_mem_gb=min_free_mem_gb,
             storage_pools=storage_pools,
+            buffering_hyper=buffering_hyper,
         )
         if not data["status"]:
             raise Error("internal_server", "Failed hypervisor: " + data["msg"])
