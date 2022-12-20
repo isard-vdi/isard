@@ -51,6 +51,25 @@ class ReservablesPlanner:
             minutes=self.round_minutes
         )
 
+    def get_item_actual_plan(self, item_id):
+        start = datetime.now(pytz.utc).strftime("%Y-%m-%dT%H:%M%z")
+
+        with app.app_context():
+            data = list(
+                r.table("resource_planner")
+                .get_all(item_id, index="item_id")
+                .filter(
+                    lambda plan: plan["start"]
+                    <= datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
+                    and plan["end"]
+                    >= datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
+                )
+                .run(db.conn)
+            )
+        if len(data):
+            return data[0]
+        return None
+
     ## Reservables View endpoints
     def list_item_plans(self, item_id, start=None, end=None):
         if not start:
