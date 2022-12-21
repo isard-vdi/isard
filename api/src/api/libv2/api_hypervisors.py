@@ -129,10 +129,7 @@ class ApiHypervisors:
             # {'deleted': 0, 'errors': 0, 'inserted': 0, 'replaced': 1, 'skipped': 0, 'unchanged': 0}
             if not result:
                 raise Error("not_found", "Unable to ssh-keyscan")
-            if result["replaced"] and hypervisor["enabled"]:
-                ## We should restart engine
-                self.engine_restart()
-            elif result["unchanged"] or not hypervisor["enabled"]:
+            if result["unchanged"] or not hypervisor["enabled"]:
                 pass
             else:
                 return {
@@ -228,7 +225,6 @@ class ApiHypervisors:
         with app.app_context():
             r.table("hypervisors").get(hyper_id).update({"enabled": True}).run(db.conn)
 
-        self.engine_restart()
         return {"status": True, "msg": "Hypervisor enabled", "data": {}}
 
     def remove_hyper(self, hyper_id, restart=True):
@@ -268,13 +264,6 @@ class ApiHypervisors:
                 .run(db.conn)
             )
         desktops_stop(desktops_ids, force=True, wait_seconds=0)
-
-    def engine_restart(self):
-        try:
-            requests.get("http://isard-engine:5000/restart")
-        except:
-            ## The procedure just restarts engine, so no answer is expected:
-            pass
 
     def hypervisors_max_networks(self):
         ### There will be much more hypervisor networks available than dhcpsubnets
