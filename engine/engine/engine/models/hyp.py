@@ -31,6 +31,7 @@ from engine.services.db import (
     get_hyp_info,
     get_id_hyp_from_uri,
     get_vgpu,
+    get_vgpu_actual_profile,
     reset_vgpu_created_started,
     update_actual_stats_domain,
     update_actual_stats_hyp,
@@ -396,6 +397,8 @@ class hyp(object):
         return True
 
     def change_vgpu_profile(self, gpu_id, new_profile):
+        if not new_profile:
+            return
         update_table_field("vgpus", gpu_id, "changing_to_profile", new_profile)
         pci_id = gpu_id.split("-")[-1]
         old_profile = self.info_nvidia.get(pci_id, {}).get("vgpu_profile", None)
@@ -495,8 +498,13 @@ class hyp(object):
     def create_mdevs_from_uuids(self):
         d_mdevs_running = self.get_mdevs_with_domains()
         for pci_id, d_nvidia in self.info_nvidia.items():
+            vgpu_id = "-".join([self.id_hyp_rethink, pci_id])
+            vgpu_profile = get_vgpu_actual_profile(vgpu_id)
+            if vgpu_profile:
+                self.change_vgpu_profile(vgpu_id, vgpu_profile)
+            else:
+                vgpu_profile = d_nvidia["vgpu_profile"]
             cmds = []
-            vgpu_profile = d_nvidia["vgpu_profile"]
             base_path = d_nvidia["path"]
             sub_paths = d_nvidia.get("sub_paths", False)
             for uuid_create, d_uuid in self.mdevs[pci_id][vgpu_profile].items():
@@ -517,13 +525,12 @@ class hyp(object):
                     logs.workers.info(
                         f"uuids created for pci_id {pci_id} in hypervisor {self.id_hyp_rethink} with profile {vgpu_profile} with type_id {type_id}"
                     )
+
                     for uuid_create in self.mdevs[pci_id][vgpu_profile].keys():
-                        vgpu_id = "-".join([self.id_hyp_rethink, pci_id])
                         results = update_vgpu_created(
                             vgpu_id, vgpu_profile, uuid_create
                         )
                         self.mdevs[pci_id][vgpu_profile][uuid_create]["created"] = True
-
                 else:
                     logs.workers.error(
                         f"uuids NOT created for pci_id {pci_id} in hypervisor {self.id_hyp_rethink} with profile {vgpu_profile} with type_id {type_id}"
