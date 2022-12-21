@@ -85,9 +85,7 @@ class Downloads(object):
 
     def is_conected(self):
         try:
-            req = requests.get(
-                self.url, allow_redirects=False, verify=False, timeout=10
-            )
+            req = requests.get(self.url, allow_redirects=False, verify=True, timeout=10)
             if req.status_code == 200:
                 return True
         except:
