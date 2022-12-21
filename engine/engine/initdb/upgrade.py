@@ -17,8 +17,9 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 69
+release_version = 70
 
+# release 70: Add hypervisor execution time
 # release 69: Buffering hyper
 # release 68: Removed table field from interfaces, videos, remotevpn, qos_disk and qos_net.
 # release 67: Updated qos_disk adding field read_iops_sec_max
@@ -626,6 +627,20 @@ class Upgrade(object):
         if version == 69:
             try:
                 r.table(table).update({"buffering_hyper": False}).run(self.conn)
+
+            except Exception as e:
+                log.error(
+                    "Could not update table "
+                    + table
+                    + " conversion fields for db version "
+                    + str(version)
+                    + "!"
+                )
+                log.error("Error detail: " + str(e))
+
+        if version == 70:
+            try:
+                r.table(table).update({"destroy_time": None}).run(self.conn)
 
             except Exception as e:
                 log.error(
