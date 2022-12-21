@@ -81,8 +81,8 @@ def api_v3_reservable_items_enabled(payload, reservable_type, item_id):
 def api_v3_reservables_planner_get_item_actual_plan(payload, item_id):
     plan = api_rp.get_item_actual_plan(item_id)
     if not plan:
-        return json.dumps({"plan_id": None})
-    return plan["subitem_id"]
+        return json.dumps({})
+    return json.dumps(plan)
 
 
 # Gets actual plans for item (card) /subitem (profile) reservable resources

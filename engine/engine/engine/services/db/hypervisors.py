@@ -1,6 +1,8 @@
 import logging
 import time
+from datetime import datetime
 
+import pytz
 from engine.services.db import (
     MAX_LEN_PREV_STATUS_HYP,
     close_rethink_connection,
@@ -979,6 +981,39 @@ def get_vgpu(vgpu_id):
         return False
     close_rethink_connection(r_conn)
     return out
+
+
+def get_vgpu_actual_profile(vgpu_id):
+    start = datetime.now(pytz.utc).strftime("%Y-%m-%dT%H:%M%z")
+
+    r_conn = new_rethink_connection()
+
+    try:
+        gpu = list(r.table("gpus").filter({"physical_device": vgpu_id}).run(r_conn))[0]
+    except:
+        logs.workers.error(
+            "The gpu " + vgpu_id + " has no entry in gpus table right now!"
+        )
+        return None
+
+    try:
+        data = list(
+            r.table("resource_planner")
+            .get_all(gpu["id"], index="item_id")
+            .filter(
+                lambda plan: plan["start"]
+                <= datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
+                and plan["end"]
+                >= datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
+            )
+            .run(r_conn)
+        )[0]
+    except:
+        data = []
+    close_rethink_connection(r_conn)
+    if len(data):
+        return data["subitem_id"].split("-")[-1]
+    return None
 
 
 def get_hyp(hyp_id):
