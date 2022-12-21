@@ -17,8 +17,9 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 70
+release_version = 71
 
+# release 71: Added bookings_priority name index
 # release 70: Add hypervisor execution time
 # release 69: Buffering hyper
 # release 68: Removed table field from interfaces, videos, remotevpn, qos_disk and qos_net.
@@ -2342,6 +2343,11 @@ class Upgrade(object):
             r.table(table).get("default admins").update({"allowed": new_allowed}).run(
                 self.conn
             )
+        if version == 71:
+            try:
+                r.table(table).index_create("name").run(self.conn)
+            except Exception as e:
+                print(e)
 
     """
     CATEGORIES TABLE UPGRADES
