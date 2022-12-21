@@ -778,6 +778,28 @@ def admin_users_getby_provider_category_uid(payload):
         raise Error("not_found", "User not found")
 
 
+@app.route("/api/v3/admin/category/get/<category_name>", methods=["GET"])
+@is_admin_or_manager
+def admin_users_getby_name(payload, category_name):
+    category_id = users.CategoryGetByName(category_name)["id"]
+
+    if len(category_id) > 0:
+        return json.dumps(category_id), 200, {"Content-Type": "application/json"}
+    else:
+        raise Error("not_found", "Category not found")
+
+
+@app.route("/api/v3/admin/group/get/<category_name>/<group_name>", methods=["GET"])
+@is_admin_or_manager
+def admin_users_getby_category_and_name(payload, category_name, group_name):
+    group_id = users.GroupGetByNameCategory(group_name, category_name)["id"]
+
+    if len(group_id) > 0:
+        return json.dumps(group_id), 200, {"Content-Type": "application/json"}
+    else:
+        raise Error("not_found", "Group not found")
+
+
 @app.route("/api/v3/admin/socketio/broadcast", methods=["POST"])
 @is_admin
 def socketio_broadcast(payload):

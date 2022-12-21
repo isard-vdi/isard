@@ -172,8 +172,9 @@ def api_v3_persistent_desktop_bulk_new(payload):
     template = templates.Get(data["template_id"])
     allowed.is_allowed(payload, template, "domains")
     desktops.BulkDesktops(payload, data)
+    desktops_list = desktops.BulkDesktops(payload, data)
 
-    return json.dumps({}), 200, {"Content-Type": "application/json"}
+    return json.dumps(desktops_list), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/api/v3/desktop/from/media", methods=["POST"])
