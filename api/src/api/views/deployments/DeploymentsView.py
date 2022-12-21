@@ -56,6 +56,7 @@ def api_v3_deployments_new(payload):
         data["description"],
         data["desktop_name"],
         data["allowed"],
+        data,
         visible=data["visible"],
         deployment_id=data["id"],
     )

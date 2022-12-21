@@ -32,9 +32,11 @@ from ..api_desktops_common import ApiDesktopsCommon
 from ..api_desktops_persistent import ApiDesktopsPersistent
 from ..ds import DS
 from ..helpers import (
+    _check,
     _parse_deployment_booking,
     _parse_deployment_desktop,
     _parse_string,
+    parse_domain_insert,
 )
 from ..validators import _validate_item
 
@@ -150,63 +152,70 @@ def new(
     description,
     desktop_name,
     selected,
+    new_data,
     deployment_id,
     visible=False,
-    skip_existing_desktops=False,
 ):
     # CREATE_DEPLOYMENT
-    with app.app_context():
-        try:
-            template = (
-                r.table("domains")
-                .get(template_id)
-                .pluck(
-                    {
-                        "create_dict": {
-                            "hardware": {
-                                "vcpus": True,
-                                "memory": True,
-                                "videos": True,
-                                "disk_bus": True,
-                                "interfaces": True,
-                                "graphics": True,
-                                "boot_order": True,
-                                "qos_id": True,
-                                "virtualization_nested": True,
-                            }
-                        },
-                    }
-                )
-                .run(db.conn)
-            )
-        except:
-            raise Error(
-                "not_found",
-                "Template to create deployment not found",
-                description_code="not_found",
-            )
-
-    deployment_tag = {
-        "tag": deployment_id,
-        "tag_name": name,
-        "tag_visible": visible,
-    }
+    new_data["hardware"] = parse_domain_insert(new_data)["hardware"]
+    new_data["hardware"]["memory"] = new_data["hardware"]["memory"] * 1048576
+    new_data["reservables"] = new_data["hardware"].pop("reservables")
     deployment = {
         "create_dict": {
             "allowed": selected,
             "description": description,
-            "hardware": template["create_dict"]["hardware"],
+            "hardware": new_data.get("hardware"),
+            "reservables": new_data.get("reservables"),
+            "guest_properties": new_data.get("guest_properties"),
             "name": desktop_name,
             "tag": deployment_id,
             "tag_name": name,
             "tag_visible": visible,
             "template": template_id,
+            "image": new_data.get("image"),
         },
         "id": deployment_id,
         "name": name,
         "user": payload["user_id"],
     }
 
+    users = get_selected_users(payload, selected, desktop_name, False)
+    quotas.deployment_create(users)
+
+    """Create deployment"""
+    with app.app_context():
+        query = r.table("deployments").insert(deployment).run(db.conn)
+        if not _check(query, "inserted"):
+            raise Error(
+                "internal_server",
+                "Unable to create deployment",
+                description_code="unable_to_insert",
+            )
+
+    """Create desktops for each user found"""
+    deployment_tag = {
+        "tag": deployment_id,
+        "tag_name": name,
+        "tag_visible": visible,
+    }
+    desktop = {
+        "name": desktop_name,
+        "description": description,
+        "template_id": template_id,
+        "hardware": {
+            **deployment["create_dict"]["hardware"],
+            "memory": deployment["create_dict"]["hardware"]["memory"] / 1048576,
+            "reservables": new_data.get("reservables"),
+        },
+        "guest_properties": deployment["create_dict"]["guest_properties"],
+        "image": deployment["create_dict"]["image"],
+    }
+    create_deployment_desktops(deployment_tag, desktop, users)
+
+    return deployment["id"]
+
+
+def get_selected_users(payload, selected, desktop_name, skip_existing_desktops):
     """Check who has to be created"""
     users = []
 
@@ -281,40 +290,24 @@ def new(
             )
         else:
             users = [u for u in users if u["id"] not in existing_desktops]
+    return users
 
-    # Check qupotas
-    quotas.deployment_create(users)
 
-    """Create deployment"""
-    with app.app_context():
-        try:
-            r.table("deployments").insert(deployment).run(db.conn)
-        except:
-            raise Error(
-                "conflict",
-                "Deployment id already exists",
-                description_code="unable_to_insert",
-            )
-
-    """Create desktops for each user found"""
+def create_deployment_desktops(deployment_tag, desktop_data, users):
     for user in users:
-        data = {
-            "name": desktop_name,
-            "description": description,
-            "template_id": template_id,
-            "hardware": template["create_dict"]["hardware"],
-        }
-        data = _validate_item("desktop_from_template", data)
+
+        desktop = _validate_item("desktop_from_template", desktop_data)
 
         ApiDesktopsPersistent().NewFromTemplate(
-            desktop_name,
-            description,
-            template_id,
+            desktop["name"],
+            desktop["description"],
+            desktop["template_id"],
             user_id=user["id"],
             deployment_tag_dict=deployment_tag,
-            domain_id=data["id"],
+            domain_id=desktop["id"],
+            new_data=desktop,
+            image=desktop.get("image"),
         )
-    return deployment["id"]
 
 
 def checkDesktopsStarted(deployment_id):
@@ -369,17 +362,39 @@ def recreate(payload, deployment_id):
             description_code="not_found",
         )
 
-    new(
+    users = get_selected_users(
         payload,
-        deployment["create_dict"]["template"],
-        deployment["name"],
-        deployment["create_dict"]["description"],
-        deployment["create_dict"]["name"],
         deployment["create_dict"]["allowed"],
-        deployment["create_dict"]["tag"],
-        deployment["create_dict"]["tag_visible"],
-        skip_existing_desktops=True,
+        deployment["create_dict"]["name"],
+        True,
     )
+
+    """Create desktops for each user found"""
+    desktop = {
+        "name": deployment["create_dict"]["name"],
+        "description": deployment["create_dict"]["description"],
+        "template_id": deployment["create_dict"]["template"],
+        "hardware": {
+            **deployment["create_dict"]["hardware"],
+            "memory": deployment["create_dict"]["hardware"]["memory"] / 1048576,
+        },
+    }
+    # Get from the deployment, otherwise it will be fetched from its template
+    if deployment["create_dict"].get("guest_properties"):
+        desktop["hardware"]["guest_properties"] = deployment["create_dict"][
+            "guest_properties"
+        ]
+    if deployment["create_dict"].get("reservables"):
+        desktop["hardware"]["reservables"] = deployment["create_dict"]["reservables"]
+    if deployment["create_dict"].get("image"):
+        desktop["image"] = deployment["create_dict"]["image"]
+
+    deployment_tag = {
+        "tag": deployment_id,
+        "tag_name": deployment["create_dict"]["name"],
+        "tag_visible": deployment["create_dict"]["tag_visible"],
+    }
+    create_deployment_desktops(deployment_tag, desktop, users)
 
 
 def useradd(payload, deployment_id, user_id):
