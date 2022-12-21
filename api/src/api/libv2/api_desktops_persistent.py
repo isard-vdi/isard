@@ -245,6 +245,7 @@ class ApiDesktopsPersistent:
     def BulkDesktops(self, payload, data):
         selected = data["allowed"]
         users = []
+        desktops = []
 
         with app.app_context():
             try:
@@ -311,6 +312,7 @@ class ApiDesktopsPersistent:
                     .get_all(r.args(selected["groups"]), index="group")["id"]
                     .run(db.conn)
                 )
+
                 users_in_secondary_groups = list(
                     r.table("users")
                     .get_all(r.args(selected["groups"]), index="secondary_groups")["id"]
@@ -352,6 +354,16 @@ class ApiDesktopsPersistent:
                 desktop_data["id"],
                 image=desktop_data["image"],
             )
+
+            desktops.append(
+                {
+                    "id": desktop_data["id"],
+                    "name": desktop_data["name"],
+                    "user": user_id,
+                }
+            )
+
+        return desktops
 
     def NewFromMedia(self, payload, data):
         with app.app_context():
