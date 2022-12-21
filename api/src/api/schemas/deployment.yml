@@ -25,3 +25,10 @@ desktop_name:
   default: setdeploymentname
 allowed:
   schema: allowed
+hardware:
+  schema: hardware_update
+guest_properties:
+  type: dict
+  schema: guest_properties_update
+image:
+  schema: image_update

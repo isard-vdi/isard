@@ -138,8 +138,11 @@ class ApiDesktopsPersistent:
                 **template["create_dict"]["hardware"],
                 **parse_domain_insert(new_data)["hardware"],
             }
-            template["create_dict"]["reservables"] = new_data["hardware"]["reservables"]
-            template["create_dict"]["hardware"].pop("reservables")
+            if new_data["hardware"].get("reservables"):
+                template["create_dict"]["reservables"] = new_data["hardware"][
+                    "reservables"
+                ]
+                template["create_dict"]["hardware"].pop("reservables")
         else:
             template["create_dict"]["hardware"]["memory"] = (
                 template["create_dict"]["hardware"]["memory"] / 1048576
@@ -182,7 +185,7 @@ class ApiDesktopsPersistent:
             "server": False,
             "os": template["os"],
             "guest_properties": new_data.get("guest_properties")
-            if new_data
+            if new_data.get("guest_properties")
             else template["guest_properties"],
             "create_dict": {
                 "hardware": create_dict["hardware"],

@@ -200,6 +200,34 @@
       <!-- Allowed -->
       <AllowedForm />
 
+      <!-- Advanced options section title -->
+      <b-row class="mt-2 mt-xl-5">
+        <h5
+          class="p-2 mt-2 cursor-pointer"
+          @click="collapseVisible = !collapseVisible"
+        >
+          <strong>{{ $t('forms.new-desktop.section-title-advanced') }}</strong>
+          <b-icon
+            class="ml-2"
+            :icon="collapseVisible ? 'chevron-up' : 'chevron-down'"
+          />
+        </h5>
+      </b-row>
+
+      <div>
+        <b-collapse
+          id="collapse-advanced"
+          v-model="collapseVisible"
+          class="mt-2"
+        >
+          <DomainViewers />
+          <DomainHardware />
+          <DomainBookables />
+          <DomainMedia />
+          <DomainImage />
+        </b-collapse>
+      </div>
+
       <!-- Buttons -->
       <b-row align-h="end">
         <b-button
@@ -231,6 +259,11 @@ import DomainInfo from '@/components/domain/DomainInfo.vue'
 import DesktopNewSkeleton from '@/components/desktops/DesktopNewSkeleton.vue'
 import { map } from 'lodash'
 import { ErrorUtils } from '@/utils/errorUtils'
+import DomainViewers from '@/components/domain/DomainViewers.vue'
+import DomainHardware from '@/components/domain/DomainHardware.vue'
+import DomainMedia from '@/components/domain/DomainMedia.vue'
+import DomainBookables from '@/components/domain/DomainBookables.vue'
+import DomainImage from '@/components/domain/DomainImage.vue'
 
 // const inputFormat = helpers.regex('inputFormat', /^1(3|4|5|7|8)\d{9}$/) // /^\D*7(\D*\d){12}\D*$'
 const inputFormat = value => /^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$/.test(value)
@@ -239,11 +272,17 @@ export default {
   components: {
     AllowedForm,
     DomainInfo,
-    DesktopNewSkeleton
+    DesktopNewSkeleton,
+    DomainViewers,
+    DomainHardware,
+    DomainMedia,
+    DomainBookables,
+    DomainImage
   },
   setup (props, context) {
     const $store = context.root.$store
     $store.dispatch('fetchAllowedTemplates', 'all')
+    $store.dispatch('fetchDesktopImages')
 
     const navigate = (path) => {
       $store.dispatch('navigate', path)
@@ -251,6 +290,7 @@ export default {
 
     const deploymentName = ref('')
     const visible = ref(false)
+    const collapseVisible = ref(false)
 
     const domain = computed(() => $store.getters.getDomain)
     const groupsChecked = computed(() => $store.getters.getGroupsChecked)
@@ -290,6 +330,13 @@ export default {
 
     watch(items, (newVal, prevVal) => {
       totalRows.value = newVal.length
+    })
+
+    // Set the advanced data when selecting a template
+    watch(selectedTemplateId, (newVal, prevVal) => {
+      if (newVal) {
+        $store.dispatch('fetchDomain', newVal)
+      }
     })
 
     const fields = reactive([
@@ -366,6 +413,15 @@ export default {
         context.root.$snotify.clear()
         const yesAction = () => {
           context.root.$snotify.remove(toast.id)
+          // Parse viewers data
+          const viewers = {}
+          for (let i = 0; i < domain.value.guestProperties.viewers.length; i++) {
+            Object.assign(viewers, domain.value.guestProperties.viewers[i])
+          }
+          // Parse isos data
+          const isos = domain.value.hardware.isos.map((value) => {
+            return { id: value.id }
+          })
           $store.dispatch('createNewDeployment',
             {
               visible: visible.value,
@@ -373,6 +429,27 @@ export default {
               name: deploymentName.value,
               desktop_name: domain.value.name,
               description: domain.value.description,
+              guest_properties: {
+                credentials: {
+                  username: domain.value.guestProperties.credentials.username,
+                  password: domain.value.guestProperties.credentials.password
+                },
+                fullscreen: domain.value.guestProperties.fullscreen,
+                viewers: viewers
+              },
+              hardware: {
+                boot_order: domain.value.hardware.bootOrder,
+                disk_bus: domain.value.hardware.diskBus,
+                disks: domain.value.hardware.disks,
+                floppies: domain.value.hardware.floppies,
+                interfaces: domain.value.hardware.interfaces,
+                isos: isos,
+                memory: domain.value.hardware.memory,
+                vcpus: domain.value.hardware.vcpus,
+                videos: domain.value.hardware.videos,
+                reservables: domain.value.reservables
+              },
+              image: domain.value.image,
               allowed: {
                 users,
                 groups
@@ -438,7 +515,8 @@ export default {
       submitForm,
       navigate,
       onFiltered,
-      onRowSelected
+      onRowSelected,
+      collapseVisible
     }
   }
 }
