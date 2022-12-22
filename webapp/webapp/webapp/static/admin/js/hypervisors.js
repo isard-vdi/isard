@@ -165,6 +165,7 @@ $(document).ready(function() {
             { "data": "status_time" , "width": "10px" },
             { "data": "vpn.wireguard.connected" , "width": "10px", "defaultContent": 'NaN' },
             { "data": "info.virtualization_capabilities" , "width": "10px", "defaultContent": 'NaN' },
+            { "data": "info.nested" , "width": "10px", "defaultContent": 'NaN' },
             { "data": "info.libvirt_version" , "width": "10px", "defaultContent": 'NaN' },
             { "data": "info.qemu_version" , "width": "10px", "defaultContent": 'NaN' }],
              "order": [[2, 'asc']],
@@ -223,7 +224,17 @@ $(document).ready(function() {
                               return moment.unix(full.status_time).fromNow();
                             }},
                             {
-                                "targets": 13,
+                            "targets": 13,
+                            "render": renderBoolean
+                            },
+                            {
+                                "targets": 14,
+                                "render": function ( data, type, full, meta ) {
+                                    if(! data ){return renderBoolean}
+                                  return data
+                                }},
+                            {
+                                "targets": 15,
                                 "render": renderBoolean
                                 },
              ],
