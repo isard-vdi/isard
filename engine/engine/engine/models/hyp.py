@@ -591,7 +591,53 @@ class hyp(object):
 
         self.info["kvm_module"] = False
         log.error(
-            f"remote ssh command in hypervisor {hostname} fail with {MAX_GET_KVM_RETRIES} retries"
+            f"remote ssh command in hypervisor {self.hostname} fail with {MAX_GET_KVM_RETRIES} retries"
+        )
+        return False
+
+    def get_nested(self):
+        for i in range(MAX_GET_KVM_RETRIES):
+            try:
+                d = exec_remote_cmd(
+                    "cat /sys/module/kvm_intel/parameters/nested",
+                    self.hostname,
+                    username=self.user,
+                    port=self.port,
+                )
+                if len(d["err"]) > 0:
+                    d = exec_remote_cmd(
+                        "cat /sys/module/kvm_amd/parameters/nested",
+                        self.hostname,
+                        username=self.user,
+                        port=self.port,
+                    )
+                    if len(d["err"]) > 0:
+                        log.warning(
+                            f"Nested virtualization NOT enabled for hypervisor {self.hostname}"
+                        )
+                        return False
+                    s = d["out"].decode("utf-8")
+                if s == "1" or s == "Y":
+                    log.info(
+                        f"Nested virtualization enabled for hypervisor {self.hostname}"
+                    )
+                    return True
+                return False
+
+            except Exception as e:
+                logs.exception_id.debug("0036")
+                log.error(
+                    "Exception while executing remote command in hypervisor to check nested virtualization: {}".format(
+                        e
+                    )
+                )
+                log.error(
+                    f"Ssh launch command attempt fail: {i+1}/{MAX_GET_KVM_RETRIES}. Retry in one second."
+                )
+            time.sleep(1)
+
+        log.error(
+            f"remote ssh command in hypervisor {self.hostname} fail with {MAX_GET_KVM_RETRIES} retries"
         )
         return False
 
@@ -694,6 +740,9 @@ class hyp(object):
         # read_gpu
         if nvidia_enabled:
             self.get_nvidia_capabilities()
+
+        # nested virtualization
+        self.info["nested"] = self.get_nested()
 
     def get_nvidia_available_instances_of_type(self, vgpu_id):
         self.get_nvidia_capabilities(only_get_availables=True)
