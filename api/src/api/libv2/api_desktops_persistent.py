@@ -185,7 +185,7 @@ class ApiDesktopsPersistent:
             "server": False,
             "os": template["os"],
             "guest_properties": new_data.get("guest_properties")
-            if new_data.get("guest_properties")
+            if new_data and new_data.get("guest_properties")
             else template["guest_properties"],
             "create_dict": {
                 "hardware": create_dict["hardware"],
