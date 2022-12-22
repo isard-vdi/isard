@@ -14,7 +14,7 @@ import threading
 import time
 import traceback
 import uuid
-from collections import deque
+from collections import OrderedDict, deque
 from copy import deepcopy
 from datetime import datetime
 from io import StringIO
@@ -127,12 +127,13 @@ class hyp(object):
         self.fail_connected_reason = ""
         self.eventLoopThread = None
         self.info = {}
+        self.stats = {}
+        self.stats_previous = {"cpu": {}, "cpu_5min": OrderedDict()}
         self.nvidia_enabled = nvidia_enabled
         self.info_nvidia = {}
         self.mdevs = {}
         self.info_stats = {}
         self.capture_events = capture_events
-        self.id_hyp_rethink = hyp_id
         self.id_hyp_rethink = hyp_id
         self.has_nvidia = False
         self.gpus = {}
@@ -743,6 +744,65 @@ class hyp(object):
 
         # nested virtualization
         self.info["nested"] = self.get_nested()
+
+    def get_system_stats(self, cpu_stats_previous=None, cpu_stats_5min_previous=None):
+        start = time.time()
+
+        if cpu_stats_previous:
+            self.stats_previous["cpu"] = cpu_stats_previous
+
+        if cpu_stats_5min_previous:
+            self.stats_previous["cpu_5min"] = cpu_stats_5min_previous
+
+        try:
+            mem_stats = self.conn.getMemoryStats(-1)
+            mem_stats["available"] = mem_stats["free"] + mem_stats["cached"]
+
+            # If there are no previous CPU readings, read and wait 2 seconds to be able to compare it
+            if not len(self.stats_previous.get("cpu", {})):
+                cpu_stats = self.conn.getCPUStats(-1)
+                self.stats_previous["cpu"].update(cpu_stats)
+                self.stats_previous["cpu_5min"][start] = cpu_stats
+
+                time.sleep(2)
+
+            now = time.time()
+            cpu_stats = self.conn.getCPUStats(-1)
+
+            cpu_current, _, _ = calcule_cpu_hyp_stats(
+                self.stats_previous["cpu"], cpu_stats
+            )
+            self.stats_previous["cpu"].update(cpu_stats)
+
+            oldest = None
+            to_delete = []
+            for key, value in self.stats_previous["cpu_5min"].items():
+                # If the stat is older than 5 minutes, remove it
+                if now - key >= 5 * 60:
+                    to_delete.append(key)
+                    continue
+
+                # Get the oldest value (since it's an ordered dict) and stop the loop
+                oldest = value
+                break
+
+            for key in to_delete:
+                del self.stats_previous["cpu_5min"][key]
+
+            self.stats_previous["cpu_5min"][now] = cpu_stats
+            cpu_5min_current, _, _ = calcule_cpu_hyp_stats(oldest, cpu_stats)
+
+            self.stats["mem_stats"] = mem_stats
+            self.stats["cpu_current"] = cpu_current
+            self.stats["cpu_5min"] = cpu_5min_current
+            self.stats["time"] = round(time.time() - start, 3)
+
+        except Exception as e:
+            log.error(
+                "hyp {} with id fail in get stats from libvirt {}".format(
+                    self.id_hyp_rethink, traceback.format_exc()
+                )
+            )
 
     def get_nvidia_available_instances_of_type(self, vgpu_id):
         self.get_nvidia_capabilities(only_get_availables=True)

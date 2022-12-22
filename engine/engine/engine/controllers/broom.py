@@ -7,6 +7,7 @@
 
 import threading
 import traceback
+from collections import OrderedDict
 from time import sleep, time
 
 from engine.config import POLLING_INTERVAL_TRANSITIONAL_STATES
@@ -29,7 +30,6 @@ from engine.services.db.hypervisors_status import (
     insert_db_hyp_status,
 )
 from engine.services.lib.functions import (
-    calcule_cpu_hyp_stats,
     calcule_disk_net_domain_load,
     dict_domain_libvirt_state_to_isard_state,
     get_tid,
@@ -182,68 +182,24 @@ class ThreadBroom(threading.Thread):
 
                             # Update the current hypervisor memory and CPU usage in the DB
                             try:
-                                mem_stats = h.conn.getMemoryStats(-1)
-                                mem_stats["available"] = (
-                                    mem_stats["free"] + mem_stats["cached"]
-                                )
-                                cpu_stats_timestamp = time()
-                                cpu_stats = h.conn.getCPUStats(-1)
+                                if not cpu_stats_previous.get(hyp_id, False):
+                                    cpu_stats_previous[hyp_id] = {}
 
-                                if cpu_stats_previous.get(hyp_id, False) == False:
-                                    cpu_stats_previous[hyp_id] = cpu_stats
-                                    cpu_stats_5min_previous[hyp_id] = []
-                                    cpu_stats_5min_previous[hyp_id].append(
-                                        (cpu_stats_timestamp, cpu_stats)
-                                    )
-                                    sleep(2)
-                                    cpu_stats_timestamp = time()
-                                    cpu_stats = h.conn.getCPUStats(-1)
+                                if not cpu_stats_5min_previous.get(hyp_id, False):
+                                    cpu_stats_5min_previous[hyp_id] = OrderedDict()
 
-                                (
-                                    percent,
-                                    diff_time,
-                                    total_diff_time,
-                                ) = calcule_cpu_hyp_stats(
+                                h.get_system_stats(
                                     cpu_stats_previous[hyp_id],
-                                    cpu_stats,
-                                    round_digits=3,
-                                )
-                                cpu_current = percent
-
-                                cpu_stats_previous[hyp_id] = cpu_stats
-                                cpu_stats_5min_previous[hyp_id].append(
-                                    (cpu_stats_timestamp, cpu_stats)
-                                )
-
-                                # remove old stats > 5 min
-                                pop_items = 0
-                                for a in cpu_stats_5min_previous[hyp_id]:
-                                    if (cpu_stats_timestamp - a[0]) > (5 * 60 + 10):
-                                        pop_items += 1
-                                    else:
-                                        break
-                                for i in range(pop_items):
-                                    if len(cpu_stats_5min_previous[hyp_id]) > 2:
-                                        cpu_stats_5min_previous[hyp_id].pop(0)
-
-                                (
-                                    cpu_current_5min,
-                                    diff_time,
-                                    total_diff_time,
-                                ) = calcule_cpu_hyp_stats(
-                                    cpu_stats_5min_previous[hyp_id][0][1],
-                                    cpu_stats,
-                                    round_digits=3,
+                                    cpu_stats_5min_previous[hyp_id],
                                 )
 
                             except Exception as e:
-                                logs.broom.error(
-                                    "hyp {} with id fail in get stats from libvirt".format(
-                                        hyp_id
-                                    )
-                                )
                                 h.disconnect()
                                 continue
+
+                            update_table_field(
+                                "hypervisors", hyp_id, "stats", h.stats, soft=True
+                            )
 
                         else:
                             logs.broom.error("HYPERVISOR {} libvirt connection failed")
@@ -255,19 +211,6 @@ class ThreadBroom(threading.Thread):
                             continue
 
                         h.disconnect()
-
-                        after = time()
-                        elapsed = round(after - previous, 3)
-
-                        d_stats = {
-                            "time_elapsed_broom_connection": elapsed,
-                            "cpu_current": cpu_current,
-                            "cpu_5min": cpu_current_5min,
-                            "mem_stats": mem_stats,
-                        }
-                        update_table_field(
-                            "hypervisors", hyp_id, "stats", d_stats, soft=True
-                        )
 
                 except Exception as e:
                     logs.exception_id.debug("0003")
