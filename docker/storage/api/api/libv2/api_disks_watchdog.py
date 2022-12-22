@@ -50,13 +50,7 @@ class Handler(watchdog.events.PatternMatchingEventHandler):
             self.hostname = os.environ.get("DOMAIN")
         api_domain = os.environ.get("API_DOMAIN", False)
         if api_domain and api_domain != "isard-api":
-            self.api_rest = ApiRest(
-                "https://" + api_domain + "/api/v3/admin", verify_cert=False
-            )
-        else:
-            self.api_rest = ApiRest(
-                "http://isard-api:5000/api/v3/admin", verify_cert=False
-            )
+            self.api_rest = ApiRest("isard-api")
 
         self.templates_path = "/isard/templates"
         self.desktops_path = "/isard/groups"

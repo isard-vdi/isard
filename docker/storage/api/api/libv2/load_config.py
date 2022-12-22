@@ -29,13 +29,8 @@ from .._common.api_rest import ApiRest
 
 
 def wait_for_api(app):
-    api_domain = os.environ.get("API_DOMAIN", False)
-    if api_domain and api_domain != "isard-api":
-        url = "https://" + api_domain + "/api/v3"
-    else:
-        url = "http://isard-api:5000/api/v3"
-    api_rest = ApiRest(url, verify_cert=False)
-    app.logger.info("Check connection to api at " + url)
+    api_rest = ApiRest("isard-api")
+    app.logger.info("Check connection to api")
     api_conection = False
     while not api_conection:
         try:

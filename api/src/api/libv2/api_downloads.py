@@ -85,7 +85,7 @@ class Downloads(object):
 
     def is_conected(self):
         try:
-            req = requests.get(self.url, allow_redirects=False, verify=True, timeout=10)
+            req = requests.get(self.url, allow_redirects=False, timeout=10)
             if req.status_code == 200:
                 return True
         except:
@@ -100,7 +100,7 @@ class Downloads(object):
     def register(self):
         try:
             req = requests.post(
-                self.url + "/register", allow_redirects=False, verify=True, timeout=10
+                self.url + "/register", allow_redirects=False, timeout=10
             )
             if req.status_code == 200:
                 with app.app_context():
@@ -192,7 +192,6 @@ class Downloads(object):
                 self.url + "/get/" + kind + "/list",
                 headers={"Authorization": str(self.code)},
                 allow_redirects=False,
-                verify=True,
                 timeout=10,
             )
             if req.status_code == 200:
@@ -218,7 +217,6 @@ class Downloads(object):
                 headers={"Authorization": str(self.code)},
                 json={"private_code": self.private_code},
                 allow_redirects=False,
-                verify=True,
                 timeout=10,
             )
             if req.status_code == 200:
