@@ -381,9 +381,7 @@ def recreate(payload, deployment_id):
     }
     # Get from the deployment, otherwise it will be fetched from its template
     if deployment["create_dict"].get("guest_properties"):
-        desktop["hardware"]["guest_properties"] = deployment["create_dict"][
-            "guest_properties"
-        ]
+        desktop["guest_properties"] = deployment["create_dict"]["guest_properties"]
     if deployment["create_dict"].get("reservables"):
         desktop["hardware"]["reservables"] = deployment["create_dict"]["reservables"]
     if deployment["create_dict"].get("image"):
