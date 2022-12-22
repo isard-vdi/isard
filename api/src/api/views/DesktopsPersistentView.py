@@ -171,7 +171,6 @@ def api_v3_persistent_desktop_bulk_new(payload):
     data = _validate_item("desktops_from_template", data)
     template = templates.Get(data["template_id"])
     allowed.is_allowed(payload, template, "domains")
-    desktops.BulkDesktops(payload, data)
     desktops_list = desktops.BulkDesktops(payload, data)
 
     return json.dumps(desktops_list), 200, {"Content-Type": "application/json"}
