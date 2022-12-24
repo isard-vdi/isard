@@ -269,7 +269,8 @@
                 "state": "Estado",
                 "group": "Grupo",
                 "action": "Acción",
-                "viewers": "Visores"
+                "viewers": "Visores",
+                "last": "Último acceso"
             },
             "open-with": "Abrir con",
             "filter-label": "Filtro"
@@ -782,7 +783,7 @@
                 "title": "No hay discos para este usuario",
                 "subtitle": "Si crees que se trata de un error, contacta con el administrador"
             },
-            "table-header" : {
+            "table-header": {
                 "domains": "Escritorios/plantillas",
                 "quantity-domains": "№ escritorios/plantillas",
                 "actual-size": "Tamaño",
