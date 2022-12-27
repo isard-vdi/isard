@@ -342,7 +342,7 @@ class isard:
             category = (
                 r.table("categories")
                 .get(current_user.category)
-                .pluck("id", "name", "frontend")
+                .pluck("id", "name", "frontend", "custom_url_name")
                 .run(db.conn)
             )
         if category.get("frontend", False):
