@@ -522,7 +522,10 @@ class ApiUsers:
                         lambda group: {
                             "linked_groups_names": r.table("groups")
                             .get_all(r.args(group["linked_groups"]))["name"]
-                            .coerce_to("array")
+                            .coerce_to("array"),
+                            "parent_category_name": r.table("categories").get(
+                                group["parent_category"]
+                            )["name"],
                         }
                     )
                 )
@@ -585,6 +588,9 @@ class ApiUsers:
                             .get_all(r.args(group["linked_groups"]))
                             .pluck("id", "name")
                             .coerce_to("array"),
+                            "parent_category_name": r.table("categories").get(
+                                group["parent_category"]
+                            )["name"],
                             "media_size": (
                                 r.table("media")
                                 .get_all(group["id"], index="group")

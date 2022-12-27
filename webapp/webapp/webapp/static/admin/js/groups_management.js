@@ -35,6 +35,7 @@ $(document).ready(function() {
                 "defaultContent": '<button class="btn btn-xs btn-info" type="button" data-placement="top" ><i class="fa fa-plus"></i></button>'
             },
             { "data": "name", className: "xe-name" },
+            { "data": "parent_category_name", className: "xe-category" },
             { "data": "description", className: "xe-description" },
             { "data": "linked_groups", className: "xe-linked_groups" },
             { "data": "ephemeral_desktops", className: "xe-ephemeral_desktops" },
@@ -48,13 +49,19 @@ $(document).ready(function() {
                 }
             },
             {
-                "targets": 3,
+                "targets": 2,
+                "render": function ( data, type, full, meta ) {
+                    return full.parent_category_name ? full.parent_category_name : ''
+                }
+            },
+            {
+                "targets": 4,
                 "render": function ( data, type, full, meta ) {
                     return full.linked_groups_names
                 }
             },
             {
-                "targets": 4,
+                "targets": 5,
                 "render": function ( data, type, full, meta ) {
                     if (full.ephimeral) {
                         return (full.ephimeral.action + " desktops every " + full.ephimeral.minutes + " minutes")
@@ -67,6 +74,12 @@ $(document).ready(function() {
     } );
 
     adminShowIdCol(groups_table)
+
+    // Hide 'Category' group list column when manager
+    if ($('meta[id=user_data]').attr('data-role') == 'manager') {
+        var column = groups_table.column(2);
+        column.visible(!column.visible());
+    }
 
     // Setup - add a text input to each footer cell
     $('#groups tfoot tr:first th').each( function () {
