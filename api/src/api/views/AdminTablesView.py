@@ -42,26 +42,26 @@ def api_v3_admin_table(payload, table):
             options.get("index"),
         )
 
-    if payload["role_id"] == "manager":
-        if table == "categories":
-            result = [
-                {**r, **{"editable": False}}
-                for r in result
-                if r["id"] == payload["category_id"]
-            ]
-        if table == "groups":
-            result = [
-                r
-                for r in result
-                if "parent_category" in r.keys()
-                and r["parent_category"] == payload["category_id"]
-            ]
-        if table == "roles":
-            result = [r for r in result if r["id"] != "admin"]
-        if table == "media":
-            result = [r for r in result if r["category"] == payload["category_id"]]
-        if table == "secrets":
-            raise Error("forbidden", "Not enough rights.")
+        if payload["role_id"] == "manager":
+            if table == "categories":
+                result = [
+                    {**r, **{"editable": False}}
+                    for r in result
+                    if r["id"] == payload["category_id"]
+                ]
+            if table == "groups":
+                result = [
+                    r
+                    for r in result
+                    if "parent_category" in r.keys()
+                    and r["parent_category"] == payload["category_id"]
+                ]
+            if table == "roles":
+                result = [r for r in result if r["id"] != "admin"]
+            if table == "media":
+                result = [r for r in result if r["category"] == payload["category_id"]]
+            if table == "secrets":
+                raise Error("forbidden", "Not enough rights.")
 
     return (
         json.dumps(result),
