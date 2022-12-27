@@ -175,7 +175,10 @@
                 />
               </template>
               <template #cell(options)="data">
-                <div class="d-flex align-items-center">
+                <div
+                  v-if="data.item.type === 'persistent' && data.item.editable"
+                  class="d-flex align-items-center"
+                >
                   <b-button
                     :title="$t('components.desktop-cards.actions.edit')"
                     class="rounded-circle btn-blue px-2 mr-2"
@@ -187,7 +190,6 @@
                     />
                   </b-button>
                   <b-button
-                    v-if="data.item.type === 'persistent'"
                     :title="$t('components.desktop-cards.actions.delete')"
                     class="rounded-circle btn-red px-2 mr-2"
                     @click="onClickDeleteDesktop(data.item)"
