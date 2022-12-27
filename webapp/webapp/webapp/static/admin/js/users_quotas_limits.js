@@ -66,6 +66,12 @@ $(document).ready(function() {
                 }
             },
             {
+                "targets": 4,
+                "render": function ( data, type, full, meta ) {
+                    return full.category_name ? full.category_name : ''
+                }
+            },
+            {
                 "targets": 8,
                 "render": function ( data, type, full, meta ) {
                     return full.domains_size ? full.domains_size.toFixed(1) : 0.0;
