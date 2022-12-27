@@ -17,8 +17,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 71
-
+release_version = 72
+# release 72: Remove existing storage_node entries
 # release 71: Added bookings_priority name index
 # release 70: Add hypervisor execution time
 # release 69: Buffering hyper
@@ -101,6 +101,7 @@ tables = [
     "categories",
     "qos_net",
     "qos_disk",
+    "storage_node",
 ]
 
 
@@ -2238,6 +2239,13 @@ class Upgrade(object):
         table = "storage_physical_media"
         log.info("UPGRADING " + table + " VERSION " + str(version))
         if version == 45:
+            r.table(table).delete().run(self.conn)
+        return True
+
+    def storage_node(self, version):
+        table = "storage_node"
+        log.info("UPGRADING " + table + " VERSION " + str(version))
+        if version == 72:
             r.table(table).delete().run(self.conn)
         return True
 

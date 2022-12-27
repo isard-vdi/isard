@@ -53,9 +53,6 @@ $(document).ready(function () {
                 "data": "id"
             },
             {
-                "data": "api_base_url"
-            },
-            {
                 "data": "storage_pools",
             }
         ],

@@ -19,6 +19,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import os
+from importlib.machinery import SourceFileLoader
 from logging.config import dictConfig
 
 from flask import Flask
@@ -66,9 +67,11 @@ app.ram = {
     }
 }
 
-from api.libv2.load_config import setup_app, wait_for_api
+from api._common.api_rest import ApiRest
+from api.libv2.load_config import setup_app
 
-wait_for_api(app)
+ApiRest().wait_for()
+
 if not setup_app(app):
     app.logger.error("Unable to initialize app config. Exitting.")
     exit(0)

@@ -9,5 +9,5 @@ stop_background_tasks()
   kill -TERM 0
   wait
 }
-trap stop_background_tasks SIGTERM
+trap stop_background_tasks SIGTERM SIGINT SIGQUIT 
 wait

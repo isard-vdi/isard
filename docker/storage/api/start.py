@@ -21,9 +21,7 @@
 import os
 import signal
 import threading
-from datetime import datetime, timedelta
 from distutils.util import strtobool
-from importlib.machinery import SourceFileLoader
 from time import sleep
 
 from api._common.api_rest import ApiRest
@@ -31,15 +29,21 @@ from api._common.storage_pool import DEFAULT_STORAGE_POOL_ID
 
 # from api.libv2 import api_disks_watchdog
 from flask import Flask
-from jose import jwt
 
 from api import app
 
+storage_domain = os.environ.get("STORAGE_DOMAIN")
+if storage_domain:
+    storage_base_url = "https://" + storage_domain + "/toolbox"
+else:
+    storage_base_url = "http://isard-storage:5000/toolbox"
+
 
 def delete_node(*args, **kwargs):
+    app.logger.info("App stopping")
     if hasattr(app, "storage_node_id"):
         app.logger.info(f"Deleting storage node {app.storage_node_id}")
-        if not ApiRest().delete("/storage_node", json={"id": app.storage_node_id}):
+        if not ApiRest().delete("/storage_node", data={"id": app.storage_node_id}):
             # Docker default stop timeout is 10s
             sleep(2)
             delete_node()
@@ -49,20 +53,24 @@ def delete_node(*args, **kwargs):
 
 def register_node():
     app.logger.info("Registering storage node")
-    storage_domain = os.environ.get("STORAGE_DOMAIN", os.environ.get("DOMAIN"))
     # Haproxy is configured with 5s as health check interval
     sleep(10)
-    app.storage_node_id = ApiRest().post(
-        "/storage_node",
-        data={
-            "api_base_url": f"https://{storage_domain}/toolbox/api/check",
-            "storage_pools": os.environ.get(
-                "CAPABILITIES_STORAGE_POOLS", DEFAULT_STORAGE_POOL_ID
-            ).split(","),
-        },
-    )
+    try:
+        app.storage_node_id = ApiRest().post(
+            "/storage_node",
+            data={
+                "id": f"{storage_base_url}/api/check",
+                "storage_pools": os.environ.get(
+                    "CAPABILITIES_STORAGE_POOLS", DEFAULT_STORAGE_POOL_ID
+                ).split(","),
+            },
+        )
+    except:
+        app.logger.error(
+            "Unable to reach isard-api container at " + str(ApiRest().base_url)
+        )
     if app.storage_node_id:
-        app.logger.info(f"Storage node resigtered as {app.storage_node_id}")
+        app.logger.info(f"Storage node registered as {app.storage_node_id}")
     else:
         register_node()
 
@@ -72,6 +80,13 @@ if __name__ == "__main__":
     # api_disks_watchdog.start_disks_watchdog()
     debug = True if os.environ["LOG_LEVEL"] == "DEBUG" else False
     if strtobool(os.environ.get("CAPABILITIES_DISK", "true")):
+        app.logger.info("Storage has disk capabilities")
         signal.signal(signal.SIGTERM, delete_node)
+        signal.signal(signal.SIGINT, delete_node)
+        signal.signal(signal.SIGQUIT, delete_node)
         threading.Thread(target=register_node).start()
+    else:
+        app.logger.warning(
+            "Storage does not have disk capabilities. Not registering in system."
+        )
     app.run(host="0.0.0.0", debug=debug, port=5000)
