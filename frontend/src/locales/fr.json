@@ -475,7 +475,8 @@
             },
             "desktop-template": "Modèle",
             "section-title-template": "Sélectionnez un modèle :",
-            "filter-placeholder": "Tapez pour rechercher"
+            "filter-placeholder": "Tapez pour rechercher",
+            "section-title-advanced": "Options avancées"
         },
         "domain": {
             "info": {
