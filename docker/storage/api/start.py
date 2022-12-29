@@ -34,13 +34,13 @@ from jose import jwt
 
 from api import app
 
-ApiClient = SourceFileLoader("api_client", "/src/api_client.py").load_module().ApiClient
+from .._common.api_rest import ApiRest
 
 
 def delete_node(*args, **kwargs):
     if hasattr(app, "storage_node_id"):
         app.logger.info(f"Deleting storage node {app.storage_node_id}")
-        if not ApiClient().delete("storage_node", json={"id": app.storage_node_id}):
+        if not ApiRest().delete("storage_node", json={"id": app.storage_node_id}):
             # Docker default stop timeout is 10s
             sleep(2)
             delete_node()
@@ -53,7 +53,7 @@ def register_node():
     storage_domain = os.environ.get("STORAGE_DOMAIN", os.environ.get("DOMAIN"))
     # Haproxy is configured with 5s as health check interval
     sleep(10)
-    app.storage_node_id = ApiClient().post(
+    app.storage_node_id = ApiRest().post(
         "storage_node",
         json={
             "api_base_url": f"https://{storage_domain}/toolbox/api/check",
