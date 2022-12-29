@@ -40,6 +40,7 @@ default:
 
 stages:
  - lint
+ - unit-test
  - version
  - docker-compose
  - docker-image-codegen
@@ -80,6 +81,25 @@ check-protobuf:
   script:
     - buf lint
     - buf breaking --against "${CI_PROJECT_URL}.git"
+
+unit-test-go:
+  stage: unit-test
+  image: go:1.19-alpine
+  before_script:
+    - echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
+    - apk add --no-cache go@edge
+    - go install github.com/boumenot/gocover-cobertura@latest
+  script:
+    - export PATH=$PATH:~/go/bin
+    - go test -v -race ./... -coverprofile coverage.out -covermode atomic
+    - go tool cover -func coverage.out
+    - gocover-cobertura < coverage.out > coverage.xml
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+  coverage: /total:\s+\(statements\)\s+\d+.\d+%/
 
 version:
   stage: version

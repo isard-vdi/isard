@@ -8,8 +8,17 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/authentication/provider"
 )
 
+var _ Interface = &AuthenticationMock{}
+
+func NewAuthenticationMock() *AuthenticationMock {
+	return &AuthenticationMock{
+		AuthProvider: &provider.ProviderMock{},
+	}
+}
+
 type AuthenticationMock struct {
 	mock.Mock
+	AuthProvider provider.Provider
 }
 
 func (m *AuthenticationMock) Login(ctx context.Context, provider string, categoryID string, args map[string]string) (string, string, error) {
@@ -32,8 +41,8 @@ func (m *AuthenticationMock) Providers() []string {
 }
 
 func (m *AuthenticationMock) Provider(prv string) provider.Provider {
-	mArgs := m.Called(prv)
-	return mArgs.Get(0).(provider.Provider)
+	m.Called(prv)
+	return m.AuthProvider
 }
 
 func (m *AuthenticationMock) SAML() *samlsp.Middleware {
