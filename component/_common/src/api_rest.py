@@ -80,15 +80,15 @@ class ApiRest:
                 self.base_url = (
                     "http://" + actual_server + ":5000" + container_base_path[service]
                 )
-                self.verifycert = False
+                self.verify_cert = False
             else:
                 self.base_url = (
                     "https://" + actual_server + container_base_path[service]
                 )
-                self.verifycert = False if is_ip(actual_server) else True
+                self.verify_cert = False if is_ip(actual_server) else True
         else:
             self.base_url = "http://" + service + ":5000" + container_base_path[service]
-            self.verifycert = False
+            self.verify_cert = False
         logging.info("Api base url for service " + service + " set to " + self.base_url)
 
     def wait_for(self, max_retries=-1, timeout=1):
