@@ -1,8 +1,6 @@
 FROM fedora:38 as production
 MAINTAINER isard <info@isard.com>
 
-COPY --from=filebrowser/filebrowser /filebrowser /filebrowser
-
 # guestfs, libvirt, libvirt python3 devel, libqcow
 RUN dnf install -y libguestfs libguestfs-tools-c virt-v2v \
                     libvirt-daemon libvirt-daemon-config-network \
@@ -28,7 +26,6 @@ RUN useradd -ms /bin/bash v2v
 #USER v2v
 #WORKDIR /home/v2v
 
-COPY docker/storage/src /src
 COPY docker/storage/init.sh /init.sh
 
 CMD ["/bin/sh","/init.sh"]

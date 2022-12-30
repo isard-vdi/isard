@@ -18,9 +18,6 @@ services:
       - /opt/isard/groups:/isard/groups:rw
       - /opt/isard/backups:/isard/backups:ro
       - /opt/isard/media:/isard/media:rw
-      # FILEBROWSER VOLUMES
-      - ${BUILD_ROOT_PATH}/frontend/src/assets/logo.svg:/branding/img/logo.svg:ro
-      - /opt/isard-local/filebrowser:/config
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     env_file:
