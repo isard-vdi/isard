@@ -1,4 +1,4 @@
-FROM fedora:36 as production
+FROM fedora:38 as production
 MAINTAINER isard <info@isard.com>
 
 COPY --from=filebrowser/filebrowser /filebrowser /filebrowser
