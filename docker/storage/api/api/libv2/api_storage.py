@@ -54,13 +54,7 @@ class Storage:
             self.hostname = os.environ.get("DOMAIN")
         api_domain = os.environ.get("API_DOMAIN", False)
         if api_domain and api_domain != "isard-api":
-            self.api_rest = ApiRest(
-                "https://" + api_domain + "/api/v3/admin", verify_cert=False
-            )
-        else:
-            self.api_rest = ApiRest(
-                "http://isard-api:5000/api/v3/admin", verify_cert=False
-            )
+            self.api_rest = ApiRest("isard-api")
 
         self.templates_path = "/isard/templates"
         self.desktops_path = "/isard/groups"
@@ -115,7 +109,7 @@ class Storage:
                     "Reading info for disk " + str(len(qcows)) + "/" + str(len(total))
                 )
         self.api_rest.put(
-            "/storage/physical/init/domains",
+            "/admin/storage/physical/init/domains",
             qcows,
         )
         return len(qcows)
@@ -133,7 +127,7 @@ class Storage:
             if p.is_file()
         ]
         self.api_rest.put(
-            "/storage/physical/init/media",
+            "/admin/storage/physical/init/media",
             self.media_files,
         )
         app.logger.info("- updated media to api")

@@ -32,7 +32,7 @@ quotas = Quotas()
 
 class Scheduler:
     def __init__(self):
-        self.api_rest = ApiRest("http://isard-scheduler:5000/scheduler")
+        self.api_rest = ApiRest("isard-scheduler")
 
     """
     GENERIC METHODS
