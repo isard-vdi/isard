@@ -505,6 +505,29 @@ def api_v3_admin_group_insert(payload):
     return json.dumps(data), 200, {"Content-Type": "application/json"}
 
 
+# Update group
+@app.route("/api/v3/admin/group/<group_id>", methods=["PUT"])
+@has_token
+def api_v3_admin_group_update(payload, group_id):
+
+    try:
+        data = request.get_json()
+    except:
+        raise Error(
+            "bad_request",
+            "Unable to parse body data.",
+            traceback.format_exc(),
+        )
+    category = users.GroupGet(group_id)["parent_category"]
+
+    ownsCategoryId(payload, category)
+    data = _validate_item("group_update", data)
+    checkDuplicate("groups", data["name"], category, item_id=data["id"])
+
+    admin_table_update("groups", data, payload)
+    return json.dumps(data), 200, {"Content-Type": "application/json"}
+
+
 # Enrollment group
 @app.route("/api/v3/admin/group/enrollment", methods=["POST"])
 @is_admin_or_manager

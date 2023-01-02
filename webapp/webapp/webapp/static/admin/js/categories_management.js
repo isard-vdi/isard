@@ -182,56 +182,9 @@ $(document).ready(function () {
         $('#modalAddCategoryForm :checkbox').iCheck('uncheck').iCheck('update');
         $('#modalAddCategoryForm #ephimeral-data').hide();
         $('#modalAddCategoryForm #auto-desktops-data').hide();
-        $('#modalAddCategoryForm #auto-desktops').select2({
-            minimumInputLength: 2,
-            multiple: true,
-            ajax: {
-                type: "GET",
-                url: '/api/v3/user/templates/allowed/all',
-                dataType: 'json',
-                contentType: "application/json",
-                delay: 250,
-                data: function (params) {
-                    return JSON.stringify({
-                        term: params.term,
-                        pluck: ['id', 'name']
-                    });
-                },
-                processResults: function (data) {
-                    return {
-                        results: $.map(data, function (item, i) {
-                            return {
-                                text: item.name,
-                                id: item.id
-                            }
-                        })
-                    };
-                }
-            },
-        });
 
-        $("#modalAddCategoryForm #ephimeral-minutes").ionRangeSlider({
-            type: "single",
-            min: 5,
-            max: 120,
-            step: 5,
-            grid: true,
-            disable: false
-        }).data("ionRangeSlider").update();
-
-        $("#modalAddCategoryForm #ephimeral-enabled").on('ifChecked', function (event) {
-            $("#modalAddCategoryForm #ephimeral-data").show();
-        });
-        $("#modalAddCategoryForm #ephimeral-enabled").on('ifUnchecked', function (event) {
-            $("#modalAddCategoryForm #ephimeral-data").hide();
-        });
-
-        $("#modalAddCategoryForm #auto-desktops-enabled").on('ifChecked', function (event) {
-            $("#modalAddCategoryForm #auto-desktops-data").show();
-        });
-        $("#modalAddCategoryForm #auto-desktops-enabled").on('ifUnchecked', function (event) {
-            $("#modalAddCategoryForm #auto-desktops-data").hide();
-        });
+        autoDesktopsShow('#modalAddCategoryForm', {})
+        ephemeralDesktopsShow('#modalAddCategoryForm', {})
 
     });
 
@@ -315,33 +268,6 @@ function actionsCategoryDetail() {
     $('.btn-edit-category').off('click').on('click', function () {
         var pk = $(this).closest("div").attr("data-pk");
         $("#modalEditCategoryForm")[0].reset();
-        $("#modalEditCategoryForm #auto-desktops").select2({
-            minimumInputLength: 2,
-            multiple: true,
-            ajax: {
-                type: "GET",
-                url: '/api/v3/user/templates/allowed/all',
-                dataType: 'json',
-                contentType: "application/json",
-                delay: 250,
-                data: function (params) {
-                    return JSON.stringify({
-                        term: params.term,
-                        pluck: ['id', 'name']
-                    });
-                },
-                processResults: function (data) {
-                    return {
-                        results: $.map(data, function (item, i) {
-                            return {
-                                text: item.name,
-                                id: item.id
-                            }
-                        })
-                    };
-                }
-            },
-        });
         $('#modalEditCategoryForm #id').val(pk);
         $('#modalEditCategory').modal({
             backdrop: 'static',
@@ -359,73 +285,8 @@ function actionsCategoryDetail() {
             } else {
                 $('#modalEditCategoryForm #frontend').iCheck('unckeck').iCheck('update');
             }
-
-            if ('auto-desktops' in category) {
-
-                $('#modalEditCategoryForm #auto-desktops-enabled').iCheck('check').iCheck('update');
-                $("#modalEditCategoryForm #auto-desktops").empty()
-
-                category['auto-desktops'].forEach(function (dom_id) {
-                    api.ajax('/api/v3/admin/table/domains', 'POST', { 'id': dom_id, 'pluck': ['id', 'name'] }).done(function (dom) {
-                        var newOption = new Option(dom.name, dom.id, true, true);
-                        $("#modalEditCategoryForm #auto-desktops").append(newOption).trigger('change');
-                    });
-                });
-                $("#modalEditCategoryForm #auto-desktops-data").show();
-            } else {
-                $('#modalEditCategoryForm #auto-desktops-enabled').iCheck('unckeck').iCheck('update');
-                $("#modalEditCategoryForm #auto-desktops-data").hide();
-            }
-
-            if ('ephimeral-action' in category) {
-                $('#modalEditCategoryForm #ephimeral-enabled').iCheck('check').iCheck('update');
-                $("#modalEditCategoryForm #ephimeral-minutes").ionRangeSlider({
-                    type: "single",
-                    from: category['ephimeral-minutes'],
-                    min: 5,
-                    max: 120,
-                    step: 5,
-                    grid: true,
-                    disable: false
-                }).data("ionRangeSlider").update();
-                $('#modalEditCategoryForm #ephimeral-action option[value="' + category['ephimeral-action'] + '"]').prop("selected", true);
-                $("#modalEditCategoryForm #ephimeral-data").show();
-            } else {
-                $('#modalEditCategoryForm #ephimeral-enabled').iCheck('unckeck').iCheck('update');
-                $("#modalEditCategoryForm #ephimeral-data").hide();
-            }
-        });
-
-        $("#modalEditCategoryForm #ephimeral-enabled").on('ifChecked', function (event) {
-            $("#modalEditCategoryForm #ephimeral-data").show();
-            $("#modalEditCategoryForm #ephimeral-minutes").ionRangeSlider({
-                type: "single",
-                from: category['ephimeral-minutes'],
-                min: 5,
-                max: 120,
-                step: 5,
-                grid: true,
-                disable: false
-            }).data("ionRangeSlider").update();
-        });
-        $("#modalEditCategoryForm #ephimeral-enabled").on('ifUnchecked', function (event) {
-            $("#modalEditCategoryForm #ephimeral-data").hide();
-        });
-
-        $("#modalEditCategoryForm #auto-desktops-enabled").on('ifChecked', function (event) {
-            $("#modalEditCategoryForm #auto-desktops-data").show();
-            $("#modalEditCategoryForm #ephimeral-minutes").ionRangeSlider({
-                type: "single",
-                from: category['ephimeral-minutes'],
-                min: 5,
-                max: 120,
-                step: 5,
-                grid: true,
-                disable: false
-            }).data("ionRangeSlider").update();
-        });
-        $("#modalEditCategoryForm #auto-desktops-enabled").on('ifUnchecked', function (event) {
-            $("#modalEditCategoryForm #auto-desktops-data").hide();
+            autoDesktopsShow('#modalEditCategoryForm', category)
+            ephemeralDesktopsShow('#modalEditCategoryForm', category)
         });
 
         $("#modalEditCategory #send").off('click').on('click', function (e) {
@@ -520,4 +381,111 @@ function actionsCategoryDetail() {
 function customURLChange(titlestr) {
     var url = titlestr.replace(/ /g, "_");
     document.getElementsByName("custom_url_name")[0].value = url;
+}
+
+function ephemeralDesktopsShow(form, item) {
+    // add group / category
+    if (!('id' in item)) {
+        $(form + " #ephimeral-minutes").ionRangeSlider({
+            type: "single",
+            min: 5,
+            max: 120,
+            step: 5,
+            grid: true,
+            disable: false
+        }).data("ionRangeSlider").update();
+    }
+
+    // edit group / category with ephemeral
+    else if (item.ephimeral) {
+        $(form + (' #ephimeral-enabled')).iCheck('check').iCheck('update');
+        if ($(form + ' #ephimeral-minutes').data("ionRangeSlider")) {
+            $(form + (' #ephimeral-minutes')).data("ionRangeSlider").update({ from: item['ephimeral']['minutes'] });
+        } else {
+            $(form + (' #ephimeral-minutes')).ionRangeSlider({
+                type: "single",
+                from: item['ephimeral']['minutes'],
+                min: 5,
+                max: 120,
+                step: 5,
+                grid: true,
+                disable: false
+            }).data("ionRangeSlider").update();
+        }
+        $(form + (' #ephimeral-action option[value="' + item['ephimeral']['action'] + '"]')).prop("selected", true);
+        $(form + (" #ephimeral-data")).show();
+
+    // edit group / category without ephemeral
+    } else {
+        $(form + (' #ephimeral-enabled')).iCheck('uncheck').iCheck('update');
+        $(form + (' #ephimeral-minutes')).ionRangeSlider({
+            type: "single",
+            min: 5,
+            max: 120,
+            step: 5,
+            grid: true,
+            disable: false
+        }).data("ionRangeSlider").update();
+        $(form + (" #ephimeral-data")).hide();
+    }
+
+    $(form + (" #ephimeral-enabled")).on('ifChecked', function(event){
+        $(form + (" #ephimeral-data")).show();
+    });
+    $(form + (" #ephimeral-enabled")).on('ifUnchecked', function(event){
+        $(form + (" #ephimeral-data")).hide();
+    });
+}
+
+function autoDesktopsShow(form, item) {
+    if (item.auto) {
+        $(form + (" #auto-desktops-enabled")).iCheck('check').iCheck('update');
+        $(form + (" #auto-desktops")).empty()
+
+        item['auto']['desktops'].forEach(function (dom_id) {
+            api.ajax('/api/v3/admin/table/domains', 'POST', { 'id': dom_id, 'pluck': ['id', 'name'] }).done(function (dom) {
+                var newOption = new Option(dom.name, dom.id, true, true);
+                $(form + (" #auto-desktops")).append(newOption).trigger('change');
+            });
+        });
+        $(form + (" #auto-desktops-data")).show();
+    } else {
+        $(form + (" #auto-desktops-enabled")).iCheck('unckeck').iCheck('update');
+        $(form + (" #auto-desktops-data")).hide();
+    }
+
+        $(form + (" #auto-desktops")).select2({
+        minimumInputLength: 2,
+        multiple: true,
+        ajax: {
+            type: "GET",
+            url: '/api/v3/user/templates/allowed/all',
+            dataType: 'json',
+            contentType: "application/json",
+            delay: 250,
+            data: function (params) {
+                return  JSON.stringify({
+                    term: params.term,
+                    pluck: ['id','name']
+                });
+            },
+            processResults: function (data) {
+                return {
+                    results: $.map(data, function (item, i) {
+                        return {
+                            text: item.name,
+                            id: item.id
+                        }
+                    })
+                };
+            }
+        },
+    });
+
+    $(form + (" #auto-desktops-enabled")).on('ifChecked', function(event){
+        $(form + (" #auto-desktops-data")).show();
+    });
+    $(form + (" #auto-desktops-enabled")).on('ifUnchecked', function(event){
+        $(form + (" #auto-desktops-data")).hide();
+    });
 }

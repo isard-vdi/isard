@@ -213,6 +213,15 @@ def admin_table_get(table, id, pluck=None):
                 .coerce_to("array")
             }
         )
+    if table == "groups":
+        query = query.merge(
+            lambda d: {
+                "linked_groups_data": r.table("groups")
+                .get_all(r.args(d["linked_groups"]))
+                .pluck("id", "name")
+                .coerce_to("array")
+            }
+        )
     with app.app_context():
         return query.run(db.conn)
 
