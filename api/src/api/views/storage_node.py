@@ -18,6 +18,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import json
+import traceback
 
 import requests
 from flask import request
@@ -42,13 +43,24 @@ def manage_storage_node():
     storage_node = StorageNode(**request.json)
     if request.method == "DELETE":
         storage_node.status = "deleted"
-    elif (
-        storage_node.api_base_url
-        and requests.get(storage_node.api_base_url).status_code == 200
-    ):
-        storage_node.status = "online"
-    return (
-        json.dumps(storage_node.id),
-        200,
-        {"Content-Type": "application/json"},
-    )
+        return (
+            json.dumps(storage_node.id),
+            200,
+            {"Content-Type": "application/json"},
+        )
+    else:
+        try:
+            requests.get(storage_node.id).status_code == 200
+            storage_node.status = "online"
+            return (
+                json.dumps(storage_node.id),
+                200,
+                {"Content-Type": "application/json"},
+            )
+        except:
+            storage_node.status = "error"
+            raise Error(
+                "bad_request",
+                "Unable to connect to storage node at " + str(storage_node.id),
+                traceback.format_exc(),
+            )

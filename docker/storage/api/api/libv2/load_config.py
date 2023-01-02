@@ -18,7 +18,6 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-import logging as log
 import os
 import time
 import traceback

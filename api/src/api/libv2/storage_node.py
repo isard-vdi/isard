@@ -44,21 +44,17 @@ class StorageNode:
     def __init__(self, *args, **kwargs):
         if args:
             kwargs["id"] = args[0]
+        self.__dict__["id"] = kwargs["id"]
         with app.app_context():
-            self.__dict__["id"] = (
-                r.table("storage_node")
-                .insert(kwargs, conflict="update")
-                .run(self._rdb.conn)
-                .get("generated_keys", [kwargs.get("id")])[0]
+            r.table("storage_node").insert(kwargs, conflict="update").run(
+                self._rdb.conn
             )
-            if not "id" in kwargs:
-                kwargs["id"] = self.id
-            socketio.emit(
-                "storage_nodes",
-                json.dumps(kwargs),
-                namespace="/administrators",
-                room="admins",
-            )
+        socketio.emit(
+            "storage_nodes",
+            json.dumps(kwargs),
+            namespace="/administrators",
+            room="admins",
+        )
 
     @cached(TTLCache(maxsize=10, ttl=5))
     def __getattr__(self, name):

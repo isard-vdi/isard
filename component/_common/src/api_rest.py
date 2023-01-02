@@ -99,6 +99,7 @@ class ApiRest:
                     "http://" + service + ":5000" + container_base_path[service]
                 )
                 self.verify_cert = False
+        self.service = service
         logging.info("Api base url for service " + service + " set to " + self.base_url)
 
     def wait_for(self, max_retries=-1, timeout=1):
@@ -138,7 +139,7 @@ class ApiRest:
                 traceback.format_exc(),
             )
 
-    def post(self, url, data):
+    def post(self, url, data={}):
         try:
             resp = requests.post(
                 self.base_url + url,
@@ -159,7 +160,7 @@ class ApiRest:
                 traceback.format_exc(),
             )
 
-    def put(self, url, data):
+    def put(self, url, data={}):
         try:
             resp = requests.put(
                 self.base_url + url,
@@ -180,10 +181,13 @@ class ApiRest:
                 traceback.format_exc(),
             )
 
-    def delete(self, url):
+    def delete(self, url, data={}):
         try:
             resp = requests.delete(
-                self.base_url + url, headers=header_auth(), verify=self.verify_cert
+                self.base_url + url,
+                json=data,
+                headers=header_auth(),
+                verify=self.verify_cert,
             )
             if resp.status_code == 200:
                 return json.loads(resp.text)
