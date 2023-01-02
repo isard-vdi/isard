@@ -33,8 +33,10 @@ from flask import Flask
 from api import app
 
 storage_domain = os.environ.get("STORAGE_DOMAIN")
+video_port = os.environ.get("VIEWER_BROWSER")
 if storage_domain:
-    storage_base_url = "https://" + storage_domain + "/toolbox"
+    video_port = "" if not video_port else ":" + str(video_port)
+    storage_base_url = "https://" + storage_domain + video_port + "/toolbox"
 else:
     storage_base_url = "http://isard-storage:5000/toolbox"
 
@@ -67,9 +69,12 @@ def register_node():
         )
     except:
         app.logger.error(
-            "Unable to reach isard-api container at " + str(ApiRest().base_url)
+            "Unable to reach isard-api container at "
+            + str(ApiRest().base_url)
+            + " or isard-api could not reach this isard-storage container at "
+            + storage_base_url
         )
-    if app.storage_node_id:
+    if hasattr(app, "storage_node_id"):
         app.logger.info(f"Storage node registered as {app.storage_node_id}")
     else:
         register_node()
