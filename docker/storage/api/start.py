@@ -26,6 +26,7 @@ from distutils.util import strtobool
 from importlib.machinery import SourceFileLoader
 from time import sleep
 
+from api._common.api_rest import ApiRest
 from api._common.storage_pool import DEFAULT_STORAGE_POOL_ID
 
 # from api.libv2 import api_disks_watchdog
@@ -34,13 +35,11 @@ from jose import jwt
 
 from api import app
 
-from .._common.api_rest import ApiRest
-
 
 def delete_node(*args, **kwargs):
     if hasattr(app, "storage_node_id"):
         app.logger.info(f"Deleting storage node {app.storage_node_id}")
-        if not ApiRest().delete("storage_node", json={"id": app.storage_node_id}):
+        if not ApiRest().delete("/storage_node", json={"id": app.storage_node_id}):
             # Docker default stop timeout is 10s
             sleep(2)
             delete_node()
@@ -54,8 +53,8 @@ def register_node():
     # Haproxy is configured with 5s as health check interval
     sleep(10)
     app.storage_node_id = ApiRest().post(
-        "storage_node",
-        json={
+        "/storage_node",
+        data={
             "api_base_url": f"https://{storage_domain}/toolbox/api/check",
             "storage_pools": os.environ.get(
                 "CAPABILITIES_STORAGE_POOLS", DEFAULT_STORAGE_POOL_ID
