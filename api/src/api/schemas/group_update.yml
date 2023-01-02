@@ -7,23 +7,9 @@ name:
   type: string
 description: 
   type: string
-parent_category: 
-  empty: false
-  type: string
 linked_groups:
   type: list
   default: []
-uid:
-  empty: false
-  type: string
-external_app_id:
-  type: string
-  nullable: true
-  default: null
-external_gid:
-  type: string
-  nullable: true
-  default: null
 enrollment:
   type: dict
   default:
@@ -57,9 +43,21 @@ quota:
   default: false
   schema: quotas
 ephimeral:
-  type: dict
+  type:
+    - dict
+    - boolean
   schema:
     action:
       type: string
     minutes:
       type: integer  
+auto:
+  type:
+    - dict
+    - boolean
+  default: false
+  schema:
+    desktops:
+      required: true
+      type: list
+      minlength: 1

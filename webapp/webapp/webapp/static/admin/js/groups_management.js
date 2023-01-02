@@ -179,6 +179,9 @@ $(document).ready(function() {
         }).modal('show');
         removeError($('#modalAddGroup'))
         $('#modalAddGroupForm')[0].reset();
+        $('#modalAddGroupForm :checkbox').iCheck('uncheck').iCheck('update');
+        $('#modalAddGroupForm #ephimeral-data').hide();
+        $('#modalAddGroupForm #auto-desktops-data').hide();
 
         $('#modalAddGroupForm #linked_groups').select2({
             minimumInputLength: 2,
@@ -206,7 +209,6 @@ $(document).ready(function() {
                 }
             },
         });
-
         api.ajax_async('/api/v3/admin/userschema','POST','').done(function(d) {
             $.each(d, function(key, value) {
                 if(key == 'category'){
@@ -217,57 +219,8 @@ $(document).ready(function() {
                 }
             });
         });
-
-        $('#modalAddGroupForm #auto-desktops').select2({
-            minimumInputLength: 2,
-            multiple: true,
-            ajax: {
-                type: "GET",
-                url: '/api/v3/user/templates/allowed/all',
-                dataType: 'json',
-                contentType: "application/json",
-                delay: 250,
-                data: function (params) {
-                    return  JSON.stringify({
-                        term: params.term,
-                        pluck: ['id','name']
-                    });
-                },
-                processResults: function (data) {
-                    return {
-                        results: $.map(data, function (item, i) {
-                            return {
-                                text: item.name,
-                                id: item.id
-                            }
-                        })
-                    };
-                }
-            },
-        });
-
-        $("#modalAddGroupForm #ephimeral-minutes").ionRangeSlider({
-                  type: "single",
-                  min: 5,
-                  max: 120,
-                  step:5,
-                  grid: true,
-                  disable: false
-                  }).data("ionRangeSlider").update();
-
-        $("#modalAddGroupForm #ephimeral-enabled").on('ifChecked', function(event){
-			$("#modalAddGroupForm #ephimeral-data").show();
-		});
-        $("#modalAddGroupForm #ephimeral-enabled").on('ifUnchecked', function(event){
-			$("#modalAddGroupForm #ephimeral-data").hide();
-		});
-
-        $("#modalAddGroupForm #auto-desktops-enabled").on('ifChecked', function(event){
-			$("#modalAddGroupForm #auto-desktops-data").show();
-		});
-        $("#modalAddGroupForm #auto-desktops-enabled").on('ifUnchecked', function(event){
-			$("#modalAddGroupForm #auto-desktops-data").hide();
-		});
+        ephemeralDesktopsShow('#modalAddGroupForm', {})
+        autoDesktopsShow('#modalAddGroupForm', {})
 	});
 
     $("#modalAddGroup #send").on('click', function(e){
@@ -341,6 +294,124 @@ function renderGroupsDetailPannel ( d ) {
 }
 
 function actionsGroupDetail(){
+
+    $('.btn-edit-group').off('click').on('click', function () {
+        $('#modalEditGroup').modal({
+            backdrop: 'static',
+            keyboard: false
+        }).modal('show');
+        var pk = $(this).closest("div").attr("data-pk");
+        $("#modalEditGroupForm")[0].reset();
+        $("#modalEditGroupForm #linked_groups").empty().trigger('change')
+
+        $('#modalEditGroupForm #linked_groups').select2({
+            minimumInputLength: 2,
+            multiple: true,
+            ajax: {
+                type: "POST",
+                url: '/api/v3/admin/allowed/term/groups/',
+                dataType: 'json',
+                contentType: "application/json",
+                delay: 250,
+                data: function (params) {
+                    return  JSON.stringify({
+                        term: params.term,
+                    });
+                },
+                processResults: function (data) {
+                    return {
+                        results: $.map(data, function (item, i) {
+                            return {
+                                text: item.name,
+                                id: item.id
+                            }
+                        })
+                    };
+                }
+            },
+        });
+
+        $.ajax({
+            type: "POST",
+            url: "/api/v3/admin/table/groups",
+            data: JSON.stringify({ 'id': pk }),
+            contentType: "application/json",
+            success: function (group) {
+                $('#modalEditGroupForm #id').val(pk);
+                $('#modalEditGroupForm #name').val(group.name);
+                $('#modalEditGroupForm #description').val(group.description);
+                $('#modalEditGroupForm #linked_groups').val(group.linked_groups);
+                $('#modalEditGroupForm #id').val(pk);
+                $('#modalEditGroupForm :checkbox').iCheck('uncheck').iCheck('update');
+
+                autoDesktopsShow('#modalEditGroupForm', group)
+                ephemeralDesktopsShow('#modalEditGroupForm', group)          
+
+                $.each(group.linked_groups_data, function(i, group) {
+                    var newOption = new Option(group.name, group.id, true, true);
+                    $("#modalEditGroupForm #linked_groups").append(newOption).trigger('change');
+                })
+            }
+        });
+
+
+        $("#modalEditGroup #send").off('click').on('click', function (e) {
+            var form = $('#modalEditGroupForm');
+            form.parsley().validate();
+            if (form.parsley().isValid()) {
+                data = form.serializeObject();
+                if(!data['ephimeral-enabled']){
+                    delete data['ephimeral-minutes'];
+                    delete data['ephimeral-action'];
+                    data['ephimeral'] = false
+                }else{
+                    delete data['ephimeral-enabled'];
+                    data['ephimeral-minutes'] = parseInt(data['ephimeral-minutes'])
+                }
+                if (!('auto-desktops-enabled' in data)) {
+                    delete data['auto-desktops'];
+                    data['auto'] = false
+                }
+                data = JSON.unflatten(data);
+                var notice = new PNotify({
+                    text: 'Updating group...',
+                    hide: false,
+                    opacity: 1,
+                    icon: 'fa fa-spinner fa-pulse'
+                })
+                $.ajax({
+                    type: "PUT",
+                    url: "/api/v3/admin/group/" + data['id'],
+                    data: JSON.stringify(data),
+                    contentType: "application/json",
+                    success: function (data) {
+                        notice.update({
+                            title: 'Group updated successfully',
+                            text: '',
+                            hide: true,
+                            delay: 1000,
+                            icon: 'fa fa-' + data.icon,
+                            opacity: 1,
+                            type: 'success'
+                        })
+                        $('form').each(function () { this.reset() });
+                        $('.modal').modal('hide');
+                    },
+                    error: function (data) {
+                        notice.update({
+                            title: 'ERROR',
+                            text: data.responseJSON.description,
+                            type: 'error',
+                            hide: true,
+                            icon: 'fa fa-warning',
+                            delay: 2000,
+                            opacity: 1
+                        })
+                    }
+                });
+            }
+        });
+    });    
 
     $('#groups .btn-delete').off('click').on('click', function () {
         var pk=$(this).closest("div").attr("data-pk");
