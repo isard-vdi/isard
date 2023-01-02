@@ -315,12 +315,12 @@ LOG_LEVEL=INFO
 #VPN_MTU=1600
 
 # ------ Storage host --------------------------------------------------------
-## Where can api host reach the isard-storage host?
+## Where can api host reach this isard-storage host?
 ## Need to be set for flavours:
 ##   - storage
 ##   - hypervisor
 ##   - hypervisor-standalone
-#STORAGE_DOMAIN=$DOMAIN
+#STORAGE_DOMAIN=isard-storage
 
 # ------ Video proxy host ----------------------------------------------------
 ## Where will the client browser reach isard-video to this host?
