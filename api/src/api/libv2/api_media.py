@@ -38,12 +38,12 @@ class ApiMedia:
     def __init__(self):
         None
 
-    def List(self, media_id):
+    def List(self, domain_id):
         with app.app_context():
             domain_cd = (
                 r.table("domains")
-                .get(media_id)
-                .pluck({"create_dict": {"hardware"}})
+                .get(domain_id)
+                .pluck({"create_dict": "hardware"})
                 .run(db.conn)["create_dict"]["hardware"]
             )
         media = []

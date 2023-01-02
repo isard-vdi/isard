@@ -42,8 +42,8 @@
       <div class="x_panel" style="background-color:#F7F7F7">
         <div class="row">
           <div class="col-md-12 col-md-12 col-xs-12">
-            <div class="x_panel">
-              <div class="x_content">
+            <div class="x_content">
+              <div class="x_panel">
                 <h3>Status detailed info: <small id="status-detail-d.id"></small></h3>
               </div>
             </div>
@@ -57,28 +57,16 @@
           </div>
           <div class="col-md-8 col-md-8 col-xs-12">
             <div class="row">
-              <!-- Hide template tree. See also: webapp/webapp/webapp/static/js/snippets/domain_hardware.js line 201
-              {% if(current_user.role=='admin') %}
-              <div class="col-md-12 col-md-12 col-xs-12">
-                <div class="x_content">
-                  <div class="x_panel">
-                    <div class="x_title">
-                      <h3>Template tree<small></small></h3>
-                      <div class="clearfix"></div>
-                    </div>
-                    <div class="x_content">
-                      {% include '/snippets/template_tree.html' %}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              {% endif %}
-              -->
-            </div>
-            <div class="row">
               <div class="col-md-12 col-md-12 col-xs-12">
                 <div id="alloweds-d.id" class="x_content">
                   {% include '/snippets/alloweds.html' %}
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-12 col-md-12 col-xs-12">
+                <div id="hotplug-d.id" class="x_content">
+                  {% include '/snippets/domain_hotplugged.html'  %}
                 </div>
               </div>
             </div>
