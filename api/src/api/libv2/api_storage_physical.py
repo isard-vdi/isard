@@ -41,8 +41,6 @@ from .flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
-from .._common.api_exceptions import Error
-
 
 def phy_storage_list(table):
     query = r.table("storage_physical_" + table)
@@ -133,9 +131,9 @@ def phy_storage_delete(table, path_id):
 
 
 def phy_add_to_storage(path_id, user_id):
-    qemu_img_info = ApiRest(_phy_internal_toolbox_host()).post(
-        "/storage/disk/info", {"path_id": path_id}
-    )
+    qemu_img_info = ApiRest(
+        service="isard-storage", base_url=_phy_internal_toolbox_host()
+    ).post("/storage/disk/info", {"path_id": path_id})
     if qemu_img_info.get("format") in ["qcow2"]:
         new_disk = {
             "directory_path": "/".join(path_id.split("/")[:3]),

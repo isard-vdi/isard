@@ -64,31 +64,41 @@ def is_ip(ip):
 
 
 container_base_path = {
-    "isard-api": "/api/v3/",
+    "isard-api": "/api/v3",
     "isard-scheduler": "/scheduler",
-    "isard-storage": "/storage",
 }
 
 
 class ApiRest:
-    def __init__(self, service="isard-api"):
-        if service == "isard-api":
-            actual_server = os.environ.get("API_DOMAIN")
+    def __init__(self, service="isard-api", base_url=None):
+        if base_url:
+            self.base_url = base_url
+            self.verify_cert = False if base_url.startswith("http://") else True
+        else:
+            if service == "isard-api":
+                actual_server = os.environ.get("API_DOMAIN")
+            if service == "isard-scheduler":
+                actual_server = "isard-scheduler"
 
-        if actual_server:
-            if actual_server == "localhost" or actual_server.startswith("isard-"):
-                self.base_url = (
-                    "http://" + actual_server + ":5000" + container_base_path[service]
-                )
-                self.verify_cert = False
+            if actual_server:
+                if actual_server == "localhost" or actual_server.startswith("isard-"):
+                    self.base_url = (
+                        "http://"
+                        + actual_server
+                        + ":5000"
+                        + container_base_path[service]
+                    )
+                    self.verify_cert = False
+                else:
+                    self.base_url = (
+                        "https://" + actual_server + container_base_path[service]
+                    )
+                    self.verify_cert = False if is_ip(actual_server) else True
             else:
                 self.base_url = (
-                    "https://" + actual_server + container_base_path[service]
+                    "http://" + service + ":5000" + container_base_path[service]
                 )
-                self.verify_cert = False if is_ip(actual_server) else True
-        else:
-            self.base_url = "http://" + service + ":5000" + container_base_path[service]
-            self.verify_cert = False
+                self.verify_cert = False
         logging.info("Api base url for service " + service + " set to " + self.base_url)
 
     def wait_for(self, max_retries=-1, timeout=1):
