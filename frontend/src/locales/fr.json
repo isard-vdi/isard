@@ -475,7 +475,8 @@
             },
             "desktop-template": "Modèle",
             "section-title-template": "Sélectionnez un modèle :",
-            "filter-placeholder": "Tapez pour rechercher"
+            "filter-placeholder": "Tapez pour rechercher",
+            "section-title-advanced": "Options avancées"
         },
         "domain": {
             "info": {
@@ -534,14 +535,16 @@
                 },
                 "title": "Changer le mot de passe",
                 "confirmation-password": {
-                    "placeholder": "Confirmer le mot de passe"
+                    "placeholder": "Confirmer le mot de passe",
+                    "label": "Confirmation du mot de passe"
                 }
             }
         },
         "new-template": {
             "title": "Créer un nouveau modèle",
             "name": "Nom",
-            "description": "Description"
+            "description": "Description",
+            "enabled": "Actif"
         }
     },
     "messages": {
