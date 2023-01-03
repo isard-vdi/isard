@@ -24,7 +24,7 @@ import threading
 from distutils.util import strtobool
 from time import sleep
 
-from api._common.api_rest import ApiRest
+from api._common.api_rest import ApiRest, is_ip
 from api._common.storage_pool import DEFAULT_STORAGE_POOL_ID
 
 # from api.libv2 import api_disks_watchdog
@@ -37,8 +37,10 @@ video_port = os.environ.get("VIEWER_BROWSER")
 if storage_domain:
     video_port = "" if not video_port else ":" + str(video_port)
     storage_base_url = "https://" + storage_domain + video_port + "/toolbox"
+    verify_cert = False if is_ip(storage_domain) else True
 else:
     storage_base_url = "http://isard-storage:5000/toolbox"
+    verify_cert = False
 
 
 def delete_node(*args, **kwargs):
@@ -65,6 +67,7 @@ def register_node():
                 "storage_pools": os.environ.get(
                     "CAPABILITIES_STORAGE_POOLS", DEFAULT_STORAGE_POOL_ID
                 ).split(","),
+                "verify_cert": verify_cert,
             },
         )
     except:
