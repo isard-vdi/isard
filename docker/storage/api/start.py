@@ -38,6 +38,12 @@ if storage_domain:
     video_port = "" if not video_port else ":" + str(video_port)
     storage_base_url = "https://" + storage_domain + video_port + "/toolbox"
     verify_cert = False if is_ip(storage_domain) else True
+    if not verify_cert:
+        app.logger.warning(
+            "Connection to this container from isard-api will ignore certificate validation as STORAGE_DOMAIN="
+            + str(storage_domain)
+            + " is not a valid DNS"
+        )
 else:
     storage_base_url = "http://isard-storage:5000/toolbox"
     verify_cert = False
