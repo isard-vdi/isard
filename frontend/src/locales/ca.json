@@ -429,6 +429,10 @@
                 "forcedeleting": {
                     "text": "Esborrant",
                     "action": "Esborrant"
+                },
+                "paused": {
+                    "text": "Pausat",
+                    "action": "Aturar"
                 }
             }
         },

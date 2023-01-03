@@ -588,6 +588,10 @@
                 "forcedeleting": {
                     "text": "Deleting",
                     "action": "Deleting"
+                },
+                "paused": {
+                    "text": "Paused",
+                    "action": "Stop"
                 }
             }
         },

@@ -159,7 +159,7 @@
 
           <!-- Actions -->
           <div
-            v-if="[desktopStates.started, desktopStates.waitingip, desktopStates.stopped, desktopStates.failed, desktopStates['shutting-down']].includes(desktopState)"
+            v-if="[desktopStates.started, desktopStates.waitingip, desktopStates.stopped, desktopStates.failed, desktopStates['shutting-down'], desktopStates.paused].includes(desktopState)"
             class="d-flex flex-row justify-content-start ml-3 mb-1"
           >
             <!-- Main action button nonpersistent -->
@@ -321,7 +321,8 @@ export default {
         'shutting-down': 'btn-red',
         started: 'btn-red',
         waitingip: 'btn-red',
-        failed: 'btn-red'
+        failed: 'btn-red',
+        paused: 'btn-red'
       }
       return stateColors[this.desktopState]
     },
@@ -346,7 +347,8 @@ export default {
         failed: 'status-red',
         'shutting-down': 'status-orange',
         working: 'status-orange',
-        downloading: 'status-orange'
+        downloading: 'status-orange',
+        paused: 'status-red'
       }
       return stateColors[this.desktopState]
     },

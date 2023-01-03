@@ -589,6 +589,10 @@
                 "forcedeleting": {
                     "text": "Borrando",
                     "action": "Borrando"
+                },
+                "paused": {
+                    "text": "Pausado",
+                    "action": "Parar"
                 }
             }
         },
