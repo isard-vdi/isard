@@ -50,7 +50,9 @@ def manage_storage_node():
         )
     else:
         try:
-            requests.get(storage_node.id).status_code == 200
+            requests.get(
+                storage_node.id, verify=storage_node.verify_cert
+            ).status_code == 200
             storage_node.status = "online"
             return (
                 json.dumps(storage_node.id),

@@ -54,7 +54,27 @@ $(document).ready(function () {
             },
             {
                 "data": "storage_pools",
-            }
+            },
+            {
+                "data": "verify_cert"
+            },
+        ],
+        "columnDefs": [
+            {
+                "targets": 4,
+                "render": function ( data, type, full, meta ) {
+                    if( full.status == "deleted"){
+                        return ""
+                    }
+                    if( full.id.includes("isard-storage") ){
+                        return "Doesn't apply"
+                    }
+                    if(data){
+                        return '<i class="fa fa-circle" aria-hidden="true" style="color:green"></i>'
+                    }else{
+                        return '<i class="fa fa-exclamation-triangle" style="color:lightred" title="STORAGE_DOMAIN for this host is not a valid DNS. You should be using a reliable network."></i>'
+                    }
+                }},
         ],
     })
     $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
