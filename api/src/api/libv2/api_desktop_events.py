@@ -171,6 +171,12 @@ def desktop_stop(desktop_id, force=False, wait_seconds=0):
                 {"status": "Stopping", "accessed": int(time.time())}
             ).run(db.conn)
         return wait_status(desktop_id, "Stopping", wait_seconds=wait_seconds)
+    if status == "Paused":
+        with app.app_context():
+            r.table("domains").get(desktop_id).update(
+                {"status": "Stopped", "accessed": int(time.time())}
+            ).run(db.conn)
+        return wait_status(desktop_id, "Stopped", wait_seconds=wait_seconds)
 
     raise Error(
         "precondition_required",

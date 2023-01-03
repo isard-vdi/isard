@@ -23,7 +23,8 @@ export const desktopStates = {
   waitingip: 'waitingip',
   working: 'working',
   'shutting-down': 'shutting-down',
-  downloading: 'downloading'
+  downloading: 'downloading',
+  paused: 'paused'
 }
 
 export const status = {
@@ -62,6 +63,11 @@ export const status = {
   downloading: {
     action: '',
     icon: ''
+  },
+  paused: {
+    action: 'stop',
+    icon: 'stop',
+    variant: 'success'
   }
 }
 
