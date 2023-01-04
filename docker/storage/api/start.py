@@ -34,7 +34,7 @@ from api import app
 
 storage_domain = os.environ.get("STORAGE_DOMAIN")
 video_port = os.environ.get("VIEWER_BROWSER")
-if storage_domain:
+if storage_domain and storage_domain != "isard-storage":
     video_port = "" if not video_port else ":" + str(video_port)
     storage_base_url = "https://" + storage_domain + video_port + "/toolbox"
     verify_cert = False if is_ip(storage_domain) else True
