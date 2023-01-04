@@ -427,6 +427,7 @@ def get_domains_with_transitional_status(
     if also_started:
         list_status = list(list_status)
         list_status.append("Started")
+        list_status.append("Paused")
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
     # ~ l = list(rtable.filter(lambda d: r.expr(list_status).
