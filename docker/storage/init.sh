@@ -1,3 +1,7 @@
+#!/bin/sh -i
+
+export STORAGE_DOMAIN
+
 export PYTHONWARNINGS="ignore:Unverified HTTPS request"
 python3 /api/start.py &
 

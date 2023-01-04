@@ -20,6 +20,7 @@ services:
       - /opt/isard/media:/isard/media:rw
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
+      - /opt/isard-local/environment:/usr/local/etc/environment:ro
     env_file:
       - .env
     environment:

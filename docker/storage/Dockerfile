@@ -8,5 +8,5 @@ COPY docker/storage/api /api
 COPY component/_common/src /api/api/_common
 COPY docker/storage/init.sh /init.sh
 
-CMD ["/bin/sh","/init.sh"]
+CMD ["/init.sh"]
 
