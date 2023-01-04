@@ -379,7 +379,7 @@ evaluate_env() {
     echo "############ BEGIN ############" >> /tmp/pcs_compose_env
     export HYPER_ID=$(hostname)
 
-    for ev in DOMAIN HYPER_ID VIDEO_DOMAIN VIEWER_SPICE VIEWER_BROWSER
+    for ev in DOMAIN HYPER_ID VIDEO_DOMAIN VIEWER_SPICE VIEWER_BROWSER STORAGE_DOMAIN
     do
         path=/opt/isard/config/$(hostname)/
         if [ -f $path$ev ]; then
