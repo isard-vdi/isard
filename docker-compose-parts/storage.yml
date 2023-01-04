@@ -23,6 +23,5 @@ services:
     env_file:
       - .env
     environment:
-      - FB_BASEURL=/storage
-      - WEBAPP_ADMIN_PWD=${WEBAPP_ADMIN_PWD}
-      - API_HYPERVISORS_SECRET=${API_HYPERVISORS_SECRET}
+      ENV: /usr/local/etc/environment
+      STORAGE_DOMAIN:
