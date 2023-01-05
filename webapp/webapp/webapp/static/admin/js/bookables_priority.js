@@ -370,15 +370,15 @@ function socketio_on(){
       type: data.type,
     });
   });
-
-  function renderBookableDetailPannel ( d ) {
-
-        $newPanel = $bookable.clone();
-    $newPanel.html(function(i, oldHtml){
-      return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name).replace(/d.description/g, d.description);
-    });
-        return $newPanel
 }
+
+function renderBookableDetailPannel ( d ) {
+
+  $newPanel = $bookable.clone();
+  $newPanel.html(function(i, oldHtml){
+    return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name).replace(/d.description/g, d.description);
+  });
+      return $newPanel
 }
 
 function data2integers(data){
