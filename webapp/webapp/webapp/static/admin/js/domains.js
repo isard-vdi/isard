@@ -630,6 +630,8 @@ $(document).ready(function() {
 
     $('#domains').find(' tbody').on( 'click', 'input', function () {
         var pk=domains_table.row( $(this).parents('tr') ).id();
+        var checkbox = $(this)
+        var template_enabled = domains_table.row( $(this).parents('tr') ).data().enabled
         switch($(this).attr('id')){
             case 'chk-enabled':
                 if ($(this).is(":checked")){
@@ -637,22 +639,53 @@ $(document).ready(function() {
                 }else{
                     enabled=false
                 }
-                api.ajax('/api/v3/template/update',
+                new PNotify({
+                    title: 'This template will be ' + (enabled==true? 'enabled': 'disabled') ,
+                        text: "Are you sure you want to " + (enabled==true? 'enable': 'disable') + " this template?",
+                        hide: false,
+                        opacity: 0.9,
+                        confirm: {
+                            confirm: true
+                        },
+                        buttons: {
+                            closer: false,
+                            sticker: false
+                        },
+                        history: {
+                            history: false
+                        },
+                        addclass: 'pnotify-center'
+                    }).get().on('pnotify.confirm', function() {
+                        api.ajax('/api/v3/template/update',
                         'PUT',
                         {'id':pk,
                         'enabled':enabled})
-                .fail(function(jqXHR) {
-                    new PNotify({
-                        title: "Template enable/disable",
-                            text: "Could not update!",
-                            hide: true,
-                            delay: 3000,
-                            icon: 'fa fa-alert-sign',
-                            opacity: 1,
-                            type: 'error'
+                        .fail(function(jqXHR) {
+                            new PNotify({
+                                title: "Template enable/disable",
+                                    text: "Could not update!",
+                                    hide: true,
+                                    delay: 3000,
+                                    icon: 'fa fa-alert-sign',
+                                    opacity: 1,
+                                    type: 'error'
+                                });
+                                domains_table.ajax.reload()
+                        })
+                        .success(function(data){
+                            new PNotify({
+                                title: "Template " + (data.enabled? 'enabled': 'disabled'),
+                                text: "",
+                                hide: true,
+                                delay: 1000,
+                                icon: 'fa fa-success',
+                                opacity: 1,
+                                type: 'success'
+                            });
                         });
-                        domains_table.ajax.reload()
-                });
+                    }).on('pnotify.cancel', function() {
+                        checkbox.prop("checked", template_enabled)
+                    });
             break;
         }
     })
