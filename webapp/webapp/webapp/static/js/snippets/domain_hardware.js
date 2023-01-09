@@ -125,6 +125,7 @@ function setHardwareDomainIdDefaults(div_id,domain_id){
 function setHardwareDomainDefaults(div_id,domain){
 
     $(div_id+' #forced_hyp').closest("div").remove();
+    $(div_id+' #favourite_hyp').closest("div").remove();
     $(div_id+' #name_hidden').val(domain.name);
     if (div_id != '#modalAddDesktop') {
         $(div_id+' #name').val(domain.name);
@@ -270,6 +271,12 @@ function setHardwareDomainDefaults_viewer(div_id,data){
         $(div_id+" #forced_hyp").closest("tr").show();
     }else{
         $(div_id+" #forced_hyp").closest("tr").hide();
+    }
+    if(data['favourite_hyp']){
+        $(div_id+" #favourite_hyp").html(data['favourite_hyp']);
+        $(div_id+" #favourite_hyp").closest("tr").show();
+    }else{
+        $(div_id+" #favourite_hyp").closest("tr").hide();
     }
     if (data.kind == 'desktop') {
         populate_tree_template(data.create_dict.origin ? data.create_dict.origin : data.id);

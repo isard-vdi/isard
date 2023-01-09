@@ -201,6 +201,7 @@ class ApiDesktopsPersistent:
             "accessed": int(time.time()),
             "persistent": True,
             "forced_hyp": False,
+            "favourite_hyp": False,
             "from_template": template["id"],
             "tag": False,
             "tag_name": False,
@@ -479,6 +480,7 @@ class ApiDesktopsPersistent:
             "accessed": int(time.time()),
             "persistent": True,
             "forced_hyp": data["forced_hyp"],
+            "favourite_hyp": data["favourite_hyp"],
             "allowed": {
                 "categories": False,
                 "groups": False,

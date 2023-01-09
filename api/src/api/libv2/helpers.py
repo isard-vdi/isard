@@ -450,6 +450,10 @@ def parse_domain_update(domain_id, new_data, admin_or_manager=False):
             "forced_hyp"
         ):
             new_domain["forced_hyp"] = new_data.get("forced_hyp")
+        if "favourite_hyp" in new_data and new_data.get("favourite_hyp") != domain.get(
+            "favourite_hyp"
+        ):
+            new_domain["favourite_hyp"] = new_data.get("favourite_hyp")
         if "server" in new_data and new_data.get("server") != domain.get("server"):
             new_domain = {
                 **new_domain,

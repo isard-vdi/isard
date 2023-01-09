@@ -360,6 +360,7 @@ class ApiAdmin:
                             }
                         },
                         "forced_hyp",
+                        "favourite_hyp",
                         "os",
                         "guest_properties",
                     )
@@ -414,6 +415,7 @@ class ApiAdmin:
                                     "videos": True,
                                     "boot_order": True,
                                     "forced_hyp": True,
+                                    "favourite_hyp": True,
                                 },
                                 "origin": True,
                                 "reservables": True,
@@ -488,6 +490,7 @@ class ApiAdmin:
                                     "videos": True,
                                     "boot_order": True,
                                     "forced_hyp": True,
+                                    "favourite_hyp": True,
                                     "disk_bus": True,
                                     "virtualization_nested": True,
                                 },
@@ -496,6 +499,7 @@ class ApiAdmin:
                             }
                         },
                         "forced_hyp",
+                        "favourite_hyp",
                     )
                     .merge(
                         lambda domain: {
@@ -898,6 +902,13 @@ class ApiAdmin:
                 with app.app_context():
                     r.table("domains").get_all(r.args(ids)).update(
                         {"forced_hyp": False}
+                    ).run(db.conn)
+                return True
+
+            if action == "remove_favourite_hyper":
+                with app.app_context():
+                    r.table("domains").get_all(r.args(ids)).update(
+                        {"favourite_hyp": False}
                     ).run(db.conn)
                 return True
         return False

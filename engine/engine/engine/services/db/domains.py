@@ -734,26 +734,26 @@ def get_domain_forced_hyp(id_domain):
     rtable = r.table("domains")
 
     try:
-        d = rtable.get(id_domain).pluck("forced_hyp", "preferred_hyp").run(r_conn)
+        d = rtable.get(id_domain).pluck("forced_hyp", "favourite_hyp").run(r_conn)
         close_rethink_connection(r_conn)
     except:
         return False, False
     forced_hyp = d.get("forced_hyp", False)
-    preferred_hyp = d.get("preferred_hyp", False)
+    favourite_hyp = d.get("favourite_hyp", False)
     ## By now, even the webapp will update it as a list, only lets
     ## to set one forced_hyp
     if forced_hyp:
         forced_hyp = forced_hyp[0]
     else:
         forced_hyp = False
-    if isinstance(preferred_hyp, list) and len(preferred_hyp) > 0:
+    if isinstance(favourite_hyp, list) and len(favourite_hyp) > 0:
         ## By now, even the webapp will update it as a list, only lets
         ## to set one forced_hyp
-        if preferred_hyp[0] == "false":
-            preferred_hyp = False
-    elif preferred_hyp == "false":
-        preferred_hyp = False
-    return forced_hyp, preferred_hyp
+        if favourite_hyp[0] == "false":
+            favourite_hyp = False
+    elif favourite_hyp == "false":
+        favourite_hyp = False
+    return forced_hyp, favourite_hyp
 
 
 def get_domain(id):

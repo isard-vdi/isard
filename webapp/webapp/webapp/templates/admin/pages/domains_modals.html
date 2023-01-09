@@ -481,6 +481,63 @@
    </div>
 </div>
 
+<div class="modal fade" id="modalFavouriteHyp" tabindex="-1" role="dialog" aria-labelledby="modalFavouriteHyp" aria-hidden="true">
+   <div class="modal-dialog">
+      <div class="modal-content">
+         <!-- Modal Header -->
+         <div class="modal-header" style="padding: 5px;">
+            <button type="button" class="close" data-dismiss="modal">
+               <span aria-hidden="true">&times;</span>
+               <span class="sr-only">Close</span>
+            </button>
+            <h4 class="modal-title" id="myModalLabel">
+               <i class="fa fa-plus fa-1x"></i><i class="fa fa-rocket"> </i> Favourite hypervisor
+            </h4>
+         </div>
+
+         <!-- Modal Body -->
+         <div class="modal-body">
+            <form id="modalFavouriteHypForm" class="form-horizontal">
+               <div class="x_panel">
+                  <div class="x_content">
+                     <input hidden id="id" name="id"/>
+                     <div class="item form-group">
+                        <label class="control-label col-md-6 col-sm-6 col-xs-12">Domain will have preference to start in defined hyper. <br/>If hyper not available, domain will start in current available hyper.</label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                           <div class="checkbox">
+                              <label class="">
+                                 <div class="icheckbox_flat-green" style="position: relative;">
+                                    <input type="checkbox" id="favouritehyp-check" name="favouritehyp-check" class="flat"  style="position: absolute; opacity: 0;">
+                                    <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                    </ins>
+                                 </div>
+                              </label>
+                           </div>
+                        </div>
+                     </div>
+                     <div class="row">
+                        <div class="col-md-12 col-sm-12 col-xs-12">
+                           <select id="favourite_hyp" name="favourite_hyp" class="form-control" required>
+                           </select> 
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </form>
+         </div>
+         <!-- Modal Footer -->
+         <div class="modal-footer">
+            <ul class="nav navbar-left panel_toolbox">
+                <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+            </ul>
+            <ul class="nav navbar-right panel_toolbox">
+               <li><button id="send" type="button" class="btn btn-success">Update</button></li>
+            </ul>
+        </div>
+      </div>
+   </div>
+</div>
+
 <div class="modal fade" id="modalBulkEdit" tabindex="-1" role="dialog" 
      aria-labelledby="modalBulkEdit" aria-hidden="true">
     <div class="modal-dialog">

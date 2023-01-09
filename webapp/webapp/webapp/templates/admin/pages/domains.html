@@ -75,6 +75,7 @@
                      <option value="delete">Delete</option>
                      <option value="starting_paused">Start paused (check status)</option>
                      <option value="remove_forced_hyper">Remove forced hypervisor</option>
+                     <option value="remove_favourite_hyper">Remove favourite hypervisor</option>
                   </select>
                </div>
             </div>
@@ -82,33 +83,44 @@
                <table id="domains" class="table">
                   <thead>
                      <tr>
-                        <th></th>
-                        <th>Icon</th>
+                        <th rowspan="2"></th>
+                        <th rowspan="2">Icon</th>
+                        <th rowspan="2">Name</th>
+                        <th rowspan="2">Description</th>
                         {% if nav == "Desktops" %}
-                        <th>Server</th>
+                           <th rowspan="2">Status</th>
+                           <th rowspan="2">Action</th>
+                           <th rowspan="2">RAM(GB)</th>
+                           <th rowspan="2">vCPUs</th>
                         {% endif %}
-                        <th>Hypervisor</th>
-                        <th>Name</th>
-                        <th>Description</th>
+                        <th rowspan="2">User</th>
+                        <th rowspan="2">Category</th>
+                        <th rowspan="2">Group</th>
                         {% if nav == "Desktops" %}
-                           <th>Memory(GB)</th>
-                           <th>VCPUs</th>
-                           <th>Action</th>
-                           <th>Status</th>
+                           <th rowspan="2">Server</th>
                         {% endif %}
-                        <th>User</th>
-                        <th>Category</th>
-                        <th>Group</th>
+                        {% if nav == "Templates" %}
+                           <th colspan="2" class="text-center">Hypervisor</th>
+                        {% elif nav == "Desktops" %}
+                           <th colspan="3" class="text-center">Hypervisor</th>
+                        {% endif %}
                         {% if nav!="Desktops" %}
-                           <th>Enabled</th>
-                           <th>Derivates</th>
-                           <th>Shares</th>
+                           <th rowspan="2">Enabled</th>
+                           <th rowspan="2">Derivates</th>
+                           <th rowspan="2">Shares</th>
                         {% endif %}
-                        <th>Last Access</th>
+                        <th rowspan="2">Last Access</th>
                         {% if nav == "Desktops" %}
-                           <th>Selected</th>
+                           <th rowspan="2">Selected</th>
                         {% endif %}
-                        <th>Id</th>
+                        <th rowspan="2">Id</th>
+                     </tr>
+                     <tr>
+                        {% if nav == "Desktops" %}
+                           <th>Started</th>
+                        {% endif %}
+                        <th>Favourite</th>
+                        <th>Forced</th>
                      </tr>
                   </thead>
                   <tbody>
@@ -117,21 +129,25 @@
                      <tr>
                         <th></th>
                         <th>Icon</th>
-                        {% if nav == "Desktops" %}
-                        <th>Server</th>
-                        {% endif %}
-                        <th>Hypervisor</th>
                         <th>Name</th>
                         <th>Description</th>
                         {% if nav == "Desktops" %}
-                           <th>Memory(GB)</th>
-                           <th>VCPUs</th>
-                           <th>Action</th>
                            <th>Status</th>
+                           <th>Action</th>
+                           <th>RAM(GB)</th>
+                           <th>vCPUs</th>
                         {% endif %}
                         <th>User</th>
                         <th>Category</th>
                         <th>Group</th>
+                        {% if nav == "Desktops" %}
+                           <th>Server</th>
+                        {% endif %}
+                        {% if nav == "Desktops" %}
+                           <th>Started Hyper</th>
+                        {% endif %}
+                        <th>Fav Hyper</th>
+                        <th>Forced Hyper</th>
                         {% if nav!="Desktops" %}
                            <th>Enabled</th>
                            <th>Derivates</th>

@@ -14,38 +14,39 @@ if (url!="Desktops") {
     kind='desktop'
 }
 
-// column to sort by 'last accessed' in desktops table
-order=13
+// Sort by Last Access in Desktops table
+order=15
 
 columns= [
-                {
-                "className":      'details-control',
-                "orderable":      false,
-                "data":           null,
-                "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
-                },
-                { "data": "icon" },
-                { "data": "server", "width": "10px", "defaultContent":"-"},
-                { "data": "hyp_started", "width": "100px"},
-                { "data": "name"},
-                { "data": "description"},
-                { "data": "ram"},
-                { "data": "create_dict.hardware.vcpus"},
-                { "data": null, "className": 'viewer',},
-                { "data": "status"},
-                { "data": "username"},
-                { "data": "category_name"},
-                { "data": "group_name"},
-                { "data": "accessed",
-                 'defaultContent': ''},
-                {
-                    "className": 'text-center',
-                    "data": null,
-                    "orderable": false,
-                    "defaultContent": '<input type="checkbox" class="form-check-input"></input>'
-                },
-                { "data": "id", "visible": false},
-                ]
+    {
+        "className": 'details-control',
+        "orderable": false,
+        "data": null,
+        "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
+    },
+    { "data": "icon" },
+    { "data": "name"},
+    { "data": "description"},
+    { "data": "status"},
+    { "data": null, "className": 'viewer',},
+    { "data": "ram"},
+    { "data": "create_dict.hardware.vcpus", "width": "10px"},
+    { "data": "username"},
+    { "data": "category_name"},
+    { "data": "group_name"},
+    { "data": "server", "width": "10px", "defaultContent":"-"},
+    { "data": "hyp_started", "width": "100px"},
+    { "data": "favourite_hyp", "width": "100px"},
+    { "data": "forced_hyp", "width": "100px"},
+    { "data": "accessed", 'defaultContent': '' },
+    {
+        "className": 'text-center',
+        "data": null,
+        "orderable": false,
+        "defaultContent": '<input type="checkbox" class="form-check-input"></input>'
+    },
+    { "data": "id", "visible": false},
+]
 
 columnDefs = [
     {
@@ -55,7 +56,24 @@ columnDefs = [
             return "<img src='"+img_url+"' width='50px'>"
         }
     },{
-        "targets": 2,
+        "targets": 4,
+        "render": function (data, type, full, meta) {
+            return renderStatus(full)
+        }
+    },{
+        "targets": 5,
+        "width": "100px",
+        "render": function (data, type, full, meta) {
+            return renderAction(full) + renderDisplay(full)
+        }
+    },{
+        "targets": 6,
+        "width": "100px",
+        "render": function (data, type, full, meta) {
+            return (full.create_dict.hardware.memory / 1024 / 1024).toFixed(2) + "GB"
+        }
+    },{
+        "targets": 11,
         "render": function (data, type, full, meta) {
             if('server' in full){
                 if(full["server"] == true){
@@ -68,29 +86,34 @@ columnDefs = [
             }
         }
     },{
-        "targets": 3,
+        "targets": 12,
         "render": function (data, type, full, meta) {
-            return renderHypStarted(full)
-        }
-    },{
-        "targets": 6,
-        "width": "100px",
-        "render": function (data, type, full, meta) {
-            return (full.create_dict.hardware.memory / 1024 / 1024).toFixed(2) + "GB"
-        }
-    },{
-        "targets": 8,
-        "width": "100px",
-        "render": function (data, type, full, meta) {
-            return renderAction(full) + renderDisplay(full)
-        }
-    },{
-        "targets": 9,
-        "render": function (data, type, full, meta) {
-            return renderStatus(full)
+            if('hyp_started' in full && full.hyp_started != ''){
+                return full.hyp_started;
+            } else {
+                return '-'
+            }
         }
     },{
         "targets": 13,
+        "render": function (data, type, full, meta) {
+            if('favourite_hyp' in full && full.favourite_hyp != ''){ 
+                return full.favourite_hyp;
+            } else {
+                return '-'
+            }
+        }
+    },{
+        "targets": 14,
+        "render": function (data, type, full, meta) {
+            if('forced_hyp' in full && full.forced_hyp != ''){
+                return full.forced_hyp;
+            } else {
+                return '-'
+            }
+        }
+    },{
+        "targets": 15,
         "render": function (data, type, full, meta) {
             if ( type === 'display' || type === 'filter' ) {
                 return moment.unix(full.accessed).fromNow()
@@ -102,15 +125,17 @@ columnDefs = [
 
 // Templates table render
 if(url!="Desktops"){
-    // Remove the desktops last column (used for bulk actions)
-    columns.splice(14, 1)
-    // Remove the server column
-    columns.splice(2,1)
-    // Remove the ram, vcpu, viewer and status columns
-    columns.splice(5, 4)
-    // Add the enabled, derivates and allowed columns
+    // Remove Select column (used for bulk actions)
+    columns.splice(16, 1)
+    // Remove Server column
+    columns.splice(11, 1)
+    // Remove Started Hyper column
+    columns.splice(11, 1)
+    // Remove Status, Action, Memory(GB) and VCPUs columns
+    columns.splice(4, 4)
+    // Add Enabled, Derivates and Shared columns
     columns.splice(
-        8,
+        9,
         0,
         {
             "data": 'enabled',
@@ -118,18 +143,18 @@ if(url!="Desktops"){
             "orderable": false,
             "defaultContent": '<input type="checkbox" class="form-check-input" checked></input>'
         },
-        {"data": "derivates"},
+        {"data": "derivates", "width": "2px"},
         {"defaultContent": '<button id="btn-alloweds" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button>'},
     );
-    // Remove the custom rendering of the ram, viewer and status
-    columnDefs.splice(1, 1)
-    columnDefs.splice(2, 3)
-    // Change the hypervisor and the last access column custom render target
-    columnDefs[1]["targets"]=2
-    columnDefs[2]["targets"]=11
-    // Add the enabled column render
+    // Remove custom rendering of Status, Action, Memory(GB), Server and Started Hyper columns
+    columnDefs.splice(1, 5)
+    // Change custom render target of Favourite Hyper, Forced Hyper and Last Access columns
+    columnDefs[1]["targets"]=7
+    columnDefs[2]["targets"]=8
+    columnDefs[3]["targets"]=12
+    // Add rendering of Enabled column 
     columnDefs.push({
-        "targets": 8,
+        "targets": 9,
         "render": function ( data, type, full, meta ) {
             if( full.enabled ){
                 return '<input id="chk-enabled" type="checkbox" class="form-check-input" checked></input><span style="display: none;">' + data + '</span>'
@@ -138,8 +163,8 @@ if(url!="Desktops"){
             }
         }
     })
-    // sort by 'last accessed' in templates table
-    order = 10;
+    // Sort by Last Access in Templates table
+    order = 12;
 
     $.fn.dataTable.ext.search.push(function (settings, searchData, index, rowData, counter ) {
             search_val = $('.panel_toolbox .btn-disabled').attr('view')
@@ -153,7 +178,6 @@ if(url!="Desktops"){
             }
             return false;
     });
-
 }
 
 $(document).ready(function() {
@@ -421,25 +445,25 @@ $(document).ready(function() {
     // Setup - add a text input to each footer cell
     $('#domains tfoot th').each( function () {
         var title = $(this).text();
-        if (['','Icon','Hypervisor','Action', 'Enabled'].indexOf(title) == -1){
+        if (['', 'Icon', 'Action', 'Enabled'].indexOf(title) == -1){
             $(this).html( '<input type="text" placeholder="Search '+title+'" />' );
         }
     } );
 
-        domains_table= $('#domains').DataTable({
-            "ajax": {
-                "url": "/admin/domains",
-                "type": "GET",
-                "dataSrc":'',
-                "data": { 'kind': kind }
-            },
-            "language": {
-                "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
-            },
-            "rowId": "id",
-            "deferRender": true,
-            "columns": columns,
-             "order": [[order, 'des']],
+    domains_table= $('#domains').DataTable({
+        "ajax": {
+            "url": "/admin/domains",
+            "type": "GET",
+            "dataSrc":'',
+            "data": { 'kind': kind }
+        },
+        "language": {
+            "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+        },
+        "rowId": "id",
+        "deferRender": true,
+        "columns": columns,
+        "order": [[order, 'des']],
         "columnDefs": columnDefs,
         "rowCallback": function (row, data) {
             if('server' in data){
@@ -450,7 +474,7 @@ $(document).ready(function() {
                 }
             }
         }
-        } );
+    } );
 
     // Apply the search
     domains_table.columns().every( function () {
@@ -1171,6 +1195,89 @@ function actionsDomainDetail(){
         })
     });
 
+    $('.btn-favouritehyp').on('click', function () {
+        var pk=$(this).closest("[data-pk]").attr("data-pk");
+        $("#modalFavouriteHypForm")[0].reset();
+        $('#modalFavouriteHypForm #id').val(pk);
+        $('#modalFavouriteHyp').modal({
+            backdrop: 'static',
+            keyboard: false
+        }).modal('show');
+        api.ajax('/api/v3/admin/table/domains','POST',{'id':pk,'pluck':['id','favourite_hyp']}).done(function(data) {
+            if('favourite_hyp' in data && data.favourite_hyp != false && data.favourite_hyp != []){
+                HypervisorsFavDropdown(data.favourite_hyp[0]);
+                $('#modalFavouriteHypForm #favourite_hyp').show();
+                $('#favouritehyp-check').prop('checked',true).iCheck('update');
+            }else{
+                $('#favouritehyp-check').iCheck('update')[0].unchecked;
+                $('#modalFavouriteHypForm #favourite_hyp').hide();
+            }
+        });
+    });
+
+    $('#favouritehyp-check').unbind('ifChecked').on('ifChecked', function(event){
+        if($('#favourite_hyp').val() == ''){
+            pk=$('#modalFavouriteHypForm #id').val();
+            api.ajax('/api/v3/admin/table/domains','POST',{'id':pk,'pluck':['id','favourite_hyp']}).done(function(data) {
+                if('favourite_hyp' in data && data.favourite_hyp != false && data.favourite_hyp != []){
+                    HypervisorsFavDropdown(data.favourite_hyp[0]);
+                }else{
+                    HypervisorsFavDropdown('');
+                }
+            });
+            $('#modalFavouriteHypForm #favourite_hyp').show();
+        }
+        });
+
+    $('#favouritehyp-check').unbind('ifUnchecked').on('ifUnchecked', function(event){
+        pk=$('#modalFavouriteHypForm #id').val();
+        $('#modalFavouriteHypForm #favourite_hyp').hide();
+        $("#modalFavouriteHypForm #favourite_hyp").empty();
+    });
+
+    $("#modalFavouriteHyp #send").off('click').on('click', function(e){
+        var notice = new PNotify({
+            text: 'Updating selected item...',
+            hide: false,
+            opacity: 1,
+            icon: 'fa fa-spinner fa-pulse'
+        })
+        data=$('#modalFavouriteHypForm').serializeObject();
+        $.ajax({
+            type: 'PUT',
+            url: '/api/v3/domain/'+data["id"],
+            data: JSON.stringify({
+                ...( ! ("favourite_hyp"  in data) && {"favourite_hyp": false} ),
+                ...( "favourite_hyp" in data && {"favourite_hyp": [data.favourite_hyp]} ),
+            }),
+            contentType: 'application/json',
+            error: function(data) {
+                notice.update({
+                    title: 'ERROR',
+                    text: data.responseJSON.description,
+                    type: 'error',
+                    hide: true,
+                    icon: 'fa fa-warning',
+                    delay: 5000,
+                    opacity: 1
+                })
+            },
+            success: function(data) {
+                $('form').each(function() { this.reset() });
+                $('.modal').modal('hide');
+                notice.update({
+                    title: 'Updated',
+                    text: 'Item updated successfully',
+                    hide: true,
+                    delay: 2000,
+                    icon: 'fa fa-' + data.icon,
+                    opacity: 1,
+                    type: 'success'
+                })
+            }
+        })
+    });
+
     $("#modalServer #send").off('click').on('click', function(e){
         data=$('#modalServerForm').serializeObject();
         let pk=$('#modalServerForm #id').val()
@@ -1221,6 +1328,18 @@ function HypervisorsDropdown(selected) {
             $("#modalForcedhypForm #forced_hyp").append('<option value=' + hypervisor.id + '>' + hypervisor.id+' ('+hypervisor.hostname+')' + '</option>');
             if(hypervisor.id == selected){
                 $('#modalForcedhypForm #forced_hyp option[value="'+hypervisor.id+'"]').prop("selected",true);
+            }
+        });
+    });
+}
+
+function HypervisorsFavDropdown(selected) {
+    $("#modalFavouriteHypForm #favourite_hyp").empty();
+    api.ajax('/api/v3/admin/table/hypervisors','POST',{'pluck':['id','hostname']}).done(function(data) {
+        data.forEach(function(hypervisor){
+            $("#modalFavouriteHypForm #favourite_hyp").append('<option value=' + hypervisor.id + '>' + hypervisor.id+' ('+hypervisor.hostname+')' + '</option>');
+            if(hypervisor.id == selected){
+                $('#modalFavouriteHypForm #favourite_hyp option[value="'+hypervisor.id+'"]').prop("selected",true);
             }
         });
     });
@@ -1295,14 +1414,13 @@ function renderStatus(data){
     }else{
         return 'No ip'
     }
-}
+} 
 
 function renderHypStarted(data){
     res=''
-    if('forced_hyp' in data && data.forced_hyp != false && data.forced_hyp != []){
-        res='<b>F: </b>'+data.forced_hyp[0]
-    }
-    if('hyp_started' in data && data.hyp_started != ''){ res=res+'<br><b>S: </b>'+ data.hyp_started;}
+    if('favourite_hyp' in data && data.favourite_hyp != ''){ res=res+'<b>Fav: </b>'+ data.favourite_hyp;}
+    if('forced_hyp' in data && data.forced_hyp != ''){ res=res+'<br/><b>Forced: </b>'+ data.forced_hyp;}
+    if('hyp_started' in data && data.hyp_started != ''){ res=res+'<br/><b>Started: </b>'+ data.hyp_started;}
     return res
 }
 

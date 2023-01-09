@@ -183,7 +183,7 @@ class UiActions(object):
     ):
         failed = False
         if pool_id in self.manager.pools.keys():
-            forced_hyp, preferred_hyp = get_domain_forced_hyp(id_domain)
+            forced_hyp, favourite_hyp = get_domain_forced_hyp(id_domain)
 
             permit_reservables = True
             if action == "start_paused_domain":
@@ -194,7 +194,7 @@ class UiActions(object):
             next_hyp, extra_info = self.manager.pools[pool_id].get_next(
                 domain_id=id_domain,
                 force_hyp=forced_hyp,
-                preferred_hyp=preferred_hyp,
+                favourite_hyp=favourite_hyp,
                 reservables=permit_reservables,
             )
             if next_hyp is not False:
@@ -458,7 +458,7 @@ class UiActions(object):
                             )
                             return False
 
-                        forced_hyp, preferred_hyp = get_domain_forced_hyp(id_domain)
+                        forced_hyp, favourite_hyp = get_domain_forced_hyp(id_domain)
                         if forced_hyp is not False:
                             hyps_in_pool = get_hypers_in_pool(
                                 pool_id, only_online=False
