@@ -97,12 +97,12 @@
                 <div class="d-flex justify-content-center align-items-center">
                   <!-- STATE DOT -->
                   <div
-                    v-if="![desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down']].includes(getItemState(data.item))"
+                    v-if="![desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down'], desktopStates.downloading].includes(getItemState(data.item))"
                     :class="'state-dot mr-2 ' + stateCssClass(getItemState(data.item))"
                   />
                   <!-- SPINNER -->
                   <b-spinner
-                    v-if="[desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down']].includes(getItemState(data.item))"
+                    v-if="[desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down'], desktopStates.downloading].includes(getItemState(data.item))"
                     small
                     class="align-self-center mr-2 spinner-loading"
                   />
@@ -151,9 +151,30 @@
                   :icon-name="data.item.buttonIconName"
                   @buttonClicked="chooseDesktop(data.item.id)"
                 />
+
+                <div
+                  v-if="data.item.progress"
+                >
+                  <small>{{ data.item.progress.size }} - {{ data.item.progress.throughput_average }}/s - {{ data.item.progress.time_left }} </small>
+                  <b-progress
+                    :max="100"
+                    animated
+                    height="2rem"
+                  >
+                    <b-progress-bar
+                      variant="secondary"
+                      :value="data.item.progress.percentage"
+                      show-progress
+                      animated
+                    >
+                      <strong>{{ data.item.progress.percentage }}%</strong>
+                    </b-progress-bar>
+                  </b-progress>
+                </div>
+
                 <!-- Main action button persistent-->
                 <DesktopButton
-                  v-if="(data.item.type === 'persistent' || (data.item.type === 'nonpersistent' && data.item.state && getItemState(data.item) === desktopStates.stopped )) && ![desktopStates.working].includes(getItemState(data.item))"
+                  v-if="(data.item.type === 'persistent' || (data.item.type === 'nonpersistent' && data.item.state && getItemState(data.item) === desktopStates.stopped )) && ![desktopStates.working, desktopStates.downloading].includes(getItemState(data.item))"
                   class="table-action-button"
                   :active="canStart(data.item)"
                   :button-class="canStart(data.item) ? buttCssColor(getItemState(data.item)) : ''"
@@ -336,7 +357,7 @@ export default {
         key: 'description',
         sortable: true,
         label: `${i18n.t('components.desktop-cards.table-header.description')}`,
-        thStyle: { width: '30%' },
+        thStyle: { width: '25%' },
         tdClass: 'description'
       },
       {
@@ -355,14 +376,14 @@ export default {
       },
       {
         key: 'viewers',
-        thStyle: { width: '15%' },
+        thStyle: { width: '10%' },
         label: `${i18n.t('components.desktop-cards.table-header.viewers')}`,
         tdClass: 'viewers'
       },
       {
         key: 'action',
         label: `${i18n.t('components.desktop-cards.table-header.action')}`,
-        thStyle: { width: '10%' },
+        thStyle: { width: '15%' },
         tdClass: 'px-4 action'
       },
       {
