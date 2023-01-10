@@ -34,7 +34,7 @@ threads = {}
 
 from flask import request
 
-from ..auth.tokens import get_token_payload
+from .._common.tokens import get_token_payload
 from .quotas_process import QuotasProcess
 
 quotas = QuotasProcess()

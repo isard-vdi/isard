@@ -1,28 +1,31 @@
-# Copyright 2017 the Isard-vdi project authors:
-#      Josep Maria Viñolas Auquer
-#      Alberto Larraz Dalmases
-# License: AGPLv3
+#
+#   Copyright © 2023 Josep Maria Viñolas Auquer
+#
+#   This file is part of IsardVDI.
+#
+#   IsardVDI is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or (at your
+#   option) any later version.
+#
+#   IsardVDI is distributed in the hope that it will be useful, but WITHOUT ANY
+#   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+#   FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+#   details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
 
-import json
-import os
-from functools import wraps
+import logging as log
 
 from flask import request
-from rethinkdb import RethinkDB
+from jose import jwt
 
 from api import app
 
-from .._common.api_exceptions import Error
-
-r = RethinkDB()
-from jose import jwt
-from rethinkdb.errors import ReqlTimeoutError
-
-from ..libv2.flask_rethink import RDB
-from ..libv2.log import log
-
-db = RDB(app)
-db.init_app(app)
+from .api_exceptions import Error
 
 
 def get_header_jwt_payload():
