@@ -10,7 +10,7 @@ services:
         tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
     networks:
       isard-network:
-        ipv4_address: ${DOCKER_NET:-172.31.255}.22
+        ipv4_address: ${DOCKER_NET:-172.31.255}.25
     ports:
       - published: ${VIEWER_SPICE:-80}
         target: 80
