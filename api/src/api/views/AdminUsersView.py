@@ -29,7 +29,7 @@ from ..libv2.validators import _validate_item
 
 quotas = Quotas()
 users = ApiUsers()
-from ..auth.authentication import LocalUsers
+
 from ..libv2.isardVpn import isardVpn
 
 vpn = isardVpn()
@@ -55,8 +55,6 @@ def api_v3_admin_jwt(payload, user_id):
     ownsUserId(payload, user_id)
     logout_user()
     jwt = users.Jwt(user_id)
-    user = users.Get(user_id)
-    LocalUsers().getUser(user.get("username"))
     return jwt
 
 

@@ -30,7 +30,6 @@ from pathlib import Path
 
 from PIL import Image, ImageOps
 
-from ..auth.authentication import *
 from .genimage import gen_img_from_name
 
 

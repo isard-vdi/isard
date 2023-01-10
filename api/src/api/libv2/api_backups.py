@@ -25,7 +25,6 @@ db = RDB(app)
 db.init_app(app)
 
 from .._common.api_exceptions import Error
-from ..auth.authentication import *
 
 
 def remove_backup_db(id):

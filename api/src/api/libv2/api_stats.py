@@ -1,7 +1,5 @@
 from rethinkdb import RethinkDB
 
-from ..auth.authentication import *
-
 r = RethinkDB()
 from api import app
 
