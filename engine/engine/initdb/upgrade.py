@@ -2,7 +2,7 @@
 #      Josep Maria Viñolas Auquer
 #      Alberto Larraz Dalmases
 # License: AGPLv3
-
+import json
 import sys
 import time
 from uuid import uuid4
@@ -17,7 +17,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 73
+release_version = 74
+# release 74: update gpus_profiles
 # release 73: 'favourite_hyp' domains field should be a list if it isn't False
 # release 72: Remove existing storage_node entries
 # release 71: Added bookings_priority name index
@@ -103,6 +104,7 @@ tables = [
     "qos_net",
     "qos_disk",
     "storage_node",
+    "gpu_profiles",
 ]
 
 
@@ -2231,6 +2233,24 @@ class Upgrade(object):
                 print(e)
 
         return True
+
+    """
+    GPU_PROFILES DISK TABLE UPGRADES
+    """
+
+    def gpu_profiles(self, version):
+        table = "gpu_profiles"
+        log.info("UPGRADING " + table + " VERSION " + str(version))
+        if version == 74:
+            try:
+                f = open("./initdb/profiles/gpu_profiles.json")
+                gpu_profiles = json.loads(f.read())
+                f.close()
+                r.table("gpu_profiles").insert(gpu_profiles, conflict="update").run(
+                    self.conn
+                )
+            except Exception as e:
+                print(e)
 
     def storage_physical_domains(self, version):
         table = "storage_physical_domains"

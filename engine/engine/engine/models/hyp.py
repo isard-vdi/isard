@@ -92,6 +92,31 @@ HYP_STATUS_NOT_ALIVE = -10
 
 MAX_GET_KVM_RETRIES = 3
 
+devid_nvidia_ampere = {}
+# Ampere
+devid_nvidia_ampere[0x20B0] = "A100"
+devid_nvidia_ampere[0x20B2] = "A100DX"
+devid_nvidia_ampere[0x20F1] = "A100 PCIe"
+devid_nvidia_ampere[0x2230] = "RTX A6000"
+devid_nvidia_ampere[0x2231] = "RTX A5000"
+devid_nvidia_ampere[0x2235] = "A40"
+devid_nvidia_ampere[0x2236] = "A10"
+devid_nvidia_ampere[0x2237] = "A10G"
+devid_nvidia_ampere[0x20B5] = "A100 80GB PCIe"
+devid_nvidia_ampere[0x20B7] = "A30"
+devid_nvidia_ampere[0x25B6] = "A16"
+# same devid A16 and A2 subsystem:
+# ssid: 0x14A9 = "A16"
+# ssid: 0x159D = "A2"
+
+devid_nvidia_ampere[0x20B8] = "A100X"
+devid_nvidia_ampere[0x20B9] = "A30X"
+devid_nvidia_ampere[0x2233] = "RTX A5500"
+devid_nvidia_ampere[0x20F5] = "A800 80GB PCIe"
+devid_nvidia_ampere[0x20F3] = "A800-SXM4-80GB"
+# Hopper
+devid_nvidia_ampere[0x2331] = "H100 PCIe"
+
 
 class hyp(object):
     """
@@ -852,9 +877,12 @@ class hyp(object):
                         )
                         if only_get_availables is False:
                             pci = LibPCI()
-                            device_name = pci.lookup_device_name(
-                                vendor_pci_id, device_pci_id
-                            )
+                            if device_pci_id in devid_nvidia_ampere.keys():
+                                device_name = devid_nvidia_ampere[device_pci_id]
+                            else:
+                                device_name = pci.lookup_device_name(
+                                    vendor_pci_id, device_pci_id
+                                )
                         else:
                             device_name = "UNKNOWN NVIDIA"
                     except:
@@ -865,8 +893,12 @@ class hyp(object):
                     try:
                         sub_paths = False
                         path_parent = False
-                        if device_name.find("A40") >= 0:
-                            l_types, sub_paths, path_parent = self.get_types_from_a40(d)
+                        if device_pci_id in devid_nvidia_ampere.keys():
+                            (
+                                l_types,
+                                sub_paths,
+                                path_parent,
+                            ) = self.get_types_from_ampere(d)
                         else:
                             # only Q-Series Virtual GPU Types (Required license edition: vWS)
                             if (
@@ -956,7 +988,7 @@ class hyp(object):
                 new_video_dict["ram"] = ram
                 new_video_dict["vram"] = ram
 
-    def get_types_from_a40(self, d):
+    def get_types_from_ampere(self, d):
 
         parent = d["device"]["parent"]
         dev_parent = self.conn.nodeDeviceLookupByName(parent)
