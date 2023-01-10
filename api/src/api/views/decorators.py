@@ -24,7 +24,11 @@ from ..libv2.flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
-from ..auth.tokens import Error, get_auto_register_jwt_payload, get_header_jwt_payload
+from .._common.tokens import (
+    Error,
+    get_auto_register_jwt_payload,
+    get_header_jwt_payload,
+)
 from ..libv2.maintenance import Maintenance
 
 
