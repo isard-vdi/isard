@@ -1425,11 +1425,11 @@ function renderHypStarted(data){
 }
 
 function renderAction(data){
-    status=data.status;
+    var status=data.status;
     if(status=='Stopped' || status=='Failed'){
         return '<button type="button" id="btn-play" class="btn btn-pill-right btn-success btn-xs"><i class="fa fa-play"></i> Start</button>';
     }
-    if(status=='Started'){
+    if(status=='Started' || status=='Paused'){
         return '<button type="button" id="btn-stop" class="btn btn-pill-left btn-danger btn-xs"><i class="fa fa-stop"></i> Stop</button>';
     }
     if(status=='Shutting-down'){
