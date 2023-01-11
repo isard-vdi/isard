@@ -9,10 +9,8 @@ import time
 import traceback
 
 from flask import request
-from flask_login import login_user, logout_user
+from flask_login import logout_user
 
-#!flask/bin/python
-# coding=utf-8
 from api import app
 
 from .. import socketio
@@ -25,6 +23,7 @@ from ..libv2.api_admin import (
 )
 from ..libv2.api_users import ApiUsers, Password
 from ..libv2.quotas import Quotas
+from ..libv2.users import *
 from ..libv2.validators import _validate_item
 
 quotas = Quotas()
