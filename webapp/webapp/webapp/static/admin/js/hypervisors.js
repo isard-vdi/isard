@@ -566,13 +566,26 @@ function actionsHyperDetail(){
                     form.parsley().validate();
                     if (form.parsley().isValid()){
                         data=$('#modalEditHyper #modalEdit').serializeObject();
+                        data['only_forced'] = $('#modalEditHyper #modalEdit #only_forced').prop('checked')
+                        data['hypervisors_pools'] = [$('#modalEditHyper #hypervisors_pools_dropdown').val()];
+
                         delete data['capabilities-hypervisor']
                         delete data['capabilities-disk_operations']
                         data['capabilities'] = {}
                         data['capabilities']['hypervisor'] = $('#modalEditHyper #modalEdit #capabilities-hypervisor').prop('checked')
                         data['capabilities']['disk_operations'] = $('#modalEditHyper #modalEdit #capabilities-disk_operations').prop('checked')
-                        data['only_forced'] = $('#modalEditHyper #modalEdit #only_forced').prop('checked')
-                        data['hypervisors_pools'] = [$('#modalEditHyper #hypervisors_pools_dropdown').val()];
+                        
+                        delete data['viewer-html5_ext_port']
+                        delete data['viewer-proxy_hyper_host']
+                        delete data['viewer-proxy_video']
+                        delete data['viewer-spice_ext_port']
+                        delete data['viewer-static']
+                        data['viewer'] = {}
+                        data['viewer']['html5_ext_port'] = $('#modalEditHyper #modalEdit #viewer-html5_ext_port').val()
+                        data['viewer']['proxy_hyper_host'] = $('#modalEditHyper #modalEdit #viewer-proxy_hyper_host').val()
+                        data['viewer']['proxy_video'] = $('#modalEditHyper #modalEdit #viewer-proxy_video').val()
+                        data['viewer']['spice_ext_port'] = $('#modalEditHyper #modalEdit #viewer-spice_ext_port').val()
+                        data['viewer']['static'] = $('#modalEditHyper #modalEdit #viewer-static').val()
 
                         if (!data['capabilities']['hypervisor'] && !data['capabilities']['disk_operations']){
                             $("#checkbox_edit_error #checkbox_edit_error_html").html("You must select at least one option")
