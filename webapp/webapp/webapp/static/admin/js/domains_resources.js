@@ -196,8 +196,8 @@ $(document).ready(function () {
                 contentType: "application/json",
                 success: function (data) {
                     notice.update({
-                        title: 'Remote VPN created successfully',
-                        text: '',
+                        title: 'Created',
+                        text: 'Remote VPN created successfully',
                         hide: true,
                         delay: 1000,
                         icon: 'fa fa-' + data.icon,
@@ -209,7 +209,7 @@ $(document).ready(function () {
                 },
                 error: function (data) {
                     notice.update({
-                        title: 'ERROR',
+                        title: 'ERROR creating remote VPN',
                         text: data.responseJSON.description,
                         type: 'error',
                         hide: true,
@@ -324,8 +324,8 @@ $(document).ready(function () {
                     contentType: "application/json",
                     success: function (data) {
                         notice.update({
-                            title: 'Network Qos created successfully',
-                            text: '',
+                            title: 'Created',
+                            text: 'Network Qos created successfully',
                             hide: true,
                             delay: 1000,
                             icon: 'fa fa-' + data.icon,
@@ -337,7 +337,7 @@ $(document).ready(function () {
                     },
                     error: function (data) {
                         notice.update({
-                            title: 'ERROR',
+                            title: 'ERROR creating network QoS',
                             text: data.responseJSON.description,
                             type: 'error',
                             hide: true,
@@ -363,8 +363,8 @@ $(document).ready(function () {
                     contentType: "application/json",
                     success: function (data) {
                         notice.update({
-                            title: 'Network Qos updated successfully',
-                            text: '',
+                            title: 'Updated',
+                            text: 'Network Qos updated successfully',
                             hide: true,
                             delay: 1000,
                             icon: 'fa fa-' + data.icon,
@@ -376,7 +376,7 @@ $(document).ready(function () {
                     },
                     error: function (data) {
                         notice.update({
-                            title: 'ERROR',
+                            title: 'ERROR updating network QoS',
                             text: data.responseJSON.description,
                             type: 'error',
                             hide: true,
@@ -490,8 +490,8 @@ $(document).ready(function () {
                     contentType: "application/json",
                     success: function (data) {
                         notice.update({
-                            title: 'Disk QoS created successfully',
-                            text: '',
+                            title: 'Created',
+                            text: 'Disk QoS created successfully',
                             hide: true,
                             delay: 1000,
                             icon: 'fa fa-' + data.icon,
@@ -503,7 +503,7 @@ $(document).ready(function () {
                     },
                     error: function (data) {
                         notice.update({
-                            title: 'ERROR',
+                            title: 'ERROR creating disk QoS',
                             text: data.responseJSON.description,
                             type: 'error',
                             hide: true,
@@ -529,8 +529,8 @@ $(document).ready(function () {
                     contentType: "application/json",
                     success: function (data) {
                         notice.update({
-                            title: 'Disk QoS updated successfully',
-                            text: '',
+                            title: 'Updated',
+                            text: 'Disk QoS updated successfully',
                             hide: true,
                             delay: 1000,
                             icon: 'fa fa-' + data.icon,
@@ -542,7 +542,7 @@ $(document).ready(function () {
                     },
                     error: function (data) {
                         notice.update({
-                            title: 'ERROR',
+                            title: 'ERROR updating disk QoS',
                             text: data.responseJSON.description,
                             type: 'error',
                             hide: true,
@@ -737,8 +737,8 @@ $(document).ready(function () {
                     contentType: "application/json",
                     success: function (data) {
                         notice.update({
-                            title: 'Interface created successfully',
-                            text: '',
+                            title: 'Created',
+                            text: 'Interface created successfully',
                             hide: true,
                             delay: 1000,
                             icon: 'fa fa-' + data.icon,
@@ -750,7 +750,7 @@ $(document).ready(function () {
                     },
                     error: function (data) {
                         notice.update({
-                            title: 'ERROR',
+                            title: 'ERROR creating interface',
                             text: data.responseJSON.description,
                             type: 'error',
                             hide: true,
@@ -776,8 +776,8 @@ $(document).ready(function () {
                     contentType: "application/json",
                     success: function (data) {
                         notice.update({
-                            title: 'Interface updated successfully',
-                            text: '',
+                            title: 'Updated',
+                            text: 'Interface updated successfully',
                             hide: true,
                             delay: 1000,
                             icon: 'fa fa-' + data.icon,
@@ -789,7 +789,7 @@ $(document).ready(function () {
                     },
                     error: function (data) {
                         notice.update({
-                            title: 'ERROR',
+                            title: 'ERROR updating interface',
                             text: data.responseJSON.description,
                             type: 'error',
                             hide: true,
@@ -881,8 +881,8 @@ $(document).ready(function () {
             contentType: "application/json",
             success: function (data) {
                 notice.update({
-                    title: 'Video created successfully',
-                    text: '',
+                    title: 'Created',
+                    text: 'Video created successfully',
                     hide: true,
                     delay: 1000,
                     icon: 'fa fa-' + data.icon,
@@ -894,7 +894,7 @@ $(document).ready(function () {
             },
             error: function (data) {
                 notice.update({
-                    title: 'ERROR',
+                    title: 'ERROR creating video',
                     text: data.responseJSON.description,
                     type: 'error',
                     hide: true,
@@ -1063,7 +1063,7 @@ function socketio_on(){
                 break;
         }
         new PNotify({
-            title: "Resource deleted",
+            title: "Deleted",
             text: "Resource " + data.name + " has been deleted",
             hide: true,
             delay: 4000,

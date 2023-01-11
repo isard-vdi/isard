@@ -104,8 +104,8 @@ $(document).ready(function() {
                     error: function (xhr, ajaxOptions, thrownError) {
                         if (xhr.status == 404) {
                             new PNotify({
-                                title: "Cannot connect to hypervisor",
-                                text: "Can't create the hypervisor, it's not reachable.",
+                                title: "ERROR creating hypervisor",
+                                text: xhr.responseJSON.description,
                                 hide: true,
                                 delay: 3000,
                                 icon: 'fa fa-warning',
@@ -642,7 +642,7 @@ function actionsHyperDetail(){
                 success: function(data) {
                     new PNotify({
                         title: 'Updated',
-                        text: 'Hypervisor updated',
+                        text: 'Hypervisor updated successfully',
                         hide: true,
                         delay: 2000,
                         opacity: 1,
@@ -651,8 +651,8 @@ function actionsHyperDetail(){
                 },
                 error: function(data) {
                     new PNotify({
-                        title: 'ERROR',
-                        text: 'Could not update hypervisor',
+                        title: 'ERROR updating hypervisor',
+                        text: data.responseJSON.description,
                         type: 'error',
                         hide: true,
                         icon: 'fa fa-warning',

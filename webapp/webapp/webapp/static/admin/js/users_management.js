@@ -236,7 +236,7 @@ function socketio_on(){
                 contentType: "application/json",
                 error: function(data) {
                     notice.update({
-                        title: 'ERROR Updating user',
+                        title: 'ERROR updating user',
                         text: data.responseJSON.description,
                         type: 'error',
                         hide: true,
@@ -305,7 +305,7 @@ function socketio_on(){
             contentType: 'application/json',
             error: function(data) {
                 notice.update({
-                    title: 'ERROR',
+                    title: 'ERROR deleting user(s)',
                     text: data.responseJSON.description,
                     type: 'error',
                     hide: true,
@@ -316,6 +316,7 @@ function socketio_on(){
             },
             success: function(data) {
                 notice.update({
+                    title: 'Deleted',
                     text: 'User(s) deleted successfully',
                     hide: true,
                     delay: 2000,
@@ -391,7 +392,7 @@ function socketio_on(){
                                     $('form').each(function() { this.reset() });
                                     $('.modal').modal('hide');
                                 notice.update({
-                                        title: "Updating users",
+                                        title: "Updating",
                                         text: "Updating user (" + ( usersAdded ) + "/" + users.length + "): ",
                                         hide: true,
                                         delay: 4000,
@@ -401,7 +402,7 @@ function socketio_on(){
                                  },
                                  error: function(data){
                                     new PNotify({
-                                        title: "ERROR updating user "+user.username,
+                                        title: "ERROR updating user",
                                         text: data.responseJSON.description,
                                         type: 'error',
                                         hide: true,
@@ -435,7 +436,7 @@ function socketio_on(){
                         },
                         error: function(data){
                             new PNotify({
-                                title: "ERROR adding user "+user.username,
+                                title: "ERROR adding user",
                                 text: data.responseJSON.description,
                                 type: 'error',
                                 hide: true,
@@ -793,8 +794,8 @@ function actionsUserDetail(){
                     $('form').each(function() { this.reset() });
                     $('.modal').modal('hide');
                     new PNotify({
-                        title: "Updated user " + name + " status ",
-                        text: "User status has been updated...",
+                        title: "Updated",
+                        text: "User status updated successfully",
                         hide: true,
                         delay: 4000,
                         icon: 'fa fa-success',
@@ -804,7 +805,7 @@ function actionsUserDetail(){
                 },
                 error: function(data) {
                     new PNotify({
-                        title: "ERROR updating user "+name,
+                        title: "ERROR updating user",
                         text: data.responseJSON.description,
                         type: 'error',
                         hide: true,
@@ -846,7 +847,7 @@ function actionsUserDetail(){
                 window.location = "/Desktops"
             }).fail(function(data) {
                 new PNotify({
-                    title: "Impersonate",
+                    title: "ERROR impersonating",
                     text: "Not allowed to impersonate as a higher role",
                     hide: true,
                     delay: 4000,

@@ -219,7 +219,8 @@ function actionsGroupDetail(){
                     $('form').each(function() { this.reset() });
                     $('.modal').modal('hide');
                     notice.update({
-                        text: 'Quota updated successfully',
+                        title: 'Updated',
+                        text: 'Quotas updated successfully',
                         hide: true,
                         delay: 1000,
                         icon: 'fa fa-' + data.icon,
@@ -229,7 +230,7 @@ function actionsGroupDetail(){
                 },
                 error: function(data) {
                     notice.update({
-                        title: 'ERROR',
+                        title: 'ERROR updating quota',
                         text: data.responseJSON.description,
                         type: 'error',
                         hide: true,
@@ -286,6 +287,7 @@ function actionsGroupDetail(){
                     $('form').each(function() { this.reset() });
                     $('.modal').modal('hide');
                     notice.update({
+                        title: 'Updated',
                         text: 'Limits updated successfully',
                         hide: true,
                         delay: 1000,
@@ -296,7 +298,7 @@ function actionsGroupDetail(){
                 },
                 error: function(data) {
                     notice.update({
-                        title: 'ERROR',
+                        title: 'ERROR updating limits',
                         text: data.responseJSON.description,
                         type: 'error',
                         hide: true,

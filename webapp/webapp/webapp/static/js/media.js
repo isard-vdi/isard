@@ -412,7 +412,7 @@ $(document).ready(function() {
             url: '/api/v3/media/'+media_id,
             error: function(data) {
                 notice.update({
-                    title: 'ERROR',
+                    title: 'ERROR deleting media',
                     text: data.responseJSON.description,
                     type: 'error',
                     hide: true,
@@ -454,8 +454,8 @@ $(document).ready(function() {
                     contentType: "application/json",
                     error: function (data) {
                         notice.update({
-                            title: "ERROR",
-                            text: "Couldn't add media from URL",
+                            title: "ERROR creating media",
+                            text: data.responseJSON.description,
                             type: 'error',
                             hide: true,
                             icon: 'fa fa-warning',
@@ -468,8 +468,8 @@ $(document).ready(function() {
                         $('form').each(function() { this.reset() });
                         $('.modal').modal('hide');
                         notice.update({
-                            title: "New media",
-                            text: 'Media added successfully',
+                            title: "Created",
+                            text: 'Media created successfully',
                             hide: true,
                             delay: 2000,
                             icon: 'fa fa-' + data.icon,
@@ -686,7 +686,7 @@ function modal_add_install_datatables(){
                         $('form').each(function() { this.reset() });
                         $('.modal').modal('hide');
                         var error = new PNotify({
-                            title: "ERROR",
+                            title: "ERROR creating desktop",
                             text: data.responseJSON.description,
                             type: 'error',
                             hide: true,

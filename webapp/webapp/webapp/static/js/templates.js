@@ -119,15 +119,15 @@ $(document).ready(function() {
                         'enabled':enabled})
                 .fail(function(jqXHR) {
                     new PNotify({
-                        title: "Template enable/disable",
-                            text: "Could not update!",
-                            hide: true,
-                            delay: 3000,
-                            icon: 'fa fa-alert-sign',
-                            opacity: 1,
-                            type: 'error'
-                        });
-                        table.ajax.reload()
+                        title: "ERROR enabling/disabling template",
+                        text: jqXHR.responseJSON.description,
+                        hide: true,
+                        delay: 3000,
+                        icon: 'fa fa-alert-sign',
+                        opacity: 1,
+                        type: 'error'
+                    });
+                    table.ajax.reload()
                 }); 
             break;
         }
@@ -213,13 +213,13 @@ function socketio_on(){
         var data = JSON.parse(data);
         var row = table.row('#'+data.id).remove().draw();
         new PNotify({
-                title: "Desktop deleted",
-                text: "Desktop "+data.name+" has been deleted",
-                hide: true,
-                delay: 4000,
-                icon: 'fa fa-success',
-                opacity: 1,
-                type: 'info'
+            title: "Template deleted",
+            text: "Template "+data.name+" has been deleted",
+            hide: true,
+            delay: 4000,
+            icon: 'fa fa-success',
+            opacity: 1,
+            type: 'info'
         });
     });
 
@@ -322,7 +322,7 @@ $("#modalEditDesktop #send").on('click', function(e){
             contentType: 'application/json',
             error: function(data) {
                 notice.update({
-                    title: 'ERROR',
+                    title: 'ERROR updating domain',
                     text: data.responseJSON.description,
                     type: 'error',
                     hide: true,
@@ -337,7 +337,7 @@ $("#modalEditDesktop #send").on('click', function(e){
                 table.ajax.reload()
                 notice.update({
                     title: 'Updated',
-                    text: 'Item updated successfully',
+                    text: 'Domain updated successfully',
                     hide: true,
                     delay: 2000,
                     icon: 'fa fa-' + data.icon,

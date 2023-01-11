@@ -150,6 +150,17 @@ $(document).ready(function () {
                   $(".modal").modal("hide");
                   bookings_priority.ajax.reload();
                 },
+                error: function (xhr, ajaxOptions, thrownError) {
+                  new PNotify({
+                      title: "ERROR deleting priority",
+                      text: xhr.responseJSON.description,
+                      hide: true,
+                      delay: 3000,
+                      icon: 'fa fa-warning',
+                      opacity: 1,
+                      type: 'error'
+                  });
+                }
               });
             })
             .on("pnotify.cancel", function () {});
@@ -220,8 +231,8 @@ $(document).ready(function () {
         error: function (xhr, ajaxOptions, thrownError) {
           if (xhr.status == 409) {
             new PNotify({
-                title: "Cannot create priority",
-                text: "Can't create the priority, the name already exists.",
+                title: "ERROR creating priority",
+                text: xhr.responseJSON.description,
                 hide: true,
                 delay: 3000,
                 icon: 'fa fa-warning',
@@ -253,6 +264,17 @@ $(document).ready(function () {
         });
         $(".modal").modal("hide");
       },
+      error: function (xhr, ajaxOptions, thrownError) {
+        new PNotify({
+            title: "ERROR updating priority",
+            text: xhr.responseJSON.description,
+            hide: true,
+            delay: 3000,
+            icon: 'fa fa-warning',
+            opacity: 1,
+            type: 'error'
+        });
+      }
     });
   });
 

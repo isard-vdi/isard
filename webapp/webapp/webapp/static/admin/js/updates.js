@@ -412,7 +412,7 @@ function socketio_on(){
                 type: "POST",
                 url:"/api/v3/admin/downloads/download/" + id,
                 success: function(data){table[id].ajax.reload();}
-            }).on('pnotify.cancel', function() {});
+            });
         })
     })
 

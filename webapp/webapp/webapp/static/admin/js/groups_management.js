@@ -149,7 +149,7 @@ $(document).ready(function() {
             contentType: "application/json",
             error: function(data) {
                 notice.update({
-                    title: 'ERROR',
+                    title: 'ERROR deleting group',
                     text: data.responseJSON.description,
                     type: 'error',
                     hide: true,
@@ -161,6 +161,7 @@ $(document).ready(function() {
             success: function(data)
             {
                 notice.update({
+                    title: 'Deleted',
                     text: 'Group deleted successfully',
                     hide: true,
                     delay: 2000,
@@ -266,7 +267,7 @@ $(document).ready(function() {
                     },
                     error: function (data) {
                         notice.update({
-                            title: 'ERROR',
+                            title: 'ERROR creating group',
                             text: data.responseJSON.description,
                             type: 'error',
                             hide: true,
@@ -386,8 +387,8 @@ function actionsGroupDetail(){
                     contentType: "application/json",
                     success: function (data) {
                         notice.update({
-                            title: 'Group updated successfully',
-                            text: '',
+                            title: 'Updated',
+                            text: 'Group updated successfully',
                             hide: true,
                             delay: 1000,
                             icon: 'fa fa-' + data.icon,
@@ -399,7 +400,7 @@ function actionsGroupDetail(){
                     },
                     error: function (data) {
                         notice.update({
-                            title: 'ERROR',
+                            title: 'ERROR updating group',
                             text: data.responseJSON.description,
                             type: 'error',
                             hide: true,
