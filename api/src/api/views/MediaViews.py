@@ -170,7 +170,7 @@ def api_v3_user_media_allowed(payload):
 def api_v3_desktops_media_list(payload):
     data = request.get_json(force=True)
     return (
-        json.dumps(api_media.List(data["pk"])),
+        json.dumps(api_media.List(data["id"])),
         200,
         {"Content-Type": "application/json"},
     )

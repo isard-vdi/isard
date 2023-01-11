@@ -1,94 +1,90 @@
-		<div style="display:none">
-            <div class="row template-detail-domain">
-			  <div class="col-md-1 col-sm-1 col-xs-12">
-                  <div class="row">
-                  <div class="col-md-12 col-md-12 col-xs-12" id="actions-d.id" data-pk="d.id" data-name="d.name">
-                  {% if(current_user.role!='user') %}
-                    <div class="row">
-                    <button class="btn btn-success btn-xs pull-right btn-jumperurl" type="button"  data-placement="top" ><i class="fa fa-eye m-right-xs"></i>Viewer</button>
-                    </div>
-                    <div class="row">
-                      <button class="btn btn-success btn-xs pull-right btn-template" type="button"  data-placement="top" ><i class="fa fa-cubes m-right-xs"></i>Template it</button>
-                    </div>
-                    {% if(current_user.role=='admin') %}
-                    <div class="row">
-                      <button class="btn btn-success btn-xs pull-right btn-forcedhyp" type="button"  data-placement="top" ><i class="fa fa-rocket m-right-xs"></i>Forced hyp</button>
-                    </div>
-                    {% endif %}
-                    <div class="row">
-                      <button class="btn btn-success btn-xs pull-right btn-favouritehyp" type="button"  data-placement="top" ><i class="fa fa-star m-right-xs"></i>Favourite hyp</button>
-                    </div>
-                    <!-- Needed for admin -->
-                    <div class="row">
-                      <button class="btn btn-danger btn-xs pull-right btn-delete-template" type="button"  data-placement="top" ><i class="fa fa-remove m-right-xs"></i>Delete</button>
-                    </div>
-                  {% endif %}
-							 <div class="row">
-								<button class="btn btn-info btn-xs pull-right btn-edit" type="button"  data-placement="top" ><i class="fa fa-pencil m-right-xs"></i>Edit</button>
-							 </div>
-							 <div class="row">
-								<button class="btn btn-danger btn-xs pull-right btn-delete" type="button"  data-placement="top" ><i class="fa fa-remove m-right-xs"></i>Delete</button>
-							 </div>
-               {% if(current_user.role in ['admin', 'manager']) %}
-                <hr>
-                <div class="row">
-                <button class="btn btn-success btn-xs pull-right btn-server" type="button"  data-placement="top" ><i class="fa fa-plug m-right-xs"></i>Server</button>
-                </div>
-                <div class="row">
-								<button class="btn btn-info btn-xs pull-right btn-xml" type="button"  data-placement="top" ><i class="fa fa-file-code-o m-right-xs"></i>XML</button>
-							 </div>
-               {% endif %} 
+<div style="display:none">
+  <div class="row template-detail-domain">
+		<div class="col-md-1 col-sm-1 col-xs-12">
+      <div class="row">
+        <div class="col-md-12 col-md-12 col-xs-12" id="actions-d.id" data-pk="d.id" data-name="d.name">
+          {% if(current_user.role!='user') %}
+            <div class="row">
+              <button class="btn btn-success btn-xs pull-right btn-jumperurl" type="button"  data-placement="top" ><i class="fa fa-eye m-right-xs"></i>Viewer</button>
             </div>
-						</div>
-			  </div>
-              <div class="col-md-11 col-sm-11 col-xs-12">
-                <div class="x_panel" style="background-color: #F7F7F7">
-                    <div class="row">
-                        <div class="col-md-12 col-md-12 col-xs-12">
-                            <div class="x_content">
-                                  <div class="x_panel">
-                                      <h3>Status detailed info: <small id="status-detail-d.id"></small></h3> 
-                                  </div>
-                            </div>
-                        </div>
-                    </div>
-					<div class="row" >
-						  <div class="col-md-4 col-md-4 col-xs-12">
-							  <div class="x_content">
-								{% include '/snippets/domain_hardware.html' %}
-                              </div>
-						  </div>
-                          
-              <div class="col-md-8 col-md-8 col-xs-12">
-                {% if(current_user.role=='admin') %}
-                <div class="row">
-                  <div class="col-md-12 col-md-12 col-xs-12">
-                    <div class="x_content">
-                      <div class="x_panel">
-                        <div class="x_title">
-                          <h3>Template tree<small></small></h3>
-                          <div class="clearfix"></div>
-                        </div>
-                        <div class="x_content">
-                          {% include '/snippets/template_tree.html' %}
-                        </div>
+            <div class="row">
+              <button class="btn btn-success btn-xs pull-right btn-template" type="button"  data-placement="top" ><i class="fa fa-cubes m-right-xs"></i>Template it</button>
+            </div>
+            {% if(current_user.role=='admin') %}
+              <div class="row">
+                <button class="btn btn-success btn-xs pull-right btn-forcedhyp" type="button"  data-placement="top" ><i class="fa fa-rocket m-right-xs"></i>Forced hyp</button>
+              </div>
+            {% endif %}
+            
+            <!-- Needed for admin -->
+            <div class="row">
+              <button class="btn btn-danger btn-xs pull-right btn-delete-template" type="button"  data-placement="top" ><i class="fa fa-remove m-right-xs"></i>Delete</button>
+            </div>
+          {% endif %}
+          <div class="row">
+            <button class="btn btn-info btn-xs pull-right btn-edit" type="button"  data-placement="top" ><i class="fa fa-pencil m-right-xs"></i>Edit</button>
+          </div>
+          <div class="row">
+            <button class="btn btn-danger btn-xs pull-right btn-delete" type="button"  data-placement="top" ><i class="fa fa-remove m-right-xs"></i>Delete</button>
+          </div>
+          {% if(current_user.role in ['admin', 'manager']) %}
+            <hr>
+            <div class="row">
+              <button class="btn btn-success btn-xs pull-right btn-server" type="button"  data-placement="top" ><i class="fa fa-plug m-right-xs"></i>Server</button>
+            </div>
+            <div class="row">
+              <button class="btn btn-info btn-xs pull-right btn-xml" type="button"  data-placement="top" ><i class="fa fa-file-code-o m-right-xs"></i>XML</button>
+            </div>
+          {% endif %} 
+        </div>
+			</div>
+		</div>
+    <div class="col-md-11 col-sm-11 col-xs-12">
+      <div class="x_panel" style="background-color: #F7F7F7">
+        <div class="row">
+          <div class="col-md-12 col-md-12 col-xs-12">
+            <div class="x_content">
+              <div class="x_panel">
+                <h3>Status detailed info: <small id="status-detail-d.id"></small></h3> 
+              </div>
+            </div>
+          </div>
+        </div>
+				<div class="row">
+					<div class="col-md-4 col-md-4 col-xs-12">
+					  <div class="x_content">
+							{% include '/snippets/domain_hardware.html' %}
+            </div>
+					</div>
+          <div class="col-md-8 col-md-8 col-xs-12">
+            {% if(current_user.role=='admin') %}
+              <div class="row">
+                <div class="col-md-12 col-md-12 col-xs-12">
+                  <div class="x_content">
+                    <div class="x_panel">
+                      <div class="x_title">
+                        <h3>Template tree<small></small></h3>
+                        <div class="clearfix"></div>
+                      </div>
+                      <div class="x_content">
+                        {% include '/snippets/template_tree.html' %}
                       </div>
                     </div>
                   </div>
                 </div>
-                {% endif %}
-                  <div class="row" >
-                                <div class="col-md-12 col-md-12 col-xs-12">
-                                    <div id="hotplug-d.id" class="x_content">
-                                      {% include '/snippets/domain_hotplugged.html'  %}
-                                    </div>
-                                </div>
-                              </div>
-                        </div>
-                  </div>
-                  <div class="row" >
-                  </div>
+              </div>
+            {% endif %}
+            <div class="row">
+              <div class="col-md-12 col-md-12 col-xs-12">
+                <div id="hotplug-d.id" class="x_content">
+                  {% include '/snippets/domain_hotplugged.html'  %}
                 </div>
               </div>
             </div>
+          </div>
         </div>
+        <div class="row"></div>
+      </div>
+    </div>
+  </div>
+</div>
