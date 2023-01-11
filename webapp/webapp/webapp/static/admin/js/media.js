@@ -5,6 +5,7 @@
 * License: AGPLv3
 */
 
+var table = ''
 
 $(document).ready(function() {
     $template = $(".template-media-detail");
@@ -59,7 +60,7 @@ $(document).ready(function() {
             setAlloweds_add('#modalAddMediaLocal #upload-alloweds-add');
     });
 
-    var table=$('#media').DataTable( {
+    table=$('#media').DataTable( {
         "ajax": {
                 "url": "/api/v3/admin/table/media",
                 "contentType": "application/json",
