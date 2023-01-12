@@ -264,34 +264,6 @@
             return JSON.parse(atob(decodeURIComponent(match[2])))['web_viewer'][name];
         }
 
-        function resize() {
-            let f = (action, params) => {
-                if (action === 'ready') {
-                    app.sendCommand('setResolution', {
-                        'width': document.getElementById("screen").offsetWidth,
-                        'height': document.getElementById("screen").offsetHeight
-                    });
-                    app.dispose();
-                }
-            }
-
-            let app = new Application();
-            app.run({
-                'callback': f,
-                'protocol': 'wss',
-                'host': getParameter('host') || readQueryVariable('host', window.location.hostname),
-                'port': getParameter('port') || '443',
-                'desktopName': decodeURI(getParameter('vmName')) || decodeURI(readQueryVariable('vmName')),
-                'vmHost': getParameter('vmHost') || readQueryVariable('vmHost'),
-                'vmPort': (getParameter('vmPort') || readQueryVariable('vmPort')) - 2, // the spice (no TLS) port is two ports less than the vnc
-                'token': getParameter('token') || readQueryVariable('passwd'),
-                'clientOffset': {
-                    'x': 0,
-                    'y': 0
-                },
-            });
-        }
-
         document.getElementById('sendCtrlAltDelButton')
             .onclick = sendCtrlAltDel;
         document.getElementById('toggleFullscreen').onclick = toggleFullscreen;
@@ -311,8 +283,6 @@
 
         status("Connecting");
 
-        resize()
-
         // Build the websocket URL used to connect
         let url = 'wss://' + host + port + '/' + vmHost + '/' + vmPort
 
@@ -328,13 +298,6 @@
 
         // Set parameters that can be changed on an active connection
         rfb.scaleViewport = true;
-
-        // Resize the window
-        let resizeTimeout;
-        window.addEventListener('resize', (e) => {
-            clearTimeout(resizeTimeout);
-            resizeTimeout = setTimeout(resize, 500);
-        });
     </script>
 </head>
 
