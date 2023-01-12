@@ -122,8 +122,8 @@ class ApiTemplates:
             "tag": False,
             "tag_name": False,
             "tag_visible": False,
-            "favourite_hyp": desktop["favourite_hyp"],
-            "forced_hyp": desktop["forced_hyp"],
+            "favourite_hyp": desktop.get("favourite_hyp", False),
+            "forced_hyp": desktop.get("forced_hyp", False),
         }
 
         with app.app_context():
