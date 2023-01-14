@@ -303,6 +303,7 @@ class ApiHypervisors:
             log.error("Could not remove ssh key for [" + hostname + "]" + str(port))
             return False
         try:
+            # Possible OS Command injection
             check_output(
                 (
                     "ssh-keygen",
