@@ -101,7 +101,7 @@ export default {
     },
     toggleVisible (_, payload) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t(payload.visible ? 'messages.info.making-invisible-deployment' : 'messages.info.making-visible-deployment'), '', true, 1000)
-      axios.put(`${apiV3Segment}/deployments/visible/${payload.id}`).then(response => {
+      axios.put(`${apiV3Segment}/deployments/visible/${payload.id}`, { stop_started_domains: payload.stopStartedDomains }).then(response => {
         this._vm.$snotify.clear()
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)

@@ -804,7 +804,8 @@
             "delete-desktop": "'{name}' se borrará, continuar?",
             "create-nonpersistent": "ATENCIÓN! Este escritorio es temporal. Al pararlo se eliminarán todos sus datos. Crear escritorio?",
             "visible-deployment": "'{name}' será visible para sus usuarios, continuar?",
-            "not-visible-deployment": "'{name}' será invisible para sus usuarios, continuar?",
+            "not-visible-deployment": "Los escritorios se ocultarán",
+            "hidden-desktops-warn": "Si un escritorio oculto no está parado y se está usando, el visor funcionará hasta que se cierre",
             "recreate-deployment": "Los escritorios eliminados de '{name}' se recrearán, continuar?",
             "delete-deployment": "'{name}' se borrará, continuar?",
             "delete-deployment-desktop": "El escritorio de '{name}' se borrará, continuar?",
@@ -817,11 +818,14 @@
             "delete-media": "El medio '{name}' se borrará, continuar?",
             "edit-domain": "El hardware de '{name}' se limitará y sus datos se modificarán, continuar?",
             "new-deployment": "Se crearán {quantity} escritorios, uno por cada usuario seleccionado. Continuar?",
-            "go-to-profile": "Ver cuota"
+            "go-to-profile": "Ver cuota",
+            "make-invisible-and-stop":"invisible y parar escritorios",
+            "make-invisible-and-not-stop":"hacer invisible"
         },
         "ok": "De acuerdo",
         "yes": "Si",
         "no": "No",
+        "cancel": "Cancelar",
         "info": {
             "deleting-desktop": "Borrando escritorio",
             "opening-desktop": "Abriendo escritorio",

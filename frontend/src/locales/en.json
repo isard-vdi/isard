@@ -788,8 +788,9 @@
         "confirmation": {
             "delete-desktop": "'{name}' will be deleted, continue?",
             "create-nonpersistent": "WARNING! This desktop is temporal. When stopping it all data will be deleted. Create desktop?",
-            "visible-deployment": "'{name}' will be visible for its users, continue?",
-            "not-visible-deployment": "'{name}' will be invisible for its users, continue?",
+            "visible-deployment": "Desktops will be visible",
+            "not-visible-deployment": "Desktops will be hidden",
+            "hidden-desktops-warn": "If a hidden desktop isn't stopped and it's in use, the viewer will work until it's closed",
             "recreate-deployment": "'{name}' deleted desktops will be recreated, continue?",
             "delete-deployment": "'{name}' will be deleted, continue?",
             "delete-deployment-desktop": "'{name}' desktop will be deleted, continue?",
@@ -802,11 +803,14 @@
             "delete-media": "'{name}' media will be deleted, continue?",
             "edit-domain": "'{name}' hardware will be limited and its data will be changed, continue?",
             "new-deployment": "{quantity} desktops will be created, one for each selected user. Continue?",
-            "go-to-profile": "View quota"
+            "go-to-profile": "View quota",
+            "make-invisible-and-stop":"Stop and hide",
+            "make-invisible-and-not-stop":"Only hide desktops"
         },
         "ok": "Ok",
         "yes": "Yes",
         "no": "No",
+        "cancel": "Cancel",
         "info": {
             "deleting-desktop": "Deleting desktop",
             "opening-desktop": "Opening Desktop",

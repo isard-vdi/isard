@@ -108,8 +108,8 @@ def api_v3_deployments_stop(payload, deployment_id):
 @is_not_user
 def api_v3_deployments_viewer(payload, deployment_id):
     ownsDeploymentId(payload, deployment_id)
-
-    api_deployments.visible(deployment_id)
+    data = request.get_json()
+    api_deployments.visible(deployment_id, data.get("stop_started_domains"))
 
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
