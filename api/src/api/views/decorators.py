@@ -378,7 +378,10 @@ def ownsStorageId(payload, storage_id):
     if payload["role_id"] == "manager":
         with app.app_context():
             storage_category_id = (
-                r.table("users").get(storage_user_id).pluck("id")["id"].run(db.conn)
+                r.table("users")
+                .get(storage_user_id)
+                .pluck("category")["category"]
+                .run(db.conn)
             )
         if storage_category_id == payload["category_id"]:
             return True
