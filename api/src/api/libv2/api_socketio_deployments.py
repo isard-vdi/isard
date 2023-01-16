@@ -28,6 +28,7 @@ db.init_app(app)
 import threading
 
 from .. import socketio
+from ..libv2.deployments.api_deployments import get
 from .helpers import _parse_deployment_booking
 
 threads = {}
@@ -56,41 +57,11 @@ class DeploymentsThread(threading.Thread):
                         elif c["old_val"] == None:
                             event = "add"
                             user = c["new_val"]["user"]
-                            deployment = {
-                                "id": c["new_val"]["id"],
-                                "name": c["new_val"]["name"],
-                                "user": user,
-                                "totalDesktops": r.table("domains")
-                                .get_all(c["new_val"]["id"], index="tag")
-                                .count()
-                                .run(db.conn),
-                                "startedDesktops": 0,
-                                "visible": c["new_val"]["create_dict"]["tag_visible"],
-                                "desktop_name": c["new_val"]["create_dict"]["name"],
-                            }
+                            deployment = get(c["new_val"]["id"], False)
                         else:
                             event = "update"
                             user = c["new_val"]["user"]
-                            deployment = {
-                                "id": c["new_val"]["id"],
-                                "name": c["new_val"]["name"],
-                                "user": user,
-                                "totalDesktops": r.table("domains")
-                                .get_all(c["new_val"]["id"], index="tag")
-                                .count()
-                                .run(db.conn),
-                                "startedDesktops": r.table("domains")
-                                .get_all(c["new_val"]["id"], index="tag")
-                                .filter({"status": "Started"})
-                                .count()
-                                .run(db.conn),
-                                "visible": c["new_val"]["create_dict"]["tag_visible"],
-                                "desktop_name": c["new_val"]["create_dict"]["name"],
-                            }
-                            deployment = {
-                                **deployment,
-                                **_parse_deployment_booking(deployment),
-                            }
+                            deployment = get(c["new_val"]["id"], False)
                             socketio.emit(
                                 "deployment_update",
                                 json.dumps(deployment),

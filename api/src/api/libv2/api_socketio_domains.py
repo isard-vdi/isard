@@ -41,6 +41,7 @@ from flask import request
 
 from .._common.api_exceptions import Error
 from .._common.tokens import Error, get_token_payload
+from ..libv2.deployments.api_deployments import get
 from .api_scheduler import Scheduler
 from .helpers import (
     _is_frontend_desktop_status,
@@ -69,6 +70,8 @@ class DomainsThread(threading.Thread):
                                 "icon",
                                 "image",
                                 "user",
+                                "group",
+                                "category",
                                 "status",
                                 "description",
                                 "parents",
@@ -196,72 +199,48 @@ class DomainsThread(threading.Thread):
 
                         ## Tagged desktops update/add new data
                         if data.get("tag", False):
-                            deployment_id = data.get("tag")
-                            deployment_user = (
-                                r.table("deployments")
-                                .get(deployment_id)
-                                .pluck("user")
-                                .run(db.conn)["user"]
-                            )
+                            try:
+                                deployment = get(data.get("tag"), False)
+                            except:
+                                continue
 
                             if event == "delete":
                                 socketio.emit(
                                     "deploymentdesktop_delete",
                                     json.dumps(data),
                                     namespace="/userspace",
-                                    room=deployment_user,
+                                    room=deployment["user"],
                                 )
 
-                            if event == "add" and not c.get("old_val"):
+                            elif event == "add":
                                 socketio.emit(
                                     "deploymentdesktop_add",
                                     json.dumps(
-                                        _parse_deployment_desktop(data, deployment_user)
+                                        _parse_deployment_desktop(
+                                            data, deployment["user"]
+                                        )
                                     ),
                                     namespace="/userspace",
-                                    room=deployment_user,
+                                    room=deployment["user"],
                                 )
 
-                            if event == "update":
+                            elif event == "update":
                                 socketio.emit(
                                     "deploymentdesktop_update",
                                     json.dumps(
-                                        _parse_deployment_desktop(data, deployment_user)
+                                        _parse_deployment_desktop(
+                                            data, deployment["user"]
+                                        )
                                     ),
                                     namespace="/userspace",
-                                    room=deployment_user,
+                                    room=deployment["user"],
                                 )
-
-                            deployment = (
-                                r.table("deployments")
-                                .get(deployment_id)
-                                .pluck(
-                                    "id",
-                                    "name",
-                                    "user",
-                                    {"create_dict": {"tag_visible", "name"}},
-                                )
-                                .merge(
-                                    lambda d: {
-                                        "totalDesktops": r.table("domains")
-                                        .get_all(d["id"], index="tag")
-                                        .count(),
-                                        "startedDesktops": r.table("domains")
-                                        .get_all(d["id"], index="tag")
-                                        .filter({"status": "Started"})
-                                        .count(),
-                                        "visible": d["create_dict"]["tag_visible"],
-                                        "desktop_name": d["create_dict"]["name"],
-                                    }
-                                )
-                                .run(db.conn)
-                            )
                             # Event to deployment view (list of desktops)
                             socketio.emit(
                                 "deployments_update",
                                 json.dumps(deployment),
                                 namespace="/userspace",
-                                room=deployment_user,
+                                room=deployment["user"],
                             )
 
             except ReqlDriverError:

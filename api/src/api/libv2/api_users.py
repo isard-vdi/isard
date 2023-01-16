@@ -799,6 +799,8 @@ class ApiUsers:
                             "icon",
                             "image",
                             "user",
+                            "group",
+                            "category",
                             "status",
                             "description",
                             "parents",

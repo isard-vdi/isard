@@ -115,8 +115,7 @@ class Bookings:
             "units": units,
             "reservables": reservables,
             "start": datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC),
-            "end": datetime.strptime(end, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
-            - timedelta(0, 1),
+            "end": datetime.strptime(end, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC),
             "title": title if title else item_name,
             "user_id": payload["user_id"],
         }

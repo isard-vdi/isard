@@ -1,24 +1,23 @@
 import json
+import threading
 import time
 import traceback
 
 from rethinkdb import RethinkDB
+from rethinkdb.errors import ReqlDriverError
 
 from api import app
 
-r = RethinkDB()
-
-from rethinkdb.errors import ReqlDriverError
-
+from ... import socketio
 from ..flask_rethink import RDB
 from ..log import log
+
+r = RethinkDB()
+
 
 db = RDB(app)
 db.init_app(app)
 
-import threading
-
-from ... import socketio
 
 threads = {}
 
@@ -37,6 +36,8 @@ class PlanningsThread(threading.Thread):
                         .changes(include_initial=False)
                         .run(db.conn)
                     ):
+                        if self.stop == True:
+                            break
                         if c["new_val"] == None:
                             event = "delete"
                             plan = c["old_val"]

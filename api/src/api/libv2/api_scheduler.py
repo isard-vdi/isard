@@ -5,27 +5,27 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
+import logging as log
+import time
+import traceback
+from datetime import datetime, timedelta
+
+import pytz
 from rethinkdb import RethinkDB
 
 from api import app
 
-r = RethinkDB()
-import logging as log
-import traceback
-
+from .._common.api_rest import ApiRest
+from .api_notify import notify_desktop, notify_user
 from .flask_rethink import RDB
+from .quotas import Quotas
+
+r = RethinkDB()
+
 
 db = RDB(app)
 db.init_app(app)
 
-import time
-from datetime import datetime, timedelta
-
-import pytz
-
-from .._common.api_rest import ApiRest
-from .api_notify import notify_desktop, notify_user
-from .quotas import Quotas
 
 quotas = Quotas()
 
@@ -203,7 +203,7 @@ class Scheduler:
             pytz.UTC
         )
 
-        ## end -15m: user message, is about to finish
+        # end -15m: user message, is about to finish
         data["id"] = plan_id + ".gpu_user_advice-15"
         data["date"] = start_date - timedelta(0, 17 * 60)
         data["date"] = data["date"].astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
@@ -215,7 +215,7 @@ class Scheduler:
                 "could not contact scheduler service at /advanced/date/bookings/gpu_desktops_notify"
             )
 
-        ## end -5m: user message, immediate shutdown
+        # end -5m: user message, immediate shutdown
         data["id"] = plan_id + ".gpu_user_advice-5"
         data["date"] = start_date - timedelta(0, 7 * 60)
         data["date"] = data["date"].astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
@@ -227,7 +227,7 @@ class Scheduler:
                 "could not contact scheduler service at /advanced/date/bookings/gpu_desktops_notify"
             )
 
-        ## end -2m: shutdown desktops
+        # end -2m: shutdown desktops
         data["id"] = plan_id + ".gpu_desktops_destroy"
         data["date"] = start_date - timedelta(0, 2 * 60)
         data["date"] = data["date"].astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
@@ -238,7 +238,7 @@ class Scheduler:
                 "could not contact scheduler service at /advanced/date/bookings/gpu_desktops_destroy"
             )
 
-        ## end -1m: call engine to set item_id (gpu card) to profile data["profile"]
+        # end -1m: call engine to set item_id (gpu card) to profile data["profile"]
         data["id"] = plan_id + ".gpu_profile_set"
         data["date"] = start_date - timedelta(0, 60)
         data["date"] = data["date"].astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
@@ -267,9 +267,9 @@ class Scheduler:
         )
         end_date = datetime.strptime(end, "%Y-%m-%dT%H:%M:%S%z").astimezone(pytz.UTC)
 
-        ## start -1s: set in_reservable
+        # start -1s: set in_reservable
         data["id"] = booking_id + ".in_reservable"
-        data["date"] = start_date - timedelta(0, 1 * 60)
+        data["date"] = start_date
         data["date"] = data["date"].astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
         try:
             self.api_rest.post("/advanced/date/bookings/domain_reservable_set", data)
@@ -278,9 +278,9 @@ class Scheduler:
                 "could not contact scheduler service at /advanced/date/bookings/domain_reservable_set"
             )
 
-        ## end -1s: set in_reservable
+        # end -1s: set in_reservable
         data["id"] = booking_id + ".not_in_reservable"
-        data["date"] = end_date - timedelta(0, 1 * 60)
+        data["date"] = end_date
         data["date"] = data["date"].astimezone(pytz.UTC).strftime("%Y-%m-%dT%H:%M%z")
         data["kwargs"]["booking_id"] = False
         try:
