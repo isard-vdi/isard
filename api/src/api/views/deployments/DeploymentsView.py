@@ -24,7 +24,7 @@ from ..decorators import (
 @is_not_user
 def api_v3_deployment(payload, deployment_id):
     ownsDeploymentId(payload, deployment_id)
-    deployment = api_deployments.get(deployment_id)
+    deployment = api_deployments.get(deployment_id=deployment_id, desktops=True)
     return json.dumps(deployment), 200, {"Content-Type": "application/json"}
 
 

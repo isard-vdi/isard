@@ -50,18 +50,6 @@ def lists(user_id):
         deployments = list(
             r.table("deployments")
             .get_all(user_id, index="user")
-            .pluck(
-                "id",
-                "name",
-                {
-                    "create_dict": {
-                        "tag_visible": True,
-                        "template": True,
-                        "name": True,
-                        "description": True,
-                    }
-                },
-            )
             .merge(
                 lambda deployment: {
                     "totalDesktops": r.table("domains")
@@ -79,6 +67,7 @@ def lists(user_id):
                     "desktop_name": deployment["create_dict"]["name"],
                 }
             )
+            .without("create_dict")
             .run(db.conn)
         )
     parsed_deployments = []
@@ -94,15 +83,47 @@ def lists(user_id):
     return parsed_deployments
 
 
-def get(deployment_id):
+def get(deployment_id, desktops=True):
     with app.app_context():
-        deployment = r.table("deployments").get(deployment_id).run(db.conn)
+        deployment = (
+            r.table("deployments")
+            .get(deployment_id)
+            .merge(
+                lambda deployment: {
+                    "totalDesktops": r.table("domains")
+                    .get_all(deployment["id"], index="tag")
+                    .count(),
+                    "startedDesktops": r.table("domains")
+                    .get_all(deployment["id"], index="tag")
+                    .filter({"status": "Started"})
+                    .count(),
+                    "description": deployment["create_dict"]["description"],
+                    "visible": deployment["create_dict"]["tag_visible"],
+                    "template": r.table("domains")
+                    .get(deployment["create_dict"]["template"])
+                    .default({"name": False})["name"],
+                    "desktop_name": deployment["create_dict"]["name"],
+                }
+            )
+            .without("create_dict")
+            .run(db.conn)
+        )
+
+    deployment = {
+        **deployment,
+        **_parse_deployment_booking(deployment),
+    }
+
+    if desktops:
+        parsed_desktops = []
         desktops = list(
             r.table("domains")
             .get_all(deployment_id, index="tag")
             .pluck(
                 "id",
                 "user",
+                "group",
+                "category",
                 "name",
                 "description",
                 "status",
@@ -117,30 +138,23 @@ def get(deployment_id):
                 "accessed",
                 "tag",
                 "booking_id",
+                "tag_visible",
+            )
+            .merge(
+                lambda domain: {
+                    "user_name": r.table("users").get(domain["user"])["name"],
+                    "category_name": r.table("categories").get(domain["category"])[
+                        "name"
+                    ],
+                    "group_name": r.table("groups").get(domain["group"])["name"],
+                }
             )
             .run(db.conn)
         )
-
-    parsed_desktops = []
-    desktop_name = ""
-    desktop_description = ""
-    for desktop in desktops:
-        tmp_desktop = _parse_deployment_desktop(desktop, deployment["user"])
-        desktop_name = tmp_desktop.pop("name")
-        desktop_description = tmp_desktop.pop("description")
-        parsed_desktops.append(tmp_desktop)
-
-    deployment = {
-        **{
-            "id": deployment["id"],
-            "name": deployment["name"],
-            "desktop_name": desktop_name,
-            "description": desktop_description,
-            "desktops": parsed_desktops,
-            "visible": deployment["create_dict"]["tag_visible"],
-        },
-        **_parse_deployment_booking(deployment),
-    }
+        for desktop in desktops:
+            tmp_desktop = _parse_deployment_desktop(desktop, deployment["user"])
+            parsed_desktops.append(tmp_desktop)
+        deployment["desktops"] = parsed_desktops
 
     return deployment
 

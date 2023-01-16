@@ -5,31 +5,30 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
+import logging as log
+import random
+import string
 import time
+import traceback
 import uuid
+from datetime import timedelta
 
 from rethinkdb import RethinkDB
 
 from api import app
 
-r = RethinkDB()
-import logging as log
-
+from .._common.api_exceptions import Error
+from ..libv2.isardViewer import isardViewer
 from .flask_rethink import RDB
+
+r = RethinkDB()
+
 
 db = RDB(app)
 db.init_app(app)
 
-import random
-import string
-
-from ..libv2.isardViewer import isardViewer
 
 isardviewer = isardViewer()
-
-import traceback
-
-from .._common.api_exceptions import Error
 
 
 class InternalUsers(object):
@@ -99,7 +98,7 @@ def _get_reservables(item_type, item_id, tolist=False):
                 r.table("domains").get_all(item_id, index="tag").run(db.conn)
             )
         if not len(deployment_domains):
-            ## Now there is no desktop at the deployment. No reservation will be done.
+            # Now there is no desktop at the deployment. No reservation will be done.
             raise (
                 "precondition_required",
                 "Deployment has no desktops to be reserved.",
@@ -252,6 +251,11 @@ def default_guest_properties():
 
 def _parse_desktop(desktop):
     desktop = parse_frontend_desktop_status(desktop)
+    desktop["user_name"] = r.table("users").get(desktop["user"]).run(db.conn)["name"]
+    desktop["group_name"] = r.table("groups").get(desktop["group"]).run(db.conn)["name"]
+    desktop["category_name"] = (
+        r.table("categories").get(desktop["category"]).run(db.conn)["name"]
+    )
     desktop["image"] = desktop.get("image", None)
     desktop["from_template"] = desktop.get("parents", [None])[-1]
     if desktop.get("persistent", True):
@@ -263,7 +267,6 @@ def _parse_desktop(desktop):
         v.replace("_", "-") for v in list(desktop["guest_properties"]["viewers"].keys())
     ]
 
-    # desktop["viewers"] = ["file-spice", "browser-vnc"]
     if desktop["status"] == "Started":
         if (
             "file-rdpgw" in desktop["viewers"]
@@ -337,14 +340,19 @@ def _parse_desktop(desktop):
             "accessed": desktop.get("accessed"),
             "desktop_size": desktop_size,
             "tag": desktop.get("tag"),
+            "visible": desktop.get("tag_visible"),
+            "user": desktop.get("user"),
+            "user_name": desktop.get("user_name"),
+            "group": desktop.get("group"),
+            "group_name": desktop.get("group_name"),
+            "category": desktop.get("category"),
+            "category_name": desktop.get("category_name"),
         },
         **_parse_desktop_booking(desktop),
     }
 
 
 def _parse_deployment_desktop(desktop, user_id=False):
-    visible = desktop.get("tag_visible", False)
-    user = desktop["user"]
     if desktop["status"] in ["Started", "WaitingIP"] and desktop.get("viewer", {}).get(
         "static"
     ):
@@ -360,10 +368,6 @@ def _parse_deployment_desktop(desktop, user_id=False):
         viewer = False
     desktop = _parse_desktop(desktop)
     desktop["viewer"] = viewer
-    desktop = {**desktop, **app.internal_users.get(user), **{"visible": visible}}
-    desktop["user"] = user
-    desktop.pop("type")
-    desktop.pop("template")
 
     return desktop
 

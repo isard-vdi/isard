@@ -50,7 +50,10 @@ export default {
       Object.assign(item, deployment)
     },
     add_deploymentdesktop: (state, deploymentdesktop) => {
-      state.deployment.desktops = [...state.deployment.desktops, deploymentdesktop]
+      const item = state.deployment.desktops.find(d => d.id === deploymentdesktop.id)
+      if (!item) {
+        state.deployment.desktops = [...state.deployment.desktops, deploymentdesktop]
+      }
     },
     update_deploymentdesktop: (state, deploymentdesktop) => {
       const item = state.deployment.desktops.find(d => d.id === deploymentdesktop.id)
