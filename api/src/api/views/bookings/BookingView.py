@@ -103,13 +103,9 @@ def api_v3_booking_event_id(payload, booking_id):
         end = data.get("end")
         try:
             apib.update(booking_id, title, start, end)
-        except UpdateFailed:
+        except:
             log.error("Event " + booking_id + " update failed.")
-            return (
-                json.dumps({"error": "undefined_error", "msg": "Event update failed"}),
-                404,
-                {"Content-Type": "application/json"},
-            )
+            raise Error("internal_server", "Event update failed")
         return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
