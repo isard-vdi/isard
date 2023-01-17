@@ -268,19 +268,6 @@ def set_gpu_profile(payload, gpu_id):
 
 @api.route("/engine/profile/gpu/<string:gpu_id>", methods=["GET"])
 @is_admin
-def get_gpu_profile(payload, gpu_id):
-    logs.main.info("get_gpu_profile: {}".format(gpu_id))
-    d = get_vgpu_model_profile_change(gpu_id)
-    if not d:
-        logs.main.error(
-            "get_gpu_profile: {} does not exist in table vgpus".format(gpu_id)
-        )
-        return jsonify({"error": str(gpu_id) + "does not exist in vgpus table"}), 404
-    return jsonify(d)
-
-
-@api.route("/engine/profile/gpu/<string:gpu_id>", methods=["GET"])
-@is_admin
 def get_gpu_profile_jwt(payload, gpu_id):
     logs.main.info("get_gpu_profile: {}".format(gpu_id))
     d = get_vgpu_model_profile_change(gpu_id)
