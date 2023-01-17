@@ -356,7 +356,7 @@ function socketio_on(){
             var usersAdded = 1;
             users.forEach(function (user) {
                 data['uid'] = user['username'];
-                data['bulk'] = true
+                user['bulk'] = true
                 if(user["exists"] && !$('#bulk-allow-update').prop("checked")){
                     notice.update({
                         title: "Adding users",
