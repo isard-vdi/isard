@@ -73,42 +73,41 @@ class ReservablesPlanner:
     ## Reservables View endpoints
     def list_item_plans(self, item_id, start=None, end=None):
         if not start:
-            start = datetime.now(pytz.utc).strftime("%Y-%m-%dT%H:%M%z")
-        query = r.table("resource_planner").get_all(item_id, index="item_id")
-        if end:
-            query = query.filter(
-                r.row["start"].during(
-                    datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC),
-                    datetime.strptime(end, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC),
-                )
-            )
+            start = datetime.now(pytz.utc)
         else:
-            query = query.filter(
-                lambda plan: plan["start"]
-                > datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
-            )
-        with app.app_context():
-            data = list(query.run(db.conn))
-        if not len(data):
-            # Check whether the plan is bigger than the interval asked.
-            with app.app_context():
-                data = list(
-                    r.table("resource_planner")
-                    .get_all(item_id, index="item_id")
-                    .filter(
-                        lambda plan: plan["start"]
-                        < datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(
-                            pytz.UTC
-                        )
-                        and plan["end"]
-                        > datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(
-                            pytz.UTC
-                        )
-                    )
-                    .run(db.conn)
-                )
+            start = datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
+        if not end:
+            end = start
+        else:
+            end = datetime.strptime(end, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
+
+        query = r.table("resource_planner").get_all(item_id, index="item_id")
+
+        data = list(
+            query.filter(r.row["start"] <= start)
+            .filter(r.row["end"] >= end)
+            .run(db.conn)
+        )
+        if len(data):
+            return data
+
+        data_before = list(
+            query.filter(r.row["start"] <= start)
+            .filter(r.row["end"] >= start)
+            .run(db.conn)
+        )
+        data_inner = list(
+            query.filter(r.row["start"] >= start)
+            .filter(r.row["end"] < end)
+            .run(db.conn)
+        )
+        data_after = list(
+            query.filter(r.row["start"] >= start)
+            .filter(r.row["end"] > end)
+            .run(db.conn)
+        )
         ## An item/subitem planning should not overlap
-        return data
+        return data_before + data_inner + data_after
 
     def list_subitem_plans(self, item_id, subitem_id, start=None, end=None):
         if not start:
