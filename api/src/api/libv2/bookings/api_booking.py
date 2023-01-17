@@ -231,13 +231,15 @@ class Bookings:
                 r.table("bookings")
                 .get_all(item_id, index="item_id")
                 .filter(
-                    r.row["start"].during(
-                        datetime.strptime(fromDate, "%Y-%m-%dT%H:%M%z").astimezone(
-                            pytz.UTC
-                        ),
-                        datetime.strptime(toDate, "%Y-%m-%dT%H:%M%z").astimezone(
-                            pytz.UTC
-                        ),
+                    r.row["start"]
+                    <= datetime.strptime(toDate, "%Y-%m-%dT%H:%M%z").astimezone(
+                        pytz.UTC
+                    )
+                )
+                .filter(
+                    r.row["end"]
+                    >= datetime.strptime(fromDate, "%Y-%m-%dT%H:%M%z").astimezone(
+                        pytz.UTC
                     )
                 )
                 .run(db.conn)

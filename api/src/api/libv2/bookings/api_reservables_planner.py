@@ -81,33 +81,14 @@ class ReservablesPlanner:
         else:
             end = datetime.strptime(end, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
 
-        query = r.table("resource_planner").get_all(item_id, index="item_id")
-
-        data = list(
-            query.filter(r.row["start"] <= start)
-            .filter(r.row["end"] >= end)
-            .run(db.conn)
-        )
-        if len(data):
-            return data
-
-        data_before = list(
-            query.filter(r.row["start"] <= start)
+        ## An item/subitem planning should not overlap
+        return list(
+            r.table("resource_planner")
+            .get_all(item_id, index="item_id")
+            .filter(r.row["start"] <= end)
             .filter(r.row["end"] >= start)
             .run(db.conn)
         )
-        data_inner = list(
-            query.filter(r.row["start"] >= start)
-            .filter(r.row["end"] < end)
-            .run(db.conn)
-        )
-        data_after = list(
-            query.filter(r.row["start"] >= start)
-            .filter(r.row["end"] > end)
-            .run(db.conn)
-        )
-        ## An item/subitem planning should not overlap
-        return data_before + data_inner + data_after
 
     def list_subitem_plans(self, item_id, subitem_id, start=None, end=None):
         if not start:
