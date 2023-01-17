@@ -143,6 +143,13 @@ def api_v3_admin_user_update(payload, user_id):
     ownsUserId(payload, user_id)
     ownsCategoryId(payload, user["category"])
 
+    if data.get("bulk"):
+        match = CategoryNameGroupNameMatch(data["category"], data["group"])
+        data["category"] = users.CategoryGetByName(match["category"])["id"]
+        data["group"] = users.GroupGetByNameCategory(match["group"], data["category"])[
+            "id"
+        ]
+
     if data.get("secondary_groups"):
         if len(data["secondary_groups"]) > 0:
             users.check_secondary_groups_category(
