@@ -241,11 +241,13 @@ $(document).ready(function() {
              "createdRow": function( row, data, dataIndex){
                 if( ! ("min_free_mem_gb" in data) ){data.min_free_mem_gb=0}
                 memTotalGB=Math.round(data.info.memory_in_MB / 1024 * 10) / 10
-                memUsedGB=Math.round((data.stats.mem_stats.total-data.stats.mem_stats.available) / 1024 /1024)
-                if( memTotalGB-memUsedGB-data.min_free_mem_gb <= 0){
-                    $(row).css({"background-color":"#FFCCCB"})
-                }else{
-                    $(row).css({"background-color":"white"})
+                if ('stats' in data) {
+                    memUsedGB=Math.round((data.stats.mem_stats.total-data.stats.mem_stats.available) / 1024 /1024)
+                    if( memTotalGB-memUsedGB-data.min_free_mem_gb <= 0){
+                        $(row).css({"background-color":"#FFCCCB"})
+                    }else{
+                        $(row).css({"background-color":"white"})
+                    }
                 }
             }
     } );
