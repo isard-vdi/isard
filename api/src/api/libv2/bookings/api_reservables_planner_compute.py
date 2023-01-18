@@ -17,6 +17,7 @@ from ..flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
+import os
 from datetime import datetime, timedelta
 from pprint import pformat
 
@@ -89,7 +90,7 @@ def booking_provisioning(
         resource_planner, item_type, item_id
     )
     log.debug("RESOURCE PLANNER")
-    if True:  # not os.environ.get("LOG_LEVEL") == "DEBUG":
+    if not os.environ.get("LOG_LEVEL") == "DEBUG":
         # This will join consecutive plans
         # When debugging it is better to show them splitted (do not join)
         resource_planner = join_consecutive_plans(resource_planner)
