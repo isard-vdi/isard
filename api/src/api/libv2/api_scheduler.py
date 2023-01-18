@@ -295,3 +295,16 @@ class Scheduler:
 
     def bookings_remove_scheduler_item_id(self, item_id):
         log.error("Remove scheduler id " + item_id + " not implemented!!!")
+
+    def bookings_remove_scheduled_jobs(self, item_id):
+        try:
+            with app.app_context():
+                ids = list(
+                    r.table("scheduler_jobs")
+                    .pluck("kwargs", "id")
+                    .filter({"kwargs": {"item_id": item_id}})["id"]
+                    .run(db.conn)
+                )
+            self.api_rest.delete("/delete_jobs", {"jobs_ids": ids})
+        except:
+            log.error("could not contact scheduler service at /delete_jobs")
