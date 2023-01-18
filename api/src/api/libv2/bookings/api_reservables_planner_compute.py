@@ -539,6 +539,13 @@ def get_overridable_bookings(
             # Now I think it will get all the ones that have any v.
             query = query.get_all([subitem], index="reservables_" + k)
             query = query.filter(
+                r.row["start"]
+                <= datetime.strptime(toDate, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
+            ).filter(
+                r.row["end"]
+                >= datetime.strptime(fromDate, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
+            )
+            query = query.filter(
                 r.row["plans"].contains(
                     lambda plan: plan["priority"] < priority["priority"][subitem]
                 )
@@ -571,6 +578,13 @@ def get_nonoverridable_bookings(
             # This index should be multi I think, then will get the items that have all the v.
             # Now I think it will get all the ones that have any v.
             query = query.get_all([subitem], index="reservables_" + k)
+            query = query.filter(
+                r.row["start"]
+                <= datetime.strptime(end, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
+            ).filter(
+                r.row["end"]
+                >= datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
+            )
             query = query.filter(
                 r.row["plans"].contains(
                     lambda plan: plan["priority"] >= priority["priority"][subitem]
