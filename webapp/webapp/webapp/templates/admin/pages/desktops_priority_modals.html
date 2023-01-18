@@ -1,0 +1,162 @@
+<!-- ADD PRIORITY -->
+<div class="modal fade" id="modalAddPriority" tabindex="-1" role="dialog" 
+   aria-labelledby="modalAddPriority" aria-hidden="true">
+   <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+         <!-- Modal Header -->
+         <div class="modal-header">
+            <button type="button" class="close"
+               data-dismiss="modal">
+                  <span aria-hidden="true">&times;</span>
+                  <span class="sr-only">Close</span>
+            </button>
+            <h4 class="modal-title" id="myModalLabel">
+               <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-hourglass-half"> </i> Add desktop timeout
+            </h4>
+         </div>
+         <!-- Modal Body -->
+         <div class="modal-body">
+            <form id="modalAdd" class="form-inline form-label-left">
+               <div class="x_panel">
+                  <input id="id" name="priority_id" type="hidden" required>
+                  <div class="x_content" style="padding: 0px;">
+                     <div class="row">
+                        <div class="col-md-4 col-xs-12">
+                           <label class="control-label" for="name">Name <span class="required">*</span>
+                           </label>
+                           <input id="name" class="roundbox" maxlength="40" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New timeout name" data-parsley-trigger="change" required="required" type="text" style="width:100%">
+                        </div>
+                        <div class="col-md-8 col-xs-12">
+                           <label class="control-label" for="description">Description
+                           </label>
+                           <input id="description" class="roundbox" name="description" placeholder="New timeout description" type="text" style="width:100%">
+                        </div>
+                     </div>
+                     <div class="row">
+                        <div class="col-md-4 col-xs-12">
+                           <label class="control-label" for="kind">Kind: <span class="required">*</span></label>
+                           <select id="op" name="op" class="form-control roundbox" style="width: 100%" required>
+                              <option value="shutdown">Shutdown</option>
+                           </select>
+                       </div>
+                        <div class="col-md-2 col-xs-12">
+                           <label class="control-label" for="priority">Priority <span class="required">*</span>
+                           </label>
+                           <input id="priority" class="form-control roundbox" name="priority" type="number" value="1" min="1" max="9999" style="width:100%" required="required">
+                        </div>
+                        <div class="col-md-2 col-xs-12">
+                           <label class="control-label" for="max_time">Max (min)<span class="required">*</span>
+                           </label>
+                           <input id="max_time" class="form-control roundbox" name="max_time" type="number" value="-210" style="width:100%" required="required">
+                        </div>
+                        <div class="col-md-2 col-xs-12">
+                           <label class="control-label" for="danger_time">Danger (min)<span class="required">*</span>
+                           </label>
+                           <input id="danger_time" class="form-control roundbox" name="danger_time" type="number" value="-10" style="width:100%" required="required">
+                        </div>
+                        <div class="col-md-2 col-xs-12">
+                           <label class="control-label" for="warning_time">Warning (min)<span class="required">*</span>
+                           </label>
+                           <input id="warning_time" class="form-control roundbox" name="warning_time" type="number" value="-20" style="width:100%" required="required">
+                        </div>
+                     </div>
+                     <div class="row">
+                        <div id="alloweds-priority-add">
+                           {% include '/snippets/alloweds_add.html' %}
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </form>
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+               <ul class="nav navbar-left panel_toolbox">
+                  <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                  </li>
+               </ul>
+               <ul class="nav navbar-right panel_toolbox">
+                  <li><button id="send" type="button" class="btn btn-success">Add timeout</button></li>
+                  </li>
+               </ul>
+            </div>
+         </div>
+      </div>
+   </div>
+</div>
+<!-- END -->
+
+<!-- EDIT PRIORITY -->
+<div class="modal fade" id="modalEditPriority" tabindex="-1" role="dialog" 
+   aria-labelledby="modalEditPriority" aria-hidden="true">
+   <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+         <!-- Modal Header -->
+         <div class="modal-header">
+            <button type="button" class="close"
+               data-dismiss="modal">
+                  <span aria-hidden="true">&times;</span>
+                  <span class="sr-only">Close</span>
+            </button>
+            <h4 class="modal-title" id="myModalLabel">
+               <i class="fa fa-pencil fa-1x"> </i> <i class="fa fa-hourglass-half"> </i> Edit desktop timeout
+            </h4>
+         </div>
+         <!-- Modal Body -->
+         <div class="modal-body">
+            <form id="modalEdit" class="form-inline form-label-left">
+               <div class="x_panel">
+                  <input id="id" name="priority_id" type="hidden" required>
+                  <input id="op" name="op" type="hidden" required>
+                  <div class="x_content" style="padding: 0px;">
+                     <div class="row">
+                        <div class="col-md-4 col-xs-12">
+                           <label class="control-label" for="name">Name <span class="required">*</span>
+                           </label>
+                           <input id="name" class="roundbox" maxlength="40" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New priority name" data-parsley-trigger="change" required type="text" style="width:100%">
+                        </div>
+                        <div class="col-md-8 col-xs-12">
+                           <label class="control-label" for="description">Description
+                           </label>
+                           <input id="description" class="roundbox" name="description" placeholder="Priority description" type="text" style="width:100%">
+                        </div>
+                     </div>
+                     <div class="row">
+                        <div class="col-md-3 col-xs-12">
+                           <label class="control-label" for="priority">Priority <span class="required">*</span>
+                           </label>
+                           <input id="priority" class="form-control roundbox" name="priority" type="number" min="1" max="9999" style="width:100%" required="required">
+                        </div>
+                        <div class="col-md-3 col-xs-12">
+                           <label class="control-label" for="max_time">Max (min)<span class="required">*</span>
+                           </label>
+                           <input id="max_time" class="form-control roundbox" name="max_time" type="number" style="width:100%" required="required">
+                        </div>
+                        <div class="col-md-3 col-xs-12">
+                           <label class="control-label" for="danger_time">Danger (min)<span class="required">*</span>
+                           </label>
+                           <input id="danger_time" class="form-control roundbox" name="danger_time" type="number" style="width:100%" required="required">
+                        </div>
+                        <div class="col-md-3 col-xs-12">
+                           <label class="control-label" for="warning_time">Warning (min)<span class="required">*</span>
+                           </label>
+                           <input id="warning_time" class="form-control roundbox" name="warning_time" type="number" style="width:100%" required="required">
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </form>
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+               <ul class="nav navbar-left panel_toolbox">
+                  <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                  </li>
+               </ul>
+               <ul class="nav navbar-right panel_toolbox">
+                  <li><button id="send" type="button" class="btn btn-success">Update timeout</button></li>
+                  </li>
+               </ul>
+            </div>
+         </div>
+      </div>
+   </div>
+</div>

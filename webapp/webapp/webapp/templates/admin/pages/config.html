@@ -10,91 +10,76 @@
 
 <div class="row">
     <div class="col-md-12 col-sm-12 col-xs-12">
-       <div class="x_panel">
-          <div class="page-title">
-             <div class="title_left">
-                <h3><i class="fa fa-gears"></i> Configuration <small>Isard global configuration</small></h3>
-              </div>
-          </div> 
-          <div class="clearfix"></div>
-       </div>
-    </div>
-  </div>
-
-    <div class="clearfix"></div>
-    <div class="row">
-        <div class="col-md-12 col-sm-12 col-xs-12">
-            <div class="x_panel">
-                <div class="x_title">
-                    <h3><i class="fa fa-lock"></i> Job scheduler <small></small></h3>
-                    <ul class="nav navbar-right panel_toolbox">
-                        <li><a class="btn-scheduler" data-panel="scheduler"><span style="color: #5499c7; "><i class="fa fa-pencil"></i> Add job</span></a>
-                    </ul>
-                    <div class="clearfix"></div>
+        <div class="x_panel">
+            <div class="page-title">
+                <div class="title_left">
+                    <h3><i class="fa fa-gears"></i> Configuration <small>Isard global configuration</small></h3>
                 </div>
-                <div class="x_content">
-                    <div class="clearfix"></div>
-
-                    <div class="x_content">
-                        <table id="table-scheduler" class="table">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Kind</th>
-                                    <th>Next run</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-            </div>
+            </div> 
+            <div class="clearfix"></div>
         </div>
     </div>
-    <div class="clearfix"></div>
-    <div class="row">
-        <div class="col-md-6 col-sm-6 col-xs-12">
-            <div class="x_panel">
-                <div class="x_title">
-                    <h3><i class="fa fa-wrench"></i> Maintenance mode</h3>
-                    <div class="clearfix"></div>
-                </div>
-                <div class="x_content">
-                  <span id="maintenance_wrapper" style="display: none">
-                     <input id="maintenance_checkbox" type="checkbox">
-                  </span>
-                  <i id="maintenance_spinner" class="fa fa-spinner fa-lg fa-spin"></i>
-                  <label for="maintenance_checkbox">
-                     Maintenance mode enabled
-                  </label>
-                </div>
+</div>
 
-            </div>
+<div class="clearfix"></div>
+
+<div class="row">
+    <div class="col-md-12 col-sm-12 col-xs-12">
+        <div class="x_panel">
+        <div class="x_title">
+                <h3><i class="fa fa-hourglass-half"></i> Desktops Timeouts<small> Time desktop usage for users</small></h3> 
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><a class="add-new"><span style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a></li>
+                    <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a></li>
+                    <li><a class="close-link"><i class="fa fa-close"></i></a></li>
+                </ul>
+                <div class="clearfix"></div>
         </div>
+        <div class="x_content">
+            <p class="text-muted font-13 m-b-30"></p>
+            <div id="tableDiv"></div>
+            <table id="desktops_priority" class="table">
+                <thead>
+                    <tr>
+                    <th></th>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Priority</th>
+                    <th>Max (min)</th>
+                    <th>Danger (min)</th>
+                    <th>Warning (min)</th>
+                    <th>Kind</th>
+                    <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+        </div>
+    </div>
+</div>
 
-        <div class="col-md-6 col-sm-6 col-xs-12">
-            <div class="x_panel">
-                <div class="x_title">
-                    <h3><i class="fa fa-briefcase"></i> Backup database <small></small></h3>
-                    <ul class="nav navbar-right panel_toolbox">
-                        <li><a class="btn-backup" data-panel="backup"><span style="color: #5499c7; "><i class="fa fa-life-saver"></i> Backup</span></a>
-                        <li><a class="btn-backups-upload" data-panel="backup"><span style="color: darkgreen; "><i class="fa fa-upload"></i> Upload</span></a>
-                    </ul>
-                    <div class="clearfix"></div>
-                </div>
-                <div class="alert alert-warning" style="color: black" role="alert">
-                    This section will be removed in the future. It is advised to download and save your data
-                  </div>
+<div class="row">
+    <div class="col-md-12 col-sm-12 col-xs-12">
+        <div class="x_panel">
+            <div class="x_title">
+                <h3><i class="fa fa-lock"></i> Job scheduler <small></small></h3>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><a class="btn-scheduler" data-panel="scheduler"><span style="color: #5499c7; "><i class="fa fa-pencil"></i> Add job</span></a>
+                </ul>
+                <div class="clearfix"></div>
+            </div>
+            <div class="x_content">
+                <div class="clearfix"></div>
+
                 <div class="x_content">
-                    <table id="table-backups" class="table">
+                    <table id="table-scheduler" class="table">
                         <thead>
                             <tr>
-                                <th>Date</th>
-                                <th>Status</th>
-                                <th>Vers</th>
+                                <th>Name</th>
+                                <th>Kind</th>
+                                <th>Next run</th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -103,22 +88,76 @@
                     </table>
                 </div>
             </div>
+
         </div>
     </div>
-    <div class="clearfix"></div>
-
-<div class="clearfix"></div>
 </div>
 
+<div class="clearfix"></div>
+
+<div class="row">
+    <div class="col-md-6 col-sm-6 col-xs-12">
+        <div class="x_panel">
+            <div class="x_title">
+                <h3><i class="fa fa-wrench"></i> Maintenance mode</h3>
+                <div class="clearfix"></div>
+            </div>
+            <div class="x_content">
+                <span id="maintenance_wrapper" style="display: none">
+                    <input id="maintenance_checkbox" type="checkbox">
+                </span>
+                <i id="maintenance_spinner" class="fa fa-spinner fa-lg fa-spin"></i>
+                <label for="maintenance_checkbox">Maintenance mode enabled</label>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-sm-6 col-xs-12">
+        <div class="x_panel">
+            <div class="x_title">
+                <h3><i class="fa fa-briefcase"></i> Backup database <small></small></h3>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><a class="btn-backup" data-panel="backup"><span style="color: #5499c7; "><i class="fa fa-life-saver"></i> Backup</span></a>
+                    <li><a class="btn-backups-upload" data-panel="backup"><span style="color: darkgreen; "><i class="fa fa-upload"></i> Upload</span></a>
+                </ul>
+                <div class="clearfix"></div>
+            </div>
+            <div class="alert alert-warning" style="color: black" role="alert">
+                This section will be removed in the future. It is advised to download and save your data
+            </div>
+            <div class="x_content">
+                <table id="table-backups" class="table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Vers</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="clearfix"></div>
+<div class="clearfix"></div>
+
+{% include '/snippets/alloweds_form.html' %}
 {% include '/admin/pages/config_modals.html' %}
+{% include '/admin/pages/desktops_priority_modals.html' %}
+{% include '/admin/pages/desktops_priority_detail.html' %}
 {% endblock %}
 {% block pagescript %}
     <!-- Dropzone.js -->
     <script src="/isard-admin/vendors/dropzone/dist/min/dropzone.min.js"></script>
-    <script src="/isard-admin/static/js/restful.js""></script>
+    <script src="/isard-admin/static/js/restful.js"></script>
     <script src="/isard-admin/static/admin/js/config.js"></script>
     <script src="/isard-admin/static/js/snippets/form_items.js"></script>
     <!-- bootstrap-daterangepicker -->
     <script src="/isard-admin/vendors/moment/min/moment.min.js"></script>
     <script src="/isard-admin/vendors/bootstrap-daterangepicker/daterangepicker.js"></script>
+    <script src="/isard-admin/static/admin/js/desktops_priority.js"></script>
 {% endblock %}

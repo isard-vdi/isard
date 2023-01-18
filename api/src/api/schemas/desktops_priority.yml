@@ -1,0 +1,31 @@
+allowed:
+  type: dict
+  schema: allowed
+description:
+  type: string
+id:
+  required: true
+  empty: false
+  default_setter: genuuid
+name:
+  type: string
+  required: true
+  empty: false
+op:
+  type: string
+  default: shutdown
+  allowed:
+    - shutdown
+priority:
+  type: integer
+shutdown:
+  required: false
+  schema: 
+    max:
+      type: integer
+    notify_intervals:
+      type: list
+    server:
+      type: boolean
+      required: false
+      default: false

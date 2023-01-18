@@ -186,6 +186,7 @@ def admin_table_insert(table, data):
         "qos_disk",
         "remotevpn",
         "bookings_priority",
+        "desktops_priority",
     ]:
         data = _validate_item(table, data)
     with app.app_context():
