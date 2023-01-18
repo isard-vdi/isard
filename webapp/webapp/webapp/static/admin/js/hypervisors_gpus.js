@@ -196,9 +196,11 @@ $(document).ready(function () {
   $("#table-gpus")
     .find(" tbody")
     .on("click", "input", function () {
+      profile_checkbox = $(this)
       let reservable_type = $(this).parents("tr").attr("data-reservableType");
       let item_id = $(this).parents("tr").attr("data-itemId");
       let subitem_id = $(this).parents("tr").attr("data-subitemId");
+
       switch ($(this).attr("id")) {
         case "chk-enabled":
           if ($(this).is(":checked")) {
@@ -206,21 +208,64 @@ $(document).ready(function () {
           } else {
             enabled = false;
           }
-          $.ajax({
-            type: "PUT",
-            url:
-              "/api/v3/admin/reservables/enable/" +
-              reservable_type +
-              "/" +
-              item_id +
-              "/" +
-              subitem_id,
-            data: JSON.stringify({ enabled }),
-            contentType: "application/json",
-          });
+
+          if (!enabled) {
+            // check if it's the last profile of this kind
+            $.ajax({
+              type: "GET",
+              url:
+                "/api/v3/admin/reservables/check/last/" +
+                reservable_type +
+                "/" +
+                subitem_id,
+              contentType: "application/json",
+            }).done(function(data) {
+              data = JSON.parse(data)
+              // check if the profile is in any domain
+              if((data['last'] == true) && (data['desktops'].length > 0)) {
+                $('#modalDeleteProfile').modal({
+                    backdrop: 'static',
+                    keyboard: false
+                }).modal('show');
+
+                $('#modalDeleteProfileForm #subitem_id').val(subitem_id);
+                $('#modalDeleteProfileForm #item_id').val(item_id);
+                $('#modalDeleteProfileForm #reservable_type').val(reservable_type);
+                $('#modalDeleteProfileForm #desktops').val(JSON.stringify(data['desktops']));
+
+                $('#table_modal_profile_delete tbody').empty()
+                $.each(data['desktops'], function(key, value) {
+                  value['user_name'] = value['username']
+                  infoDomains(value, $('#table_modal_profile_delete tbody'));
+              });      
+              }
+              else {
+                enableProfile(reservable_type, item_id, subitem_id, enabled, null) 
+              }
+            })
+          } else {
+            enableProfile(reservable_type, item_id, subitem_id, enabled, null) 
+          }
           break;
       }
     });
+
+  $("#modalDeleteProfile #send").on('click', function(e){
+      var form = $('#modalDeleteProfileForm');
+      if (form.parsley().isValid()){
+        data = $('#modalDeleteProfileForm').serializeObject()
+        var item_id = $('#modalDeleteProfileForm #item_id').val()
+        var subitem_id = $('#modalDeleteProfileForm #subitem_id').val()
+        var reservable_type = $('#modalDeleteProfileForm #reservable_type').val()
+        var desktops = JSON.parse($('#modalDeleteProfileForm #desktops').val())
+
+        enableProfile(reservable_type, item_id, subitem_id, false, desktops)  
+      }
+  });
+
+  $("#modalDeleteProfile #cancel").on('click', function(e){
+    profile_checkbox.prop("checked", true)
+  });
 
   $("#table-gpus")
     .find("tbody")
@@ -373,6 +418,47 @@ function initalize_bookables_modal_events() {
           .html("No bookable selected")
           .addClass("my-error");
       }
+    }
+  });
+}
+
+function enableProfile(reservable_type, item_id, subitem_id, enabled, desktops) {
+  $.ajax({
+    type: "PUT",
+    url:
+      "/api/v3/admin/reservables/enable/" +
+      reservable_type +
+      "/" +
+      item_id +
+      "/" +
+      subitem_id,
+    data: JSON.stringify({ enabled, desktops }),
+    contentType: "application/json",
+    success: function(data)
+      {
+          $('form').each(function() { this.reset() });
+          $('.modal').modal('hide');
+          new PNotify({
+              title: "GPU profile " + (enabled? 'enabled': 'disabled'),
+              text: 'Updated ' + subitem_id,
+              hide: true,
+              delay: 2000,
+              icon: 'fa fa-' + data.icon,
+              opacity: 1,
+              type: 'success'
+          })
+      },
+    error: function(data) 
+    {
+      new PNotify({
+        title: "ERROR",
+        text: 'Could not ' + (enabled? 'enable': 'disable') + ' GPU profile ' + subitem_id,
+        hide: true,
+        delay: 2000,
+        icon: 'fa fa-' + data.icon,
+        opacity: 1,
+        type: 'error'
+    })
     }
   });
 }

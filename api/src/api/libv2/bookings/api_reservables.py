@@ -86,6 +86,15 @@ class Reservables:
     def set_subitem(self, item_type, item_id, subitem):
         return self.reservable[item_type].set_subitem(item_id, subitem)
 
+    def deassign_desktops_with_gpu(self, item_type, item_id, desktops=None):
+        return self.reservable[item_type].deassign_desktops_with_gpu(item_id, desktops)
+
+    def check_last_subitem(self, item_type, item_id):
+        return self.reservable[item_type].check_last_subitem(item_id)
+
+    def check_desktops_with_profile(self, item_type, item_id):
+        return self.reservable[item_type].check_desktops_with_profile(item_id)
+
 
 class ResourceItemsGpus:
     def list_items(self):
@@ -332,6 +341,50 @@ class ResourceItemsGpus:
                 "not_found", "Gpu id " + item_id + " not found in gpu definitions table"
             )
         return subitem
+
+    def check_last_subitem(self, subitem_id):
+        last = 0
+        query = r.table("gpus")["profiles_enabled"]
+        all_profiles_enabled = query.run(db.conn)
+        for profiles in all_profiles_enabled:
+            for pf in profiles:
+                if subitem_id == pf:
+                    last += 1
+                if last > 1:
+                    return False
+        return True
+
+    def check_desktops_with_profile(self, subitem_id):
+        query = r.table("domains").filter(
+            lambda domain: domain["create_dict"]["reservables"]["vgpus"].contains(
+                subitem_id
+            )
+        )
+        with app.app_context():
+            desktops = list(query.pluck("name", "username", "kind", "id").run(db.conn))
+        return desktops
+
+    def deassign_desktops_with_gpu(self, item_id, desktops=None):
+        query = r.table("domains")
+        if not desktops:
+            query = query.filter(
+                lambda domain: domain["create_dict"]["reservables"]["vgpus"].contains(
+                    item_id
+                )
+            )
+        else:
+            query = query.get_all(r.args(desktops))
+
+        if not _check(
+            query.update({"create_dict": {"reservables": {"vgpus": []}}}).run(db.conn),
+            "replaced",
+        ):
+            raise Error(
+                "internal_server",
+                "Internal server error ",
+                traceback.format_exc(),
+            )
+        return desktops
 
     def get_subitem_parent_item(self, subitem):
         parts = subitem.split("-")

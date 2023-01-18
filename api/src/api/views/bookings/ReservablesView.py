@@ -51,11 +51,22 @@ def api_v3_reservable_types(payload, reservable_type):
 def api_v3_reservable_items(payload, reservable_type, item_id, subitem_id=None):
     if request.method == "PUT":
         data = request.get_json()
+        if reservable_type == "gpus":
+            if data.get("enabled") == False:
+                desktops_ids = (
+                    [desktop["id"] for desktop in data["desktops"]]
+                    if data.get("desktops")
+                    else None
+                )
+                if desktops_ids:
+                    api_ri.deassign_desktops_with_gpu(
+                        reservable_type, subitem_id, desktops_ids
+                    )
         return (
             json.dumps(
                 api_ri.enable_subitems(
                     reservable_type, item_id, subitem_id, data.get("enabled")
-                )
+                )["id"]
             ),
             200,
         )
@@ -70,6 +81,20 @@ def api_v3_reservable_items(payload, reservable_type, item_id, subitem_id=None):
 @is_admin
 def api_v3_reservable_items_enabled(payload, reservable_type, item_id):
     return json.dumps(api_ri.list_subitems_enabled(reservable_type, item_id)), 200
+
+
+# Checks if last enabled gpu profile had just been disabled
+@app.route(
+    "/api/v3/admin/reservables/check/last/<reservable_type>/<subitem_id>",
+    methods=["GET"],
+)
+@is_admin
+def api_v3_reservable_check_last(payload, reservable_type, subitem_id):
+    data = {}
+    data["last"] = api_ri.check_last_subitem(reservable_type, subitem_id)
+    data["desktops"] = api_ri.check_desktops_with_profile(reservable_type, subitem_id)
+
+    return json.dumps(data), 200
 
 
 #### Endpoints for planning resources
