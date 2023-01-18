@@ -30,6 +30,7 @@ from api.libv2.quotas import Quotas
 from ..api_desktop_events import desktops_delete, desktops_stop
 from ..api_desktops_common import ApiDesktopsCommon
 from ..api_desktops_persistent import ApiDesktopsPersistent
+from ..bookings.api_booking import Bookings
 from ..ds import DS
 from ..helpers import (
     _check,
@@ -39,6 +40,8 @@ from ..helpers import (
     parse_domain_insert,
 )
 from ..validators import _validate_item
+
+apib = Bookings()
 
 quotas = Quotas()
 
@@ -350,9 +353,7 @@ def delete(deployment_id):
         r.table("domains").get_all(deployment_id, index="tag").update(
             {"status": "ForceDeleting"}
         ).run(db.conn)
-        r.table("bookings").get_all(
-            ["deployment", deployment_id], index="item_type-id"
-        ).delete().run(db.conn)
+        apib.delete_item_bookings("deployment", deployment_id)
         if (
             not r.table("domains")
             .get_all(deployment_id, index="tag")

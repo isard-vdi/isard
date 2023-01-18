@@ -277,6 +277,22 @@ class Bookings:
         if returnType == "availability":
             return reservable_plan
 
+    def delete_item_bookings(self, item_type, item_id):
+        with app.app_context():
+            if not _check(
+                r.table("bookings")
+                .get_all([item_type, item_id], index="item_type-id")
+                .delete()
+                .run(db.conn),
+                "deleted",
+            ):
+                raise Error(
+                    "internal_server",
+                    "Unable to delete item bookings",
+                    traceback.format_stack(),
+                )
+        self.resources_scheduler.bookings_remove_scheduled_jobs(item_id)
+
     def get_user_bookings(self, fromDate, toDate, user_id):
         with app.app_context():
             bookings = list(

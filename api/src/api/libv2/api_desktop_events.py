@@ -8,7 +8,10 @@ r = RethinkDB()
 import time
 import traceback
 
+from .bookings.api_booking import Bookings
 from .flask_rethink import RDB
+
+apib = Bookings()
 
 db = RDB(app)
 db.init_app(app)
@@ -227,9 +230,7 @@ def desktop_delete(desktop_id, from_started=False, wait_seconds=0):
 
     if status in ["Stopped", "Failed"]:
         with app.app_context():
-            r.table("bookings").get_all(
-                ["desktop", desktop_id], index="item_type-id"
-            ).delete().run(db.conn)
+            apib.delete_item_bookings("desktop", desktop_id)
             r.table("domains").get(desktop_id).update(
                 {"status": "Deleting", "accessed": int(time.time())}
             ).run(db.conn)

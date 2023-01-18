@@ -137,10 +137,18 @@ def add_advanced_date(payload, type, action):
 
 
 @app.route("/scheduler/<job_id>", methods=["DELETE"])
+@app.route("/scheduler/delete_jobs", methods=["DELETE"])
 @is_admin
-def delete(payload, job_id):
+def delete(payload, job_id=False):
+    if not job_id:
+        data = request.get_json()
+        jobs_ids = data.get("jobs_ids")
+        for job_id in jobs_ids:
+            app.scheduler.remove_job(job_id)
+    else:
+        app.scheduler.remove_job(job_id)
     return (
-        json.dumps(app.scheduler.remove_job(job_id)),
+        json.dumps({}),
         200,
         {"Content-Type": "application/json"},
     )
