@@ -467,3 +467,55 @@
    </div>
 </div>
 
+<div class="modal fade" id="modalDeleteProfile" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+   <div class="modal-dialog">
+       <div class="modal-content">
+           <!-- Modal Header -->
+           <div class="modal-header">
+               <h4 class="modal-title">
+                   <i class="fa fa-delete fa-1x"> </i> <i class="fa fa-user"> </i>   Disable profile
+               </h4>
+           </div>
+
+           <!-- Modal Body -->
+           <div class="modal-body">
+
+               <form id="modalDeleteProfileForm" class="form-horizontal form-label-left">
+                   <input id="item_id" hidden/>
+                   <input id="subitem_id" hidden/>
+                   <input id="reservable_type" hidden/>
+                   <input id="desktops" name="desktops[]" hidden/>
+                   <div class="x_panel">
+                       <div class="x_content">
+                           <h4 style="color: red"><i class="fa fa-warning"> </i> This profile will be removed from these desktops.</h4>
+                           <div class="item form-profile">
+                               <table id="table_modal_profile_delete" class="table">
+                                   <thead>
+                                     <tr>
+                                       <th>kind</th>
+                                       <th>owner/id</th>
+                                       <th>name</th>
+                                     </tr>
+                                   </thead>
+             
+                                   <tbody>
+                                   </tbody>
+                                 </table>
+                           </div>
+                       </div>
+                   </div>
+
+               </form>
+           </div>
+           <!-- Modal Footer -->
+           <div class="modal-footer">
+               <ul class="nav navbar-left panel_toolbox">
+                   <li><button id="cancel" type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+               </ul>
+               <ul class="nav navbar-right panel_toolbox">
+                   <li><button id="send" type="button" class="btn btn-danger">Remove profile</button></li>
+               </ul>
+           </div>
+       </div>
+   </div>
+</div>
