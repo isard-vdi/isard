@@ -11,6 +11,8 @@ name:
   type: string
   required: true
   empty: false
+priority:
+  type: integer
 rule_id:
   type: string
 max_items:
