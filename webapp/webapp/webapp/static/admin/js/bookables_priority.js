@@ -286,12 +286,6 @@ bookings_priority_computed = $("#bookings_priority_computed").DataTable({
   rowId: "id",
   deferRender: true,
   columns: [
-    {
-      className: "details-control",
-      orderable: false,
-      data: null,
-      defaultContent: '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
-    },
     { data: "username" },
     { data: "rule_id" },
     { data: "role" },
