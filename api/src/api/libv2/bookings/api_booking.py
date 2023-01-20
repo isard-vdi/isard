@@ -216,6 +216,8 @@ class Bookings:
                 "internal_server", "Unable to delete booking", traceback.format_stack()
             )
 
+        self.resources_scheduler.remove_scheduler_startswith_id(booking_id)
+
     def get_item_bookings(
         self,
         payload,
