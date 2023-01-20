@@ -221,7 +221,7 @@ export default {
       if (!eventClickActive.value) { return }
 
       let type = 'view'
-      if (DateUtils.dateToMoment(new Date()).isBefore(event.start)) {
+      if (DateUtils.dateToMoment(new Date()).isBefore(event.end)) {
         type = 'edit'
       }
       $store.dispatch('showBookingModal', true)
