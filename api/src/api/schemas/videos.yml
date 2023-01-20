@@ -11,6 +11,13 @@ description:
 model:
   required: yes
   type: string
+  allowed:
+    - "vga"
+    - "cirrus"
+    - "vmvga"
+    - "xen"
+    - "vbox"
+    - "qxl"
 allowed:
   type: dict
   schema: allowed
