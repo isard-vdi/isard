@@ -172,7 +172,7 @@ if(url!="Desktops"){
                 return true;
             }
             else if (
-               searchData[8] == search_val
+               searchData[9] == search_val
             ) {
                 return true;
             }
@@ -706,9 +706,11 @@ $(document).ready(function() {
                                 opacity: 1,
                                 type: 'success'
                             });
+                            domains_table.ajax.reload()
                         });
                     }).on('pnotify.cancel', function() {
                         checkbox.prop("checked", template_enabled)
+                        domains_table.ajax.reload()
                     });
             break;
         }
