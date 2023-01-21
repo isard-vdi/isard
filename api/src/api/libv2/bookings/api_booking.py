@@ -209,6 +209,38 @@ class Bookings:
                 traceback.format_stack(),
                 description_code="not_found",
             )
+        if booking.get("start") <= datetime.now(pytz.utc) and booking.get(
+            "end"
+        ) >= datetime.now(pytz.utc):
+            if booking.get("item_type") == "desktop":
+                desktop = r.table("domains").get(booking.get("item_id")).run(db.conn)
+                if desktop.get("status") not in ["Stopped", "Failed"]:
+                    raise Error(
+                        "precondition_required",
+                        "In order to remove a booking in progress its desktop must be stopped",
+                        traceback.format_stack(),
+                        description_code="booking_desktop_delete_stop",
+                    )
+            elif booking.get("item_type") == "deployment":
+                desktops = (
+                    r.table("domains")
+                    .get_all(booking.get("item_id"), index="tag")
+                    .filter(
+                        lambda desktop: r.not_(
+                            r.expr(["Stopped", "Failed"]).contains(desktop["status"])
+                        )
+                    )
+                    .count()
+                    .run(db.conn)
+                )
+                if desktops:
+                    raise Error(
+                        "precondition_required",
+                        "In order to remove a booking in progress the deployment desktops must be stopped",
+                        traceback.format_stack(),
+                        description_code="booking_deployment_delete_stop",
+                    )
+
         if not _check(
             r.table("bookings").get(booking_id).delete().run(db.conn), "deleted"
         ):
