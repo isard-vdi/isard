@@ -17,7 +17,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 74
+release_version = 75
+# release 75: replace desktop interface macs if found duplicated
 # release 74: update gpus_profiles
 # release 73: 'favourite_hyp' domains field should be a list if it isn't False
 # release 72: Remove existing storage_node entries
@@ -1272,6 +1273,80 @@ class Upgrade(object):
 
         if version == 73:
             r.table(table).update({"favourite_hyp": False}).run(self.conn)
+
+        if version == 75:
+            domains_interfaces = list(
+                r.table(table)
+                .get_all("desktop", index="kind")
+                .pluck("id", {"create_dict": {"hardware": {"interfaces_mac": True}}})
+                .run(self.conn)
+            )
+            hardware_macs = [
+                {
+                    "id": dom["id"],
+                    "interfaces": dom["create_dict"]["hardware"]["interfaces_mac"],
+                }
+                for dom in domains_interfaces
+                if dom.get("create_dict").get("hardware").get("interfaces_mac")
+            ]
+            all_macs = [
+                element
+                for innerList in hardware_macs
+                for element in innerList["interfaces"]
+            ]
+            ids_to_replace_macs = []
+            macs_found = []
+            for h in hardware_macs:
+                for interface in h["interfaces"]:
+                    if all_macs.count(interface) > 1:
+                        if interface not in macs_found:
+                            macs_found.append(interface)
+                        else:
+                            ids_to_replace_macs.append(h["id"])
+            if len(ids_to_replace_macs):
+                print(
+                    "UPGRADE WARNING: Found "
+                    + str(len(ids_to_replace_macs))
+                    + " duplicated. Updating domins macs..."
+                )
+                for id in ids_to_replace_macs:
+                    macs = (
+                        r.table(table)
+                        .get(id)
+                        .pluck(
+                            {
+                                "create_dict": {
+                                    "hardware": {"interfaces_mac", "interfaces"}
+                                }
+                            }
+                        )
+                        .run(self.conn)
+                    )
+                    old_interfaces_macs = (
+                        macs.get("create_dict", {})
+                        .get("hardware", {})
+                        .get("interfaces_mac")
+                    )
+                    if old_interfaces_macs:
+                        print("Updating macs in desktop " + id)
+                        new_interfaces_macs = []
+                        new_macs = {}
+                        for iname in macs["create_dict"]["hardware"]["interfaces"]:
+                            generated = gen_new_mac()
+                            new_interfaces_macs.append(generated)
+                            new_macs[iname] = generated
+                        r.table(table).get(id).update(
+                            {
+                                "create_dict": {
+                                    "macs": new_macs,
+                                    "hardware": {
+                                        "interfaces_mac": new_interfaces_macs,
+                                    },
+                                }
+                            }
+                        ).run(self.conn)
+            else:
+                print("No duplicate macs found during upgrade")
 
         return True
 

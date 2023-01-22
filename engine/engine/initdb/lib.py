@@ -235,21 +235,35 @@ class Password(object):
         return "".join(rnd.choice(chars) for i in range(length))
 
 
-# ~ class Updates():
-# ~ def register_isard_updates(self):
-# ~ dict={'resources':{'url':'http://www.isardvdi.com:5050','code':False}}
-# ~ try:
-# ~ req= requests.post('http://www.isardvdi.com:5050/register' ,allow_redirects=False, verify=False, timeout=5)
-# ~ if req.status_code==200:
-# ~ self.code=req.json()
-##r.table('config').get(1).update({'resources':{'url':self.url,'code':req.json()}}).run()
-# ~ dict={'resources':{'url':self.url,'code':self.code}}
-# ~ wlog.warning('Isard app registered')
-# ~ return dict
-# ~ else:
-# ~ wlog.info('Isard app registering error response code: '+str(req.status_code)+'\nDetail: '+r.json())
-# ~ return dict
-# ~ except Exception as e:
-# ~ wlog.warning("Error contacting.\n"+str(e))
-# ~ return dict
-# ~ return dict
+def gen_random_mac():
+    mac = [
+        0x52,
+        0x54,
+        0x00,
+        random.randint(0x00, 0x7F),
+        random.randint(0x00, 0xFF),
+        random.randint(0x00, 0xFF),
+    ]
+    return ":".join(map(lambda x: "%02x" % x, mac))
+
+
+def gen_new_mac():
+    domains_hardware = list(
+        r.table("domains")
+        .get_all("desktop", index="kind")
+        .pluck("id", "parents", {"create_dict": {"hardware": {"interfaces_mac": True}}})
+        .run()
+    )
+
+    hardware_macs = [
+        dom["create_dict"]["hardware"]["interfaces_mac"]
+        for dom in domains_hardware
+        if dom.get("create_dict", {}).get("hardware", {}).get("interfaces_mac")
+    ]
+    all_macs = [item for sublist in hardware_macs for item in sublist]
+    new_mac = gen_random_mac()
+    # 24 bit combinations = 16777216 ~= 16.7 million. Is this enough macs for your system?
+    # Take into account that each desktop could have múltime interfaces... still milions of unique macs
+    while all_macs.count(new_mac) > 0:
+        new_mac = gen_random_mac()
+    return new_mac
