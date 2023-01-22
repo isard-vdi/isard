@@ -1,5 +1,6 @@
 import json
 import logging
+import random
 import sys
 import time
 import traceback
@@ -1650,3 +1651,38 @@ def get_and_update_personal_vlan_id_from_domain_id(
     ).run(r_conn)
     close_rethink_connection(r_conn)
     return vlan_id
+
+
+def gen_random_mac():
+    mac = [
+        0x52,
+        0x54,
+        0x00,
+        random.randint(0x00, 0x7F),
+        random.randint(0x00, 0xFF),
+        random.randint(0x00, 0xFF),
+    ]
+    return ":".join(map(lambda x: "%02x" % x, mac))
+
+
+def gen_new_mac():
+    r_conn = new_rethink_connection()
+    domains_hardware = list(
+        r.table("domains")
+        .get_all("desktop", index="kind")
+        .pluck("id", "parents", {"create_dict": {"hardware": {"interfaces_mac": True}}})
+        .run(r_conn)
+    )
+    close_rethink_connection(r_conn)
+    hardware_macs = [
+        dom["create_dict"]["hardware"]["interfaces_mac"]
+        for dom in domains_hardware
+        if dom.get("create_dict", {}).get("hardware", {}).get("interfaces_mac")
+    ]
+    all_macs = [item for sublist in hardware_macs for item in sublist]
+    new_mac = gen_random_mac()
+    # 24 bit combinations = 16777216 ~= 16.7 million. Is this enough macs for your system?
+    # Take into account that each desktop could have múltime interfaces... still milions of unique macs
+    while all_macs.count(new_mac) > 1:
+        new_mac = gen_random_mac()
+    return new_mac

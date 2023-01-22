@@ -7,11 +7,8 @@ import ctypes
 import json
 import os
 import queue
-import random
 import socket
 import subprocess
-
-# coding=utf-8
 import sys
 import threading
 import time
@@ -24,6 +21,7 @@ import paramiko
 import xmltodict
 from engine.services.db import (
     delete_domain,
+    gen_new_mac,
     get_all_domains_with_id_and_status,
     get_disks_all_domains,
     get_domain,
@@ -86,15 +84,7 @@ def get_tid():
 
 
 def randomMAC():
-    mac = [
-        0x52,
-        0x54,
-        0x00,
-        random.randint(0x00, 0x7F),
-        random.randint(0x00, 0xFF),
-        random.randint(0x00, 0xFF),
-    ]
-    return ":".join(map(lambda x: "%02x" % x, mac))
+    return gen_new_mac()
 
 
 class TimeLimitExpired(Exception):
