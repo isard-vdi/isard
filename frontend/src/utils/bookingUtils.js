@@ -38,8 +38,8 @@ export class BookingUtils {
   }
 
   static priorityAllowed (payload, priority) {
-    const checkForbidTime = this.checkForbidTime(payload.date, priority.forbidTime)
-    const checkMaxTime = payload.end ? this.checkMaxTime(payload.date, payload.end, priority.maxTime) : true
+    const checkForbidTime = this.checkForbidTime(payload.start, priority.forbidTime)
+    const checkMaxTime = payload.end ? this.checkMaxTime(payload.start, payload.end, priority.maxTime) : true
 
     if (!checkForbidTime) {
       return { priorityAllowed: false, error: i18n.t('components.bookings.errors.forbid') }
@@ -65,10 +65,10 @@ export class BookingUtils {
       if (['available', 'overridable'].includes(item.eventType)) {
         return true
       } else if (event.end === '') { // Single click
-        return DateUtils.dateIsBefore(event.date, item.start) || DateUtils.dateIsAfter(event.date, item.end)
+        return DateUtils.dateIsBefore(event.start, item.start) || DateUtils.dateIsAfter(event.start, item.end)
       } else { // Click and drag or modal return
         const eventIsBefore = DateUtils.dateIsBefore(event.end, item.start)
-        const eventIsAfter = DateUtils.dateIsAfter(event.date, item.end)
+        const eventIsAfter = DateUtils.dateIsAfter(event.start, item.end)
 
         return eventIsBefore || eventIsAfter
       }

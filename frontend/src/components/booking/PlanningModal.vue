@@ -13,51 +13,83 @@
           cols="6"
           class="mt-2"
         >
-          <label for="eventStartDate">{{ $t(`components.bookings.item.modal.start-date`) }}*</label>
+          <label for="startDate">{{ $t(`components.bookings.item.modal.start-date`) }}*</label>
           <b-form-datepicker
-            id="eventStartDate"
-            v-model="modal.startDate"
+            id="startDate"
+            v-model="startDate"
             :disabled="modal.type == 'view'"
             type="date"
             :locale="$i18n.locale"
+            :state="v$.startDate.$error ? false : null"
+            @blur="v$.startDate.$touch"
           />
+          <b-form-invalid-feedback
+            v-if="v$.startDate.$error"
+            id="startDateError"
+          >
+            {{ $t(`validations.${v$.startDate.$errors[0].$validator}`, { property: $t('components.bookings.item.modal.start-date') }) }}
+          </b-form-invalid-feedback>
         </b-col>
         <b-col
           cols="6"
           class="mt-2"
         >
-          <label for="eventStartTime">{{ $t(`components.bookings.item.modal.start-time`) }}*</label>
+          <label for="startTime">{{ $t(`components.bookings.item.modal.start-time`) }}*</label>
           <b-form-input
-            id="eventStartTime"
-            v-model="modal.startTime"
+            id="startTime"
+            v-model="startTime"
             :disabled="modal.type == 'view'"
             type="time"
+            :state="v$.startTime.$error ? false : null"
+            @blur="v$.startTime.$touch"
           />
+          <b-form-invalid-feedback
+            v-if="v$.startTime.$error"
+            id="startTimeError"
+          >
+            {{ $t(`validations.${v$.startTime.$errors[0].$validator}`, { property: $t('components.bookings.item.modal.start-time') }) }}
+          </b-form-invalid-feedback>
         </b-col>
         <b-col
           cols="6"
           class="mt-2"
         >
-          <label for="eventEndDate">{{ $t(`components.bookings.item.modal.end-date`) }}*</label>
+          <label for="endDate">{{ $t(`components.bookings.item.modal.end-date`) }}*</label>
           <b-form-datepicker
-            id="eventEndDate"
-            v-model="modal.endDate"
+            id="endDate"
+            v-model="endDate"
             :disabled="modal.type == 'view'"
             type="date"
             :locale="$i18n.locale"
+            :state="v$.endDate.$error ? false : null"
+            @blur="v$.endDate.$touch"
           />
+          <b-form-invalid-feedback
+            v-if="v$.endDate.$error"
+            id="endDateError"
+          >
+            {{ $t(`validations.${v$.endDate.$errors[0].$validator}`, { property: $t('components.bookings.item.modal.end-date') }) }}
+          </b-form-invalid-feedback>
         </b-col>
         <b-col
           cols="6"
           class="mt-2"
         >
-          <label for="eventEndTime">{{ $t(`components.bookings.item.modal.end-time`) }}*</label>
+          <label for="endTime">{{ $t(`components.bookings.item.modal.end-time`) }}*</label>
           <b-form-input
-            id="eventEndTime"
-            v-model="modal.endTime"
+            id="endTime"
+            v-model="endTime"
             :disabled="modal.type == 'view'"
             type="time"
+            :state="v$.endTime.$error ? false : null"
+            @blur="v$.endTime.$touch"
           />
+          <b-form-invalid-feedback
+            v-if="v$.endTime.$error"
+            id="endTimeError"
+          >
+            {{ $t(`validations.${v$.endTime.$errors[0].$validator}`, { property: $t('components.bookings.item.modal.end-time') }) }}
+          </b-form-invalid-feedback>
         </b-col>
         <b-col
           cols="12"
@@ -65,10 +97,12 @@
         >
           <label for="eventSubitem">{{ $t(`components.bookings.item.modal.profile`) }}*</label>
           <b-form-select
-            id="eventSubitem"
-            v-model="modal.subitemId"
+            id="subitemId"
+            v-model="subitemId"
             :disabled="modal.type == 'view'"
             :options="optionSubitems"
+            :state="v$.subitemId.$error ? false : null"
+            @blur="v$.subitemId.$touch"
           >
             <template #first>
               <b-form-select-option
@@ -79,6 +113,12 @@
               </b-form-select-option>
             </template>
           </b-form-select>
+          <b-form-invalid-feedback
+            v-if="v$.subitemId.$error"
+            id="subitemIdError"
+          >
+            {{ $t(`validations.${v$.subitemId.$errors[0].$validator}`, { property: $t('components.bookings.item.modal.profile') }) }}
+          </b-form-invalid-feedback>
         </b-col>
       </b-row>
     </b-form>
@@ -118,7 +158,8 @@
 <script>
 import { computed, ref, watch } from '@vue/composition-api'
 import i18n from '@/i18n'
-import { PlanningUtils } from '@/utils/planningUtils'
+import useVuelidate from '@vuelidate/core'
+import { required } from '@vuelidate/validators'
 
 export default {
   setup (_, context) {
@@ -150,41 +191,98 @@ export default {
     const modal = computed({
       get: () => $store.getters.getPlanningEventModal,
       set: (value) => $store.commit('setPlanningEventModal', {
-        type: value.type,
-        startDate: value.startDate,
-        startTime: value.startTime,
-        endDate: value.endDate,
-        endTime: value.endTime
+        type: value.type
       })
     })
 
+    const startDate = computed({
+      get: () => $store.getters.getPlanningEventModal.startDate,
+      set: (value) => {
+        modal.value.startDate = value
+        $store.commit('setPlanningEventModal', modal.value)
+      }
+    })
+
+    const startTime = computed({
+      get: () => $store.getters.getPlanningEventModal.startTime,
+      set: (value) => {
+        modal.value.startTime = value
+        $store.commit('setPlanningEventModal', modal.value)
+      }
+    })
+
+    const endDate = computed({
+      get: () => $store.getters.getPlanningEventModal.endDate,
+      set: (value) => {
+        modal.value.endDate = value
+        $store.commit('setPlanningEventModal', modal.value)
+      }
+    })
+
+    const endTime = computed({
+      get: () => $store.getters.getPlanningEventModal.endTime,
+      set: (value) => {
+        modal.value.endTime = value
+        $store.commit('setPlanningEventModal', modal.value)
+      }
+    })
+
+    const subitemId = computed({
+      get: () => $store.getters.getPlanningEventModal.subitemId,
+      set: (value) => {
+        modal.value.subitemId = value
+        $store.commit('setPlanningEventModal', modal.value)
+      }
+    })
+
+    const v$ = useVuelidate({
+      startDate: {
+        required
+      },
+      startTime: {
+        required
+      },
+      endDate: {
+        required
+      },
+      endTime: {
+        required
+      },
+      subitemId: {
+        required
+      }
+    }, {
+      startDate,
+      startTime,
+      endDate,
+      endTime,
+      subitemId
+    })
+
     const createEvent = () => {
+      v$.value.$touch()
+      if (v$.value.$invalid) {
+        document.getElementById(v$.value.$errors[0].$property).focus()
+        return
+      }
       const eventData = {
         type: type.value,
         itemId: item.value,
-        subitemId: modal.value.subitemId,
-        date: `${modal.value.startDate} ${modal.value.startTime}`,
-        end: `${modal.value.endDate} ${modal.value.endTime}`
+        subitemId: subitemId.value,
+        start: `${startDate.value} ${startTime.value}`,
+        end: `${endDate.value} ${endTime.value}`
       }
-      if (PlanningUtils.checkModalData(eventData)) {
-        $store.dispatch('createPlanningEvent', eventData)
-      } else {
-        $store.dispatch('showNotification', { message: i18n.t('messages.info.missing-data') })
-      }
+      $store.dispatch('createPlanningEvent', eventData)
     }
 
     const editEvent = () => {
       const eventData = {
         id: modal.value.id,
         subitemId: modal.value.subitemId,
-        date: `${modal.value.startDate} ${modal.value.startTime}`,
+        start: `${modal.value.startDate} ${modal.value.startTime}`,
         end: `${modal.value.endDate} ${modal.value.endTime}`
       }
-      if (PlanningUtils.checkModalData(eventData)) {
-        $store.dispatch('editPlanningEvent', eventData)
-      } else {
-        $store.dispatch('showNotification', { message: i18n.t('messages.info.missing-data') })
-      }
+      $store.dispatch('editPlanningEvent', eventData)
     }
 
     const closeModal = () => {
@@ -192,7 +290,20 @@ export default {
       $store.dispatch('showPlanningModal', false)
     }
 
-    return { modalShow, createEvent, editEvent, closeModal, modal, optionSubitems }
+    return {
+      modalShow,
+      createEvent,
+      editEvent,
+      closeModal,
+      modal,
+      optionSubitems,
+      startDate,
+      startTime,
+      endDate,
+      endTime,
+      subitemId,
+      v$
+    }
   },
   methods: {
     deleteEvent (toast) {

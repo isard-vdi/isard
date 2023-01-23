@@ -171,17 +171,18 @@ export default {
 
     // Click on calendar cell
     const onCalendarCellClicked = (event) => {
+      event.start = event.date
       event.end = eventEnd
       if (!cellDoubleClickActive.value === true) { return }
 
       const canCreate = BookingUtils.canCreate(event, events.value)
       const { priorityAllowed, error } = BookingUtils.priorityAllowed(event, priority.value)
-      if (!DateUtils.dateToMoment(event.date).isBefore(new Date()) && event.split === 2 && priorityAllowed && canCreate) {
+      if (!DateUtils.dateToMoment(event.start).isBefore(new Date()) && event.split === 2 && priorityAllowed && canCreate) {
         $store.dispatch('showBookingModal', true)
         $store.dispatch('eventModalData', {
           type: 'create',
-          startDate: DateUtils.formatAsDate(event.date),
-          startTime: DateUtils.formatAsTime(event.date),
+          startDate: DateUtils.formatAsDate(event.start),
+          startTime: DateUtils.formatAsTime(event.start),
           endDate: eventEndDate,
           endTime: eventEndTime
         })

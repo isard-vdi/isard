@@ -203,7 +203,10 @@
             },
             "errors": {
                 "forbid": "Necessites més antel·lació per tal de crear aquesta reserva",
-                "maximum-time": "No pots crear una reserva de tanta durada"
+                "maximum-time": "No pots crear una reserva de tanta durada",
+                "end-before-start": "La reserva no pot terminar abans de la seva data d'inici",
+                "minimum-time": "La reserva ha de durar com a mínim 5 minuts",
+                "past-booking": "No es pot crear una reserva al passat"
             },
             "summary": {
                 "title": "Totes les teves reserves"

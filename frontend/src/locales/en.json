@@ -362,7 +362,10 @@
             },
             "errors": {
                 "forbid": "You need more advance time in order to create the booking",
-                "maximum-time": "You can't create a reservation for that long"
+                "maximum-time": "You can't create a reservation for that long",
+                "end-before-start": "The booking end time can't be before the start time",
+                "minimum-time": "The booking must last at least 5 minutes",
+                "past-booking": "Can't create a booking in the past"
             },
             "summary": {
                 "title": "All your bookings"
