@@ -4,6 +4,8 @@ package operations.v1;
 
 // OperationsService is a service responsible for executing operations in the IsardVDI infrastructure
 service OperationsService {
+    // ListHypervisors returns a list with all the hypervisors and their resources
+    rpc ListHypervisors(ListHypervisorsRequest) returns (ListHypervisorsResponse) {}
     // CreateHypervisor creates and adds a new hypervisor on the pool
     rpc CreateHypervisor(CreateHypervisorRequest) returns (stream CreateHypervisorResponse) {}
     // DestroyHypervisor destroys a Hypervisor. It doesn't stop / migrate the running VMs or anything like that
@@ -42,26 +44,56 @@ enum HypervisorCapabilities {
     HYPERVISOR_CAPABILITIES_GPU = 2;
 }
 
+enum HypervisorState {
+    // default zero value
+    HYPERVISOR_STATE_UNSPECIFIED =  0;
+    // HYPERVISOR_STATE_UNKNOWN
+    HYPERVISOR_STATE_UNKNOWN = 1;
+    // HYPERVISOR_STATE_AVAILABLE_TO_CREATE means the hypervisor can be created
+    HYPERVISOR_STATE_AVAILABLE_TO_CREATE = 2;
+    // HYPERVISOR_STATE_AVAILABLE_TO_DESTROY means the hypervisor can be destroyed
+    HYPERVISOR_STATE_AVAILABLE_TO_DESTROY = 3;
+}
+
+// ListHypervisorsRequest is the request for the ListHypervisors method
+message ListHypervisorsRequest {}
+
+// ListHypervisorsResponse is the response for the ListHypervisors method
+message ListHypervisorsResponse {
+    repeated ListHypervisorsResponseHypervisor hypervisors = 1;
+}
+
+// ListHypervisorsResponseHypervisor is each hypervisor in the response of the ListHypervisors method
+message ListHypervisorsResponseHypervisor {
+    // id is the ID of the hypervisor
+    string id = 1;
+
+    // cpu is the number of CPU threads that the machine has
+    int32 cpu = 2;
+
+    // ram is the number of RAM that the machine has. It's in MB
+    int32 ram = 3;
+
+    // capabilities are the capabilities that the hypervisor has
+    repeated HypervisorCapabilities capabilities = 4;
+
+    // state is the state of the hypervisor
+    HypervisorState state = 5;
+}
+
 // CreateHypervisorRequest is the request for the CreateHypervisor method
 message CreateHypervisorRequest {
-    // min_cpu is the minimum number of CPU threads that the machine has to have
-    int32 min_cpu = 1;
-    // min_ram is the minimum number of RAM that the machine has to have. It's in MB
-    int32 min_ram = 2;
-    // capabilities are the capabilities that the hypervisor has to have
-    repeated HypervisorCapabilities capabilities = 3;
+    // id is the ID of the hypervisor
+    string id = 1;
 }
 
 // CreateHypervisorResponse is the response for the CreateHypervisor method
 message CreateHypervisorResponse {
-    // id is the generated ID of the hypervisor
-    string id = 1;
-
     // state is the state of the operation
-    OperationState state = 2;
+    OperationState state = 1;
 
     // msg contains info related with the operation
-    string msg = 3;
+    string msg = 2;
 }
 
 // DestroyHypervisorRequest is the request for the DestroyHypervisor method

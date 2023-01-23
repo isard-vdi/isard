@@ -10,3 +10,7 @@ plugins:
   - name: go-grpc
     out: pkg/gen/proto/go
     opt: paths=source_relative
+  - plugin: buf.build/protocolbuffers/python
+    out: pkg/gen/proto/python
+  - plugin: buf.build/grpc/python
+    out: pkg/gen/proto/python

@@ -22,6 +22,8 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type OperationsServiceClient interface {
+	// ListHypervisors returns a list with all the hypervisors and their resources
+	ListHypervisors(ctx context.Context, in *ListHypervisorsRequest, opts ...grpc.CallOption) (*ListHypervisorsResponse, error)
 	// CreateHypervisor creates and adds a new hypervisor on the pool
 	CreateHypervisor(ctx context.Context, in *CreateHypervisorRequest, opts ...grpc.CallOption) (OperationsService_CreateHypervisorClient, error)
 	// DestroyHypervisor destroys a Hypervisor. It doesn't stop / migrate the running VMs or anything like that
@@ -40,6 +42,15 @@ type operationsServiceClient struct {
 
 func NewOperationsServiceClient(cc grpc.ClientConnInterface) OperationsServiceClient {
 	return &operationsServiceClient{cc}
+}
+
+func (c *operationsServiceClient) ListHypervisors(ctx context.Context, in *ListHypervisorsRequest, opts ...grpc.CallOption) (*ListHypervisorsResponse, error) {
+	out := new(ListHypervisorsResponse)
+	err := c.cc.Invoke(ctx, "/operations.v1.OperationsService/ListHypervisors", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *operationsServiceClient) CreateHypervisor(ctx context.Context, in *CreateHypervisorRequest, opts ...grpc.CallOption) (OperationsService_CreateHypervisorClient, error) {
@@ -206,6 +217,8 @@ func (x *operationsServiceCreateBackupClient) Recv() (*CreateBackupResponse, err
 // All implementations must embed UnimplementedOperationsServiceServer
 // for forward compatibility
 type OperationsServiceServer interface {
+	// ListHypervisors returns a list with all the hypervisors and their resources
+	ListHypervisors(context.Context, *ListHypervisorsRequest) (*ListHypervisorsResponse, error)
 	// CreateHypervisor creates and adds a new hypervisor on the pool
 	CreateHypervisor(*CreateHypervisorRequest, OperationsService_CreateHypervisorServer) error
 	// DestroyHypervisor destroys a Hypervisor. It doesn't stop / migrate the running VMs or anything like that
@@ -223,6 +236,9 @@ type OperationsServiceServer interface {
 type UnimplementedOperationsServiceServer struct {
 }
 
+func (UnimplementedOperationsServiceServer) ListHypervisors(context.Context, *ListHypervisorsRequest) (*ListHypervisorsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListHypervisors not implemented")
+}
 func (UnimplementedOperationsServiceServer) CreateHypervisor(*CreateHypervisorRequest, OperationsService_CreateHypervisorServer) error {
 	return status.Errorf(codes.Unimplemented, "method CreateHypervisor not implemented")
 }
@@ -249,6 +265,24 @@ type UnsafeOperationsServiceServer interface {
 
 func RegisterOperationsServiceServer(s grpc.ServiceRegistrar, srv OperationsServiceServer) {
 	s.RegisterService(&OperationsService_ServiceDesc, srv)
+}
+
+func _OperationsService_ListHypervisors_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListHypervisorsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OperationsServiceServer).ListHypervisors(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/operations.v1.OperationsService/ListHypervisors",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OperationsServiceServer).ListHypervisors(ctx, req.(*ListHypervisorsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _OperationsService_CreateHypervisor_Handler(srv interface{}, stream grpc.ServerStream) error {
@@ -362,7 +396,12 @@ func (x *operationsServiceCreateBackupServer) Send(m *CreateBackupResponse) erro
 var OperationsService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "operations.v1.OperationsService",
 	HandlerType: (*OperationsServiceServer)(nil),
-	Methods:     []grpc.MethodDesc{},
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "ListHypervisors",
+			Handler:    _OperationsService_ListHypervisors_Handler,
+		},
+	},
 	Streams: []grpc.StreamDesc{
 		{
 			StreamName:    "CreateHypervisor",
