@@ -363,7 +363,10 @@
             },
             "errors": {
                 "forbid": "Necesitas más antelación para crear esta reserva",
-                "maximum-time": "No puedes crear una reserva de tanta duración"
+                "maximum-time": "No puedes crear una reserva de tanta duración",
+                "end-before-start": "La reserva no puede terminar antes de su fecha de inicio",
+                "minimum-time": "La reserva ha de durar como mínimo 5 minutos",
+                "past-booking": "No se puede crear una reserva en el pasado"
             },
             "summary": {
                 "title": "Todas tus reservas"

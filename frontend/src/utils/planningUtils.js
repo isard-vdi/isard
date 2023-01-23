@@ -1,5 +1,4 @@
 import { DateUtils } from '@/utils/dateUtils'
-import { StringUtils } from '@/utils/stringUtils'
 import i18n from '@/i18n'
 
 export class PlanningUtils {
@@ -53,14 +52,5 @@ export class PlanningUtils {
       profile,
       units
     }
-  }
-
-  static checkModalData (modalData) {
-    for (const key in modalData) {
-      if (StringUtils.isNullOrUndefinedOrEmpty(modalData[key])) {
-        return false
-      }
-    }
-    return true
   }
 }

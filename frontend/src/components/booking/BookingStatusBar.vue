@@ -53,6 +53,7 @@
 </template>
 <script>
 import { computed } from '@vue/composition-api'
+import { DateUtils } from '@/utils/dateUtils'
 
 export default {
   setup (_, context) {
@@ -65,7 +66,11 @@ export default {
     const createEvent = (event) => {
       $store.dispatch('showBookingModal', true)
       $store.dispatch('eventModalData', {
-        type: 'create'
+        type: 'create',
+        startDate: DateUtils.formatAsDate(new Date()),
+        startTime: DateUtils.formatAsTime(new Date().addMinutes(5)),
+        endDate: '',
+        endTime: ''
       })
     }
 

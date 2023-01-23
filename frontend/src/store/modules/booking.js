@@ -197,7 +197,7 @@ export default {
       const events = context.getters.getBookingEvents
       const priority = context.getters.getBookingPriority
       const { priorityAllowed, error } = BookingUtils.priorityAllowed({
-        date: DateUtils.stringToDate(payload.date),
+        start: DateUtils.stringToDate(payload.start),
         end: DateUtils.stringToDate(payload.end)
       }, priority)
       const canCreate = BookingUtils.canCreate(payload, events)
@@ -207,10 +207,10 @@ export default {
           element_id: payload.elementId,
           element_type: payload.elementType,
           title: payload.title,
-          start: DateUtils.formatAsUTC(payload.date),
+          start: DateUtils.formatAsUTC(payload.start),
           end: DateUtils.formatAsUTC(payload.end)
         }
-        axios.post(`${apiV3Segment}/booking/event`, data).then(response => {
+        return axios.post(`${apiV3Segment}/booking/event`, data).then(response => {
           this._vm.$snotify.clear()
           context.dispatch('resetModalData')
           context.dispatch('showBookingModal', false)
@@ -250,7 +250,7 @@ export default {
     },
     deleteEvent (context, payload) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deleting-event'), '', true, 1000)
-      axios.delete(`${apiV3Segment}/booking/event/${payload.id}`).then(response => {
+      return axios.delete(`${apiV3Segment}/booking/event/${payload.id}`).then(response => {
         this._vm.$snotify.clear()
         context.dispatch('resetModalData')
         context.dispatch('showBookingModal', false)

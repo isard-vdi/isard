@@ -196,48 +196,49 @@ export default {
       })
     },
     createPlanningEvent (context, payload) {
-      const events = context.getters.getPlanningEvents
+      const start = DateUtils.stringToDate(payload.start)
+      const end = DateUtils.stringToDate(payload.end)
+      if (start < new Date()) {
+        context.dispatch('showNotification', { message: i18n.t('components.bookings.errors.past-booking') })
+        return
+      } else if (end <= start) {
+        context.dispatch('showNotification', { message: i18n.t('components.bookings.errors.end-before-start') })
+        return
+      } else if (DateUtils.getMinutesBetweenDates(start, end) < 5) {
+        context.dispatch('showNotification', { message: i18n.t('components.bookings.errors.minimum-time') })
+        return
+      }
 
       const data = {
         item_type: payload.type,
         item_id: payload.itemId,
         subitem_id: payload.subitemId,
-        start: DateUtils.formatAsUTC(payload.date),
+        start: DateUtils.formatAsUTC(payload.start),
         end: DateUtils.formatAsUTC(payload.end)
       }
 
-      if (PlanningUtils.checkModalData(payload, events)) {
-        axios.post(`${apiV3Segment}/admin/reservables_planner`, data).then(response => {
-          this._vm.$snotify.clear()
-          context.dispatch('resetPlanningModalData')
-          context.dispatch('showPlanningModal', false)
-        }).catch(e => {
-          ErrorUtils.handleErrors(e, this._vm.$snotify)
-        })
-      } else {
-        context.dispatch('showNotification', { message: i18n.t('messages.info.missing-data') })
-      }
+      axios.post(`${apiV3Segment}/admin/reservables_planner`, data).then(response => {
+        this._vm.$snotify.clear()
+        context.dispatch('resetPlanningModalData')
+        context.dispatch('showPlanningModal', false)
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
     },
     editPlanningEvent (context, payload) {
-      const events = context.getters.getPlanningEvents
-
       const data = {
         subitem_id: payload.subitemId,
-        start: DateUtils.formatAsUTC(payload.date),
+        start: DateUtils.formatAsUTC(payload.start),
         end: DateUtils.formatAsUTC(payload.end)
       }
 
-      if (PlanningUtils.checkModalData(payload, events)) {
-        axios.put(`${apiV3Segment}/admin/reservables_planner/${payload.id}`, data).then(response => {
-          this._vm.$snotify.clear()
-          context.dispatch('resetPlanningModalData')
-          context.dispatch('showPlanningModal', false)
-        }).catch(e => {
-          ErrorUtils.handleErrors(e, this._vm.$snotify)
-        })
-      } else {
-        context.dispatch('showNotification', { message: i18n.t('messages.info.missing-data') })
-      }
+      axios.put(`${apiV3Segment}/admin/reservables_planner/${payload.id}`, data).then(response => {
+        this._vm.$snotify.clear()
+        context.dispatch('resetPlanningModalData')
+        context.dispatch('showPlanningModal', false)
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
     },
     deletePlanningEvent (context, payload) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deleting-event'), '', true, 1000)
