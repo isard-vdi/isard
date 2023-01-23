@@ -62,6 +62,8 @@ def api_v3_admin_table(payload, table):
                 result = [r for r in result if r["category"] == payload["category_id"]]
             if table == "secrets":
                 raise Error("forbidden", "Not enough rights.")
+            if table == "deployments":
+                result = [r for r in result if r["category"] == payload["category_id"]]
 
     return (
         json.dumps(result),

@@ -253,6 +253,7 @@ function populate_tree_template(id){
 
 function setHardwareDomainDefaults_viewer(div_id,data){
     div_id = div_id.replaceAll('.', '\\.')
+    div_id = div_id.replaceAll('=', '\\=')
     data['hardware']=data['create_dict']['hardware']
     $(div_id+" #vcpu").html(data.hardware.vcpus+' CPU(s)');
     $(div_id+" #ram").html((data.hardware.memory/1048576).toFixed(2)+'GB');

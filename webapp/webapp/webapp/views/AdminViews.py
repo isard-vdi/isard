@@ -146,6 +146,11 @@ def admin_domains(nav="Domains"):
         icon = "desktop"
     if nav == "Templates":
         icon = "cubes"
+    if nav == "Deployments":
+        icon = "tv"
+        return render_template(
+            "admin/pages/deployments.html", title=nav, nav=nav, icon=icon
+        )
     if nav == "Storage":
         icon = "folder-open"
         return render_template(

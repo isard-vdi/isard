@@ -1,5 +1,7 @@
     function setAlloweds_viewer(div_id,id, table = 'domains'){
-            api.ajax('/api/v3/allowed/table/' + table, 'POST', {'id':id}).done(function(alloweds) {
+        api.ajax('/api/v3/allowed/table/' + table, 'POST', {'id':id}).done(function(alloweds) {
+                div_id = div_id.replaceAll('=', '\\=')
+                id = id.replaceAll('=', '\\=')
                 var all=false;
                 $.each(alloweds,function(key, value)
                 {
