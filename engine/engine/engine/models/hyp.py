@@ -900,7 +900,7 @@ class hyp(object):
                                 path_parent,
                             ) = self.get_types_from_ampere(d)
                         else:
-                            # only Q-Series Virtual GPU Types (Required license edition: vWS)
+                            # only C-Series or Q-Series Virtual GPU Types (Required license edition: vWS)
                             if (
                                 type(d["device"]["capability"]["capability"]) is list
                             ):  ## T4
@@ -909,11 +909,13 @@ class hyp(object):
                                 ]
                             else:
                                 types = d["device"]["capability"]["capability"]["type"]
-                            l_types = [dict(a) for a in types if a["name"][-1] == "Q"]
+                            l_types = [
+                                dict(a) for a in types if a["name"][-1] in ["C", "Q"]
+                            ]
                             for a in l_types:
                                 a["name"] = a["name"].replace("GRID ", "")
                         l_types.sort(
-                            key=lambda r: int(r["name"].split("Q")[0].split("-")[-1])
+                            key=lambda r: int(r["name"][:-1][0].split("-")[-1])
                         )
                         type_max_gpus = l_types[0]["name"].split("-")[-1]
                         model_gpu = l_types[0]["name"].split("-")[-2]
@@ -1012,7 +1014,7 @@ class hyp(object):
                     available_instances = int(line)
                 else:
                     name = line.replace("NVIDIA ", "")
-                    if name[-1] == "Q":
+                    if name[-1] in ["C", "Q"]:
                         paths.add(path.split("/mdev_supported_types/")[0])
                         id_mdev = path.split("/mdev_supported_types/")[1].split("/")[0]
                         types[name] = id_mdev
