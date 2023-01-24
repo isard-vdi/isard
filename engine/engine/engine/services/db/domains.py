@@ -1683,6 +1683,6 @@ def gen_new_mac():
     new_mac = gen_random_mac()
     # 24 bit combinations = 16777216 ~= 16.7 million. Is this enough macs for your system?
     # Take into account that each desktop could have múltime interfaces... still milions of unique macs
-    while all_macs.count(new_mac) > 1:
+    while all_macs.count(new_mac) > 0:
         new_mac = gen_random_mac()
     return new_mac
