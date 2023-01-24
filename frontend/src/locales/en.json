@@ -909,6 +909,7 @@
         "booking_does_not_fit_date": "The booking does not fit in requested date",
         "booking_desktop_delete_stop": "To delete this booking the desktop must be stopped",
         "booking_deployment_delete_stop": "To delete this booking the deployments desktops must be stopped",
+        "booking_max_items_exceeded": "You've exceeded the user maximum bookings",
         "unable_to_update": "Unable to update in database.",
         "unable_to_insert": "Unable to insert in database.",
         "conflict": "Conflict",

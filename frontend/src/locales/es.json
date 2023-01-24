@@ -939,6 +939,7 @@
         "booking_does_not_fit_date": "La reserva no se ajusta a la fecha solicitada",
         "booking_desktop_delete_stop": "Para eliminar esta reserva el escritorio debe estar parado",
         "booking_deployment_delete_stop": "Para eliminar esta reserva es necesario que los escritorios del despliegue estén parados",
+        "booking_max_items_exceeded": "Se ha excedido el máximo de reservas del usuario",
         "unable_to_get_viewer_inexistent": "No se puede obtener un visor para un escritorio inexistente",
         "unable_to_parse_string": "No se puede analizar la cadena",
         "new_desktop_name_exists": "Ya existe un escritorio con el mismo nombre para este usuario",

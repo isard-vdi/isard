@@ -844,6 +844,7 @@
         "booking_does_not_fit_date": "La reserva no pot realitzar a la data assenyalada",
         "booking_desktop_delete_stop": "Per esborrar la reserva l'escriptori ha d'estar parat",
         "booking_deployment_delete_stop": "Per esborrar la reserva és necessari que els escriptoris del desplegament estiguin parats",
+        "booking_max_items_exceeded": "S'ha excedit el màxim de reserves de l'usuari",
         "unable_to_update": "No s'ha pogut actualitzar a la base de dades",
         "unable_to_insert": "No s'ha pogut introduir a la base de dades",
         "conflict": "Conflicte",

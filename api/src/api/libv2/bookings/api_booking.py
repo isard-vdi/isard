@@ -100,12 +100,13 @@ class Bookings:
 
         # Has enough quota to do another booking?
         priorities = self.get_user_priority(payload, item_type, item_id)
-        if priorities["max_items"] < self.get_total_user_bookings_count(
+        if priorities["max_items"] <= self.get_total_user_bookings_count(
             payload["user_id"]
         ):
             raise Error(
                 "precondition_required",
                 "The user " + payload["user_id"] + " has reached max_items bookings.",
+                description_code="booking_max_items_exceeded",
             )
 
         booking = {
