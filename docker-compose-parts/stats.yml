@@ -86,7 +86,6 @@ services:
       - ${BUILD_ROOT_PATH}/docker/grafana-agent/config.yml:/etc/agent/config.yml
       - ${BUILD_ROOT_PATH}/docker/grafana-agent/db.yml:/etc/agent/db.yml
       - ${BUILD_ROOT_PATH}/docker/grafana-agent/run.sh:/run.sh
-      - /opt/isard-local/stats/grafana-agent:/tmp/agent/data
       - /var/log:/var/log
       - /var/lib/docker/containers:/var/lib/docker/containers
       - /etc/timezone:/etc/timezone:ro
