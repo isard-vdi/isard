@@ -177,170 +177,60 @@ class ApiUsers:
         return user
 
     def list_users(self, nav, category_id=None):
-        query = []
+        query = r.table("users")
+        if category_id:
+            query = query.get_all(category_id, index="category").pluck(
+                "id",
+                "active",
+                "name",
+                "provider",
+                "category",
+                "uid",
+                "username",
+                "role",
+                "group",
+                "secondary_groups",
+                "accessed",
+            )
         if nav == "management":
-            if category_id:
-                with app.app_context():
-                    query = (
-                        r.table("users")
-                        .get_all(category_id, index="category")
-                        .pluck(
-                            "id",
-                            "active",
-                            "name",
-                            "provider",
-                            "category",
-                            "uid",
-                            "username",
-                            "role",
-                            "group",
-                            "secondary_groups",
-                            "accessed",
-                        )
-                        .without(
-                            "password",
-                            {
-                                "vpn": {
-                                    "wireguard": {
-                                        "keys": True,
-                                        "extra_client_nets": True,
-                                        "AllowedIPs": True,
-                                        "Address": True,
-                                    },
-                                    "iptables": True,
-                                }
+            with app.app_context():
+                query = query.without(
+                    "password",
+                    {
+                        "vpn": {
+                            "wireguard": {
+                                "keys": True,
+                                "extra_client_nets": True,
+                                "AllowedIPs": True,
+                                "Address": True,
                             },
-                        )
-                        .merge(
-                            lambda user: {
-                                "group_name": r.table("groups").get(user["group"])[
-                                    "name"
-                                ],
-                                "role_name": r.table("roles").get(user["role"])["name"],
-                                "secondary_groups_names": r.table("groups")
-                                .get_all(r.args(user["secondary_groups"]))["name"]
-                                .coerce_to("array"),
-                            }
-                        )
-                    )
-            else:
-                with app.app_context():
-                    query = (
-                        r.table("users")
-                        .pluck(
-                            "id",
-                            "active",
-                            "name",
-                            "provider",
-                            "category",
-                            "uid",
-                            "username",
-                            "role",
-                            "group",
-                            "secondary_groups",
-                            "accessed",
-                        )
-                        .without(
-                            "password",
-                            {
-                                "vpn": {
-                                    "wireguard": {
-                                        "keys": True,
-                                        "extra_client_nets": True,
-                                        "AllowedIPs": True,
-                                        "Address": True,
-                                    },
-                                    "iptables": True,
-                                }
-                            },
-                        )
-                        .merge(
-                            lambda user: {
-                                "category_name": r.table("categories").get(
-                                    user["category"]
-                                )["name"],
-                                "group_name": r.table("groups").get(user["group"])[
-                                    "name"
-                                ],
-                                "role_name": r.table("roles").get(user["role"])["name"],
-                                "secondary_groups_names": r.table("groups")
-                                .get_all(r.args(user["secondary_groups"]))["name"]
-                                .coerce_to("array"),
-                            }
-                        )
-                    )
-
+                            "iptables": True,
+                        }
+                    },
+                ).merge(
+                    lambda user: {
+                        "group_name": r.table("groups").get(user["group"])["name"],
+                        "role_name": r.table("roles").get(user["role"])["name"],
+                        "category_name": r.table("categories").get(user["category"])[
+                            "name"
+                        ],
+                        "secondary_groups_names": r.table("groups")
+                        .get_all(r.args(user["secondary_groups"]))["name"]
+                        .coerce_to("array"),
+                    }
+                )
+                log.error(query)
         if nav == "quotas_limits":
-            if category_id:
-                with app.app_context():
-                    query = (
-                        r.table("users")
-                        .get_all(category_id, index="category")
-                        .pluck(
-                            "id",
-                            "name",
-                            "username",
-                            "role",
-                            "category",
-                            "group",
-                        )
-                        .without(
-                            "password",
-                            {
-                                "vpn": {
-                                    "wireguard": {
-                                        "keys": True,
-                                        "extra_client_nets": True,
-                                        "AllowedIPs": True,
-                                        "Address": True,
-                                    },
-                                    "iptables": True,
-                                }
-                            },
-                        )
-                        .merge(
-                            lambda user: {
-                                "group_name": r.table("groups").get(user["group"])[
-                                    "name"
-                                ],
-                                "role_name": r.table("roles").get(user["role"])["name"],
-                                "desktops": r.table("domains")
-                                .get_all(["desktop", user["id"]], index="kind_user")
-                                .pluck("id")
-                                .count(),
-                                "templates": r.table("domains")
-                                .get_all(["template", user["id"]], index="kind_user")
-                                .pluck("id")
-                                .count(),
-                                "media_size": (
-                                    r.table("media")
-                                    .get_all(user["id"], index="user")
-                                    .pluck({"progress": "total_bytes"})
-                                    .sum(
-                                        lambda size: size["progress"][
-                                            "total_bytes"
-                                        ].default(0)
-                                    )
-                                )
-                                / 1073741824,
-                                "domains_size": (
-                                    r.table("storage")
-                                    .get_all([user["id"], "ready"], index="user_status")
-                                    .pluck({"qemu-img-info": "actual-size"})
-                                    .sum(
-                                        lambda size: size["qemu-img-info"][
-                                            "actual-size"
-                                        ].default(0)
-                                    )
-                                )
-                                / 1073741824,
-                            }
-                        )
-                    )
-            else:
+            with app.app_context():
                 query = (
-                    r.table("users")
-                    .pluck("id", "name", "username", "role", "category", "group")
+                    query.pluck(
+                        "id",
+                        "name",
+                        "username",
+                        "role",
+                        "category",
+                        "group",
+                    )
                     .without(
                         "password",
                         {
@@ -357,11 +247,11 @@ class ApiUsers:
                     )
                     .merge(
                         lambda user: {
+                            "group_name": r.table("groups").get(user["group"])["name"],
+                            "role_name": r.table("roles").get(user["role"])["name"],
                             "category_name": r.table("categories").get(
                                 user["category"]
                             )["name"],
-                            "group_name": r.table("groups").get(user["group"])["name"],
-                            "role_name": r.table("roles").get(user["role"])["name"],
                             "desktops": r.table("domains")
                             .get_all(["desktop", user["id"]], index="kind_user")
                             .pluck("id")
@@ -395,7 +285,6 @@ class ApiUsers:
                         }
                     )
                 )
-
         return list(query.run(db.conn))
 
     def list_categories(self, nav, category_id=False):
