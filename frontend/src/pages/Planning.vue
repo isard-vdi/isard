@@ -147,7 +147,11 @@ export default {
       event.end = eventEnd
       if (!cellDoubleClickActive.value === true) { return }
 
-      if (!DateUtils.dateToMoment(event).isBefore(new Date()) && selectedReservableItem.value) {
+      if (DateUtils.dateToMoment(event).isBefore(new Date())) {
+        event = new Date().addMinutes(5)
+      }
+
+      if (selectedReservableItem.value) {
         $store.dispatch('showPlanningModal', true)
         $store.dispatch('eventPlanningModalData', {
           type: 'create',
