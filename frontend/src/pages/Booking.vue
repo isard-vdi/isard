@@ -174,10 +174,13 @@ export default {
       event.start = event.date
       event.end = eventEnd
       if (!cellDoubleClickActive.value === true) { return }
+      if (DateUtils.dateToMoment(event.start).isBefore(new Date())) {
+        event.start = new Date().addMinutes(5)
+      }
 
       const canCreate = BookingUtils.canCreate(event, events.value)
       const { priorityAllowed, error } = BookingUtils.priorityAllowed(event, priority.value)
-      if (!DateUtils.dateToMoment(event.start).isBefore(new Date()) && event.split === 2 && priorityAllowed && canCreate) {
+      if (event.split === 2 && priorityAllowed && canCreate) {
         $store.dispatch('showBookingModal', true)
         $store.dispatch('eventModalData', {
           type: 'create',
