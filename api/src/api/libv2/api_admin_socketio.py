@@ -96,6 +96,18 @@ class DomainsThread(threading.Thread):
                                         ).delete().run(db.conn)
                         else:
                             data = c["new_val"]
+                            data["category_name"] = (
+                                r.table("categories")
+                                .get(data["category"])
+                                .default({"name": "-"})
+                                .run(db.conn)["name"]
+                            )
+                            data["group_name"] = (
+                                r.table("groups")
+                                .get(data["group"])
+                                .default({"name": "-"})
+                                .run(db.conn)["name"]
+                            )
                             if data["kind"] == "desktop":
                                 event = "desktop_data"
                                 # if data['status'] == 'Started' and 'viewer' in data.keys() and 'guest_ip' in data['viewer'].keys():
