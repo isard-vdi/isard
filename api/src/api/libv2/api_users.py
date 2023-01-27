@@ -219,7 +219,6 @@ class ApiUsers:
                         .coerce_to("array"),
                     }
                 )
-                log.error(query)
         if nav == "quotas_limits":
             with app.app_context():
                 query = (
