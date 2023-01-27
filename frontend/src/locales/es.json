@@ -822,8 +822,8 @@
             "edit-domain": "El hardware de '{name}' se limitará y sus datos se modificarán, continuar?",
             "new-deployment": "Se crearán {quantity} escritorios, uno por cada usuario seleccionado. Continuar?",
             "go-to-profile": "Ver cuota",
-            "make-invisible-and-stop":"invisible y parar escritorios",
-            "make-invisible-and-not-stop":"hacer invisible"
+            "make-invisible-and-stop": "invisible y parar escritorios",
+            "make-invisible-and-not-stop": "hacer invisible"
         },
         "ok": "De acuerdo",
         "yes": "Si",
@@ -943,7 +943,8 @@
         "unable_to_get_viewer_inexistent": "No se puede obtener un visor para un escritorio inexistente",
         "unable_to_parse_string": "No se puede analizar la cadena",
         "new_desktop_name_exists": "Ya existe un escritorio con el mismo nombre para este usuario",
-        "new_template_name_exists": "Ya existe una plantilla con el mismo nombre para este usuario"
+        "new_template_name_exists": "Ya existe una plantilla con el mismo nombre para este usuario",
+        "desktop_same_id": "Ya existe un escritorio con este id"
     },
     "router": {
         "titles": {
