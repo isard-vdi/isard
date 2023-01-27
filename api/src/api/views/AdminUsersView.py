@@ -65,21 +65,12 @@ def api_v3_admin_user_exists(payload, user_id):
 
 
 # Users table list admin panel Management and QuotasLimits
+@app.route("/api/v3/admin/users", methods=["GET"])
 @app.route("/api/v3/admin/users/<nav>/users", methods=["GET"])
 @is_admin_or_manager
-def api_v3_admin_users(payload, nav):
-
-    if nav == "management":
-        if payload["role_id"] == "manager":
-            userslist = users.list_users("management", payload["category_id"])
-        else:
-            userslist = users.list_users("management")
-
-    elif nav == "quotas_limits":
-        if payload["role_id"] == "manager":
-            userslist = users.list_users("quotas_limits", payload["category_id"])
-        else:
-            userslist = users.list_users("quotas_limits")
+def api_v3_admin_users(payload, nav=None):
+    category_id = payload["category_id"] if payload["role_id"] == "manager" else None
+    userslist = users.list_users(nav, category_id)
 
     return json.dumps(userslist), 200, {"Content-Type": "application/json"}
 
