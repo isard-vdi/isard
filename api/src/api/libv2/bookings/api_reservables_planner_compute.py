@@ -119,6 +119,9 @@ def get_subitems_planning(subitems, start=None, end=None):
 
 
 def remove_existing_item_bookings(plans, item_type, item_id, start=None, end=None):
+    ## Wait!! We should remove all items plannings! not only the plans in the
+    ## current reservable the item has now, as it can't be reserved with two
+    ## different reservables at the same time
     if not start:
         start = datetime.now(pytz.utc)
 
@@ -156,7 +159,9 @@ def remove_existing_item_bookings(plans, item_type, item_id, start=None, end=Non
             items.append((atomic, value))
     items.sort()
 
-    return [item[1] for item in items]
+    # When the "start" key it's not there it will be because the interval
+    # is not available, but because the item is reserved in another reservable item
+    return [item[1] for item in items if "start" in item[1].keys()]
 
 
 def intersect_same_subitem_plan(plan, plan_name, keep_non_overlapped=True):
