@@ -98,15 +98,26 @@ def booking_provisioning(
 
 
 ## RESOURCE PLANNER INTERSECTIONS
-def get_subitems_planning(subitems, start=None, end=None):
+def get_subitems_planning(subitems, start=None, end=None, item_id=None, now=None):
     if not start:
         start = datetime.now(pytz.utc)
 
-    query = (
-        r.db("isard")
-        .table("resource_planner")
-        .get_all(r.args(subitems), index="subitem_id")
-    )
+    if now:
+        end = start
+
+    if item_id:
+        query = (
+            r.db("isard")
+            .table("resource_planner")
+            .get_all([item_id, r.args(subitems)], index="item-subitem")
+        )
+    else:
+        query = (
+            r.db("isard")
+            .table("resource_planner")
+            .get_all(r.args(subitems), index="subitem_id")
+        )
+
     if start:
         query = query.filter(lambda plan: plan["end"] > start)
     if end:
@@ -114,7 +125,8 @@ def get_subitems_planning(subitems, start=None, end=None):
 
     with app.app_context():
         plans = list(query.run(db.conn))
-    log.debug("FOUND " + str(len(plans)) + " FOR ALL PROFILES " + str(subitems))
+    if not item_id:
+        log.debug("FOUND " + str(len(plans)) + " FOR ALL PROFILES " + str(subitems))
     return plans
 
 
