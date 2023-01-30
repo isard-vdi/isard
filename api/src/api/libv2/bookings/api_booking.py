@@ -123,27 +123,29 @@ class Bookings:
 
         # Overlap this plan with existing ones and check which ones have room from the new booking
         plans = self.reservables_planner.new_booking_plans(payload, booking)
-        if not len(plans):
+        ## TODO: We should check if all the keys have an empty list, not only the first one!
+        if not len(plans[list(plans.keys())[0]]):
             raise Error(
                 "conflict",
                 "The booking does not fit in requested date",
                 description_code="booking_does_not_fit_date",
             )
 
-        # We could do a random or anything because the booking fits in one or multiple plans
-        # Now we get the first available
-
+        # We are adding all the plans for each item.
+        # TODO: Check if we really need to append them. I think it's not checked/used anywhere
         priorities = priorities["priority"]
         new_planning = []
         for k, v in plans.items():
-            new_planning.append(
-                {
-                    "plan_id": v["id"],
-                    "item_id": v["item_id"],
-                    "subitem_id": v["subitem_id"],
-                    "priority": priorities[v["subitem_id"]],
-                }
-            )
+            for item in v:
+                new_planning.append(
+                    {
+                        "plan_id": item["id"],
+                        "item_id": item["item_id"],
+                        "subitem_id": item["subitem_id"],
+                        "priority": priorities[item["subitem_id"]],
+                        "units_booked": item["units_booked"],
+                    }
+                )
 
         booking["plans"] = new_planning
         with app.app_context():
