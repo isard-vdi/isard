@@ -5,6 +5,11 @@ export const bookingEventsSettings = {
       week: { item: true, resume: false },
       day: { item: true, resume: false }
     },
+    manager: {
+      month: { item: true, resume: false },
+      week: { item: true, resume: false },
+      day: { item: true, resume: false }
+    },
     advanced: {
       month: { item: true, resume: false },
       week: { item: true, resume: false },
@@ -18,6 +23,11 @@ export const bookingEventsSettings = {
   },
   cellDoubleClickActive: {
     admin: {
+      month: { item: false, resume: false },
+      week: { item: true, resume: false },
+      day: { item: true, resume: false }
+    },
+    manager: {
       month: { item: false, resume: false },
       week: { item: true, resume: false },
       day: { item: true, resume: false }
@@ -39,6 +49,11 @@ export const bookingEventsSettings = {
       week: { item: true, resume: false },
       day: { item: true, resume: false }
     },
+    manager: {
+      month: { item: false, resume: false },
+      week: { item: true, resume: false },
+      day: { item: true, resume: false }
+    },
     advanced: {
       month: { item: false, resume: false },
       week: { item: true, resume: false },
@@ -52,6 +67,11 @@ export const bookingEventsSettings = {
   },
   showAvailabilitySplit: {
     admin: {
+      month: { item: false, resume: false },
+      week: { item: true, resume: false },
+      day: { item: true, resume: false }
+    },
+    manager: {
       month: { item: false, resume: false },
       week: { item: true, resume: false },
       day: { item: true, resume: false }
