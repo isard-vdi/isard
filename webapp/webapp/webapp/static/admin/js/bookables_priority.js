@@ -252,30 +252,32 @@ $(document).ready(function () {
     data = data2integers(data)
 
     data["id"]=data.priority_id
-    $.ajax({
-      type: "PUT",
-      url: "/admin/table/update/bookings_priority",
-      data: JSON.stringify(data),
-      contentType: "application/json",
-      success: function (data) {
-        bookings_priority.ajax.reload();
-        $("form").each(function () {
-          this.reset();
-        });
-        $(".modal").modal("hide");
-      },
-      error: function (xhr, ajaxOptions, thrownError) {
-        new PNotify({
-            title: "ERROR updating priority",
-            text: xhr.responseJSON.description,
-            hide: true,
-            delay: 3000,
-            icon: 'fa fa-warning',
-            opacity: 1,
-            type: 'error'
-        });
-      }
-    });
+    if (form.parsley().isValid()) {
+      $.ajax({
+        type: "PUT",
+        url: "/admin/table/update/bookings_priority",
+        data: JSON.stringify(data),
+        contentType: "application/json",
+        success: function (data) {
+          bookings_priority.ajax.reload();
+          $("form").each(function () {
+            this.reset();
+          });
+          $(".modal").modal("hide");
+        },
+        error: function (xhr, ajaxOptions, thrownError) {
+          new PNotify({
+              title: "ERROR updating priority",
+              text: xhr.responseJSON.description,
+              hide: true,
+              delay: 3000,
+              icon: 'fa fa-warning',
+              opacity: 1,
+              type: 'error'
+          });
+        }
+      });
+    }
   });
 
   $('#bookings_priority').find('tbody').on('click', 'td.details-control', function() {
