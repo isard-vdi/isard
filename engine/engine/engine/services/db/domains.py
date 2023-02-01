@@ -1700,3 +1700,18 @@ def gen_new_mac():
     while all_macs.count(new_mac) > 0:
         new_mac = gen_random_mac()
     return new_mac
+
+
+def update_vgpu_info_if_stopped(dom_id):
+    vgpu_info = domain_get_vgpu_info(dom_id)
+    if (
+        vgpu_info.get("started", False) is True
+        or vgpu_info.get("reserved", False) is True
+    ):
+        update_vgpu_uuid_domain_action(
+            vgpu_info.get("gpu_id", False),
+            vgpu_info.get("uuid", False),
+            "domain_stopped",
+            domain_id=dom_id,
+            profile=vgpu_info.get("profile", False),
+        )
