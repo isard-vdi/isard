@@ -173,64 +173,78 @@ def update_domain_status(
 
     # INFO TO DEVELOPER: OJO CON hyp_started a None... peligro si alguien lo chafa, por eso estos if/else
 
-    if status == "Stopped":
-        last_hyp_id = (
-            rtable.get(id_domain).pluck("hyp_started").run(r_conn)["hyp_started"]
-        )
-        if type(last_hyp_id) is str and len(last_hyp_id) > 0:
+    try:
+        if status == "Stopped":
+            last_hyp_id = (
+                rtable.get(id_domain).pluck("hyp_started").run(r_conn)["hyp_started"]
+            )
+            if type(last_hyp_id) is str and len(last_hyp_id) > 0:
+                results = (
+                    rtable.get_all(id_domain, index="id")
+                    .update({"last_hyp_id": last_hyp_id})
+                    .run(r_conn)
+                )
+
+        if keep_hyp_id == True:
+            hyp_id = (
+                rtable.get(id_domain).pluck("hyp_started").run(r_conn)["hyp_started"]
+            )
+
+        if hyp_id is None:
             results = (
-                rtable.get_all(id_domain, index="id")
-                .update({"last_hyp_id": last_hyp_id})
+                rtable.get(id_domain)
+                .update(
+                    {
+                        "status": status,
+                        "hyp_started": False,
+                        "detail": json.dumps(detail),
+                    },
+                    return_changes=True,
+                )
                 .run(r_conn)
             )
+        else:
+            d_update = {
+                "hyp_started": hyp_id,
+                "status": status,
+                "detail": json.dumps(detail),
+            }
+            if update_started_time is True:
+                d_update["status_logs"] = {"Started": int(time.time())}
 
-    if keep_hyp_id == True:
-        hyp_id = rtable.get(id_domain).pluck("hyp_started").run(r_conn)["hyp_started"]
-
-    if hyp_id is None:
-        results = (
-            rtable.get(id_domain)
-            .update(
-                {"status": status, "hyp_started": False, "detail": json.dumps(detail)},
-                return_changes=True,
+            results = (
+                rtable.get(id_domain).update(d_update, return_changes=True).run(r_conn)
             )
-            .run(r_conn)
+
+        if status == "DiskDeleted":
+            try:
+                update_storage_deleted_domain(
+                    storage_id, results.get("changes", [{}])[0].get("new_val")
+                )
+            except Exception as e:
+                logs.main.error("Exception in update_storage_deleted_domain")
+                logs.main.error("Traceback: \n .{}".format(traceback.format_exc()))
+                logs.main.error("Exception message: {}".format(e))
+        if status == "Stopped":
+            stop_last_domain_status(id_domain)
+            remove_fieds_when_stopped(id_domain, conn=r_conn)
+
+        if status == "Failed":
+            remove_fieds_when_stopped(id_domain, conn=r_conn)
+
+        close_rethink_connection(r_conn)
+        # if results_zero(results):
+        #
+        #     logs.main.debug('id_domain {} in hyperviros {} does not exist in domain table'.format(id_domain,hyp_id))
+
+        return results
+
+    except r.ReqlNonExistenceError:
+        logs.main.error(
+            "domain_id {} does not exist in domains table".format(domain_id)
         )
-    else:
-        d_update = {
-            "hyp_started": hyp_id,
-            "status": status,
-            "detail": json.dumps(detail),
-        }
-        if update_started_time is True:
-            d_update["status_logs"] = {"Started": int(time.time())}
-
-        results = (
-            rtable.get(id_domain).update(d_update, return_changes=True).run(r_conn)
-        )
-
-    if status == "DiskDeleted":
-        try:
-            update_storage_deleted_domain(
-                storage_id, results.get("changes", [{}])[0].get("new_val")
-            )
-        except Exception as e:
-            logs.main.error("Exception in update_storage_deleted_domain")
-            logs.main.error("Traceback: \n .{}".format(traceback.format_exc()))
-            logs.main.error("Exception message: {}".format(e))
-    if status == "Stopped":
-        stop_last_domain_status(id_domain)
-        remove_fieds_when_stopped(id_domain, conn=r_conn)
-
-    if status == "Failed":
-        remove_fieds_when_stopped(id_domain, conn=r_conn)
-
-    close_rethink_connection(r_conn)
-    # if results_zero(results):
-    #
-    #     logs.main.debug('id_domain {} in hyperviros {} does not exist in domain table'.format(id_domain,hyp_id))
-
-    return results
+        logs.main.debug("function: {}".format(sys._getframe().f_code.co_name))
+        return False
 
 
 def update_last_hyp_id(id_domain, last_hyp_id):
