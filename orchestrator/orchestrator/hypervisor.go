@@ -35,12 +35,11 @@ func (o *Orchestrator) createHypervisor(ctx context.Context, req *operationsv1.C
 		return
 	}
 
-	var id string
 hyperCreate:
 	for {
 		select {
 		case <-ctx.Done():
-			o.log.Error().Str("id", id).Err(ErrTimeout).Msg("wait for the hypervisor to be created")
+			o.log.Error().Str("id", req.Id).Err(ErrTimeout).Msg("wait for the hypervisor to be created")
 			return
 
 		default:
@@ -50,36 +49,34 @@ hyperCreate:
 					break hyperCreate
 				}
 
-				o.log.Error().Str("id", id).Err(err).Msg("create hypervisor")
+				o.log.Error().Str("id", req.Id).Err(err).Msg("create hypervisor")
 				return
 			}
-
-			id = rsp.Id
 
 			if rsp.State == operationsv1.OperationState_OPERATION_STATE_FAILED {
-				o.log.Error().Str("id", id).Err(errors.New(rsp.Msg)).Msg("create hypervisor failed")
+				o.log.Error().Str("id", req.Id).Err(errors.New(rsp.Msg)).Msg("create hypervisor failed")
 				return
 			}
 
-			o.log.Debug().Str("id", id).Str("state", rsp.State.String()).Str("msg", rsp.Msg).Msg("create hypervisor update recieved")
+			o.log.Debug().Str("id", req.Id).Str("state", rsp.State.String()).Str("msg", rsp.Msg).Msg("create hypervisor update recieved")
 		}
 	}
 
-	o.log.Debug().Str("id", id).Msg("hypervisor created")
+	o.log.Debug().Str("id", req.Id).Msg("hypervisor created")
 
 	// Wait for the hypervisor to be online
-	h := &model.Hypervisor{ID: id}
+	h := &model.Hypervisor{ID: req.Id}
 hyperOnline:
 	for {
 		select {
 		case <-ctx.Done():
-			o.log.Error().Str("id", id).Err(ErrTimeout).Msg("wait for the hypervisor to be online")
+			o.log.Error().Str("id", req.Id).Err(ErrTimeout).Msg("wait for the hypervisor to be online")
 			return
 
 		default:
 			if err := h.Load(ctx, o.db); err != nil {
 				if !errors.Is(err, db.ErrNotFound) {
-					o.log.Error().Str("id", id).Str("status", string(h.Status)).Err(err).Msg("load hypervisor from DB")
+					o.log.Error().Str("id", req.Id).Str("status", string(h.Status)).Err(err).Msg("load hypervisor from DB")
 					return
 				}
 
@@ -89,18 +86,20 @@ hyperOnline:
 				}
 			}
 
-			time.Sleep(time.Second)
+			time.Sleep(5 * time.Second)
 		}
 	}
 
-	o.log.Debug().Str("id", id).Msg("hypervisor online")
+	o.log.Debug().Str("id", req.Id).Msg("hypervisor online")
 
 	// TODO: IsardVDI Check
 
+	// TODO: Mark the hypervisor as orchestrator-managed
+
 	// If it's only forced, disable it
 	if h.OnlyForced {
-		if err := o.apiCli.AdminHypervisorOnlyForced(ctx, id, false); err != nil {
-			o.log.Error().Str("id", id).Str("status", string(h.Status)).Err(err).Msg("disable hypervisor only_forced")
+		if err := o.apiCli.AdminHypervisorOnlyForced(ctx, req.Id, false); err != nil {
+			o.log.Error().Str("id", req.Id).Str("status", string(h.Status)).Err(err).Msg("disable hypervisor only_forced")
 			return
 		}
 	}
@@ -109,7 +108,7 @@ hyperOnline:
 		o.log.Error().Err(err).Msg("close buffering hypervisors")
 	}
 
-	o.log.Info().Str("id", id).Msg("hypervisor started")
+	o.log.Info().Str("id", req.Id).Msg("hypervisor started")
 }
 
 func (o *Orchestrator) destroyHypervisor(ctx context.Context, req *operationsv1.DestroyHypervisorRequest) {
@@ -123,6 +122,8 @@ func (o *Orchestrator) destroyHypervisor(ctx context.Context, req *operationsv1.
 	defer func() {
 		o.scaling = false
 	}()
+
+	// TODO: Stop all the desktops before destroying it
 
 	stream, err := o.operationsCli.DestroyHypervisor(ctx, req)
 	if err != nil {

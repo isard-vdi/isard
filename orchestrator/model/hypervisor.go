@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"time"
 
 	"gitlab.com/isard/isardvdi-cli/pkg/client"
 	"gitlab.com/isard/isardvdi/pkg/db"
@@ -13,12 +14,14 @@ import (
 )
 
 type Hypervisor struct {
-	ID         string                  `rethinkdb:"id"`
-	Status     client.HypervisorStatus `rethinkdb:"status"`
-	OnlyForced bool                    `rethinkdb:"only_forced"`
-	Stats      HypervisorStats         `rethinkdb:"stats"`
-	CPU        ResourceLoad            `rethinkdb:"-"`
-	RAM        ResourceLoad            `rethinkdb:"-"`
+	ID          string                  `rethinkdb:"id"`
+	Status      client.HypervisorStatus `rethinkdb:"status"`
+	OnlyForced  bool                    `rethinkdb:"only_forced"`
+	Buffering   bool                    `rethinkdb:"buffering_hyper"`
+	DestroyTime time.Time               `rethinkdb:"destroy_time"`
+	Stats       HypervisorStats         `rethinkdb:"stats"`
+	CPU         ResourceLoad            `rethinkdb:"-"`
+	RAM         ResourceLoad            `rethinkdb:"-"`
 }
 
 type HypervisorStats struct {
@@ -100,4 +103,17 @@ func calcLoad(h *Hypervisor) {
 		Used:  (h.Stats.Mem.Total - h.Stats.Mem.Available) / 1024,
 		Free:  h.Stats.Mem.Available / 1024,
 	}
+}
+
+func (h *Hypervisor) AddToDeadRow(destroy time.Time, sess r.QueryExecutor) error {
+	h.DestroyTime = destroy
+	h.OnlyForced = true
+
+	_, err := r.Table("hypervisors").Get(h.ID).Update(map[string]interface{}{"destroy_time": destroy, "only_forced": true}).Run(sess)
+	return err
+}
+
+func (h *Hypervisor) RemoveFromDeadRow(sess r.QueryExecutor) error {
+	_, err := r.Table("hypervisors").Get(h.ID).Update(map[string]interface{}{"destroy_time": nil}).Run(sess)
+	return err
 }

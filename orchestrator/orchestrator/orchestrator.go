@@ -69,6 +69,7 @@ func (o *Orchestrator) Start(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
+			// TODO: Wait for operations to be stopped
 			o.wg.Done()
 			return
 
@@ -80,7 +81,13 @@ func (o *Orchestrator) Start(ctx context.Context) {
 			}
 
 			if !o.scaling {
-				create, destroy, err := o.director.NeedToScaleHypervisors(ctx, hypers)
+				operationsHypers, err := o.operationsCli.ListHypervisors(ctx, &operationsv1.ListHypervisorsRequest{})
+				if err != nil {
+					o.log.Error().Err(err).Msg("list the hypervisors of the operations service")
+					continue
+				}
+
+				create, destroy, err := o.director.NeedToScaleHypervisors(ctx, operationsHypers.Hypervisors, hypers)
 				if err != nil {
 					o.log.Error().Err(err).Msg("check if there are hypervisors that need to scale")
 					continue
