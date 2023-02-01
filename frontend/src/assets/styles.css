@@ -255,6 +255,12 @@
 
 .machine-notification-bar {
   padding: 1px 0;
+  min-height: 34px;
+}
+
+.notification-bar {
+  top: -34px;
+  position: relative;
 }
 
 /* CARD */

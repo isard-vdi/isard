@@ -83,17 +83,21 @@
       <!-- Desktop next booking -->
       <div
         v-if="desktop.needsBooking"
-        class="machine-notification-bar px-4 d-flex flex-row align-content-center text-white"
+        class="machine-notification-bar px-3 d-flex flex-row align-content-center text-white notification-bar"
         :class="notificationBarCssClass"
       >
-        <p class="mb-0 py-2 text-white">
+        <p
+          v-b-tooltip.hover="{ title: `${getBookingNotificationBar(desktop.nextBookingStart, desktop.nextBookingEnd).length > MAX_BOOKING_TEXT_SIZE ? getBookingNotificationBar(desktop.nextBookingStart, desktop.nextBookingEnd) : '' }` , placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
+          class="mb-0 py-2 text-white text-truncate"
+          :title="`${getBookingNotificationBar(desktop.nextBookingStart, desktop.nextBookingEnd).length > MAX_BOOKING_TEXT_SIZE ? getBookingNotificationBar(desktop.nextBookingStart, desktop.nextBookingEnd) : '' }`"
+        >
           {{ getBookingNotificationBar(desktop.nextBookingStart, desktop.nextBookingEnd) }}
         </p>
       </div>
       <!-- Desktop next booking -->
       <div
         v-else-if="desktop.shutdown"
-        class="machine-notification-bar px-4 d-flex flex-row align-content-center text-white bg-dark"
+        class="machine-notification-bar px-4 d-flex flex-row align-content-center text-white bg-dark notification-bar"
       >
         <p class="mb-0 py-2 text-white">
           {{ desktop.shutdown }}
@@ -102,7 +106,7 @@
 
       <div
         class="p-2 h-100 d-flex flex-wrap flex-column"
-        :class="getCardBackgroundColor"
+        :class="`${desktop.needsBooking || desktop.shutdown ? 'notification-bar' : '' } getCardBackgroundColor` "
       >
         <div class="flex-grow-1">
           <!-- Title -->
@@ -274,6 +278,7 @@ const MAX_TITLE_SIZE = 20
 const MAX_DESCRIPTION_SIZE = 30
 const MAX_TEMPLATE_TEXT_SIZE = 16
 const MAX_VIEWER_TEXT_SIZE = 40
+const MAX_BOOKING_TEXT_SIZE = 35
 
 export default {
   components: { DesktopButton, IsardDropdown },
@@ -294,6 +299,7 @@ export default {
       MAX_DESCRIPTION_SIZE,
       MAX_TEMPLATE_TEXT_SIZE,
       MAX_VIEWER_TEXT_SIZE,
+      MAX_BOOKING_TEXT_SIZE,
       show: false
     }
   },
