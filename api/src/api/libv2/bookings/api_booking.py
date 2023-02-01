@@ -47,37 +47,58 @@ class Bookings:
 
     def get_users_priorities(self, rule_id):
         with app.app_context():
-            users = list(
-                r.table("users")
-                .merge(
-                    lambda user: {
-                        "payload": {
-                            "provider": user["provider"],
-                            "user_id": user["id"],
-                            "role_id": user["role"],
-                            "category_id": user["category"],
-                            "group_id": user["group"],
-                            "name": user["name"],
-                        }
-                    },
-                )
-                .pluck("username", "role", "category", "group", "payload")
+            priority = list(
+                r.table("bookings_priority")
+                .get_all(rule_id, index="rule_id")
                 .run(db.conn)
             )
-        users_priority = []
-        for user in users:
-            users_priority.append(
-                {
-                    **{
-                        "username": user["username"],
-                        "role": user["role"],
-                        "category": user["category"],
-                        "group": user["group"],
-                    },
-                    **compute_user_priority(user["payload"], rule_id),
-                }
-            )
-        return users_priority
+        users = {}
+        kind = ""
+        for p in priority:
+            allowed = p["allowed"]
+            for key, value in allowed.items():
+                if value == False:
+                    continue
+                if len(value) > 0:
+                    if key == "users":
+                        for item in value:
+                            with app.app_context():
+                                user = (
+                                    r.table("users")
+                                    .get(item)
+                                    .pluck(
+                                        "id", "role", "category", "username", "group"
+                                    )
+                                    .run(db.conn)
+                                )
+                                users.append(user)
+                            if len(users) == 2:
+                                return compute_user_priority(users, rule_id)
+                    if key == "categories":
+                        kind == "category"
+                    if key == "groups":
+                        kind == "group"
+                    if key == "roles":
+                        kind = "role"
+                    with app.app_context():
+                        users = list(
+                            r.table("users")
+                            .filter({kind: value[0]})
+                            .sample(2)
+                            .pluck("id", "role", "category", "username", "group")
+                            .run(db.conn)
+                        )
+                    return compute_user_priority(users, rule_id)
+
+                else:
+                    with app.app_context():
+                        users = list(
+                            r.table("users")
+                            .sample(2)
+                            .pluck("id", "role", "category", "username", "group")
+                            .run(db.conn)
+                        )
+                    return compute_user_priority(users, rule_id)
 
     def list_priority_rules(self):
         return list(

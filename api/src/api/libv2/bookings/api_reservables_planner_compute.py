@@ -432,33 +432,27 @@ def get_user_default_priority(payload, subitem):
     }
 
 
-def compute_user_priority(payload, rule_id):
+def compute_user_priority(users, rule_id):
     with app.app_context():
-        rules = list(
-            r.table("bookings_priority")
-            .get_all(rule_id, index="rule_id")
-            .order_by(r.desc("priority"))
-            .run(db.conn)
+        priority = list(
+            r.table("bookings_priority").get_all(rule_id, index="rule_id").run(db.conn)
         )
-    priority = user_matches_priority_rule(payload, rules)
-    if not priority and rule_id != "default":
-        log.debug("GETTING DEFAULT PRIORITY AS NONE DID MATCH")
-        with app.app_context():
-            rules = list(
-                r.table("bookings_priority")
-                .get_all("default", index="rule_id")
-                .order_by(r.desc("priority"))
-                .run(db.conn)
+    priority_columns = []
+    for p in priority:
+        for user in users:
+            priority_columns.append(
+                {
+                    **{
+                        "rule_id": rule_id,
+                        "priority": p["priority"],
+                        "forbid_time": p["forbid_time"],
+                        "max_time": p["max_time"],
+                        "max_items": p["max_items"],
+                    },
+                    **user,
+                }
             )
-        priority = user_matches_priority_rule(payload, rules)
-        rule_id = "default"
-    return {
-        "rule_id": rule_id,
-        "priority": priority["priority"],
-        "forbid_time": priority["forbid_time"],
-        "max_time": priority["max_time"],
-        "max_items": priority["max_items"],
-    }
+    return priority_columns
 
 
 def user_matches_priority_rule(payload, rules):
