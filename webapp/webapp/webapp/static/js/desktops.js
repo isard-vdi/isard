@@ -236,13 +236,13 @@ function socketio_on(){
         var data = JSON.parse(data);
         var row = table.row('#'+data.id).remove().draw();
         new PNotify({
-                title: "Desktop deleted",
-                text: "Desktop "+data.name+" has been deleted",
-                hide: true,
-                delay: 4000,
-                icon: 'fa fa-success',
-                opacity: 1,
-                type: 'success'
+            title: "Desktop deleted",
+            text: "Desktop "+data.name+" has been deleted",
+            hide: true,
+            delay: 4000,
+            icon: 'fa fa-success',
+            opacity: 1,
+            type: 'success'
         });
     });
 
@@ -464,8 +464,8 @@ function actionsDesktopDetail(){
                 $('form').each(function() { this.reset() });
                 $('.modal').modal('hide');
                 new PNotify({
-                    title: "Updated desktop as server",
-                    text: "Server desktop has been updated...",
+                    title: "Updated",
+                    text: "Server desktop updated successfully",
                     hide: true,
                     delay: 4000,
                     icon: 'fa fa-success',
@@ -475,8 +475,8 @@ function actionsDesktopDetail(){
             },
             error: function(data){
                 new PNotify({
-                    title: "ERROR",
-                    text: "Can't update desktop as server",
+                    title: "ERROR updating server",
+                    text: data.responseJSON.description,
                     type: 'error',
                     hide: true,
                     icon: 'fa fa-warning',
@@ -789,7 +789,7 @@ function initalize_modal_all_desktops_events(){
                         contentType: "application/json",
                         error: function(data) {
                             notice.update({
-                                title: 'ERROR',
+                                title: 'ERROR creating template',
                                 text: data.responseJSON.description,
                                 type: 'error',
                                 hide: true,
@@ -852,8 +852,8 @@ $("#modalEditDesktop #send").on('click', function(e){
             contentType: 'application/json',
             error: function(data) {
                 notice.update({
-                    title: 'ERROR',
-                    text: 'Something went wrong when updating',
+                    title: 'ERROR updating desktop',
+                    text: data.responseJSON.description,
                     type: 'error',
                     hide: true,
                     icon: 'fa fa-warning',
@@ -867,7 +867,7 @@ $("#modalEditDesktop #send").on('click', function(e){
                 table.ajax.reload()
                 notice.update({
                     title: 'Updated',
-                    text: 'Item updated successfully',
+                    text: 'Desktop updated successfully',
                     hide: true,
                     delay: 2000,
                     icon: 'fa fa-' + data.icon,

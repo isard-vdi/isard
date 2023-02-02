@@ -451,8 +451,8 @@ function enableProfile(reservable_type, item_id, subitem_id, enabled, desktops) 
     error: function(data) 
     {
       new PNotify({
-        title: "ERROR",
-        text: 'Could not ' + (enabled? 'enable': 'disable') + ' GPU profile ' + subitem_id,
+        title: "ERROR enabling/disabling profile",
+        text: data.responseJSON.description,
         hide: true,
         delay: 2000,
         icon: 'fa fa-' + data.icon,

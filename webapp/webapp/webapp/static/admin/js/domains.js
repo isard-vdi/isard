@@ -226,7 +226,7 @@ $(document).ready(function() {
                         contentType: "application/json",
                         error: function(data) {
                             notice.update({
-                                title: 'ERROR',
+                                title: 'ERROR creating desktops',
                                 text: data.responseJSON.description,
                                 type: 'error',
                                 hide: true,
@@ -297,7 +297,7 @@ $(document).ready(function() {
                     enabled=data["enabled"]
 
                     var notice = new PNotify({
-                        text: 'Creating desktop...',
+                        text: 'Creating template...',
                         hide: false,
                         opacity: 1,
                         icon: 'fa fa-spinner fa-pulse'
@@ -310,7 +310,7 @@ $(document).ready(function() {
                         contentType: "application/json",
                         error: function(data) {
                             notice.update({
-                                title: 'ERROR',
+                                title: 'ERROR creating template',
                                 text: data.responseJSON.description,
                                 type: 'error',
                                 hide: true,
@@ -326,7 +326,7 @@ $(document).ready(function() {
                             $('.modal').modal('hide');
                             notice.update({
                                 title: 'New template',
-                                text: 'Template '+ name + ' created successfully',
+                                text: 'Template created successfully',
                                 hide: true,
                                 delay: 2000,
                                 icon: 'fa fa-' + data.icon,
@@ -367,7 +367,7 @@ $(document).ready(function() {
             contentType: 'application/json',
             error: function(data) {
                 notice.update({
-                    title: 'ERROR',
+                    title: 'ERROR deleting items',
                     text: data.responseJSON.description,
                     type: 'error',
                     hide: true,
@@ -379,7 +379,7 @@ $(document).ready(function() {
             success: function(data) {
                 domains_table.ajax.reload()
                 notice.update({
-                    title: data.title,
+                    title: 'Deleted',
                     text: 'Item(s) deleted successfully',
                     hide: true,
                     delay: 2000,
@@ -403,7 +403,7 @@ $(document).ready(function() {
                         "allowed": data.allowed,
                         ...("user_id" in data) && {"user_id": data["user_id"]}}
             var notice = new PNotify({
-                text: 'Creating duplicate template...',
+                text: 'Duplicating template...',
                 hide: false,
                 opacity: 1,
                 icon: 'fa fa-spinner fa-pulse'
@@ -415,7 +415,7 @@ $(document).ready(function() {
                 contentType: 'application/json',
                 error: function(data) {
                     notice.update({
-                        title: 'ERROR',
+                        title: 'ERROR duplicating template',
                         text: data.responseJSON.description,
                         type: 'error',
                         hide: true,
@@ -429,8 +429,8 @@ $(document).ready(function() {
                     $('form').each(function() { this.reset() });
                     $('.modal').modal('hide');
                     notice.update({
-                        title: data.title,
-                        text: 'Template duplicated',
+                        title: 'Duplicated',
+                        text: 'Template duplicated successfully',
                         hide: true,
                         delay: 2000,
                         icon: 'fa fa-' + data.icon,
@@ -686,15 +686,15 @@ $(document).ready(function() {
                         'enabled':enabled})
                         .fail(function(jqXHR) {
                             new PNotify({
-                                title: "Template enable/disable",
-                                    text: "Could not update!",
-                                    hide: true,
-                                    delay: 3000,
-                                    icon: 'fa fa-alert-sign',
-                                    opacity: 1,
-                                    type: 'error'
-                                });
-                                domains_table.ajax.reload()
+                                title: "ERROR enabling/disabling template",
+                                text: jqXHR.responseJSON.description,
+                                hide: true,
+                                delay: 3000,
+                                icon: 'fa fa-alert-sign',
+                                opacity: 1,
+                                type: 'error'
+                            })
+                            domains_table.ajax.reload()
                         })
                         .success(function(data){
                             new PNotify({
@@ -742,7 +742,7 @@ $(document).ready(function() {
                         cache: false,
                         error: function(data) {
                             new PNotify({
-                                title: 'ERROR',
+                                title: 'ERROR starting desktop',
                                 text: data.responseJSON.description,
                                 type: 'error',
                                 hide: true,
@@ -1205,7 +1205,7 @@ function actionsDomainDetail(){
             contentType: 'application/json',
             error: function(data) {
                 notice.update({
-                    title: 'ERROR',
+                    title: 'ERROR updating forced hypervisor',
                     text: data.responseJSON.description,
                     type: 'error',
                     hide: true,
@@ -1219,7 +1219,7 @@ function actionsDomainDetail(){
                 $('.modal').modal('hide');
                 notice.update({
                     title: 'Updated',
-                    text: 'Item updated successfully',
+                    text: 'Forced hypervisor updated successfully',
                     hide: true,
                     delay: 2000,
                     icon: 'fa fa-' + data.icon,
@@ -1288,7 +1288,7 @@ function actionsDomainDetail(){
             contentType: 'application/json',
             error: function(data) {
                 notice.update({
-                    title: 'ERROR',
+                    title: 'ERROR updating favourite hypervisor',
                     text: data.responseJSON.description,
                     type: 'error',
                     hide: true,
@@ -1302,7 +1302,7 @@ function actionsDomainDetail(){
                 $('.modal').modal('hide');
                 notice.update({
                     title: 'Updated',
-                    text: 'Item updated successfully',
+                    text: 'Favourite hypervisor updated successfully',
                     hide: true,
                     delay: 2000,
                     icon: 'fa fa-' + data.icon,
@@ -1330,8 +1330,8 @@ function actionsDomainDetail(){
                 $('form').each(function() { this.reset() });
                 $('.modal').modal('hide');
                 new PNotify({
-                    title: "Updated desktop as server",
-                    text: "Server desktop has been updated...",
+                    title: "Updated",
+                    text: "Server updated successfully",
                     hide: true,
                     delay: 4000,
                     icon: 'fa fa-success',
@@ -1341,8 +1341,8 @@ function actionsDomainDetail(){
             },
             error: function(data){
                 new PNotify({
-                    title: "ERROR",
-                    text: "Can't update desktop as server",
+                    title: "ERROR updating server",
+                    text: data.responseJSON.description,
                     type: 'error',
                     hide: true,
                     icon: 'fa fa-warning',
@@ -1558,7 +1558,7 @@ function populate_tree_template_delete(id){
                     contentType: 'application/json',
                     error: function(data) {
                         notice.update({
-                            title: 'ERROR',
+                            title: 'ERROR updating desktop',
                             text: data.responseJSON.description,
                             type: 'error',
                             hide: true,
@@ -1573,7 +1573,7 @@ function populate_tree_template_delete(id){
                         domains_table.ajax.reload()
                         notice.update({
                             title: 'Updated',
-                            text: 'Item updated successfully',
+                            text: 'Domain updated successfully',
                             hide: true,
                             delay: 2000,
                             icon: 'fa fa-' + data.icon,
@@ -1602,8 +1602,8 @@ function populate_tree_template_delete(id){
             contentType: 'application/json',
             error: function(data) {
                 notice.update({
-                    title: 'ERROR',
-                    text: 'Something went wrong when updating xml',
+                    title: 'ERROR updating XML',
+                    text: data.responseJSON.description,
                     type: 'error',
                     hide: true,
                     icon: 'fa fa-warning',
@@ -1615,8 +1615,8 @@ function populate_tree_template_delete(id){
                 $("#modalEditXmlForm")[0].reset();
                 $("#modalEditXml").modal('hide');
                 notice.update({
-                    title: data.title,
-                    text: 'Item xml updated successfully',
+                    title: 'Updated',
+                    text: 'Domain XML updated successfully',
                     hide: true,
                     delay: 2000,
                     icon: 'fa fa-' + data.icon,

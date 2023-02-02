@@ -337,8 +337,8 @@ $(document).ready(function() {
                     contentType: "application/json",
                     error: function (data) {
                         notice.update({
-                            title: "ERROR",
-                            text: "Couldn't add media from URL",
+                            title: "ERROR creating media",
+                            text: data.responseJSON.description,
                             type: 'error',
                             hide: true,
                             icon: 'fa fa-warning',
@@ -351,8 +351,8 @@ $(document).ready(function() {
                         $('form').each(function() { this.reset() });
                         $('.modal').modal('hide');
                         notice.update({
-                            title: "New media",
-                            text: 'Media added successfully',
+                            title: "Created",
+                            text: 'Media created successfully',
                             hide: true,
                             delay: 2000,
                             icon: 'fa fa-' + data.icon,
@@ -379,7 +379,7 @@ $(document).ready(function() {
                 url: '/api/v3/media/'+media_id,
                 error: function(data) {
                     notice.update({
-                        title: 'ERROR',
+                        title: 'ERROR deleting media',
                         text: data.responseJSON.description,
                         type: 'error',
                         hide: true,
@@ -446,7 +446,7 @@ $(document).ready(function() {
                           success: function (data) {
                             media_physical.ajax.reload();
                             new PNotify({
-                              title: "Physical storage",
+                              title: "Updated",
                               text:  "Updated "+data.media+" media from "+toolbox_host,
                               hide: true,
                               delay: 5000,
@@ -462,78 +462,78 @@ $(document).ready(function() {
               });
           }
     $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
+    function socketio_on(){
+        socket.on('media_data', function(data){
+            var data = JSON.parse(data);
+            data = {...table.row("#"+data.id).data(),...data}
+            dtUpdateInsert(table,data,false);
+        });
+    
+        socket.on('media_delete', function(data){
+            //~ console.log('delete')
+            var data = JSON.parse(data);
+            var row = table.row('#'+data.id).remove().draw();
+            new PNotify({
+                    title: "Media deleted",
+                    text: "Media "+data.name+" has been deleted",
+                    hide: true,
+                    delay: 4000,
+                    icon: 'fa fa-success',
+                    opacity: 1,
+                    type: 'success'
+            });
+        });
+    
+        socket.on('result', function (data) {
+            var data = JSON.parse(data);
+            new PNotify({
+                    title: data.title,
+                    text: data.text,
+                    hide: true,
+                    delay: 4000,
+                    icon: 'fa fa-'+data.icon,
+                    opacity: 1,
+                    type: data.type
+            });
+        });
+    
+        socket.on('add_form_result', function (data) {
+            var data = JSON.parse(data);
+            if(data.result){
+                $("#modalAddMediaForm")[0].reset();
+                $("#modalAddMedia").modal('hide');
+                $("#modalAddFromMedia #modalAdd")[0].reset();
+                $("#modalAddFromMedia").modal('hide');
+            }
+            new PNotify({
+                    title: data.title,
+                    text: data.text,
+                    hide: true,
+                    delay: 4000,
+                    icon: 'fa fa-'+data.icon,
+                    opacity: 1,
+                    type: data.type
+            });
+        });
+    
+        socket.on('edit_form_result', function (data) {
+            var data = JSON.parse(data);
+            if(data.result){
+                $("#modalEdit")[0].reset();
+                $("#modalEditDesktop").modal('hide');
+            }
+            new PNotify({
+                    title: data.title,
+                    text: data.text,
+                    hide: true,
+                    delay: 4000,
+                    icon: 'fa fa-'+data.icon,
+                    opacity: 1,
+                    type: data.type
+            });
+        });
+    }
 })
-function socketio_on(){
-    socket.on('media_data', function(data){
-        var data = JSON.parse(data);
-        data = {...table.row("#"+data.id).data(),...data}
-        dtUpdateInsert(table,data,false);
-    });
-
-    socket.on('media_delete', function(data){
-        //~ console.log('delete')
-        var data = JSON.parse(data);
-        var row = table.row('#'+data.id).remove().draw();
-        new PNotify({
-                title: "Media deleted",
-                text: "Media "+data.name+" has been deleted",
-                hide: true,
-                delay: 4000,
-                icon: 'fa fa-success',
-                opacity: 1,
-                type: 'success'
-        });
-    });
-
-    socket.on('result', function (data) {
-        var data = JSON.parse(data);
-        new PNotify({
-                title: data.title,
-                text: data.text,
-                hide: true,
-                delay: 4000,
-                icon: 'fa fa-'+data.icon,
-                opacity: 1,
-                type: data.type
-        });
-    });
-
-    socket.on('add_form_result', function (data) {
-        var data = JSON.parse(data);
-        if(data.result){
-            $("#modalAddMediaForm")[0].reset();
-            $("#modalAddMedia").modal('hide');
-            $("#modalAddFromMedia #modalAdd")[0].reset();
-            $("#modalAddFromMedia").modal('hide');
-        }
-        new PNotify({
-                title: data.title,
-                text: data.text,
-                hide: true,
-                delay: 4000,
-                icon: 'fa fa-'+data.icon,
-                opacity: 1,
-                type: data.type
-        });
-    });
-
-    socket.on('edit_form_result', function (data) {
-        var data = JSON.parse(data);
-        if(data.result){
-            $("#modalEdit")[0].reset();
-            $("#modalEditDesktop").modal('hide');
-        }
-        new PNotify({
-                title: data.title,
-                text: data.text,
-                hide: true,
-                delay: 4000,
-                icon: 'fa fa-'+data.icon,
-                opacity: 1,
-                type: data.type
-        });
-    });
-}
 
 
 function renderProgress(data){
@@ -661,7 +661,7 @@ function modal_add_install_datatables(){
                     data: JSON.stringify(data),
                     error: function(data){
                         notice.update({
-                            title: "ERROR",
+                            title: "ERROR creating desktop",
                             text: data.responseJSON.description,
                             type: 'error',
                             hide: true,

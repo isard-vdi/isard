@@ -81,7 +81,7 @@ $(document).ready(function(){
                         $('.modal').modal('hide');
                         table.ajax.reload()
                         notice.update({
-                            title: "Created",
+                            title: 'Created',
                             text: 'Secret created successfully',
                             hide: true,
                             delay: 2000,
@@ -92,7 +92,7 @@ $(document).ready(function(){
                     },
                     error: function(data){
                         notice.update({
-                            title: 'ERROR',
+                            title: 'ERROR creating secret',
                             text: data.responseJSON.description,
                             type: 'error',
                             hide: true,

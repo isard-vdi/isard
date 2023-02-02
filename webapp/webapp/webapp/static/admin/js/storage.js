@@ -266,10 +266,9 @@ $(document).ready(function() {
                 });
               },
               error: function (xhr, ajaxOptions, thrownError) {
-                console.log(xhr)
                 if (xhr.status == 428) {
                   new PNotify({
-                      title: "Unable to access storage",
+                      title: "ERROR acessing storage",
                       text: xhr.responseJSON.description,
                       hide: true,
                       delay: 3000,
@@ -323,7 +322,7 @@ $(document).ready(function() {
                     storage_physical.ajax.reload();
                     rescan_pnotify.update({
                       title: "Physical storage",
-                      text:  "Updated "+data.templates+" templates and "+data.desktops+" desktop disksfrom "+toolbox_host,
+                      text:  "Updated "+data.templates+" templates and "+data.desktops+" desktop disks from "+toolbox_host,
                       hide: true,
                       delay: 5000,
                       opacity: 1,
@@ -336,7 +335,7 @@ $(document).ready(function() {
                 console.log(xhr)
                 if (xhr.status == 428) {
                   new PNotify({
-                      title: "Unable to access storage",
+                      title: "ERROR accessing storage",
                       text: xhr.responseJSON.description,
                       hide: true,
                       delay: 3000,

@@ -193,7 +193,7 @@ $(document).ready(function() {
                 contentType: "application/json",
                 error: function(data) {
                     notice.update({
-                        title: 'ERROR Updating user',
+                        title: 'ERROR updating user',
                         text: data.responseJSON.description,
                         type: 'error',
                         hide: true,
