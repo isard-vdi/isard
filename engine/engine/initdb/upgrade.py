@@ -17,7 +17,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 75
+release_version = 76
+# release 76: update gpus_profiles
 # release 75: replace desktop interface macs if found duplicated
 # release 74: update gpus_profiles
 # release 73: 'favourite_hyp' domains field should be a list if it isn't False
@@ -2316,7 +2317,7 @@ class Upgrade(object):
     def gpu_profiles(self, version):
         table = "gpu_profiles"
         log.info("UPGRADING " + table + " VERSION " + str(version))
-        if version == 74:
+        if version in [74, 76]:
             try:
                 f = open("./initdb/profiles/gpu_profiles.json")
                 gpu_profiles = json.loads(f.read())
@@ -2326,6 +2327,7 @@ class Upgrade(object):
                 )
             except Exception as e:
                 print(e)
+        return True
 
     def storage_physical_domains(self, version):
         table = "storage_physical_domains"
