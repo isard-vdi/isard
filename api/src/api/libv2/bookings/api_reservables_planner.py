@@ -304,17 +304,17 @@ class ReservablesPlanner:
                 log.debug(
                     "Plans for " + k + "/" + subitem + ": " + str(len(plans[subitem]))
                 )
-
-        #### SHOULD RETURN ONLY ONE PLAN FOR EACH RESERVABLE
-        only_plan = {}
-        log.debug("THE PLAN:")
-        log.debug(pformat(plans))
-        for item in plans:
-            if len(plans[item]):
-                only_plan[item] = plans[item][
-                    0
-                ]  ## WE COULD DO SOME SMARTER DECISION INSTEAD OF [0]
-        return only_plan if len(only_plan.keys()) else []
+        if len(plans.keys()) == 0:
+            return []
+        elif len(plans.keys()) == 1:
+            return plans
+        else:
+            log.error(
+                "Trying to book desktop with multiple reservables"
+                + str(list(plans.keys()))
+                + ". Not implemented"
+            )
+            return []
 
     ##### Scheduling
     def reschedule_existing_plan_start(self, new_plan, existing_plan):

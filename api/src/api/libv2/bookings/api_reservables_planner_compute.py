@@ -205,22 +205,83 @@ def intersect_same_subitem_plan(plan, plan_name, keep_non_overlapped=True):
         ]
 
 
-def count_non_overridable_bookings(plan_id, subitem_id, priority):
+def count_non_overridable_bookings(plan_id, subitem_id, priority, start, end):
+    query = r.table("bookings")
+    query = query.filter(r.row["reservables"]["vgpus"].contains(subitem_id))
+    query = query.filter(r.row["start"] <= end).filter(r.row["end"] >= start)
+    query = query.filter(
+        r.row["plans"].contains(lambda plan: plan["plan_id"] == plan_id)
+    )
+    query = query.filter(
+        r.row["plans"].contains(lambda plan: plan["priority"] <= priority)
+    )
     with app.app_context():
-        query = r.table("bookings")
-        query = query.filter(
-            r.row["plans"].contains(lambda plan: plan["plan_id"] == plan_id)
+        bookings = list(query.run(db.conn))
+    if not len(bookings):
+        log.debug(
+            "---> Counting nonoverridables: No bookings for "
+            + str(subitem_id)
+            + " within: \nStart: "
+            + str(start)
+            + "\nEnd:"
+            + str(end)
         )
-        query = query.filter(
-            r.row["plans"].contains(lambda plan: plan["priority"] < priority)
-        )
-        with app.app_context():
-            bookings = list(query.run(db.conn))
-    total = 0
+        return 0
+    # We need to intersect plans and get the max units_booked for all of them
+    current_plans = []
     for booking in bookings:
-        total += booking["units"]
-    log.debug("NON OVERRIDABLE BOOKINGS: " + str(total))
-    return total
+        for plan in booking["plans"]:
+            if plan["plan_id"] == plan_id:
+                # This is only for already done bookings before this MR
+                if not plan.get("units_booked"):
+                    plan["units_booked"] = booking["units"]
+                plan["start"] = booking["start"]
+                plan["end"] = booking["end"]
+                current_plans.append(plan)
+
+    # Intersect plans
+    join_plan_op = lambda x, y: {
+        "units_booked": x["units_booked"] + y["units_booked"],
+        "plan_id": x["plan_id"] + "/" + y["plan_id"],
+    }
+
+    output = P.IntervalDict()
+    for interval in current_plans:
+        i = P.closed(interval["start"], interval["end"])
+        d = P.IntervalDict(
+            {
+                i: {
+                    "units_booked": interval["units_booked"],
+                    "plan_id": interval["plan_id"],
+                }
+            }
+        )
+        output = output.combine(d, how=join_plan_op)
+
+    items = []
+    for interval, value in output.items():
+        for atomic in interval:
+            items.append((atomic, value))
+    items.sort()
+    log.debug(
+        "---> Counting nonoverridables: Found "
+        + str(len(bookings))
+        + " bookings, getting the max of intersections units_booked: "
+        + str([item[1]["units_booked"] for item in items])
+        + " within \nStart: "
+        + str(start)
+        + "\nEnd:"
+        + str(end)
+    )
+
+    max = 0
+    for item in items:
+        if item[1]["units_booked"] > max:
+            max = item[1]["units_booked"]
+    log.debug(
+        "-----------> Found " + str(max) + " max units already booked in interval"
+    )
+    return max
 
 
 def get_same_plans_for_booking(
@@ -233,25 +294,148 @@ def get_same_plans_for_booking(
     keep_non_overlapped=True,
 ):
     booking_interval = P.closed(booking_start, booking_end)
+    # Remove plans that not fit in date or are full
     for interval in list(plans):
         i = P.closed(interval["start"], interval["end"])
         if booking_interval not in i:
             log.debug("INTERVAL NOT FITS")
             plans.remove(interval)
             continue
-        # Here we decide if it is available or not
-        if (
-            interval["units"]
-            - units
-            - count_non_overridable_bookings(interval["id"], subitem_id, priority)
-            < 0
-        ):
-            log.debug("INTERVAL IS FULL")
-            plans.remove(interval)
-            continue
-    for plan in plans:
-        plan["units"] = plan["units"] - units
-    return plans
+    if units > 1:
+        # Deployment booking
+        log.debug("\n\n\n\n")
+        log.debug(
+            "------------------------------------------------------------------------"
+        )
+        log.debug(
+            "--------- START DEPLOYMENT BOOKING FOR "
+            + str(units)
+            + " UNITS IN "
+            + str(len(plans))
+            + " PLANS --------"
+        )
+        log.debug(
+            "------------------------------------------------------------------------"
+        )
+        deployment_plans = []
+        remaining_units_to_be_assigned = units
+        for plan in plans:
+            # Here we decide if it is available or not
+            log.debug(
+                "-> Remaining units to be assigned: "
+                + str(remaining_units_to_be_assigned)
+            )
+            avail_in_plan = plan["units"] - count_non_overridable_bookings(
+                plan["id"], subitem_id, priority, booking_start, booking_end
+            )
+            log.debug("-> Available plan units: " + str(avail_in_plan))
+            if avail_in_plan > 0:
+                if remaining_units_to_be_assigned - avail_in_plan > 0:
+                    # Reserve all available from this plan an loop another plan for the rest
+                    plan["units_booked"] = avail_in_plan
+                    remaining_units_to_be_assigned = (
+                        remaining_units_to_be_assigned - avail_in_plan
+                    )
+                    log.debug("---> New plan appended")
+                    deployment_plans.append(plan)
+                else:
+                    # There will be still room left for other bookings in this plan
+                    # units_booked=remaining_units_... then break
+                    # Reserve all available from this plan an loop another plan for the rest
+                    plan["units_booked"] = remaining_units_to_be_assigned
+                    log.debug(
+                        "---> New plan appended. Last one as fits "
+                        + str(remaining_units_to_be_assigned)
+                        + " in "
+                        + str(avail_in_plan)
+                    )
+                    remaining_units_to_be_assigned = 0
+                    deployment_plans.append(plan)
+                    break
+            else:
+                log.debug(
+                    "-> Skipping plan because it is full in this interval: "
+                    + str(plan["id"])
+                )
+        if remaining_units_to_be_assigned > 0:
+            log.debug(
+                "------------------------------------------------------------------------"
+            )
+            log.debug(
+                "--- END DEPLOY BOOKING. UNABLE TO FIT ALL UNITS IN AVAILABLE PLANS -----"
+            )
+            log.debug(
+                "------------------------------------------------------------------------"
+            )
+            log.debug("\n\n\n\n")
+            return []
+        log.debug(
+            "------------------------------------------------------------------------"
+        )
+        log.debug(
+            "--- END DEPLOY BOOKING WITH TOTAL OF "
+            + str(len(deployment_plans))
+            + " PLANS ---"
+        )
+        log.debug(
+            "------------------------------------------------------------------------"
+        )
+        log.debug("\n\n\n\n")
+        return deployment_plans
+    else:
+        # Desktop booking
+        log.debug("\n\n\n\n")
+        log.debug(
+            "------------------------------------------------------------------------"
+        )
+        log.debug(
+            "--------- START DESKTOP BOOKING FOR "
+            + str(units)
+            + " UNITS IN "
+            + str(len(plans))
+            + " PLANS --------"
+        )
+        log.debug(
+            "------------------------------------------------------------------------"
+        )
+        for plan in plans:
+            log.debug("-> Available plan units: " + str(plan["units"]))
+            if (
+                plan["units"]
+                - 1
+                - count_non_overridable_bookings(
+                    plan["id"], subitem_id, priority, booking_start, booking_end
+                )
+                >= 0
+            ):
+                log.debug(
+                    "------------------------------------------------------------------------"
+                )
+                log.debug(
+                    "--- END DESKTOP BOOKING WITH ASSIGNED PLAN -----------------------------"
+                )
+                log.debug(
+                    "------------------------------------------------------------------------"
+                )
+                log.debug("\n\n\n\n")
+                plan["units_booked"] = 1
+                return [plan]
+            else:
+                log.debug(
+                    "-> Skipping plan because it is full in this interval: "
+                    + str(plan["id"])
+                )
+        log.debug(
+            "------------------------------------------------------------------------"
+        )
+        log.debug(
+            "--- END DESKTOP BOOKING. UNABLE TO FIT 1 UNITS IN AVAILABLE PLANS ------"
+        )
+        log.debug(
+            "------------------------------------------------------------------------"
+        )
+        log.debug("\n\n\n\n")
+        return []
 
 
 def get_different_plans_for_booking(plans):
@@ -304,7 +488,6 @@ def join_consecutive_plans(plan):
     output = P.IntervalDict()
     for interval in plan:
         if interval.get("start"):
-            log.debug(interval)
             i = P.closedopen(interval["start"], interval["end"])
             d = P.IntervalDict({i: {"units": 1, "id": "Available"}})
             output = output.combine(d, how=join_plan_op)
