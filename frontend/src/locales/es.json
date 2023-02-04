@@ -98,7 +98,7 @@
             "url": "Dirección web",
             "type": "Tipo",
             "name": "Nombre del medio",
-            "description": "Descripció",
+            "description": "Descripción",
             "select-type": "Por favor, seleccione una opción"
         },
         "edit": {
