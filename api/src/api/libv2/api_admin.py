@@ -119,47 +119,29 @@ def admin_table_update(table, data, payload=False):
                     traceback.format_exc(),
                 )
 
-    with app.app_context():
-        if table == "users":
+    if table == "users":
+        with app.app_context():
             user = r.table("users").get(data["id"]).run(db.conn)
-            if not user:
-                raise Error(
-                    "not_found",
-                    "User not found user_id:" + data["id"],
-                    traceback.format_exc(),
-                    description_code="user_not_found",
-                )
+        if not user:
+            raise Error(
+                "not_found",
+                "User not found user_id:" + data["id"],
+                traceback.format_exc(),
+                description_code="user_not_found",
+            )
+        with app.app_context():
             category = r.table("categories").get(user["category"]).run(db.conn)
-            if not category:
-                raise Error(
-                    "not_found",
-                    "Category not found category_id:" + user["category"],
-                    traceback.format_exc(),
-                    description_code="category_not_found",
-                )
-            # Managers can't update a user quota with a higher value than its category quota
-            if payload["role_id"] == "manager":
-
-                if category["quota"] != False:
-                    for k, v in category["quota"].items():
-                        if (
-                            data.get("quota")
-                            and data.get("quota").get(k)
-                            and v < data.get("quota")[k]
-                        ):
-                            raise Error(
-                                "precondition_required",
-                                "Can't update "
-                                + user["name"]
-                                + " "
-                                + k
-                                + " quota value with a higher value than its category quota",
-                                traceback.format_exc(),
-                            )
-
-            # Can't update a user quota with a higher value than its category limit
-            if category["limits"] != False:
-                for k, v in category["limits"].items():
+        if not category:
+            raise Error(
+                "not_found",
+                "Category not found category_id:" + user["category"],
+                traceback.format_exc(),
+                description_code="category_not_found",
+            )
+        # Managers can't update a user quota with a higher value than its category quota
+        if payload["role_id"] == "manager":
+            if category["quota"] != False:
+                for k, v in category["quota"].items():
                     if (
                         data.get("quota")
                         and data.get("quota").get(k)
@@ -168,15 +150,35 @@ def admin_table_update(table, data, payload=False):
                         raise Error(
                             "precondition_required",
                             "Can't update "
-                            + data["name"]
+                            + user["name"]
                             + " "
                             + k
-                            + " quota value with a higher value than its category limit",
+                            + " quota value with a higher value than its category quota",
                             traceback.format_exc(),
                         )
+
+        # Can't update a user quota with a higher value than its category limit
+        if category["limits"] != False:
+            for k, v in category["limits"].items():
+                if (
+                    data.get("quota")
+                    and data.get("quota").get(k)
+                    and v < data.get("quota")[k]
+                ):
+                    raise Error(
+                        "precondition_required",
+                        "Can't update "
+                        + data["name"]
+                        + " "
+                        + k
+                        + " quota value with a higher value than its category limit",
+                        traceback.format_exc(),
+                    )
+        with app.app_context():
             old_data = r.table("users").get(data["id"]).run(db.conn)
-            old_data.update(data)
-            _validate_item("user", old_data)
+        old_data.update(data)
+        _validate_item("user", old_data)
+    with app.app_context():
         if not _check(
             r.table(table).get(data["id"]).update(data).run(db.conn),
             "replaced",
