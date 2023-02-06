@@ -108,8 +108,6 @@ def admin_table_insert(table, data):
 
 def admin_table_update(table, data, payload=False):
     _validate_table(table)
-    if table == "interfaces":
-        _validate_item(table, data)
     if table == "hypervisors":
         if data.get("capabilities"):
             if not data["capabilities"].get("hypervisor") and not data[
