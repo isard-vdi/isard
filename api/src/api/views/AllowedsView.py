@@ -124,11 +124,8 @@ def alloweds_table_term(payload, table):
 @owns_table_item_id
 def admin_allowed_update(payload, table):
     data = request.get_json(force=True)
-    item = admin_table_get(table, data["id"])
-    item["allowed"].update(data["allowed"])
-    data.update(_validate_item("allowed", item["allowed"]))
-
-    admin_table_update(table, {"id": item["id"], "allowed": item["allowed"]})
+    data.update(_validate_item("allowed", data["allowed"]))
+    admin_table_update(table, {"id": data["id"], "allowed": data["allowed"]})
     return (json.dumps({}), 200, {"Content-Type": "application/json"})
 
 
