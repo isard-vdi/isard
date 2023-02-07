@@ -960,7 +960,8 @@
         "viewer_protocol_not_implemented": "Protocolo de visualización no implementado",
         "template_already_exists": "El identificador de la plantilla ya existe: ",
         "unable_to_parse_media": "No se puede analizar la información multimedia",
-        "unable_to_change_desktop_status": "No se puede cambiar el estado del escritorio"
+        "unable_to_change_desktop_status": "No se puede cambiar el estado del escritorio",
+        "duplicated_name": "Nombre duplicado"
     },
     "router": {
         "titles": {
