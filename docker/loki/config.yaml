@@ -3,6 +3,12 @@ auth_enabled: false
 server:
   http_listen_port: 3100
 
+query_scheduler:
+  max_outstanding_requests_per_tenant: 4096
+
+frontend:
+  max_outstanding_per_tenant: 4096
+
 common:
   path_prefix: /loki
   storage:
