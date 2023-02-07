@@ -914,9 +914,7 @@ class hyp(object):
                             ]
                             for a in l_types:
                                 a["name"] = a["name"].replace("GRID ", "")
-                        l_types.sort(
-                            key=lambda r: int(r["name"][:-1][0].split("-")[-1])
-                        )
+                        l_types.sort(key=lambda r: int(r["name"][:-1].split("-")[-1]))
                         type_max_gpus = l_types[0]["name"].split("-")[-1]
                         model_gpu = l_types[0]["name"].split("-")[-2]
 
