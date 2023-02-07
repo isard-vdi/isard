@@ -492,7 +492,7 @@ def join_consecutive_plans(plan):
     }
     output = P.IntervalDict()
     for interval in plan:
-        if interval.get("start"):
+        if interval.get("start") and interval.get("units", 0) > 0:
             i = P.closedopen(interval["start"], interval["end"])
             d = P.IntervalDict({i: {"units": 1, "id": "Available"}})
             output = output.combine(d, how=join_plan_op)
