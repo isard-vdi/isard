@@ -159,6 +159,7 @@ $(document).ready(function () {
           loadingRecords:
             '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
         },
+        pageLength: 50,
         columns: [
           {
             className: "text-center",
