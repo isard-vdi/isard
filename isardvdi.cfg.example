@@ -414,6 +414,10 @@ WG_GUESTS_RESERVED_HOSTS=20
 
 # ------ Grafana ------------------------------------------------------
 #GRAFANA_HOST=isard-grafana
+# This variable is used for provisioning alerts in Grafana
+#GRAFANA_TELEGRAM_TOKEN=
+# This variable is used for provisioning alerts in Grafana
+#GRAFANA_TELEGRAM_CHAT_ID=
 
 # ------ Prometheus -----------------------------------------------------
 #PROMETHEUS_ADDRESS=http://isard-prometheus:9090
