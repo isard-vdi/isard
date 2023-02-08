@@ -34,3 +34,30 @@ class StoragePool(RethinkBase):
     """
 
     _table = "storage_pool"
+
+    @classmethod
+    def get_by_path(cls, path):
+        """
+        Get Storage Pools that have a specific path
+
+        :param path: Path
+        :type path: str
+        :return: StoragePool objects
+        :rtype: list
+        """
+        with app.app_context():
+            return [
+                cls(storage_pool["id"])
+                for storage_pool in r.table(cls._table)
+                .filter(
+                    lambda document: document["paths"]
+                    .values()
+                    .contains(
+                        lambda path_type: path_type.contains(
+                            lambda path_dict: path_dict["path"].eq(path)
+                        )
+                    )
+                )
+                .pluck("id")
+                .run(cls._rdb.conn)
+            ]

@@ -93,3 +93,16 @@ class RethinkBase(ABC):
             namespace="/administrators",
             room="admins",
         )
+
+    @classmethod
+    def exists(cls, document_id):
+        """
+        Check if a document ID exists.
+
+        :param document_id: Document ID
+        :type document_id: str
+        :return: True if exists, False otherwise.
+        :rtype: bool
+        """
+        with app.app_context():
+            return bool(r.table(cls._table).get(document_id).run(cls._rdb.conn))

@@ -13,6 +13,8 @@ RUN apk del .build_deps
 
 COPY api/src /api
 COPY component/_common/src /api/api/_common
+ENV PYTHONPATH /opt/isardvdi
+COPY pkg/gen/proto/python /opt/isardvdi/isardvdi_protobuf
 
 ENV PYTHONWARNINGS "ignore:Unverified HTTPS request"
 CMD ["python3", "-u", "/api/startv3.py"]

@@ -20,6 +20,7 @@
 import json
 
 from api.libv2.api_users import ApiUsers
+from api.libv2.storage import Storage
 from api.libv2.task import Task
 from rq import get_current_job
 
@@ -58,3 +59,28 @@ def feedback(task_id=None):
         namespace="/userspace",
         room=task.user_id,
     )
+
+
+def storage_ready(
+    storage_ids=None, on_finished_storage_ids=None, on_failed_storage_ids=None
+):
+    """
+    Set storage as ready
+
+    :param storage_ids: Storage IDs to be ready always
+    :type storage_ids: list
+    :param on_failed_storage_ids: Storage IDs to be ready if depending tasks failed
+    :type on_failed_storage_ids: list
+    :param on_finished_storage_ids: Storage IDs to be ready if depending tasks success
+    :type on_finished_storage_ids: list
+    """
+    task = Task(get_current_job().id)
+    ready_storage_ids = []
+    if storage_ids:
+        ready_storage_ids.extend(storage_ids)
+    if on_finished_storage_ids and task.depending_status == "finished":
+        ready_storage_ids.extend(on_finished_storage_ids)
+    if on_failed_storage_ids and task.depending_status == "failed":
+        ready_storage_ids.extend(on_failed_storage_ids)
+    for storage_id in ready_storage_ids:
+        Storage(storage_id, status="ready")
