@@ -125,7 +125,7 @@ def api_v3_hypervisor(hyper_id=False):
             buffering_hyper = json.loads(
                 request.form.get("buffering_hyper", default="false", type=str).lower()
             )
-
+            gpu_only = True if request.form.get("gpu_only") == "True" else False
         except:
             raise Error(
                 "bad_request",
@@ -154,6 +154,7 @@ def api_v3_hypervisor(hyper_id=False):
             min_free_mem_gb=min_free_mem_gb,
             storage_pools=storage_pools,
             buffering_hyper=buffering_hyper,
+            gpu_only=gpu_only,
         )
         if not data["status"]:
             raise Error("internal_server", "Failed hypervisor: " + data["msg"])

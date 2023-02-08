@@ -76,6 +76,7 @@ def SetupHypervisor():
         "buffering_hyper": json.loads(
             os.environ.get("BUFFERING_HYPER", "false").lower()
         ),
+        "gpu_only": True if os.environ.get("GPU_ONLY") == "true" else False,
     }
 
     ## Adding hyper. Received dict with certs and number
