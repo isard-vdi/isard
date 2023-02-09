@@ -244,6 +244,28 @@
                 "total-media-size": "Mida de mitjans utilitzats / Total de mida dels mitjans (GB)",
                 "total-size": "Mida utilitzada / Mida total (GB)"
             }
+        },
+        "start-now-modal": {
+            "title": "Iniciar ara",
+            "profile": "Perfil",
+            "select-profile": "Selecciona el perfil que es farà servir",
+            "end-date": "Data de finalització",
+            "select-end-date": "Selecciona fins a quan es farà servir",
+            "button": "Iniciar escriptori"
+        },
+        "cant-start-now-modal": {
+            "title": {
+                "available-profile": "El model de targeta gràfica d'aquest escriptori ({profile}) no està disponible en aquest moment",
+                "no-available-profile": "No hi ha cap altre model de targeta gràfica disponible en aquest moment"
+            },
+            "change-desktop-gpu": {
+                "text": "Podeu canviar a un model de targeta gràfica disponible ara i iniciar-lo (pot afectar al rendiment de l'escriptori)",
+                "button": "Canviar i iniciar"
+            },
+            "go-to-bookings": {
+                "text": "Reservar l'escriptori amb el model de la targeta gràfica actual consultant la seva planificació",
+                "button": "Reservar escriptori"
+            }
         }
     },
     "views": {
@@ -866,7 +888,10 @@
         "deployment_delete_stop": "Per esborrar un desplegament és necessari que els seus escriptoris estiguin parats",
         "desktop_not_booked": "Per engegar l'escriptori ha d'estar reservat",
         "desktop_not_booked_until": "No es pot engegar l'escriptori fins a la propera reserva {start}",
-        "only_works_rdp":  "Mode 'Only GPU' només funciona amb visors RDP"
+        "only_works_rdp":  "Mode 'Only GPU' només funciona amb visors RDP",
+        "current_plan_doesnt_match": "No hi ha cap GPU disponible amb el perfil de l'escriptori",
+        "needs_deployment_booking": "Ara mateix no es pot arrancar l'escriptori, contacta amb el propietari d'aquest desplegament perque crei una reserva",
+        "not_enough_advanced_time": "No hi ha suficient antel·lació per arrancar l'escriptori"
     },
     "messages": {
         "title": {
@@ -892,8 +917,10 @@
             "edit-domain": "El hardware de '{name}' es limitarà i les seves dades es modificaran, continuar?",
             "new-deployment": "Es crearan {quantity} escriptoris, un per cada usuari seleccionat. Continuar?",
             "go-to-profile": "Veure quota",
+            "go-to-bookings": "Reservar escriptori",
             "make-invisible-and-stop": "invisible i aturar",
-            "make-invisible-and-not-stop": "fer invisible"
+            "make-invisible-and-not-stop": "fer invisible",
+            "change-desktop-gpu": "Modificar el perfil de l'escriptori"
         },
         "ok": "D'acord",
         "yes": "Si",

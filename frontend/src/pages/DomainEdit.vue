@@ -161,7 +161,9 @@ export default {
         },
         image: domain.value.image
       }
-      $store.dispatch('editDomain', domainData)
+      $store.dispatch('editDomain', domainData).then(() => {
+        context.root.$router.push({ name: 'desktops' })
+      })
     }
 
     return {

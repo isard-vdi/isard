@@ -261,6 +261,29 @@ def api_v3_domain_edit(payload, domain_id):
     )
 
 
+@app.route("/api/v3/domain/reservables/<domain_id>", methods=["PUT"])
+@has_token
+def api_v3_domain_edit_reservables(payload, domain_id):
+    try:
+        data = request.get_json(force=True)
+    except:
+        raise Error(
+            "bad_request",
+            "Desktop edit reservables incorrect body data",
+            traceback.format_exc(),
+            description_code="desktop_incorrect_body_data",
+        )
+    data = _validate_item("desktop_reservables_update", data)
+    ownsDomainId(payload, domain_id)
+    desktops.UpdateReservables(domain_id, reservables=data.get("reservables"))
+
+    return (
+        json.dumps(data),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
 @app.route("/api/v3/desktop/jumperurl/<desktop_id>", methods=["GET"])
 @has_token
 def api_v3_admin_viewer(payload, desktop_id):

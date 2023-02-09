@@ -229,7 +229,7 @@
 }
 
 .card-list .dropdown-wait button {
-  background-color: #eead47;
+  background-color: var(--orange-color);
 }
 
 .card-list .dropdown-active button {
@@ -276,7 +276,7 @@
 }
 
 .card-list .card .booking-notification {
-  background-color: #eead47 !important;
+  background-color: var(--orange-color) !important;
 }
 
 .card-list .card .state-on {
@@ -521,7 +521,7 @@
 }
 
 .status-spinner {
-  color: #eead47 !important
+  color: var(--orange-color) !important
 }
 
 .status-green {
@@ -529,7 +529,7 @@
 }
 
 .status-orange {
-  color: #eead47
+  color: var(--orange-color)
 }
 
 .status-red {
@@ -636,4 +636,8 @@
 
 .loading-cursor {
   cursor: wait !important;
+}
+
+.orange-bg {
+  background-color: var(--orange-color);
 }

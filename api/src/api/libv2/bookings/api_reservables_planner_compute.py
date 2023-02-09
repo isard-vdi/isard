@@ -84,16 +84,16 @@ def booking_provisioning(
     resource_planner = compute_overridable_bookings(
         overridable, nonoverridable, resource_planner, units
     )
-
     # Remove existing bookings for this item from resource_planner
-    resource_planner = remove_existing_item_bookings(
-        resource_planner, item_type, item_id
-    )
-
-    if not os.environ.get("LOG_LEVEL") == "DEBUG":
-        # This will join consecutive plans
-        # When debugging it is better to show them splitted (do not join)
-        resource_planner = join_consecutive_plans(resource_planner)
+    if item_id and item_type:
+        resource_planner = remove_existing_item_bookings(
+            resource_planner, item_type, item_id
+        )
+    # This will join consecutive plans
+    # When debugging it is better to show them splitted (do not join)
+    # Removed because it would cause problems with the start now feature
+    # if not os.environ.get("LOG_LEVEL") == "DEBUG":
+    resource_planner = join_consecutive_plans(resource_planner)
     return resource_planner
 
 
@@ -106,16 +106,12 @@ def get_subitems_planning(subitems, start=None, end=None, item_id=None, now=None
         end = start
 
     if item_id:
-        query = (
-            r.db("isard")
-            .table("resource_planner")
-            .get_all([item_id, r.args(subitems)], index="item-subitem")
+        query = r.table("resource_planner").get_all(
+            [item_id, r.args(subitems)], index="item-subitem"
         )
     else:
-        query = (
-            r.db("isard")
-            .table("resource_planner")
-            .get_all(r.args(subitems), index="subitem_id")
+        query = r.table("resource_planner").get_all(
+            r.args(subitems), index="subitem_id"
         )
 
     if start:
@@ -506,7 +502,7 @@ def join_consecutive_plans(plan):
     for interval in plan:
         if interval.get("start") and interval.get("units", 0) > 0:
             i = P.closedopen(interval["start"], interval["end"])
-            d = P.IntervalDict({i: {"units": 1, "id": "Available"}})
+            d = P.IntervalDict({i: {"units": 1, "id": "available"}})
             output = output.combine(d, how=join_plan_op)
 
     items = []

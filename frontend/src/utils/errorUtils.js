@@ -41,25 +41,24 @@ export class ErrorUtils {
     })
   }
 
-  static showRedirectProfileMessage (snotify, error, message = '', title = '', position = 'centerTop') {
-    const errorMessage = message.length > 0 ? message : ErrorUtils.getErrorMessageText(get(error, 'response.data.description_code'), get(error, 'response.data.params'))
-
-    snotify.confirm(errorMessage, {
-      placeholder: '',
-      position: position,
+  static showRedirectMessage (snotify, error, redirectButtons = {}) {
+    const errorMessage = ErrorUtils.getErrorMessageText(get(error, 'response.data.description_code'), get(error, 'response.data.params'))
+    const config = {
+      position: 'centerTop',
       buttons: [
-        { text: `${i18n.t('messages.confirmation.go-to-profile')}`, action: () => this.goToProfile(snotify), bold: true },
-        { text: `${i18n.t('messages.ok')}`, action: () => this.closeNotification(snotify), bold: true }
+        { text: i18n.t('messages.ok'), action: () => this.closeNotification(snotify), bold: true }
       ]
-    })
+    }
+    config.buttons = config.buttons.concat(redirectButtons)
+    snotify.confirm(errorMessage, config)
   }
 
   static closeNotification (snotify) {
     snotify.clear()
   }
 
-  static goToProfile (snotify) {
-    router.push({ name: 'profile' })
+  static goTo (snotify, name) {
+    router.push({ name })
     snotify.clear()
   }
 
@@ -71,7 +70,10 @@ export class ErrorUtils {
     if (![401, 500, 503].includes(error.response.status)) {
       // The quotas errors will show a different notification redirecting to the user profile
       if (error.response.data.description_code.includes('quota')) {
-        ErrorUtils.showRedirectProfileMessage(snotify, error)
+        const buttons = [
+          { text: i18n.t('messages.confirmation.go-to-profile'), action: () => this.goTo(snotify, 'profile'), bold: true }
+        ]
+        ErrorUtils.showRedirectMessage(snotify, error, buttons)
       } else {
         ErrorUtils.showErrorMessage(snotify, error)
       }

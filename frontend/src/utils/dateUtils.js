@@ -69,4 +69,12 @@ export class DateUtils {
   static getMinutesBetweenDates (start, end) {
     return moment.duration(moment(end).diff(moment(start))).asMinutes()
   }
+
+  static breakTimeInChunks (startDate, endDate, chunkSize, chunkType) {
+    const chunks = []
+    while (startDate.add(chunkSize, chunkType) < endDate) {
+      chunks.push(this.localTimeToUtc(startDate))
+    }
+    return chunks
+  }
 }

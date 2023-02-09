@@ -9,6 +9,8 @@
         @click="updateCurrentTab('desktops')"
       >
         <DirectLinkModal />
+        <StartNowModal />
+        <CantStartNowModal />
         <template #title>
           <b-spinner
             v-if="!getDesktopsLoaded"
@@ -102,12 +104,16 @@ import TableList from '@/components/TableList.vue'
 import { computed, watch } from '@vue/composition-api'
 import { desktopStates } from '@/shared/constants'
 import DirectLinkModal from '../components/directViewer/DirectLinkModal.vue'
+import StartNowModal from '@/components/booking/StartNowModal.vue'
+import CantStartNowModal from '@/components/booking/CantStartNowModal.vue'
 
 export default {
   components: {
     CardList,
     TableList,
-    DirectLinkModal
+    DirectLinkModal,
+    StartNowModal,
+    CantStartNowModal
   },
   setup (_, context) {
     const $store = context.root.$store

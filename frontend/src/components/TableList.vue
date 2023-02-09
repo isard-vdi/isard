@@ -176,12 +176,12 @@
                 <DesktopButton
                   v-if="(data.item.type === 'persistent' || (data.item.type === 'nonpersistent' && data.item.state && getItemState(data.item) === desktopStates.stopped )) && ![desktopStates.working, desktopStates.downloading].includes(getItemState(data.item))"
                   class="table-action-button"
-                  :active="canStart(data.item)"
-                  :button-class="canStart(data.item) ? buttCssColor(getItemState(data.item)) : ''"
+                  :active="true"
+                  :button-class="buttCssColor(getItemState(data.item))"
                   :spinner-active="false"
                   :butt-text="$t(`views.select-template.status.${getItemState(data.item)}.action`)"
                   :icon-name="data.item.buttonIconName"
-                  @buttonClicked="changeDesktopStatus({ action: status[getItemState(data.item) || 'stopped'].action, desktopId: data.item.id })"
+                  @buttonClicked="changeDesktopStatus(data.item, { action: status[getItemState(data.item) || 'stopped'].action, desktopId: data.item.id })"
                 />
                 <!-- Delete action button-->
                 <DesktopButton
@@ -328,7 +328,7 @@ export default {
       type: Boolean
     }
   },
-  setup (props) {
+  setup (props, context) {
     const perPage = ref(10)
     const pageOptions = ref([10, 20, 30, 50, 100])
     const currentPage = ref(1)
@@ -405,6 +405,16 @@ export default {
       })
     }
 
+    const $store = context.root.$store
+
+    const changeDesktopStatus = (desktop, data) => {
+      if (canStart(desktop)) {
+        $store.dispatch('changeDesktopStatus', data)
+      } else {
+        $store.dispatch('checkCanStart', { id: desktop.id, type: 'desktop', profile: desktop.reservables.vgpus[0] })
+      }
+    }
+
     const canStart = (desktop) => {
       if (desktop.needsBooking) {
         return desktop.bookingId
@@ -419,7 +429,8 @@ export default {
       currentPage,
       totalRows,
       fields: desktopFields,
-      canStart
+      canStart,
+      changeDesktopStatus
     }
   },
   data () {
@@ -452,7 +463,6 @@ export default {
       'deleteDesktop',
       'deleteNonpersistentDesktop',
       'openDesktop',
-      'changeDesktopStatus',
       'createDesktop',
       'navigate',
       'goToItemBooking',
