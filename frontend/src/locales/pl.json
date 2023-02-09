@@ -3,7 +3,8 @@
         "sameAs": "Pole {property} musi mieć taką samą wartość jak {property2}.",
         "inputFormat": "Prawidłowe znaki to litery, cyfry, przecinek, kropka, -, _",
         "url": "Pole {property} musi być adresem URL.",
-        "minLengthValue": "Pole {property} ma {model} znaków, ale musi mieć minimum {min}."
+        "minLengthValue": "Pole {property} ma {model} znaków, ale musi mieć minimum {min}.",
+        "required": "{property} jest wymagane."
     },
     "forms": {
         "allowed": {
