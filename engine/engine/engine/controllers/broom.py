@@ -20,6 +20,7 @@ from engine.services.db import (
     update_domain_hyp_started,
     update_domain_status,
     update_table_field,
+    update_vgpu_info_if_stopped,
 )
 from engine.services.db.domains_status import (
     get_last_domain_status,
@@ -374,6 +375,7 @@ class ThreadBroom(threading.Thread):
                                         domain_id,
                                         detail="Stopped by broom thread",
                                     )
+                                    update_vgpu_info_if_stopped(domain_id)
                             elif status == "Shutting-down":
                                 logs.broom.debug(
                                     "DOMAIN: {} STATUS Shutting-down IN HYPERVISOR: {}".format(
