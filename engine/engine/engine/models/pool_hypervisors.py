@@ -12,7 +12,6 @@ from random import randint
 from time import sleep
 from traceback import format_exc
 
-from engine.services.balancers.balancer_factory import BalancerFactory
 from engine.services.db import get_table_field, get_video_model_profile
 from engine.services.db.domains import (
     get_create_dict,
@@ -112,18 +111,16 @@ def move_actions_to_others_hypers(
 
 class Balancer_no_stats:
     def __init__(self, id_pool="default"):
-        self.hyps = []
         self.index_round_robin = 0
         self.id_pool = id_pool
 
-    def get_next(self, **kwargs):
-        self.hyps = get_hypers_in_pool(self.id_pool, exclude_hyp_only_forced=True)
-        # return self.hyps[randint(0,len(self.hyps)-1)]
+    def get_next(self, l_hypervisors):
+        # return l_hypervisors[randint(0,len(l_hypervisors)-1)]
         self.index_round_robin += 1
-        if self.index_round_robin >= len(self.hyps):
+        if self.index_round_robin >= len(l_hypervisors):
             self.index_round_robin = 0
-        if len(self.hyps) > 0:
-            return self.hyps[self.index_round_robin]
+        if len(l_hypervisors) > 0:
+            return l_hypervisors[self.index_round_robin]
         else:
             return False
 
@@ -154,11 +151,11 @@ class PoolHypervisors:
         favourite_hyp=False,
         reservables=True,
     ):
-        kwargs = {
-            "to_create_disk": to_create_disk,
-            "path_selected": path_selected,
-            "domain_id": domain_id,
-        }
+        if to_create_disk is True:
+            exclude_hyp_gpu_only = False
+        else:
+            exclude_hyp_gpu_only = True
+
         if domain_id is not None:
             # try:
             create_dict = get_create_dict(domain_id)
@@ -233,7 +230,7 @@ class PoolHypervisors:
                 }
                 return next_hyp, extra
 
-            if (
+            elif (
                 create_dict["hardware"]["videos"][0].find("nvidia") == 0
                 or create_dict["hardware"]["videos"][0].find("gpu-default") == 0
             ):
@@ -254,14 +251,16 @@ class PoolHypervisors:
                     "profile": next_profile,
                 }
                 return next_hyp, extra
+
             else:
-                hypers_online = get_hypers_info(id_pool=self.id_pool)
-                hypers_online_exclude_only_forced = get_hypers_info(
-                    id_pool=self.id_pool, exclude_only_forced=True
+                (hyps_to_start, hyps_only_forced, hyps_all) = get_hypers_in_pool(
+                    self.id_pool,
+                    exclude_hyp_only_forced=True,
+                    exclude_hyp_gpu_only=exclude_hyp_gpu_only,
                 )
 
                 if force_hyp != False:
-                    if force_hyp in [a["id"] for a in hypers_online]:
+                    if force_hyp in hyps_all:
                         return force_hyp, {}
                     else:
                         logs.hmlog.error(
@@ -270,15 +269,19 @@ class PoolHypervisors:
                         return False, {}
 
                 if favourite_hyp != False:
-                    if favourite_hyp in [
-                        a["id"] for a in hypers_online_exclude_only_forced
-                    ]:
+                    if favourite_hyp in [a["id"] for a in hyps_to_start]:
                         return favourite_hyp, {}
                     else:
                         logs.hmlog.info(
                             f"favourite hypervisor {favourite_hyp} is no online, trying other hypervisor online in pool"
                         )
-        return self.balancer.get_next(**kwargs), {}
+
+                return self.balancer.get_next(hyps_to_start), {}
+
+        (hyps_to_start, hyps_only_forced, hyps_all) = get_hypers_in_pool(
+            self.id_pool,
+        )
+        return self.balancer.get_next(hyps_all), {}
 
     def get_hyp_with_uuid_available(
         self, gpu_profile, force_hyp=False, favourite_hyp=False

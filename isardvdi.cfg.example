@@ -232,6 +232,9 @@ LOG_LEVEL=INFO
 ##                         when enabled (from disabled) at web interface.
 #GPU_NVIDIA_RESCAN=false
 
+## Only start desktops with GPU reservables (avoid )
+#GPU_ONLY=false
+
 ##################################################################
 ## INFRASTRUCTURE PARAMETERS. Used on remote hypervisors        ##
 ##################################################################
