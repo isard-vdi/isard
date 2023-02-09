@@ -673,68 +673,82 @@ def get_pool_hypers_conf(id_pool="default"):
 
 
 def get_hypers_in_pool(
-    id_pool="default", only_online=True, exclude_hyp_only_forced=False
+    id_pool="default",
+    only_online=True,
+    exclude_hyp_only_forced=False,
+    exclude_hyp_gpu_only=False,
 ):
     r_conn = new_rethink_connection()
     rtable = r.table("hypervisors")
 
     l_forced = []
-    if exclude_hyp_only_forced is True:
-        if only_online:
-            l_forced = list(
-                rtable.filter(r.row["hypervisors_pools"].contains(id_pool))
-                .filter({"status": "Online", "only_forced": True})
-                .pluck("id")
-                .run(r_conn)
-            )
-        else:
-            l_forced = list(
-                rtable.filter(r.row["hypervisors_pools"].contains(id_pool))
-                .filter({"only_forced": True})
-                .pluck("id")
-                .run(r_conn)
-            )
-
+    l_gpu_only = []
+    d_filter = {}
     if only_online:
-        l = list(
+        d_filter["status"] = "Online"
+
+    if exclude_hyp_only_forced is True:
+        d_filter_only_forced = d_filter.copy()
+        d_filter_only_forced["only_forced"] = True
+        l_forced = list(
             rtable.filter(r.row["hypervisors_pools"].contains(id_pool))
-            .filter({"status": "Online"})
-            .pluck("id")
-            .run(r_conn)
-        )
-    else:
-        l = list(
-            rtable.filter(r.row["hypervisors_pools"].contains(id_pool))
+            .filter(d_filter_only_forced)
             .pluck("id")
             .run(r_conn)
         )
 
-    hyps_id = [a["id"] for a in l]
-    hyps_forced = [a["id"] for a in l_forced]
-    removed = [hyps_id.remove(i) for i in hyps_forced]
+    if exclude_hyp_gpu_only is True:
+        d_filter_gpu_only = d_filter.copy()
+        d_filter_gpu_only["gpu_only"] = True
+        l_gpu_only = list(
+            rtable.filter(r.row["hypervisors_pools"].contains(id_pool))
+            .filter(d_filter_gpu_only)
+            .pluck("id")
+            .run(r_conn)
+        )
+
+    l = list(
+        rtable.filter(r.row["hypervisors_pools"].contains(id_pool))
+        .filter(d_filter)
+        .pluck("id")
+        .run(r_conn)
+    )
+
+    hyps_gpu_only = [a["id"] for a in l_gpu_only]
+    hyps_only_forced = [a["id"] for a in l_forced]
+    hyps_all = [a["id"] for a in l]
+    hyps_to_start = [
+        a["id"] for a in l if a["id"] not in (hyps_only_forced + hyps_gpu_only)
+    ]
 
     close_rethink_connection(r_conn)
-    return hyps_id
+    return hyps_to_start, hyps_only_forced, hyps_all
 
 
-def get_hypers_info(id_pool="default", pluck=None, exclude_only_forced=False):
+def get_hypers_info(
+    id_pool="default", pluck=None, exclude_only_forced=False, exclude_gpu_only=False
+):
     r_conn = new_rethink_connection()
     rtable = r.table("hypervisors")
     l_only_forced = []
+    l_gpu_only = []
     if exclude_only_forced is True:
-        if not pluck:
-            l_only_forced = list(
-                rtable.filter(r.row["hypervisors_pools"].contains(id_pool))
-                .filter({"status": "Online", "only_forced": True})
-                .run(r_conn)
-            )
-        else:
-            l_only_forced = list(
-                rtable.filter(r.row["hypervisors_pools"].contains(id_pool))
-                .filter({"status": "Online", "only_forced": True})
-                .pluck(pluck)
-                .run(r_conn)
-            )
+        l_only_forced = list(
+            rtable.filter(r.row["hypervisors_pools"].contains(id_pool))
+            .filter({"status": "Online", "only_forced": True})
+            .pluck("id")
+            .run(r_conn)
+        )
+
+    if exclude_gpu_only is True:
+        l_gpu_only = list(
+            rtable.filter(r.row["hypervisors_pools"].contains(id_pool))
+            .filter({"status": "Online", "gpu_only": True})
+            .pluck("id")
+            .run(r_conn)
+        )
+
+    l_hyp_id_exclude = [a["id"] for a in l_only_forced] + [a["id"] for a in l_gpu_only]
 
     if not pluck:
         l_all = list(
@@ -750,7 +764,7 @@ def get_hypers_info(id_pool="default", pluck=None, exclude_only_forced=False):
             .run(r_conn)
         )
 
-    results = [a for a in l_all if a["id"] not in [b["id"] for b in l_only_forced]]
+    results = [a for a in l_all if a["id"] not in l_hyp_id_exclude]
     close_rethink_connection(r_conn)
     return results
 

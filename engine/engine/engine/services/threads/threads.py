@@ -209,12 +209,11 @@ def launch_action_disk(action, hostname, user, port, from_scratch=False):
     array_out_err = execute_commands(
         hostname, ssh_commands=action["ssh_commands"], user=user, port=port
     )
-    from pprint import pprint
 
-    print("#COMANDS EXECUTED IN LAUNCH ACTION DISK")
-    pprint(action["ssh_commands"])
-    print("#RESULT OF COMMANDS: OUTPUT AND ERROR ")
-    pprint(array_out_err)
+    logs.main.debug("#COMANDS EXECUTED IN LAUNCH ACTION DISK")
+    logs.main.debug(pprint.pformat(action["ssh_commands"]))
+    logs.main.debug("#RESULT OF COMMANDS: OUTPUT AND ERROR ")
+    logs.main.debug(pprint.pformat(array_out_err))
 
     if action["type"] in ["create_disk", "create_disk_from_scratch"]:
         if not any(command.get("err") for command in array_out_err):

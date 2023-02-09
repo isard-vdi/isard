@@ -460,14 +460,16 @@ class UiActions(object):
 
                         forced_hyp, favourite_hyp = get_domain_forced_hyp(id_domain)
                         if forced_hyp is not False:
-                            hyps_in_pool = get_hypers_in_pool(
-                                pool_id, only_online=False
-                            )
-                            if forced_hyp in hyps_in_pool:
+                            (
+                                hyps_to_start,
+                                hyps_only_forced,
+                                hyps_all,
+                            ) = get_hypers_in_pool(pool_id, only_online=True)
+                            if forced_hyp in hyps_all:
                                 next_hyp = forced_hyp
                             else:
                                 log.error(
-                                    "force hypervisor failed for domain {}: {} not in hypervisors pool {}".format(
+                                    "force hypervisor failed for domain {}: {} not in hypervisors online in pool {}".format(
                                         id_domain, forced_hyp, pool_id
                                     )
                                 )
@@ -476,7 +478,9 @@ class UiActions(object):
                                 ].get_next(domain_id=id_domain)
                         else:
                             next_hyp, extra_info = self.manager.pools[pool_id].get_next(
-                                domain_id=id_domain, reservables=False
+                                domain_id=id_domain,
+                                reservables=False,
+                                to_create_disk=True,
                             )
 
                         if type(next_hyp) is tuple:
