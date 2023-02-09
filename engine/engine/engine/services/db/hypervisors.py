@@ -1001,15 +1001,33 @@ def get_vgpu_actual_profile(vgpu_id):
             r.table("resource_planner")
             .get_all(gpu["id"], index="item_id")
             .filter(
-                lambda plan: plan["start"]
+                r.row["start"]
                 <= datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
-                and plan["end"]
+            )
+            .filter(
+                r.row["end"]
                 >= datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
             )
             .run(r_conn)
         )[0]
+        logs.workers.info("==================================")
+        logs.workers.info(
+            "GPU "
+            + vgpu_id
+            + " has a planning for profile "
+            + data["subitem_id"]
+            + " now!",
+        )
+        logs.workers.info("==================================")
     except:
         data = []
+        logs.workers.info("==================================")
+        logs.workers.error(
+            "FAIL AT GETTING GPU PLAN: GPU "
+            + vgpu_id
+            + " has no running plan for any profile now!",
+        )
+        logs.workers.info("==================================")
     close_rethink_connection(r_conn)
     if len(data):
         return data["subitem_id"].split("-")[-1]
