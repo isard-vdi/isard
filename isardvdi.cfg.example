@@ -1,4 +1,4 @@
-# Isard main config v2.5.1
+# Isard main config v2.6.0
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -417,6 +417,13 @@ WG_GUESTS_RESERVED_HOSTS=20
 # ------ Override hosts in isard-portal haproxy ------------------------------
 #WEBAPP_HOST=isard-webapp
 
+# ------ Redis ---------------------------------------------------------------
+
+# Redis password
+## The password used with AUTH inside redis connections.
+## WARNING it is sent unencrypted, so the connection should be securized.
+## See also https://redis.io/docs/management/security/
+#REDIS_PASSWORD=
 
 ##################################################################
 ## STATS PARAMETERS                                             ##
