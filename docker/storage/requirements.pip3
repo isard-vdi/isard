@@ -8,3 +8,5 @@ Cerberus==1.3.4
 PyYAML==6.0
 watchdog==2.1.9
 Werkzeug==2.2.2
+rq~=1.13
+betterproto~=1.2
