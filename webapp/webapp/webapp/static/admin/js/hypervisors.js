@@ -666,10 +666,60 @@ function actionsHyperDetail(){
             });
     });
 
+    $('.btn-gpu_only').on('click', function () {
 
-    //~ });
+        var pk=$(this).closest("div").attr("data-pk");
+        var gpu_only = table.row("#"+pk).data()['gpu_only'];
 
+        new PNotify({
+            title: 'Confirmation Needed',
+            text: "Are you sure you want to set \"GPU only\" to: " + !gpu_only + "?",
+            hide: false,
+            opacity: 0.9,
+            confirm: {
+                confirm: true
+            },
+            buttons: {
+                closer: false,
+                sticker: false
+            },
+            history: {
+                history: false
+            },
+            addclass: 'pnotify-center'
 
+        }).get().on('pnotify.confirm', function() {
+            $.ajax({
+                url: "/admin/table/update/hypervisors",
+                type: "PUT",
+                data: JSON.stringify({'id': pk, 'gpu_only': !gpu_only}),
+                contentType: "application/json",
+                success: function(data) {
+                    new PNotify({
+                        title: 'Updated',
+                        text: 'Hypervisor updated successfully',
+                        hide: true,
+                        delay: 2000,
+                        opacity: 1,
+                        type: 'success'
+                    })
+                },
+                error: function(data) {
+                    new PNotify({
+                        title: 'ERROR updating hypervisor',
+                        text: data.responseJSON.description,
+                        type: 'error',
+                        hide: true,
+                        icon: 'fa fa-warning',
+                        delay: 2000,
+                        opacity: 1
+                    })
+                },
+            });
+
+        }).on('pnotify.cancel', function() {
+            });
+    });
 }
 
 
