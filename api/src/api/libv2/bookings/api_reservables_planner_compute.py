@@ -89,7 +89,7 @@ def booking_provisioning(
     resource_planner = remove_existing_item_bookings(
         resource_planner, item_type, item_id
     )
-    log.debug("RESOURCE PLANNER")
+
     if not os.environ.get("LOG_LEVEL") == "DEBUG":
         # This will join consecutive plans
         # When debugging it is better to show them splitted (do not join)
@@ -852,7 +852,12 @@ def compute_overridable_bookings(overridable, nonoverridable, plans, units):
     else:
         log.debug("NO PLANS FOUND")
 
+    log.debug("Intervals found:")
     log.debug([{"units": item[1]["units"]} for item in items])
+    log.debug("Intervals found with only available units:")
+    log.debug(
+        [{"units": item[1]["units"]} for item in items if item[1]["units"] >= units]
+    )
     return [
         {
             "start": P.to_data(item[0])[0][1],
@@ -862,6 +867,7 @@ def compute_overridable_bookings(overridable, nonoverridable, plans, units):
             "event_type": item[1]["event_type"],
         }
         for item in items
+        if item[1]["units"] >= units
     ]
 
 
