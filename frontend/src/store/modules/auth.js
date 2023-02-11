@@ -56,7 +56,7 @@ export default {
           console.log(e)
         }
       }).then(() => {
-        window.location = `${apiAdminSegment}/admin/domains/render/Desktops`
+        window.location = `${apiAdminSegment}/admin/hypervisors`
       })
     },
     saveNavigation (context, payload) {
