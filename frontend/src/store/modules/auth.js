@@ -56,7 +56,7 @@ export default {
           console.log(e)
         }
       }).then(() => {
-        window.location = `${apiAdminSegment}/admin/hypervisors`
+        window.location = `${apiAdminSegment}/admin/landing`
       })
     },
     saveNavigation (context, payload) {

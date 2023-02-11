@@ -3,21 +3,17 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
-import json
 import logging
 from functools import wraps
 
-import rethinkdb as r
 from cachetools import TTLCache, cached
-from flask import Flask, abort, redirect, render_template, request, url_for
+from flask import render_template
 from flask_login import current_user, logout_user
 
 from webapp import app
 
 from ..lib.api_client import ApiClient
 from ..lib.flask_rethink import RethinkDB
-
-# from ..lib.log import *
 
 _MAINTENANCE_API_ENDPOINT = "maintenance"
 
