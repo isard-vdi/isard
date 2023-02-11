@@ -4,3 +4,5 @@ services:
     volumes:
     - ${BUILD_ROOT_PATH}/docker/vpn/src:/src
     - ${BUILD_ROOT_PATH}/docker/vpn/ovs:/ovs
+    - ${BUILD_ROOT_PATH}/docker/vpn/dnsmasq-hook:/dnsmasq-hook
+    - ${BUILD_ROOT_PATH}/docker/vpn/run.sh:/run.sh
