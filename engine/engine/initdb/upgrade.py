@@ -17,7 +17,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 76
+release_version = 77
+# release 77: add kind to wg_mac index
 # release 76: update gpus_profiles
 # release 75: replace desktop interface macs if found duplicated
 # release 74: update gpus_profiles
@@ -1348,6 +1349,15 @@ class Upgrade(object):
                         ).run(self.conn)
             else:
                 print("No duplicate macs found during upgrade")
+
+        if version == 77:
+            try:
+                r.table(table).index_drop("wg_mac").run(self.conn)
+                r.table(table).index_create(
+                    "wg_mac", [r.row["kind"], r.row["create_dict"]["macs"]["wireguard"]]
+                ).run(self.conn)
+            except:
+                None
 
         return True
 

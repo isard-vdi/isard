@@ -352,7 +352,9 @@ class ApiHypervisors:
         with app.app_context():
             try:
                 domain_id = list(
-                    r.table("domains").get_all(mac, index="wg_mac").run(db.conn)
+                    r.table("domains")
+                    .get_all(["desktop", mac], index="wg_mac")
+                    .run(db.conn)
                 )[0]["id"]
                 r.table("domains").get(domain_id).update(data).run(db.conn)
                 return domain_id
