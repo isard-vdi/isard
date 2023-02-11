@@ -4,7 +4,7 @@ conntrackd &
 
 function extract_conntrack () {
     while : ; do
-        conntrack -L -p udp --dport 3389 -p tcp --dport 3389 -o xml 1> /conntrack/rdp.xml
+        conntrack -L -p udp --dport 3389 -p tcp --dport 3389 -o xml 1> /conntrack/rdp.xml 2> /dev/null
         ip -j neigh show 1> /conntrack/arp.json
         sleep 10
     done
