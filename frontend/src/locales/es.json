@@ -961,7 +961,10 @@
         "template_already_exists": "El identificador de la plantilla ya existe: ",
         "unable_to_parse_media": "No se puede analizar la información multimedia",
         "unable_to_change_desktop_status": "No se puede cambiar el estado del escritorio",
-        "duplicated_name": "Nombre duplicado"
+        "duplicated_name": "Nombre duplicado",
+        "unable_to_get_deployment_desktops": "No se pueden obtener escritorios de implementación",
+        "new_template_bad_body_data": "La plantilla nueva tiene datos de cuerpo incorrectos",
+        "get_vnc_viewer_data_error": "Error interno al obtener datos del visor VNC"
     },
     "router": {
         "titles": {
