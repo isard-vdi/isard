@@ -182,6 +182,7 @@ class ApiClient:
                 "kid": "isardvdi",
                 "data": {
                     "role_id": "admin",
+                    "user_id": "isard-scheduler",
                     "category_id": "*",
                 },
             },
