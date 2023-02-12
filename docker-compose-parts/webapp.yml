@@ -14,11 +14,5 @@ services:
     volumes:
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.webapp.middlewares=webapp-auth@docker,webapp-path@docker"
-      - "traefik.http.routers.webapp.rule=PathPrefix(`/debug/webapp`)"
-      - "traefik.http.middlewares.webapp-auth.basicauth.usersfile=/users"
-      - "traefik.http.middlewares.webapp-path.stripprefix.prefixes=/debug/webapp"
     env_file:
       - .env
