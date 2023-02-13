@@ -846,7 +846,10 @@
             "counting-desktops": "Counting how many desktops will be created",
             "new-template-server": "Can't create a template from a server",
             "edit-desktop-server": "Can't edit a server",
-            "delete-desktop-stop": "To delete a desktop it must be stopped"
+            "delete-desktop-stop": "To delete a desktop it must be stopped",
+            "wireguard-network-added": "The wireguard network was added since it's required to use RDP viewers",
+            "wireguard-viewers-removed": "The RDP viewers were removed since the wireguard network is required",
+            "wireguard-network-required": "Can't select RDP viewers since the wireguard network is required. Contact with the admin in order to use the wireguard network"
         },
         "loading": "Loading"
     },

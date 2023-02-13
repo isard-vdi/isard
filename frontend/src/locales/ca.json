@@ -925,7 +925,10 @@
             "counting-desktops": "Comptant quants escriptoris es crearan",
             "new-template-server": "No es pot crear una plantilla d'un servidor",
             "edit-desktop-server": "No es pot editar un servidor",
-            "delete-desktop-stop": "Per esborrar un escriptori és necessari que estigui parat"
+            "delete-desktop-stop": "Per esborrar un escriptori és necessari que estigui parat",
+            "wireguard-network-added": "S'ha afegit la xarxa wireguard ja que és requerida per tal de fer servir els visors RDP",
+            "wireguard-viewers-removed": "Els visors RDP s'han eliminat ja que requereixen la xarxa wireguard",
+            "wireguard-network-required": "No es poden seleccionar els visors RDP ja que la xarxa wireguard és requerida. Contacta amb l'administrador per fer servir la xarxa wireguard"
         },
         "loading": "Carregant"
     },
