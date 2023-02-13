@@ -140,6 +140,7 @@ class DomainsThread(threading.Thread):
                                     if c["old_val"]["status"] in [
                                         "Stopping",
                                         "Shutting-down",
+                                        "Started",
                                     ] and c["new_val"]["status"] in [
                                         "Stopped",
                                         "Failed",
