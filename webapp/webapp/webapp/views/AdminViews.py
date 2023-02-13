@@ -3,12 +3,18 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
-#!flask/bin/python
-# coding=utf-8
 import json
 import logging as log
 
-from flask import flash, jsonify, make_response, redirect, render_template, request
+from flask import (
+    flash,
+    jsonify,
+    make_response,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 from flask_login import current_user, login_required, login_user, logout_user
 
 from webapp import app
@@ -23,6 +29,26 @@ from ..lib.log import *
 from .decorators import isAdmin, isAdminManager, maintenance
 
 u = Updates()
+
+
+@app.route("/isard-admin/admin/landing", methods=["GET"])
+@login_required
+@maintenance
+def admin_landing():
+    if current_user.is_admin:
+        return render_template(
+            "admin/pages/hypervisors.html",
+            title="Hypervisors",
+            header="Hypervisors",
+            nav="Hypervisors",
+        )
+    if current_user.role == "manager":
+        return render_template(
+            "admin/pages/domains.html",
+            title="Desktops",
+            nav="Desktops",
+            icon="desktops",
+        )
 
 
 @app.route("/isard-admin/about", methods=["GET"])
