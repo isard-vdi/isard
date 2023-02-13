@@ -128,6 +128,8 @@
 import { computed, watch, ref } from '@vue/composition-api'
 import { availableViewers } from '@/shared/constants'
 import { orderBy } from 'lodash'
+import i18n from '@/i18n'
+import { ErrorUtils } from '@/utils/errorUtils'
 
 export default {
   setup (props, context) {
@@ -164,8 +166,10 @@ export default {
     })
 
     const wireguard = computed(() => domain.value.hardware.interfaces.includes('wireguard'))
+    const availableHardware = computed(() => $store.getters.getHardware)
     watch(wireguard, (newVal, prevVal) => {
       if (!wireguard.value) {
+        ErrorUtils.showInfoMessage(context.root.$snotify, i18n.t('messages.info.wireguard-viewers-removed'), '', true, 5000)
         $store.dispatch('removeWireguardViewers')
       }
     })
@@ -179,8 +183,14 @@ export default {
         showRDPLogin.value = true
         // Add the wireguard network
         if (!wireguard.value) {
-          domain.value.hardware.interfaces = [...domain.value.hardware.interfaces, 'wireguard']
-          $store.commit('setDomain', domain.value)
+          if (availableHardware.value.interfaces.filter(i => i.id === 'wireguard').length) {
+            ErrorUtils.showInfoMessage(context.root.$snotify, i18n.t('messages.info.wireguard-network-added'), '', true, 5000)
+            domain.value.hardware.interfaces = [...domain.value.hardware.interfaces, 'wireguard']
+            $store.commit('setDomain', domain.value)
+          } else {
+            ErrorUtils.showInfoMessage(context.root.$snotify, i18n.t('messages.info.wireguard-network-required'), '', true, 5000)
+            $store.dispatch('removeWireguardViewers')
+          }
         }
       } else {
         showRDPLogin.value = false
