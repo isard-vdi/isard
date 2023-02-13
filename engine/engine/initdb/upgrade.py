@@ -17,7 +17,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 77
+release_version = 78
+# release 78: remove status_logs from domains
 # release 77: add kind to wg_mac index
 # release 76: update gpus_profiles
 # release 75: replace desktop interface macs if found duplicated
@@ -1356,6 +1357,12 @@ class Upgrade(object):
                 r.table(table).index_create(
                     "wg_mac", [r.row["kind"], r.row["create_dict"]["macs"]["wireguard"]]
                 ).run(self.conn)
+            except:
+                None
+
+        if version == 78:
+            try:
+                self.del_keys(table, ["status_logs"])
             except:
                 None
 

@@ -449,7 +449,6 @@ class HypWorkerThread(threading.Thread):
                                     status="Started",
                                     hyp_id=hyp_id,
                                     detail="Domain started by worker",
-                                    update_started_time=True,
                                 )
                                 update_domain_viewer_started_values(
                                     dom_id,
