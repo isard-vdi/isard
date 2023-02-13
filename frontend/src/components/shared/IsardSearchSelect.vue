@@ -69,7 +69,7 @@ export default {
   },
   setup (props, { emit }) {
     const fetch = (search, loading) => {
-      if (search.length >= 2) {
+      if (!/[`!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?~]/.test(search) && search.length >= 2) {
         loading(true)
         emit('search', { search, loading })
       }
