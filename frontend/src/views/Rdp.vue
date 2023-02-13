@@ -81,7 +81,24 @@ export default {
       this.username = params.vmUsername
       this.password = params.vmPassword
 
-      const query = `scheme=rdp&hostname=${this.desktopIp}&ignore-cert=true&resize-method=display-update&session=${localStorage.rdpToken}&server-layout=es-es-qwerty&username=${this.username}&password=${this.password}`
+      const queryParams = {
+        scheme: 'rdp',
+        hostname: this.desktopIp,
+        'ignore-cert': true,
+        session: localStorage.rdpToken,
+        username: this.username,
+        password: this.password,
+        'resize-method': 'display-update',
+        'server-layout': 'es-es-qwerty',
+        'enable-font-smoothing': true
+      }
+
+      let query = ''
+      for (const [name, param] of Object.entries(queryParams)) {
+        query += `${name}=${param}&`
+      }
+      query = query.slice(0, -1)
+
       this.connected = true
 
       this.connect(query)
