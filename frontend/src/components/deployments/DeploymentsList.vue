@@ -82,8 +82,13 @@
               id="deployments-table"
               :items="deployments"
               :fields="fields"
-              :tbody-tr-class="rowClass"
               :responsive="true"
+              :per-page="perPage"
+              :current-page="currentPage"
+              :filter="filter"
+              :filter-included-fields="filterOn"
+              :tbody-tr-class="rowClass"
+              @filtered="onFiltered"
               @row-clicked="redirectDeployment"
             >
               <template #cell(visible)="data">
@@ -193,7 +198,7 @@ export default {
     const currentPage = ref(1)
     const totalRows = ref(1)
     const filter = ref('')
-    const filterOn = reactive(['userName', 'groupName'])
+    const filterOn = reactive(['name', 'description', 'desktopName', 'template'])
 
     const onFiltered = (filteredItems) => {
       // Trigger pagination to update the number of buttons/pages due to filtering
@@ -201,7 +206,7 @@ export default {
       currentPage.value = 1
     }
 
-    watch(() => props.desktops, (newVal) => {
+    watch(() => props.deployments, (newVal) => {
       totalRows.value = newVal.length
     })
 
