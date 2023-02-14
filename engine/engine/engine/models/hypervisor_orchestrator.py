@@ -33,6 +33,7 @@ from engine.services.db import (
     set_unknown_domains_not_in_hyps,
     update_domain_history_from_id_domain,
     update_domain_status,
+    update_domains_in_deleted_hyper,
     update_domains_started_in_hyp_to_unknown,
 )
 from engine.services.db.db import (
@@ -468,8 +469,8 @@ class HypervisorChangesThread(threading.Thread):
                 if c["old_val"].get("table", False) == "hypervisors":
                     logs.main.debug("hypervisor deleted in rethink")
                     logs.main.debug(pprint.pformat(c))
-                    # TODO: verify no domains in hypervisor running (front end and backend) and fence or unknown if
-                    # domains are running and hypevisor communication have lost
+                    update_domains_in_deleted_hyper(c["old_val"]["id"])
+
             # hypervisor created
             elif c["old_val"] is None:
                 if c["new_val"].get("table", False) == "hypervisors":

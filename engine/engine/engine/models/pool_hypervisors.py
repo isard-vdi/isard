@@ -53,17 +53,18 @@ def move_actions_to_others_hypers(
         while d_q[hyp_id].empty() is False:
             action = d_q[hyp_id].get()
 
+            new_hyp = False
             # get next hyp
-            while True:
-                new_hyp = balancer.get_next()
-                if hyp_id in balancer.hyps and len(balancer.hyps == 1):
-                    logs.workers.info(
-                        f"can't move actions to other hyps, only {hyp_id} is online"
-                    )
-                    new_hyp = False
-                    break
-                if new_hyp != hyp_id:
-                    break
+            # while True:
+            #     new_hyp = balancer.get_next()
+            #     if hyp_id in balancer.hyps and len(balancer.hyps == 1):
+            #         logs.workers.info(
+            #             f"can't move actions to other hyps, only {hyp_id} is online"
+            #         )
+            #         new_hyp = False
+            #         break
+            #     if new_hyp != hyp_id:
+            #         break
 
             if action["type"] == "stop_thread":
                 retain_actions_in_queue.append(action)

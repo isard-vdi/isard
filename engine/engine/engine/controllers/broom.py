@@ -235,33 +235,24 @@ class ThreadBroom(threading.Thread):
 
                 ## DOMAINS ACTIVE EN HYPERVISOR THAT ARE STOPPED, FAILED, UNKNOWN IN DATABASE...
                 for hyp_id, d in hyps_domain_started.items():
-                    for id_domain, d_status in d["active_domains"].items():
-                        if (
-                            id_domain not in ids_domains_started_in_db_with_hypervisor
-                        ) and (
-                            id_domain not in ids_domains_started_in_db_with_hypervisor
-                        ):
-                            d_domain = get_domain(id_domain)
-                            if d_domain is None:
-                                logs.broom.error(
-                                    "CRITICAL, if domain is not in database, must be destroyed previously by broom"
-                                )
-                                continue
-                            if d_status["status"] == "Started":
-                                logs.broom.error(
-                                    f"broom find domain {id_domain} with status {d_status['status']} in hypervisor {hyp_id} and updated status and hyp_started in databse"
-                                )
-                                if d_domain["status"] not in ["ForceDeleting"]:
-                                    update_domain_hyp_started(
-                                        id_domain,
-                                        hyp_id,
-                                        "State and hyp_started updated by broom",
-                                        d_status["status"],
-                                    )
-                            elif d_status["status"] == "Paused":
-                                if d_status["detail"] == "paused on user request":
+                    if d.get("active_domains"):
+                        for id_domain, d_status in d["active_domains"].items():
+                            if (
+                                id_domain
+                                not in ids_domains_started_in_db_with_hypervisor
+                            ) and (
+                                id_domain
+                                not in ids_domains_started_in_db_with_hypervisor
+                            ):
+                                d_domain = get_domain(id_domain)
+                                if d_domain is None:
                                     logs.broom.error(
-                                        f"broom find domain {id_domain} with status {d_status['status']} with detail {d_status['detail']} in hypervisor {hyp_id} and updated status and hyp_started in databse"
+                                        "CRITICAL, if domain is not in database, must be destroyed previously by broom"
+                                    )
+                                    continue
+                                if d_status["status"] == "Started":
+                                    logs.broom.error(
+                                        f"broom find domain {id_domain} with status {d_status['status']} in hypervisor {hyp_id} and updated status and hyp_started in databse"
                                     )
                                     if d_domain["status"] not in ["ForceDeleting"]:
                                         update_domain_hyp_started(
@@ -270,17 +261,29 @@ class ThreadBroom(threading.Thread):
                                             "State and hyp_started updated by broom",
                                             d_status["status"],
                                         )
+                                elif d_status["status"] == "Paused":
+                                    if d_status["detail"] == "paused on user request":
+                                        logs.broom.error(
+                                            f"broom find domain {id_domain} with status {d_status['status']} with detail {d_status['detail']} in hypervisor {hyp_id} and updated status and hyp_started in databse"
+                                        )
+                                        if d_domain["status"] not in ["ForceDeleting"]:
+                                            update_domain_hyp_started(
+                                                id_domain,
+                                                hyp_id,
+                                                "State and hyp_started updated by broom",
+                                                d_status["status"],
+                                            )
+                                    else:
+                                        logs.broom.info(
+                                            f"broom find domain {id_domain} with status {d_status['status']} in hypervisor {hyp_id} with detail {d_status['detail']} , domain starting-paused?"
+                                        )
                                 else:
-                                    logs.broom.info(
-                                        f"broom find domain {id_domain} with status {d_status['status']} in hypervisor {hyp_id} with detail {d_status['detail']} , domain starting-paused?"
+                                    logs.broom.error(
+                                        f"CRITICAL: STATUS FROM LIBVIRT IS NOT STARTED OR PAUSED!! broom find domain {id_domain} with status {d_status['status']} in hypervisor {hyp_id}"
                                     )
-                            else:
-                                logs.broom.error(
-                                    f"CRITICAL: STATUS FROM LIBVIRT IS NOT STARTED OR PAUSED!! broom find domain {id_domain} with status {d_status['status']} in hypervisor {hyp_id}"
-                                )
-                                logs.broom.error(
-                                    f"CRITICAL: broom not update strange status {id_domain} with status {d_status['status']} in hypervisor {hyp_id}"
-                                )
+                                    logs.broom.error(
+                                        f"CRITICAL: broom not update strange status {id_domain} with status {d_status['status']} in hypervisor {hyp_id}"
+                                    )
 
                 for d in list_domains_without_hyp:
                     domain_id = d["id"]

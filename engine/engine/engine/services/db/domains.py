@@ -129,6 +129,25 @@ def update_domain_parents(id_domain):
     return results
 
 
+def update_domains_in_deleted_hyper(hyp_id):
+    r_conn = new_rethink_connection()
+    try:
+        r.table("domains").get_all(hyp_id, index="hyp_started").update(
+            {
+                "status": "Stopped",
+                "hyp_started": False,
+                "detail": json.dumps(
+                    "Set to Stopped by engine as the hypervisor was deleted"
+                ),
+                "create_dict": {"personal_vlans": False},
+            },
+        ).run(r_conn)
+    except:
+        logs.main.error("Unable to set stopped status to domains in deleted hypervisor")
+        logs.main.debug("Traceback: \n .{}".format(traceback.format_exc()))
+    close_rethink_connection(r_conn)
+
+
 def update_domain_status(
     status,
     id_domain,
