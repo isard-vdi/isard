@@ -14,6 +14,7 @@ r = RethinkDB()
 from api import app
 
 from .._common.api_exceptions import Error
+from ..libv2.api_logging import logs_domain_start_api, logs_domain_stop_api
 from ..libv2.quotas import Quotas
 
 quotas = Quotas()
@@ -54,6 +55,7 @@ def api_v3_desktop_start(payload, desktop_id):
 
     # So now we have checked if desktop exists and if we can create and/or start it
     desktop_id = desktops.Start(desktop_id)
+    logs_domain_start_api(desktop_id, action_user=payload.get("user_id"))
     scheduler.add_desktop_timeouts(payload, desktop_id)
 
     return (
@@ -80,6 +82,7 @@ def api_v3_desktops_start(payload):
     for desktop_id in desktops_ids:
         ownsDomainId(payload, desktop_id)
         user_id = desktops.UserDesktop(desktop_id)
+        logs_domain_start_api(desktop_id, action_user=user_id)
         quotas.desktop_start(user_id, desktop_id)
 
     # So now we have checked if desktop exists and if we can create and/or start it
@@ -94,6 +97,7 @@ def api_v3_desktops_start(payload):
 @has_token
 def api_v3_desktop_stop(payload, desktop_id):
     ownsDomainId(payload, desktop_id)
+    logs_domain_stop_api(desktop_id, action_user=payload.get("user_id"))
     return (
         json.dumps({"id": desktops.Stop(desktop_id)}),
         200,
@@ -115,6 +119,7 @@ def api_v3_desktops_stop(payload, desktop_id):
         )
     for desktop_id in desktops_ids:
         ownsDomainId(payload, desktop_id)
+        logs_domain_stop_api(desktop_id, action_user=payload.get("user_id"))
     return (
         json.dumps({}),
         200,

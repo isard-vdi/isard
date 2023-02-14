@@ -117,6 +117,7 @@ class Populate(object):
             "storage_physical_domains",
             "storage_physical_media",
             "storage_pool",
+            "logs_desktops",
             # config should be the last table to be created
             # api waits for config table to start
             "config",
@@ -1508,5 +1509,26 @@ class Populate(object):
                 },
             ]
             r.table("desktops_priority").insert(priority).run(self.conn)
+        except:
+            None
+
+    def logs_desktops(self):
+        try:
+            log.info("Table logs_desktops not found, creating...")
+            r.table_create("logs_desktops", primary_key="id").run(self.conn)
+            r.table("logs_desktops").index_create("desktop_id").run(self.conn)
+            r.table("logs_desktops").index_create("deployment_id").run(self.conn)
+            r.table("logs_desktops").index_create("owner_user_id").run(self.conn)
+            r.table("logs_desktops").index_create("owner_category_id").run(self.conn)
+            r.table("logs_desktops").index_create("owner_group_id").run(self.conn)
+            r.table("logs_desktops").index_create("started_by").run(self.conn)
+            r.table("logs_desktops").index_create("stopped_by").run(self.conn)
+            r.table("logs_desktops").index_create("started_time").run(self.conn)
+            r.table("logs_desktops").index_create("stopped_time").run(self.conn)
+            r.table("logs_desktops").index_create("stopped_status").run(self.conn)
+            r.table("logs_desktops").index_create(
+                "desktop_template_hierarchy",
+                multi=True,
+            ).run(self.conn)
         except:
             None

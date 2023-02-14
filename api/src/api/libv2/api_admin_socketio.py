@@ -40,6 +40,7 @@ from .quotas_process import QuotasProcess
 quotas = QuotasProcess()
 
 from .api_admin import ApiAdmin
+from .api_logging import logs_domain_start_engine, logs_domain_stop_engine
 
 admins = ApiAdmin()
 
@@ -110,6 +111,23 @@ class DomainsThread(threading.Thread):
                             )
                             if data["kind"] == "desktop":
                                 event = "desktop_data"
+                                if c["new_val"].get("status") == "Started" and c[
+                                    "old_val"
+                                ].get("status") != c["new_val"].get("status"):
+                                    logs_domain_start_engine(
+                                        data.get("start_logs_id"),
+                                        data.get("hyp_started"),
+                                    )
+                                if c["new_val"].get("status") in [
+                                    "Stopped",
+                                    "Failed",
+                                ] and c["old_val"].get("status") != c["new_val"].get(
+                                    "status"
+                                ):
+                                    logs_domain_stop_engine(
+                                        data.get("start_logs_id"),
+                                        c["new_val"].get("status"),
+                                    )
                                 # if data['status'] == 'Started' and 'viewer' in data.keys() and 'guest_ip' in data['viewer'].keys():
                                 #    if 'viewer' not in c['old_val'] or 'guest_ip' not in c['old_val']:
                                 #        event='desktop_guestip'
