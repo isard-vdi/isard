@@ -43,12 +43,7 @@ def admin_landing():
             nav="Hypervisors",
         )
     if current_user.role == "manager":
-        return render_template(
-            "admin/pages/domains.html",
-            title="Desktops",
-            nav="Desktops",
-            icon="desktops",
-        )
+        return redirect("/isard-admin/admin/domains/render/Desktops")
 
 
 @app.route("/isard-admin/about", methods=["GET"])
