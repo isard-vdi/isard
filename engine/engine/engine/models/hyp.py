@@ -642,8 +642,8 @@ class hyp(object):
                             f"Nested virtualization NOT enabled for hypervisor {self.hostname}"
                         )
                         return False
-                    s = d["out"].decode("utf-8")
-                if s == "1" or s == "Y":
+                s = d["out"].decode("utf-8")
+                if s.find("1") == 0 or s.find("Y") == 0:
                     log.info(
                         f"Nested virtualization enabled for hypervisor {self.hostname}"
                     )
