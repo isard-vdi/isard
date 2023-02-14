@@ -4,14 +4,26 @@
     class="calendar-container"
     fluid
   >
-    <b-row class="mb-3">
+    <b-row class="mb-4">
       <b-col>
+        <div>
+          <h5>
+            {{ $t(`components.bookings.item.new-planning.bookable-type`) }}
+          </h5>
+        </div>
         <b-form-select
           v-model="selectedReservableType"
           :options="types"
         />
       </b-col>
       <b-col>
+        <div
+          class="reservableItemTitle"
+        >
+          <h5>
+            {{ $t(`components.bookings.item.new-planning.bookable-item`) }}
+          </h5>
+        </div>
         <b-form-select
           v-model="selectedReservableItem"
           :options="items"
@@ -81,7 +93,6 @@ export default {
         })
       }
     }, { immediate: true })
-
     const selectedReservableItem = computed({
       get: () => $store.getters.getPlanningSelectedReservableItem,
       set: (value) => $store.commit('setPlanningSelectedReservableItem', value)

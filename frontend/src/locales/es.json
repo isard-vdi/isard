@@ -359,6 +359,10 @@
                     "delete": {
                         "button": "Eliminar"
                     }
+                },
+                "new-planning" : {
+                    "bookable-type": "Tipus de reservable",
+                    "bookable-item": "Nom del reservable"
                 }
             },
             "errors": {

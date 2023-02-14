@@ -358,6 +358,10 @@
                     "delete": {
                         "button": "Delete"
                     }
+                },
+                "new-planning" : {
+                    "bookable-type": "Bookable type",
+                    "bookable-item": "Item name"
                 }
             },
             "errors": {
