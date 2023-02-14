@@ -218,12 +218,26 @@ $(document).ready(function () {
                 "/api/v3/admin/reservables/check/last/" +
                 reservable_type +
                 "/" +
-                subitem_id,
+                subitem_id +
+                "/" +
+                item_id,
               contentType: "application/json",
+              error: function (data) {
+                new PNotify({
+                  title: 'ERROR: Could not ' + (enabled? 'enable': 'disable') + ' GPU profile',
+                  text: data.responseJSON.description,
+                  hide: true,
+                  delay: 2000,
+                  icon: 'fa fa-' + data.icon,
+                  opacity: 1,
+                  type: 'error'
+              })
+              profile_checkbox.prop("checked", true)
+            },
             }).done(function(data) {
               data = JSON.parse(data)
-              // check if the profile is in any domain
-              if((data['last'] == true) && (data['desktops'].length > 0)) {
+              // check if the profile is in any domain or has plans
+              if((data['last'] == true && data['desktops'].length > 0) || data['plans'].length > 0) {
                 $('#modalDeleteProfile').modal({
                     backdrop: 'static',
                     keyboard: false
@@ -233,19 +247,31 @@ $(document).ready(function () {
                 $('#modalDeleteProfileForm #item_id').val(item_id);
                 $('#modalDeleteProfileForm #reservable_type').val(reservable_type);
                 $('#modalDeleteProfileForm #desktops').val(JSON.stringify(data['desktops']));
+                $('#modalDeleteProfileForm #plans').val(JSON.stringify(data['plans']));
 
                 $('#table_modal_profile_delete tbody').empty()
+                if (data['desktops'].length > 0) {
                 $.each(data['desktops'], function(key, value) {
                   value['user_name'] = value['username']
                   infoDomains(value, $('#table_modal_profile_delete tbody'));
               });      
+                }
+                if (data['plans'].length > 0) {
+                  $.each(data['plans'], function(key, value) {
+                    value['kind']='plan'
+                    start = new Date(value['start']).toLocaleString('es-ES');
+                    end = new Date(value['end']).toLocaleString('es-ES');
+                    value['name'] = "from <i>" + start + "</i> to <i>" + end + "<i>";
+                    infoDomains(value, $('#table_modal_profile_delete tbody'));
+                  });
+              }
               }
               else {
-                enableProfile(reservable_type, item_id, subitem_id, enabled, null) 
+                enableProfile(reservable_type, item_id, subitem_id, enabled, null, null) 
               }
             })
           } else {
-            enableProfile(reservable_type, item_id, subitem_id, enabled, null) 
+            enableProfile(reservable_type, item_id, subitem_id, enabled, null, null) 
           }
           break;
       }
@@ -259,8 +285,9 @@ $(document).ready(function () {
         var subitem_id = $('#modalDeleteProfileForm #subitem_id').val()
         var reservable_type = $('#modalDeleteProfileForm #reservable_type').val()
         var desktops = JSON.parse($('#modalDeleteProfileForm #desktops').val())
+        var plans = JSON.parse($('#modalDeleteProfileForm #plans').val())
 
-        enableProfile(reservable_type, item_id, subitem_id, false, desktops)  
+        enableProfile(reservable_type, item_id, subitem_id, false, desktops, plans)
       }
   });
 
@@ -423,7 +450,7 @@ function initalize_bookables_modal_events() {
   });
 }
 
-function enableProfile(reservable_type, item_id, subitem_id, enabled, desktops) {
+function enableProfile(reservable_type, item_id, subitem_id, enabled, desktops, plans) {
   $.ajax({
     type: "PUT",
     url:
@@ -433,7 +460,7 @@ function enableProfile(reservable_type, item_id, subitem_id, enabled, desktops) 
       item_id +
       "/" +
       subitem_id,
-    data: JSON.stringify({ enabled, desktops }),
+    data: JSON.stringify({ enabled, desktops, plans }),
     contentType: "application/json",
     success: function(data)
       {

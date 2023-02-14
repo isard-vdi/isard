@@ -71,7 +71,9 @@ class ReservablesPlanner:
             .run(db.conn)
         )
 
-    def list_subitem_plans(self, item_id, subitem_id, start=None, end=None):
+    def list_subitem_plans(
+        self, item_id, subitem_id, start=None, end=None, getUsername=None
+    ):
         if not start:
             start = datetime.now(pytz.utc).strftime("%Y-%m-%dT%H:%M%z")
         query = r.table("resource_planner").get_all(
@@ -88,6 +90,10 @@ class ReservablesPlanner:
             query = query.filter(
                 lambda plan: plan["start"]
                 > datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
+            )
+        if getUsername:
+            query = query.merge(
+                lambda p: {"user_name": r.table("users").get(p["user_id"])["username"]}
             )
         with app.app_context():
             data = list(query.run(db.conn))

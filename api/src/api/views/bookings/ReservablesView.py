@@ -8,6 +8,7 @@ from api import app
 from ..._common.api_exceptions import Error
 from ...libv2.bookings.api_reservables import Reservables
 from ...libv2.bookings.api_reservables_planner import ReservablesPlanner
+from ...libv2.bookings.api_reservables_planner_compute import get_subitems_planning
 from ..decorators import checkDuplicate, has_token, is_admin
 
 api_ri = Reservables()
@@ -62,6 +63,10 @@ def api_v3_reservable_items(payload, reservable_type, item_id, subitem_id=None):
                     api_ri.deassign_desktops_with_gpu(
                         reservable_type, subitem_id, desktops_ids
                     )
+                if data.get("plans"):
+                    for plan in data.get("plans"):
+                        api_rp.delete_plan(plan["id"])
+
         return (
             json.dumps(
                 api_ri.enable_subitems(
@@ -85,16 +90,24 @@ def api_v3_reservable_items_enabled(payload, reservable_type, item_id):
 
 # Checks if last enabled gpu profile had just been disabled
 @app.route(
-    "/api/v3/admin/reservables/check/last/<reservable_type>/<subitem_id>",
+    "/api/v3/admin/reservables/check/last/<reservable_type>/<subitem_id>/<item_id>",
     methods=["GET"],
 )
 @is_admin
-def api_v3_reservable_check_last(payload, reservable_type, subitem_id):
+def api_v3_reservable_check_last(payload, reservable_type, subitem_id, item_id):
     data = {}
+
+    if get_subitems_planning([subitem_id], item_id=item_id, now=True):
+        raise Error(
+            "bad_request",
+            description="There's currently an ongoing plan with this GPU profile",
+        )
+
     data["last"] = api_ri.check_last_subitem(reservable_type, subitem_id)
     data["desktops"] = api_ri.check_desktops_with_profile(reservable_type, subitem_id)
+    data["plans"] = api_rp.list_subitem_plans(item_id, subitem_id, getUsername=True)
 
-    return json.dumps(data), 200
+    return json.dumps(data, default=str), 200
 
 
 #### Endpoints for planning resources
