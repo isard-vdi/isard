@@ -98,7 +98,7 @@
             "url": "Dirección web",
             "type": "Tipo",
             "name": "Nombre del medio",
-            "description": "Descripció",
+            "description": "Descripción",
             "select-type": "Por favor, seleccione una opción"
         },
         "edit": {
@@ -826,8 +826,8 @@
             "edit-domain": "El hardware de '{name}' se limitará y sus datos se modificarán, continuar?",
             "new-deployment": "Se crearán {quantity} escritorios, uno por cada usuario seleccionado. Continuar?",
             "go-to-profile": "Ver cuota",
-            "make-invisible-and-stop":"invisible y parar escritorios",
-            "make-invisible-and-not-stop":"hacer invisible"
+            "make-invisible-and-stop": "invisible y parar escritorios",
+            "make-invisible-and-not-stop": "hacer invisible"
         },
         "ok": "De acuerdo",
         "yes": "Si",
@@ -950,7 +950,28 @@
         "unable_to_get_viewer_inexistent": "No se puede obtener un visor para un escritorio inexistente",
         "unable_to_parse_string": "No se puede analizar la cadena",
         "new_desktop_name_exists": "Ya existe un escritorio con el mismo nombre para este usuario",
-        "new_template_name_exists": "Ya existe una plantilla con el mismo nombre para este usuario"
+        "new_template_name_exists": "Ya existe una plantilla con el mismo nombre para este usuario",
+        "desktop_same_id": "Ya existe un escritorio con este mismo identificador",
+        "unable_to_change_hypervisor_status": "No se puede cambiar el estado del hipervisor",
+        "unknown_extension": "Se omite el archivo cargado por tener una extensión desconocida",
+        "unable_to_process_vpnfile": "No se puede procesar el archivo de la VPN",
+        "desktop_is_not_visible": "Actualmente el escritorio no es visible para este usuario.",
+        "invalid_end_date": "Fecha de finalización inválida",
+        "invalid_start_date": "Fecha de inicio no válida",
+        "table_not_allowed": "No se puede cambiar el propietario de la tabla",
+        "unable_to_get_domain_jumperurl": "  no es possible obternet el dominio jumperurl ya que el dominio no existe",
+        "desktop_transition_initial_status_incorrect": "El estado inicial de la transición del escritorio es incorrecto",
+        "unable_to_gen_enrollment_code": "No se puede generar el código de inscripción",
+        "unable_to_reset_domain_jumperurl": "No se puede restablecer el dominio jumperurl ya que el dominio no existe",
+        "hypervisor_transition_initial_status_incorrect": "Estado inicial de transición del hipervisor incorrecto",
+        "viewer_protocol_not_implemented": "Protocolo de visualización no implementado",
+        "template_already_exists": "El identificador de la plantilla ya existe: ",
+        "unable_to_parse_media": "No se puede analizar la información multimedia",
+        "unable_to_change_desktop_status": "No se puede cambiar el estado del escritorio",
+        "duplicated_name": "Nombre duplicado",
+        "unable_to_get_deployment_desktops": "No se pueden obtener escritorios de implementación",
+        "new_template_bad_body_data": "La plantilla nueva tiene datos de cuerpo incorrectos",
+        "get_vnc_viewer_data_error": "Error interno al obtener datos del visor VNC"
     },
     "router": {
         "titles": {

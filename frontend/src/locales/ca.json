@@ -184,7 +184,7 @@
                     "end-date": "Data de finalització",
                     "end-time": "Hora de finalització",
                     "profile": "Perfil",
-                    "select-profile": "Si us plau seleccioni un perfil",
+                    "select-profile": "Si us plau, seleccioni un perfil",
                     "create": {
                         "modal-title": "Afegir reserva",
                         "button": "Afegir reserva"
@@ -588,7 +588,7 @@
                     "title": "Canviar permisos"
                 },
                 "delete": {
-                    "title": "Esborrar mitjà"
+                    "title": "Delete media"
                 },
                 "new-desktop": {
                     "title": "Crear nou escriptori"
@@ -891,8 +891,8 @@
             "edit-domain": "El hardware de '{name}' es limitarà i les seves dades es modificaran, continuar?",
             "new-deployment": "Es crearan {quantity} escriptoris, un per cada usuari seleccionat. Continuar?",
             "go-to-profile": "Veure quota",
-            "make-invisible-and-stop":"invisible i aturar",
-            "make-invisible-and-not-stop":"fer invisible"
+            "make-invisible-and-stop": "invisible i aturar",
+            "make-invisible-and-not-stop": "fer invisible"
         },
         "ok": "D'acord",
         "yes": "Si",
@@ -966,7 +966,7 @@
         "title": "Informació important",
         "messages": {
             "desktop-time-limit": "L'escriptori '{name}' s'apagarà automàticament a les {date}.",
-            "searching-resources": "Estem buscant recursos per l'escriptori. S'iniciarà en breus minuts, si us plau esperi."
+            "searching-resources": "Estem buscant recursos per l'escriptori. S'iniciarà en breus minuts, si us plau, esperi."
         }
     }
 }
