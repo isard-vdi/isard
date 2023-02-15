@@ -22,6 +22,7 @@ var ErrTimeout = errors.New("operation timeout")
 type Orchestrator struct {
 	director director.Director
 
+	dryRun            bool
 	pollingInterval   time.Duration
 	operationsTimeout time.Duration
 
@@ -40,6 +41,7 @@ type NewOrchestratorOpts struct {
 	Log *zerolog.Logger
 	WG  *sync.WaitGroup
 
+	DryRun            bool
 	PollingInterval   time.Duration
 	OperationsTimeout time.Duration
 
@@ -56,6 +58,7 @@ func New(cfg *NewOrchestratorOpts) *Orchestrator {
 	return &Orchestrator{
 		director: cfg.Director,
 
+		dryRun:            cfg.DryRun,
 		pollingInterval:   cfg.PollingInterval,
 		operationsTimeout: cfg.OperationsTimeout,
 
@@ -102,11 +105,21 @@ func (o *Orchestrator) Start(ctx context.Context) {
 				defer cancel()
 
 				if create != nil {
-					go o.createHypervisor(timeout, create)
+					if o.dryRun {
+						o.log.Info().Bool("DRY_RUN", true).Str("id", create.Id).Msg("create hypervisor")
+
+					} else {
+						go o.createHypervisor(timeout, create)
+					}
 				}
 
 				if destroy != nil {
-					go o.destroyHypervisor(timeout, destroy)
+					if o.dryRun {
+						o.log.Info().Bool("DRY_RUN", true).Str("id", destroy.Id).Msg("destroy hypervisor")
+
+					} else {
+						go o.destroyHypervisor(timeout, destroy)
+					}
 				}
 			}
 

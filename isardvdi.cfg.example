@@ -506,6 +506,8 @@ WG_GUESTS_RESERVED_HOSTS=20
 
 # Set this to true to enable IsardVDI infrastructure management (with isard-operations and isard-orchestrator)
 #INFRASTRUCTURE_MANAGEMENT=false
+# Set this to true if you want to test the infrastructure management. It won't run the actions
+#INFRASTRUCTURE_DRY_RUN=false
 
 # ------ Orchestrator -----------------------------------------------------
 # The interval at which the infrastructure status is going to be checked

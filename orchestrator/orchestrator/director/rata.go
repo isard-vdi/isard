@@ -24,7 +24,8 @@ const (
 // Rata is a director that has some minimum values required.
 // It waits until there are less values than the minimum, then it takes action
 type Rata struct {
-	cfg cfg.DirectorRata
+	cfg    cfg.DirectorRata
+	dryRun bool
 	// hyperMinCPU is the minimum CPU number that a hypervisor needs to have in order to run.
 	// If it reaches the limit, the hypervisor is put at OnlyForced, which prevents more desktops to be started in the hypervisor
 	hyperMinCPU int
@@ -44,9 +45,10 @@ type Rata struct {
 	log *zerolog.Logger
 }
 
-func NewRata(cfg cfg.DirectorRata, log *zerolog.Logger, apiCli client.Interface, db r.QueryExecutor) *Rata {
+func NewRata(cfg cfg.DirectorRata, dryRun bool, log *zerolog.Logger, apiCli client.Interface, db r.QueryExecutor) *Rata {
 	return &Rata{
 		cfg:         cfg,
+		dryRun:      dryRun,
 		hyperMinCPU: cfg.HyperMinCPU,
 		hyperMinRAM: cfg.HyperMinRAM,
 		hyperMaxCPU: cfg.HyperMaxCPU,
@@ -193,11 +195,16 @@ availHypersLoop:
 		}
 
 		if hyperToPardon != nil {
-			if err := hyperToPardon.RemoveFromDeadRow(r.db); err != nil {
-				return nil, nil, fmt.Errorf("cancel hypervisor '%s' destruction: %w", hyperToPardon.ID, err)
-			}
+			if r.dryRun {
+				r.log.Info().Bool("DRY_RUN", true).Str("id", hyperToPardon.ID).Int("avail_cpu", cpuAvail).Int("avail_ram", ramAvail).Int("req_cpu", reqHypersCPU).Int("req_ram", reqHypersRAM).Str("scaling", "up").Msg("cancel hypervisor destruction")
 
-			r.log.Info().Str("id", hyperToPardon.ID).Int("avail_cpu", cpuAvail).Int("avail_ram", ramAvail).Int("req_cpu", reqHypersCPU).Int("req_ram", reqHypersRAM).Str("scaling", "up").Msg("cancel hypervisor destruction")
+			} else {
+				if err := hyperToPardon.RemoveFromDeadRow(r.db); err != nil {
+					return nil, nil, fmt.Errorf("cancel hypervisor '%s' destruction: %w", hyperToPardon.ID, err)
+				}
+
+				r.log.Info().Str("id", hyperToPardon.ID).Int("avail_cpu", cpuAvail).Int("avail_ram", ramAvail).Int("req_cpu", reqHypersCPU).Int("req_ram", reqHypersRAM).Str("scaling", "up").Msg("cancel hypervisor destruction")
+			}
 
 		} else {
 			// If not, create a new hypervisor
@@ -254,11 +261,16 @@ availHypersLoop:
 	}
 
 	if deadRow != nil {
-		if err := deadRow.AddToDeadRow(time.Now().Add(DeadRowDuration), r.db); err != nil {
-			return nil, nil, fmt.Errorf("set hypervisor '%s' to destroy: %w", deadRow.ID, err)
-		}
+		if r.dryRun {
+			r.log.Info().Bool("DRY_RUN", true).Str("id", deadRow.ID).Str("scaling", "down").Time("destroy_time", deadRow.DestroyTime).Msg("set hypervisor to destroy")
 
-		r.log.Info().Str("id", deadRow.ID).Str("scaling", "down").Time("destroy_time", deadRow.DestroyTime).Msg("set hypervisor to destroy")
+		} else {
+			if err := deadRow.AddToDeadRow(time.Now().Add(DeadRowDuration), r.db); err != nil {
+				return nil, nil, fmt.Errorf("set hypervisor '%s' to destroy: %w", deadRow.ID, err)
+			}
+
+			r.log.Info().Str("id", deadRow.ID).Str("scaling", "down").Time("destroy_time", deadRow.DestroyTime).Msg("set hypervisor to destroy")
+		}
 	}
 
 	return create, destroy, nil
@@ -305,11 +317,17 @@ func (r *Rata) ExtraOperations(ctx context.Context, hypers []*model.Hypervisor) 
 					if r.hyperMinCPU != 0 && (h.CPU.Free <= r.hyperMinCPU) ||
 						r.hyperMinRAM != 0 && (h.RAM.Free <= r.hyperMinRAM) {
 
-						if err := r.apiCli.AdminHypervisorOnlyForced(ctx, h.ID, true); err != nil {
-							return fmt.Errorf("set hypervisor '%s' to only_forced: %w", h.ID, err)
+						if r.dryRun {
+							r.log.Info().Bool("DRY_RUN", true).Int("free_cpu", h.CPU.Free).Int("free_ram", h.RAM.Free).Int("hyper_min_cpu", r.hyperMinCPU).Int("hyper_min_ram", r.hyperMinRAM).Msg("set hypervisor to only_forced")
+
+						} else {
+							if err := r.apiCli.AdminHypervisorOnlyForced(ctx, h.ID, true); err != nil {
+								return fmt.Errorf("set hypervisor '%s' to only_forced: %w", h.ID, err)
+							}
+
+							r.log.Info().Int("free_cpu", h.CPU.Free).Int("free_ram", h.RAM.Free).Int("hyper_min_cpu", r.hyperMinCPU).Int("hyper_min_ram", r.hyperMinRAM).Msg("set hypervisor to only_forced")
 						}
 
-						r.log.Info().Int("free_cpu", h.CPU.Free).Int("free_ram", h.RAM.Free).Int("hyper_min_cpu", r.hyperMinCPU).Int("hyper_min_ram", r.hyperMinRAM).Msg("set hypervisor to only_forced")
 					}
 
 				case true:
@@ -317,11 +335,17 @@ func (r *Rata) ExtraOperations(ctx context.Context, hypers []*model.Hypervisor) 
 					if r.hyperMaxCPU != 0 && (h.CPU.Free > r.hyperMaxCPU) ||
 						r.hyperMaxRAM != 0 && (h.RAM.Free > r.hyperMaxRAM) {
 
-						if err := r.apiCli.AdminHypervisorOnlyForced(ctx, h.ID, false); err != nil {
-							return fmt.Errorf("set hypervisor '%s' to only_forced: %w", h.ID, err)
+						if r.dryRun {
+							r.log.Info().Bool("DRY_RUN", true).Int("free_cpu", h.CPU.Free).Int("free_ram", h.RAM.Free).Int("hyper_max_cpu", r.hyperMaxCPU).Int("hyper_max_ram", r.hyperMaxRAM).Msg("remove hypervisor from only_forced")
+
+						} else {
+							if err := r.apiCli.AdminHypervisorOnlyForced(ctx, h.ID, false); err != nil {
+								return fmt.Errorf("set hypervisor '%s' to only_forced: %w", h.ID, err)
+							}
+
+							r.log.Info().Int("free_cpu", h.CPU.Free).Int("free_ram", h.RAM.Free).Int("hyper_max_cpu", r.hyperMaxCPU).Int("hyper_max_ram", r.hyperMaxRAM).Msg("remove hypervisor from only_forced")
 						}
 
-						r.log.Info().Int("free_cpu", h.CPU.Free).Int("free_ram", h.RAM.Free).Int("hyper_max_cpu", r.hyperMaxCPU).Int("hyper_max_ram", r.hyperMaxRAM).Msg("remove hypervisor from only_forced")
 					}
 				}
 			}

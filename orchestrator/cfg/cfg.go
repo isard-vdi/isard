@@ -11,6 +11,7 @@ type Cfg struct {
 	Log          cfg.Log
 	DB           cfg.DB
 	Orchestrator Orchestrator
+	DryRun       bool `mapstructure:"infrastructure_dry_run"`
 }
 
 type Orchestrator struct {
@@ -63,4 +64,5 @@ func setDefaults() {
 			"hyper_min_ram":  0,
 		},
 	})
+	viper.SetDefault("infrastructure_dry_run", false)
 }
