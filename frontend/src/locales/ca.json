@@ -865,7 +865,8 @@
         "unable_to_start_desktop_from": "No és possible engegar un escriptori des d'el seu estat",
         "deployment_delete_stop": "Per esborrar un desplegament és necessari que els seus escriptoris estiguin parats",
         "desktop_not_booked": "Per engegar l'escriptori ha d'estar reservat",
-        "desktop_not_booked_until": "No es pot engegar l'escriptori fins a la propera reserva {start}"
+        "desktop_not_booked_until": "No es pot engegar l'escriptori fins a la propera reserva {start}",
+        "only_works_rdp":  "Mode 'Only GPU' només funciona amb visors RDP"
     },
     "messages": {
         "title": {

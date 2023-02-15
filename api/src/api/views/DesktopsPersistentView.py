@@ -142,6 +142,7 @@ def api_v3_persistent_desktop_new(payload):
 
     data = _validate_item("desktop_from_template", data)
     template = templates.Get(data["template_id"])
+    desktops.check_viewers(data["guest_properties"]["viewers"], data["hardware"])
     allowed.is_allowed(payload, template, "domains")
     quotas.desktop_create(payload["user_id"])
     check_user_duplicated_domain_name(
@@ -250,6 +251,7 @@ def api_v3_domain_edit(payload, domain_id):
             traceback.format_exc(),
         )
 
+    desktops.check_viewers(data["guest_properties"]["viewers"], data["hardware"])
     admin_or_manager = True if payload["role_id"] in ["manager", "admin"] else False
     desktops.Update(domain_id, data, admin_or_manager)
     return (

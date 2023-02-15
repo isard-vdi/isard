@@ -1531,18 +1531,6 @@ function populate_tree_template_delete(id){
             form.parsley().validate();
             if (form.parsley().isValid()){
                 data=$('#modalEdit').serializeObject();
-                if( ("viewers-file_rdpgw" in data || "viewers-file_rdpvpn" in data || "viewers-browser_rdp" in data) && ! data["hardware-interfaces"].includes("wireguard") ){
-                    new PNotify({
-                        title: "Incompatible options",
-                            text: "RDP viewers need the wireguard network. Please add wireguard network to this desktop or remove RDP viewers.",
-                            hide: true,
-                            delay: 6000,
-                            icon: 'fa fa-alert-sign',
-                            opacity: 1,
-                            type: 'error'
-                        });
-                    return
-                }
                 data['reservables-vgpus'] = [data['reservables-vgpus']]
                 data=parse_desktop(JSON.unflatten(parseViewersOptions(data)));
                 var notice = new PNotify({

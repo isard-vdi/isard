@@ -612,3 +612,31 @@ class ApiDesktopsPersistent:
             .count()
             .run(db.conn)
         )
+
+    def check_viewers(self, viewers, hardware):
+        if (
+            viewers.get("file_rdpgw")
+            or viewers.get("browser_rdp")
+            or viewers.get("file_rdpvpn")
+        ) and "wireguard" not in hardware["interfaces"]:
+            raise Error(
+                "bad_request",
+                "RDP viewers need the wireguard network. Please add wireguard network to this desktop or remove RDP viewers.",
+                traceback.format_exc(),
+            )
+
+        if "none" in hardware["videos"] and (
+            viewers.get("file_spice")
+            or viewers.get("browser_vnc")
+            or not (
+                viewers.get("file_rdpgw")
+                or viewers.get("browser_rdp")
+                or viewers.get("file_rdpvpn")
+            )
+        ):
+            raise Error(
+                "bad_request",
+                "'Only GPU' mode only works with RDP viewers. Please remove non-RDP viewers or choose another video option",
+                traceback.format_exc(),
+                description_code="only_works_rdp",
+            )
