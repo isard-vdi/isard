@@ -117,7 +117,7 @@ $(document).ready(function () {
           }else{
             text = "-"
           }
-          return text
+          return text + ' <button id="btn-force_active_profile" class="btn btn-xs btn-danger" type="button" style="margin-left:10px" data-toggle="tooltip" data-placement="right" title="Force active profile"><i class="fa fa-flash"></i></button>'
         }},]
   });
 
@@ -329,8 +329,70 @@ $(document).ready(function () {
           })
           .on("pnotify.cancel", function () {});
       }
-      if ($(this).attr("id") == "btn-edit") {
+      if ($(this).attr("id") == "btn-force_active_profile") {
+        var data=gpus_table.row($(this).parents('tr')).data();
+        $("#modalForcedProfileForm")[0].reset();
+        $('#modalForcedProfileForm #id').val(data.id);
+        $('#modalForcedProfileForm #physical_device').val(data.physical_device);
+        $('#modalForcedProfile').modal({
+          backdrop: 'static',
+          keyboard: false
+        }).modal('show');
+        GpuEnabledProfilesDropdown(data.id);
       }
+    });
+
+    $("#modalForcedProfile #send").off('click').on('click', function(e){
+        var notice = new PNotify({
+            text: 'Updating profile...',
+            hide: false,
+            opacity: 1,
+            icon: 'fa fa-spinner fa-pulse'
+        })
+        data=$('#modalForcedProfileForm').serializeObject();
+        profile_id = data["forced_active_profile"].split("-")[2];
+        data["actual_active_profile"] = document.getElementById(data.id).children[4].textContent.trim();
+        if (data["actual_active_profile"] == profile_id) {
+          return notice.update({
+            title: 'ERROR',
+            text: 'Selected profile is already the active profile',
+            type: 'error',
+            hide: true,
+            icon: 'fa fa-warning',
+            delay: 5000,
+            opacity: 1
+          })
+        }
+        $.ajax({
+            type: 'PUT',
+            url: '/engine/profile/gpu/'+data["physical_device"],
+            data: JSON.stringify({"profile_id":profile_id}),
+            contentType: 'application/json',
+            error: function(data) {
+                notice.update({
+                    title: 'ERROR updating profile',
+                    text: data.statusText,
+                    type: 'error',
+                    hide: true,
+                    icon: 'fa fa-warning',
+                    delay: 5000,
+                    opacity: 1
+                })
+            },
+            success: function(data) {
+                $('form').each(function() { this.reset() });
+                $('.modal').modal('hide');
+                notice.update({
+                    title: 'Updated',
+                    text: 'GPU active profile updated successfully',
+                    hide: true,
+                    delay: 2000,
+                    icon: 'fa fa-' + data.icon,
+                    opacity: 1,
+                    type: 'success'
+                })
+            }
+        })
     });
 });
 
@@ -488,5 +550,14 @@ function enableProfile(reservable_type, item_id, subitem_id, enabled, desktops, 
         type: 'error'
     })
     }
+  });
+}
+
+function GpuEnabledProfilesDropdown(gpu_id) {
+  $("#modalForcedProfileForm #forced_active_profile").empty();
+  api.ajax('/api/v3/admin/table/gpus','POST',{"id":gpu_id}).done(function(data) {
+    data.profiles_enabled.forEach(function(profile){
+      $("#modalForcedProfileForm #forced_active_profile").append('<option value=' + profile + '>' + profile+'</option>');
+    });
   });
 }

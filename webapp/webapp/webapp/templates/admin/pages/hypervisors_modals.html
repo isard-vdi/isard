@@ -520,3 +520,55 @@
        </div>
    </div>
 </div>
+
+<div class="modal fade" id="modalForcedProfile" tabindex="-1" role="dialog" aria-labelledby="modalForcedProfile" aria-hidden="true">
+   <div class="modal-dialog">
+      <div class="modal-content">
+         <!-- Modal Header -->
+         <div class="modal-header" style="padding: 5px;">
+            <button type="button" class="close" data-dismiss="modal">
+               <span aria-hidden="true">&times;</span>
+               <span class="sr-only">Close</span>
+            </button>
+            <h4 class="modal-title" id="myModalLabel">
+               <i class="fa fa-flash"> </i> Force GPU Active Profile
+            </h4>
+         </div>
+
+         <!-- Modal Body -->
+         <div class="modal-body">
+            <form id="modalForcedProfileForm" class="form-horizontal">
+               <div class="x_panel">
+                  <div class="x_content">
+                     <input hidden id="id" name="id"/>
+                     <input hidden id="physical_device" name="physical_device"/>
+                     <div class="item form-group">
+                        <label>Select which GPU profile you want to set: </label>
+                        <br>
+                        <div class="row">
+                           <div class="col-md-8 col-sm-8 col-xs-12">
+                              <select id="forced_active_profile" name="forced_active_profile" class="form-control" required>
+                              </select> 
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+                  <label style="color:red">WARNING! If there are started desktops with current active profile, this action will stop them immediately if forcing a different active profile.
+                     This action will not consider current plannings of GPU profiles in order to be able to change the active profile.
+                  </label>
+               </div>
+            </form>
+         </div>
+
+         <!-- Modal Footer -->
+         <div class="modal-footer">
+            <ul class="nav navbar-left panel_toolbox">
+                <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+            </ul>
+            <ul class="nav navbar-right panel_toolbox">
+               <li><button id="send" type="button" class="btn btn-success">Send</button></li>
+            </ul>
+        </div>
+      </div>
+   </div>
+</div>
