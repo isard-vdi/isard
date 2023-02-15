@@ -19,6 +19,7 @@ from engine.services.db import (
     get_hyp_hostnames_online,
     update_domain_hyp_started,
     update_domain_status,
+    update_table_dict,
     update_table_field,
     update_vgpu_info_if_stopped,
 )
@@ -50,6 +51,7 @@ class ThreadBroom(threading.Thread):
     def polling(self):
         cpu_stats_previous = {}
         cpu_stats_5min_previous = {}
+        disk_interval = 0
         while self.stop is not True:
             try:
                 interval = 0.0
@@ -58,6 +60,9 @@ class ThreadBroom(threading.Thread):
                     interval += 0.1
                     if self.stop is True:
                         break
+                if disk_interval >= 30:
+                    disk_interval = 0
+                disk_interval += 1
                 if self.manager.check_actions_domains_enabled() is False:
                     continue
 
@@ -212,7 +217,12 @@ class ThreadBroom(threading.Thread):
                                 update_table_field(
                                     "hypervisors", hyp_id, "stats", h.stats, soft=True
                                 )
-
+                                if disk_interval == 1:
+                                    update_table_dict(
+                                        "hypervisors",
+                                        hyp_id,
+                                        {"mountpoints": h.get_storage_used()},
+                                    )
                             else:
                                 logs.broom.error(
                                     "HYPERVISOR {} libvirt connection failed"

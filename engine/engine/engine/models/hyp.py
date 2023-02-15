@@ -667,6 +667,44 @@ class hyp(object):
         )
         return False
 
+    def get_storage_used(self):
+        for i in range(MAX_GET_KVM_RETRIES):
+            try:
+                mountpoints = []
+                d = exec_remote_cmd(
+                    'df -h | awk \'{if ($1 != "Filesystem") print $6 " " $5}\'',
+                    self.hostname,
+                    username=self.user,
+                    port=self.port,
+                )
+                mroot = d["out"].decode("utf-8")
+                for mount in mroot.split("\n"):
+                    line = mount.split(" ")
+                    if line[0] == "/" or line[0].startswith("/isard"):
+                        mountpoints.append(
+                            {
+                                "mount": line[0],
+                                "usage": int(line[1].split("%")[0]),
+                            }
+                        )
+                return mountpoints
+            except Exception as e:
+                # logs.exception_id.debug("0036")
+                log.error(
+                    "Exception while executing remote command in hypervisor to check disk usage: {}".format(
+                        e
+                    )
+                )
+                log.error(
+                    f"Ssh launch command attempt fail: {i+1}/{MAX_GET_KVM_RETRIES}. Retry in one second."
+                )
+            time.sleep(1)
+
+        log.error(
+            f"remote ssh command in hypervisor {self.hostname} fail with {MAX_GET_KVM_RETRIES} retries"
+        )
+        return False
+
     def get_hyp_info(self, nvidia_enabled=False):
 
         libvirt_version = str(self.conn.getLibVersion())
