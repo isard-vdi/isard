@@ -6,11 +6,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rs/zerolog"
-	"gitlab.com/isard/isardvdi-cli/pkg/client"
 	"gitlab.com/isard/isardvdi/orchestrator/model"
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/director"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
+	"gitlab.com/isard/isardvdi/pkg/log"
+
+	"gitlab.com/isard/isardvdi-cli/pkg/client"
+
+	"github.com/rs/zerolog"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
@@ -86,6 +89,8 @@ func (o *Orchestrator) Start(ctx context.Context) {
 					o.log.Error().Err(err).Msg("list the hypervisors of the operations service")
 					continue
 				}
+
+				o.log.Debug().Dict("infrastructure_state", zerolog.Dict().Array("isard_hypervisors", log.NewModelHypervisors(hypers)).Array("infrastructure_hypervisors", log.NewOperationsV1ListHypervisorsResponse(operationsHypers)))
 
 				create, destroy, err := o.director.NeedToScaleHypervisors(ctx, operationsHypers.Hypervisors, hypers)
 				if err != nil {
