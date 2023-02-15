@@ -69,7 +69,6 @@ HYPERVISOR_STANDALONE_KEY="hypervisor-standalone"
 HYPERVISOR_STANDALONE_PARTS="
 	network
 	hypervisor
-	hypervisor-standalone
 	stats
 	storage
 "

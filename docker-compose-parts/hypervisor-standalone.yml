@@ -1,7 +1,0 @@
-version: '3.5'
-services:
-  isard-hypervisor:
-    # Instead open this ports by forwarding in firewalld to the internal isard-hypervisor ip (.17)
-    # firewall-cmd --add-forward-port=port=5900-6899:proto=tcp:toport=5900-6899:toaddr=172.31.255.17
-    # ports:
-    #   - "5900-6899:5900-6899"
