@@ -971,7 +971,8 @@
         "duplicated_name": "Nombre duplicado",
         "unable_to_get_deployment_desktops": "No se pueden obtener escritorios de implementación",
         "new_template_bad_body_data": "La plantilla nueva tiene datos de cuerpo incorrectos",
-        "get_vnc_viewer_data_error": "Error interno al obtener datos del visor VNC"
+        "get_vnc_viewer_data_error": "Error interno al obtener datos del visor VNC",
+        "only_works_rdp":  "Modo 'Only GPU' solamente funciona con visores RDP"
     },
     "router": {
         "titles": {

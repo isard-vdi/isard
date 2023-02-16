@@ -960,7 +960,8 @@
         "desktop_not_booked_until": "The desktop can't be started until its next booking: {start}",
         "incorrect_new_plan_body_data": " Incorrect new plan body data",
         "duplicated_name": "Duplicated name",
-        "user_disabled": "The user is disabled"
+        "user_disabled": "The user is disabled",
+        "only_works_rdp":  "'Only GPU' mode only works with RDP viewers"
     },
     "router": {
         "titles": {
