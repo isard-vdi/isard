@@ -187,6 +187,14 @@ def api_v3_reservables_planner_event_delete(payload, plan_id):
     return json.dumps({})
 
 
+# Updates plan start/end
+@app.route("/api/v3/admin/reservables_planner/<plan_id>/<start>/<end>", methods=["PUT"])
+@is_admin
+def api_v3_reservables_planner_event_update(payload, plan_id, start, end):
+    api_rp.update_plan(payload, plan_id, start, end)
+    return json.dumps({})
+
+
 ### Booking views
 ################
 

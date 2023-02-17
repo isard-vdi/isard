@@ -214,6 +214,59 @@ class ReservablesPlanner:
                 )
             return plan["id"]
 
+    def update_plan(self, payload, plan_id, start, end):
+        with app.app_context():
+            bookings_in_actual_plan = list(
+                r.table("bookings")
+                .filter(
+                    r.row["plans"].contains(lambda plan: plan["plan_id"] == plan_id)
+                )
+                .filter(
+                    r.row["start"]
+                    <= datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
+                )
+                .filter(
+                    r.row["end"]
+                    >= datetime.strptime(end, "%Y-%m-%dT%H:%M%z").astimezone(pytz.UTC)
+                )
+                .run(db.conn)
+            )
+        if len(bookings_in_actual_plan):
+            with app.app_context():
+                bookings_failing_in_new_range = list(
+                    r.table("bookings")
+                    .filter(
+                        r.row["plans"].contains(lambda plan: plan["plan_id"] == plan_id)
+                    )
+                    .filter(
+                        r.row["start"]
+                        <= datetime.strptime(start, "%Y-%m-%dT%H:%M%z").astimezone(
+                            pytz.UTC
+                        )
+                    )
+                    .filter(
+                        r.row["end"]
+                        >= datetime.strptime(end, "%Y-%m-%dT%H:%M%z").astimezone(
+                            pytz.UTC
+                        )
+                    )
+                    .run(db.conn)
+                )
+            if len(bookings_in_actual_plan) != len(bookings_failing_in_new_range):
+                # The difference will imply to remove those bookings
+                bookings2remove = [
+                    b["id"]
+                    for b in bookings_in_actual_plan
+                    if b not in bookings_failing_in_new_range
+                ]
+                with app.app_context():
+                    r.table("bookings").get_all(
+                        r.args[bookings2remove], index="id"
+                    ).delete().run(db.conn)
+        with app.app_context():
+            plan = r.table("resource_planner").get(plan_id).run(db.conn)
+        self.add_plan(payload, plan)
+
     def delete_plan(self, plan_id):
         ## Remove Scheduler
         with app.app_context():
