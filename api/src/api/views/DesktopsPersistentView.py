@@ -251,7 +251,8 @@ def api_v3_domain_edit(payload, domain_id):
             traceback.format_exc(),
         )
 
-    desktops.check_viewers(data["guest_properties"]["viewers"], data["hardware"])
+    if data.get("guest_properties"):
+        desktops.check_viewers(data["guest_properties"]["viewers"], data["hardware"])
     admin_or_manager = True if payload["role_id"] in ["manager", "admin"] else False
     desktops.Update(domain_id, data, admin_or_manager)
     return (
