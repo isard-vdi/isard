@@ -123,6 +123,8 @@ def desktop_start(desktop_id, wait_seconds=0, paused=False):
             )
             .run(db.conn)
         )
+        if not len(domain.get("changes", [])):
+            return "Starting"
         if domain.get("changes", [{}])[0].get("new_val", {}).get("viewer"):
             r.table("domains").get(desktop_id).replace(r.row.without("viewer")).run(
                 db.conn
