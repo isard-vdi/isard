@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package queue.storage.v1;
+
+// Task is an enum that contains all the available tasks in the storage queues
+enum Task {
+    // default zero value
+    TASK_UNSPECIFIED = 0;
+    // TASK_CONVERT transforms between different virtual machine disk formats. It requires the ConvertRequest message
+    TASK_CONVERT = 1;
+}
+
+// DiskFormat are all the differnt disk formats supported by the storage queues
+enum DiskFormat {
+    // default zero value
+    DISK_FORMAT_UNSPECIFIED = 0;
+    // DISK_FORMAT_QCOW2 is the .qcow2 format: https://www.qemu.org/docs/master/system/images.html#cmdoption-image-formats-arg-qcow2
+    DISK_FORMAT_QCOW2 = 1;
+    // DISK_FORMAT_VMDK is the .vmdk format: https://www.qemu.org/docs/master/system/images.html#cmdoption-image-formats-arg-vmdk https://github.com/libyal/libvmdk/blob/main/documentation/VMWare%20Virtual%20Disk%20Format%20(VMDK).asciidoc
+    DISK_FORMAT_VMDK = 2;
+}
+
+// ConvertRequest is the message that needs to be sent when a TASK_CONVERT is requested
+message ConvertRequest {
+    // source_disk_path is the full path on the storage worker of the disk that needs to be converted: /storage/test/disk.vmdk
+    string source_disk_path = 1;
+    // dest_disk_path is the full path on the storage worker where the converted disk is going to be storaged: /storage/test/disk_converted.qcow2
+    string dest_disk_path = 2;
+    // format is the format that the disk is going to be converted to
+    DiskFormat format = 3;
+    // compression is whether compression is enabled or not in the converted disk. It's only supported in DISK_FORMAT_QCOW2
+    bool compression = 4;
+}
