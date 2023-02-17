@@ -21,8 +21,29 @@ from flask import jsonify
 
 from api import app
 
+from .._common.api_exceptions import Error
 from ..libv2.task import Task
 from .decorators import has_token, is_admin_or_manager, ownsUserId
+
+
+@app.route("/api/v3/task/<task_id>", methods=["GET"])
+@has_token
+def task(payload, task_id):
+    """
+    Endpoint to get a task.
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :param task_id: Task ID
+    :type task_id: str
+    :return: Task as dict
+    :rtype: flask.Response
+    """
+    if not Task.exists(task_id):
+        raise Error(error="not_found", description="Task not found")
+    task = Task(task_id)
+    ownsUserId(payload, task.user_id)
+    return jsonify(task.to_dict())
 
 
 @app.route("/api/v3/tasks", methods=["GET"])

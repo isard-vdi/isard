@@ -281,6 +281,18 @@ class Task(RedisBase):
         }
 
     @classmethod
+    def exists(cls, task_id):
+        """
+        Check if a task ID exists.
+
+        :param task_id: Document ID
+        :type task_id: str
+        :return: True if exists, False otherwise.
+        :rtype: bool
+        """
+        return Job.exists(task_id, connection=cls._redis)
+
+    @classmethod
     def get_all(cls):
         """
         Get all tasks.
