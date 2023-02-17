@@ -238,6 +238,17 @@ class ReservablesPlanner:
             for booking_id in booking_ids:
                 self.scheduler.remove_scheduler_startswith_id(booking_id)
 
+    def get_plan_bookings(self, plan_id):
+        with app.app_context():
+            return (
+                r.table("bookings")
+                .filter(
+                    r.row["plans"].contains(lambda plan: plan["plan_id"] == plan_id)
+                )
+                .without("reservables", "plans")
+                .run(db.conn)
+            )
+
     ## Bookings functions
     #######################################################
 

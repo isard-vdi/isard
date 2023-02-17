@@ -179,6 +179,14 @@ def api_v3_reservables_planner_event(payload):
     return json.dumps(api_rp.add_plan(payload, data))
 
 
+# Gets bookings in a plan
+@app.route("/api/v3/admin/reservables_planner/<plan_id>/bookings", methods=["GET"])
+@is_admin
+def api_v3_reservables_planner_event_existing_bookings(payload, plan_id):
+    data = request.get_json()
+    return json.dumps(api_rp.get_plan_bookings(plan_id))
+
+
 # Deletes a plan
 @app.route("/api/v3/admin/reservables_planner/<plan_id>", methods=["DELETE"])
 @is_admin
