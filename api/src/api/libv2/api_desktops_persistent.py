@@ -573,6 +573,21 @@ class ApiDesktopsPersistent:
                     description_code="unable_to_update" + str(desktop["status"]),
                 )
 
+    def UpdateReservables(self, desktop_id, reservables):
+        if not _check(
+            r.table("domains")
+            .get(desktop_id)
+            .update({"create_dict": {"reservables": reservables}})
+            .run(db.conn),
+            "replaced",
+        ):
+            raise Error(
+                "internal_server",
+                "Unable to update desktop reservables in database",
+                traceback.format_exc(),
+                description_code="unable_to_update",
+            )
+
     def JumperUrl(self, id):
         with app.app_context():
             domain = r.table("domains").get(id).run(db.conn)

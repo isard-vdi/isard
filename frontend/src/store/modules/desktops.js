@@ -342,6 +342,12 @@ export default {
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
+    },
+    editDesktopReservables (context, data) {
+      ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.editing'))
+      return axios.put(`${apiV3Segment}/domain/reservables/${data.id}`, data).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
     }
   }
 }

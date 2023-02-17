@@ -6,7 +6,7 @@
 # License: AGPLv3
 
 import traceback
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytz
 from rethinkdb import RethinkDB
@@ -113,6 +113,7 @@ class Bookings:
         item_type,  # desktop/deployment
         item_id,  # id
         title=None,
+        now=False,
     ):
 
         # CHECK: There is still empty room for this desktop resources.
@@ -176,7 +177,8 @@ class Bookings:
                     "Unable to insert booking in database.",
                     description_code="unable_to_insert",
                 )
-
+        if now:
+            booking["start"] = booking["start"] + timedelta(minutes=1)
         self.resources_scheduler.bookings_schedule(
             booking["id"], item_type, item_id, booking["start"], booking["end"]
         )
@@ -284,6 +286,7 @@ class Bookings:
         returnType="all",
         returnUnavailable=None,
     ):
+
         with app.app_context():
             bookings = list(
                 r.table("bookings")

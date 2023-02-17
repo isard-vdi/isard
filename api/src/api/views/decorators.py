@@ -306,7 +306,7 @@ def ownsDomainId(payload, domain_id):
                 return True
 
     raise Error(
-        "forbidden",
+        "unauthorized",
         "Not enough access rights to access this desktop_id " + str(domain_id),
         traceback.format_exc(),
         description_code="not_enough_rights_desktop" + str(domain_id),
@@ -358,7 +358,7 @@ def ownsDeploymentId(payload, deployment_id):
             return True
 
     raise Error(
-        "forbidden",
+        "unauthorized",
         "Not enough access rights to access this deployment_id " + str(deployment_id),
         traceback.format_exc(),
     )

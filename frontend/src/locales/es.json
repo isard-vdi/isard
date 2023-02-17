@@ -404,6 +404,28 @@
                 "total-media-size": "Tamaño de medios utilizado / Total de tamaño de medios",
                 "total-size": "Tamaño utilizad / Total de tamaño"
             }
+        },
+        "start-now-modal": {
+            "title": "Iniciar ahora",
+            "profile": "Perfil",
+            "select-profile": "Selecciona el perfil que se utilizará",
+            "end-date": "Fecha de finalización",
+            "select-end-date": "Selecciona hasta cuando se utilizará",
+            "button": "Iniciar escritorio"
+        },
+        "cant-start-now-modal": {
+            "title": {
+                "available-profile": "El modelo de tarjeta gráfica de este escritorio ({profile}) no está disponible en este momento",
+                "no-available-profile": "No hay ningún otro modelo de tarjeta gráfica disponible en este momento"
+            },
+            "change-desktop-gpu": {
+                "text": "Se puede modificar a un modelo de tarjeta gráfica disponible ahora e iniciarlo (puede afectar al rendimiento del escritorio)",
+                "button": "Cambiar e iniciar"
+            },
+            "go-to-bookings": {
+                "text": "Reservar el escritorio con el modelo de tarjeta gráfica actual consultando su planificación",
+                "button": "Reservar escritorio"
+            }
         }
     },
     "views": {
@@ -826,8 +848,10 @@
             "edit-domain": "El hardware de '{name}' se limitará y sus datos se modificarán, continuar?",
             "new-deployment": "Se crearán {quantity} escritorios, uno por cada usuario seleccionado. Continuar?",
             "go-to-profile": "Ver cuota",
+            "go-to-bookings": "Reservar escritorio",
             "make-invisible-and-stop": "invisible y parar escritorios",
-            "make-invisible-and-not-stop": "hacer invisible"
+            "make-invisible-and-not-stop": "hacer invisible",
+            "change-desktop-gpu": "Modificar el perfil del escritorio"
         },
         "ok": "De acuerdo",
         "yes": "Si",
@@ -972,7 +996,10 @@
         "unable_to_get_deployment_desktops": "No se pueden obtener escritorios de implementación",
         "new_template_bad_body_data": "La plantilla nueva tiene datos de cuerpo incorrectos",
         "get_vnc_viewer_data_error": "Error interno al obtener datos del visor VNC",
-        "only_works_rdp":  "Modo 'Only GPU' solamente funciona con visores RDP"
+        "only_works_rdp":  "Modo 'Only GPU' solamente funciona con visores RDP",
+        "current_plan_doesnt_match": "No hay ninguna GPU disponible con el perfil del escritorio",
+        "needs_deployment_booking": "Ahora mismo no se puede arrancar el escritorio, contacta con el propietario del despliegue para que cree una reserva",
+        "not_enough_advanced_time": "No hay suficiente antelación para arrancar el escritorio"
     },
     "router": {
         "titles": {

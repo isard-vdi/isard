@@ -68,7 +68,7 @@ const router = new VueRouter({
           }
         },
         {
-          path: 'booking',
+          path: 'booking/:type/:id',
           name: 'booking',
           component: Booking,
           meta: {

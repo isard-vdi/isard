@@ -10,7 +10,7 @@ export class DesktopUtils {
   }
 
   static parseDesktop (item) {
-    const { description, icon, id, name, state, type, viewers, ip, template, progress, image, needs_booking: needsBooking, next_booking_start: nextBookingStart, next_booking_end: nextBookingEnd, booking_id: bookingId, editable, scheduled, server, desktop_size: desktopSize, tag } = item
+    const { description, icon, id, name, state, type, viewers, ip, template, progress, image, needs_booking: needsBooking, next_booking_start: nextBookingStart, next_booking_end: nextBookingEnd, booking_id: bookingId, editable, scheduled, server, desktop_size: desktopSize, tag, reservables } = item
     return {
       description,
       icon: !icon || !(icon in cardIcons) ? ['fas', 'desktop'] : this.getIcon(icon),
@@ -32,7 +32,8 @@ export class DesktopUtils {
       shutdown: scheduled.shutdown ? i18n.t('components.desktop-cards.notification-bar.shutdown', { name: name, date: DateUtils.formatAsTime(DateUtils.utcToLocalTime(scheduled.shutdown)) }) : false,
       server,
       desktopSize,
-      tag
+      tag,
+      reservables
     }
   }
 

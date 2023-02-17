@@ -1,0 +1,6 @@
+reservables:
+  type: dict
+  schema:
+    vgpus:
+      type: list
+      nullable: true

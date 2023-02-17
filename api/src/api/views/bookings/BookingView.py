@@ -1,21 +1,44 @@
+import datetime
 import json
 import logging as log
+from datetime import datetime, timedelta, timezone
 
+import pytz
 from flask import request
 
 from api import app
 
 from ..._common.api_exceptions import Error
+from ...libv2.api_allowed import ApiAllowed
+from ...libv2.api_desktops_persistent import ApiDesktopsPersistent
 from ...libv2.bookings.api_booking import Bookings
-from ..decorators import has_token, is_admin
+from ...libv2.bookings.api_reservables_planner_compute import payload_priority
+from ...libv2.deployments.api_deployments import get
+from ..decorators import has_token, is_admin, ownsDeploymentId, ownsDomainId
+
+allowed = ApiAllowed()
+
 
 apib = Bookings()
+desktops = ApiDesktopsPersistent()
+
+MIN_AUTOBOOKING_TIME = 30
+MAX_BOOKING_TIME = 12 * 60  # 12h
 
 
 @app.route("/api/v3/bookings/priority/<item_type>/<item_id>", methods=["GET"])
 @has_token
 def api_v3_user_priority(payload, item_type, item_id):
-    return json.dumps(apib.get_user_priority(payload, item_type, item_id))
+    if item_type == "desktop":
+        name = desktops.Get(item_id)["name"]
+    else:
+        name = get(item_id, False)["name"]
+    return json.dumps(
+        {
+            **apib.get_user_priority(payload, item_type, item_id),
+            **{"name": name},
+        }
+    )
 
 
 @app.route("/api/v3/bookings/priorities", methods=["POST"])
@@ -50,12 +73,21 @@ def api_v3_bookings_user(payload, item_type=None, item_id=None, returnType=None)
         return json.dumps(
             apib.get_user_bookings(start_date, end_date, payload["user_id"])
         )
+    if item_type == "desktop":
+        ownsDomainId(payload, item_id)
+    elif item_type == "deployment":
+        ownsDeploymentId(payload, item_id)
 
     # Get bookings for one item
     if item_id:
         return json.dumps(
             apib.get_item_bookings(
-                payload, start_date, end_date, item_type, item_id, returnType
+                payload,
+                start_date,
+                end_date,
+                item_type,
+                item_id,
+                returnType,
             )
         )
 
@@ -126,6 +158,7 @@ def api_v3_booking_event(payload):
             data["element_type"],
             data["element_id"],
             data.get("title", None),
+            data.get("now", False),
         )
     )
 
@@ -176,3 +209,157 @@ def api_v3_admin_booking_event(payload, event_id):
         title = data.get("title")
         start = data.get("start")
         end = data.get("end")
+
+
+@app.route("/api/v3/booking/max_booking_date/<desktop_id>", methods=["GET"])
+@has_token
+def api_v3_admin_booking_max_booking_date(payload, desktop_id):
+    fromDate = datetime.now(timezone.utc)
+    toDate = fromDate + timedelta(minutes=MAX_BOOKING_TIME)
+    fromDate = fromDate.strftime("%Y-%m-%dT%H:%M%z")
+    toDate = toDate.strftime("%Y-%m-%dT%H:%M%z")
+    current_plan = apib.get_item_bookings(
+        payload,
+        fromDate,
+        toDate,
+        "desktop",
+        desktop_id,
+        "availability",
+    )
+    if not current_plan or current_plan[0]["start"] > fromDate:
+        desktop = desktops.Get(desktop_id=desktop_id)
+        if desktop.get("tag"):
+            raise Error(
+                "precondition_required",
+                "The deployment desktop reservable does not match the current plan, its deployment must be booked in order to use it",
+                description_code="needs_deployment_booking",
+            )
+        else:
+            raise Error(
+                "precondition_required",
+                "The desktop reservable does not match the current plan",
+                description_code="current_plan_doesnt_match",
+            )
+
+    priority = apib.get_user_priority(payload, "desktop", desktop_id)
+
+    forbid_time = priority["forbid_time"]
+    if payload["role_id"] != "admin" and forbid_time < MIN_AUTOBOOKING_TIME:
+        raise Error(
+            "precondition_required",
+            "There's not enough advanced time to start the desktop",
+            description_code="not_enough_advanced_time",
+        )
+    max_time = priority["max_time"]
+    available_time = int(
+        (
+            datetime.strptime(current_plan[0]["end"], "%Y-%m-%dT%H:%M%z").astimezone(
+                pytz.UTC
+            )
+            - datetime.now(timezone.utc)
+        ).total_seconds()
+        / 60
+    )
+
+    if payload["role_id"] == "admin":
+        max_booking_time = min(max_time, available_time)
+    else:
+        max_booking_time = min(forbid_time, max_time, available_time)
+
+    if max_booking_time >= MIN_AUTOBOOKING_TIME:
+        max_booking_time = min(max_booking_time, MAX_BOOKING_TIME)
+
+        max_booking_date = datetime.strftime(
+            datetime.now(timezone.utc) + timedelta(minutes=max_booking_time),
+            "%Y-%m-%dT%H:%M%z",
+        )
+        return json.dumps({"max_booking_date": max_booking_date})
+    else:
+        desktop = desktops.Get(desktop_id=desktop_id)
+        if desktop.get("tag"):
+            raise Error(
+                "precondition_required",
+                "There's not enough advanced time to start the deployment desktop, its deployment must be booked in order to use it",
+                description_code="needs_deployment_booking",
+            )
+        raise Error(
+            "precondition_required",
+            "There's not enough time to start the desktop",
+            description_code="not_enough_time_to_start",
+        )
+
+
+@app.route("/api/v3/booking/reservables_available", methods=["GET"])
+@has_token
+def api_v3_admin_booking_reservables_available(payload):
+    # Get all users reservables
+    allowed_reservables = {
+        "vgpus": allowed.get_items_allowed(
+            payload,
+            "reservables_vgpus",
+            query_pluck=["id", "name", "description"],
+            order="name",
+            query_merge=False,
+        )
+    }
+    available = []
+    fromDate = datetime.now(timezone.utc)
+    toDate = fromDate + timedelta(minutes=MAX_BOOKING_TIME)
+    fromDate = fromDate.strftime("%Y-%m-%dT%H:%M%z")
+    toDate = toDate.strftime("%Y-%m-%dT%H:%M%z")
+    for k, v in allowed_reservables.items():
+        for reservable in v:
+            priority = payload_priority(payload, {"vgpus": [reservable["id"]]})
+            # Check if the reservable is currently planned
+            current_plan = apib.reservables_planner.get_item_availability(
+                payload,
+                None,
+                None,
+                fromDate,
+                toDate,
+                subitems={"vgpus": [reservable["id"]]},
+            )
+            if not current_plan or current_plan[0]["start"] > fromDate:
+                continue
+
+            # If so, compute the maximum booking time
+            forbid_time = priority["forbid_time"]
+            max_time = priority["max_time"]
+            available_time = int(
+                (
+                    datetime.strptime(
+                        current_plan[0]["end"], "%Y-%m-%dT%H:%M%z"
+                    ).astimezone(pytz.UTC)
+                    - datetime.now(timezone.utc)
+                ).total_seconds()
+                / 60
+            )
+            if payload["role_id"] == "admin":
+                max_booking_time = min(max_time, available_time)
+            else:
+                max_booking_time = min(forbid_time, max_time, available_time)
+
+            if max_booking_time >= MIN_AUTOBOOKING_TIME:
+                max_booking_time = min(max_booking_time, MAX_BOOKING_TIME)
+
+                max_booking_date = datetime.strftime(
+                    datetime.now(timezone.utc) + timedelta(minutes=max_booking_time),
+                    "%Y-%m-%dT%H:%M%z",
+                )
+                available.append(
+                    {
+                        "id": reservable["id"],
+                        "name": reservable["name"],
+                        "description": reservable["description"],
+                        "max_booking_date": max_booking_date,
+                    }
+                )
+
+    if len(available):
+        return json.dumps({"reservables_available": available})
+    else:
+        raise Error(
+            "precondition_required",
+            "There's no gpu profile available to start the desktop now",
+            description_code="no_available_profile",
+        )

@@ -37,6 +37,34 @@ export class BookingUtils {
     }
   }
 
+  static parseStartNowModal (item) {
+    const { max_booking_date: maxBookingDate, showProfileDropdown, reservables_available: availableProfiles, show, profile, action } = item
+    return {
+      show,
+      showProfileDropdown, // if the profile select must be shown
+      selected: {
+        profile,
+        endDate: null,
+        action
+      },
+      data: {
+        availableProfiles: showProfileDropdown ? this.formatAvailableProfilesDropdown(availableProfiles) : [], // if the profile select must be shown
+        availableTimes: DateUtils.breakTimeInChunks(DateUtils.dateToMoment(new Date()), DateUtils.stringToDate(DateUtils.utcToLocalTime(maxBookingDate)), 30, 'minutes'),
+        maxBookingDate
+      }
+    }
+  }
+
+  static formatAvailableProfilesDropdown (profiles) {
+    return profiles.map((item) => {
+      return {
+        text: item.name,
+        value: { id: item.id, maxBookingDate: item.max_booking_date },
+        maxBookingDate: item.max_booking_date
+      }
+    }) || []
+  }
+
   static priorityAllowed (payload, priority) {
     const checkForbidTime = this.checkForbidTime(payload.start, priority.forbidTime)
     const checkMaxTime = payload.end ? this.checkMaxTime(payload.start, payload.end, priority.maxTime) : true

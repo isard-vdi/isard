@@ -29,7 +29,7 @@
           :idx="4"
           icon="event"
           color="#eead47"
-          @clickItem="onClickBookingDesktop"
+          @clickItem="onClickBookingDesktop(desktop)"
         />
         <fab-item
           v-if="getUser.role_id != 'user'"
@@ -179,23 +179,14 @@
             />
             <!-- Main action button persistent-->
             <DesktopButton
-              v-if="desktop.editable && desktop.needsBooking && !desktop.nextBookingStart && !canStart && !desktop.tag"
-              class="card-button"
-              :active="true"
-              button-class="btn-orange"
-              :butt-text="$t('components.desktop-cards.actions.booking')"
-              icon-name="calendar"
-              @buttonClicked="onClickBookingDesktop"
-            />
-            <DesktopButton
               v-else-if="desktop.type === 'persistent' || (desktop.type === 'nonpersistent' && desktop.state && desktopState === desktopStates.stopped )"
               class="card-button"
-              :active="canStart"
-              :button-class="canStart ? buttCssColor : ''"
+              :active="true"
+              :button-class="buttCssColor"
               :spinner-active="false"
               :butt-text="$t(`views.select-template.status.${desktopState}.action`)"
               :icon-name="desktop.buttonIconName"
-              @buttonClicked="changeDesktopStatus({ action: status[desktopState || 'stopped'].action, desktopId: desktop.id })"
+              @buttonClicked="changeDesktopStatus(desktop, { action: status[desktopState || 'stopped'].action, desktopId: desktop.id })"
             />
             <!-- Delete action button-->
             <DesktopButton
@@ -287,6 +278,35 @@ export default {
     templates: {
       required: true,
       type: Array
+    }
+  },
+  setup (_, context) {
+    const $store = context.root.$store
+
+    const changeDesktopStatus = (desktop, data) => {
+      if (canStart(desktop)) {
+        $store.dispatch('changeDesktopStatus', data)
+      } else {
+        $store.dispatch('checkCanStart', { id: desktop.id, type: 'desktop', profile: desktop.reservables.vgpus[0], action: data.action })
+      }
+    }
+
+    const canStart = (desktop) => {
+      if (desktop.needsBooking) {
+        return desktop.bookingId
+      } else {
+        return true
+      }
+    }
+
+    const onClickBookingDesktop = (desktop) => {
+      const data = { id: desktop.id, type: 'desktop', name: desktop.name }
+      $store.dispatch('goToItemBooking', data)
+    }
+
+    return {
+      changeDesktopStatus,
+      onClickBookingDesktop
     }
   },
   data () {
@@ -410,13 +430,6 @@ export default {
     },
     currentRouteName () {
       return this.$route.name
-    },
-    canStart () {
-      if (this.desktop.needsBooking) {
-        return this.desktop.bookingId
-      } else {
-        return true
-      }
     }
   },
   destroyed () {
@@ -427,10 +440,8 @@ export default {
       'deleteDesktop',
       'deleteNonpersistentDesktop',
       'openDesktop',
-      'changeDesktopStatus',
       'createDesktop',
       'navigate',
-      'goToItemBooking',
       'goToEditDomain',
       'fetchDirectLink',
       'goToNewTemplate'
@@ -513,10 +524,6 @@ export default {
       } else {
         ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.delete-desktop-stop'), '', true, 2000)
       }
-    },
-    onClickBookingDesktop () {
-      const data = { id: this.desktop.id, type: 'desktop', name: this.desktop.name }
-      this.goToItemBooking(data)
     },
     onClickOpenDirectViewerModal () {
       this.fetchDirectLink(this.desktop.id)

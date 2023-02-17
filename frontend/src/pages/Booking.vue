@@ -112,9 +112,7 @@ export default {
     const showAvailabilitySplit = computed(() => get(bookingEventsSettings.showAvailabilitySplit, `${role.value}.${view.value.timeframe}.${view.value.viewType}`))
 
     onMounted(() => {
-      if (view.value.viewType === '') {
-        $store.dispatch('navigate', 'desktops')
-      }
+      $store.dispatch('fetchBookingView', { id: context.root.$route.params.id, type: context.root.$route.params.type })
     })
 
     onUnmounted(() => {

@@ -403,6 +403,28 @@
                 "total-media-size": "Used media size / Total media size",
                 "total-size": "Used size / Total size (GB)"
             }
+        },
+        "start-now-modal": {
+            "title": "Start now",
+            "profile": "Profile",
+            "select-profile": "Select the profile that will be used",
+            "end-date": "End date",
+            "select-end-date": "Select until when it will be used",
+            "button": "Start desktop"
+        },
+        "cant-start-now-modal": {
+            "title": {
+                "available-profile": "The graphic card model of this desktop ({profile}) is not currently available",
+                "no-available-profile": "There's no other card model currently available"
+            },
+            "change-desktop-gpu": {
+                "text": "It can be changed to an available graphic card model now and start it (it could affect the desktop performance)",
+                "button": "Change and start"
+            },
+            "go-to-bookings": {
+                "text": "Book the desktop with its current graphic card model checking its planification",
+                "button": "Book desktop"
+            }
         }
     },
     "views": {
@@ -811,8 +833,10 @@
             "edit-domain": "'{name}' hardware will be limited and its data will be changed, continue?",
             "new-deployment": "{quantity} desktops will be created, one for each selected user. Continue?",
             "go-to-profile": "View quota",
+            "go-to-bookings": "Book desktop",
             "make-invisible-and-stop":"Stop and hide",
-            "make-invisible-and-not-stop":"Only hide desktops"
+            "make-invisible-and-not-stop":"Only hide desktops",
+            "change-desktop-gpu": "Modify desktop profile"
         },
         "ok": "Ok",
         "yes": "Yes",
@@ -961,7 +985,10 @@
         "incorrect_new_plan_body_data": " Incorrect new plan body data",
         "duplicated_name": "Duplicated name",
         "user_disabled": "The user is disabled",
-        "only_works_rdp":  "'Only GPU' mode only works with RDP viewers"
+        "only_works_rdp":  "'Only GPU' mode only works with RDP viewers",
+        "current_plan_doesnt_match": "There's no GPU available with the desktop profile",
+        "needs_deployment_booking": "The desktop can't be started now, contact with the deployment owner in order to book it",
+        "not_enough_advanced_time": "There's not enough advanced time to start the desktop"
     },
     "router": {
         "titles": {

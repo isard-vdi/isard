@@ -242,9 +242,19 @@ class ReservablesPlanner:
     #######################################################
 
     def get_item_availability(
-        self, payload, item_type, item_id, fromDate, toDate, returnUnavailable=False
+        self,
+        payload,
+        item_type,
+        item_id,
+        fromDate,
+        toDate,
+        returnUnavailable=False,
+        subitems=None,
     ):
-        subitems, units, item_name = _get_reservables(item_type, item_id)
+        if not subitems:
+            subitems, units, item_name = _get_reservables(item_type, item_id)
+        else:
+            units = 1
         priority = payload_priority(payload, subitems)
         # {'priority': {'NVIDIA-A40-1Q': 45}, 'forbid_time': 24, 'max_time': 2, 'max_items': 30}
         planning = booking_provisioning(

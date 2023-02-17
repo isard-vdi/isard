@@ -347,6 +347,7 @@ def _parse_desktop(desktop):
             "group_name": desktop.get("group_name"),
             "category": desktop.get("category"),
             "category_name": desktop.get("category_name"),
+            "reservables": desktop["create_dict"].get("reservables"),
         },
         **_parse_desktop_booking(desktop),
     }
@@ -382,36 +383,39 @@ def _parse_desktop_booking(desktop):
             "next_booking_end": None,
             "booking_id": False,
         }
-
-    if not desktop.get("tag"):
-        item_id = desktop["id"]
-        item_type = "desktop"
-    else:
-        item_id = desktop.get("tag")
-        item_type = "deployment"
+    item_id = desktop["id"]
+    item_type = "desktop"
     with app.app_context():
-        try:
-            plan = (
+        booking = (
+            r.table("bookings")
+            .get_all([item_type, item_id], index="item_type-id")
+            .filter(lambda b: b["end"] > r.now())
+            .order_by("start")
+            .run(db.conn)
+        )
+        if not booking and desktop.get("tag"):
+            booking = (
                 r.table("bookings")
-                .get_all([item_type, item_id], index="item_type-id")
-                .filter(lambda plan: plan["end"] > r.now())
+                .get_all(["deployment", desktop.get("tag")], index="item_type-id")
+                .filter(lambda b: b["end"] > r.now())
                 .order_by("start")
-                .nth(0)
                 .run(db.conn)
             )
-        except:
-            return {
-                "needs_booking": True,
-                "next_booking_start": None,
-                "next_booking_end": None,
-                "bookings_id": False,
-            }
-    return {
-        "needs_booking": True,
-        "next_booking_start": plan["start"].strftime("%Y-%m-%dT%H:%M%z"),
-        "next_booking_end": plan["end"].strftime("%Y-%m-%dT%H:%M%z"),
-        "booking_id": desktop.get("booking_id", False),
-    }
+
+    if booking:
+        return {
+            "needs_booking": True,
+            "next_booking_start": booking[0]["start"].strftime("%Y-%m-%dT%H:%M%z"),
+            "next_booking_end": booking[0]["end"].strftime("%Y-%m-%dT%H:%M%z"),
+            "booking_id": desktop.get("booking_id", False),
+        }
+    else:
+        return {
+            "needs_booking": True,
+            "next_booking_start": None,
+            "next_booking_end": None,
+            "booking_id": False,
+        }
 
 
 def _parse_deployment_booking(deployment):
