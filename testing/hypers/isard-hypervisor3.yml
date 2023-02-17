@@ -1,0 +1,96 @@
+name: docker-compose-parts
+services:
+  isard-hypervisor3:
+    build:
+      context: .
+      dockerfile: docker/hypervisor/Dockerfile
+      target: production
+    container_name: isard-hypervisor3
+    environment:
+      API_DOMAIN: isard-api
+      API_HYPERVISORS_SECRET: B5/bUEUzIC+AjNQRmFh3vxR3VeIKirwdeL/xuHPVO+E=
+      API_ISARDVDI_SECRET: kpWpdF0NtI2XCEfzMp36hdSV9S42E7axS8D5TvP9c0A=
+      BUILD_ROOT_PATH: .
+      DOCKER_IMAGE_PREFIX: registry.gitlab.com/isard/isardvdi/
+      DOCKER_IMAGE_TAG: main
+      DOMAIN: isard-hypervisor3
+      ENABLE_STATS: "false"
+      ENV: /usr/local/etc/environment
+      FLAVOUR: hypervisor
+      HYPER_ENABLED: null
+      HYPER_ID: isard-hypervisor3
+      INFLUXDB_ADMIN_TOKEN_SECRET: 9eFW/Qi29hL3hFGUP8wIGH89XKCH8s1k0il44GCRF2g=
+      LOG_LEVEL: DEBUG
+      NEXTCLOUD_INSTANCE: "true"
+      SRC_VERSION_ID: fix/hypervisor_deleted_and_nested_check-dirty
+      SRC_VERSION_LINK: ""
+      USAGE: devel
+      VALIDATE_CERTS: "true"
+      VIDEO_DOMAIN: null
+      VIEWER_BROWSER: "8443"
+      VIEWER_SPICE: "8081"
+      WEBAPP_ADMIN_PWD: IsardVDI
+      WEBAPP_SESSION_SECRET: xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
+      WG_GUESTS_DHCP_MASK: "23"
+      WG_GUESTS_NETS: 10.2.0.0/16
+      WG_GUESTS_RESERVED_HOSTS: "20"
+      WG_HYPERS_NET: 10.1.0.0/24
+      WG_HYPERS_PORT: "4443"
+      WG_MAIN_NET: 10.0.0.0/14
+      WG_USERS_NET: 10.0.0.0/16
+      WG_USERS_PORT: "443"
+    image: registry.gitlab.com/isard/isardvdi/hypervisor:main
+    logging:
+      driver: json-file
+      options:
+        max-size: 100m
+        tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+    networks:
+      isard-network:
+        ipv4_address: 172.31.255.103
+    privileged: true
+    volumes:
+    - type: bind
+      source: ./docker/hypervisor/kvm/hooks
+      target: /etc/libvirt/hooks
+      bind:
+        create_host_path: true
+    - type: bind
+      source: /etc/localtime
+      target: /etc/localtime
+      read_only: true
+      bind:
+        create_host_path: true
+    - type: bind
+      source: /etc/timezone
+      target: /etc/timezone
+      read_only: true
+      bind:
+        create_host_path: true
+    - type: bind
+      source: /opt/isard
+      target: /isard
+      bind:
+        create_host_path: true
+    - type: bind
+      source: ./docker/hypervisor/src
+      target: /src
+      bind:
+        create_host_path: true
+    - type: bind
+      source: ./component/_common/src
+      target: /src/_common
+      bind:
+        create_host_path: true
+    - type: bind
+      source: /opt/isard-local/environment
+      target: /usr/local/etc/environment
+      bind:
+        create_host_path: true
+networks:
+  isard-network:
+    name: isard-network
+    driver: bridge
+    ipam:
+      config:
+      - subnet: 172.31.255.0/24
