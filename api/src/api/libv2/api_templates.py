@@ -12,6 +12,7 @@ from rethinkdb import RethinkDB
 
 from api import app
 
+from ..libv2.validators import _validate_item
 from .api_cards import ApiCards
 
 r = RethinkDB()
@@ -181,7 +182,6 @@ class ApiTemplates:
                 description_code="not_found",
             )
 
-        template["id"] = "_" + payload["user_id"] + "-" + _parse_string(name)
         template = {**template, **get_user_data(payload["user_id"])}
         template["name"] = name
         template["description"] = description
@@ -190,6 +190,7 @@ class ApiTemplates:
         template["status"] = "Stopped"
         template["accessed"] = int(time.time())
 
+        _validate_item("template", template)
         try:
             with app.app_context():
                 new_template_id = (
