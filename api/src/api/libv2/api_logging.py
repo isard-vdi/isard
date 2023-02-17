@@ -147,10 +147,13 @@ def _logs_domain_start(dom_id, action_user=None, direct_viewer=False):
         if domain.get("tag"):
             data["deployment_id"] = domain.get("tag")
             data["deployment_name"] = deployment_name
-        if domain.get("create_dict", {}).get("reservables", {}).get("vgpus"):
-            data["hardware_bookables_vgpus"]: domain["create_dict"]["reservables"][
-                "vgpus"
-            ]
+    except:
+        log.warning("Unable to fetch log data for start logs id")
+        log.debug(traceback.format_exc())
+        return
+    if domain.get("create_dict", {}).get("reservables", {}).get("vgpus"):
+        data["hardware_bookables_vgpus"]: domain["create_dict"]["reservables"]["vgpus"]
+        try:
             if domain.get("booking_id"):
                 with app.app_context():
                     booking = (
@@ -162,14 +165,13 @@ def _logs_domain_start(dom_id, action_user=None, direct_viewer=False):
                 data["booking_id"] = domain["booking_id"]
                 data["booking_start"] = booking["start"]
                 data["booking_end"] = booking["end"]
-        if domain.get("forced_hyp"):
-            data["hyp_forced"] = domain["forced_hyp"]
-        if domain.get("favourite_hyp"):
-            data["hyp_favourite"] = domain["favourite_hyp"]
-    except:
-        log.warning("Unable to parse all data at user start logs")
-        log.debug(traceback.format_exc())
-        return
+        except:
+            log.warning("Unable to fetch booking data for start logs id")
+            log.debug(traceback.format_exc())
+    if domain.get("forced_hyp"):
+        data["hyp_forced"] = domain["forced_hyp"]
+    if domain.get("favourite_hyp"):
+        data["hyp_favourite"] = domain["favourite_hyp"]
     with app.app_context():
         r.table("logs_desktops").insert(data, durability="soft").run(db.conn)
 
