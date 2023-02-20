@@ -27,7 +27,7 @@ import Storage from '@/pages/Storage.vue'
 import Vue from 'vue'
 import VueRouter from 'vue-router'
 import { appTitle } from '../shared/constants'
-import { auth, checkRdpToken } from './auth'
+import { auth } from './auth'
 import i18n from '@/i18n'
 
 Vue.use(VueRouter)
@@ -131,10 +131,7 @@ const router = new VueRouter({
     {
       path: '/rdp',
       name: 'Rdp',
-      component: Rdp,
-      meta: {
-        requiresRdpToken: true
-      }
+      component: Rdp
     },
     {
       path: '/',
@@ -318,8 +315,6 @@ router.beforeEach((to, from, next) => {
 
   if (to.matched.some(record => record.meta.requiresAuth)) {
     auth(to, from, next, to.meta.allowedRoles)
-  } else if (to.matched.some(record => record.meta.requiresRdpToken)) {
-    checkRdpToken(to, from, next)
   } else {
     store.dispatch('saveNavigation', { url: to })
     next()

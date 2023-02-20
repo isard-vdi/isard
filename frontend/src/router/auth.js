@@ -30,14 +30,6 @@ export function auth (to, from, next, allowedRoles) {
   }
 }
 
-export function checkRdpToken (to, from, next) {
-  if (StringUtils.isNullOrUndefinedOrEmpty(localStorage.rdpToken)) {
-    next({ name: 'desktops' })
-  } else {
-    next()
-  }
-}
-
 export function checkRoutePermission (next, allowedRoles) {
   if (!allowedRoles.includes(JSON.parse(atob(localStorage.token.split('.')[1])).data.role_id)) {
     next({ name: 'desktops' })

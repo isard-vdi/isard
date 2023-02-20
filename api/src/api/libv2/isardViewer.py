@@ -10,6 +10,7 @@ import json
 import os
 import traceback
 
+import pytz
 from rethinkdb import RethinkDB
 
 from api import app
@@ -214,11 +215,15 @@ class isardViewer:
                 "host": domain["viewer"]["proxy_video"],
                 "port": domain["viewer"].get("html5_ext_port", "443"),
                 "token": domain["viewer"]["passwd"],
+                "exp": (datetime.now(pytz.utc) + timedelta(minutes=240)).timestamp(),
             }
             cookie = base64.b64encode(
                 json.dumps({"web_viewer": data}).encode("utf-8")
             ).decode("utf-8")
-            uri = viewer_url + "/viewer/noVNC/"
+            if os.environ.get("DIRECTVIEWER_MODE") == "url":
+                viewer = viewer_url + "/viewer/noVNC?cookie=" + cookie
+            else:
+                viewer = viewer_url + "/viewer/noVNC/"
             urlp = (
                 viewer_url
                 + "/viewer/noVNC/?vmName="
@@ -237,7 +242,7 @@ class isardViewer:
             return {
                 "kind": "browser",
                 "protocol": "vnc",
-                "viewer": uri,
+                "viewer": viewer,
                 "urlp": urlp,
                 "cookie": cookie,
                 "values": data,
@@ -251,16 +256,26 @@ class isardViewer:
                 "vmPassword": domain["guest_properties"]["credentials"]["password"],
                 "host": domain["viewer"]["static"],
                 "port": domain["viewer"].get("html5_ext_port", "443"),
+                "exp": (datetime.now(pytz.utc) + timedelta(minutes=240)).timestamp(),
             }
             cookie = base64.b64encode(
                 json.dumps({"web_viewer": data}).encode("utf-8")
             ).decode("utf-8")
-            uri = viewer_url + "/Rdp"
+            if os.environ.get("DIRECTVIEWER_MODE") == "url":
+                viewer = (
+                    viewer_url
+                    + "/Rdp?cookie="
+                    + cookie
+                    + "&jwt="
+                    + viewer_jwt(domain["id"], minutes=30)
+                )
+            else:
+                viewer = viewer_url + "/Rdp"
             urlp = "Not implemented"
             return {
                 "kind": "browser",
                 "protocol": "rdp",
-                "viewer": uri,
+                "viewer": viewer,
                 "urlp": urlp,
                 "cookie": cookie,
                 "values": data,

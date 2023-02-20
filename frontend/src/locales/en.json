@@ -305,7 +305,9 @@
                 "connecting": "Connecting to server…",
                 "disconnected": "You have been disconnected",
                 "unstable": "The network connection server appears unstable",
-                "error": "Connection error"
+                "error": "Connection error",
+                "cookie-error": "The required cookie to establish a connection is not setted",
+                "cookie-expired": "The required cookie to establish a connection has expired"
             },
             "title": {
                 "connecting": "Connecting",

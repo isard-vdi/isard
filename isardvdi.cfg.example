@@ -52,9 +52,16 @@ WEBAPP_ADMIN_PWD=IsardVDI
 ## Will show/hide temporal desktops tab.
 #FRONTEND_SHOW_TEMPORAL=True
 
-# ------ Frontend Documentation URI ---------------------------------------------------
+# ------ Frontend Documentation URI ------------------------------------------
 ## Documentation URI where the user will be redirected.
 FRONTEND_DOCS_URI=https://isard.gitlab.io/isardvdi-docs/
+
+# ------ Frontend Direct Viewer cookie ---------------------------------------
+## Where will the direct viewer cookie be retrieved from.
+## Values: (first value is the default one)
+## - browser
+## - url
+DIRECTVIEWER_MODE=browser
 
 # ------ Secrets -------------------------------------------------------------
 ## Generate your own SECRETS!
