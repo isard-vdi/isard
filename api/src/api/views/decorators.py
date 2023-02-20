@@ -393,6 +393,38 @@ def ownsStorageId(payload, storage_id):
     )
 
 
+def ownsBookingId(payload, bookings_id):
+    if payload["role_id"] == "admin":
+        return True
+
+    with app.app_context():
+        booking_user_id = (
+            r.table("bookings")
+            .get(bookings_id)
+            .pluck("user_id")["user_id"]
+            .run(db.conn)
+        )
+    if booking_user_id == payload["user_id"]:
+        return True
+
+    if payload["role_id"] == "manager":
+        with app.app_context():
+            booking_category_id = (
+                r.table("users")
+                .get(booking_user_id)
+                .pluck("category")["category"]
+                .run(db.conn)
+            )
+        if booking_category_id == payload["category_id"]:
+            return True
+
+    raise Error(
+        "forbidden",
+        "Not enough access rights for this user_id " + payload["user_id"],
+        traceback.format_exc(),
+    )
+
+
 def itemExists(item_table, item_id):
     item = r.table(item_table).get(item_id).run(db.conn)
     if not item:

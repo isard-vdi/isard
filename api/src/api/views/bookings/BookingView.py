@@ -14,7 +14,13 @@ from ...libv2.api_desktops_persistent import ApiDesktopsPersistent
 from ...libv2.bookings.api_booking import Bookings
 from ...libv2.bookings.api_reservables_planner_compute import payload_priority
 from ...libv2.deployments.api_deployments import get
-from ..decorators import has_token, is_admin, ownsDeploymentId, ownsDomainId
+from ..decorators import (
+    has_token,
+    is_admin,
+    ownsBookingId,
+    ownsDeploymentId,
+    ownsDomainId,
+)
 
 allowed = ApiAllowed()
 
@@ -108,7 +114,7 @@ def api_v3_bookings_availability(payload, item_type, item_id):
 @app.route("/api/v3/booking/event/<booking_id>", methods=["GET", "PUT", "DELETE"])
 @has_token
 def api_v3_booking_event_id(payload, booking_id):
-    # CHECK: owns booking_id
+    ownsBookingId(payload, booking_id)
     if request.method == "GET":
         return json.dumps(apib.get(booking_id))
 
