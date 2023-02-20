@@ -8,7 +8,6 @@ name:
   type: string
   empty: false
 desktop_id: 
-  required: true
   type: string
 description: 
   required: false
