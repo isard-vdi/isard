@@ -43,10 +43,16 @@ check-protobuf:
   image: alpine:3.16
   before_script:
     - echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
-    - apk add --no-cache go@edge
+    - apk add --no-cache go@edge python3 npm
     - go install github.com/bufbuild/buf/cmd/buf@latest
     - go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1
     - go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0
+    - go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc@v1.5.1
+    - python3 -m venv venv
+    - source venv/bin/activate
+    - pip3 install "betterproto[compiler]==2.0.0-beta5"
+    - npm install --global @bufbuild/protoc-gen-es
+
   script:
     - export PATH=$PATH:~/go/bin
     - buf lint
