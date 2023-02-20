@@ -44,6 +44,7 @@ enum HypervisorCapabilities {
     HYPERVISOR_CAPABILITIES_GPU = 2;
 }
 
+// HypervisorState are the different states that a operations hypervisor can be
 enum HypervisorState {
     // default zero value
     HYPERVISOR_STATE_UNSPECIFIED =  0;
@@ -60,6 +61,7 @@ message ListHypervisorsRequest {}
 
 // ListHypervisorsResponse is the response for the ListHypervisors method
 message ListHypervisorsResponse {
+    // hypervisors contains all the hypervisors in the operations service
     repeated ListHypervisorsResponseHypervisor hypervisors = 1;
 }
 

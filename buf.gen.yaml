@@ -4,13 +4,16 @@ managed:
   go_package_prefix:
     default: gitlab.com/isard/isardvdi/pkg/gen/proto/go  
 plugins:
+  - name: doc
+    out: pkg/gen/proto/docs
+    opt: markdown,index.md,source_relative
   - name: go
     out: pkg/gen/proto/go
     opt: paths=source_relative
   - name: go-grpc
     out: pkg/gen/proto/go
     opt: paths=source_relative
-  - plugin: buf.build/protocolbuffers/python
+  - plugin: python_betterproto
     out: pkg/gen/proto/python
-  - plugin: buf.build/grpc/python
-    out: pkg/gen/proto/python
+  - plugin: es
+    out: pkg/gen/proto/js

@@ -134,6 +134,7 @@ func (HypervisorCapabilities) EnumDescriptor() ([]byte, []int) {
 	return file_operations_v1_operations_proto_rawDescGZIP(), []int{1}
 }
 
+// HypervisorState are the different states that a operations hypervisor can be
 type HypervisorState int32
 
 const (
@@ -235,6 +236,7 @@ type ListHypervisorsResponse struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// hypervisors contains all the hypervisors in the operations service
 	Hypervisors []*ListHypervisorsResponseHypervisor `protobuf:"bytes,1,rep,name=hypervisors,proto3" json:"hypervisors,omitempty"`
 }
 
