@@ -139,13 +139,14 @@
 
 <script>
 import Logo from '@/components/Logo.vue'
-import { computed } from '@vue/composition-api'
+import { computed, watch } from '@vue/composition-api'
 import DirectViewerSkeleton from '@/components/directViewer/DirectViewerSkeleton.vue'
 import DirectViewerButton from '@/components/directViewer/DirectViewerButton.vue'
 import PoweredBy from '@/components/shared/PoweredBy.vue'
 import DirectViewerHelpSpice from '@/components/directViewer/DirectViewerHelpSpice.vue'
 import DirectViewerHelpRDP from '@/components/directViewer/DirectViewerHelpRDP.vue'
 import i18n from '@/i18n'
+import { desktopStates } from '@/shared/constants'
 
 export default {
   components: {
@@ -169,9 +170,20 @@ export default {
       rdpgw: i18n.t('views.direct-viewer.description.rdpgw')
     }
 
+    const isWaiting = computed(() => [desktopStates.waitingip].includes(directViewer.value.state.toLowerCase()))
+
+    watch(isWaiting, (newVal, prevVal) => {
+      if (newVal === false && directViewer.value.viewers.length === 1 && directViewer.value.viewers[0].protocol === 'rdp') {
+        $store.dispatch('openDirectViewerDesktop', directViewer.value.viewers[0])
+      }
+    })
+
     window.onload = () => {
       const token = context.root.$route.params.pathMatch
       $store.dispatch('getDirectViewers', { token }).then(() => {
+        if (directViewer.value.viewers.length === 1 && directViewer.value.viewers[0].kind === 'browser' && (directViewer.value.viewers[0].protocol === 'vnc' || (directViewer.value.viewers[0].protocol === 'rdp' && !isWaiting.value))) {
+          $store.dispatch('openDirectViewerDesktop', directViewer.value.viewers[0])
+        }
         $store.dispatch('openSocket', { jwt: directViewer.value.jwt, room: directViewer.value.desktopId })
         localStorage.rdpToken = directViewer.value.jwt
       })
@@ -180,8 +192,6 @@ export default {
     window.onunload = () => {
       $store.dispatch('closeSocket')
     }
-
-    console.log(directViewer)
 
     return {
       loading,

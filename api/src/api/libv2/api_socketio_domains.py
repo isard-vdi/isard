@@ -171,12 +171,22 @@ class DomainsThread(threading.Thread):
                             )
                             if viewers is not None:
                                 viewer_data = {
-                                    "desktopId": viewers.pop("desktopId"),
+                                    "desktopId": viewers.pop("desktopId", None),
                                     "jwt": viewers.pop("jwt", None),
                                     "vmName": viewers.pop("vmName", None),
                                     "vmDescription": viewers.pop("vmDescription", None),
                                     "vmState": viewers.pop("vmState"),
+                                    "scheduled": viewers.pop("scheduled", None),
                                     "viewers": viewers,
+                                    "needs_booking": viewers.pop(
+                                        "needs_booking", False
+                                    ),
+                                    "next_booking_start": viewers.pop(
+                                        "next_booking_start", None
+                                    ),
+                                    "next_booking_end": viewers.pop(
+                                        "next_booking_end", None
+                                    ),
                                 }
                                 socketio.emit(
                                     "directviewer_update",

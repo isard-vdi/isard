@@ -130,12 +130,6 @@ export default {
       state.directViewer.desktopId = payload.desktopId
       state.directViewer.shutdown = payload.shutdown
     },
-    update_direct_viewer: (state, desktop) => {
-      const item = state.desktops.find(d => d.id === desktop.id)
-      if (item) {
-        Object.assign(item, desktop)
-      }
-    },
     setDirectViewerErrorState: (state) => {
       state.directViewer.state = 'error'
     },
