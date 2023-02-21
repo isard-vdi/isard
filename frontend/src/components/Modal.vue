@@ -27,7 +27,9 @@ export default {
         DISCONNECTED: i18n.t('components.rdp-modal.title.disconnected'),
         UNSTABLE: i18n.t('components.rdp-modal.title.unstable'),
         WAITING: i18n.t('components.rdp-modal.title.connecting'),
-        CLIENT_ERROR: i18n.t('components.rdp-modal.title.error')
+        CLIENT_ERROR: i18n.t('components.rdp-modal.title.error'),
+        COOKIE_ERROR: i18n.t('components.rdp-modal.title.error'),
+        COOKIE_EXPIRED: i18n.t('components.rdp-modal.title.error')
       },
       text: {
         CONNECTED: i18n.t('components.rdp-modal.message.connecting'),
@@ -35,7 +37,9 @@ export default {
         DISCONNECTED: i18n.t('components.rdp-modal.message.disconnected'),
         UNSTABLE: i18n.t('components.rdp-modal.message.unstable'),
         WAITING: i18n.t('components.rdp-modal.message.connecting'),
-        CLIENT_ERROR: i18n.t('components.rdp-modal.message.error')
+        CLIENT_ERROR: i18n.t('components.rdp-modal.message.error'),
+        COOKIE_ERROR: i18n.t('components.rdp-modal.message.cookie-error'),
+        COOKIE_EXPIRED: i18n.t('components.rdp-modal.message.cookie-expired')
       }
     }
   },

@@ -257,11 +257,29 @@
             return defaultValue;
         }
 
-        function getParameter(name) {
+        function getWebViewer() {
+            let urlCookie = window.location.href.slice(window.location.href.indexOf('?') + 1).split("cookie=")
+            if (urlCookie.length > 1) {
+                const webViewer = JSON.parse(atob(decodeURIComponent(urlCookie[1])))['web_viewer']
+                // Check expiration
+                if (new Date() > new Date(webViewer.exp * 1000)) { 
+                    alert('Token expired, can\'t access the desktop')
+                    return false
+                } else {
+                    return webViewer
+                }
+            }
             var match = document.cookie.match(new RegExp('(^| )browser_viewer=([^;]+)'));
-            if (!match) return false;
+            return JSON.parse(atob(decodeURIComponent(match[2])))['web_viewer'];
+            if (!match) {
+                return false
+            }
+        }
 
-            return JSON.parse(atob(decodeURIComponent(match[2])))['web_viewer'][name];
+        let webViewer = getWebViewer()
+
+        function getParameter(name) {
+            return webViewer[name] ? webViewer[name] : false
         }
 
         document.getElementById('sendCtrlAltDelButton')
@@ -270,11 +288,11 @@
 
         // Read parameters specified in the URL query string
         // By default, use the host and port of server that served this file
-        desktopName = decodeURI(getParameter('vmName')) || decodeURI(readQueryVariable('vmName'));
+        desktopName = getParameter('vmName') || readQueryVariable('vmName');
         const host = getParameter('host') || readQueryVariable('host', window.location.hostname);
         const port = getParameter('port') === false || getParameter('port') === undefined ? '' : ':' + getParameter('port');
         const vmHost = getParameter('vmHost') || readQueryVariable('vmHost');
-        const vmPort = (getParameter('vmPort') || readQueryVariable('vmPort'));
+        const vmPort = getParameter('vmPort') || readQueryVariable('vmPort');
         const password = getParameter('token') || readQueryVariable('passwd');
 
         // | | |         | | |

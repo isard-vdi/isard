@@ -306,7 +306,9 @@
                 "connecting": "Conectando con el servidor…",
                 "disconnected": "Se ha perdido la conexión",
                 "unstable": "La conexión con el servidor es inestable",
-                "error": "Error de conexión"
+                "error": "Error de conexión",
+                "cookie-error": "No se ha encontrado la cookie necesaria para realizar la conexión",
+                "cookie-expired": "La cookie necesaria para realizar la conexión ha caducado"
             },
             "title": {
                 "connecting": "Conectando",

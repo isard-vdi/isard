@@ -130,12 +130,6 @@ export default {
       state.directViewer.desktopId = payload.desktopId
       state.directViewer.shutdown = payload.shutdown
     },
-    update_direct_viewer: (state, desktop) => {
-      const item = state.desktops.find(d => d.id === desktop.id)
-      if (item) {
-        Object.assign(item, desktop)
-      }
-    },
     setDirectViewerErrorState: (state) => {
       state.directViewer.state = 'error'
     },
@@ -311,7 +305,8 @@ export default {
         )
         el.setAttribute('download', `${payload.name}.${payload.ext}`)
       } else if (payload.kind === 'browser') {
-        cookies.setCookie('browser_viewer', payload.cookie)
+        const exp = new Date(JSON.parse(atob(decodeURIComponent(payload.cookie))).web_viewer.exp * 1000)
+        cookies.setCookie('browser_viewer', payload.cookie, { expires: exp, SameSite: 'None' })
         el.setAttribute('href', payload.viewer)
       }
 

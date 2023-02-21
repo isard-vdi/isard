@@ -30,7 +30,6 @@ import states from '@/lib/states'
 import clipboard from '@/lib/clipboard'
 import Modal from '@/components/Modal'
 import * as cookies from 'tiny-cookie'
-import { mapGetters } from 'vuex'
 
 Guacamole.Mouse = GuacMouse.mouse
 
@@ -59,11 +58,6 @@ export default {
       clientState: 0
     }
   },
-  computed: {
-    ...mapGetters([
-      'getToken'
-    ])
-  },
   watch: {
     connectionState (state) {
       this.$refs.modal.show(state, this.errorMessage)
@@ -74,8 +68,30 @@ export default {
   },
   methods: {
     startViewer () {
-      const cookie = cookies.getCookie('browser_viewer')
-      const params = JSON.parse(window.atob(cookie)).web_viewer
+      let cookie = ''
+      const queryString = window.location.search
+      const urlParams = new URLSearchParams(queryString)
+      let urlCookie = ''
+      let jwt = ''
+      if (urlParams.length > 1) {
+        urlCookie = urlParams.get('cookie').replace('%3D', '=')
+        jwt = urlParams.get('jwt').replace('%3D', '=')
+      }
+      if (jwt.length > 1 && urlCookie.length > 1) {
+        cookie = urlCookie
+        localStorage.rdpToken = jwt
+      } else {
+        cookie = cookies.getCookie('browser_viewer')
+      }
+      if (!cookie) {
+        this.connectionState = states.COOKIE_ERROR
+        return
+      }
+      const params = JSON.parse(atob(cookie)).web_viewer
+      if (new Date() > new Date(params.exp * 1000)) {
+        this.connectionState = states.COOKIE_EXPIRED
+        return
+      }
       this.host = params.host
       this.desktopIp = params.vmHost
       this.username = params.vmUsername
@@ -248,6 +264,7 @@ export default {
           case 4:
           case 5:
             // disconnected, disconnecting
+            this.connectionState = states.DISCONNECTED
             break
         }
       }

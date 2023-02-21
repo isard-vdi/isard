@@ -146,7 +146,9 @@
                 "connecting": "Connectant amb el servidor...",
                 "disconnected": "S'ha perdut la connexió",
                 "unstable": "La connexió amb el servidor és inestable",
-                "error": "Error de connexió"
+                "error": "Error de connexió",
+                "cookie-error": "No s'ha trobat la galeta necessaria per realitzar la connexió",
+                "cookie-expired": "La galeta necessaria per realitzar la connexió ha expirat"
             },
             "title": {
                 "connecting": "Connectant",

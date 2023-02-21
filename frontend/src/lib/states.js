@@ -51,5 +51,21 @@ export default {
    *
    * @type String
    */
-  TUNNEL_ERROR: 'TUNNEL_ERROR'
+  TUNNEL_ERROR: 'TUNNEL_ERROR',
+
+  /**
+   * The Guacamole connection can't be established since the needed cookie
+   * is missing.
+   *
+   * @type String
+   */
+  COOKIE_ERROR: 'COOKIE_ERROR',
+
+  /**
+   * The Guacamole connection can't be established since the needed cookie is
+   * expired.
+   *
+   * @type String
+   */
+  COOKIE_EXPIRED: 'COOKIE_EXPIRED'
 }
