@@ -49,9 +49,15 @@ class RethinkBase(ABC):
     def __init__(self, *args, **kwargs):
         if args:
             kwargs["id"] = args[0]
-        self.__dict__["id"] = kwargs["id"]
         with app.app_context():
-            r.table(self._table).insert(kwargs, conflict="update").run(self._rdb.conn)
+            self.__dict__["id"] = (
+                r.table(self._table)
+                .insert(kwargs, conflict="update")
+                .run(self._rdb.conn)
+                .get("generated_keys", [kwargs.get("id")])[0]
+            )
+        if not "id" in kwargs:
+            kwargs["id"] = self.id
         socketio.emit(
             self._table,
             json.dumps(kwargs),
