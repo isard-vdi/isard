@@ -178,7 +178,14 @@ class Bookings:
                     description_code="unable_to_insert",
                 )
         if now:
-            booking["start"] = booking["start"] + timedelta(minutes=1)
+            if item_type == "desktop":
+                r.table("domains").get(item_id).update(
+                    {"booking_id": booking["id"]}
+                ).run(db.conn)
+            else:
+                raise Error(
+                    "bad_request", "Can't set a booking starting now in a deployment"
+                )
         self.resources_scheduler.bookings_schedule(
             booking["id"], item_type, item_id, booking["start"], booking["end"]
         )
