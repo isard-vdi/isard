@@ -239,6 +239,15 @@ def api_v3_domain_edit(payload, domain_id):
             traceback.format_exc(),
         )
 
+    if desktop.get("create_dict", {}).get("reservables", {}).get("vgpus") and data.get(
+        "server"
+    ):
+        raise Error(
+            "precondition_required",
+            "Servers can not have a bookable item",
+            traceback.format_exc(),
+        )
+
     if data.get("name"):
         check_user_duplicated_domain_name(
             data["name"], desktop["user"], desktop.get("kind"), data["id"]
