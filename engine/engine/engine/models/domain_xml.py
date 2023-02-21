@@ -648,7 +648,7 @@ class DomainXML(object):
                                 range_start=int(range[0]),
                                 range_end=int(range[1]),
                             )
-                            if vlan_id is not False:
+                            if vlan_id:
                                 xml_snippet = XML_SNIPPET_OVS.format(
                                     vlan_id=vlan_id, ovs_br_name="ovsbr0"
                                 )
@@ -669,7 +669,7 @@ class DomainXML(object):
                     )
             else:
                 log.error("interface personal net is not a string")
-            if vlan_id is False:
+            if not vlan_id:
                 return -1
 
         elif type_interface.find("ovs") == 0 and len(type_interface) > 3:

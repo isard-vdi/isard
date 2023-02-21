@@ -1601,83 +1601,77 @@ def get_and_update_personal_vlan_id_from_domain_id(
 ):
     r_conn = new_rethink_connection()
     user_id = dict(r.table("domains").get(id_domain).pluck("user").run(r_conn))["user"]
-    desktops_up = list(
+    vlan_ids = list(
         r.table("domains")
         .get_all(user_id, index="user")
-        .filter((r.row["status"] == "Started") | (r.row["status"] == "Shutting-down"))
-        .pluck("id")
+        .filter(r.row["status"].eq("Started") | r.row["status"].eq("Shutting-down"))
+        .filter(r.row["create_dict"].has_fields("personal_vlans"))
+        .filter(~r.row["create_dict"]["personal_vlans"].eq(False))
+        .filter(
+            lambda doc: doc["create_dict"]["personal_vlans"].has_fields(id_interface)
+        )
+        .pluck([{"create_dict": {"personal_vlans": True}}])["create_dict"][
+            "personal_vlans"
+        ][id_interface]
+        .coerce_to("array")
         .run(r_conn)
     )
-    vlan_id = False
-    if len(desktops_up) > 0:
-        create_dict = (
-            r.table("domains")
-            .get(desktops_up[0]["id"])
-            .pluck("create_dict")
-            .run(r_conn)["create_dict"]
-        )
-        if create_dict.get("personal_vlans", False) is not False:
-            if id_interface in create_dict["personal_vlans"].keys():
-                tmp_vlan_id = create_dict["personal_vlans"][id_interface]
-                if type(tmp_vlan_id) is int:
-                    if tmp_vlan_id <= range_end and tmp_vlan_id >= range_start:
-                        vlan_id = tmp_vlan_id
-                    else:
-                        logs.main.error(
-                            f"vlan_id {vlan_id} error: vlan_id > {range_end} or vlan_id < {range_start} in domain {id_domain}"
-                        )
-                else:
-                    logs.main.error(
-                        f"vlan_id is not int in personal_vlans dict in create_dict for domain: {id_domain}"
-                    )
 
-    if vlan_id is False:
-        l_all_vlans_active = list(
-            r.table("domains")
-            .get_all("Started", index="status")
-            .filter(
-                (r.row["status"] == "Started") | (r.row["status"] == "Shutting-down")
+    if len(vlan_ids) > 0:
+        # check if all vlan_ids are the same
+        if len(set(vlan_ids)) > 1:
+            logs.main.error(
+                f"personal vlan_id {vlan_ids} error: vlan_ids are not the same in user {user_id} started domains"
             )
-            .filter(~r.row["create_dict"]["personal_vlans"] == False)
-            .pluck({"create_dict": "personal_vlans"})
+            close_rethink_connection(r_conn)
+            return False
+        # check if vlan_id is in range
+        if vlan_ids[0] > range_end or vlan_ids[0] < range_start:
+            logs.main.error(
+                f"personal vlan_id {vlan_ids[0]} error: vlan_id > {range_end} or vlan_id < {range_start} in domain {id_domain}"
+            )
+            close_rethink_connection(r_conn)
+            return False
+        # We have a valid vlan_id
+        vlan_id = vlan_ids[0]
+    else:
+        # The user is still not using any vlan_id in this interface
+        # We have to get the next vlan_id in range not used in other domains
+        all_vlan_ids = list(
+            r.table("domains")
+            .filter(r.row["status"].eq("Started") | r.row["status"].eq("Shutting-down"))
+            .filter(r.row["create_dict"].has_fields("personal_vlans"))
+            .filter(~r.row["create_dict"]["personal_vlans"].eq(False))
+            .filter(
+                lambda doc: doc["create_dict"]["personal_vlans"].has_fields(
+                    id_interface
+                )
+            )
+            .pluck([{"create_dict": {"personal_vlans": True}}])["create_dict"][
+                "personal_vlans"
+            ][id_interface]
+            .coerce_to("array")
             .run(r_conn)
         )
-        a = [
-            list(d.get("create_dict", {}).get("personal_vlans", {}).values())
-            for d in l_all_vlans_active
-        ]
-        l = []
-        for v in a:
-            l = l + v
-        set_vlans_active = set([i for i in l if type(i) is int])
-        set_vlans_infraestructure = set(
-            [
-                int(d["net"])
-                for d in r.table("interfaces")
-                .filter({"kind": "ovs"})
-                .pluck("net")
-                .run(r_conn)
-                if d["net"].isdecimal()
-            ]
-        )
-        set_all_range_vlans = set(range(range_start, range_end))
-        set_vlans_available = (
-            set_all_range_vlans - set_vlans_active - set_vlans_infraestructure
-        )
+        # check if the range is not full
+        if len(all_vlan_ids) >= range_end - range_start:
+            logs.main.error(
+                f"personal vlan_id error: range {range_start}-{range_end} is full in user {user_id} started domains"
+            )
+            close_rethink_connection(r_conn)
+            return False
 
-        if len(set_vlans_available) > 0:
-            vlan_id = min(set_vlans_available)
-        else:
-            from pprint import pformat
-
-            logs.main.error(f"not vlans available for personal network: {id_interface}")
-            logs.main.debug("vlans_active" + pformat(set_vlans_active))
-            logs.main.debug("vlans_infraestructure" + pformat(set_vlans_active))
-            logs.main.debug("vlans_all_range" + pformat(set_vlans_active))
-
-    r.table("domains").get(id_domain).update(
-        {"create_dict": {"personal_vlans": {id_interface: vlan_id}}}
-    ).run(r_conn)
+        # get the next vlan_id in range not used in other domains
+        vlan_id = False
+        for i in range(range_start, range_end):
+            if i not in all_vlan_ids:
+                vlan_id = i
+                break
+    if vlan_id is not False:
+        # update the domain with the new vlan_id
+        r.table("domains").get(id_domain).update(
+            {"create_dict": {"personal_vlans": {id_interface: vlan_id}}}
+        ).run(r_conn)
     close_rethink_connection(r_conn)
     return vlan_id
 
