@@ -17,7 +17,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 78
+release_version = 79
+# release 79: added item_type_user bookings index
 # release 78: remove status_logs from domains
 # release 77: add kind to wg_mac index
 # release 76: update gpus_profiles
@@ -2472,6 +2473,14 @@ class Upgrade(object):
         if version == 71:
             try:
                 r.table(table).index_create("name").run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 79:
+            try:
+                r.table("bookings").index_create(
+                    "item_type_user", [r.row["item_type"], r.row["user_id"]]
+                ).run(self.conn)
             except Exception as e:
                 print(e)
 

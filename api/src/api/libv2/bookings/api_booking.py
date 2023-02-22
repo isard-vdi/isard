@@ -365,15 +365,46 @@ class Bookings:
         with app.app_context():
             bookings = list(
                 r.table("bookings")
-                .get_all(user_id, index="user_id")
+                .get_all(["desktop", user_id], index="item_type_user")
                 .filter(
-                    r.row["start"].during(
-                        datetime.strptime(fromDate, "%Y-%m-%dT%H:%M%z").astimezone(
-                            pytz.UTC
-                        ),
-                        datetime.strptime(toDate, "%Y-%m-%dT%H:%M%z").astimezone(
-                            pytz.UTC
-                        ),
+                    r.row["start"]
+                    <= datetime.strptime(toDate, "%Y-%m-%dT%H:%M%z").astimezone(
+                        pytz.UTC
+                    )
+                )
+                .filter(
+                    r.row["end"]
+                    >= datetime.strptime(fromDate, "%Y-%m-%dT%H:%M%z").astimezone(
+                        pytz.UTC
+                    )
+                )
+                .run(db.conn)
+            )
+
+        with app.app_context():
+            deployment_desktops_tags = list(
+                r.table("domains")
+                .get_all(["desktop", user_id], index="kind_user")
+                .filter(lambda desktop: r.not_(desktop["tag"] == False))["tag"]
+                .run(db.conn)
+            )
+        with app.app_context():
+            bookings.extend(
+                r.table("bookings")
+                .get_all(
+                    ["deployment", r.args(deployment_desktops_tags)],
+                    index="item_type-id",
+                )
+                .filter(
+                    r.row["start"]
+                    <= datetime.strptime(toDate, "%Y-%m-%dT%H:%M%z").astimezone(
+                        pytz.UTC
+                    )
+                )
+                .filter(
+                    r.row["end"]
+                    >= datetime.strptime(fromDate, "%Y-%m-%dT%H:%M%z").astimezone(
+                        pytz.UTC
                     )
                 )
                 .run(db.conn)
