@@ -30,6 +30,8 @@ from .api_reservables import Reservables
 from .api_reservables_planner import ReservablesPlanner
 from .api_reservables_planner_compute import compute_user_priority, payload_priority
 
+scheduler = Scheduler()
+
 
 def is_future(event):
     return True if event["start"] > datetime.now(pytz.utc) else False
@@ -254,6 +256,8 @@ class Bookings:
                         traceback.format_stack(),
                         description_code="booking_desktop_delete_stop",
                     )
+                else:
+                    scheduler.remove_desktop_timeouts(booking.get("item_id"))
             elif booking.get("item_type") == "deployment":
                 desktops = (
                     r.table("domains")
