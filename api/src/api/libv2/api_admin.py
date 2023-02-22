@@ -362,6 +362,7 @@ class ApiAdmin:
                         "favourite_hyp",
                         "os",
                         "guest_properties",
+                        "booking_id",
                     )
                     .merge(
                         lambda d: {
