@@ -48,83 +48,110 @@ def notify_desktop(domain, message):
     logs.workers.debug(
         f'Notifying desktop {desktop_id} with message "{message_decoded}"'
     )
+
+    cmds = [
+        cmd_guest_notifier_linux(message_decoded),
+        cmd_guest_notifier_windows(message_decoded),
+    ]
+
+    failed = True
+    cmd = 0
+    command_status = {}
+    while failed and cmd <= len(cmds) - 1:
+        command_exec = cmds[cmd]
+
+        try:
+            logs.workers.error(command_exec)
+            command_exec_response = qemuAgentCommand(
+                domain, json.dumps(command_exec), 30, 0
+            )
+
+            failed = False
+            command_status = {
+                "execute": "guest-exec-status",
+                "arguments": {
+                    "pid": json.loads(command_exec_response)
+                    .get("return", {})
+                    .get("pid"),
+                },
+            }
+
+        except libvirtError as error:
+            logs.workers.error(
+                f"libvirt error trying to notify desktop {desktop_id} "
+                f'with "{message_decoded}": {error}'
+            )
+
+        cmd = cmd + 1
+
+    if command_status != {} and not command_status.get("exitcode"):
+        logs.workers.info(
+            f"Domain {desktop_id} was successfully notified "
+            f'with message "{message_decoded}"'
+        )
+        return True
+
+    else:
+        logs.workers.error(
+            f"Failed to notify desktop {desktop_id} "
+            f'with message "{message_decoded}" with '
+            f'error "{base64.b64decode(command_status.get("err-data", "")).decode()}"'
+        )
+        return False
+
+
+def cmd_guest_notifier_windows(message):
+    return {
+        "execute": "guest-exec",
+        "arguments": {
+            "path": "C:/Windows/System32/msg.exe",
+            "arg": ["*", message],
+            "capture-output": True,
+        },
+    }
+
+
+def cmd_guest_notifier_linux(message):
+    title = "IsardVDI Notification"
     shellscript = f"""
         exit_code=0;
-        echo '{message.decode()}' | base64 -d | wall || exit_code=$?;
-        for uid in $(ls /run/user/);
-        do
-            sudo -u \\#$uid DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$uid/bus \
-                /usr/bin/notify-send -u critical \
-                    \"$(echo '{message.decode()}' | base64 -d)\" \
-            || exit_code=$?;
-        done;
+
+        # Notify the users on the tty
+        echo '{message}' | wall || exit_code=$?;
+
+        # Notify the users using a graphical interface
+        if which sw-notify-send; then
+            CMD="$(which sw-notify-send) -a IsardVDI -u CRITICAL '{title}' '{message}'"
+
+        elif which notify-send; then
+            CMD="$(which notify-send) -a IsardVDI -u CRITICAL '{title}' '{message}'"
+
+        elif which gdbus; then
+            CMD="gdbus call --session \
+                --dest=org.freedesktop.Notifications \
+                --object-path=/org/freedesktop/Notifications \
+                --method=org.freedesktop.Notifications.Notify \
+                'IsardVDI' 0 '' '{title}' '{message}' \
+                '[]' '{{}}' 5000"
+
+        else
+            echo "No graphical notification program found!"
+            exit 1
+        fi
+
+        for uid in $(ls /run/user/); do
+            runuser -l $(getent passwd "$uid" | cut -d: -f1) -c "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$uid/bus $CMD || exit_code=$?"
+        done
+
         exit $exit_code
     """.encode()
 
     command_exec = {
         "execute": "guest-exec",
         "arguments": {
-            "path": "/usr/bin/sh",
+            "path": "/bin/sh",
             "input-data": base64.b64encode(shellscript).decode(),
             "capture-output": True,
         },
     }
-    try:
-        command_exec_response = qemuAgentCommand(
-            domain, json.dumps(command_exec), 30, 0
-        )
-    except libvirtError as error:
-        logs.workers.error(
-            f"libvirt error trying to notify desktop {desktop_id} "
-            f'with "{message_decoded}": {error}'
-        )
-        return False
-    command_status = {
-        "execute": "guest-exec-status",
-        "arguments": {
-            "pid": json.loads(command_exec_response).get("return", {}).get("pid"),
-        },
-    }
-    exited = False
-    tries = 5
-    while not exited:
-        try:
-            command_status_result = qemuAgentCommand(
-                domain, json.dumps(command_status), 30, 0
-            )
-        except libvirtError as error:
-            logs.workers.error(
-                "libvirt error collecting notification status for "
-                f'desktop {desktop_id} with "{message_decoded}": {error}'
-            )
-            return False
-
-        command_result = json.loads(command_status_result).get("return", {})
-        exited = command_result.get("exited")
-        if not exited:
-            logs.workers.debug(
-                f"Collecting notification status for desktop {desktop_id} "
-                f'with "{message_decoded}", remaining {tries} tries: {command_result}'
-            )
-            sleep(1)
-            tries -= 1
-            if not tries:
-                logs.workers.error(
-                    f"Failed collecting notification status for desktop {desktop_id} "
-                    f'with "{message_decoded}": {command_result}'
-                )
-                return False
-
-    if not command_result.get("exitcode"):
-        logs.workers.info(
-            f"Domain {desktop_id} was successfully notified "
-            f'with message "{message_decoded}"'
-        )
-        return True
-    else:
-        logs.workers.error(
-            f"Failed to notify desktop {desktop_id} "
-            f'with message "{message_decoded}" with '
-            f'error "{base64.b64decode(command_result.get("err-data", "")).decode()}"'
-        )
-        return False
+    return command_exec

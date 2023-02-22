@@ -119,6 +119,13 @@ XML_SNIPPET_METADATA = """
 
 """
 
+XML_SNIPPET_QEMU_GUEST_AGENT = """
+    <channel type='unix'>
+      <source mode='bind' />
+      <target type='virtio' name='org.qemu.guest_agent.0'/>
+    </channel>
+"""
+
 
 CPU_MODEL_NAMES = [
     "486",
@@ -827,6 +834,19 @@ class DomainXML(object):
         self.add_to_domain(
             xpath_same, metadata_etree, xpath_next, xpath_previous, merge=True
         )
+
+    def add_qemu_guest_agent(self):
+        xpath_same = "/domain/devices/channel"
+        xpath_previous = "/domain/devices/console"
+        xpath_next = "/domain/devices/interface"
+
+        if not self.tree.xpath(
+            '/domain/devices/channel/target[@name="org.qemu.guest_agent.0"]'
+        ):
+            guest_agent_etree = etree.parse(
+                StringIO(XML_SNIPPET_QEMU_GUEST_AGENT)
+            ).getroot()
+            self.add_device(xpath_same, guest_agent_etree, xpath_next, xpath_previous)
 
     def add_vnc_with_websockets(self):
         xpath_same = "/domain/devices/graphics"
@@ -1657,6 +1677,9 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
 
     # remove boot order in disk definition that conflict with /os/boot order in xml
     x.remove_boot_order_and_danger_options_from_disks()
+
+    # Ensure there's always QEMU guest agent
+    x.add_qemu_guest_agent()
 
     x.dict_from_xml()
 
