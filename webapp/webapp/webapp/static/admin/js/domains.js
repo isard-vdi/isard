@@ -53,7 +53,12 @@ columnDefs = [
         "targets": 1,
         "render": function ( data, type, full, meta ) {
             img_url = location.protocol+'//' + document.domain + ':' + location.port + full.image.url
-            return "<img src='"+img_url+"' width='50px'>"
+            if( ! "booking_id" in full ){
+                booking_id=false
+            }else{
+                booking_id=full.booking_id
+            }
+            return  renderBooking(full.create_dict.reservables, booking_id) + "<img src='"+img_url+"' width='50px'>"
         }
     },{
         "targets": 4,
@@ -717,6 +722,26 @@ $(document).ready(function() {
     })
 
     adminShowIdCol(domains_table)
+
+    renderBooking = (reservables, booking_id) => {
+        if (!reservables || reservables.length == 0 || !reservables.vgpus || reservables.vgpus.length == 0){
+            return ' '
+        } else {
+            var color, tooltip = {}
+            var sort_order = '3'
+            if( booking_id == false || booking_id == null){
+                color="slategrey"
+                tooltip='This desktop needs to be booked'
+                sort_order='0'
+            } else {
+                color='mediumseagreen'
+                tooltip='This desktop is now in booking time'
+                sort_order='2'
+            }
+        style = "color:"+color+"; position:absolute; margin-top:-5px; margin-left: -15px; text-shadow: 0 0 1px grey"
+        return '<div style=display:none>'+sort_order+'</div><i data-toggle="tooltip" title="'+tooltip+'" class="fa fa-calendar" aria-hidden="true" style="'+style+'"></i>'
+        }
+    }
 
 	// DataTable buttons
     $('#domains tbody').on( 'click', 'button', function () {
