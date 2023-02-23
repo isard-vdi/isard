@@ -59,6 +59,7 @@
               :responsive="true"
               :per-page="perPage"
               :current-page="currentPage"
+              :tbody-tr-class="rowClass"
             >
               <template #cell(image)="data">
                 <!-- INFO -->
@@ -173,27 +174,31 @@
                 </div>
 
                 <!-- Main action button persistent-->
-                <DesktopButton
-                  v-if="(data.item.type === 'persistent' || (data.item.type === 'nonpersistent' && data.item.state && getItemState(data.item) === desktopStates.stopped )) && ![desktopStates.working, desktopStates.downloading].includes(getItemState(data.item))"
-                  class="table-action-button"
-                  :active="true"
-                  :button-class="buttCssColor(getItemState(data.item))"
-                  :spinner-active="false"
-                  :butt-text="$t(`views.select-template.status.${getItemState(data.item)}.action`)"
-                  :icon-name="data.item.buttonIconName"
-                  @buttonClicked="changeDesktopStatus(data.item, { action: status[getItemState(data.item) || 'stopped'].action, desktopId: data.item.id })"
-                />
-                <!-- Delete action button-->
-                <DesktopButton
-                  v-if="(data.item.state && data.item.type === 'nonpersistent' && [desktopStates.started, desktopStates.waitingip, desktopStates.stopped].includes(getItemState(data.item)))"
-                  class="table-action-button"
-                  :active="true"
-                  button-class="btn-red"
-                  :spinner-active="false"
-                  :butt-text="$t('views.select-template.remove')"
-                  icon-name="trash"
-                  @buttonClicked="deleteNonpersistentDesktop(data.item.id)"
-                />
+                <span
+                  v-b-tooltip.hover="{ title: `${getTooltipTitle(data.item.nextBookingStart, data.item.nextBookingEnd)}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
+                >
+                  <DesktopButton
+                    v-if="(data.item.type === 'persistent' || (data.item.type === 'nonpersistent' && data.item.state && getItemState(data.item) === desktopStates.stopped )) && ![desktopStates.working, desktopStates.downloading].includes(getItemState(data.item))"
+                    class="table-action-button"
+                    :active="true"
+                    :button-class="buttCssColor(getItemState(data.item))"
+                    :spinner-active="false"
+                    :butt-text="$t(`views.select-template.status.${getItemState(data.item)}.action`)"
+                    :icon-name="data.item.buttonIconName"
+                    @buttonClicked="changeDesktopStatus(data.item, { action: status[getItemState(data.item) || 'stopped'].action, desktopId: data.item.id })"
+                  />
+                  <!-- Delete action button-->
+                  <DesktopButton
+                    v-if="(data.item.state && data.item.type === 'nonpersistent' && [desktopStates.started, desktopStates.waitingip, desktopStates.stopped].includes(getItemState(data.item)))"
+                    class="table-action-button"
+                    :active="true"
+                    button-class="btn-red"
+                    :spinner-active="false"
+                    :butt-text="$t('views.select-template.remove')"
+                    icon-name="trash"
+                    @buttonClicked="deleteNonpersistentDesktop(data.item.id)"
+                  />
+                </span>
               </template>
               <template #cell(options)="data">
                 <div
@@ -306,6 +311,7 @@ import { mapActions, mapGetters } from 'vuex'
 import ListItemSkeleton from '@/components/ListItemSkeleton.vue'
 import { ErrorUtils } from '@/utils/errorUtils'
 import { ref, watch } from '@vue/composition-api'
+import { DateUtils } from '@/utils/dateUtils'
 
 export default {
   components: { DesktopButton, IsardDropdown, ListItemSkeleton },
@@ -423,6 +429,11 @@ export default {
       }
     }
 
+    const rowClass = (item, type) => {
+      if (!item || type !== 'row') return
+      if (item.needsBooking) return 'booking-bar'
+    }
+
     return {
       perPage,
       pageOptions,
@@ -430,7 +441,8 @@ export default {
       totalRows,
       fields: desktopFields,
       canStart,
-      changeDesktopStatus
+      changeDesktopStatus,
+      rowClass
     }
   },
   data () {
@@ -589,6 +601,15 @@ export default {
     },
     onClickOpenDirectViewerModal (desktopId) {
       this.fetchDirectLink(desktopId)
+    },
+    getTooltipTitle (dateStart, dateEnd) {
+      if (DateUtils.dateIsAfter(dateEnd, new Date()) && DateUtils.dateIsBefore(dateStart, new Date())) {
+        return i18n.t('components.desktop-cards.notification-bar.booking-ends') + DateUtils.formatAsTime(dateEnd) + ' ' + DateUtils.formatAsDayMonth(dateEnd)
+      } else if (dateStart) {
+        return i18n.t('components.desktop-cards.notification-bar.next-booking') + ': ' + DateUtils.formatAsTime(dateStart) + ' ' + DateUtils.formatAsDayMonth(dateStart)
+      } else {
+        return i18n.t('components.desktop-cards.notification-bar.no-next-booking')
+      }
     }
   }
 }

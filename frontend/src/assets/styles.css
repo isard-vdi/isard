@@ -641,3 +641,8 @@
 .orange-bg {
   background-color: var(--orange-color);
 }
+
+.booking-bar > td:first-child {
+  border-radius: 11px;
+  border-left: 10px solid var(--orange-color) !important;
+}
