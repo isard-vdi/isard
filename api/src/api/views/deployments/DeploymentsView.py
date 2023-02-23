@@ -80,14 +80,6 @@ def api_v3_deployments_recreate(payload, deployment_id):
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
-@app.route("/api/v3/deployments/useradd/<deployment_id>/<user_id>", methods=["PUT"])
-@is_not_user
-def api_v3_deployments_useradd(payload, deployment_id, user_id):
-    ownsDeploymentId(payload, deployment_id)
-    api_deployments.useradd(payload, deployment_id, user_id)
-    return json.dumps({}), 200, {"Content-Type": "application/json"}
-
-
 @app.route("/api/v3/deployments/start/<deployment_id>", methods=["PUT"])
 @is_not_user
 def api_v3_deployments_start(payload, deployment_id):
