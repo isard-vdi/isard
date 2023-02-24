@@ -64,6 +64,48 @@ def admin_table_list(
             }
         )
 
+    if table == "deployments":
+        query = query.merge(
+            lambda deploy: {
+                "desktop_name": r.table("domains")
+                .get_all(deploy["id"], index="tag")["name"][0]
+                .default(False),
+                "category_name": r.table("users")
+                .get(deploy["user"])
+                .merge(
+                    lambda user: {
+                        "category_name": r.table("categories").get(user["category"])[
+                            "name"
+                        ]
+                    }
+                )["category_name"]
+                .default(False),
+                "group_name": r.table("users")
+                .get(deploy["user"])
+                .merge(
+                    lambda user: {
+                        "group_name": r.table("groups").get(user["group"])["name"]
+                    }
+                )["group_name"]
+                .default(False),
+                "username": r.table("users")
+                .get(deploy["user"])["username"]
+                .default(False),
+                "how_many_desktops": r.table("domains")
+                .get_all(deploy["id"], index="tag")
+                .count()
+                .default(False),
+                "how_many_desktops_started": r.table("domains")
+                .get_all([deploy["id"], "Started"], index="tag_status")
+                .count()
+                .default(False),
+                "last_access": r.table("domains")
+                .get_all(deploy["id"], index="tag")
+                .max("accessed")["accessed"]
+                .default(False),
+            }
+        ).default(False)
+
     if pluck:
         query = query.pluck(pluck)
 
@@ -202,6 +244,8 @@ def admin_table_get(table, id, pluck=None):
             }
         )
     if pluck:
+        if table == "deployments":
+            query = query["create_dict"].pluck(pluck)
         query = query.pluck(pluck)
     if table == "users":
         query = query.merge(

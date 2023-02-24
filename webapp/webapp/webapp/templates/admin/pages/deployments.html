@@ -1,0 +1,61 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+{% block css %}
+    <link href="/isard-admin/static/vendor/fancytree/dist/skin-win8/ui.fancytree.css" rel="stylesheet">
+    <!-- Ion.RangeSlider -->
+    <link href="/isard-admin/vendors/normalize-css/normalize.css" rel="stylesheet">
+    <link href="/isard-admin/vendors/ion.rangeSlider/css/ion.rangeSlider.css" rel="stylesheet">
+    <link href="/isard-admin/vendors/ion.rangeSlider/css/ion.rangeSlider.skinFlat.css" rel="stylesheet">
+        <!-- Switchery -->
+    <link href="/isard-admin/vendors/switchery/dist/switchery.min.css" rel="stylesheet">
+{% endblock %}
+{% block content %}
+
+<div class="row">
+   <div class="col-md-12 col-sm-12 col-xs-12">
+      <div class="x_panel">
+         <div class="x_title">
+            <h3><i class="fa fa-tv"></i> Admin Deployments <small>You have the power</small></h3>
+            <ul class="nav navbar-right panel_toolbox"></ul>
+            <div class="clearfix"></div>
+         </div>
+         <div class="x_content">
+            <table id="deployments" class="table">
+               <thead>
+                  <tr>
+                     <th></th>
+                     <th>Name</th>
+                     <th>Desktop Name</th>
+                     <th>Category(owner)</th>
+                     <th>Group(owner)</th>
+                     <th>Username(owner)</th>
+                     <th>Desktops</th>
+                     <th>Running</th>
+                     <th>Visible</th>
+                     <th>Last Access</th>
+                     <th>Id</th>
+                  </tr>
+               </thead>
+               <tbody>
+               </tbody>
+            </table>
+         </div>
+      </div>
+   </div>
+</div>
+{% include '/snippets/alloweds_form.html' %}
+{% include '/admin/pages/deployments_detail.html' %}
+
+{% endblock %}
+
+{% block pagescript %}
+   <!-- Ion.RangeSlider -->
+   <script src="/isard-admin/vendors/ion.rangeSlider/js/ion.rangeSlider.min.js"></script>
+   <!-- iCheck -->
+   <script src="/isard-admin/vendors/iCheck/icheck.min.js"></script> 
+   <!-- Switchery -->
+   <script src="/isard-admin/vendors/switchery/dist/switchery.min.js"></script>
+   <!-- Isard restful ajax calls -->
+   <script src="/isard-admin/static/js/restful.js"></script>
+   <script src="/isard-admin/static/admin/js/deployments.js"></script>
+{% endblock %}

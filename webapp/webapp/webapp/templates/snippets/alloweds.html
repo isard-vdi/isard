@@ -1,6 +1,10 @@
     <div class="x_panel">
       <div class="x_title">
+        {% if nav == "Deployments" %}
+        <h3>Target users <small>Users allowed for this deployment</small></h3>
+        {% else %}
         <h3>Allows <small>Only these are allowed</small></h3>
+        {% endif %}
         <div class="clearfix"></div>
       </div>
       <div class="x_content">

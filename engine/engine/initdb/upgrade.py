@@ -17,7 +17,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 79
+release_version = 80
+# release 80: "tag_status" index for domains table
 # release 79: added item_type_user bookings index
 # release 78: remove status_logs from domains
 # release 77: add kind to wg_mac index
@@ -1366,6 +1367,14 @@ class Upgrade(object):
                 self.del_keys(table, ["status_logs"])
             except:
                 None
+
+        if version == 80:
+            try:
+                r.table(table).index_create(
+                    "tag_status", [r.row["tag"], r.row["status"]]
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
 
         return True
 
