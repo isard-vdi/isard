@@ -24,7 +24,13 @@
         "password": {
             "modal": {
                 "password": {
-                    "label": "Hasło"
+                    "label": "Hasło",
+                    "placeholder": "Hasło"
+                },
+                "title": "Zmiana hasła",
+                "confirmation-password": {
+                    "label": "Potwierdzenie hasła",
+                    "placeholder": "Potwierdź hasło"
                 }
             }
         }
