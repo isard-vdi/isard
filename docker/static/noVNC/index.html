@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
 
     <!--
@@ -19,7 +20,6 @@
     <meta charset="utf-8">
 
     <style>
-
         body {
             margin: 0;
             background-color: dimgrey;
@@ -27,6 +27,7 @@
             display: flex;
             flex-direction: column;
         }
+
         html {
             height: 100%;
         }
@@ -38,12 +39,14 @@
             padding: 6px 5px 4px 5px;
             border-bottom: 1px outset;
         }
+
         #status {
             text-align: center;
         }
+
         #statusDesktopName {
             position: fixed;
-            top: 0px;            
+            top: 0px;
             left: 0px;
             padding: 5px 5px 4px 5px;
         }
@@ -66,7 +69,8 @@
         }
 
         #screen {
-            flex: 1; /* fill remaining space */
+            flex: 1;
+            /* fill remaining space */
             overflow: hidden;
         }
     </style>
@@ -247,7 +251,7 @@
             // Note that we use location.href instead of location.search
             // because Firefox < 53 has a bug w.r.t location.search
             const re = new RegExp('.*[?&]' + name + '=([^&#]*)'),
-                  match = document.location.href.match(re);
+                match = document.location.href.match(re);
 
             if (match) {
                 // We have to decode the URL since want the cleartext value
@@ -262,7 +266,7 @@
             if (urlCookie.length > 1) {
                 const webViewer = JSON.parse(atob(decodeURIComponent(urlCookie[1])))['web_viewer']
                 // Check expiration
-                if (new Date() > new Date(webViewer.exp * 1000)) { 
+                if (new Date() > new Date(webViewer.exp * 1000)) {
                     alert('Token expired, can\'t access the desktop')
                     return false
                 } else {
@@ -280,6 +284,35 @@
 
         function getParameter(name) {
             return webViewer[name] ? webViewer[name] : false
+        }
+
+        function resize() {
+            let app = new Application();
+
+            let f = (action, params) => {
+                if (action === 'ready') {
+                    app.sendCommand('setResolution', {
+                        'width': document.getElementById("screen").offsetWidth,
+                        'height': document.getElementById("screen").offsetHeight
+                    });
+                    app.dispose();
+                }
+            }
+
+            app.run({
+                'callback': f,
+                'protocol': 'wss',
+                'host': getParameter('host') || readQueryVariable('host', window.location.hostname),
+                'port': getParameter('port') || '443',
+                'desktopName': decodeURI(getParameter('vmName')) || decodeURI(readQueryVariable('vmName')),
+                'vmHost': getParameter('vmHost') || readQueryVariable('vmHost'),
+                'vmPort': (getParameter('vmPort') || readQueryVariable('vmPort')) - 2, // the spice (no TLS) port is two ports less than the vnc
+                'token': getParameter('token') || readQueryVariable('passwd'),
+                'clientOffset': {
+                    'x': 0,
+                    'y': 0
+                },
+            });
         }
 
         document.getElementById('sendCtrlAltDelButton')
@@ -301,21 +334,30 @@
 
         status("Connecting");
 
+        resize()
+
         // Build the websocket URL used to connect
         let url = 'wss://' + host + port + '/' + vmHost + '/' + vmPort
 
         // Creating a new RFB object will start a new connection
         rfb = new RFB(document.getElementById('screen'), url,
-                      { credentials: { password: password } });
+            { credentials: { password: password } });
 
         // Add listeners to important events from the RFB module
-        rfb.addEventListener("connect",  connectedToServer);
+        rfb.addEventListener("connect", connectedToServer);
         rfb.addEventListener("disconnect", disconnectedFromServer);
         rfb.addEventListener("credentialsrequired", credentialsAreRequired);
         rfb.addEventListener("desktopname", updateDesktopName);
 
         // Set parameters that can be changed on an active connection
         rfb.scaleViewport = true;
+
+        // Resize the window
+        let resizeTimeout;
+        window.addEventListener('resize', (e) => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(resize, 500);
+        });
     </script>
 </head>
 
@@ -330,4 +372,5 @@
         <!-- This is where the remote screen will appear -->
     </div>
 </body>
+
 </html>
