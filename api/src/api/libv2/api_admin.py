@@ -106,6 +106,56 @@ def admin_table_list(
             }
         ).default(False)
 
+    if table == "bookings_priority":
+        query = query.merge(
+            lambda priority: {
+                "role_names": r.table("roles")
+                .get_all(
+                    r.args(
+                        r.branch(
+                            (priority["allowed"]["roles"] != False),
+                            priority["allowed"]["roles"],
+                            [],
+                        )
+                    )
+                )["name"]
+                .coerce_to("array"),
+                "category_names": r.table("categories")
+                .get_all(
+                    r.args(
+                        r.branch(
+                            (priority["allowed"]["categories"] != False),
+                            priority["allowed"]["categories"],
+                            [],
+                        )
+                    )
+                )["name"]
+                .coerce_to("array"),
+                "group_names": r.table("groups")
+                .get_all(
+                    r.args(
+                        r.branch(
+                            (priority["allowed"]["groups"] != False),
+                            priority["allowed"]["groups"],
+                            [],
+                        )
+                    )
+                )["name"]
+                .coerce_to("array"),
+                "user_names": r.table("users")
+                .get_all(
+                    r.args(
+                        r.branch(
+                            (priority["allowed"]["users"] != False),
+                            priority["allowed"]["users"],
+                            [],
+                        )
+                    )
+                )["name"]
+                .coerce_to("array"),
+            }
+        )
+
     if pluck:
         query = query.pluck(pluck)
 

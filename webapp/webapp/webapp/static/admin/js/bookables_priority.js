@@ -34,10 +34,10 @@ $(document).ready(function () {
       { data: "rule_id" },
       { data: "name" },
       { data: "description" },
-      { data: "allowed.roles", defaultContent: "-" },
-      { data: "allowed.categories", defaultContent: "-" },
-      { data: "allowed.groups", defaultContent: "-" },
-      { data: "allowed.users", defaultContent: "-" },
+      { data: "roles", defaultContent: "-" },
+      { data: "categories", defaultContent: "-" },
+      { data: "groups", defaultContent: "-" },
+      { data: "users", defaultContent: "-" },
       { data: "priority" },
       { data: "forbid_time" },
       { data: "max_time" },
@@ -57,57 +57,33 @@ $(document).ready(function () {
       {
         targets: 4,
         render: function (data, type, full, meta) {
-          if (data) {
-            if (data.length) {
-              return data;
-            } else {
-              return 'All';
-            }
-          } else {
-            return "-";
-          }
+          var string = full.role_names.join(",");
+          var res = string.substring(0,20)+"...";
+          return res
         },
       },
       {
         targets: 5,
         render: function (data, type, full, meta) {
-          if (data) {
-            if (data.length) {
-              return data;
-            } else {
-              return 'All';
-            }
-          } else {
-            return "-";
-          }
+          var string = full.category_names.join(",");
+          var res = string.substring(0,20)+"...";
+          return res
         },
       },
       {
         targets: 6,
         render: function (data, type, full, meta) {
-          if (data) {
-            if (data.length) {
-              return data;
-            } else {
-              return 'All';
-            }
-          } else {
-            return "-";
-          }
+          var string = full.group_names.join(",");
+          var res = string.substring(0,20)+"...";
+          return res
         },
       },
       {
         targets: 7,
         render: function (data, type, full, meta) {
-          if (data) {
-            if (data.length) {
-              return data;
-            } else {
-              return 'All';
-            }
-          } else {
-            return "-";
-          }
+          var string = full.user_names.join(",");
+          var res = string.substring(0,20)+"...";
+          return res
         },
       },
     ],
