@@ -410,31 +410,6 @@ def recreate(payload, deployment_id):
     create_deployment_desktops(deployment_tag, desktop, users)
 
 
-def useradd(payload, deployment_id, user_id):
-    with app.app_context():
-        deployment = r.table("deployments").get(deployment_id).run(db.conn)
-    if not deployment:
-        raise Error(
-            "not_found",
-            "Not found deployment id to recreate: " + str(deployment_id),
-            description_code="not_found",
-        )
-    if deployment["allowed"]["users"]:
-        deployment["allowed"]["users"].append(user_id)
-    else:
-        deployment["allowed"]["users"] = [user_id]
-    deployment_new(
-        payload,
-        deployment["create_dict"]["template"],
-        deployment["name"],
-        deployment["create_dict"]["description"],
-        deployment["create_dict"]["name"],
-        deployment["allowed"],
-        deployment["create_dict"]["tag_visible"],
-        skip_existing_desktops=True,
-    )
-
-
 def start(deployment_id):
     try:
         with app.app_context():
