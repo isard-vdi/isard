@@ -362,7 +362,7 @@
                         "button": "Eliminar"
                     }
                 },
-                "new-planning" : {
+                "new-planning": {
                     "bookable-type": "Tipus de reservable",
                     "bookable-item": "Nom del reservable"
                 }
@@ -834,7 +834,7 @@
         "confirmation": {
             "delete-desktop": "'{name}' se borrará, continuar?",
             "create-nonpersistent": "ATENCIÓN! Este escritorio es temporal. Al pararlo se eliminarán todos sus datos. Crear escritorio?",
-            "visible-deployment": "'{name}' será visible para sus usuarios, continuar?",
+            "visible-deployment": "Los escritorios serán visibles",
             "not-visible-deployment": "Los escritorios se ocultarán",
             "hidden-desktops-warn": "Si un escritorio oculto no está parado y se está usando, el visor funcionará hasta que se cierre",
             "recreate-deployment": "Los escritorios eliminados de '{name}' se recrearán, continuar?",
@@ -998,10 +998,11 @@
         "unable_to_get_deployment_desktops": "No se pueden obtener escritorios de implementación",
         "new_template_bad_body_data": "La plantilla nueva tiene datos de cuerpo incorrectos",
         "get_vnc_viewer_data_error": "Error interno al obtener datos del visor VNC",
-        "only_works_rdp":  "Modo 'Only GPU' solamente funciona con visores RDP",
+        "only_works_rdp": "Modo 'Only GPU' solamente funciona con visores RDP",
         "current_plan_doesnt_match": "No hay ninguna GPU disponible con el perfil del escritorio",
         "needs_deployment_booking": "Ahora mismo no se puede arrancar el escritorio, contacta con el propietario del despliegue para que cree una reserva",
-        "not_enough_advanced_time": "No hay suficiente antelación para arrancar el escritorio"
+        "not_enough_advanced_time": "No hay suficiente antelación para arrancar el escritorio",
+        "no_wireguard_keys": "Todavía no hay claves de wireguard en la configuración de la aplicación web. Inténtelo de nuevo pasados unos segundos..."
     },
     "router": {
         "titles": {

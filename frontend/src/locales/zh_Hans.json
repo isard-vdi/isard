@@ -1,1 +1,5 @@
-{}
+{
+    "validations": {
+        "required": "{property} 必填"
+    }
+}
