@@ -4,12 +4,13 @@
 #      Josep Maria Viñolas Auquer
 #      Alberto Larraz Dalmases
 # License: AGPLv3
+import datetime
 import ipaddress
 import os
 import time
 import traceback
 
-import requests
+import pytz
 from rethinkdb import RethinkDB
 
 from api import app
@@ -36,19 +37,82 @@ from .helpers import _check, generate_db_media
 from .validators import _validate_item
 
 
-def get_hypervisors(status=None):
-    with app.app_context():
-        if not status:
-            return list(r.table("hypervisors").run(db.conn))
-        else:
-            return list(r.table("hypervisors").filter({"status": status}).run(db.conn))
-
-
-# os.environ['WG_HYPERS_NET']
-# maximum_hypers=os.environ['WG_HYPERS_NET']
 class ApiHypervisors:
-    def __init__(self):
-        None
+    def get_hypervisors(
+        self,
+        status=None,
+        hyp_id=None,
+        started_desktops=False,
+        without_servers=False,
+        orchestrator=False,
+    ):
+        query = r.table("hypervisors")
+        if hyp_id:
+            query = query.get(hyp_id)
+        if status:
+            query = query.filter({"status": status})
+        if started_desktops:
+            if without_servers:
+                query = query.merge(
+                    lambda hyper: {
+                        "desktops_started": r.table("domains")
+                        .get_all(hyper["id"], index="hyp_started")
+                        .filter({"server": False})
+                        .count()
+                    }
+                )
+            else:
+                query = query.merge(
+                    lambda hyper: {
+                        "desktops_started": r.table("domains")
+                        .get_all(hyper["id"], index="hyp_started")
+                        .count()
+                    }
+                )
+        if orchestrator:
+            query = query.pluck(
+                "id",
+                "status",
+                "only_forced",
+                "buffering_hyper",
+                "destroy_time",
+                "stats",
+                "orchestrator_managed",
+            )
+        if hyp_id:
+            with app.app_context():
+                data = query.run(db.conn)
+        else:
+            with app.app_context():
+                data = list(query.run(db.conn))
+        if orchestrator:
+            if hyp_id:
+                # add missing keys on dict result
+                return {
+                    **{
+                        "only_forced": False,
+                        "buffering_hyper": False,
+                        "destroy_time": None,
+                        "stats": {},
+                        "orchestrator_managed": False,
+                    },
+                    **data,
+                }
+            else:
+                # add missing keys on list of dict results
+                return [
+                    {
+                        **{
+                            "only_forced": False,
+                            "buffering_hyper": False,
+                            "destroy_time": None,
+                            "stats": {},
+                            "orchestrator_managed": False,
+                        },
+                        **d,
+                    }
+                    for d in data
+                ]
 
     def hyper(
         self,
@@ -269,8 +333,7 @@ class ApiHypervisors:
         with app.app_context():
             desktops_ids = list(
                 r.table("domains")
-                .get_all("Started", index="status")
-                .filter({"hyp_started": hyper_id})["id"]
+                .get_all(hyper_id, index="hyp_started")["id"]
                 .run(db.conn)
             )
         desktops_stop(desktops_ids, force=True, wait_seconds=0)
@@ -472,30 +535,6 @@ class ApiHypervisors:
             return True
         return False
 
-    def domains_stop(self, hyp_id=False):
-        with app.app_context():
-            if hyp_id == False:
-                desktops_ids = list(
-                    r.table("domains")
-                    .get_all("Started", index="status")
-                    .filter({"viewer": {"client_since": False}})["id"]
-                    .run(db.conn)["replaced"]
-                )
-            else:
-                desktops_ids = list(
-                    r.table("domains")
-                    .get_all("Started", index="status")
-                    .filter(
-                        {
-                            "hyp_started": hyp_id,
-                            "viewer": {"client_since": False},
-                        }
-                    )["id"]
-                    .run(db.conn)["replaced"]
-                )
-        desktops_stop(desktops_ids, force=True, wait_seconds=0)
-        return True
-
     def assign_gpus(self):
         with app.app_context():
             hypers = [
@@ -535,3 +574,78 @@ class ApiHypervisors:
                 .run(db.conn)
             )
         return status
+
+    def set_hyper_deadrow_time(self, hyper_id, reset=False):
+        with app.app_context():
+            hypervisor = r.table("hypervisors").get(hyper_id).run(db.conn)
+        if not hypervisor:
+            raise Error(
+                "not_found", "Hypervisor with ID " + hyper_id + " does not exist."
+            )
+
+        if not hypervisor.get("orchestrator_managed"):
+            raise Error(
+                "precondition_required",
+                "Hypervisor with ID " + hyper_id + " is not managed by orchestrator.",
+            )
+
+        # Check if hypervisor is in dead row to remove it
+        if reset:
+            if hypervisor.get("only_forced") and hypervisor.get("destroy_time"):
+                with app.app_context():
+                    r.table("hypervisors").get(hyper_id).update(
+                        {"only_forced": False, "destroy_time": None}
+                    ).run(db.conn)
+                return True
+            else:
+                raise Error(
+                    "precondition_required",
+                    "Hypervisor with ID " + hyper_id + " not in dead row.",
+                )
+
+        # Check if hypervisor is already in dead row return actual destroy time
+        # NOTE: This should not happen, but if it does, we return the actual destroy time
+        if hypervisor.get("only_forced") and hypervisor.get("destroy_time"):
+            return {"destroy_time": hypervisor.get("destroy_time")}
+
+        # Check max desktops timeout, if set
+        # If not set, we will use a default 12 hours timeout (12*60=720)
+        with app.app_context():
+            desktops_max_timeout = list(
+                r.table("desktops_priority")
+                .has_fields({"shutdown": {"max": True}})
+                .order_by(r.desc({"shutdown": {"max"}}))
+                .run(db.conn)
+            )
+        if not len(desktops_max_timeout):
+            # If no max timeout is set, we use a default 12 hours timeout (12*60=720)
+            desktops_max_timeout = 720
+        else:
+            desktops_max_timeout = desktops_max_timeout[0]["shutdown"]["max"]
+
+        # Get time now + desktops_max_timeout
+        d = datetime.datetime.utcnow() + datetime.timedelta(
+            minutes=desktops_max_timeout
+        )
+        dtz = d.replace(tzinfo=pytz.UTC).isoformat()
+
+        with app.app_context():
+            r.table("hypervisors").get(hyper_id).update(
+                {"only_forced": True, "destroy_time": dtz}
+            ).run(db.conn)
+        return {"destroy_time": dtz}
+
+    def set_hyper_orchestrator_managed(self, hyper_id, reset=False):
+        try:
+            with app.app_context():
+                hypervisor = (
+                    r.table("hypervisors")
+                    .get(hyper_id)
+                    .update({"orchestrator_managed": not reset})
+                    .run(db.conn)
+                )
+            return True
+        except:
+            raise Error(
+                "not_found", "Hypervisor with ID " + hyper_id + " does not exist."
+            )

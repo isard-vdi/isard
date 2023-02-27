@@ -21,7 +21,7 @@ from ..libv2.quotas import Quotas
 
 quotas = Quotas()
 
-from ..libv2.api_hypervisors import ApiHypervisors, get_hypervisors
+from ..libv2.api_hypervisors import ApiHypervisors
 
 api_hypervisors = ApiHypervisors()
 
@@ -39,7 +39,7 @@ def api_v3_hypervisors(payload, status=None):
             traceback.format_exc(),
         )
     return (
-        json.dumps(get_hypervisors(status)),
+        json.dumps(api_hypervisors.get_hypervisors(status)),
         200,
         {"Content-Type": "application/json"},
     )
@@ -185,7 +185,7 @@ def api_v3_hypervisor(hyper_id=False):
 @app.route("/api/v3/hypervisor/stop/<hyper_id>", methods=["PUT"])
 @is_hyper
 def api_v3_hypervisor_domains_stop(hyper_id):
-    api_hypervisors.domains_stop(hyper_id)
+    api_hypervisors.stop_hyper_domains(hyper_id)
     return (json.dumps({}), 200, {"Content-Type": "application/json"})
 
 
@@ -229,3 +229,77 @@ def api_v3_hypervisors_gpus(payload):
 def api_v3_hypervisors_status(payload, hyper_id):
     status = api_hypervisors.get_hyper_status(hyper_id)
     return json.dumps(status), 200, {"Content-Type": "application/json"}
+
+
+### ORCHESTRATOR ENDPOINTS
+# List hyper or hypers with specific pluck
+@app.route("/api/v3/orchestrator/hypervisors", methods=["GET"])
+@app.route("/api/v3/orchestrator/hypervisor/<hypervisor_id>", methods=["GET"])
+@is_admin
+def api_v3_orch_hypers_list(payload, hypervisor_id=None):
+    return (
+        json.dumps(
+            api_hypervisors.get_hypervisors(
+                status=None,
+                hyp_id=hypervisor_id,
+                started_desktops=True,
+                without_servers=True,
+                orchestrator=True,
+            )
+        ),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+# Add/Reset hyper dead row timeout
+@app.route(
+    "/api/v3/orchestrator/hypervisor/<hypervisor_id>/dead_row",
+    methods=["POST", "DELETE"],
+)
+@is_admin
+def api_v3_orch_dead_row_hyper(payload, hypervisor_id, reset=False):
+    if request.method == "POST":
+        return (
+            json.dumps(api_hypervisors.set_hyper_deadrow_time(hypervisor_id)),
+            200,
+            {"Content-Type": "application/json"},
+        )
+    elif request.method == "DELETE":
+        api_hypervisors.set_hyper_deadrow_time(hypervisor_id, reset=True)
+        return (
+            json.dumps({}),
+            200,
+            {"Content-Type": "application/json"},
+        )
+
+
+# Stop hypervisor's started desktops
+@app.route(
+    "/api/v3/orchestrator/hypervisor/<hypervisor_id>/desktops", methods=["DELETE"]
+)
+@is_admin
+def api_v3_orch_stop_hyper_desktops(payload, hypervisor_id):
+    api_hypervisors.stop_hyper_domains(hypervisor_id)
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+# Mark or unmark hypervisor for orchestrator management
+@app.route(
+    "/api/v3/orchestrator/hypervisor/<hypervisor_id>/manage", methods=["POST", "DELETE"]
+)
+@is_admin
+def api_v3_orch_hyper_manage(payload, hypervisor_id):
+    if request.method == "POST":
+        api_hypervisors.set_hyper_orchestrator_managed(hypervisor_id)
+    elif request.method == "DELETE":
+        api_hypervisors.set_hyper_orchestrator_managed(hypervisor_id, reset=True)
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
