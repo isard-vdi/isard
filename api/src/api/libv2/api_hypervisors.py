@@ -649,3 +649,10 @@ class ApiHypervisors:
             raise Error(
                 "not_found", "Hypervisor with ID " + hyper_id + " does not exist."
             )
+
+    def get_hyper_mountpoints(self, hyper_id):
+        with app.app_context():
+            status = (
+                r.table("hypervisors").get(hyper_id).pluck("mountpoints").run(db.conn)
+            )
+        return status
