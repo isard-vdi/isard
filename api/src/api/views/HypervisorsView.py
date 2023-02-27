@@ -165,7 +165,7 @@ def api_v3_hypervisor(hyper_id=False):
         if not data["status"]:
             raise Error(
                 "bad_request",
-                "Hypervisor delete add bad data",
+                data["msg"],
                 traceback.format_exc(),
             )
         return json.dumps(data["data"]), 200, {"Content-Type": "application/json"}
