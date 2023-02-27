@@ -235,24 +235,29 @@ class ApiHypervisors:
     def remove_hyper(self, hyper_id, restart=True):
         self.stop_hyper_domains(hyper_id)
         with app.app_context():
-            if not r.table("hypervisors").get(hyper_id).run(db.conn):
+            hyper = r.table("hypervisors").get(hyper_id).run(db.conn)
+            if not hyper:
                 return {"status": False, "msg": "Hypervisor not found", "data": {}}
 
-        with app.app_context():
-            r.table("hypervisors").get(hyper_id).update(
-                {"enabled": False, "status": "Deleting"}
-            ).run(db.conn)
+        if hyper["status"] != "Deleting":
+            with app.app_context():
+                r.table("hypervisors").get(hyper_id).update(
+                    {"enabled": False, "status": "Deleting"}
+                ).run(db.conn)
+        else:
+            with app.app_context():
+                r.table("hypervisors").get(hyper_id).delete().run(db.conn)
 
         now = int(time.time())
         while int(time.time()) - now < 20:
             time.sleep(1)
-            with app.app_context():
-                if not r.table("hypervisors").get(hyper_id).run(db.conn):
-                    return {
-                        "status": True,
-                        "msg": "Removed from database",
-                        "data": {},
-                    }
+        with app.app_context():
+            if not r.table("hypervisors").get(hyper_id).run(db.conn):
+                return {
+                    "status": True,
+                    "msg": "Removed from database",
+                    "data": {},
+                }
 
         return {
             "status": False,

@@ -293,7 +293,7 @@ function socketio_on(){
         table.row('#'+data.id).remove().draw();
         new PNotify({
                 title: "Hypervisor deleted",
-                text: "Hypervisor "+data+" has been deleted",
+                text: "Hypervisor "+data.id+" has been deleted",
                 hide: true,
                 delay: 4000,
                 icon: 'fa fa-success',
