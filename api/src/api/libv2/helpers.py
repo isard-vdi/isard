@@ -367,8 +367,10 @@ def _parse_deployment_desktop(desktop, user_id=False):
         )
     else:
         viewer = False
+    user_photo = desktop.get("user_photo")
     desktop = _parse_desktop(desktop)
     desktop["viewer"] = viewer
+    desktop["user_photo"] = user_photo
 
     return desktop
 

@@ -96,9 +96,10 @@
                   class="info-icon position-absolute cursor-pointer"
                 />
                 <!-- IMAGE -->
-                <div
-                  class="rounded-circle bg-red"
-                  :style="{'background-image': `url('..${data.item.image.url}')`}"
+                <b-avatar
+                  :src="data.item.userPhoto"
+                  referrerPolicy="no-referrer"
+                  size="60px"
                 />
               </template>
               <template #cell(user)="data">
