@@ -272,6 +272,7 @@ $(document).ready(function() {
             tr.addClass('shown');
             $('#status-detail-'+row.data().id).html(row.data().detail);
             tableHypervisorDomains(row.data().id);
+            setMountpoints(row.data().id);
             setHypervisorDetailButtonsStatus(row.data().id,row.data().status)
             actionsHyperDetail();
         }
