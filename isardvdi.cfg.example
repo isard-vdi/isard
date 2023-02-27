@@ -548,3 +548,9 @@ WG_GUESTS_RESERVED_HOSTS=20
 # This value is the minimum MB of RAM that a hypervisor needs to have in order to run.
 # If it reaches the limit, the hypervisor is put at OnlyForced, which prevents more desktops to be started in the hypervisor
 #ORCHESTRATOR_ORCHESTRATOR_DIRECTOR_RATA_HYPER_MIN_RAM=0
+# This value is the maximum CPU number that a hypervisor can have free.
+# If it reaches the limit, the hypervisor is removed from OnlyForced, and then desktops can be started in the hypervisor again
+#ORCHESTRATOR_ORCHESTRATOR_DIRECTOR_RATA_HYPER_MAX_CPU=0
+# This value is the maximum MB of RAM that a hypervisor can have free.
+# If it reaches the limit, the hypervisor is removed from OnlyForced, and then desktops can be started in the hypervisor again
+#ORCHESTRATOR_ORCHESTRATOR_DIRECTOR_RATA_HYPER_MAX_RAM=0

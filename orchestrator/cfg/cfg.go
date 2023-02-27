@@ -62,6 +62,8 @@ func setDefaults() {
 			"min_ram_hourly": nil,
 			"hyper_min_cpu":  0,
 			"hyper_min_ram":  0,
+			"hyper_max_cpu":  0,
+			"hyper_max_ram":  0,
 		},
 	})
 	viper.SetDefault("infrastructure_dry_run", false)

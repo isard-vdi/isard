@@ -114,6 +114,7 @@ func (h *Hypervisor) AddToDeadRow(destroy time.Time, sess r.QueryExecutor) error
 }
 
 func (h *Hypervisor) RemoveFromDeadRow(sess r.QueryExecutor) error {
-	_, err := r.Table("hypervisors").Get(h.ID).Update(map[string]interface{}{"destroy_time": nil}).Run(sess)
+	// TODO: Should we really set the only forced to false????
+	_, err := r.Table("hypervisors").Get(h.ID).Update(map[string]interface{}{"destroy_time": nil, "only_forced": false}).Run(sess)
 	return err
 }

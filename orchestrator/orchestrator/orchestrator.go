@@ -6,10 +6,10 @@ import (
 	"sync"
 	"time"
 
+	"gitlab.com/isard/isardvdi/orchestrator/log"
 	"gitlab.com/isard/isardvdi/orchestrator/model"
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/director"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
-	"gitlab.com/isard/isardvdi/pkg/log"
 
 	"gitlab.com/isard/isardvdi-cli/pkg/client"
 
@@ -93,7 +93,7 @@ func (o *Orchestrator) Start(ctx context.Context) {
 					continue
 				}
 
-				o.log.Debug().Dict("infrastructure_state", zerolog.Dict().Array("isard_hypervisors", log.NewModelHypervisors(hypers)).Array("infrastructure_hypervisors", log.NewOperationsV1ListHypervisorsResponse(operationsHypers)))
+				o.log.Debug().Array("isard_hypervisors", log.NewModelHypervisors(hypers)).Array("infrastructure_hypervisors", log.NewOperationsV1ListHypervisorsResponse(operationsHypers)).Msg("infrastructure state")
 
 				create, destroy, err := o.director.NeedToScaleHypervisors(ctx, operationsHypers.Hypervisors, hypers)
 				if err != nil {

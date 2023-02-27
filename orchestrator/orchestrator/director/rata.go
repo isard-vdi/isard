@@ -158,6 +158,8 @@ availHypersLoop:
 		}
 	}
 
+	r.log.Debug().Int("cpu_avail", cpuAvail).Int("ram_avail", ramAvail).Msg("available resources")
+
 	reqHypersCPU := 0
 	if r.minCPU() > 0 {
 		hasEnough := cpuAvail / r.minCPU()
@@ -235,10 +237,9 @@ availHypersLoop:
 
 					r.log.Info().Str("id", h.ID).Str("scaling", "down").Msg("destroy hypervisor")
 				} else {
-
 					// Check if we need to move the hypervisor to the dead row
 					// TODO: CPU
-					if r.minRAM() > 0 && h.RAM.Used < ramAvail-r.minRAM() {
+					if h.DestroyTime.IsZero() && r.minRAM() > 0 && h.RAM.Total < ramAvail-r.minRAM() {
 						hypersToMoveInTheDeadRow = append(hypersToMoveInTheDeadRow, h)
 					}
 				}

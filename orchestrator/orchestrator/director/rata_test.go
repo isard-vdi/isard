@@ -242,7 +242,7 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 			rata := director.NewRata(cfg.DirectorRata{
 				MinCPU: tc.RataMinCPU,
 				MinRAM: tc.RataMinRAM,
-			}, &log, nil, db)
+			}, false, &log, nil, db)
 
 			create, destroy, err := rata.NeedToScaleHypervisors(context.Background(), tc.AvailHypers, tc.Hypers)
 
@@ -341,7 +341,7 @@ func TestRataExtraOperations(t *testing.T) {
 				HyperMinCPU: tc.HyperMinCPU,
 				HyperMinRAM: tc.HyperMinRAM,
 				HyperMaxRAM: tc.HyperMaxRAM,
-			}, &log, api, nil)
+			}, false, &log, api, nil)
 
 			err := rata.ExtraOperations(context.Background(), tc.Hypers)
 

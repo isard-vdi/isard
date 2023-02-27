@@ -53,7 +53,7 @@ func main() {
 	var dir director.Director
 	switch cfg.Orchestrator.Director {
 	case director.DirectorTypeRata:
-		dir = director.NewRata(cfg.Orchestrator.DirectorRata, log, api, db)
+		dir = director.NewRata(cfg.Orchestrator.DirectorRata, cfg.DryRun, log, api, db)
 
 	default:
 		log.Fatal().Str("director", cfg.Orchestrator.Director).Strs("available_directors", director.Available).Msg("unknown director type!")
