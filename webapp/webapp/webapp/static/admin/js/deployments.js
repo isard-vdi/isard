@@ -39,6 +39,7 @@ $(document).ready(function() {
         { "data": "how_many_desktops_started" },
         { "data": "create_dict.tag_visible" },
         { "data": "last_access" },
+        { "data": null, 'defaultContent': ''},
         { "data": "id", "visible": false},
       ],
       order: [[1, "asc"]],
@@ -62,6 +63,12 @@ $(document).ready(function() {
             return full.last_access
           }
         },
+        {
+          "targets": 10,
+          "render": function ( data, type, full, meta ) {
+            return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
+          }
+        },
       ],
     });
 
@@ -69,10 +76,55 @@ $(document).ready(function() {
 
     $('#deployments').find(' tbody').on('click', 'button', function(){
       var data = deployments.row($(this).parents('tr')).data();
-        switch ($(this).attr('id')) {
-          case 'btn-alloweds':
-            modalAllowedsFormShow('deployments', data)
-            break;
+      switch ($(this).attr('id')) {
+        case 'btn-delete':
+          new PNotify({
+            title: 'Confirmation Needed',
+            text: "Are you sure you want to delete deployment " + data['name'] + "?",
+            hide: false,
+            opacity: 0.9,
+            confirm: {
+              confirm: true
+            },
+            buttons: {
+              closer: false,
+              sticker: false
+            },
+            history: {
+              history: false
+            },
+            addclass: 'pnotify-center'
+          }).get().on('pnotify.confirm', function () {
+            $.ajax({
+              type: "DELETE",
+              url: "/api/v3/deployments/" + data["id"],
+              success: function(data){
+                new PNotify({
+                  title: 'Deleted',
+                  text: 'Deployment deleted successfully',
+                  hide: true,
+                  delay: 2000,
+                  icon: 'fa fa-' + data.icon,
+                  opacity: 1,
+                  type: 'success'
+                });
+                deployments.ajax.reload();
+              },
+              error: function(data){
+                new PNotify({
+                  title: 'ERROR deleting deployment',
+                  text: 'The deployment '+data["name"]+' must be stopped',
+                  type: 'error',
+                  hide: true,
+                  icon: 'fa fa-warning',
+                  delay: 5000,
+                  opacity: 1
+                })
+              }
+            });
+            deployments.ajax.reload();
+          }).on('pnotify.cancel', function () {});
+          break;
         }
     });
 
