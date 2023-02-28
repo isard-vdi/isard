@@ -4,7 +4,7 @@
     <h4 class="my-4">
       <strong>{{ $t('forms.domain.image.title') }}</strong>
     </h4>
-    <b-row v-if="domain.image.id">
+    <b-row v-if="editDomainId">
       <b-col
         cols="12"
         xl="4"
@@ -58,6 +58,7 @@ export default {
   setup (_, context) {
     const $store = context.root.$store
     const imageFile = ref(null)
+    const editDomainId = computed(() => $store.getters.getEditDomainId)
     const domain = computed(() => $store.getters.getDomain)
 
     const items = computed(() => $store.getters.getImages)
@@ -73,6 +74,7 @@ export default {
 
     return {
       items,
+      editDomainId,
       domain,
       imageFile,
       onClickChangeDesktopImage,
