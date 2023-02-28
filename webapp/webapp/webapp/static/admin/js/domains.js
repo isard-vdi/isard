@@ -456,6 +456,8 @@ $(document).ready(function() {
     } );
 
     domains_table= $('#domains').DataTable({
+        scrollY: false,
+        scrollX: false,
         "ajax": {
             "url": "/admin/domains",
             "type": "GET",
@@ -467,6 +469,7 @@ $(document).ready(function() {
         },
         "rowId": "id",
         "deferRender": true,
+        "paging": true,
         "columns": columns,
         "order": [[order, 'des']],
         "columnDefs": columnDefs,
