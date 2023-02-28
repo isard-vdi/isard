@@ -390,17 +390,22 @@ class UiActions(object):
     # y el path que se guarda en el disco podría ser relativo, aunque igual no vale la pena...
 
     def deleting_disks_from_domain(self, id_domain, not_change_status=False):
-
         try:
             dict_domain = get_domain(id_domain)
             if dict_domain is None:
                 log.error(
-                    f"The domain {id_domain} has already been deleted from database. Now will call deleting_disk function."
+                    "DELETE_DOMAIN_DISKS: Domain {} not found in database. Not removing any disk.".format(
+                        id_domain
+                    )
                 )
                 return False
 
             if dict_domain["kind"] != "desktop":
-                log.warning(f"{id_domain} is a template, disks will be deleted")
+                log.warning(
+                    "DELETE_DOMAIN_DISKS: Domain {} is a template!. It's disks will be deleted. Disks who depends on this one will be unusabe and should be deleted.".format(
+                        id_domain
+                    )
+                )
 
             wait_for_disks_to_be_deleted = False
             if dict_domain.get("hardware"):
@@ -414,8 +419,8 @@ class UiActions(object):
                             disk_path = d.get("file")
                             if not disk_path:
                                 log.error(
-                                    "Deleting old disk path not in hardware dict, key file not in dictionary d: \n {}".format(
-                                        pformat(d)
+                                    "DELETE_DOMAIN_DISKS: Domain {} disk in old format and not found the file key in db entry. Unable to delete disk entry: \n {}".format(
+                                        id_domain, pformat(d)
                                     )
                                 )
                                 index_disk += 1
@@ -423,7 +428,9 @@ class UiActions(object):
                             # Check for duplicates
                             if len(domains_with_attached_disk(disk_path)) > 1:
                                 log.debug(
-                                    "Others than this domain have this disk attached. Skipping deleting disk."
+                                    "DELETE_DOMAIN_DISKS: Others than this domain {} have this old format disk {} attached. Skipping deleting disk.".format(
+                                        id_domain, disk_path
+                                    )
                                 )
                                 index_disk += 1
                                 continue
@@ -432,8 +439,8 @@ class UiActions(object):
                             disk_path = get_storage_id_filename(storage_id)
                             if not disk_path:
                                 log.error(
-                                    "Deleting disk path not in hardware dict, storage_id {} not in storage table.".format(
-                                        storage_id
+                                    "DELETE_DOMAIN_DISKS: Domain {} storage_id {} missing disk path or not in storage table. This should not happen.".format(
+                                        id_domain, storage_id
                                     )
                                 )
                                 index_disk += 1
@@ -444,7 +451,9 @@ class UiActions(object):
                                 > 1
                             ):
                                 log.debug(
-                                    "Others than this domain have this disk attached. Skipping deleting disk."
+                                    "DELETE_DOMAIN_DISKS: Others than this domain {} have this storage_id {} attached. Skipping deleting disk.".format(
+                                        id_domain, storage_id
+                                    )
                                 )
                                 index_disk += 1
                                 continue
@@ -452,42 +461,40 @@ class UiActions(object):
                         pool_id = dict_domain["hypervisors_pools"][0]
                         if pool_id not in self.manager.pools.keys():
                             log.error(
-                                "hypervisor pool {} nor running in manager, can't delete disks in domain {}".format(
-                                    pool_id, id_domain
+                                "DELETE_DOMAIN_DISKS: Hypervisor pool {} not available in manager. Unable to delete domain {} disk {} in pool.".format(
+                                    pool_id, id_domain, disk_path
                                 )
                             )
                             return False
 
-                        forced_hyp, favourite_hyp = get_domain_forced_hyp(id_domain)
-                        if forced_hyp is not False:
-                            (
-                                hyps_to_start,
-                                hyps_only_forced,
-                                hyps_all,
-                            ) = get_hypers_in_pool(pool_id, only_online=True)
-                            if forced_hyp in hyps_all:
-                                next_hyp = forced_hyp
-                            else:
-                                log.error(
-                                    "force hypervisor failed for domain {}: {} not in hypervisors online in pool {}".format(
-                                        id_domain, forced_hyp, pool_id
-                                    )
+                        # Which hypervisors are online in this pool?
+                        (
+                            hyps_to_start,
+                            hyps_only_forced,
+                            hyps_all,
+                        ) = get_hypers_in_pool(pool_id, only_online=True)
+                        if not len(hyps_all):
+                            log.error(
+                                "DELETE_DOMAIN_DISKS: No hypervisors online in pool {} to delete disk {}".format(
+                                    pool_id, disk_path
                                 )
-                                next_hyp, extra_info = self.manager.pools[
-                                    pool_id
-                                ].get_next(domain_id=id_domain)
-                        else:
-                            next_hyp, extra_info = self.manager.pools[pool_id].get_next(
-                                domain_id=id_domain,
-                                reservables=False,
-                                to_create_disk=True,
                             )
+                            return False
+
+                        # Choose a hypervisor to delete the disk
+                        forced_hyp, favourite_hyp = get_domain_forced_hyp(id_domain)
+                        if forced_hyp in hyps_all:
+                            next_hyp = forced_hyp
+                        elif favourite_hyp in hyps_all:
+                            next_hyp = favourite_hyp
+                        else:
+                            next_hyp = hyps_all[0]
 
                         if type(next_hyp) is tuple:
                             h = next_hyp[0]
                             next_hyp = h
                         log.debug(
-                            "hypervisor where delete disk {}: {}".format(
+                            "DELETE_DOMAIN_DISKS: Preparing disk {} to be enqueued in hypervisor {}...".format(
                                 disk_path, next_hyp
                             )
                         )
@@ -523,9 +530,9 @@ class UiActions(object):
                                 update_domain_status(
                                     status="DeletingDomainDisk",
                                     id_domain=id_domain,
-                                    hyp_id=False,
-                                    detail="Deleting disk {} in domain {}, queued in hypervisor thread {}".format(
-                                        disk_path, id_domain, next_hyp
+                                    hyp_id=next_hyp,
+                                    detail="Domain disk {} queued in hypervisor {} to be deleted".format(
+                                        disk_path, next_hyp
                                     ),
                                 )
                             else:
@@ -533,7 +540,9 @@ class UiActions(object):
                                     action["storage_id"], dict_domain
                                 )
                             log.info(
-                                "Deleting disk {disk_path} in domain {id_domain}, queued in hypervisor thread {next_hyp}"
+                                "DELETE_DOMAIN_DISKS: Domain {} disk {} queued in hypervisor {} to be deleted".format(
+                                    id_domain, disk_path, next_hyp
+                                )
                             )
                             self.manager.q.workers[next_hyp].put(
                                 action, Q_PRIORITY_DELETE
@@ -546,30 +555,39 @@ class UiActions(object):
                                     status="Stopped",
                                     id_domain=id_domain,
                                     hyp_id=False,
-                                    detail="Creating delete disk operation failed when insert action in queue for disk operations",
+                                    detail="Domain disk {} failed to be queued in hypervisor {} to be deleted".format(
+                                        disk_path, next_hyp
+                                    ),
                                 )
                             log.error(
-                                "Creating delete disk operation failed when insert action in queue for disk operations in host {}. Exception: {}".format(
-                                    next_hyp, e
+                                "DELETE_DOMAIN_DISKS: Unable to enqueue disk {} to be deleted in hypervisor {}. Exception: {}".format(
+                                    disk_path, next_hyp, e
                                 )
                             )
                             return False
                         index_disk += 1
                 else:
-                    log.debug("No disk to delete in domain {}".format(id_domain))
+                    log.debug(
+                        "DELETE_DOMAIN_DISKS: No disks to delete in domain {}".format(
+                            id_domain
+                        )
+                    )
             else:
                 log.error(
-                    "No hardware dict in domain to delete {}, deleting domain but no disks to be deleted".format(
+                    "DELETE_DOMAIN_DISKS: No hardware dict in domain to delete {}. This should not happen".format(
                         id_domain
                     )
                 )
             if not wait_for_disks_to_be_deleted:
                 delete_domain(id_domain)
-
             return True
         except Exception as e:
             logs.exception_id.debug("0071")
-            log.error("Deleting_disks_from_domain with domain {}".format(id_domain))
+            log.error(
+                "DELETE_DOMAIN_DISKS: Internal error when deleting disks for domain {}".format(
+                    id_domain
+                )
+            )
             log.error("Traceback: \n .{}".format(traceback.format_exc()))
             log.error("Exception message: {}".format(e))
             return False
