@@ -6,9 +6,15 @@
     >
       <template #header>
         <b-row class="pt-2 pl-3 pr-3">
+          <b-avatar
+            :src="desktop.userPhoto"
+            size="sm"
+            referrerPolicy="no-referrer"
+            class="mr-2"
+          />
           <h6
             cols="10"
-            class="text-muted"
+            class="text-muted pt-1"
           >
             {{ desktop.userName }}
           </h6>

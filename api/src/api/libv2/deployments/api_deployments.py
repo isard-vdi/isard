@@ -146,6 +146,7 @@ def get(deployment_id, desktops=True):
             .merge(
                 lambda domain: {
                     "user_name": r.table("users").get(domain["user"])["name"],
+                    "user_photo": r.table("users").get(domain["user"])["photo"],
                     "category_name": r.table("categories").get(domain["category"])[
                         "name"
                     ],
