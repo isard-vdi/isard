@@ -931,7 +931,7 @@ class ApiUsers:
             "not_found",
             "Code not found code:" + code,
             traceback.format_exc(),
-            description_code="code_not_found: " + code,
+            description_code="code_not_found",
         )
 
     def CategoryGet(self, category_id, all=False):

@@ -92,7 +92,7 @@ def api_v3_user_register(payload):
     data = users.CodeSearch(code)
     if payload["category_id"] != data["category"]:
         raise Error(
-            "bad_request",
+            "not_found",
             "Requested register code not in the category selected",
             traceback.format_exc(),
         )
