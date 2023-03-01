@@ -113,6 +113,8 @@ class ApiHypervisors:
                     }
                     for d in data
                 ]
+        else:
+            return data
 
     def hyper(
         self,
