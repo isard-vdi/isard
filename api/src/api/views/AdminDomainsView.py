@@ -32,11 +32,11 @@ desktops_persistent = ApiDesktopsPersistent()
 def api_v3_admin_domains(payload):
     params = request.args
     if params.get("kind") == "desktop":
-        domains = admins.ListDesktops(payload["user_id"])
+        domains = admins.ListDesktops(params.get("category_id"))
     else:
         domains = admins.ListTemplates(payload["user_id"])
-    if payload["role_id"] == "manager":
-        domains = [d for d in domains if d["category"] == payload["category_id"]]
+        if payload["role_id"] == "manager":
+            domains = [d for d in domains if d["category"] == payload["category_id"]]
     return (
         json.dumps(domains),
         200,

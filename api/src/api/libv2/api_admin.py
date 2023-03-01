@@ -405,75 +405,68 @@ def change_item_owner(table, item_id, new_user_id="admin"):
 
 
 class ApiAdmin:
-    def ListDesktops(self, user_id):
-        with app.app_context():
-            if r.table("users").get(user_id).run(db.conn) == None:
-                raise Error(
-                    "not_found",
-                    "Not found user_id " + user_id,
-                    traceback.format_exc(),
-                )
+    def ListDesktops(self, category_id):
         try:
             with app.app_context():
-                domains = list(
-                    r.table("domains")
-                    .get_all("desktop", index="kind")
-                    .pluck(
-                        "id",
-                        "icon",
-                        "image",
-                        "server",
-                        "hyp_started",
-                        "name",
-                        "kind",
-                        "description",
-                        "status",
-                        "user",
-                        "username",
-                        "category",
-                        "group",
-                        "accessed",
-                        "detail",
-                        {"viewer": "guest_ip"},
+                query = r.table("categories")
+                if category_id:
+                    query = query.get_all(category_id)
+
+                query = query.eq_join("id", r.table("groups"), index="parent_category")
+
+                query = query.map(
+                    lambda doc: {
+                        "group_id": doc["right"]["id"],
+                        "group_name": doc["right"]["name"],
+                        "category_id": doc["left"]["id"],
+                        "category_name": doc["left"]["name"],
+                    }
+                )
+
+                query = query.eq_join(
+                    "group_id", r.table("domains"), index="group"
+                ).filter({"right": {"kind": "desktop"}})
+                if category_id:
+                    query.filter({"right": {"category": category_id}})
+
+                query = list(
+                    query.pluck(
                         {
-                            "create_dict": {
-                                "hardware": {
-                                    "video": True,
-                                    "vcpus": True,
-                                    "memory": True,
-                                    "interfaces": True,
-                                    "graphics": True,
-                                    "videos": True,
-                                    "boot_order": True,
-                                    "disk_bus": True,
-                                    "virtualization_nested": True,
-                                },
-                                "origin": True,
-                                "reservables": True,
-                            }
-                        },
-                        "forced_hyp",
-                        "favourite_hyp",
-                        "os",
-                        "guest_properties",
-                        "booking_id",
-                    )
-                    .merge(
-                        lambda d: {
-                            "category_name": r.table("categories").get(d["category"])[
-                                "name"
+                            "right": [
+                                "id",
+                                "create_dict",
+                                "viewer",
+                                "kind",
+                                "group",
+                                "icon",
+                                "image",
+                                "server",
+                                "hyp_started",
+                                "name",
+                                "description",
+                                "status",
+                                "user",
+                                "username",
+                                "category",
+                                "guest_properties",
+                                "accessed",
+                                "detail",
+                                "forced_hyp",
+                                "favourite_hyp",
+                                "os",
+                                "booking_id",
                             ],
-                            "group_name": r.table("groups").get(d["group"])["name"],
+                            "left": ["group_name", "category_name"],
                         }
                     )
-                    .order_by("name")
+                    .zip()
                     .run(db.conn)
                 )
-            return domains
+            return query
         except Exception:
             raise Error(
                 "internal_server",
-                "Internal server error " + user_id,
+                "Internal server error ",
                 traceback.format_exc(),
             )
 

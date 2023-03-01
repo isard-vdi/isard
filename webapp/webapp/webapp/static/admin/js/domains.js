@@ -462,7 +462,7 @@ $(document).ready(function() {
             "url": "/admin/domains",
             "type": "GET",
             "dataSrc":'',
-            "data": { 'kind': kind }
+            "data": { 'kind': kind, 'category_id': $('meta[id=user_data]').attr('data-role') == 'manager' ? $('meta[id=user_data]').attr('data-categoryid') : null }
         },
         "language": {
             "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
