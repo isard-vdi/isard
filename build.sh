@@ -377,6 +377,21 @@ create_docker_compose_file(){
 	fi
 }
 
+generate_code(){
+	create_env "$1"
+
+	case "$USAGE" in 
+	build | test | devel)
+		DOCKER_IMAGE="${DOCKER_IMAGE_PREFIX}codegen:${DOCKER_IMAGE_TAG}"
+		docker pull $DOCKER_IMAGE || docker build -t "$DOCKER_IMAGE" ./docker/codegen
+		docker run -u $(id -u) -v "$(pwd):/build" "$DOCKER_IMAGE"
+		echo "Generated the code successfully"
+		;;
+	*)
+		;;
+	esac
+}
+
 if !(${SKIP_CHECK_DOCKER_COMPOSE_VERSION-false} || check_docker_compose_version)
 then
 	echo "ERROR: Please use docker-compose greather than or equal to $REQUIRED_DOCKER_COMPOSE_VERSION.
@@ -390,6 +405,10 @@ git submodule update --recursive --remote
 get_config_files | while read config_file
 do
 	(create_docker_compose_file "$config_file")
+
+	if [ "$CODEGEN" != "false" ]; then
+		(generate_code "$config_file")
+	fi
 done
 
 ## BUILD_ROOT_PATH sed section
