@@ -493,7 +493,24 @@
             "visibility": {
                 "visible": "Visibles",
                 "not-visible": "No visibles"
-            }
+            },
+            "modal": {
+                "title": { 
+                    "make-visible": "Fer visible el desplegament '{name}'",
+                    "make-invisible": "Fer invisible el desplegament '{name}'"
+                },
+                "option": {
+                    "dont-stop-desktops": "Fer invisible aquest desplegament pels usuaris i permetre l'ús dels escriptoris fins que s'aturin",
+                    "stop-desktops": "Fer invisible aquest deplegament pels usuaris i aturar tots els escriptoris",
+                    "make-visible": "Fer visible aquest desplegament perquè els usuaris tinguin accés als escriptoris"
+                },
+                "confirmation": {
+                    "stop": "Aturar escriptoris",
+                    "dont-stop": "No aturar escriptoris",
+                    "make-visible": "Fer visible"
+                    }
+                }
+            
         },
         "direct-viewer": {
             "title": "Accés a visors de l'escriptori:",
@@ -903,8 +920,6 @@
             "delete-desktop": "'{name}' s'esborrarà, continuar?",
             "create-nonpersistent": "ATENCIÓ! Aquest escriptori és temporal. Al parar-ho totes les dades seràn esborrades. Crear escriptori?",
             "visible-deployment": "'{name}' serà visible pels seus usuaris, continuar?",
-            "not-visible-deployment": "Els escriptoris s'ocultaran",
-            "hidden-desktops-warn": "Si un escriptori ocult no està aturat i s'està fent servir, el visor funcionarà fins que es tanqui",
             "recreate-deployment": "Els escriptoris esborrats de '{name}' es crearàn de nou, continuar?",
             "delete-deployment": "'{name}' s'esborrarà, continuar?",
             "delete-deployment-desktop": "L'escriptori de '{name}' s'esborrarà, continuar?",
@@ -920,8 +935,6 @@
             "new-deployment": "Es crearan {quantity} escriptoris, un per cada usuari seleccionat. Continuar?",
             "go-to-profile": "Veure quota",
             "go-to-bookings": "Reservar escriptori",
-            "make-invisible-and-stop": "invisible i aturar",
-            "make-invisible-and-not-stop": "fer invisible",
             "change-desktop-gpu": "Modificar el perfil de l'escriptori"
         },
         "ok": "D'acord",

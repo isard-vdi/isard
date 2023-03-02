@@ -652,6 +652,22 @@
             "visibility": {
                 "visible": "Visible",
                 "not-visible": "Not visible"
+            },
+            "modal": {
+                "title": { 
+                    "make-visible": "Make deployment '{name}' visible",
+                    "make-invisible": "Make deployment '{name}' invisible"
+                },
+                "option": {
+                    "dont-stop-desktops": "Make this deployment invisible to the users and allow the use of the desktops until they're stopped",
+                    "stop-desktops": "Make this deployment invisible to the users and stop all the desktops",
+                    "make-visible": "Make this deployment visible so the users of the deployment have access to the desktops"
+                },
+                "confirmation": {
+                    "stop": "Stop desktops",
+                    "dont-stop": "Don't stop desktops",
+                    "make-visible": "Make visible"
+                }
             }
         },
         "direct-viewer": {
@@ -820,8 +836,6 @@
             "delete-desktop": "'{name}' will be deleted, continue?",
             "create-nonpersistent": "WARNING! This desktop is temporal. When stopping it all data will be deleted. Create desktop?",
             "visible-deployment": "Desktops will be visible",
-            "not-visible-deployment": "Desktops will be hidden",
-            "hidden-desktops-warn": "If a hidden desktop isn't stopped and it's in use, the viewer will work until it's closed",
             "recreate-deployment": "'{name}' deleted desktops will be recreated, continue?",
             "delete-deployment": "'{name}' will be deleted, continue?",
             "delete-deployment-desktop": "'{name}' desktop will be deleted, continue?",
@@ -836,8 +850,6 @@
             "new-deployment": "{quantity} desktops will be created, one for each selected user. Continue?",
             "go-to-profile": "View quota",
             "go-to-bookings": "Book desktop",
-            "make-invisible-and-stop":"Stop and hide",
-            "make-invisible-and-not-stop":"Only hide desktops",
             "change-desktop-gpu": "Modify desktop profile"
         },
         "ok": "Ok",

@@ -26,6 +26,7 @@
               href="#"
               @click="goToDeployments"
             >
+              <VisibilityModal />
               <div>
                 <b-icon
                   icon="arrow-left"
@@ -280,12 +281,14 @@
 <script>
 import { desktopStates } from '@/shared/constants'
 import DesktopsFilter from '@/components/desktops/DesktopsFilter.vue'
+import VisibilityModal from '@/components/deployments/VisibilityModal.vue'
 import { ref, computed, watch } from '@vue/composition-api'
 import i18n from '@/i18n'
 
 export default {
   components: {
-    DesktopsFilter
+    DesktopsFilter,
+    VisibilityModal
   },
   setup (props, context) {
     const $store = context.root.$store
@@ -387,43 +390,9 @@ export default {
     }
 
     const toggleVisible = () => {
-      context.root.$snotify.clear()
-
-      const yesAction = () => {
-        context.root.$snotify.clear()
-        $store.dispatch('toggleVisible', { id: deployment.value.id, visible: deployment.value.visible, stopStartedDomains: false })
-      }
-
-      const noAction = (toast) => {
-        context.root.$snotify.clear()
-      }
-
-      const yesAndStop = () => {
-        context.root.$snotify.clear()
-        $store.dispatch('toggleVisible', { id: deployment.value.id, visible: deployment.value.visible, stopStartedDomains: true })
-      }
-
-      const visibleButtons = () => {
-        if (deployment.value.visible) {
-          return [
-            { text: `${i18n.t('messages.confirmation.make-invisible-and-not-stop')}`, action: yesAction },
-            { text: `${i18n.t('messages.confirmation.make-invisible-and-stop')}`, action: yesAndStop },
-            { text: `${i18n.t('messages.cancel')}`, action: noAction, bold: true }
-          ]
-        } else {
-          return [
-            { text: `${i18n.t('messages.yes')}`, action: yesAction },
-            { text: `${i18n.t('messages.no')}`, action: noAction, bold: true }
-          ]
-        }
-      }
-
-      context.root.$snotify.prompt(`${i18n.t('messages.confirmation.hidden-desktops-warn')}`, `${i18n.t(deployment.value.visible ? 'messages.confirmation.not-visible-deployment' : 'messages.confirmation.visible-deployment', { name: deployment.value.name })}`, {
-        position: 'centerTop',
-        buttons: visibleButtons(),
-        placeholder: '',
-        id: 'hideDesktops',
-        titleMaxLength: 50
+      $store.dispatch('updateVisibilityModal', {
+        show: true,
+        item: { id: deployment.value.id, visible: deployment.value.visible, stopStartedDomains: false }
       })
     }
 
@@ -538,6 +507,11 @@ export default {
       creationMode,
       navigate,
       viewType
+    }
+  },
+  mutations: {
+    setVisibilityModal: (state, visibilityModal) => {
+      state.visibilityModal = visibilityModal
     }
   }
 }
