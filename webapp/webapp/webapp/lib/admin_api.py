@@ -5,22 +5,9 @@
 
 import os
 import pickle
-import random
-import socket
 import tarfile
 
-#!/usr/bin/env python
-# coding=utf-8
-import time
-import traceback
-from contextlib import closing
-from datetime import datetime, timedelta
-from string import ascii_lowercase, digits
-
-import pem
-import requests
 import rethinkdb as r
-from OpenSSL import crypto
 from werkzeug.utils import secure_filename
 
 from webapp import app
@@ -30,21 +17,6 @@ from .flask_rethink import RethinkDB
 
 db = RethinkDB(app)
 db.init_app(app)
-
-from .api_client import ApiClient
-from .isardViewer import default_guest_properties
-
-apic = ApiClient()
-
-import csv
-import io
-import secrets
-from collections import Mapping, defaultdict
-
-from ..auth.authentication import Password
-from .ds import DS
-
-ds = DS()
 
 
 class isardAdmin:

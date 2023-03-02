@@ -13,10 +13,26 @@ from .log import *
 db = RethinkDB(app)
 db.init_app(app)
 
-from .isardViewer import default_guest_properties
 from .load_config import load_config
 
 cfg = load_config()
+
+
+def default_guest_properties():
+    return {
+        "credentials": {
+            "username": "isard",
+            "password": "pirineus",
+        },
+        "fullscreen": False,
+        "viewers": {
+            "file_spice": {"options": None},
+            "browser_vnc": {"options": None},
+            "file_rdpgw": {"options": None},
+            "file_rdpvpn": {"options": None},
+            "browser_rdp": {"options": None},
+        },
+    }
 
 
 def get_domain_stock_card(domain_id):

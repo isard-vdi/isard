@@ -5,7 +5,6 @@ from eventlet import monkey_patch
 monkey_patch()
 
 from flask_socketio import SocketIO
-from webapp.lib import api
 from webapp.lib.flask_rethink import RethinkDB
 
 from webapp import app
@@ -14,8 +13,6 @@ db = RethinkDB(app)
 db.init_app(app)
 
 socketio = SocketIO(app)
-
-app.isardapi = api.isard()
 
 
 ## Main

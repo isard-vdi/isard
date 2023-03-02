@@ -25,7 +25,10 @@ import os
 
 from flask import jsonify, request
 
-from api import app
+try:
+    from api import app
+except:
+    from webapp import app
 
 content_type = {"Content-Type": "application/json"}
 ex = {
