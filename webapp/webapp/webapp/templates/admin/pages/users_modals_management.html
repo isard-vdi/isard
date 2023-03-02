@@ -104,6 +104,7 @@
                                         multiple="multiple" style="width: 100%;">
                                     </select>
                                 </div>
+                                <p class="fa fa-info-circle" style="color:rgb(60, 127, 186); margin-left: 215px; margin-top: 10px;"> It will influence both shared items and deployments creation.</p>
                             </div>
                         </div>
                     </div>
@@ -209,6 +210,7 @@
                                         multiple="multiple" style="width: 100%;">
                                     </select>
                                 </div>
+                                <p class="fa fa-info-circle" style="color:rgb(60, 127, 186); margin-left: 215px; margin-top: 10px;"> It will influence both shared items and deployments creation.</p>
                             </div>
                         </div>
                     </div>
@@ -768,7 +770,7 @@
                     <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title" id="myModalLabel">
-                    <i class="fa fa-plus fa-1x"> </i> Edit Category <i class="fa fa-key"> </i>
+                    <i class="fa fa-leaf"> </i> Edit Category
                 </h4>
             </div>
 
@@ -962,7 +964,7 @@
                                     placeholder="Group description" type="text" style="width:100%">
                             </div>
                             {% if current_user.role == 'manager' %}
-                            <div class="col-md-8 col-sm-8 col-xs-12">
+                            <div class="col-md-8 col-sm-8 col-xs-12" style="margin-top: 10px;">
                                 <label class="control-label" for="parent_category">Parent Category
                                 </label>
                                 <select id="parent_category" class="roundbox" name="parent_category" type="text"
@@ -970,17 +972,17 @@
                                 </select>
                             </div>
                             {% else %}
-                            <div class="col-md-12 col-sm-12 col-xs-12">
-                                <label class="control-label" for="parent_category">Parent category <span
-                                        class="required">*</span></label>
+                            <div class="col-md-12 col-sm-12 col-xs-12" style="margin-top: 10px;">
+                                <label class="control-label" for="parent_category">Parent category <span class="required">*</span>
+                                </label>
                                 <select id="parent_category" name="parent_category" class="form-control category"
                                     style="width:100%" required>
                                 </select>
                             </div>
                             {% endif %}
-                            <div class="col-md-12 col-sm-12 col-xs-12">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="group">Linked groups
-                                </label>
+                            <div class="col-md-12 col-sm-12 col-xs-12" style="margin-top: 10px;">
+                                <label class="control-label" for="group">Linked groups</label>
+                                <p class="fa fa-info-circle" style="color:rgb(60, 127, 186)"> It will influence shared items.</p>
                                 <div>
                                     <select id="linked_groups" name="linked_groups[]" class="tags-select roundbox"
                                         multiple="multiple" style="width: 100%;">
@@ -1080,7 +1082,7 @@
                     <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title" id="myModalLabel">
-                    <i class="fa fa-plus fa-1x"> </i> Edit Group <i class="fa fa-key"> </i>
+                    <i class="fa fa-group"> </i> Edit Group
                 </h4>
             </div>
 
@@ -1111,8 +1113,8 @@
                         </div>
                         <div class="x_panel">
                             <div class="col-md-12 col-sm-12 col-xs-12">
-                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="group">Linked groups
-                                </label>
+                                <label class="control-label" for="group">Linked groups</label>
+                                <p class="fa fa-info-circle" style="color:rgb(60, 127, 186)"> It will influence shared items.</p>
                                 <div>
                                     <select id="linked_groups" name="linked_groups[]" class="tags-select roundbox"
                                         multiple="multiple" style="width: 100%;">
