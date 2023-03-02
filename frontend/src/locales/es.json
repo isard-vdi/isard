@@ -653,7 +653,24 @@
             "visibility": {
                 "visible": "Visibles",
                 "not-visible": "No visibles"
+            },
+            "modal": {
+                "title": { 
+                    "make-visible": "Hacer que el despliegue '{name}' sea visible",
+                    "make-invisible": "Hacer que el despliegue '{name}' sea invisible"
+                },
+                "option": {
+                    "dont-stop-desktops": "Hacer invisible este despliegue para los usuarios y permitir el uso de los escritorios hasta que se paren",
+                    "stop-desktops": "Hacer invisible este despliegue para los usuarios y parar todos los escritorios",
+                    "make-visible": "Hacer visible este despliegue para que los usuarios tengan acceso a los escritorios"
+                },
+                "confirmation": {
+                    "stop": "Parar escritorios",
+                    "dont-stop": "No parar escritorios",
+                    "make-visible": "Hacer visible"
+                }
             }
+            
         },
         "deployment-desktop-list": {
             "actions": {
@@ -835,8 +852,6 @@
             "delete-desktop": "'{name}' se borrará, continuar?",
             "create-nonpersistent": "ATENCIÓN! Este escritorio es temporal. Al pararlo se eliminarán todos sus datos. Crear escritorio?",
             "visible-deployment": "Los escritorios serán visibles",
-            "not-visible-deployment": "Los escritorios se ocultarán",
-            "hidden-desktops-warn": "Si un escritorio oculto no está parado y se está usando, el visor funcionará hasta que se cierre",
             "recreate-deployment": "Los escritorios eliminados de '{name}' se recrearán, continuar?",
             "delete-deployment": "'{name}' se borrará, continuar?",
             "delete-deployment-desktop": "El escritorio de '{name}' se borrará, continuar?",
@@ -851,8 +866,6 @@
             "new-deployment": "Se crearán {quantity} escritorios, uno por cada usuario seleccionado. Continuar?",
             "go-to-profile": "Ver cuota",
             "go-to-bookings": "Reservar escritorio",
-            "make-invisible-and-stop": "invisible y parar escritorios",
-            "make-invisible-and-not-stop": "hacer invisible",
             "change-desktop-gpu": "Modificar el perfil del escritorio"
         },
         "ok": "De acuerdo",

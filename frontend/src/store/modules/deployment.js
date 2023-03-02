@@ -11,7 +11,14 @@ const getDefaultState = () => {
     },
     deployment_loaded: false,
     selectedDesktop: {},
-    deploymentsShowStarted: false
+    deploymentsShowStarted: false,
+    visibilityModal: {
+      show: false,
+      item: {
+        id: '',
+        visible: false
+      }
+    }
   }
 }
 
@@ -31,6 +38,9 @@ export default {
     },
     getDeploymentsShowStarted: state => {
       return state.deploymentsShowStarted
+    },
+    getVisibilityModal: state => {
+      return state.visibilityModal
     }
   },
   mutations: {
@@ -69,6 +79,9 @@ export default {
     },
     toggleDeploymentsShowStarted: (state, type) => {
       state.deploymentsShowStarted = !state.deploymentsShowStarted
+    },
+    setVisibilityModal: (state, visibilityModal) => {
+      state.visibilityModal = visibilityModal
     }
   },
   actions: {
@@ -101,12 +114,11 @@ export default {
     },
     toggleVisible (_, payload) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t(payload.visible ? 'messages.info.making-invisible-deployment' : 'messages.info.making-visible-deployment'), '', true, 1000)
-      axios.put(`${apiV3Segment}/deployments/visible/${payload.id}`, { stop_started_domains: payload.stopStartedDomains }).then(response => {
-        this._vm.$snotify.clear()
-      }).catch(e => {
+      axios.put(`${apiV3Segment}/deployments/visible/${payload.id}`, { stop_started_domains: payload.stopStartedDomains }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
+
     deleteDeployment (context, payload) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deleting-deployment'), '', true, 1000)
       axios.delete(`${apiV3Segment}/deployments/${payload.id}`).then(response => {
@@ -168,6 +180,18 @@ export default {
     },
     toggleDeploymentsShowStarted (context) {
       context.commit('toggleDeploymentsShowStarted')
+    },
+    updateVisibilityModal (context, data) {
+      context.commit('setVisibilityModal', data)
+    },
+    resetVisibilityModal (context) {
+      context.commit('setVisibilityModal', {
+        show: false,
+        item: {
+          id: '',
+          visible: false
+        }
+      })
     }
   }
 }

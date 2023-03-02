@@ -8,7 +8,7 @@
   --red-color: #e7898e;
   --green-color: #97c277;
   --orange-color: #eead47;
-}
+  --lightblue-color: #76b7dd;}
 
 /* Header */
 .header-wrapper {
@@ -640,6 +640,10 @@
 
 .orange-bg {
   background-color: var(--orange-color);
+}
+
+.blue-bg {
+  background-color: var(--lightblue-color);
 }
 
 .booking-bar > td:first-child {
