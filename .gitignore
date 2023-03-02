@@ -79,3 +79,6 @@ tetris/.env
 engine/engine/supervisord.pid
 docker/hypervisor/src/vlans/api_client.py
 frontend/yarn.lock
+
+# Generated code
+pkg/gen

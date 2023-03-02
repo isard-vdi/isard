@@ -9,6 +9,7 @@ stages:
  - lint
  - version
  - docker-compose
+ - docker-image-codegen
  - docker-images
  - test
  - docker-registry
@@ -40,26 +41,11 @@ check-frontend:
 
 check-protobuf:
   stage: lint
-  image: alpine:3.16
-  before_script:
-    - echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
-    - apk add --no-cache go@edge python3 npm
-    - go install github.com/bufbuild/buf/cmd/buf@latest
-    - go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1
-    - go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0
-    - go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc@v1.5.1
-    - python3 -m venv venv
-    - source venv/bin/activate
-    - pip3 install "betterproto[compiler]==2.0.0-beta5"
-    - npm install --global @bufbuild/protoc-gen-es
-
+  image: bufbuild/buf:1.15.0
   script:
-    - export PATH=$PATH:~/go/bin
     - buf lint
     # TODO: Add the breaking check
     # - buf breaking --against "${CI_PROJECT_URL}.git"
-    - buf generate -o check-protobuf
-    - diff -r check-protobuf/pkg/gen pkg/gen
 
 version:
   stage: version
@@ -106,7 +92,7 @@ docker-compose-demo:
     - cp isardvdi.cfg.example isardvdi.cfg
     - echo "DOCKER_IMAGE_PREFIX=${CI_REGISTRY_IMAGE}/" >> isardvdi.cfg
     - echo "DOCKER_IMAGE_TAG=$CI_COMMIT_REF_SLUG" >> isardvdi.cfg
-    - SKIP_CHECK_DOCKER_COMPOSE_VERSION=true ./build.sh
+    - SKIP_CHECK_DOCKER_COMPOSE_VERSION=true CODEGEN=false ./build.sh
   artifacts:
     paths:
       - docker-compose*.yml
@@ -126,10 +112,25 @@ docker-compose-build:
     - echo "FLAVOUR=video-standalone" >> isardvdi.video-standalone.build.cfg
     - cp isardvdi.build.cfg isardvdi.monitor.build.cfg
     - echo "FLAVOUR=monitor" >> isardvdi.monitor.build.cfg
-    - BACKUP_DB_ENABLED=true ./build.sh
+    - BACKUP_DB_ENABLED=true CODEGEN=false ./build.sh
   artifacts:
     paths:
       - docker-compose*.yml
+
+docker-image-codegen:
+  image: docker:latest
+  stage: docker-image-codegen
+  services:
+    - docker:dind
+  parallel:
+    matrix:
+      - DOCKERFILE: docker/codegen/Dockerfile
+        IMAGE: codegen
+  script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - docker build -f $DOCKERFILE -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
+    - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
+    - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
 
 docker-image-autonomous:
   image: docker:latest
@@ -184,6 +185,7 @@ docker-image:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
     - apk add git docker-compose
     - git submodule update --init --recursive --remote
+    - docker run -u $(id -u) -v "$(pwd):/build" "$CI_REGISTRY_IMAGE/codegen:git-$CI_COMMIT_SHORT_SHA"
     - echo $IMAGE_DEPENDENCY isard-$IMAGE | xargs -n1 docker-compose -f docker-compose.$DOCKER_COMPOSE.yml build
     - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
     - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
@@ -233,6 +235,7 @@ docker-tag:
       - IMAGE:
           *containers
       - IMAGE:
+          - codegen
           - check
           - vpn
           - video
