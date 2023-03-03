@@ -232,6 +232,8 @@ class Task(RedisBase):
         :return: Progress percentage as decimal
         :rtype: float
         """
+        if self.status == JobStatus.CANCELED:
+            return 0
         done = 0
         todo = 0
         for task in self._chain:
