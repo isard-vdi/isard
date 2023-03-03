@@ -246,6 +246,12 @@ class Task(RedisBase):
             todo += timeout
         return done / todo
 
+    def cancel(self):
+        """Cancel this Task and the dependencies of this Task."""
+        for dependency in self.dependencies:
+            dependency.cancel()
+        self.job.cancel(enqueue_dependents=True)
+
     def to_dict(self, filter=None):
         """
         Returns Task and related ones as a dictionary.

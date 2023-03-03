@@ -46,6 +46,32 @@ def task(payload, task_id):
     return jsonify(task.to_dict())
 
 
+@app.route("/api/v3/task/<task_id>", methods=["DELETE"])
+@has_token
+def cancel_task(payload, task_id):
+    """
+    Endpoint to cancel a task.
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :param task_id: Task ID
+    :type task_id: str
+    :return: Task as dict
+    :rtype: flask.Response
+    """
+    if not Task.exists(task_id):
+        raise Error(error="not_found", description="Task not found")
+    task = Task(task_id)
+    ownsUserId(payload, task.user_id)
+    if task.status != "queued":
+        raise Error(
+            error="precondition_required",
+            description=f"Task should be queued, but are {task.status}",
+        )
+    task.cancel()
+    return jsonify(task.to_dict())
+
+
 @app.route("/api/v3/tasks", methods=["GET"])
 @has_token
 def user_tasks(payload):
