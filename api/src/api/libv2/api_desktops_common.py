@@ -109,7 +109,7 @@ class ApiDesktopsCommon:
                         params={"start": booking.get("next_booking_start")},
                     )
             scheduled = False
-            if start_desktop and domains[0]["status"] == "Stopped":
+            if start_desktop and domains[0]["status"] in ["Stopped", "Failed"]:
                 desktop_start(domains[0]["id"], wait_seconds=60)
                 payload = gen_payload_from_user(domains[0]["user"])
                 scheduled = scheduler.add_desktop_timeouts(payload, domains[0]["id"])
