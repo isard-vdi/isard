@@ -76,7 +76,7 @@ def storage_ready(
     :type on_failed_storage_ids: list
     :param on_finished_storage_ids: Storage IDs to be ready if depending tasks success
     :type on_finished_storage_ids: list
-    :param on_canceled_delete_storage_ids: Storage IDs to be marked as teleted if dependency task was canceled
+    :param on_canceled_delete_storage_ids: Storage IDs to be marked as teleted if depending tasks was canceled
     :type on_canceled_delete_storage_ids: list
     """
     task = Task(get_current_job().id)
@@ -89,6 +89,6 @@ def storage_ready(
         ready_storage_ids.extend(on_failed_storage_ids)
     for storage_id in ready_storage_ids:
         Storage(storage_id, status="ready")
-    if on_canceled_delete_storage_ids and status == "canceled":
+    if on_canceled_delete_storage_ids and task.depending_status == "canceled":
         for storage_id in on_canceled_delete_storage_ids:
             Storage(storage_id, status="deleted")

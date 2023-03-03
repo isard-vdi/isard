@@ -112,6 +112,7 @@ def storage_convert(payload, storage_id, new_storage_type, compress=None):
                     "kwargs": {
                         "storage_ids": [origin_storage.id],
                         "on_finished_storage_ids": [new_storage.id],
+                        "on_canceled_delete_storage_ids": [new_storage.id],
                     }
                 },
             }
