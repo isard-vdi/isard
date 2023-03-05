@@ -417,6 +417,18 @@ def get_table_field(table, id_item, field):
     return None
 
 
+def get_table_fields(table, id_item, fields):
+    rtable = r.table(table)
+    try:
+        r_conn = new_rethink_connection()
+        result = rtable.get(id_item).pluck(fields).run(r_conn)
+        close_rethink_connection(r_conn)
+        return result
+    except Exception as e:
+        close_rethink_connection(r_conn)
+        return None
+
+
 def delete_table_item(table, id_item):
     r_conn = new_rethink_connection()
     rtable = r.table(table)

@@ -736,30 +736,6 @@ def get_pool_from_domain(domain_id):
     return pool
 
 
-def get_domain_force_update(domain_id):
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-
-    results = list(
-        rtable.get_all(domain_id, index="id").pluck("force_update").run(r_conn)
-    )
-
-    close_rethink_connection(r_conn)
-
-    # id_domain doesn't exist
-    if len(results) == 0:
-        return False
-
-    # force hyp doesn't exist as key in domain dict
-    if len(results[0]) == 0:
-        return False
-
-    if results[0]["force_update"] is True:
-        return True
-    else:
-        return False
-
-
 def get_domain_forced_hyp(id_domain):
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
