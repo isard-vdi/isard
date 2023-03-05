@@ -19,7 +19,6 @@ from engine.config import (
 )
 from engine.controllers.broom import launch_thread_broom
 from engine.controllers.events_recolector import launch_thread_hyps_event
-from engine.controllers.status import launch_thread_status
 from engine.controllers.ui_actions import UiActions
 from engine.models.hypervisor_orchestrator import HypervisorsOrchestratorThread
 from engine.models.pool_hypervisors import PoolHypervisors
@@ -30,47 +29,25 @@ from engine.services.db import (
     get_hypers_ids_with_status,
     get_if_all_disk_template_created,
     remove_domain,
-    set_unknown_domains_not_in_hyps,
     update_domain_history_from_id_domain,
 )
-from engine.services.db.db import (
-    get_pools_from_hyp,
-    new_rethink_connection,
-    update_table_field,
-)
+from engine.services.db.db import new_rethink_connection, update_table_field
 from engine.services.db.domains import (
-    update_domain_delete_after_stopped,
     update_domain_start_after_created,
     update_domain_status,
 )
-from engine.services.db.hypervisors import (
-    get_hyp_hostname_user_port_from_id,
-    get_hypers_disk_operations,
-    get_hyps_ready_to_start,
-    get_hyps_with_status,
-    update_all_hyps_status,
-    update_hyp_status,
-)
+from engine.services.db.hypervisors import update_all_hyps_status
 from engine.services.lib.functions import (
-    PriorityQueueIsard,
     QueuesThreads,
     clean_intermediate_status,
     clean_started_without_hyp,
     domain_status_from_started_to_unknown,
-    engine_restart,
     get_threads_running,
     get_tid,
 )
-from engine.services.lib.qcow import test_hypers_disk_operations
 from engine.services.log import logs
 from engine.services.threads.download_thread import launch_thread_download_changes
 from engine.services.threads.grafana_thread import launch_grafana_thread
-from engine.services.threads.threads import (
-    launch_disk_operations_thread,
-    launch_long_operations_thread,
-    launch_thread_worker,
-    set_domains_coherence,
-)
 from rethinkdb import r
 from tabulate import tabulate
 
