@@ -166,27 +166,49 @@ class UiActions(object):
         else:
             if starting_paused is True:
                 hyp = self.start_domain_from_xml(
-                    xml, id_domain, pool_id=pool_id, action="start_paused_domain"
+                    xml,
+                    id_domain,
+                    pool_id=pool_id,
+                    action="start_paused_domain",
+                    forced_hyp=domain["forced_hyp"],
+                    favourite_hyp=domain["favourite_hyp"],
                 )
             else:
                 hyp = self.start_domain_from_xml(
-                    xml, id_domain, pool_id=pool_id, memory_in_gb=memory_in_gb
+                    xml,
+                    id_domain,
+                    pool_id=pool_id,
+                    memory_in_gb=memory_in_gb,
+                    forced_hyp=domain["forced_hyp"],
+                    favourite_hyp=domain["favourite_hyp"],
                 )
             return hyp
 
-    def start_paused_domain_from_xml(self, xml, id_domain, pool_id="default"):
+    def start_paused_domain_from_xml(
+        self, xml, id_domain, pool_id="default", forced_hyp=None, favourite_hyp=None
+    ):
         # def start_paused_domain_from_xml(self, xml, id_domain, pool_id, start_after_created=False):
         return self.start_domain_from_xml(
-            xml, id_domain, pool_id, action="start_paused_domain"
+            xml,
+            id_domain,
+            pool_id,
+            action="start_paused_domain",
+            forced_hyp=forced_hyp,
+            favourite_hyp=favourite_hyp,
         )
 
     def start_domain_from_xml(
-        self, xml, id_domain, pool_id="default", action="start_domain", memory_in_gb=0
+        self,
+        xml,
+        id_domain,
+        pool_id="default",
+        action="start_domain",
+        memory_in_gb=0,
+        forced_hyp=None,
+        favourite_hyp=None,
     ):
         failed = False
         if pool_id in self.manager.pools.keys():
-            forced_hyp, favourite_hyp = get_domain_forced_hyp(id_domain)
-
             permit_reservables = True
             if action == "start_paused_domain":
                 # in updates start paused doesn't try gpus
@@ -1181,15 +1203,26 @@ class UiActions(object):
                 id_domain,
                 detail="xml and hardware dict updated, waiting to test if domain start paused in hypervisor",
             )
-            pool_id = get_pool_from_domain(id_domain)
-            if pool_id is False:
+            domain = get_table_fields(
+                "domains",
+                id_domain,
+                [
+                    "kind",
+                    "name",
+                    {"create_dict": {"hardware": "memory", "reservables": True}},
+                    "forced_hyp",
+                    "favourite_hyp",
+                    "hypervisors_pools",
+                ],
+            )
+            pool_id = domain.get("hypervisors_pools")
+            if not pool_id:
                 update_domain_status(
                     "Failed", id_domain, detail="Updating aborted, domain has not pool"
                 )
                 return False
 
-            kind = get_domain_kind(id_domain)
-            if kind == "desktop":
+            if domain.get("kind") == "desktop":
                 cpu_host_model = self.manager.pools[pool_id].conf.get(
                     "cpu_host_model", DEFAULT_HOST_MODE
                 )
@@ -1210,7 +1243,11 @@ class UiActions(object):
                     return False
 
                 self.start_paused_domain_from_xml(
-                    xml=xml, id_domain=id_domain, pool_id=pool_id
+                    xml=xml,
+                    id_domain=id_domain,
+                    pool_id=pool_id,
+                    forced_hyp=domain.get("forced_hyp"),
+                    favourite_hyp=domain.get("favourite_hyp"),
                 )
             else:
                 update_domain_status(
