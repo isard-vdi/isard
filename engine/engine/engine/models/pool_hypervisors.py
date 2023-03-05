@@ -129,13 +129,9 @@ class Balancer_no_stats:
 class PoolHypervisors:
     def __init__(self, id_pool):
         self.id_pool = id_pool
-        self.balancer_name = "round_robin"  # get from config?
-        # self.balancer_name = "central_manager"  # get from config?
         try:
             self.init_balancer()
         except:
-            # format_exc() -- > This is like print_exc(limit) but returns a string instead of printing to a file.
-            # print_exc(limit) --> This is a shorthand for print_exception(*sys.exc_info(), limit, file, chain).
             logs.hmlog.error(format_exc())
 
         self.conf = get_pool_hypers_conf(id_pool)

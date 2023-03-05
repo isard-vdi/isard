@@ -5,25 +5,15 @@
 
 import json
 import pprint
-
-# /bin/python3
-# coding=utf-8
-import queue
 import threading
-import time
-import traceback
-from datetime import datetime
 
 from engine.models.hyp import hyp
 from engine.services.db import (
     get_domains_started_in_hyp,
-    remove_media,
     update_all_domains_status,
     update_disk_backing_chain,
     update_disk_template_created,
-    update_domains_started_in_hyp_to_unknown,
 )
-from engine.services.db.db import update_table_field
 from engine.services.db.domains import (
     get_domain_status,
     get_storage_ids_and_paths_from_domain,
@@ -32,19 +22,15 @@ from engine.services.db.domains import (
 )
 from engine.services.db.downloads import update_status_media_from_path
 from engine.services.db.hypervisors import (
-    get_hyp,
     get_hyp_hostname_from_id,
-    update_db_hyp_info,
     update_hyp_status,
     update_hyp_thread_status,
-    update_hypervisor_failed_connection,
 )
 from engine.services.lib.functions import (
     PriorityQueueIsard,
     dict_domain_libvirt_state_to_isard_state,
     execute_command_with_progress,
     execute_commands,
-    get_tid,
     state_and_cause_to_str,
 )
 from engine.services.lib.qcow import (
@@ -56,8 +42,6 @@ from engine.services.lib.qcow import (
 )
 from engine.services.lib.storage import update_storage_qemu_info, update_storage_status
 from engine.services.log import *
-
-# from pool_hypervisors. import PoolHypervisors
 
 TIMEOUT_QUEUES = float(CONFIG_DICT["TIMEOUTS"]["timeout_queues"])
 TIMEOUT_BETWEEN_RETRIES_HYP_IS_ALIVE = float(
