@@ -30,32 +30,26 @@ from engine.services.db import (
     delete_domain,
     domains_with_attached_disk,
     domains_with_attached_storage_id,
-    get_custom_dict_from_domain,
     get_dict_from_item_in_table,
     get_domain,
-    get_domain_force_update,
     get_domain_forced_hyp,
     get_domain_hyp_started,
     get_domain_kind,
     get_hypers_in_pool,
-    get_if_delete_after_stop,
-    get_interface,
     get_pool_from_domain,
     get_table_field,
+    get_table_fields,
     insert_domain,
     remove_dict_new_template_from_domain,
     remove_disk_template_created_list_in_domain,
-    update_domain_dict_create_dict,
     update_domain_dict_hardware,
     update_domain_force_update,
     update_domain_forced_hyp,
     update_domain_hyp_started,
     update_domain_hyp_stopped,
     update_domain_status,
-    update_domain_viewer_started_values,
     update_origin_and_parents_to_new_template,
     update_table_field,
-    update_vgpu_reserved,
     update_vgpu_uuid_domain_action,
 )
 from engine.services.lib.functions import exec_remote_list_of_cmds
@@ -107,25 +101,33 @@ class UiActions(object):
                 self.start_domain_from_id(parameters["domain_id"], ssl_spice)
 
     ### STARTING DOMAIN
-    def start_domain_from_id(self, id, ssl=True, starting_paused=False):
+    def start_domain_from_id(self, id_domain, ssl=True, starting_paused=False):
         # INFO TO DEVELOPER, QUE DE UN ERROR SI EL ID NO EXISTE
 
-        id_domain = id
-
-        kind = get_table_field("domains", id_domain, "kind")
-        d = get_table_field(
-            "domains", id_domain, {"create_dict": {"hardware": "memory"}}
+        domain = get_table_fields(
+            "domains",
+            id_domain,
+            [
+                "kind",
+                "name",
+                {"create_dict": {"hardware": "memory", "reservables": True}},
+                "forced_hyp",
+                "favourite_hyp",
+                "hypervisors_pools",
+            ],
         )
-        if type(d) is dict:
-            memory = d.get("create_dict", {}).get("hardware", {}).get("memory", 0)
+        if not domain:
+            log.error(f"Domain {id_domain} not found. Can't start. Maybe deleted?")
+            return False
+
+        memory = domain.get("create_dict", {}).get("hardware", {}).get("memory", 0)
         if type(memory) is int or type(memory) is float:
             memory_in_gb = memory / 1024 / 1024
         else:
             memory_in_gb = 0
-        if kind != "desktop":
-            domain_name = get_table_field("domains", id_domain, "name")
+        if domain["kind"] != "desktop":
             log.error(
-                f"DANGER, domain {id_domain} ({domain_name}) is a template and can't be started"
+                f"DANGER, domain {id_domain} ({domain['name']}) is a template and can't be started"
             )
             update_domain_status(
                 "Stopped",
@@ -134,12 +136,12 @@ class UiActions(object):
             )
             return False
 
-        pool_id = get_pool_from_domain(id_domain)
+        pool_id = domain["hypervisors_pools"]
         cpu_host_model = self.manager.pools[pool_id].conf.get(
             "cpu_host_model", DEFAULT_HOST_MODE
         )
 
-        if get_domain_force_update(id_domain):
+        if domain.get("force_update"):
             if self.update_hardware_dict_and_xml_from_create_dict(id_domain):
                 update_domain_force_update(id_domain, False)
             else:
