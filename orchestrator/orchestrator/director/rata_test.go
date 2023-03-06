@@ -9,14 +9,12 @@ import (
 	"gitlab.com/isard/isardvdi-cli/pkg/client"
 	apiMock "gitlab.com/isard/isardvdi-cli/pkg/client/mock"
 	"gitlab.com/isard/isardvdi/orchestrator/cfg"
-	"gitlab.com/isard/isardvdi/orchestrator/model"
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/director"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
 
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
 func TestRataNeedToScaleHypervisors(t *testing.T) {
@@ -24,20 +22,20 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 
 	cases := map[string]struct {
 		AvailHypers               []*operationsv1.ListHypervisorsResponseHypervisor
-		Hypers                    []*model.Hypervisor
+		Hypers                    []*client.OrchestratorHypervisor
 		RataMinCPU                int
 		RataMinRAM                int
-		PrepareDB                 func(mock *r.Mock)
+		PrepareAPI                func(*apiMock.Client)
 		ExpectedErr               string
 		ExpectedCreateHypervisor  *operationsv1.CreateHypervisorRequest
 		ExpectedDestroyHypervisor *operationsv1.DestroyHypervisorRequest
 	}{
 		"if there's enough RAM, it should return 0": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
-			Hypers: []*model.Hypervisor{{
+			Hypers: []*client.OrchestratorHypervisor{{
 				Status:     client.HypervisorStatusOnline,
 				OnlyForced: false,
-				RAM: model.ResourceLoad{
+				RAM: client.OrchestratorResourceLoad{
 					Total: 300,
 					Used:  150,
 					Free:  150,
@@ -59,11 +57,11 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_CREATE,
 				Ram:   300,
 			}},
-			Hypers: []*model.Hypervisor{{
+			Hypers: []*client.OrchestratorHypervisor{{
 				ID:         "already",
 				Status:     client.HypervisorStatusOnline,
 				OnlyForced: false,
-				RAM: model.ResourceLoad{
+				RAM: client.OrchestratorResourceLoad{
 					Total: 300,
 					Used:  200,
 					Free:  100,
@@ -76,40 +74,40 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 		},
 		"if there's too much free RAM, it should add the biggest hypervisor that it can to the dead row": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
-			Hypers: []*model.Hypervisor{{
-				ID:         "1",
-				Status:     client.HypervisorStatusOnline,
-				OnlyForced: false,
-				RAM: model.ResourceLoad{
+			Hypers: []*client.OrchestratorHypervisor{{
+				ID:                  "1",
+				Status:              client.HypervisorStatusOnline,
+				OnlyForced:          false,
+				OrchestratorManaged: true,
+				RAM: client.OrchestratorResourceLoad{
 					Total: 500,
 					Used:  100,
 					Free:  400,
 				},
 			}, {
-				ID:         "2",
-				Status:     client.HypervisorStatusOnline,
-				OnlyForced: true,
-				RAM: model.ResourceLoad{
+				ID:                  "2",
+				Status:              client.HypervisorStatusOnline,
+				OnlyForced:          true,
+				OrchestratorManaged: true,
+				RAM: client.OrchestratorResourceLoad{
 					Total: 700,
 					Used:  100,
 					Free:  600,
 				},
 			}, {
-				ID:         "3",
-				Status:     client.HypervisorStatusOnline,
-				OnlyForced: false,
-				RAM: model.ResourceLoad{
+				ID:                  "3",
+				Status:              client.HypervisorStatusOnline,
+				OnlyForced:          false,
+				OrchestratorManaged: true,
+				RAM: client.OrchestratorResourceLoad{
 					Total: 300,
 					Used:  100,
-					Free:  400,
+					Free:  200,
 				},
 			}},
 			RataMinRAM: 300,
-			PrepareDB: func(mock *r.Mock) {
-				mock.On(r.Table("hypervisors").Get("2").Update(map[string]interface{}{
-					"destroy_time": r.MockAnything(),
-					"only_forced":  true,
-				}))
+			PrepareAPI: func(c *apiMock.Client) {
+				c.On("OrchestratorHypervisorAddToDeadRow", mock.AnythingOfType("*context.emptyCtx"), "2").Return(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), nil)
 			},
 		},
 		"if there's not enough RAM but there are hypervisors on the dead row, it should remove those from it": {
@@ -120,31 +118,30 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				Id:  "HUGE HYPERVISOR",
 				Ram: 99999999,
 			}},
-			Hypers: []*model.Hypervisor{{
+			Hypers: []*client.OrchestratorHypervisor{{
 				ID:         "existing-1",
 				Status:     client.HypervisorStatusOnline,
 				OnlyForced: false,
-				RAM: model.ResourceLoad{
+				RAM: client.OrchestratorResourceLoad{
 					Total: 300,
 					Used:  200,
 					Free:  100,
 				},
 			}, {
-				ID:          "existing-2",
-				Status:      client.HypervisorStatusOnline,
-				OnlyForced:  false,
-				DestroyTime: time.Now().Add(time.Hour),
-				RAM: model.ResourceLoad{
+				ID:                  "existing-2",
+				Status:              client.HypervisorStatusOnline,
+				OnlyForced:          false,
+				OrchestratorManaged: true,
+				DestroyTime:         time.Now().Add(time.Hour),
+				RAM: client.OrchestratorResourceLoad{
 					Total: 3000,
 					Used:  2000,
 					Free:  1000,
 				},
 			}},
 			RataMinRAM: 500,
-			PrepareDB: func(mock *r.Mock) {
-				mock.On(r.Table("hypervisors").Get("existing-2").Update(map[string]interface{}{
-					"destroy_time": nil,
-				}))
+			PrepareAPI: func(c *apiMock.Client) {
+				c.On("OrchestratorHypervisorRemoveFromDeadRow", mock.AnythingOfType("*context.emptyCtx"), "existing-2").Return(nil)
 			},
 		},
 		"if there's not enough RAM and there are multiple hypervisors on the dead row, it should remove the smallest hypervisor from it": {
@@ -155,60 +152,62 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				Id:  "HUGE HYPERVISOR",
 				Ram: 99999999,
 			}},
-			Hypers: []*model.Hypervisor{{
-				ID:         "existing-1",
-				Status:     client.HypervisorStatusOnline,
-				OnlyForced: false,
-				RAM: model.ResourceLoad{
+			Hypers: []*client.OrchestratorHypervisor{{
+				ID:                  "existing-1",
+				Status:              client.HypervisorStatusOnline,
+				OnlyForced:          false,
+				OrchestratorManaged: true,
+				RAM: client.OrchestratorResourceLoad{
 					Total: 300,
 					Used:  200,
 					Free:  100,
 				},
 			}, {
-				ID:          "existing-2",
-				Status:      client.HypervisorStatusOnline,
-				OnlyForced:  false,
-				DestroyTime: time.Now().Add(time.Hour),
-				RAM: model.ResourceLoad{
+				ID:                  "existing-2",
+				Status:              client.HypervisorStatusOnline,
+				OnlyForced:          false,
+				OrchestratorManaged: true,
+				DestroyTime:         time.Now().Add(time.Hour),
+				RAM: client.OrchestratorResourceLoad{
 					Total: 3000,
 					Used:  2000,
 					Free:  1000,
 				},
 			}, {
-				ID:          "existing-3",
-				Status:      client.HypervisorStatusOnline,
-				OnlyForced:  false,
-				DestroyTime: time.Now().Add(time.Hour),
-				RAM: model.ResourceLoad{
+				ID:                  "existing-3",
+				Status:              client.HypervisorStatusOnline,
+				OnlyForced:          false,
+				OrchestratorManaged: true,
+				DestroyTime:         time.Now().Add(time.Hour),
+				RAM: client.OrchestratorResourceLoad{
 					Total: 1000,
 					Used:  300,
 					Free:  700,
 				},
 			}},
 			RataMinRAM: 500,
-			PrepareDB: func(mock *r.Mock) {
-				mock.On(r.Table("hypervisors").Get("existing-3").Update(map[string]interface{}{
-					"destroy_time": nil,
-				}))
+			PrepareAPI: func(c *apiMock.Client) {
+				c.On("OrchestratorHypervisorRemoveFromDeadRow", mock.AnythingOfType("*context.emptyCtx"), "existing-3").Return(nil)
 			},
 		},
 		"if there's an hypervisor that's been too much time on the dead row, KILL THEM!! >:(": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
-			Hypers: []*model.Hypervisor{{
+			Hypers: []*client.OrchestratorHypervisor{{
 				ID:         "1",
 				Status:     client.HypervisorStatusOnline,
 				OnlyForced: false,
-				RAM: model.ResourceLoad{
+				RAM: client.OrchestratorResourceLoad{
 					Total: 500,
 					Used:  400,
 					Free:  100,
 				},
 			}, {
-				ID:          "2",
-				Status:      client.HypervisorStatusOnline,
-				DestroyTime: time.Now().Add(-2 * director.DeadRowDuration),
-				OnlyForced:  true,
-				RAM: model.ResourceLoad{
+				ID:                  "2",
+				Status:              client.HypervisorStatusOnline,
+				DestroyTime:         time.Now().Add(-2 * director.DeadRowDuration),
+				OnlyForced:          true,
+				OrchestratorManaged: true,
+				RAM: client.OrchestratorResourceLoad{
 					Total: 700,
 					Used:  100,
 					Free:  600,
@@ -217,7 +216,7 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				ID:         "3",
 				Status:     client.HypervisorStatusOnline,
 				OnlyForced: false,
-				RAM: model.ResourceLoad{
+				RAM: client.OrchestratorResourceLoad{
 					Total: 500,
 					Used:  250,
 					Free:  250,
@@ -234,15 +233,15 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			log := zerolog.New(os.Stdout)
 
-			db := r.NewMock()
-			if tc.PrepareDB != nil {
-				tc.PrepareDB(db)
+			cli := &apiMock.Client{}
+			if tc.PrepareAPI != nil {
+				tc.PrepareAPI(cli)
 			}
 
 			rata := director.NewRata(cfg.DirectorRata{
 				MinCPU: tc.RataMinCPU,
 				MinRAM: tc.RataMinRAM,
-			}, false, &log, nil, db)
+			}, false, &log, cli)
 
 			create, destroy, err := rata.NeedToScaleHypervisors(context.Background(), tc.AvailHypers, tc.Hypers)
 
@@ -255,7 +254,7 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 			assert.Equal(tc.ExpectedCreateHypervisor, create)
 			assert.Equal(tc.ExpectedDestroyHypervisor, destroy)
 
-			db.AssertExpectations(t)
+			cli.AssertExpectations(t)
 		})
 	}
 }
@@ -265,7 +264,7 @@ func TestRataExtraOperations(t *testing.T) {
 
 	cases := map[string]struct {
 		PrepareAPI  func(*apiMock.Client)
-		Hypers      []*model.Hypervisor
+		Hypers      []*client.OrchestratorHypervisor
 		HyperMinCPU int
 		HyperMinRAM int
 		HyperMaxRAM int
@@ -273,16 +272,16 @@ func TestRataExtraOperations(t *testing.T) {
 	}{
 		"if there are enough resources, it shouldn't do anything": {
 			PrepareAPI: func(c *apiMock.Client) {},
-			Hypers: []*model.Hypervisor{{
+			Hypers: []*client.OrchestratorHypervisor{{
 				ID:     "first",
 				Status: client.HypervisorStatusOffline,
-				RAM: model.ResourceLoad{
+				RAM: client.OrchestratorResourceLoad{
 					Free: 10,
 				},
 			}, {
 				ID:     "second",
 				Status: client.HypervisorStatusOnline,
-				RAM: model.ResourceLoad{
+				RAM: client.OrchestratorResourceLoad{
 					Free: 60,
 				},
 			}},
@@ -292,16 +291,18 @@ func TestRataExtraOperations(t *testing.T) {
 			PrepareAPI: func(c *apiMock.Client) {
 				c.Mock.On("AdminHypervisorOnlyForced", mock.AnythingOfType("*context.emptyCtx"), "second", true).Return(nil)
 			},
-			Hypers: []*model.Hypervisor{{
-				ID:     "first",
-				Status: client.HypervisorStatusOffline,
-				RAM: model.ResourceLoad{
+			Hypers: []*client.OrchestratorHypervisor{{
+				ID:                  "first",
+				Status:              client.HypervisorStatusOffline,
+				OrchestratorManaged: true,
+				RAM: client.OrchestratorResourceLoad{
 					Free: 10,
 				},
 			}, {
-				ID:     "second",
-				Status: client.HypervisorStatusOnline,
-				RAM: model.ResourceLoad{
+				ID:                  "second",
+				Status:              client.HypervisorStatusOnline,
+				OrchestratorManaged: true,
+				RAM: client.OrchestratorResourceLoad{
 					Free: 30,
 				},
 			}},
@@ -311,17 +312,19 @@ func TestRataExtraOperations(t *testing.T) {
 			PrepareAPI: func(c *apiMock.Client) {
 				c.Mock.On("AdminHypervisorOnlyForced", mock.AnythingOfType("*context.emptyCtx"), "second", false).Return(nil)
 			},
-			Hypers: []*model.Hypervisor{{
-				ID:     "first",
-				Status: client.HypervisorStatusOffline,
-				RAM: model.ResourceLoad{
+			Hypers: []*client.OrchestratorHypervisor{{
+				ID:                  "first",
+				Status:              client.HypervisorStatusOffline,
+				OrchestratorManaged: true,
+				RAM: client.OrchestratorResourceLoad{
 					Free: 10,
 				},
 			}, {
-				ID:         "second",
-				OnlyForced: true,
-				Status:     client.HypervisorStatusOnline,
-				RAM: model.ResourceLoad{
+				ID:                  "second",
+				OnlyForced:          true,
+				Status:              client.HypervisorStatusOnline,
+				OrchestratorManaged: true,
+				RAM: client.OrchestratorResourceLoad{
 					Free: 200,
 				},
 			}},
@@ -341,7 +344,7 @@ func TestRataExtraOperations(t *testing.T) {
 				HyperMinCPU: tc.HyperMinCPU,
 				HyperMinRAM: tc.HyperMinRAM,
 				HyperMaxRAM: tc.HyperMaxRAM,
-			}, false, &log, api, nil)
+			}, false, &log, api)
 
 			err := rata.ExtraOperations(context.Background(), tc.Hypers)
 

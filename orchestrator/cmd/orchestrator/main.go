@@ -12,7 +12,6 @@ import (
 	"gitlab.com/isard/isardvdi/orchestrator/cfg"
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator"
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/director"
-	"gitlab.com/isard/isardvdi/pkg/db"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
 	"gitlab.com/isard/isardvdi/pkg/jwt"
 	"gitlab.com/isard/isardvdi/pkg/log"
@@ -26,11 +25,6 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
-
-	db, err := db.New(cfg.DB)
-	if err != nil {
-		log.Fatal().Err(err).Msg("connect to the database")
-	}
 
 	api, err := client.NewClient(&apiCfg.Cfg{
 		Host: "http://isard-api:5000",
@@ -53,7 +47,7 @@ func main() {
 	var dir director.Director
 	switch cfg.Orchestrator.Director {
 	case director.DirectorTypeRata:
-		dir = director.NewRata(cfg.Orchestrator.DirectorRata, cfg.DryRun, log, api, db)
+		dir = director.NewRata(cfg.Orchestrator.DirectorRata, cfg.DryRun, log, api)
 
 	default:
 		log.Fatal().Str("director", cfg.Orchestrator.Director).Strs("available_directors", director.Available).Msg("unknown director type!")
@@ -73,7 +67,6 @@ func main() {
 		WG:                &wg,
 		PollingInterval:   cfg.Orchestrator.PollingInterval,
 		OperationsTimeout: cfg.Orchestrator.OperationsTimeout,
-		DB:                db,
 		Director:          dir,
 		OperationsCli:     operationsCli,
 		APICli:            api,

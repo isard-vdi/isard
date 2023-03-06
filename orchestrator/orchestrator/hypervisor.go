@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"gitlab.com/isard/isardvdi-cli/pkg/client"
-	"gitlab.com/isard/isardvdi/orchestrator/model"
-	"gitlab.com/isard/isardvdi/pkg/db"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
 )
 
@@ -65,7 +63,7 @@ hyperCreate:
 	o.log.Debug().Str("id", req.Id).Msg("hypervisor created")
 
 	// Wait for the hypervisor to be online
-	h := &model.Hypervisor{ID: req.Id}
+	h := &client.OrchestratorHypervisor{ID: req.Id}
 hyperOnline:
 	for {
 		select {
@@ -74,9 +72,10 @@ hyperOnline:
 			return
 
 		default:
-			if err := h.Load(ctx, o.db); err != nil {
-				if !errors.Is(err, db.ErrNotFound) {
-					o.log.Error().Str("id", req.Id).Str("status", string(h.Status)).Err(err).Msg("load hypervisor from DB")
+			h, err = o.apiCli.OrchestratorHypervisorGet(ctx, h.ID)
+			if err != nil {
+				if !errors.Is(err, client.ErrNotFound) {
+					o.log.Error().Str("id", req.Id).Err(err).Msg("load hypervisor from DB")
 					return
 				}
 
@@ -94,7 +93,10 @@ hyperOnline:
 
 	// TODO: IsardVDI Check
 
-	// TODO: Mark the hypervisor as orchestrator-managed
+	if err := o.apiCli.OrchestratorHypervisorManage(ctx, h.ID); err != nil {
+		o.log.Error().Str("id", h.ID).Str("status", string(h.Status)).Err(err).Msg("mark the hypervisor as managed by the orchestrator")
+		return
+	}
 
 	// If it's only forced, disable it
 	if h.OnlyForced {
@@ -123,7 +125,10 @@ func (o *Orchestrator) destroyHypervisor(ctx context.Context, req *operationsv1.
 		o.scaling = false
 	}()
 
-	// TODO: Stop all the desktops before destroying it
+	if err := o.apiCli.OrchestratorHypervisorStopDesktops(ctx, req.Id); err != nil {
+		o.log.Error().Str("id", req.Id).Err(err).Msg("stop all the desktops in the hypervisor")
+		return
+	}
 
 	stream, err := o.operationsCli.DestroyHypervisor(ctx, req)
 	if err != nil {

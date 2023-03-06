@@ -7,14 +7,12 @@ import (
 	"time"
 
 	"gitlab.com/isard/isardvdi/orchestrator/log"
-	"gitlab.com/isard/isardvdi/orchestrator/model"
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/director"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
 
 	"gitlab.com/isard/isardvdi-cli/pkg/client"
 
 	"github.com/rs/zerolog"
-	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
 var ErrTimeout = errors.New("operation timeout")
@@ -26,7 +24,6 @@ type Orchestrator struct {
 	pollingInterval   time.Duration
 	operationsTimeout time.Duration
 
-	db            r.QueryExecutor
 	operationsCli operationsv1.OperationsServiceClient
 	apiCli        client.Interface
 
@@ -45,7 +42,6 @@ type NewOrchestratorOpts struct {
 	PollingInterval   time.Duration
 	OperationsTimeout time.Duration
 
-	DB            r.QueryExecutor
 	Director      director.Director
 	OperationsCli operationsv1.OperationsServiceClient
 
@@ -62,7 +58,6 @@ func New(cfg *NewOrchestratorOpts) *Orchestrator {
 		pollingInterval:   cfg.PollingInterval,
 		operationsTimeout: cfg.OperationsTimeout,
 
-		db:            cfg.DB,
 		operationsCli: cfg.OperationsCli,
 		apiCli:        cfg.APICli,
 
@@ -75,12 +70,13 @@ func (o *Orchestrator) Start(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			// TODO: Wait for operations to be stopped
 			o.wg.Done()
 			return
 
 		default:
-			hypers, err := model.GetHypervisors(ctx, o.db)
+			time.Sleep(o.pollingInterval)
+
+			hypers, err := o.apiCli.OrchestratorHypervisorList(ctx)
 			if err != nil {
 				o.log.Error().Err(err).Msg("get hypervisors")
 				continue
@@ -128,7 +124,6 @@ func (o *Orchestrator) Start(ctx context.Context) {
 				continue
 			}
 
-			time.Sleep(o.pollingInterval)
 		}
 	}
 }

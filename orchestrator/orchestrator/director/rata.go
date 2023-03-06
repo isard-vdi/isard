@@ -8,11 +8,9 @@ import (
 
 	"gitlab.com/isard/isardvdi-cli/pkg/client"
 	"gitlab.com/isard/isardvdi/orchestrator/cfg"
-	"gitlab.com/isard/isardvdi/orchestrator/model"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
 
 	"github.com/rs/zerolog"
-	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
 const (
@@ -40,12 +38,11 @@ type Rata struct {
 	hyperMaxRAM int
 
 	apiCli client.Interface
-	db     r.QueryExecutor
 
 	log *zerolog.Logger
 }
 
-func NewRata(cfg cfg.DirectorRata, dryRun bool, log *zerolog.Logger, apiCli client.Interface, db r.QueryExecutor) *Rata {
+func NewRata(cfg cfg.DirectorRata, dryRun bool, log *zerolog.Logger, apiCli client.Interface) *Rata {
 	return &Rata{
 		cfg:         cfg,
 		dryRun:      dryRun,
@@ -55,7 +52,6 @@ func NewRata(cfg cfg.DirectorRata, dryRun bool, log *zerolog.Logger, apiCli clie
 		hyperMaxRAM: cfg.HyperMaxRAM,
 
 		apiCli: apiCli,
-		db:     db,
 
 		log: log,
 	}
@@ -117,7 +113,7 @@ func (r *Rata) minRAM() int {
 
 // TODO: GPUs
 // TODO: Start a smaller available hypervisor in order to scale down afterwards
-func (r *Rata) NeedToScaleHypervisors(ctx context.Context, operationsHypers []*operationsv1.ListHypervisorsResponseHypervisor, hypers []*model.Hypervisor) (*operationsv1.CreateHypervisorRequest, *operationsv1.DestroyHypervisorRequest, error) {
+func (r *Rata) NeedToScaleHypervisors(ctx context.Context, operationsHypers []*operationsv1.ListHypervisorsResponseHypervisor, hypers []*client.OrchestratorHypervisor) (*operationsv1.CreateHypervisorRequest, *operationsv1.DestroyHypervisorRequest, error) {
 	var (
 		cpuAvail = 0
 		ramAvail = 0
@@ -138,7 +134,7 @@ availHypersLoop:
 		availHypers = append(availHypers, h)
 	}
 
-	hypersOnDeadRow := []*model.Hypervisor{}
+	hypersOnDeadRow := []*client.OrchestratorHypervisor{}
 	for _, h := range hypers {
 		switch h.Status {
 		case client.HypervisorStatusOnline:
@@ -153,7 +149,10 @@ availHypersLoop:
 				}
 
 			} else {
-				hypersOnDeadRow = append(hypersOnDeadRow, h)
+				// Only work with orchestrator managed hypervisors
+				if h.OrchestratorManaged {
+					hypersOnDeadRow = append(hypersOnDeadRow, h)
+				}
 			}
 		}
 	}
@@ -179,7 +178,7 @@ availHypersLoop:
 	// Check for scale up
 	if reqHypersCPU != 0 || reqHypersRAM != 0 {
 		// Check if we have hypervisors on the dead row, if it's the case, remove those from it
-		var hyperToPardon *model.Hypervisor
+		var hyperToPardon *client.OrchestratorHypervisor
 		if len(hypersOnDeadRow) != 0 {
 			// TODO: CPU
 			for _, h := range hypersOnDeadRow {
@@ -201,7 +200,7 @@ availHypersLoop:
 				r.log.Info().Bool("DRY_RUN", true).Str("id", hyperToPardon.ID).Int("avail_cpu", cpuAvail).Int("avail_ram", ramAvail).Int("req_cpu", reqHypersCPU).Int("req_ram", reqHypersRAM).Str("scaling", "up").Msg("cancel hypervisor destruction")
 
 			} else {
-				if err := hyperToPardon.RemoveFromDeadRow(r.db); err != nil {
+				if err := r.apiCli.OrchestratorHypervisorRemoveFromDeadRow(ctx, hyperToPardon.ID); err != nil {
 					return nil, nil, fmt.Errorf("cancel hypervisor '%s' destruction: %w", hyperToPardon.ID, err)
 				}
 
@@ -224,12 +223,12 @@ availHypersLoop:
 	}
 
 	// Check for scale down
-	hypersToMoveInTheDeadRow := []*model.Hypervisor{}
+	hypersToMoveInTheDeadRow := []*client.OrchestratorHypervisor{}
 	for _, h := range hypers {
 		switch h.Status {
 		case client.HypervisorStatusOnline:
-			// Ensure we don't play with buffering hypervisors! :)
-			if !h.Buffering {
+			// Ensure we don't play with buffering hypervisors or non orchestrator managed ones! :)
+			if !h.Buffering && h.OrchestratorManaged {
 
 				// Check if we need to kill the hypervisor
 				if !h.DestroyTime.IsZero() && h.DestroyTime.Before(time.Now()) {
@@ -239,7 +238,7 @@ availHypersLoop:
 				} else {
 					// Check if we need to move the hypervisor to the dead row
 					// TODO: CPU
-					if h.DestroyTime.IsZero() && r.minRAM() > 0 && h.RAM.Total < ramAvail-r.minRAM() {
+					if h.DestroyTime.IsZero() && (h.OnlyForced || (r.minRAM() > 0 && r.minRAM() < ramAvail-h.RAM.Free)) {
 						hypersToMoveInTheDeadRow = append(hypersToMoveInTheDeadRow, h)
 					}
 				}
@@ -248,7 +247,7 @@ availHypersLoop:
 	}
 
 	// Only move a hypervisor to the dead row
-	var deadRow *model.Hypervisor
+	var deadRow *client.OrchestratorHypervisor
 	for _, h := range hypersToMoveInTheDeadRow {
 		if deadRow != nil {
 			// Pick the biggest hypervisor to kill
@@ -266,11 +265,12 @@ availHypersLoop:
 			r.log.Info().Bool("DRY_RUN", true).Str("id", deadRow.ID).Str("scaling", "down").Time("destroy_time", deadRow.DestroyTime).Msg("set hypervisor to destroy")
 
 		} else {
-			if err := deadRow.AddToDeadRow(time.Now().Add(DeadRowDuration), r.db); err != nil {
+			destroyTime, err := r.apiCli.OrchestratorHypervisorAddToDeadRow(ctx, deadRow.ID)
+			if err != nil {
 				return nil, nil, fmt.Errorf("set hypervisor '%s' to destroy: %w", deadRow.ID, err)
 			}
 
-			r.log.Info().Str("id", deadRow.ID).Str("scaling", "down").Time("destroy_time", deadRow.DestroyTime).Msg("set hypervisor to destroy")
+			r.log.Info().Str("id", deadRow.ID).Str("scaling", "down").Time("destroy_time", destroyTime).Msg("set hypervisor to destroy")
 		}
 	}
 
@@ -305,12 +305,12 @@ func bestHyperToCreate(avail []*operationsv1.ListHypervisorsResponseHypervisor, 
 	return bestHyper.Id, nil
 }
 
-func (r *Rata) ExtraOperations(ctx context.Context, hypers []*model.Hypervisor) error {
+func (r *Rata) ExtraOperations(ctx context.Context, hypers []*client.OrchestratorHypervisor) error {
 	for _, h := range hypers {
 		switch h.Status {
 		case client.HypervisorStatusOnline:
-			// Ensure we don't play with buffering hypervisors or hypers on the dead row! :)
-			if !h.Buffering && h.DestroyTime.IsZero() {
+			// Ensure we don't play with buffering hypervisors or hypers on the dead row or non orchestrator managed! :)
+			if !h.Buffering && h.OrchestratorManaged && h.DestroyTime.IsZero() {
 
 				switch h.OnlyForced {
 				case false:

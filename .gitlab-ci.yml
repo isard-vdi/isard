@@ -89,6 +89,9 @@ unit-test-go:
     - echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
     - apk add --no-cache go@edge
     - go install github.com/boumenot/gocover-cobertura@latest
+    - cp isardvdi.cfg.example isardvdi.cfg
+    - echo "USAGE=build" >> isardvdi.cfg
+    - ./build.sh # Generate the code
   script:
     - export PATH=$PATH:~/go/bin
     - go test -v -race ./... -coverprofile coverage.out -covermode atomic
