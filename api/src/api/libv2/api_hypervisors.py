@@ -51,6 +51,16 @@ class ApiHypervisors:
             query = query.get(hyp_id)
         if status:
             query = query.filter({"status": status})
+        if orchestrator:
+            query = query.pluck(
+                "id",
+                "status",
+                "only_forced",
+                "buffering_hyper",
+                "destroy_time",
+                "stats",
+                "orchestrator_managed",
+            )
         if started_desktops:
             if without_servers:
                 query = query.merge(
@@ -69,16 +79,6 @@ class ApiHypervisors:
                         .count()
                     }
                 )
-        if orchestrator:
-            query = query.pluck(
-                "id",
-                "status",
-                "only_forced",
-                "buffering_hyper",
-                "destroy_time",
-                "stats",
-                "orchestrator_managed",
-            )
         if hyp_id:
             try:
                 with app.app_context():
