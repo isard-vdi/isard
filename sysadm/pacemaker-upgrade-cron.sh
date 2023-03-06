@@ -2,7 +2,7 @@
 
 # In pacemaker environments you can set up compose resource with the same name as
 # the IsardVDI config. For example:
-# - Resource:     isard (ocf::heartbeat:compose):	Started cluster1-cs
+# - Resource:     isard (ocf::heartbeat:compose):   Started cluster1-cs
 # - Config:       isardvdi.isard.cfg
 # The script will pull all the images coming from all *.cfg and will restart
 # only the one's running in this pacemaker cluster.
@@ -26,10 +26,15 @@ do
             services="$(docker-compose -f "$cfgs_path"/docker-compose.$config_name.yml config --services | sed '/^isard-\(hypervisor\|pipework\)$/d')"
          else
             services="$(docker-compose -f "$cfgs_path"/docker-compose.$config_name.yml config --services)"
-         fi
-         pcs resource unmanage $config_name \
+
+         echo "This host is running flavour: $config_name, upgrading.."
+         pcs property set maintenance-mode=true \
+         && sleep 10 \
+         && docker-compose -f docker-compose.$config_name.yml pull \
          && docker-compose -f "$cfgs_path"/docker-compose.$config_name.yml --ansi never up -d $services \
-         && pcs resource manage $config_name
-         docker image prune -f --filter "until=72h"
-    fi
+         && docker image prune -f --filter "until=72h" \
+         && sleep 10 \
+         && pcs property set maintenance-mode=false \
+         && echo "Flavour $config_name upgraded"
+   fi
 done
