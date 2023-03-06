@@ -36,7 +36,6 @@ from engine.services.db import (
     get_domain_hyp_started,
     get_domain_kind,
     get_hypers_in_pool,
-    get_pool_from_domain,
     get_table_field,
     get_table_fields,
     insert_domain,
@@ -136,7 +135,14 @@ class UiActions(object):
             )
             return False
 
-        pool_id = domain["hypervisors_pools"]
+        try:
+            pool_id = domain.get("hypervisors_pools", ["default"])[0]
+        except:
+            pool_id = "default"
+            log.error(
+                f"Domain {id_domain} has no hypervisors_pools. Using default pool."
+            )
+
         cpu_host_model = self.manager.pools[pool_id].conf.get(
             "cpu_host_model", DEFAULT_HOST_MODE
         )
@@ -1342,7 +1348,13 @@ class UiActions(object):
             id_domain,
             detail="xml and hardware dict updated, waiting to test if domain start paused in hypervisor",
         )
-        pool_id = get_pool_from_domain(id_domain)
+        try:
+            pool_id = domain.get("hypervisors_pools", ["default"])[0]
+        except:
+            pool_id = "default"
+            log.error(
+                f"Domain {id_domain} has no hypervisors_pools. Using default pool."
+            )
 
         if "start_after_created" in domain.keys():
             if domain["start_after_created"] is True:
