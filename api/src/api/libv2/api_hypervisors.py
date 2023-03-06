@@ -80,8 +80,13 @@ class ApiHypervisors:
                 "orchestrator_managed",
             )
         if hyp_id:
-            with app.app_context():
-                data = query.run(db.conn)
+            try:
+                with app.app_context():
+                    data = query.run(db.conn)
+            except:
+                raise Error(
+                    "not_found", "Hypervisor with ID " + hyp_id + " does not exist."
+                )
         else:
             with app.app_context():
                 data = list(query.run(db.conn))
