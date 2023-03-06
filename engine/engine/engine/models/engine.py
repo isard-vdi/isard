@@ -661,6 +661,26 @@ class Engine(object):
                                 )
                             )
 
+                    if (
+                        old_status
+                        in [
+                            "Started",
+                            "Shutting-down",
+                            "Suspended",
+                            "Stopping",
+                        ]
+                        and new_status == "Resetting"
+                    ):
+                        hyp_started = get_domain_hyp_started(domain_id)
+                        if hyp_started:
+                            ui.reset_domain(id_domain=domain_id, hyp_id=hyp_started)
+                        else:
+                            logs.main.error(
+                                "domain without hyp_started can not be reset: {}. ".format(
+                                    domain_id
+                                )
+                            )
+
                     if old_status in [
                         "Started",
                         "Shutting-down",

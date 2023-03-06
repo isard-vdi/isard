@@ -389,6 +389,18 @@ class ThreadBroom(threading.Thread):
                                         detail="Stopped by broom thread",
                                     )
                                     update_vgpu_info_if_stopped(domain_id)
+                            elif status == "Resetting":
+                                if int(time()) - int(d["accessed"]) > 20:
+                                    logs.broom.debug(
+                                        "DOMAIN: {} STATUS RESETTING IN HYPERVISOR: {}".format(
+                                            domain_id, hyp_started
+                                        )
+                                    )
+                                    update_domain_status(
+                                        "Failed",
+                                        domain_id,
+                                        detail="Failed from Resetting state by broom thread",
+                                    )
                             elif status == "Shutting-down":
                                 logs.broom.debug(
                                     "DOMAIN: {} STATUS Shutting-down IN HYPERVISOR: {}".format(

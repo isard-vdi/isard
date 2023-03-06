@@ -570,6 +570,36 @@ class HypWorkerThread(threading.Thread):
                             )
                         logs.workers.info("exception in stopping domain {}: ".format(e))
 
+                ## RESET DOMAIN
+                elif action["type"] == "reset_domain":
+                    logs.workers.debug(
+                        "action reset domain: {}".format(action["id_domain"][30:100])
+                    )
+                    try:
+                        domain_handler = self.h.conn.lookupByName(action["id_domain"])
+                        domain_handler.reset()
+                        update_domain_status(
+                            id_domain=action["id_domain"],
+                            status="Started",
+                            hyp_id=self.hyp_id,
+                            detail="Desktop resetted",
+                        )
+                        logs.workers.info(
+                            "RESET OK domain {}".format(action["id_domain"])
+                        )
+
+                    except Exception as e:
+                        logs.exception_id.debug("0068")
+                        update_domain_status(
+                            "Failed",
+                            action["id_domain"],
+                            hyp_id=self.hyp_id,
+                            detail=str(e),
+                        )
+                        logs.workers.info(
+                            "exception in resetting domain {}: ".format(e)
+                        )
+
                 elif action["type"] in ["create_disk", "delete_disk"]:
                     launch_action_disk(action, self.hostname, user, port)
 

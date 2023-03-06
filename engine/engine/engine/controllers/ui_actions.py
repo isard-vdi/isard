@@ -343,6 +343,15 @@ class UiActions(object):
         )
         return True
 
+    def reset_domain(self, id_domain, hyp_id):
+        action = {
+            "type": "reset_domain",
+            "id_domain": id_domain,
+        }
+        self.manager.q.workers[hyp_id].put(action, Q_PRIORITY_STOP)
+        logs.main.debug(f"desktop {id_domain} added to queue to be reset in {hyp_id}")
+        return True
+
     def delete_domain(self, id_domain):
         pass
 
