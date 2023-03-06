@@ -600,13 +600,13 @@ class Engine(object):
                         old_status == "Failed" and new_status == "StartingPaused"
                     ):
                         ui.start_domain_from_id(
-                            id=domain_id, ssl=True, starting_paused=True
+                            id_domain=domain_id, ssl=True, starting_paused=True
                         )
 
                     if (old_status == "Stopped" and new_status == "Starting") or (
                         old_status == "Failed" and new_status == "Starting"
                     ):
-                        ui.start_domain_from_id(id=domain_id, ssl=True)
+                        ui.start_domain_from_id(id_domain=domain_id, ssl=True)
 
                     if old_status == "Started" and new_status == "Shutting-down":
                         # INFO TO DEVELOPER Esto es lo que debería ser, pero hay líos con el hyp_started

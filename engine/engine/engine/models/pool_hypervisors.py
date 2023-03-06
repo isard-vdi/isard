@@ -19,8 +19,10 @@ from engine.services.db.domains import (
     update_vgpu_uuid_domain_action,
 )
 from engine.services.db.hypervisors import (
+    get_hypers_gpu_online,
     get_hypers_in_pool,
     get_hypers_info,
+    get_hypers_online,
     get_pool_hypers_conf,
     get_vgpu,
 )
@@ -115,15 +117,61 @@ class Balancer_no_stats:
         self.index_round_robin = 0
         self.id_pool = id_pool
 
-    def get_next(self, l_hypervisors):
-        # return l_hypervisors[randint(0,len(l_hypervisors)-1)]
-        self.index_round_robin += 1
-        if self.index_round_robin >= len(l_hypervisors):
-            self.index_round_robin = 0
-        if len(l_hypervisors) > 0:
-            return l_hypervisors[self.index_round_robin]
-        else:
+    def get_next_capabilities_virt(self, forced_hyp=None, favourite_hyp=None):
+        hypers = get_hypers_online(
+            self.id_pool, forced_hyp, favourite_hyp
+        )  # check capabilities?
+        if len(hypers) == 0:
             return False
+        if len(hypers) == 1:
+            return hypers[0]["id"]
+        self.index_round_robin += 1
+        if self.index_round_robin >= len(hypers):
+            self.index_round_robin = 0
+        return hypers[self.index_round_robin]["id"]
+
+    def get_next_capabilities_diskopts(self):
+        return self.get_next_capabilities_virt()
+
+    def get_next_capabilities_virt_gpus(
+        self,
+        forced_hyp=None,
+        favourite_hyp=None,
+        gpu_profile=None,
+        forced_gpus_hypervisors=None,
+    ):
+        gpu_hypervisors_online = get_hypers_gpu_online(
+            self.id_pool,
+            forced_hyp,
+            favourite_hyp,
+            gpu_profile,
+            forced_gpus_hypervisors,
+        )
+
+        if len(gpu_hypervisors_online) == 0:
+            return False, {}
+        if len(gpu_hypervisors_online) == 1:
+            return gpu_hypervisors_online[0]["id"], self._parse_extra_info(
+                gpu_hypervisors_online[0]["gpu_selected"]
+            )
+        self.index_round_robin += 1
+        if self.index_round_robin >= len(gpu_hypervisors_online):
+            self.index_round_robin = 0
+        return (
+            gpu_hypervisors_online[self.index_round_robin]["id"],
+            self._parse_extra_info(
+                gpu_hypervisors_online[self.index_round_robin]["gpu_selected"]
+            ),
+        )
+
+    def _parse_extra_info(self, gpu_selected):
+        return {
+            "nvidia": True,
+            "uid": gpu_selected["next_available_uid"],
+            "vgpu_id": gpu_selected["next_gpu_id"],
+            "model": gpu_selected["gpu_profile"].split("-")[-2],
+            "profile": gpu_selected["gpu_profile"].split("-")[-1],
+        }
 
 
 class PoolHypervisors:
@@ -139,242 +187,220 @@ class PoolHypervisors:
     def init_balancer(self):
         self.balancer = Balancer_no_stats(self.id_pool)
 
-    def get_next(
-        self,
-        domain_id=None,
-        to_create_disk=False,
-        path_selected="",
-        forced_hyp=False,
-        favourite_hyp=False,
-        reservables=True,
+    def get_next_diskopts(self):
+        return self.balancer.get_next_capabilities_diskopts()
+
+    def get_next_hypervisor(
+        self, forced_hyp=None, favourite_hyp=None, reservables=None, force_gpus=None
     ):
-        if to_create_disk is True:
-            exclude_hyp_gpu_only = False
+        # Desktop does not have vgpu
+        if (
+            not reservables
+            or not reservables.get("vgpus")
+            or not len(reservables.get("vgpus", []))
+        ):
+            return (
+                self.balancer.get_next_capabilities_virt(forced_hyp, favourite_hyp),
+                {},
+            )
+
+        # Desktop has vgpu
+        gpu_profile = reservables.get("vgpus")[0]
+
+        if force_gpus and len(force_gpus):
+            forced_gpus_hypervisors = [
+                get_table_field("vgpus", fgh, "hyp_id") for fgh in force_gpus
+            ]
         else:
-            exclude_hyp_gpu_only = True
+            forced_gpus_hypervisors = None
 
-        if domain_id is not None:
-            # try:
-            create_dict = get_create_dict(domain_id)
-
-            if reservables is False:
-                list_gpus = []
-            else:
-                list_gpus = create_dict.get("reservables", {}).get("vgpus", [])
-
-            if (
-                type(list_gpus) is list
-                and len(list_gpus) > 0
-                and list_gpus[0] != "None"
-                and list_gpus[0] != None
-            ):
-                gpu_profile = list_gpus[0]
-
-                next_model = gpu_profile.split("-")[-2]
-                next_profile = gpu_profile.split("-")[-1]
-
-                force_gpus = create_dict.get("reservables", {}).get("force_gpus", [])
-                if type(force_gpus) is list and len(force_gpus) > 0:
-                    force_gpu = force_gpus[0]
-                    hyp_selected = get_table_field("vgpus", force_gpu, "hyp_id")
-                    if "Online" == get_table_field(
-                        "hypervisors", hyp_selected, "status"
-                    ):
-                        (
-                            next_hyp,
-                            next_available_uid,
-                            next_vgpu_id,
-                        ) = self.get_hyp_with_uuid_available(
-                            gpu_profile, hyp_selected, False
-                        )
-
-                        extra = {
-                            "nvidia": True,
-                            "uid": next_available_uid,
-                            "vgpu_id": next_vgpu_id,
-                            "model": next_model,
-                            "profile": next_profile,
-                        }
-
-                        update_vgpu_uuid_domain_action(
-                            next_vgpu_id,
-                            next_available_uid,
-                            "domain_reserved",
-                            domain_id=domain_id,
-                            profile=next_profile,
-                        )
-
-                        return next_hyp, extra
-                    else:
-                        logs.hmlog.error(
-                            f"force gpu {force_gpu} in hypervisor {hyp_selected} is not online, desktop will not start"
-                        )
-                        return False, {}
-
-                (
-                    next_hyp,
-                    next_available_uid,
-                    next_gpu_id,
-                ) = self.get_hyp_with_uuid_available(
-                    gpu_profile, forced_hyp, favourite_hyp
-                )
-                extra = {
-                    "nvidia": True,
-                    "uid": next_available_uid,
-                    "gpu_id": next_gpu_id,
-                    "model": next_model,
-                    "profile": next_profile,
-                }
-                return next_hyp, extra
-
-            elif (
-                create_dict["hardware"]["videos"][0].find("nvidia") == 0
-                or create_dict["hardware"]["videos"][0].find("gpu-default") == 0
-            ):
-                type_gpu = create_dict["hardware"]["videos"][0]
-                (
-                    next_hyp,
-                    next_available_uid,
-                    next_id_pci,
-                    next_model,
-                    next_profile,
-                ) = self.get_next_hyp_with_gpu(type_gpu, forced_hyp, favourite_hyp)
-
-                extra = {
-                    "nvidia": True,
-                    "uid": next_available_uid,
-                    "id_pci": next_id_pci,
-                    "model": next_model,
-                    "profile": next_profile,
-                }
-                return next_hyp, extra
-
-            else:
-                (hyps_to_start, hyps_only_forced, hyps_all) = get_hypers_in_pool(
-                    self.id_pool,
-                    exclude_hyp_only_forced=True,
-                    exclude_hyp_gpu_only=exclude_hyp_gpu_only,
-                )
-
-                if forced_hyp != False:
-                    if forced_hyp in hyps_all:
-                        return forced_hyp, {}
-                    else:
-                        logs.hmlog.error(
-                            f"force hypervisor {forced_hyp} is not online, desktop will not start"
-                        )
-                        return False, {}
-
-                if favourite_hyp != False:
-                    if favourite_hyp in [a["id"] for a in hyps_to_start]:
-                        return favourite_hyp, {}
-                    else:
-                        logs.hmlog.info(
-                            f"favourite hypervisor {favourite_hyp} is no online, trying other hypervisor online in pool"
-                        )
-
-                return self.balancer.get_next(hyps_to_start), {}
-
-        (hyps_to_start, hyps_only_forced, hyps_all) = get_hypers_in_pool(
-            self.id_pool,
+        hypervisor, extra = self.balancer.get_next_capabilities_virt_gpus(
+            forced_hyp, favourite_hyp, gpu_profile, forced_gpus_hypervisors
         )
-        return self.balancer.get_next(hyps_all), {}
+
+        # If no hypervisor with gpu available and online, return False
+        if hypervisor == False:
+            logs.hmlog.error(
+                f"No hypervisor with gpu {gpu_profile} available in pool {self.id_pool}"
+            )
+            return False, {}
+
+        return hypervisor, extra
+
+    # def get_next_diskop(self, domain_id=None, to_create_disk=False):
+    #     None
+
+    # def get_next(
+    #     self,
+    #     domain_id=None,
+    #     to_create_disk=False,
+    #     path_selected="",
+    #     forced_hyp=False,
+    #     favourite_hyp=False,
+    #     reservables=True,
+    # ):
+    #     if to_create_disk is True:
+    #         exclude_hyp_gpu_only = False
+    #     else:
+    #         exclude_hyp_gpu_only = True
+
+    #     if domain_id is not None:
+    #         # try:
+    #         create_dict = get_create_dict(domain_id)
+
+    #         if reservables is False:
+    #             list_gpus = []
+    #         else:
+    #             list_gpus = create_dict.get("reservables", {}).get("vgpus", [])
+
+    #         if (
+    #             type(list_gpus) is list
+    #             and len(list_gpus) > 0
+    #             and list_gpus[0] != "None"
+    #             and list_gpus[0] != None
+    #         ):
+    #             gpu_profile = list_gpus[0]
+
+    #             next_model = gpu_profile.split("-")[-2]
+    #             next_profile = gpu_profile.split("-")[-1]
+
+    #             force_gpus = create_dict.get("reservables", {}).get("force_gpus", [])
+    #             if type(force_gpus) is list and len(force_gpus) > 0:
+    #                 force_gpu = force_gpus[0]
+    #                 hyp_selected = get_table_field("vgpus", force_gpu, "hyp_id")
+    #                 if "Online" == get_table_field(
+    #                     "hypervisors", hyp_selected, "status"
+    #                 ):
+    #                     (
+    #                         next_hyp,
+    #                         next_available_uid,
+    #                         next_vgpu_id,
+    #                     ) = self.get_hyp_with_uuid_available(
+    #                         gpu_profile, hyp_selected, False
+    #                     )
+
+    #                     extra = {
+    #                         "nvidia": True,
+    #                         "uid": next_available_uid,
+    #                         "vgpu_id": next_vgpu_id,
+    #                         "model": next_model,
+    #                         "profile": next_profile,
+    #                     }
+
+    #                     update_vgpu_uuid_domain_action(
+    #                         next_vgpu_id,
+    #                         next_available_uid,
+    #                         "domain_reserved",
+    #                         domain_id=domain_id,
+    #                         profile=next_profile,
+    #                     )
+
+    #                     return next_hyp, extra
+    #                 else:
+    #                     logs.hmlog.error(
+    #                         f"force gpu {force_gpu} in hypervisor {hyp_selected} is not online, desktop will not start"
+    #                     )
+    #                     return False, {}
+
+    #             (
+    #                 next_hyp,
+    #                 next_available_uid,
+    #                 next_gpu_id,
+    #             ) = self.get_hyp_with_uuid_available(
+    #                 gpu_profile, forced_hyp, favourite_hyp
+    #             )
+    #             extra = {
+    #                 "nvidia": True,
+    #                 "uid": next_available_uid,
+    #                 "gpu_id": next_gpu_id,
+    #                 "model": next_model,
+    #                 "profile": next_profile,
+    #             }
+    #             return next_hyp, extra
+
+    #         elif (
+    #             create_dict["hardware"]["videos"][0].find("nvidia") == 0
+    #             or create_dict["hardware"]["videos"][0].find("gpu-default") == 0
+    #         ):
+    #             type_gpu = create_dict["hardware"]["videos"][0]
+    #             (
+    #                 next_hyp,
+    #                 next_available_uid,
+    #                 next_id_pci,
+    #                 next_model,
+    #                 next_profile,
+    #             ) = self.get_next_hyp_with_gpu(type_gpu, forced_hyp, favourite_hyp)
+
+    #             extra = {
+    #                 "nvidia": True,
+    #                 "uid": next_available_uid,
+    #                 "id_pci": next_id_pci,
+    #                 "model": next_model,
+    #                 "profile": next_profile,
+    #             }
+    #             return next_hyp, extra
+
+    #         else:
+    #             (hyps_to_start, hyps_only_forced, hyps_all) = get_hypers_in_pool(
+    #                 self.id_pool,
+    #                 exclude_hyp_only_forced=True,
+    #                 exclude_hyp_gpu_only=exclude_hyp_gpu_only,
+    #             )
+
+    #             if forced_hyp != False:
+    #                 if forced_hyp in hyps_all:
+    #                     return forced_hyp, {}
+    #                 else:
+    #                     logs.hmlog.error(
+    #                         f"force hypervisor {forced_hyp} is not online, desktop will not start"
+    #                     )
+    #                     return False, {}
+
+    #             if favourite_hyp != False:
+    #                 if favourite_hyp in [a["id"] for a in hyps_to_start]:
+    #                     return favourite_hyp, {}
+    #                 else:
+    #                     logs.hmlog.info(
+    #                         f"favourite hypervisor {favourite_hyp} is no online, trying other hypervisor online in pool"
+    #                     )
+
+    #             return self.balancer.get_next(hyps_to_start), {}
+
+    #     (hyps_to_start, hyps_only_forced, hyps_all) = get_hypers_in_pool(
+    #         self.id_pool,
+    #     )
+    #     return self.balancer.get_next(hyps_all), {}
 
     def get_hyp_with_uuid_available(
-        self, gpu_profile, force_hyp=False, favourite_hyp=False
+        self,
+        gpu_profile,
+        gpu_hypervisors_online,
     ):
         if gpu_profile.rfind("NVIDIA-") == 0:
             gpu_profile = gpu_profile.split("NVIDIA-")[1]
-        hypers_online = get_hypers_info(id_pool=self.id_pool)
-        from pprint import pprint
 
-        print(
-            "\n\n## CHIVATO - HYPERS ONLINE #########################################################"
-        )
-        pprint(hypers_online)
-        hypers_online_exclude_only_forced = get_hypers_info(
-            id_pool=self.id_pool, exclude_only_forced=True
-        )
-        if len(hypers_online) == 0:
-            return False, False, False
-        hypers_online_with_gpu = [
-            h
-            for h in hypers_online
-            if len(
-                [
-                    i
-                    for i in h.get("info", {}).get("nvidia", {}).values()
-                    if i == gpu_profile.split("-")[-2]
-                ]
-            )
-            > 0
-        ]
-        ids_hypers_online_with_gpu = [h["id"] for h in hypers_online_with_gpu]
-        hypers_online_with_gpu_excluded_only_forced = [
-            h
-            for h in hypers_online_exclude_only_forced
-            if len(
-                [
-                    i
-                    for i in h.get("info", {}).get("nvidia", {}).values()
-                    if i == gpu_profile.split("-")[-2]
-                ]
-            )
-            > 0
-        ]
-        ids_hypers_online_with_gpu_excluded_only_forced = [
-            h["id"] for h in hypers_online_with_gpu_excluded_only_forced
-        ]
-        if force_hyp != False:
-            if force_hyp in ids_hypers_online_with_gpu:
-                hypers_online_with_gpu = [
-                    h for h in hypers_online_with_gpu if h["id"] == force_hyp
-                ]
-            else:
-                logs.hmlog.error(
-                    f"force hypervisor {favourite_hyp} is not online, desktop will not start"
-                )
-                return False, False, False
-        else:
-            hypers_online_with_gpu = hypers_online_with_gpu_excluded_only_forced
-
-        if favourite_hyp != False:
-            if favourite_hyp in hypers_online_with_gpu:
-                hypers_online_with_gpu = [
-                    h for h in hypers_online_with_gpu if h["id"] == favourite_hyp
-                ]
-            else:
-                logs.hmlog.info(
-                    f"favourite hypervisor {favourite_hyp} is not online, trying other hypervisor online in pool"
-                )
-                pass
-
-        if len(hypers_online_with_gpu) == 0:
-            logs.hmlog.error(f"There are not hypervisors with GPU online")
-            return False, False, False
-        else:
-            uuid_selected = False
-            # now find free uuids:
-            for h in hypers_online_with_gpu:
-                for pci, model in h["info"]["nvidia"].items():
-                    if model == gpu_profile.split("-")[-2]:
-                        gpu_type = gpu_profile.split("-")[-1]
-                        gpu_id = h["id"] + "-" + pci
-                        gpu_type_active, mdevs = get_vgpus_mdevs(gpu_id, gpu_type)
-                        if gpu_type_active == gpu_type:
-                            for mdev_uuid, d in mdevs[gpu_type].items():
-                                if (
-                                    d["domain_reserved"] is False
-                                    and d["domain_started"] is False
-                                    and d["created"] is True
-                                ):
-                                    uuid_selected = mdev_uuid
-                                    next_hyp = h["id"]
-                                    next_available_uid = uuid_selected
-                                    next_gpu_id = gpu_id
-                                    return next_hyp, next_available_uid, next_gpu_id
-                if uuid_selected != False:
-                    break
+        uuid_selected = False
+        # now find free uuids:
+        for h in gpu_hypervisors_online:
+            for pci, model in h["info"]["nvidia"].items():
+                if model == gpu_profile.split("-")[-2]:
+                    gpu_type = gpu_profile.split("-")[-1]
+                    gpu_id = h["id"] + "-" + pci
+                    gpu_type_active, mdevs = get_vgpus_mdevs(gpu_id, gpu_type)
+                    if gpu_type_active == gpu_type:
+                        for mdev_uuid, d in mdevs[gpu_type].items():
+                            if (
+                                d["domain_reserved"] is False
+                                and d["domain_started"] is False
+                                and d["created"] is True
+                            ):
+                                uuid_selected = mdev_uuid
+                                next_hyp = h["id"]
+                                next_available_uid = uuid_selected
+                                next_gpu_id = gpu_id
+                                return next_hyp, next_available_uid, next_gpu_id
+            if uuid_selected != False:
+                break
         return False, False, False
 
     def get_next_hyp_with_gpu(self, video_id, force_hyp=False, favourite_hyp=False):
