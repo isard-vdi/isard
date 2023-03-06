@@ -707,35 +707,6 @@ def set_unknown_domains_not_in_hyps(hyps):
     return l
 
 
-def get_pool_from_domain(domain_id):
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-    try:
-        d = rtable.get(domain_id).pluck("hypervisors_pools").run(r_conn)
-        if len(d) > 0:
-            if len(d["hypervisors_pools"]) > 0:
-                pool = d["hypervisors_pools"][0]
-            else:
-                logs.main.error(
-                    f"domain: {domain_id} with not hypervisors_pools in list. Pool default forced."
-                )
-                pool = "default"
-        else:
-            logs.main.error(
-                f"domain: {domain_id} withouth hypervisors_pools key defined. Pool default forced."
-            )
-            pool = "default"
-    except r.ReqlNonExistenceError:
-        logs.main.error(
-            "domain_id {} does not exist in domains table".format(domain_id)
-        )
-        logs.main.debug("function: {}".format(sys._getframe().f_code.co_name))
-        pool = "default"
-
-    close_rethink_connection(r_conn)
-    return pool
-
-
 def get_domain_forced_hyp(id_domain):
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
