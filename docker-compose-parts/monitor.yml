@@ -50,6 +50,7 @@ services:
     user: root
     volumes:
       - /opt/isard/stats/prometheus:/prometheus
+      - ${BUILD_ROOT_PATH}/docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     logging:
