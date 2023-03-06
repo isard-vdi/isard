@@ -144,7 +144,7 @@ class PoolHypervisors:
         domain_id=None,
         to_create_disk=False,
         path_selected="",
-        force_hyp=False,
+        forced_hyp=False,
         favourite_hyp=False,
         reservables=True,
     ):
@@ -216,7 +216,7 @@ class PoolHypervisors:
                     next_available_uid,
                     next_gpu_id,
                 ) = self.get_hyp_with_uuid_available(
-                    gpu_profile, force_hyp, favourite_hyp
+                    gpu_profile, forced_hyp, favourite_hyp
                 )
                 extra = {
                     "nvidia": True,
@@ -238,7 +238,7 @@ class PoolHypervisors:
                     next_id_pci,
                     next_model,
                     next_profile,
-                ) = self.get_next_hyp_with_gpu(type_gpu, force_hyp, favourite_hyp)
+                ) = self.get_next_hyp_with_gpu(type_gpu, forced_hyp, favourite_hyp)
 
                 extra = {
                     "nvidia": True,
@@ -256,12 +256,12 @@ class PoolHypervisors:
                     exclude_hyp_gpu_only=exclude_hyp_gpu_only,
                 )
 
-                if force_hyp != False:
-                    if force_hyp in hyps_all:
-                        return force_hyp, {}
+                if forced_hyp != False:
+                    if forced_hyp in hyps_all:
+                        return forced_hyp, {}
                     else:
                         logs.hmlog.error(
-                            f"force hypervisor {force_hyp} is not online, desktop will not start"
+                            f"force hypervisor {forced_hyp} is not online, desktop will not start"
                         )
                         return False, {}
 
