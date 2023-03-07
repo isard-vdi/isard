@@ -230,8 +230,8 @@ availHypersLoop:
 			// Ensure we don't play with buffering hypervisors or non orchestrator managed ones! :)
 			if !h.Buffering && h.OrchestratorManaged {
 
-				// Check if we need to kill the hypervisor
-				if !h.DestroyTime.IsZero() && h.DestroyTime.Before(time.Now()) {
+				// Check if we need to kill the hypervisor (because it's time to kill it or it has 0 desktops started)
+				if !h.DestroyTime.IsZero() && (h.DestroyTime.Before(time.Now()) || h.DesktopsStarted == 0) {
 					destroy = &operationsv1.DestroyHypervisorRequest{Id: h.ID}
 
 					r.log.Info().Str("id", h.ID).Str("scaling", "down").Msg("destroy hypervisor")

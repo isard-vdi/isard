@@ -21,7 +21,7 @@ import (
 func main() {
 	cfg := cfg.New()
 
-	log := log.New("operations", cfg.Log.Level)
+	log := log.New("orchestrator", cfg.Log.Level)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
@@ -65,6 +65,7 @@ func main() {
 	orchestrator := orchestrator.New(&orchestrator.NewOrchestratorOpts{
 		Log:               log,
 		WG:                &wg,
+		DryRun:            cfg.DryRun,
 		PollingInterval:   cfg.Orchestrator.PollingInterval,
 		OperationsTimeout: cfg.Orchestrator.OperationsTimeout,
 		Director:          dir,

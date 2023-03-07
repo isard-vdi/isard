@@ -131,6 +131,7 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				ID:                  "existing-2",
 				Status:              client.HypervisorStatusOnline,
 				OnlyForced:          false,
+				DesktopsStarted:     20,
 				OrchestratorManaged: true,
 				DestroyTime:         time.Now().Add(time.Hour),
 				RAM: client.OrchestratorResourceLoad{
@@ -167,6 +168,7 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				Status:              client.HypervisorStatusOnline,
 				OnlyForced:          false,
 				OrchestratorManaged: true,
+				DesktopsStarted:     20,
 				DestroyTime:         time.Now().Add(time.Hour),
 				RAM: client.OrchestratorResourceLoad{
 					Total: 3000,
@@ -178,6 +180,7 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				Status:              client.HypervisorStatusOnline,
 				OnlyForced:          false,
 				OrchestratorManaged: true,
+				DesktopsStarted:     20,
 				DestroyTime:         time.Now().Add(time.Hour),
 				RAM: client.OrchestratorResourceLoad{
 					Total: 1000,
@@ -205,6 +208,45 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				ID:                  "2",
 				Status:              client.HypervisorStatusOnline,
 				DestroyTime:         time.Now().Add(-2 * director.DeadRowDuration),
+				DesktopsStarted:     254,
+				OnlyForced:          true,
+				OrchestratorManaged: true,
+				RAM: client.OrchestratorResourceLoad{
+					Total: 700,
+					Used:  100,
+					Free:  600,
+				},
+			}, {
+				ID:         "3",
+				Status:     client.HypervisorStatusOnline,
+				OnlyForced: false,
+				RAM: client.OrchestratorResourceLoad{
+					Total: 500,
+					Used:  250,
+					Free:  250,
+				},
+			}},
+			RataMinRAM: 300,
+			ExpectedDestroyHypervisor: &operationsv1.DestroyHypervisorRequest{
+				Id: "2",
+			},
+		},
+		"if there's an hypervisor that's in the dead row and has 0 desktops started, KILL THEM!! >:(": {
+			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
+			Hypers: []*client.OrchestratorHypervisor{{
+				ID:         "1",
+				Status:     client.HypervisorStatusOnline,
+				OnlyForced: false,
+				RAM: client.OrchestratorResourceLoad{
+					Total: 500,
+					Used:  400,
+					Free:  100,
+				},
+			}, {
+				ID:                  "2",
+				Status:              client.HypervisorStatusOnline,
+				DestroyTime:         time.Now().Add(2 * director.DeadRowDuration),
+				DesktopsStarted:     0,
 				OnlyForced:          true,
 				OrchestratorManaged: true,
 				RAM: client.OrchestratorResourceLoad{

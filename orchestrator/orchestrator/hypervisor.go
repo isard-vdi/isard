@@ -72,7 +72,7 @@ hyperOnline:
 			return
 
 		default:
-			h, err = o.apiCli.OrchestratorHypervisorGet(ctx, h.ID)
+			h, err = o.apiCli.OrchestratorHypervisorGet(ctx, req.Id)
 			if err != nil {
 				if !errors.Is(err, client.ErrNotFound) {
 					o.log.Error().Str("id", req.Id).Err(err).Msg("load hypervisor from DB")
