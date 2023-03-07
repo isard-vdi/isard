@@ -222,6 +222,21 @@ def desktops_stop_all():
         ).run(db.conn)
 
 
+def desktop_reset(desktop_id):
+    status = get_desktop_status(desktop_id)
+    if status not in ["Started", "Shutting-down", "Suspended", "Stopping"]:
+        raise Error(
+            "precondition_required",
+            "Desktop can't be resetted from " + status,
+            traceback.format_exc(),
+            description_code="unable_to_start_desktop_from",
+        )
+    with app.app_context():
+        r.table("domains").get(desktop_id).update(
+            {"status": "Resetting", "accessed": int(time.time())}
+        ).run(db.conn)
+
+
 def desktop_delete(desktop_id, from_started=False, wait_seconds=0):
     status = get_desktop_status(desktop_id)
     if status == "Deleting":

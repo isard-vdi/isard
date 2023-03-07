@@ -68,6 +68,11 @@ export const status = {
     action: 'stop',
     icon: 'stop',
     variant: 'success'
+  },
+  restart: {
+    action: 'reset',
+    icon: 'power',
+    variant: 'danger'
   }
 }
 

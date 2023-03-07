@@ -17,8 +17,10 @@ from .decorators import maintenance
 quotas = Quotas()
 
 from ..libv2.api_desktops_common import ApiDesktopsCommon
+from ..libv2.api_desktops_persistent import ApiDesktopsPersistent
 
 common = ApiDesktopsCommon()
+desktops = ApiDesktopsPersistent()
 
 
 @app.route("/api/v3/direct/<token>", methods=["GET"])
@@ -43,6 +45,15 @@ def api_v3_viewer(token):
                 "next_booking_end": viewers.pop("next_booking_end", None),
             }
         ),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/desktop/reset/<desktop_id>", methods=["GET"])
+def api_v3_desktop_reset(desktop_id):
+    return (
+        json.dumps({"id": desktops.Reset(desktop_id)}),
         200,
         {"Content-Type": "application/json"},
     )

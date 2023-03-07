@@ -624,6 +624,10 @@
                 "paused": {
                     "text": "Pausado",
                     "action": "Parar"
+                },
+                "reset": {
+                    "text": "Reiniciar",
+                    "action": "Reiniciando"
                 }
             }
         },
@@ -733,6 +737,15 @@
                     "require-update": "pero es posible que requiera una actualización (sobretodo en versiones windows 7 y windows 8). Recomendamos que instales la última versión disponible ",
                     "here": "aqui.",
                     "once-installed": "Una vez instalado, se tiene que clicar en el botón de «RDP», y se descargará el fichero del escritorio virtual."
+                }
+            },
+            "reset-modal": {
+                "title": "Reiniciar escritorio",
+                "option": {
+                    "reset-desktop": "Forzar un reinicio del escritorio es una acción peligrosa. Es el equivalente a quitarle la corriente mientras está en marcha. Si puedes, páralo desde dentro de un visor"
+                },
+                "confirmation": {
+                    "reset-desktop": "Forzar reinicio del escritorio"
                 }
             }
         },

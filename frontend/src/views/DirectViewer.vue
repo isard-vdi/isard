@@ -25,13 +25,23 @@
           </b-col>
           <b-col class="px-0">
             <b-row
-              style="background:#F7F7F7; padding-top: 100px;"
-              class="m-0 rounded-bottom-30"
+              class="m-0 rounded-bottom-30 bg-lightgray"
             >
+              <ResetModal />
+              <DesktopButton
+                v-if="!loading"
+                class="card-button mt-3 ml-4"
+                :active="true"
+                button-class="btn-red"
+                :spinner-active="false"
+                :butt-text="$t(`views.select-template.status.${status['restart'].action}.text`)"
+                :icon-name="status['restart'].icon"
+                @buttonClicked="resetDesktop(status['restart'].action, directViewer.desktopId)"
+              />
               <!-- MACHINE INFO -->
               <b-col
                 sm="12"
-                class="text-center"
+                class="text-center mt-4"
               >
                 <!-- organitzation name -->
                 <h5 class="font-weight-bold text-medium-gray">
@@ -146,7 +156,9 @@ import PoweredBy from '@/components/shared/PoweredBy.vue'
 import DirectViewerHelpSpice from '@/components/directViewer/DirectViewerHelpSpice.vue'
 import DirectViewerHelpRDP from '@/components/directViewer/DirectViewerHelpRDP.vue'
 import i18n from '@/i18n'
-import { desktopStates } from '@/shared/constants'
+import { desktopStates, status } from '@/shared/constants'
+import DesktopButton from '@/components/desktops/Button.vue'
+import ResetModal from '@/components/directViewer/ResetModal.vue'
 
 export default {
   components: {
@@ -155,7 +167,9 @@ export default {
     PoweredBy,
     DirectViewerButton,
     DirectViewerHelpSpice,
-    DirectViewerHelpRDP
+    DirectViewerHelpRDP,
+    DesktopButton,
+    ResetModal
   },
   setup (props, context) {
     const $store = context.root.$store
@@ -168,6 +182,13 @@ export default {
       vnc: i18n.t('views.direct-viewer.description.vnc'),
       rdp: i18n.t('views.direct-viewer.description.rdp'),
       rdpgw: i18n.t('views.direct-viewer.description.rdpgw')
+    }
+
+    const resetDesktop = (action, desktopId) => {
+      $store.dispatch('updateResetModal', {
+        show: true,
+        item: { id: desktopId, action: action }
+      })
     }
 
     const isWaiting = computed(() => [desktopStates.waitingip].includes(directViewer.value.state.toLowerCase()))
@@ -198,7 +219,9 @@ export default {
       directViewer,
       browserViewers,
       fileViewers,
-      viewerDescription
+      viewerDescription,
+      resetDesktop,
+      status
     }
   }
 }

@@ -464,6 +464,10 @@
                 "paused": {
                     "text": "Pausat",
                     "action": "Aturar"
+                },
+                "reset": {
+                    "text": "Reiniciar",
+                    "action": "Reiniciant"
                 }
             }
         },
@@ -559,6 +563,15 @@
                     "require-update": "però és possible que requereixi una actualització (sobretot a les versions windows 7 i windows 8). Recomanem que instal·lis l'última versió disponible ",
                     "here": "aqui.",
                     "once-installed": "Un cop instal·lat, s'ha de clicar al botó de «RDP», i es descarregarà el fitxer per a fer servir l'escriptori virtual."
+                }
+            },
+            "reset-modal": {
+                "title": "Reiniciar escriptori",
+                "option": {
+                    "reset-desktop": "Forçar el reinici de l'escriptori es una accióp perillosa. És l'equivalent a treure-li la corrent mentres està en marxa. Si pots, atura'l desde dins d'un visor."
+                },
+                "confirmation": {
+                    "reset-desktop": "Forçar reinici de l'escriptori"
                 }
             },
             "waitingip": "Esperant que s'arrenqui l'escriptori"

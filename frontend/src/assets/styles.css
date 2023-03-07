@@ -35,8 +35,24 @@
 }
 
 /* BACKGROUNDS */
+.bg-lightgray {
+  background-color: var(--lightgray-color);
+}
+
 .bg-darkgray {
   background-color: var(--darkgray-color);
+}
+
+.bg-red {
+  background-color: var(--red-color);
+}
+
+.bg-orange {
+  background-color: var(--orange-color);
+}
+
+.bg-blue {
+  background-color: var(--lightblue-color);
 }
 
 /* UTILITIES */
@@ -636,14 +652,6 @@
 
 .loading-cursor {
   cursor: wait !important;
-}
-
-.orange-bg {
-  background-color: var(--orange-color);
-}
-
-.blue-bg {
-  background-color: var(--lightblue-color);
 }
 
 .booking-bar > td:first-child {
