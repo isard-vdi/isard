@@ -179,7 +179,7 @@ class UiActions(object):
                     forced_hyp=domain.get("forced_hyp"),
                     favourite_hyp=domain.get("favourite_hyp"),
                     force_gpus=domain.get("force_gpus"),
-                    reservables=domain.get("create_dict", {}).get("reservables", None),
+                    reservables=domain.get("create_dict", {}).get("reservables", {}),
                 )
             else:
                 hyp = self.start_domain_from_xml(
@@ -190,7 +190,7 @@ class UiActions(object):
                     forced_hyp=domain.get("forced_hyp"),
                     favourite_hyp=domain.get("favourite_hyp"),
                     force_gpus=domain.get("force_gpus"),
-                    reservables=domain.get("create_dict", {}).get("reservables", None),
+                    reservables=domain.get("create_dict", {}).get("reservables", {}),
                 )
             return hyp
 
@@ -300,16 +300,12 @@ class UiActions(object):
             failed = True
 
         if failed is True:
-            if extra_info.get("nvidia", False) is True:
-                detail = f"desktop not started: no hypervisors online with GPU model available  and profile"
+            if reservables.get("vgpus") and len(reservables.get("vgpus", [])):
+                detail = f"desktop not started: no hypervisors online with GPU model available and profile"
             else:
                 detail = f"desktop not started: no hypervisors online in pool {pool_id}"
             update_domain_status(
                 status="Failed", id_domain=id_domain, hyp_id=next_hyp, detail=detail
-            )
-
-            log.error(
-                "desktop not started: no hypervisors online in pool {}".format(pool_id)
             )
             return False
         else:
@@ -1266,9 +1262,7 @@ class UiActions(object):
                     pool_id=pool_id,
                     forced_hyp=domain.get("forced_hyp"),
                     favourite_hyp=domain.get("favourite_hyp"),
-                    reservables=domain.get("create_dict")
-                    .get("hardware")
-                    .get("reservables"),
+                    reservables=domain.get("create_dict", {}).get("reservables", {}),
                 )
             else:
                 update_domain_status(
@@ -1411,9 +1405,7 @@ class UiActions(object):
                     pool_id=pool_id,
                     forced_hyp=domain.get("forced_hyp"),
                     favourite_hyp=domain.get("favourite_hyp"),
-                    reservables=domain.get("create_dict")
-                    .get("hardware")
-                    .get("reservables"),
+                    reservables=domain.get("create_dict", {}).get("reservables", {}),
                 )
 
     def domain_from_template(
