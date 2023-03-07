@@ -341,12 +341,12 @@ class UiActions(object):
         if hyp_id is None:
             hyp_id = ""
         if len(hyp_id) <= 0:
-            log.debug("hypervisor where domain {} is started not finded".format(id))
+            log.debug("hypervisor where domain {} is started not found".format(id))
             update_domain_status(
                 status="Unknown",
-                id_domain=id_domain,
+                id_domain=id,
                 hyp_id=None,
-                detail="hypervisor where domain {} is started not finded".format(id),
+                detail="hypervisor where domain {} is started not found".format(id),
             )
         else:
             self.stop_domain(id, hyp_id)
