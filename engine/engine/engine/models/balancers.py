@@ -44,6 +44,65 @@ class Balancer_free_ram:
         ][0]
 
 
+class Balancer_less_cpu:
+    # This balancer will return the hypervisor with less cpu usage
+    def _balancer(self, hypers):
+        logs.main.debug(
+            f"BALANCER LESS CPU. CPU IDLE: {[{h['id']: h['stats']['cpu_5min']['idle']} for h in hypers if h.get('stats',{}).get('cpu_5min',{}).get('idle')]}"
+        )
+        return [
+            h
+            for h in hypers
+            if h.get("stats", {}).get("cpu_5min", {}).get("idle", 0)
+            == max(
+                [h.get("stats", {}).get("cpu_5min", {}).get("idle", 0) for h in hypers]
+            )
+        ][0]
+
+
+class Balancer_less_cpu_when_low_ram:
+    # This balancer will return the hypervisor with less cpu usage when ram is below 50%
+    def _balancer(self, hypers):
+        RAM_LIMIT = 0.6  # If ram is below 60% of total ram, return hypervisor with less cpu usage
+        logs.main.debug(
+            f"BALANCER LESS CPU WITH LOW RAM. CPU IDLE: {[{h['id']: h['stats']['cpu_5min']['idle']} for h in hypers if h.get('stats',{}).get('cpu_5min',{}).get('idle')]}"
+        )
+        hypers_below_ram_limit = [
+            h
+            for h in hypers
+            if h.get("stats", {}).get("mem_stats", {}).get("free", 0)
+            / h.get("stats", {}).get("mem_stats", {}).get("total", 1)
+            <= RAM_LIMIT
+        ]
+
+        if len(hypers_below_ram_limit) > 0:
+            # If there are hypervisors with less than RAM_LIMIT ram, return the one with less cpu usage from
+            return [
+                h
+                for h in hypers_below_ram_limit
+                if h.get("stats", {}).get("cpu_5min", {}).get("idle", 0)
+                == max(
+                    [
+                        h.get("stats", {}).get("cpu_5min", {}).get("idle", 0)
+                        for h in hypers_below_ram_limit
+                    ]
+                )
+            ][0]
+        else:
+            # If there are no hypervisors with less than RAM_LIMIT ram, return the one with less cpu usage from all hypervisors
+            return [
+                h
+                for h in hypers
+                if h.get("stats", {}).get("cpu_5min", {}).get("idle", 0)
+                == max(
+                    [
+                        h.get("stats", {}).get("cpu_5min", {}).get("idle", 0)
+                        for h in hypers
+                    ]
+                )
+            ][0]
+
+
 """
 BALANCER INTERFACE
 
@@ -58,6 +117,7 @@ class BalancerInterface:
             self._balancer = Balancer_round_robin()
         if balancer_type == "free_ram":
             self._balancer = Balancer_free_ram()
+        self.balancer = Balancer_less_cpu_when_low_ram()
 
     def get_next_hypervisor(
         self, forced_hyp=None, favourite_hyp=None, reservables=None, force_gpus=None
