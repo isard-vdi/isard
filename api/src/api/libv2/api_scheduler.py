@@ -67,18 +67,17 @@ class Scheduler:
         if reset_existing:
             self.remove_desktop_timeouts(desktop_id)
 
-        timeouts = quotas.get_shutdown_timeouts(payload, desktop_id)
-        if not timeouts:
-            return
-
         with app.app_context():
             desktop = (
                 r.table("domains")
                 .get(desktop_id)
-                .pluck("name", "user", "server")
+                .pluck(
+                    "name", "user", "server", {"create_dict": {"reservables": "vgpus"}}
+                )
                 .run(db.conn)
             )
-        if desktop.get("server") and not timeouts.get("server"):
+
+        if desktop.get("server"):
             return
 
         data = {
@@ -94,6 +93,60 @@ class Scheduler:
         }
 
         start_date = datetime.now(pytz.utc)
+
+        if desktop.get("create_dict", {}).get("reservables", {}).get("vgpus"):
+            booking = (
+                r.table("bookings")
+                .get_all(desktop_id, index="item_id")
+                .filter(
+                    lambda plan: plan["end"]
+                    > r.now() & plan["reservables"]["vgpus"]
+                    == desktop.get("create_dict", {})
+                    .get("reservables", {})
+                    .get("vgpus")
+                )
+                .order_by("start")
+                .nth(0)
+                .run(db.conn)
+            )
+            if not booking and payload["role_id"] in ["admin", "manager"]:
+                return
+            data["id"] = desktop_id + ".shutdown-15m"
+            data["date"] = (booking["end"] - timedelta(minutes=15)).strftime(
+                "%Y-%m-%dT%H:%M%z"
+            )
+            data["kwargs"]["msg"]["params"] = {
+                "date": data["date"],
+                "minutes": 15,
+                "name": desktop.get("name"),
+            }
+            data["kwargs"]["msg"]["type"] = "warning"
+            data["kwargs"]["msg"][
+                "msg_lang"
+            ] = "en"  # TODO Needs to be the frontend user lang
+            try:
+                self.api_rest.post("/advanced/date/desktop/desktop_notify", data)
+            except:
+                log.error(
+                    "could not contact scheduler service at /advanced/date/desktop/desktop_notify"
+                )
+            data["id"] = desktop_id + ".shutdown-5m"
+            data["date"] = (booking["end"] - timedelta(minutes=5)).strftime(
+                "%Y-%m-%dT%H:%M%z"
+            )
+            data["kwargs"]["msg"]["type"] = "danger"
+            data["kwargs"]["msg"]["params"]["minutes"] = 5
+            try:
+                self.api_rest.post("/advanced/date/desktop/desktop_notify", data)
+            except:
+                log.error(
+                    "could not contact scheduler service at /advanced/date/desktop/desktop_notify"
+                )
+            return
+
+        timeouts = quotas.get_shutdown_timeouts(payload, desktop_id)
+        if not timeouts:
+            return
 
         # Send now notification only to web
         time_remaining = timeouts["max"]
