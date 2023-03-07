@@ -7,7 +7,7 @@
     centered
     hide-footer
     header-class="
-    blue-bg
+    bg-blue
     text-white"
     @hidden="closeModal"
   >

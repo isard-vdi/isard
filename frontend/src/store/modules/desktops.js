@@ -31,6 +31,13 @@ const getDefaultState = () => {
       link: '',
       domainId: '',
       enabled: null
+    },
+    resetModal: {
+      show: false,
+      item: {
+        id: '',
+        action: ''
+      }
     }
   }
 }
@@ -75,6 +82,9 @@ export default {
     },
     getDirectLinkEnabled: state => {
       return state.directLink.enabled
+    },
+    getResetModal: state => {
+      return state.resetModal
     }
   },
   mutations: {
@@ -147,6 +157,9 @@ export default {
     },
     setDirectLinkEnabled: (state, enabled) => {
       state.directLink.enabled = enabled
+    },
+    setResetModal: (state, resetModal) => {
+      state.resetModal = resetModal
     }
   },
   actions: {
@@ -342,6 +355,18 @@ export default {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.editing'))
       return axios.put(`${apiV3Segment}/domain/reservables/${data.id}`, data).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    updateResetModal (context, data) {
+      context.commit('setResetModal', data)
+    },
+    resetResetModal (context) {
+      context.commit('setResetModal', {
+        show: false,
+        item: {
+          id: '',
+          action: ''
+        }
       })
     }
   }

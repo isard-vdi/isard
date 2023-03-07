@@ -6,7 +6,7 @@
     :title="modal.showChangeProfileAndStartOption ? $t(`components.cant-start-now-modal.title.available-profile`, { profile: modal.item.profile }): $t('components.cant-start-now-modal.title.no-available-profile')"
     centered
     hide-footer
-    header-class="orange-bg text-white"
+    header-class="bg-orange text-white"
     @hidden="closeModal"
   >
     <b-row

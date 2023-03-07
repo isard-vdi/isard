@@ -623,6 +623,10 @@
                 "paused": {
                     "text": "Paused",
                     "action": "Stop"
+                },
+                "reset": {
+                    "text": "Reset",
+                    "action": "Resetting"
                 }
             }
         },
@@ -717,6 +721,15 @@
                     "require-update": "but it may be required an update (specially in windows 7 and windows 8 versions). It's recommended using the latest available version ",
                     "here": "here.",
                     "once-installed": "Once installed, click the 'RDP' button, that will download the virtual desktop file."
+                }
+            },
+            "reset-modal": {
+                "title": "Reset desktop",
+                "option": {
+                    "reset-desktop": "Forcing a desktop reset is a dangerous action. It's the equivalent of unplugging it while it's running. If you can, stop it from inside a viewer."
+                },
+                "confirmation": {
+                    "reset-desktop": "Force desktop reset"
                 }
             }
         },

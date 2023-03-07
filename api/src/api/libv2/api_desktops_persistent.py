@@ -38,7 +38,7 @@ from ..libv2.api_cards import ApiCards, get_domain_stock_card
 api_cards = ApiCards()
 
 from ..libv2.quotas_process import QuotasProcess
-from .api_desktop_events import desktop_delete, desktop_stop
+from .api_desktop_events import desktop_delete, desktop_reset, desktop_stop
 
 qp = QuotasProcess()
 
@@ -545,6 +545,10 @@ class ApiDesktopsPersistent:
 
     def Stop(self, desktop_id):
         desktop_stop(desktop_id)
+        return desktop_id
+
+    def Reset(self, desktop_id):
+        desktop_reset(desktop_id)
         return desktop_id
 
     def Update(self, desktop_id, desktop_data, admin_or_manager=False):
