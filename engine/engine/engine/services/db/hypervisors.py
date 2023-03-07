@@ -716,7 +716,7 @@ def filter_available_hypers(
     # exclude hypers with gpu
     hypers_online = [h for h in hypers_online if not h.get("gpu_only", None)]
     if forced_hyp:
-        forced_hyp_found = [h for h in hypers_online if h["id"] == forced_hyp]
+        forced_hyp_found = [h for h in hypers_online if h["id"] in forced_hyp]
         if len(forced_hyp_found) > 0:
             return forced_hyp_found
         return []
@@ -724,7 +724,7 @@ def filter_available_hypers(
     hypers_online = [h for h in hypers_online if not h.get("only_forced")]
 
     if favourite_hyp:
-        favourite_hyp_found = [h for h in hypers_online if h["id"] == favourite_hyp]
+        favourite_hyp_found = [h for h in hypers_online if h["id"] in favourite_hyp]
         if len(favourite_hyp_found) > 0:
             return favourite_hyp_found
 
