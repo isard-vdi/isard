@@ -193,7 +193,6 @@ class PoolHypervisors:
     def get_next_hypervisor(
         self, forced_hyp=None, favourite_hyp=None, reservables=None, force_gpus=None
     ):
-        # Desktop does not have vgpu
         if (
             not reservables
             or not reservables.get("vgpus")
