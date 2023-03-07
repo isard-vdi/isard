@@ -672,6 +672,24 @@ def get_pool_hypers_conf(id_pool="default"):
     return result
 
 
+def get_diskopts_online(
+    id_pool="default",
+    forced_hyp=None,
+    favourite_hyp=None,
+):
+    r_conn = new_rethink_connection()
+    disk_opts_online = list(
+        r.table("hypervisors")
+        .filter({"status": "Online", "capabilities": {"disk_operations": True}})
+        .filter(r.row["hypervisors_pools"].contains(id_pool))
+        .pluck("id", "only_forced", "gpu_only", "stats", "mountpoints")
+        .run(r_conn)
+    )
+    return filter_available_hypers(
+        disk_opts_online, forced_hyp=forced_hyp, favourite_hyp=favourite_hyp
+    )
+
+
 def get_hypers_online(
     id_pool="default",
     forced_hyp=None,
@@ -680,11 +698,21 @@ def get_hypers_online(
     r_conn = new_rethink_connection()
     hypers_online = list(
         r.table("hypervisors")
-        .filter({"status": "Online"})
+        .filter({"status": "Online", "capabilities": {"hypervisor": True}})
         .filter(r.row["hypervisors_pools"].contains(id_pool))
         .pluck("id", "only_forced", "gpu_only", "stats", "mountpoints")
         .run(r_conn)
     )
+    return filter_available_hypers(
+        hypers_online, forced_hyp=forced_hyp, favourite_hyp=favourite_hyp
+    )
+
+
+def filter_available_hypers(
+    hypers_online,
+    forced_hyp=None,
+    favourite_hyp=None,
+):
     # exclude hypers with gpu
     hypers_online = [h for h in hypers_online if not h.get("gpu_only", None)]
     if forced_hyp:

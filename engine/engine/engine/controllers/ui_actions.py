@@ -230,7 +230,9 @@ class UiActions(object):
     ):
         failed = False
         if pool_id in self.manager.pools.keys():
-            next_hyp, extra_info = self.manager.pools[pool_id].get_next_hypervisor(
+            next_hyp, extra_info = self.manager.pools[
+                pool_id
+            ].balancer.get_next_hypervisor(
                 forced_hyp=forced_hyp,
                 favourite_hyp=favourite_hyp,
                 reservables=reservables,
