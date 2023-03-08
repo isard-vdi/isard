@@ -297,11 +297,11 @@ class BalancerInterface:
         )
 
 
-def _parse_extra_gpu_info(self, gpu_selected):
+def _parse_extra_gpu_info(gpu_selected):
     return {
         "nvidia": True,
         "uid": gpu_selected["next_available_uid"],
-        "vgpu_id": gpu_selected["next_gpu_id"],
+        "gpu_id": gpu_selected["next_gpu_id"],
         "model": gpu_selected["gpu_profile"].split("-")[-2],
         "profile": gpu_selected["gpu_profile"].split("-")[-1],
     }

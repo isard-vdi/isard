@@ -52,7 +52,6 @@ def get_hypers_disk_operations():
 
 
 def update_hyp_thread_status(thread_type, hyp_id, status):
-
     if thread_type in ["worker", "disk_operations"] and status in [
         "Started",
         "Stopped",
@@ -60,7 +59,6 @@ def update_hyp_thread_status(thread_type, hyp_id, status):
         "Stopping",
         "Deleting",
     ]:
-
         r_conn = new_rethink_connection()
         rtable = r.table("hypervisors")
         result = (
@@ -786,7 +784,7 @@ def get_hypers_gpu_online(
         return [
             h["id"]
             for h in hypers_online_with_gpu
-            if h["id"] in forced_gpus_hypervisors
+            if h["id"] in hypervisors_with_available_profile
         ]
 
     # exclude now hypers only_forced
@@ -801,7 +799,7 @@ def get_hypers_gpu_online(
             h for h in hypervisors_with_available_profile if h["id"] == favourite_hyp
         ]
 
-    return hypers_online_with_gpu
+    return hypervisors_with_available_profile
 
 
 def get_hypers_in_pool(
