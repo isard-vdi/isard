@@ -60,6 +60,111 @@ def delete_domain(id):
     return results
 
 
+def delete_incomplete_creating_domains(only_domain_id=None, kind="desktop"):
+    status_to_delete = [
+        "Creating",
+        "CreatingAndStarting",
+        "CreatingDiskFromScratch",
+        "CreatingFromBuilder",
+    ]
+    r_conn = new_rethink_connection()
+    rtable = r.table("domains")
+    if only_domain_id:
+        results = (
+            rtable.get_all(only_domain_id, index="id")
+            .filter(lambda d: r.expr(status_to_delete).contains(d["status"]))
+            .delete()
+            .run(r_conn)
+        )
+    else:
+        results = (
+            rtable.get_all(r.args(status_to_delete), index="status")
+            .filter({"kind": kind})
+            .delete()
+            .run(r_conn)
+        )
+    close_rethink_connection(r_conn)
+    return results
+
+
+def fail_incomplete_creating_domains(
+    only_domain_id=None, detail="Failed by engine as it was incomplete", kind="desktop"
+):
+    status_to_failed = [
+        "Updating",
+        "Deleting",
+        "DiskDeleted",
+        "CreatingDomain",
+        "DeletingDomainDisk",
+        "StartingDomainDisposable",
+    ]
+    r_conn = new_rethink_connection()
+    rtable = r.table("domains")
+    if only_domain_id:
+        results = (
+            rtable.get(only_domain_id)
+            .filter(lambda d: r.expr(status_to_failed).contains(d["status"]))
+            .update({"status": "Failed", "detail": detail})
+            .run(r_conn)
+        )
+    results = (
+        rtable.get_all(r.args(status_to_failed), index="status")
+        .filter({"kind": kind})
+        .update({"status": "Failed", "detail": detail})
+        .run(r_conn)
+    )
+    close_rethink_connection(r_conn)
+    return results
+
+
+def stop_incomplete_starting_domains(
+    only_domain_id=None, detail="Stopped by engine as it was incomplete", kind="desktop"
+):
+    status_to_stopped = ["Starting"]
+    r_conn = new_rethink_connection()
+    rtable = r.table("domains")
+    if only_domain_id:
+        results = (
+            rtable.get(only_domain_id)
+            .filter(lambda d: r.expr(status_to_stopped).contains(d["status"]))
+            .update({"status": "Stopped", "detail": detail})
+            .run(r_conn)
+        )
+    else:
+        results = (
+            rtable.get_all("Starting", index="status")
+            .filter({"kind": kind})
+            .update({"status": "Stopped", "detail": detail})
+            .run(r_conn)
+        )
+    close_rethink_connection(r_conn)
+    return results
+
+
+def start_incomplete_starting_domains(
+    only_domain_id, detail="Started by engine as it was incomplete", kind="desktop"
+):
+    status_to_started = ["Stopping", "Shutting-down"]
+    r_conn = new_rethink_connection()
+    rtable = r.table("domains")
+    if only_domain_id:
+        results = (
+            rtable.get(only_domain_id)
+            .filter(lambda d: r.expr(status_to_started).contains(d["status"]))
+            .update({"status": "Started", "detail": detail})
+            .run(r_conn)
+        )
+    else:
+        results = (
+            rtable.get_all(r.args(status_to_started), index="status")
+            .filter({"kind": kind})
+            .update({"status": "Started", "detail": detail})
+            .run(r_conn)
+        )
+    close_rethink_connection(r_conn)
+    return results
+
+
 def update_domain_progress(id_domain, percent):
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
