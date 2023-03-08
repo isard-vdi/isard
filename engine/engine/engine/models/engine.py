@@ -11,6 +11,7 @@ import traceback
 from datetime import datetime
 from time import sleep
 
+from _common.storage_pool import DEFAULT_STORAGE_POOL_ID
 from engine.config import (
     POLLING_INTERVAL_BACKGROUND,
     STATUS_POLLING_INTERVAL,
@@ -21,7 +22,7 @@ from engine.controllers.broom import launch_thread_broom
 from engine.controllers.events_recolector import launch_thread_hyps_event
 from engine.controllers.ui_actions import UiActions
 from engine.models.hypervisor_orchestrator import HypervisorsOrchestratorThread
-from engine.models.pool_hypervisors import PoolHypervisors
+from engine.models.pool_hypervisors import PoolDiskoperations, PoolHypervisors
 from engine.services.db import (
     delete_table_item,
     get_domain,
@@ -82,6 +83,7 @@ class Engine(object):
         self.t_workers = {}
         self.t_status = {}
         self.pools = {}
+        self.diskoperations_pools = {}
         self.t_disk_operations = {}
         self.q_disk_operations = {}
         self.t_long_operations = {}
@@ -244,11 +246,18 @@ class Engine(object):
                     self.manager.t_changes_domains.daemon = True
                     self.manager.t_changes_domains.start()
 
+                    # Hypervisors balancer pools
+                    self.manager.pools["default"] = PoolHypervisors("default")
+                    # Diskoperations balancer pools
+                    self.manager.diskoperations_pools[
+                        DEFAULT_STORAGE_POOL_ID
+                    ] = PoolDiskoperations(DEFAULT_STORAGE_POOL_ID)
+
                     # launch downloads changes thread
                     logs.main.debug("Launching Download Changes Thread")
-                    self.manager.pools["default"] = PoolHypervisors("default")
                     self.manager.t_downloads_changes = launch_thread_download_changes(
-                        self.manager.pools["default"],
+                        self.manager,
+                        DEFAULT_STORAGE_POOL_ID,
                         self.manager.q.workers,
                         self.manager.t_disk_operations,
                     )

@@ -681,7 +681,7 @@ def get_diskopts_online(
     disk_opts_online = list(
         r.table("hypervisors")
         .filter({"status": "Online", "capabilities": {"disk_operations": True}})
-        .filter(r.row["hypervisors_pools"].contains(id_pool))
+        .filter(r.row["storage_pools"].contains(id_pool))
         .pluck("id", "only_forced", "gpu_only", "stats", "mountpoints")
         .run(r_conn)
     )
