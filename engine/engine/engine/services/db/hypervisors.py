@@ -658,7 +658,10 @@ def get_hypers_online(
         .run(r_conn)
     )
     return filter_available_hypers(
-        hypers_online, forced_hyp=forced_hyp, favourite_hyp=favourite_hyp
+        hypers_online,
+        forced_hyp=forced_hyp,
+        favourite_hyp=favourite_hyp,
+        exclude_gpu=True,
     )
 
 
@@ -666,14 +669,17 @@ def filter_available_hypers(
     hypers_online,
     forced_hyp=None,
     favourite_hyp=None,
+    exclude_gpu=False,
 ):
     # exclude hypers with gpu
-    hypers_online = [h for h in hypers_online if not h.get("gpu_only", None)]
-    if forced_hyp:
-        forced_hyp_found = [h for h in hypers_online if h["id"] in forced_hyp]
-        if len(forced_hyp_found) > 0:
-            return forced_hyp_found
-        return []
+    if exclude_gpu:
+        hypers_online = [h for h in hypers_online if not h.get("gpu_only", None)]
+        if forced_hyp:
+            forced_hyp_found = [h for h in hypers_online if h["id"] in forced_hyp]
+            if len(forced_hyp_found) > 0:
+                return forced_hyp_found
+            return []
+
     # exclude now hypers only_forced
     hypers_online = [h for h in hypers_online if not h.get("only_forced")]
 
