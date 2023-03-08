@@ -30,9 +30,11 @@ from engine.services.db.domains import (
     STATUS_TO_FAILED,
     delete_incomplete_creating_domains,
     fail_incomplete_creating_domains,
+    fail_started_domains_without_hypervisors,
     get_all_domains_with_id_status_hyp_started,
     start_incomplete_starting_domains,
     stop_incomplete_starting_domains,
+    unknown_started_domains,
     update_domain_progress,
     update_domain_status,
 )
@@ -1053,40 +1055,11 @@ def engine_restart():
 
 
 def domain_status_from_started_to_unknown():
-    all_domains_started = get_all_domains_with_id_and_status(status="Started")
-    [
-        update_domain_status(
-            "Unknown",
-            d["id"],
-            keep_hyp_id=True,
-            detail=f"change from started to unknown",
-        )
-        for d in all_domains_started
-    ]
+    unknown_started_domains()
 
 
 def clean_started_without_hyp():
-    all_domains = get_all_domains_with_id_status_hyp_started()
-    for d in all_domains:
-        if d["status"] in STATUS_TO_FAILED:
-            if type(d.get("hyp_started", None)) is not str:
-                update_domain_status(
-                    "Failed",
-                    d["id"],
-                    detail=f"Failed, previous status not permitted without hyp_started",
-                )
-                logs.main.error(
-                    f'domain d["id"] was with status d["status"] in database but hyp_started has None Value'
-                )
-            elif len(d.get("hyp_started")) == 0:
-                update_domain_status(
-                    "Failed",
-                    d["id"],
-                    detail=f"Failed, previous status not permitted without hyp_started",
-                )
-                logs.main.error(
-                    f'domain d["id"] was with status d["status"] in database but hyp_started has None Value'
-                )
+    fail_started_domains_without_hypervisors()
 
 
 def update_status_db_from_running_domains(hyp_obj):

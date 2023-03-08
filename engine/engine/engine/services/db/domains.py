@@ -163,6 +163,37 @@ def start_incomplete_starting_domains(
     return results
 
 
+def fail_started_domains_without_hypervisors(
+    detail=f"Set to Failed because did'nt have hyp_started but said started. Reason: engine restart.",
+    kind="desktop",
+):
+    r_conn = new_rethink_connection()
+    rtable = r.table("domains")
+    results = (
+        rtable.get_all(r.args(STATUS_TO_FAILED), index="status")
+        .filter({"kind": kind, "hyp_started": False})
+        .update({"status": "Failed", "detail": detail})
+        .run(r_conn)
+    )
+    close_rethink_connection(r_conn)
+    return results
+
+
+def unknown_started_domains(
+    detail="Set to Unknown. Reason: engine restart.", kind="desktop"
+):
+    r_conn = new_rethink_connection()
+    rtable = r.table("domains")
+    results = (
+        rtable.get_all("Started", index="status")
+        .filter({"kind": kind})
+        .update({"status": "Unknown", "detail": detail})
+        .run(r_conn)
+    )
+    close_rethink_connection(r_conn)
+    return results
+
+
 def update_domain_progress(id_domain, percent):
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
