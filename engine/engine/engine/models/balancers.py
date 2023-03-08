@@ -109,15 +109,23 @@ BALANCER INTERFACE
 Balancer interface is the interface that the engine uses to get the next hypervisor
 """
 
+BALANCERS = ["round_robin", "free_ram", "less_cpu", "less_cpu_when_low_ram"]
+
 
 class BalancerInterface:
     def __init__(self, id_pool="default", balancer_type="round_robin"):
+        if balancer_type not in BALANCERS:
+            logs.hmlog.error(f"Balancer type {balancer_type} not found in {BALANCERS}")
+            exit(1)
         self.id_pool = id_pool
         if balancer_type == "round_robin":
             self._balancer = Balancer_round_robin()
         if balancer_type == "free_ram":
             self._balancer = Balancer_free_ram()
-        self.balancer = Balancer_less_cpu_when_low_ram()
+        if balancer_type == "less_cpu":
+            self._balancer = Balancer_less_cpu()
+        if balancer_type == "less_cpu_when_low_ram":
+            self._balancer = Balancer_less_cpu_when_low_ram()
 
     def get_next_hypervisor(
         self, forced_hyp=None, favourite_hyp=None, reservables=None, force_gpus=None
