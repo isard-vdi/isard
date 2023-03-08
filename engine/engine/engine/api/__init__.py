@@ -1,17 +1,12 @@
 import base64
 import json
-import os
-from pprint import pformat
-from time import sleep
 
-from engine.models.engine import Engine
 from engine.services.db import (
     get_domains_started_in_vgpu,
     get_hyp_hostname_user_port_from_id,
     get_vgpu_info,
     get_vgpu_model_profile_change,
 )
-from engine.services.db.db import get_isardvdi_secret, update_table_field
 from engine.services.lib.functions import execute_commands
 from engine.services.log import logs
 from flask import Blueprint, current_app, jsonify, request
@@ -19,7 +14,7 @@ from flask import Blueprint, current_app, jsonify, request
 api = Blueprint("api", __name__)
 
 app = current_app
-# from . import evaluate
+
 from .tokens import is_admin
 
 #### NOTE: The /engine paths are publicy open so they need @is_admin decorator!
@@ -182,9 +177,6 @@ def engine_info():
                 d_engine["disk_operations_threads"] = list(
                     app.m.t_disk_operations.keys()
                 )
-                d_engine["long_operations_threads"] = list(
-                    app.m.t_long_operations.keys()
-                )
 
                 d_engine["alive_threads"] = dict()
                 d_engine["alive_threads"]["working_threads"] = {
@@ -196,18 +188,12 @@ def engine_info():
                 d_engine["alive_threads"]["disk_operations_threads"] = {
                     name: t.is_alive() for name, t in app.m.t_disk_operations.items()
                 }
-                d_engine["alive_threads"]["long_operations_threads"] = {
-                    name: t.is_alive() for name, t in app.m.t_long_operations.items()
-                }
 
                 d_engine["queue_size_working_threads"] = {
                     k: q.qsize() for k, q in app.m.q.workers.items()
                 }
                 d_engine["queue_disk_operations_threads"] = {
                     k: q.qsize() for k, q in app.m.q_disk_operations.items()
-                }
-                d_engine["queue_long_operations_threads"] = {
-                    k: q.qsize() for k, q in app.m.q_long_operations.items()
                 }
                 d_engine["is_alive"] = True
                 http_code = 200
