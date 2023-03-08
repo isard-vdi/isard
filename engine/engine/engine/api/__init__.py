@@ -114,11 +114,6 @@ def stop_threads():
     return jsonify({"stop_threads": True}), 200
 
 
-@api.route("/grafana/restart", methods=["GET"])
-def grafana_restart():
-    app.m.t_grafana.restart_send_config = True
-
-
 @api.route("/status")
 def engine_status():
     """all main threads are running"""
@@ -129,12 +124,6 @@ def engine_status():
 @api.route("/pool/<string:id_pool>/status")
 def pool_status(id_pool):
     """hypervisors ready to start and create disks"""
-    pass
-
-
-@api.route("/grafana/reload")
-def grafana_reload():
-    """changes in grafana parameters"""
     pass
 
 
@@ -188,9 +177,6 @@ def engine_info():
                     if app.m.t_changes_domains != None
                     else False
                 )
-                d_engine["grafana_thread_is_alive"] = getattr(
-                    app.m.t_grafana, "is_alive", bool
-                )()
                 d_engine["working_threads"] = list(app.m.t_workers.keys())
                 d_engine["status_threads"] = list(app.m.t_status.keys())
                 d_engine["disk_operations_threads"] = list(
