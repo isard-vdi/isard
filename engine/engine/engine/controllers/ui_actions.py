@@ -3,9 +3,6 @@
 #      Josep Maria Viñolas Auquer
 # License: AGPLv3
 
-# /bin/python3
-# coding=utf-8
-
 import itertools
 import time
 import traceback
@@ -34,7 +31,6 @@ from engine.services.db import (
     get_domain,
     get_domain_forced_hyp,
     get_domain_hyp_started,
-    get_domain_kind,
     get_hypers_in_pool,
     get_table_field,
     get_table_fields,

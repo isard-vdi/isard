@@ -1,5 +1,4 @@
 import json
-import logging
 import random
 import sys
 import time
@@ -7,7 +6,6 @@ import traceback
 from copy import deepcopy
 from pathlib import PurePath
 
-import flatten_dict
 from engine.config import TRANSITIONAL_STATUS
 from engine.services.db import (
     close_rethink_connection,

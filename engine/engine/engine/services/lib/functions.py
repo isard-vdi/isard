@@ -12,27 +12,20 @@ import subprocess
 import sys
 import threading
 import time
-from copy import deepcopy
-from pprint import pformat, pprint
+from pprint import pformat
 from time import sleep
 
 import libvirt
 import paramiko
 import xmltodict
 from engine.services.db import (
-    delete_domain,
     gen_new_mac,
     get_all_domains_with_id_and_status,
     get_disks_all_domains,
-    get_domain,
-    get_domain_spice,
-    get_domain_status,
-    insert_domain,
     update_disk_backing_chain,
-    update_domain_createing_template,
     update_domain_status,
 )
-from engine.services.db.config import get_config, table_config_created_and_populated
+from engine.services.db.config import table_config_created_and_populated
 from engine.services.db.domains import (
     STATUS_TO_FAILED,
     delete_incomplete_creating_domains,
@@ -72,10 +65,6 @@ def get_threads_running():
 
 
 def get_threads_names_running():
-    # t_enumerate = threading.Thread(name='THREAD_ENUMERATE',target=threading_enumerate)
-    # t_enumerate.daemon = True
-    # t_enumerate.start()
-
     e = threading.enumerate()
     l = [t.name for t in e]
     l.sort()
@@ -319,71 +308,6 @@ def exec_remote_list_of_cmds_dict(
     client.close()
 
     return returned_array
-
-
-# ~ def get_vv(id_domain):
-# ~ dict = get_domain_spice(id_domain)
-# ~ if not dict: return False
-# ~ config = get_config()
-# ~ ca = str(config['spice']['certificate'])
-# ~ if not dict['hostname'].endswith(str(config['spice']['domain'])):
-# ~ dict['hostname'] = dict['hostname'] + '.' + config['spice']['domain']
-# ~ if not dict['tlsport']:
-# ~ ######################
-# ~ # Consola sense TLS    #
-# ~ ######################
-# ~ c = '%'
-# ~ consola = """[virt-viewer]
-# ~ type=%s
-# ~ host=%s
-# ~ port=%s
-# ~ password=%s
-# ~ fullscreen=1
-# ~ title=%s:%sd - Prem SHIFT+F12 per sortir
-# ~ enable-smartcard=0
-# ~ enable-usb-autoshare=1
-# ~ delete-this-file=1
-# ~ usb-filter=-1,-1,-1,-1,0
-# ~ ;tls-ciphers=DEFAULT
-# ~ """ % (dict['kind'], dict['hostname'], dict['port'], dict['passwd'], id, c)
-
-# ~ consola = consola + """;host-subject=O=%s,CN=%s
-# ~ ;ca=%r
-# ~ toggle-fullscreen=shift+f11
-# ~ release-cursor=shift+f12
-# ~ secure-attention=ctrl+alt+end
-# ~ ;secure-channels=main;inputs;cursor;playback;record;display;usbredir;smartcard""" % (
-# ~ 'host-subject', 'hostname', ca)
-
-# ~ else:
-# ~ ######################
-# ~ # Consola amb TLS    #
-# ~ ######################
-# ~ c = '%'
-# ~ consola = """[virt-viewer]
-# ~ type=%s
-# ~ host=%s
-# ~ password=%s
-# ~ tls-port=%s
-# ~ fullscreen=1
-# ~ title=%s:%sd - Prem SHIFT+F12 per sortir
-# ~ enable-smartcard=0
-# ~ enable-usb-autoshare=1
-# ~ delete-this-file=1
-# ~ usb-filter=-1,-1,-1,-1,0
-# ~ tls-ciphers=DEFAULT
-# ~ """ % (dict['kind'], dict['hostname'], dict['passwd'], dict['tlsport'], id, c)
-
-# ~ consola = consola + """;host-subject=O=%s,CN=%s
-# ~ ca=%r
-# ~ toggle-fullscreen=shift+f11
-# ~ release-cursor=shift+f12
-# ~ secure-attention=ctrl+alt+end
-# ~ secure-channels=main;inputs;cursor;playback;record;display;usbredir;smartcard""" % (
-# ~ 'host-subject', 'hostname', ca)
-
-# ~ consola = consola.replace("'", "")
-# ~ return consola
 
 
 def new_dict_from_raw_dict_stats(raw_values, round_digits=6):

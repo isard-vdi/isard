@@ -2,7 +2,6 @@
 #      Alberto Larraz Dalmases
 #      Josep Maria Viñolas Auquer
 # License: AGPLv3
-# coding=utf-8
 
 import os
 import pprint
@@ -33,12 +32,10 @@ from engine.services.db.db import (
 )
 from engine.services.db.domains import get_domains_with_status, update_domain_status
 from engine.services.db.downloads import (
-    get_downloads_in_progress,
     get_media,
     update_download_percent,
     update_status_table,
 )
-from engine.services.db.hypervisors import get_hypers_in_pool
 from engine.services.lib.download import test_url_for_download, test_url_google_drive
 from engine.services.lib.functions import get_tid
 from engine.services.lib.qcow import (
