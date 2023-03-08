@@ -4,6 +4,10 @@ from engine.services.db.hypervisors import (
     get_hypers_gpu_online,
     get_hypers_online,
 )
+from engine.services.lib.functions import (
+    get_diskoperations_pools_threads_running,
+    get_pools_threads_running,
+)
 from engine.services.log import logs
 
 """ 
@@ -167,46 +171,74 @@ class BalancerInterface:
 
     def get_next_diskoperations(self, forced_hyp=None, favourite_hyp=None):
         hypers = get_diskopts_online(self.id_pool, forced_hyp, favourite_hyp)
-        if len(hypers) == 0:
+        hypers_w_threads = get_diskoperations_pools_threads_running(hypers)
+        if len(hypers) != len(hypers_w_threads):
+            logs.main.error("####################### BALANCER #######################")
+            logs.main.error(
+                "Some disk operations hypervisors are not online in pool %s."
+                % self.id_pool
+            )
+            logs.main.error(
+                "Hypervisors online: %s. Hypervisors with disks threads running: %s."
+                % (
+                    [h["id"] for h in hypers],
+                    [h["id"] for h in hypers_w_threads],
+                )
+            )
+
+        if len(hypers_w_threads) == 0:
             logs.main.error("####################### BALANCER #######################")
             logs.main.error(
                 "No disk operations online to execute next diskopts action in pool %s."
                 % self.id_pool
             )
             return False
-        if len(hypers) == 1:
+        if len(hypers_w_threads) == 1:
             logs.main.debug("####################### BALANCER #######################")
             logs.main.debug(
                 "Executing next disk operations action in the only diskopts available: %s in pool %s."
-                % (hypers[0]["id"], self.id_pool)
+                % (hypers_w_threads[0]["id"], self.id_pool)
             )
             return hypers[0]["id"]
-        hyper_selected = self._balancer._balancer(hypers)["id"]
+        hyper_selected = self._balancer._balancer(hypers_w_threads)["id"]
         logs.main.debug("####################### BALANCER #######################")
         logs.main.debug(
             "Executing next disk operations action in hypervisor: %s (current hypers avail: %s) in pool %s"
-            % (hyper_selected, [h["id"] for h in hypers], self.id_pool)
+            % (hyper_selected, [h["id"] for h in hypers_w_threads], self.id_pool)
         ),
         return hyper_selected
 
     def _get_next_capabilities_virt(self, forced_hyp=None, favourite_hyp=None):
         hypers = get_hypers_online(self.id_pool, forced_hyp, favourite_hyp)
-        if len(hypers) == 0:
+        hypers_w_threads = get_pools_threads_running(hypers)
+        if len(hypers) != len(hypers_w_threads):
+            logs.main.error("####################### BALANCER #######################")
+            logs.main.error(
+                "Some virt hypervisors are not online in pool %s." % self.id_pool
+            )
+            logs.main.error(
+                "Virt hypervisors online: %s. Virt hypervisors with threads running: %s."
+                % (
+                    [h["id"] for h in hypers],
+                    [h["id"] for h in hypers_w_threads],
+                )
+            )
+        if len(hypers_w_threads) == 0:
             logs.main.debug("####################### BALANCER #######################")
             logs.main.error("No hypervisors online to execute next virt action.")
             return False
-        if len(hypers) == 1:
+        if len(hypers_w_threads) == 1:
             logs.main.debug("####################### BALANCER #######################")
             logs.main.debug(
                 "Executing next virt action in the only hypervisor available: %s"
-                % hypers[0]["id"]
+                % hypers_w_threads[0]["id"]
             )
-            return hypers[0]["id"]
-        hyper_selected = self._balancer._balancer(hypers)["id"]
+            return hypers_w_threads[0]["id"]
+        hyper_selected = self._balancer._balancer(hypers_w_threads)["id"]
         logs.main.debug("####################### BALANCER #######################")
         logs.main.debug(
             "Executing next virt action in hypervisor: %s (current hypers avail: %s)"
-            % (hyper_selected, [h["id"] for h in hypers]),
+            % (hyper_selected, [h["id"] for h in hypers_w_threads]),
         )
         return hyper_selected
 
@@ -224,28 +256,41 @@ class BalancerInterface:
             gpu_profile,
             forced_gpus_hypervisors,
         )
+        hypers_w_threads = get_pools_threads_running(gpu_hypervisors_online)
+        if len(gpu_hypervisors_online) != len(hypers_w_threads):
+            logs.main.error("####################### BALANCER #######################")
+            logs.main.error(
+                "Some GPU hypervisors are not online in pool %s." % self.id_pool
+            )
+            logs.main.error(
+                "Virt hypervisors online: %s. Virt hypervisors with threads running: %s."
+                % (
+                    [h["id"] for h in gpu_hypervisors_online],
+                    [h["id"] for h in hypers_w_threads],
+                )
+            )
 
-        if len(gpu_hypervisors_online) == 0:
+        if len(hypers_w_threads) == 0:
             logs.main.debug("####################### BALANCER #######################")
             logs.main.error(
                 "No GPU hypervisors online with profile %s to execute next virt action."
                 % gpu_profile
             )
             return False, {}
-        if len(gpu_hypervisors_online) == 1:
+        if len(hypers_w_threads) == 1:
             logs.main.debug("####################### BALANCER #######################")
             logs.main.debug(
                 "Executing next GPU virt action in the only hypervisor %s with profile %s available"
-                % (gpu_hypervisors_online[0]["id"], gpu_profile)
+                % (hypers_w_threads[0]["id"], gpu_profile)
             )
-            return gpu_hypervisors_online[0]["id"], _parse_extra_gpu_info(
-                gpu_hypervisors_online[0]["gpu_selected"]
+            return hypers_w_threads[0]["id"], _parse_extra_gpu_info(
+                hypers_w_threads[0]["gpu_selected"]
             )
-        hyper_selected = self._balancer._balancer(gpu_hypervisors_online)
+        hyper_selected = self._balancer._balancer(hypers_w_threads)
         logs.main.debug("####################### BALANCER #######################")
         logs.main.debug(
             "Executing next GPU virt action in hypervisor %s with profile %s (current similar hypers avail: %s)"
-            % (hyper_selected, gpu_profile, [h["id"] for h in gpu_hypervisors_online]),
+            % (hyper_selected, gpu_profile, [h["id"] for h in hypers_w_threads]),
         )
         return hyper_selected["id"], _parse_extra_gpu_info(
             hyper_selected["gpu_selected"]
