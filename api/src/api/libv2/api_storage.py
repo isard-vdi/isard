@@ -144,12 +144,42 @@ def get_domain_storage(domain_id):
         ).eq_join().run(db.conn)
 
 
-def get_media_domains(storage_id):
+def get_media_domains(media_ids):
     with app.app_context():
         return list(
             r.table("domains")
-            .get_all(storage_id, index="media_ids")
-            .pluck("id", "kind", "name")
+            .get_all(media_ids, index="media_ids")
+            .eq_join("user", r.table("users"))
+            .pluck(
+                {
+                    "left": {
+                        "name": True,
+                        "kind": True,
+                        "id": True,
+                        "user": True,
+                    },
+                    "right": {
+                        "id": True,
+                        "group": True,
+                        "category": True,
+                        "role": True,
+                    },
+                }
+            )
+            .map(
+                lambda doc: {
+                    "id": doc["left"]["id"],
+                    "name": doc["left"]["name"],
+                    "kind": doc["left"]["kind"],
+                    "user": doc["left"]["user"],
+                    "user_data": {
+                        "role_id": doc["right"]["role"],
+                        "category_id": doc["right"]["category"],
+                        "group_id": doc["right"]["group"],
+                        "user_id": doc["right"]["id"],
+                    },
+                }
+            )
             .run(db.conn)
         )
 

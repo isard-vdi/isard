@@ -14,6 +14,9 @@ from api import app
 
 from ..libv2.api_admin import admin_table_get, admin_table_update
 from ..libv2.api_allowed import ApiAllowed
+from ..libv2.api_desktops_persistent import (
+    unassign_resource_from_desktops_and_deployments,
+)
 from ..libv2.validators import _validate_item
 from .decorators import has_token, owns_table_item_id
 
@@ -126,6 +129,12 @@ def admin_allowed_update(payload, table):
     data = request.get_json(force=True)
     data.update(_validate_item("allowed", data["allowed"]))
     admin_table_update(table, {"id": data["id"], "allowed": data["allowed"]})
+    if table in ["interfaces", "media", "reservables_vgpus", "boots", "videos"]:
+        item = data
+        if not data["allowed"].get("roles") or not data["allowed"].get("categories"):
+            item = admin_table_get(table, data["id"])
+            item["allowed"].update(data["allowed"])
+        unassign_resource_from_desktops_and_deployments(table, item)
     return (json.dumps({}), 200, {"Content-Type": "application/json"})
 
 
