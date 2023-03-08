@@ -707,7 +707,9 @@ class UiActions(object):
                 action["storage_id"] = disk.get("storage_id")
 
                 hyp_to_disk_create = get_host_disk_operations_from_path(
-                    path_selected, pool=pool_id, type_path=type_path_selected
+                    self.manager,
+                    pool=pool_id,
+                    type_path=type_path_selected,
                 )
 
                 # INFO TO DEVELOPER: falta terminar de ver que hacemos con el pool para crear
@@ -824,7 +826,9 @@ class UiActions(object):
         )
 
         hyp_to_disk_create = get_host_disk_operations_from_path(
-            path_selected, pool=pool_id, type_path=type_path
+            self.manager,
+            pool=pool_id,
+            type_path=type_path,
         )
 
         cmds = create_cmd_disk_from_scratch(
@@ -915,7 +919,9 @@ class UiActions(object):
                 size_str = dict_to_create["hardware"]["disks"][0]["size"]
 
                 hyp_to_disk_create = get_host_disk_operations_from_path(
-                    path_selected, pool=pool_id, type_path="desktop"
+                    self.manager,
+                    pool=pool_id,
+                    type_path="desktop",
                 )
 
                 cmds = create_cmd_disk_from_scratch(
@@ -1110,7 +1116,9 @@ class UiActions(object):
                 "path_selected"
             ]
             hyp_to_disk_create = get_host_disk_operations_from_path(
-                path_selected, pool=pool_id, type_path=path_type
+                self.manager,
+                pool=pool_id,
+                type_path=path_type,
             )
             if persistent is False:
                 print(f"desktop not persistent, forced hyp: {hyp_to_disk_create}")

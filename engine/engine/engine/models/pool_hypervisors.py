@@ -6,6 +6,7 @@
 
 import pprint
 
+from _common.storage_pool import DEFAULT_STORAGE_POOL_ID
 from engine.services.db.hypervisors import get_pool_hypers_conf
 from engine.services.lib.functions import clean_intermediate_status
 from engine.services.log import logs
@@ -97,6 +98,13 @@ def move_actions_to_others_hypers(
 
 class PoolHypervisors:
     def __init__(self, id_pool, balancer_type="free_ram"):
+        self.id_pool = id_pool
+        self.balancer = BalancerInterface(id_pool, balancer_type)
+        self.conf = get_pool_hypers_conf(id_pool)
+
+
+class PoolDiskoperations:
+    def __init__(self, id_pool=DEFAULT_STORAGE_POOL_ID, balancer_type="less_cpu"):
         self.id_pool = id_pool
         self.balancer = BalancerInterface(id_pool, balancer_type)
         self.conf = get_pool_hypers_conf(id_pool)

@@ -162,21 +162,22 @@ class BalancerInterface:
         if len(hypers) == 0:
             logs.main.error("####################### BALANCER #######################")
             logs.main.error(
-                "No disk operations online to execute next diskopts action."
+                "No disk operations online to execute next diskopts action in pool %s."
+                % self.id_pool
             )
             return False
         if len(hypers) == 1:
             logs.main.debug("####################### BALANCER #######################")
             logs.main.debug(
-                "Executing next disk operations action in the only diskopts available: %s"
-                % hypers[0]["id"]
+                "Executing next disk operations action in the only diskopts available: %s in pool %s."
+                % (hypers[0]["id"], self.id_pool)
             )
             return hypers[0]["id"]
         hyper_selected = self._balancer._balancer(hypers)["id"]
         logs.main.debug("####################### BALANCER #######################")
         logs.main.debug(
-            "Executing next disk operations action in hypervisor: %s (current hypers avail: %s)"
-            % (hyper_selected, [h["id"] for h in hypers])
+            "Executing next disk operations action in hypervisor: %s (current hypers avail: %s) in pool %s"
+            % (hyper_selected, [h["id"] for h in hypers], self.id_pool)
         ),
         return hyper_selected
 

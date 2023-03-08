@@ -903,78 +903,23 @@ def get_host_long_operations_from_path(
 
 
 def get_host_disk_operations_from_path(
-    path_selected, pool=DEFAULT_STORAGE_POOL_ID, type_path="desktop"
+    manager, pool=DEFAULT_STORAGE_POOL_ID, type_path="desktop"
 ):
-    l_threads = get_threads_names_running()
-    d_pool = get_storage_pool(pool)
-    # TODO must find by weight
-    pprint(d_pool)
-    print("path_selected:")
-    pprint(path_selected)
+    # We should get a random type_path if it has more than one path?
+    # d_pool = get_storage_pool(pool)
+    # We are not returing the path, so why we need to get it here
 
-    if "round_robin_indexes" in d_pool.keys():
-        round_robin_index = d_pool["round_robin_indexes"].get(type_path, 0)
-    else:
-        round_robin_index = 0
+    disk_operations = manager.diskoperations_pools[
+        pool
+    ].balancer.get_next_diskoperations()
 
-    print(f"round robin index from pool: {round_robin_index}")
-
-    try:
-        hyps = get_storage_pool_hypervisor_ids(pool)
-        print(
-            f"hypervisores para disk-operations en path {path_selected}, type_path {type_path}"
-        )
-        pprint(l_threads)
-        pprint(hyps)
-    except IndexError:
-        log.error(
-            "no disk operations hypervisors for path {} in pool {} with type_path {}".format(
-                path_selected, pool, type_path
-            )
-        )
-        return False
-    # TODO must be revised to return random or less cpuload hypervisor
-
-    # select hypers for this path and if they are running
-    online_not_forced_hypers = get_hypers_not_forced_disk_operations()
-    d_threads_h = {"disk_op_" + h: h for h in hyps if h in online_not_forced_hypers}
-    hyps_candidate = sorted(
-        [d_threads_h[k] for k in set(l_threads).intersection(set(d_threads_h.keys()))]
-    )
-
-    if len(hyps_candidate) == 0:
-        log.error(
-            "There are not hypervisors with disk_operations thread for path {}".format(
-                path_selected
-            )
-        )
-        return False
-
-    print("##HYPS CANDIDATE")
-    pprint(hyps_candidate)
-    if round_robin_index >= len(hyps_candidate):
-        round_robin_index = 0
-
-    if (round_robin_index + 1) >= len(hyps_candidate):
-        round_robin_next = 0
-    else:
-        round_robin_next = round_robin_index + 1
-    print(f"#ROUND ROBIN INDEX: {round_robin_index}")
-    print(f"#ROUND ROBIN NEXT: {round_robin_next}")
-
-    update_pool_round_robin(type_path=type_path, round_robin_index=round_robin_next)
-
-    print(
-        f"round_robin: {round_robin_index}, type_path: {type_path} ,hyp_selected: "
-        + hyps_candidate[round_robin_index]
-    )
-
-    return hyps_candidate[round_robin_index]
-    # for h in hyps:
-    #     #print('------------------- hyp selected')
-    #     #print(h)
-    #     if 'disk_op_' + h in l_threads:
-    #         return h
+    # We should check if it's thread is running
+    # This should go into balancer?
+    # d_threads_h = {"disk_op_" + h: h for h in hyps if h in disk_operations}
+    # disk_operations = sorted(
+    #     [d_threads_h[k] for k in set(l_threads).intersection(set(d_threads_h.keys()))]
+    # )
+    return disk_operations
 
 
 def test_hypers_disk_operations(hyps_disk_operations):
