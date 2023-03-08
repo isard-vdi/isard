@@ -10,7 +10,7 @@ import (
 type Cfg struct {
 	Log          cfg.Log
 	Orchestrator Orchestrator
-	DryRun       bool `mapstructure:"infrastructure_dry_run"`
+	DryRun       bool `mapstructure:"dry_run"`
 }
 
 type Orchestrator struct {
@@ -45,6 +45,7 @@ func New() Cfg {
 
 func setDefaults() {
 	viper.BindEnv("orchestrator.api_secret", "API_ISARDVDI_SECRET")
+	viper.BindEnv("dry_run", "INFRASTRUCTURE_DRY_RUN")
 
 	viper.SetDefault("orchestrator", map[string]interface{}{
 		"polling_interval":   "30s",
@@ -63,5 +64,5 @@ func setDefaults() {
 			"hyper_max_ram":  0,
 		},
 	})
-	viper.SetDefault("infrastructure_dry_run", false)
+	viper.SetDefault("dry_run", false)
 }

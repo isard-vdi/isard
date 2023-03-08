@@ -14,7 +14,15 @@ func NewModelHypervisor(h *client.OrchestratorHypervisor) ModelHypervisor {
 }
 
 func (m ModelHypervisor) MarshalZerologObject(e *zerolog.Event) {
-	e.Str("id", m.h.ID).Str("status", string(m.h.Status)).Bool("only_forced", m.h.OnlyForced).Bool("buffering", m.h.Buffering).Time("destroy_time", m.h.DestroyTime).Object("cpu", NewModelResourceLoad(m.h.CPU)).Object("ram", NewModelResourceLoad(m.h.RAM))
+	e.Str("id", m.h.ID).
+		Str("status", string(m.h.Status)).
+		Bool("only_forced", m.h.OnlyForced).
+		Bool("buffering", m.h.Buffering).
+		Time("destroy_time", m.h.DestroyTime).
+		Bool("orchestrator_managed", m.h.OrchestratorManaged).
+		Int("desktops_started", m.h.DesktopsStarted).
+		Object("cpu", NewModelResourceLoad(m.h.CPU)).
+		Object("ram", NewModelResourceLoad(m.h.RAM))
 }
 
 type ModelResourceLoad struct {
