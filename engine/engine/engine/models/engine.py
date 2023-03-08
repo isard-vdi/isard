@@ -2,7 +2,6 @@
 #      Alberto Larraz Dalmases
 #      Josep Maria Viñolas Auquer
 # License: AGPLv3
-# coding=utf-8
 
 import pprint
 import queue

@@ -14,43 +14,6 @@ from rethinkdb.errors import ReqlNonExistenceError
 
 from .db import rethink
 
-# def get_hyp_hostnames():
-#     """
-#     NOT USED
-#     :return:
-#     """
-#     r_conn = new_rethink_connection()
-#     rtable = r.table('hypervisors')
-#
-#     l = list(rtable. \
-#              filter({'enabled': True}). \
-#              pluck('id', 'hostname'). \
-#              run(r_conn))
-#     close_rethink_connection(r_conn)
-#
-#     hyps_hostnames = {d['id']: d['hostname'] for d in l}
-#
-#     return hyps_hostnames
-
-
-# def get_hyps_to_test():
-#     """
-#     NOT USED
-#     :return:
-#     """
-#     r_conn = new_rethink_connection()
-#     rtable = r.table('hypervisors')
-#
-#     l = list(rtable. \
-#              filter({'enabled': True, 'status': 'ReadyToStart'}). \
-#              pluck('id', 'hostname'). \
-#              run(r_conn))
-#     close_rethink_connection(r_conn)
-#
-#     hyps_hostnames = {d['id']: d['hostname'] for d in l}
-#
-#     return hyps_hostnames
-
 
 def get_hyps_ready_to_start():
     r_conn = new_rethink_connection()

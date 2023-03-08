@@ -3,21 +3,16 @@
 #      Josep Maria Viñolas Auquer
 # License: AGPLv3
 
-# coding=utf-8
-
 import json
 import shlex
 import string
 from os.path import dirname as extract_dir_path
-from pprint import pformat, pprint
+from pprint import pprint
 from random import choices
 from uuid import uuid4
 
 from _common.storage_pool import DEFAULT_STORAGE_POOL_ID
-from engine.services.db import (
-    get_hyp_hostname_user_port_from_id,
-    update_pool_round_robin,
-)
+from engine.services.db import get_hyp_hostname_user_port_from_id
 from engine.services.db.db import get_pool, get_pools_from_hyp
 from engine.services.db.domains import (
     get_custom_dict_from_domain,
@@ -36,8 +31,6 @@ from engine.services.lib.functions import (
     size_format,
 )
 from engine.services.log import *
-
-from engine import config
 
 VDESKTOP_DISK_OPERATINOS = CONFIG_DICT["REMOTEOPERATIONS"][
     "host_remote_disk_operatinos"
