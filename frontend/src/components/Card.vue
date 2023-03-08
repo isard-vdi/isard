@@ -218,7 +218,7 @@
 
         <!-- Actions -->
         <div
-          v-if="[desktopStates.started, desktopStates.waitingip].includes(desktopState)"
+          v-if="[desktopStates.started, desktopStates.waitingip, desktopStates['shutting-down']].includes(desktopState)"
           class="d-flex flex-column mb-2 buttons-padding buttons-margin"
         >
           <div class="ml-1 mb-1">
@@ -394,7 +394,7 @@ export default {
       return this.desktopState === desktopStates.waitingip
     },
     showDropDown () {
-      return [desktopStates.started, desktopStates.waitingip].includes(this.desktopState)
+      return [desktopStates.started, desktopStates.waitingip, desktopStates['shutting-down']].includes(this.desktopState)
     },
     getViewerText () {
       const name = this.getDefaultViewer !== '' ? i18n.t(`views.select-template.viewer-name.${this.getDefaultViewer}`) : i18n.t('views.select-template.viewers')

@@ -512,7 +512,7 @@ export default {
       return desktop.state && desktop.type === 'nonpersistent' && this.getItemState(desktop) === desktopStates.stopped
     },
     showDropDown (desktop) {
-      return [desktopStates.started, desktopStates.waitingip].includes(this.getItemState(desktop))
+      return [desktopStates.started, desktopStates.waitingip, desktopStates['shutting-down']].includes(this.getItemState(desktop))
     },
     getItemState (desktop) {
       return desktop.state ? desktop.state.toLowerCase() : desktopStates.stopped
