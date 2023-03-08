@@ -53,7 +53,7 @@ def get_hypers_disk_operations():
 
 def update_hyp_thread_status(thread_type, hyp_id, status):
 
-    if thread_type in ["worker", "disk_operations", "long_operations"] and status in [
+    if thread_type in ["worker", "disk_operations"] and status in [
         "Started",
         "Stopped",
         "Starting",
@@ -85,10 +85,7 @@ def update_hyp_thread_status(thread_type, hyp_id, status):
             elif status_hyp == "Deleting":
                 ko_disk_operations = False
                 if d["capabilities"].get("disk_operations", False) is True:
-                    if (
-                        d["thread_status"].get("disk_operations", "") == "Stopped"
-                        and d["thread_status"].get("long_operations", "") == "Stopped"
-                    ):
+                    if d["thread_status"].get("disk_operations", "") == "Stopped":
                         ko_disk_operations = True
                 elif d["capabilities"].get("disk_operations", True) is False:
                     ko_disk_operations = True
@@ -114,10 +111,7 @@ def update_hyp_thread_status(thread_type, hyp_id, status):
 
             ok_disk_operations = False
             if d["capabilities"].get("disk_operations", False) is True:
-                if (
-                    d["thread_status"].get("disk_operations", "") == "Started"
-                    and d["thread_status"].get("long_operations", "") == "Started"
-                ):
+                if d["thread_status"].get("disk_operations", "") == "Started":
                     ok_disk_operations = True
             elif d["capabilities"].get("disk_operations", True) is False:
                 ok_disk_operations = True
@@ -460,7 +454,6 @@ def update_all_hyps_status(reset_status="Offline", reset_thread_status="Stopped"
     r_conn = new_rethink_connection()
     d_reset_thread_status = {
         "worker": reset_thread_status,
-        "long_operations": reset_thread_status,
         "disk_operations": reset_thread_status,
     }
     results = (

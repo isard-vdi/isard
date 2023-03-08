@@ -20,18 +20,15 @@ import paramiko
 import xmltodict
 from engine.services.db import (
     gen_new_mac,
-    get_all_domains_with_id_and_status,
     get_disks_all_domains,
     update_disk_backing_chain,
     update_domain_status,
 )
 from engine.services.db.config import table_config_created_and_populated
 from engine.services.db.domains import (
-    STATUS_TO_FAILED,
     delete_incomplete_creating_domains,
     fail_incomplete_creating_domains,
     fail_started_domains_without_hypervisors,
-    get_all_domains_with_id_status_hyp_started,
     start_incomplete_starting_domains,
     stop_incomplete_starting_domains,
     unknown_started_domains,

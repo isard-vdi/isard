@@ -85,8 +85,6 @@ class Engine(object):
         self.diskoperations_pools = {}
         self.t_disk_operations = {}
         self.q_disk_operations = {}
-        self.t_long_operations = {}
-        self.q_long_operations = {}
         self.t_orchestrator = None
         self.t_events = None
         self.t_changes_domains = None
@@ -227,7 +225,6 @@ class Engine(object):
 
                 # Threads that depends on hypervisors availavility:
                 # - disk_operations
-                # - long_operations
                 # - for every hypervisor:
                 #     - worker
                 #     - status
@@ -275,8 +272,6 @@ class Engine(object):
                         t_events=self.manager.t_events,
                         t_disk_operations=self.manager.t_disk_operations,
                         q_disk_operations=self.manager.q_disk_operations,
-                        t_long_operations=self.manager.t_long_operations,
-                        q_long_operations=self.manager.q_long_operations,
                         queues_object=self.manager.q,
                     )
                     self.manager.t_orchestrator.daemon = True
@@ -737,7 +732,7 @@ class Engine(object):
         alive = []
         dead = []
         not_defined = []
-        for name in ["workers", "status", "disk_operations", "long_operations"]:
+        for name in ["workers", "status", "disk_operations"]:
             for hyp, t in self.__getattribute__("t_" + name).items():
                 try:
                     alive.append(name + "_" + hyp) if t.is_alive() else dead.append(
@@ -767,8 +762,6 @@ class Engine(object):
         #    pass
         self.t_broom.stop = True
         # operations / status
-        for k, v in self.t_long_operations.items():
-            v.stop = True
         for k, v in self.t_disk_operations.items():
             v.stop = True
         for k, v in self.t_workers.items():

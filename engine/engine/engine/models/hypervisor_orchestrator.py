@@ -26,17 +26,14 @@ from engine.services.db.db import new_rethink_connection
 from engine.services.db.hypervisors import (
     get_hyp_hostname_from_id,
     get_hyp_hostname_user_port_from_id,
-    get_hypers_disk_operations,
     get_hypers_enabled_with_capabilities_status,
     update_hyp_status,
     update_hyp_thread_status,
 )
 from engine.services.lib.functions import PriorityQueueIsard, get_tid, try_socket
-from engine.services.lib.qcow import test_hypers_disk_operations
 from engine.services.log import logs
 from engine.services.threads.threads import (
     launch_disk_operations_thread,
-    launch_long_operations_thread,
     launch_thread_worker,
 )
 from rethinkdb import r
@@ -133,8 +130,6 @@ class HypervisorsOrchestratorThread(threading.Thread):
         t_workers,
         queues_object,
         t_events,
-        t_long_operations,
-        q_long_operations,
         t_disk_operations,
         q_disk_operations,
         polling_interval=10,
@@ -144,8 +139,6 @@ class HypervisorsOrchestratorThread(threading.Thread):
         self.t_workers = t_workers
         self.t_events = t_events
         self.q_actions = PriorityQueueIsard()
-        self.t_long_operations = t_long_operations
-        self.q_long_operations = q_long_operations
         self.t_disk_operations = t_disk_operations
         self.q_disk_operations = q_disk_operations
         self.name = name
@@ -159,7 +152,6 @@ class HypervisorsOrchestratorThread(threading.Thread):
         self.hypers_unknown = {}
         self.d_queues = {
             "disk_operations": self.q_disk_operations,
-            "long_operations": self.q_long_operations,
             "workers": self.q.workers,
         }
 
@@ -213,19 +205,6 @@ class HypervisorsOrchestratorThread(threading.Thread):
                     del t_old
                     del q_old
                     update_hyp_thread_status("disk_operations", hyp_id, "Stopped")
-
-                if action["type"] == "thread_long_operations_dead":
-                    hyp_id = action["hyp_id"]
-                    if self.q_long_operations[hyp_id].empty() is False:
-                        d = {"long_operations": self.q_long_operations}
-                        move_actions_to_others_hypers(
-                            hyp_id, d, remove_stopping=True, remove_if_no_more_hyps=True
-                        )
-                    q_old = self.q_long_operations.pop(hyp_id)
-                    t_old = self.t_long_operations.pop(hyp_id)
-                    del t_old
-                    del q_old
-                    update_hyp_thread_status("long_operations", hyp_id, "Stopped")
 
                 if action["type"] == "new_hyper_in_db":
                     pass
@@ -290,13 +269,6 @@ class HypervisorsOrchestratorThread(threading.Thread):
                 action = {"type": "stop_thread"}
                 self.q_disk_operations[hyp_id].put(action)
 
-        if hyp_id in self.t_long_operations.keys():
-            if thread_status["long_operations"] == "Started":
-                update_hyp_thread_status("long_operations", hyp_id, "Stopping")
-                self.t_long_operations[hyp_id].stop = True
-                action = {"type": "stop_thread"}
-                self.q_long_operations[hyp_id].put(action)
-
     def check_hyps_from_database(self):
         l_hyps = get_hypers_enabled_with_capabilities_status()
         for d_hyp in l_hyps:
@@ -342,11 +314,10 @@ class HypervisorsOrchestratorThread(threading.Thread):
         if (
             capabilities.get("disk_operations", False) is True
             and thread_status.get("disk_operations", "Stopped") == "Stopped"
-            and thread_status.get("long_operations", "Stopped") == "Stopped"
         ):
-            self.activate_disk_long_operations(hyp_id)
+            self.activate_disk_operations(hyp_id)
 
-    def activate_disk_long_operations(self, hyp_id, timeout=10):
+    def activate_disk_operations(self, hyp_id, timeout=10):
         d = get_hyp_hostname_user_port_from_id(hyp_id)
 
         launch_disk_operations = True
@@ -361,21 +332,6 @@ class HypervisorsOrchestratorThread(threading.Thread):
                 self.t_disk_operations[hyp_id],
                 self.q_disk_operations[hyp_id],
             ) = launch_disk_operations_thread(
-                hyp_id, d["hostname"], d["user"], d["port"], self.q_actions
-            )
-
-        launch_long_operations = True
-        if hyp_id in self.t_long_operations.keys():
-            if self.t_long_operations[hyp_id].is_alive():
-                launch_long_operations = False
-            else:
-                self.t_long_operations.pop(hyp_id)
-                self.q_long_operations.pop(hyp_id)
-        if launch_long_operations is True:
-            (
-                self.t_long_operations[hyp_id],
-                self.q_long_operations[hyp_id],
-            ) = launch_long_operations_thread(
                 hyp_id, d["hostname"], d["user"], d["port"], self.q_actions
             )
 
@@ -504,36 +460,3 @@ class HypervisorChangesThread(threading.Thread):
                         delete_table_item("hypervisors", hyp_id)
 
         self.r_conn.close()
-
-
-def launch_threads_disk_and_long_operations(self):
-
-    self.manager.hypers_disk_operations = get_hypers_disk_operations()
-
-    self.manager.hypers_disk_operations_tested = test_hypers_disk_operations(
-        self.manager.hypers_disk_operations
-    )
-
-    for hyp_disk_operations in self.manager.hypers_disk_operations_tested:
-        hyp_long_operations = hyp_disk_operations
-        d = get_hyp_hostname_user_port_from_id(hyp_disk_operations)
-
-        if hyp_disk_operations not in self.manager.t_disk_operations.keys():
-            (
-                self.manager.t_disk_operations[hyp_disk_operations],
-                self.manager.q_disk_operations[hyp_disk_operations],
-            ) = launch_disk_operations_thread(
-                hyp_id=hyp_disk_operations,
-                hostname=d["hostname"],
-                user=d["user"],
-                port=d["port"],
-            )
-            (
-                self.manager.t_long_operations[hyp_long_operations],
-                self.manager.q_long_operations[hyp_long_operations],
-            ) = launch_long_operations_thread(
-                hyp_id=hyp_long_operations,
-                hostname=d["hostname"],
-                user=d["user"],
-                port=d["port"],
-            )

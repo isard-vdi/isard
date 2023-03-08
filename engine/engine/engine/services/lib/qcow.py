@@ -18,16 +18,11 @@ from engine.services.db.domains import (
     get_custom_dict_from_domain,
     update_custom_all_dict,
 )
-from engine.services.db.hypervisors import (
-    get_hypers_not_forced_disk_operations,
-    get_storage_pool_hypervisor_ids,
-)
 from engine.services.db.storage_pool import get_storage_pool
 from engine.services.lib.functions import (
     backing_chain_cmd,
     exec_remote_cmd,
     execute_commands,
-    get_threads_names_running,
     size_format,
 )
 from engine.services.log import *
@@ -873,26 +868,6 @@ def get_path_to_disk(
     )[0]
     path_absolute = path_selected + "/" + relative_path
     return path_absolute, path_selected
-
-
-def get_host_long_operations_from_path(
-    path_selected, pool=DEFAULT_STORAGE_POOL_ID, type_path="desktop"
-):
-    l_threads = get_threads_names_running()
-    online_not_forced_hypers = get_hypers_not_forced_disk_operations()
-    hyps = get_storage_pool_hypervisor_ids(pool)
-
-    # TODO must be revised to return random or less cpuload hypervisor
-    for h in hyps:
-        if "long_op_" + h in l_threads and h in online_not_forced_hypers:
-            return h
-
-    log.error(
-        "There are not hypervisors with disk_operations thread for path {}".format(
-            path_selected
-        )
-    )
-    return False
 
 
 def get_host_disk_operations_from_path(

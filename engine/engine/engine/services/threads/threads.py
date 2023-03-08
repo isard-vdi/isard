@@ -95,29 +95,6 @@ def launch_disk_operations_thread(
     return thread_disk_operation, queue_disk_operation
 
 
-def launch_long_operations_thread(
-    hyp_id, hostname, user="root", port=22, q_orchestrator=None
-):
-    if hyp_id is False:
-        return False, False
-
-    update_hyp_thread_status("long_operations", hyp_id, "Starting")
-
-    queue_long_operation = PriorityQueueIsard()
-    thread_long_operation = LongOperationsThread(
-        name="long_op_" + hyp_id,
-        hyp_id=hyp_id,
-        hostname=hostname,
-        queue_actions=queue_long_operation,
-        user=user,
-        port=port,
-        queue_master=q_orchestrator,
-    )
-    thread_long_operation.daemon = True
-    thread_long_operation.start()
-    return thread_long_operation, queue_long_operation
-
-
 def launch_delete_disk_action(action, hostname, user, port):
     disk_path = action["disk_path"]
     id_domain = action["domain"]
@@ -529,4 +506,3 @@ def set_domains_coherence(dict_hyps_ready):
 # IMPORT Thread Classes HERE
 from engine.services.threads.disk_operations_thread import DiskOperationsThread
 from engine.services.threads.hyp_worker_thread import HypWorkerThread
-from engine.services.threads.long_operations_thread import LongOperationsThread
