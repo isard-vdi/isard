@@ -29,7 +29,6 @@ while not table_exists:
     try:
         with r.connect(host=RETHINK_HOST, port=RETHINK_PORT) as conn:
             rconfig = r.db(RETHINK_DB).table("config").get(1).run(conn)
-            # grafana= rconfig['engine']['grafana']
             rconfig = rconfig["engine"]
             r.db("isard").wait(wait_for="all_replicas_ready").run(conn)
         table_exists = True
@@ -54,7 +53,6 @@ POLLING_INTERVAL_BACKGROUND = rconfig["intervals"]["background_polling"]
 POLLING_INTERVAL_TRANSITIONAL_STATES = rconfig["intervals"][
     "transitional_states_polling"
 ]
-# GRAFANA = grafana
 
 TRANSITIONAL_STATUS = ("Starting", "Stopping", "Deleting", "Shutdown", "Shutting-down")
 

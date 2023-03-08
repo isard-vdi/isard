@@ -47,7 +47,6 @@ from engine.services.lib.functions import (
 )
 from engine.services.log import logs
 from engine.services.threads.download_thread import launch_thread_download_changes
-from engine.services.threads.grafana_thread import launch_grafana_thread
 from rethinkdb import r
 from tabulate import tabulate
 
@@ -93,7 +92,6 @@ class Engine(object):
         self.t_broom = None
         self.t_background = None
         self.t_downloads_changes = None
-        self.t_grafana = None
         self.quit = False
 
         self.threads_info_main = {}
@@ -225,7 +223,6 @@ class Engine(object):
                 # - downloads_changes
                 # - broom
                 # - events
-                # - grafana
 
                 # Threads that depends on hypervisors availavility:
                 # - disk_operations
@@ -276,12 +273,6 @@ class Engine(object):
                     )
                     self.manager.t_orchestrator.daemon = True
                     self.manager.t_orchestrator.start()
-
-                    # launch grafana thread
-                    logs.main.debug("launching grafana thread")
-                    self.manager.t_grafana = launch_grafana_thread(
-                        self.manager.t_status, self.manager
-                    )
 
                     logs.main.info("THREADS LAUNCHED FROM BACKGROUND THREAD")
                     update_table_field(
