@@ -35,7 +35,11 @@ from engine.services.db import (
 from engine.services.db.config import get_config, table_config_created_and_populated
 from engine.services.db.domains import (
     STATUS_TO_FAILED,
+    delete_incomplete_creating_domains,
+    fail_incomplete_creating_domains,
     get_all_domains_with_id_status_hyp_started,
+    start_incomplete_starting_domains,
+    stop_incomplete_starting_domains,
     update_domain_progress,
     update_domain_status,
 )
@@ -1140,74 +1144,40 @@ def update_status_db_from_running_domains(hyp_obj):
 
 
 def clean_intermediate_status(reason="engine is restarting", only_domain_id=None):
-    status_to_delete = [
-        "Creating",
-        "CreatingAndStarting",
-        "CreatingDiskFromScratch",
-        "CreatingFromBuilder",
-    ]
-    status_to_failed = [
-        "Updating",
-        "Deleting",
-        "DiskDeleted",
-        "CreatingDomain",
-        "DeletingDomainDisk",
-        "StartingDomainDisposable",
-    ]
-    status_to_stopped = ["Starting"]
-    status_to_started = ["Stopping", "Shutting-down"]
+    # Here only to remember the status that apply to each action
+    # status_to_delete = [
+    #     "Creating",
+    #     "CreatingAndStarting",
+    #     "CreatingDiskFromScratch",
+    #     "CreatingFromBuilder",
+    # ]
+    # status_to_failed = [
+    #     "Updating",
+    #     "Deleting",
+    #     "DiskDeleted",
+    #     "CreatingDomain",
+    #     "DeletingDomainDisk",
+    #     "StartingDomainDisposable",
+    # ]
+    # status_to_stopped = ["Starting"]
+    # status_to_started = ["Stopping", "Shutting-down"]
 
-    if type(only_domain_id) is str:
-        all_domains = []
-        status = get_domain_status(only_domain_id)
-        all_domains.append({"id": only_domain_id, "status": status})
-    else:
-        all_domains = get_all_domains_with_id_and_status()
+    delete_incomplete_creating_domains(only_domain_id=only_domain_id)
 
-    [
-        update_domain_status(
-            "SystemError",
-            d["id"],
-            detail=f"{reason} and delete domain {d['id']} that was not created",
-        )
-        for d in all_domains
-        if d["status"] in status_to_delete
-    ]
-    [delete_domain(d["id"]) for d in all_domains if d["status"] in status_to_delete]
+    fail_incomplete_creating_domains(
+        only_domain_id=only_domain_id,
+        detail=f"Domain status set to Failed because {reason}",
+    )
 
-    # To failed
-    [
-        update_domain_status(
-            "Failed",
-            d["id"],
-            detail=f"change status in domain {d['id']} from {d['status']} to Failed when {reason}",
-        )
-        for d in all_domains
-        if d["status"] in status_to_failed
-    ]
+    stop_incomplete_starting_domains(
+        only_domain_id=only_domain_id,
+        detail=f"Domain status set to Stopped because {reason}",
+    )
 
-    # To stopped
-    [
-        update_domain_status(
-            "Stopped",
-            d["id"],
-            detail=f"change status in domain {d['id']} from {d['status']} to Stopped when {reason}",
-        )
-        for d in all_domains
-        if d["status"] in status_to_stopped
-    ]
-
-    # To started
-    [
-        update_domain_status(
-            "Started",
-            d["id"],
-            keep_hyp_id=True,
-            detail=f"change status in domain {d['id']} from {d['status']} to Started when {reason}",
-        )
-        for d in all_domains
-        if d["status"] in status_to_started
-    ]
+    start_incomplete_starting_domains(
+        only_domain_id=only_domain_id,
+        detail=f"Domain status set to Started because {reason}",
+    )
 
 
 def flatten_dict(d):
