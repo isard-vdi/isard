@@ -28,7 +28,11 @@ from ..api_scheduler import Scheduler
 from ..helpers import _check, _get_reservables
 from .api_reservables import Reservables
 from .api_reservables_planner import ReservablesPlanner
-from .api_reservables_planner_compute import compute_user_priority, payload_priority
+from .api_reservables_planner_compute import (
+    compute_user_priority,
+    min_profile_priority,
+    payload_priority,
+)
 
 scheduler = Scheduler()
 
@@ -46,6 +50,10 @@ class Bookings:
     def get_user_priority(self, payload, item_type, item_id):
         reservables, units, item_name = _get_reservables(item_type, item_id)
         return payload_priority(payload, reservables)
+
+    def get_min_profile_priority(self, item_type, item_id):
+        reservables = _get_reservables(item_type, item_id)
+        return min_profile_priority(reservables)
 
     def get_users_priorities(self, rule_id):
         with app.app_context():
@@ -106,6 +114,9 @@ class Bookings:
         return list(
             r.table("bookings_priority").pluck("rule_id").distinct().run(db.conn)
         )
+
+    def get_minumum_forbid_time(self):
+        return list(r.table("bookings_priority")["forbid_time"].min())
 
     def add(
         self,
