@@ -1,12 +1,17 @@
 import base64
 import json
+import os
+from pprint import pformat
+from time import sleep
 
+from engine.models.engine import Engine
 from engine.services.db import (
     get_domains_started_in_vgpu,
     get_hyp_hostname_user_port_from_id,
     get_vgpu_info,
     get_vgpu_model_profile_change,
 )
+from engine.services.db.db import get_isardvdi_secret, update_table_field
 from engine.services.lib.functions import execute_commands
 from engine.services.log import logs
 from flask import Blueprint, current_app, jsonify, request
@@ -14,7 +19,7 @@ from flask import Blueprint, current_app, jsonify, request
 api = Blueprint("api", __name__)
 
 app = current_app
-
+# from . import evaluate
 from .tokens import is_admin
 
 #### NOTE: The /engine paths are publicy open so they need @is_admin decorator!
@@ -109,6 +114,11 @@ def stop_threads():
     return jsonify({"stop_threads": True}), 200
 
 
+@api.route("/grafana/restart", methods=["GET"])
+def grafana_restart():
+    app.m.t_grafana.restart_send_config = True
+
+
 @api.route("/status")
 def engine_status():
     """all main threads are running"""
@@ -119,6 +129,12 @@ def engine_status():
 @api.route("/pool/<string:id_pool>/status")
 def pool_status(id_pool):
     """hypervisors ready to start and create disks"""
+    pass
+
+
+@api.route("/grafana/reload")
+def grafana_reload():
+    """changes in grafana parameters"""
     pass
 
 
@@ -172,10 +188,16 @@ def engine_info():
                     if app.m.t_changes_domains != None
                     else False
                 )
+                d_engine["grafana_thread_is_alive"] = getattr(
+                    app.m.t_grafana, "is_alive", bool
+                )()
                 d_engine["working_threads"] = list(app.m.t_workers.keys())
                 d_engine["status_threads"] = list(app.m.t_status.keys())
                 d_engine["disk_operations_threads"] = list(
                     app.m.t_disk_operations.keys()
+                )
+                d_engine["long_operations_threads"] = list(
+                    app.m.t_long_operations.keys()
                 )
 
                 d_engine["alive_threads"] = dict()
@@ -188,12 +210,18 @@ def engine_info():
                 d_engine["alive_threads"]["disk_operations_threads"] = {
                     name: t.is_alive() for name, t in app.m.t_disk_operations.items()
                 }
+                d_engine["alive_threads"]["long_operations_threads"] = {
+                    name: t.is_alive() for name, t in app.m.t_long_operations.items()
+                }
 
                 d_engine["queue_size_working_threads"] = {
                     k: q.qsize() for k, q in app.m.q.workers.items()
                 }
                 d_engine["queue_disk_operations_threads"] = {
                     k: q.qsize() for k, q in app.m.q_disk_operations.items()
+                }
+                d_engine["queue_long_operations_threads"] = {
+                    k: q.qsize() for k, q in app.m.q_long_operations.items()
                 }
                 d_engine["is_alive"] = True
                 http_code = 200

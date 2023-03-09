@@ -3,29 +3,41 @@
 #      Josep Maria Viñolas Auquer
 # License: AGPLv3
 
+# coding=utf-8
+
 import json
 import shlex
 import string
 from os.path import dirname as extract_dir_path
-from pprint import pprint
+from pprint import pformat, pprint
 from random import choices
 from uuid import uuid4
 
 from _common.storage_pool import DEFAULT_STORAGE_POOL_ID
-from engine.services.db import get_hyp_hostname_user_port_from_id
+from engine.services.db import (
+    get_hyp_hostname_user_port_from_id,
+    update_pool_round_robin,
+)
 from engine.services.db.db import get_pool, get_pools_from_hyp
 from engine.services.db.domains import (
     get_custom_dict_from_domain,
     update_custom_all_dict,
+)
+from engine.services.db.hypervisors import (
+    get_hypers_not_forced_disk_operations,
+    get_storage_pool_hypervisor_ids,
 )
 from engine.services.db.storage_pool import get_storage_pool
 from engine.services.lib.functions import (
     backing_chain_cmd,
     exec_remote_cmd,
     execute_commands,
+    get_threads_names_running,
     size_format,
 )
 from engine.services.log import *
+
+from engine import config
 
 VDESKTOP_DISK_OPERATINOS = CONFIG_DICT["REMOTEOPERATIONS"][
     "host_remote_disk_operatinos"
@@ -870,24 +882,99 @@ def get_path_to_disk(
     return path_absolute, path_selected
 
 
-def get_host_disk_operations_from_path(
-    manager, pool=DEFAULT_STORAGE_POOL_ID, type_path="desktop"
+def get_host_long_operations_from_path(
+    path_selected, pool=DEFAULT_STORAGE_POOL_ID, type_path="desktop"
 ):
-    # We should get a random type_path if it has more than one path?
-    # d_pool = get_storage_pool(pool)
-    # We are not returing the path, so why we need to get it here
+    l_threads = get_threads_names_running()
+    online_not_forced_hypers = get_hypers_not_forced_disk_operations()
+    hyps = get_storage_pool_hypervisor_ids(pool)
 
-    disk_operations = manager.diskoperations_pools[
-        pool
-    ].balancer.get_next_diskoperations()
+    # TODO must be revised to return random or less cpuload hypervisor
+    for h in hyps:
+        if "long_op_" + h in l_threads and h in online_not_forced_hypers:
+            return h
 
-    # We should check if it's thread is running
-    # This should go into balancer?
-    # d_threads_h = {"disk_op_" + h: h for h in hyps if h in disk_operations}
-    # disk_operations = sorted(
-    #     [d_threads_h[k] for k in set(l_threads).intersection(set(d_threads_h.keys()))]
-    # )
-    return disk_operations
+    log.error(
+        "There are not hypervisors with disk_operations thread for path {}".format(
+            path_selected
+        )
+    )
+    return False
+
+
+def get_host_disk_operations_from_path(
+    path_selected, pool=DEFAULT_STORAGE_POOL_ID, type_path="desktop"
+):
+    l_threads = get_threads_names_running()
+    d_pool = get_storage_pool(pool)
+    # TODO must find by weight
+    pprint(d_pool)
+    print("path_selected:")
+    pprint(path_selected)
+
+    if "round_robin_indexes" in d_pool.keys():
+        round_robin_index = d_pool["round_robin_indexes"].get(type_path, 0)
+    else:
+        round_robin_index = 0
+
+    print(f"round robin index from pool: {round_robin_index}")
+
+    try:
+        hyps = get_storage_pool_hypervisor_ids(pool)
+        print(
+            f"hypervisores para disk-operations en path {path_selected}, type_path {type_path}"
+        )
+        pprint(l_threads)
+        pprint(hyps)
+    except IndexError:
+        log.error(
+            "no disk operations hypervisors for path {} in pool {} with type_path {}".format(
+                path_selected, pool, type_path
+            )
+        )
+        return False
+    # TODO must be revised to return random or less cpuload hypervisor
+
+    # select hypers for this path and if they are running
+    online_not_forced_hypers = get_hypers_not_forced_disk_operations()
+    d_threads_h = {"disk_op_" + h: h for h in hyps if h in online_not_forced_hypers}
+    hyps_candidate = sorted(
+        [d_threads_h[k] for k in set(l_threads).intersection(set(d_threads_h.keys()))]
+    )
+
+    if len(hyps_candidate) == 0:
+        log.error(
+            "There are not hypervisors with disk_operations thread for path {}".format(
+                path_selected
+            )
+        )
+        return False
+
+    print("##HYPS CANDIDATE")
+    pprint(hyps_candidate)
+    if round_robin_index >= len(hyps_candidate):
+        round_robin_index = 0
+
+    if (round_robin_index + 1) >= len(hyps_candidate):
+        round_robin_next = 0
+    else:
+        round_robin_next = round_robin_index + 1
+    print(f"#ROUND ROBIN INDEX: {round_robin_index}")
+    print(f"#ROUND ROBIN NEXT: {round_robin_next}")
+
+    update_pool_round_robin(type_path=type_path, round_robin_index=round_robin_next)
+
+    print(
+        f"round_robin: {round_robin_index}, type_path: {type_path} ,hyp_selected: "
+        + hyps_candidate[round_robin_index]
+    )
+
+    return hyps_candidate[round_robin_index]
+    # for h in hyps:
+    #     #print('------------------- hyp selected')
+    #     #print(h)
+    #     if 'disk_op_' + h in l_threads:
+    #         return h
 
 
 def test_hypers_disk_operations(hyps_disk_operations):
