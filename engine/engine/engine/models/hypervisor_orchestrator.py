@@ -9,65 +9,32 @@ import pprint
 import queue
 import socket
 import threading
-import time
 import traceback
-from datetime import datetime
-from time import sleep
 
 from engine.config import CONFIG_DICT
-from engine.controllers.events_recolector import launch_thread_hyps_event
-from engine.controllers.status import launch_thread_status
-from engine.models.pool_hypervisors import (
-    PoolHypervisors,
-    move_actions_to_others_hypers,
-)
+from engine.models.pool_hypervisors import move_actions_to_others_hypers
 from engine.services.db import (
     close_rethink_connection,
     delete_table_item,
-    get_domain,
-    get_domain_hyp_started,
     get_domains_flag_server_to_starting,
-    get_if_all_disk_template_created,
     new_rethink_connection,
-    remove_domain,
-    set_unknown_domains_not_in_hyps,
-    update_domain_history_from_id_domain,
     update_domain_status,
     update_domains_in_deleted_hyper,
     update_domains_started_in_hyp_to_unknown,
 )
-from engine.services.db.db import (
-    get_pools_from_hyp,
-    new_rethink_connection,
-    update_table_field,
-)
+from engine.services.db.db import new_rethink_connection
 from engine.services.db.hypervisors import (
     get_hyp_hostname_from_id,
     get_hyp_hostname_user_port_from_id,
-    get_hypers_disk_operations,
     get_hypers_enabled_with_capabilities_status,
-    get_hypers_ids_with_status,
-    get_hyps_ready_to_start,
-    get_hyps_with_status,
-    update_all_hyps_status,
     update_hyp_status,
     update_hyp_thread_status,
 )
-from engine.services.lib.functions import (
-    PriorityQueueIsard,
-    engine_restart,
-    exec_remote_list_of_cmds_dict,
-    get_threads_running,
-    get_tid,
-    try_socket,
-)
-from engine.services.lib.qcow import test_hypers_disk_operations
+from engine.services.lib.functions import PriorityQueueIsard, get_tid, try_socket
 from engine.services.log import logs
 from engine.services.threads.threads import (
     launch_disk_operations_thread,
-    launch_long_operations_thread,
     launch_thread_worker,
-    set_domains_coherence,
 )
 from rethinkdb import r
 
@@ -163,8 +130,6 @@ class HypervisorsOrchestratorThread(threading.Thread):
         t_workers,
         queues_object,
         t_events,
-        t_long_operations,
-        q_long_operations,
         t_disk_operations,
         q_disk_operations,
         polling_interval=10,
@@ -174,8 +139,6 @@ class HypervisorsOrchestratorThread(threading.Thread):
         self.t_workers = t_workers
         self.t_events = t_events
         self.q_actions = PriorityQueueIsard()
-        self.t_long_operations = t_long_operations
-        self.q_long_operations = q_long_operations
         self.t_disk_operations = t_disk_operations
         self.q_disk_operations = q_disk_operations
         self.name = name
@@ -189,7 +152,6 @@ class HypervisorsOrchestratorThread(threading.Thread):
         self.hypers_unknown = {}
         self.d_queues = {
             "disk_operations": self.q_disk_operations,
-            "long_operations": self.q_long_operations,
             "workers": self.q.workers,
         }
 
@@ -243,19 +205,6 @@ class HypervisorsOrchestratorThread(threading.Thread):
                     del t_old
                     del q_old
                     update_hyp_thread_status("disk_operations", hyp_id, "Stopped")
-
-                if action["type"] == "thread_long_operations_dead":
-                    hyp_id = action["hyp_id"]
-                    if self.q_long_operations[hyp_id].empty() is False:
-                        d = {"long_operations": self.q_long_operations}
-                        move_actions_to_others_hypers(
-                            hyp_id, d, remove_stopping=True, remove_if_no_more_hyps=True
-                        )
-                    q_old = self.q_long_operations.pop(hyp_id)
-                    t_old = self.t_long_operations.pop(hyp_id)
-                    del t_old
-                    del q_old
-                    update_hyp_thread_status("long_operations", hyp_id, "Stopped")
 
                 if action["type"] == "new_hyper_in_db":
                     pass
@@ -320,13 +269,6 @@ class HypervisorsOrchestratorThread(threading.Thread):
                 action = {"type": "stop_thread"}
                 self.q_disk_operations[hyp_id].put(action)
 
-        if hyp_id in self.t_long_operations.keys():
-            if thread_status["long_operations"] == "Started":
-                update_hyp_thread_status("long_operations", hyp_id, "Stopping")
-                self.t_long_operations[hyp_id].stop = True
-                action = {"type": "stop_thread"}
-                self.q_long_operations[hyp_id].put(action)
-
     def check_hyps_from_database(self):
         l_hyps = get_hypers_enabled_with_capabilities_status()
         for d_hyp in l_hyps:
@@ -372,11 +314,10 @@ class HypervisorsOrchestratorThread(threading.Thread):
         if (
             capabilities.get("disk_operations", False) is True
             and thread_status.get("disk_operations", "Stopped") == "Stopped"
-            and thread_status.get("long_operations", "Stopped") == "Stopped"
         ):
-            self.activate_disk_long_operations(hyp_id)
+            self.activate_disk_operations(hyp_id)
 
-    def activate_disk_long_operations(self, hyp_id, timeout=10):
+    def activate_disk_operations(self, hyp_id, timeout=10):
         d = get_hyp_hostname_user_port_from_id(hyp_id)
 
         launch_disk_operations = True
@@ -391,21 +332,6 @@ class HypervisorsOrchestratorThread(threading.Thread):
                 self.t_disk_operations[hyp_id],
                 self.q_disk_operations[hyp_id],
             ) = launch_disk_operations_thread(
-                hyp_id, d["hostname"], d["user"], d["port"], self.q_actions
-            )
-
-        launch_long_operations = True
-        if hyp_id in self.t_long_operations.keys():
-            if self.t_long_operations[hyp_id].is_alive():
-                launch_long_operations = False
-            else:
-                self.t_long_operations.pop(hyp_id)
-                self.q_long_operations.pop(hyp_id)
-        if launch_long_operations is True:
-            (
-                self.t_long_operations[hyp_id],
-                self.q_long_operations[hyp_id],
-            ) = launch_long_operations_thread(
                 hyp_id, d["hostname"], d["user"], d["port"], self.q_actions
             )
 
@@ -534,110 +460,3 @@ class HypervisorChangesThread(threading.Thread):
                         delete_table_item("hypervisors", hyp_id)
 
         self.r_conn.close()
-
-
-def launch_threads_disk_and_long_operations(self):
-
-    self.manager.hypers_disk_operations = get_hypers_disk_operations()
-
-    self.manager.hypers_disk_operations_tested = test_hypers_disk_operations(
-        self.manager.hypers_disk_operations
-    )
-
-    for hyp_disk_operations in self.manager.hypers_disk_operations_tested:
-        hyp_long_operations = hyp_disk_operations
-        d = get_hyp_hostname_user_port_from_id(hyp_disk_operations)
-
-        if hyp_disk_operations not in self.manager.t_disk_operations.keys():
-            (
-                self.manager.t_disk_operations[hyp_disk_operations],
-                self.manager.q_disk_operations[hyp_disk_operations],
-            ) = launch_disk_operations_thread(
-                hyp_id=hyp_disk_operations,
-                hostname=d["hostname"],
-                user=d["user"],
-                port=d["port"],
-            )
-            (
-                self.manager.t_long_operations[hyp_long_operations],
-                self.manager.q_long_operations[hyp_long_operations],
-            ) = launch_long_operations_thread(
-                hyp_id=hyp_long_operations,
-                hostname=d["hostname"],
-                user=d["user"],
-                port=d["port"],
-            )
-
-
-# def test_hyps_and_start_threads(self):
-#     """If status of hypervisor is Error or Offline and are enabled,
-#     this function try to connect and launch threads.
-#     If hypervisor pass connection test, status change to ReadyToStart,
-#     then change to StartingThreads previous to launch threads, when
-#     threads are running state is Online. Status sequence is:
-#     (Offline,Error) => ReadyToStart => StartingThreads => (Online,Error)"""
-#
-#     # DISK_OPERATIONS: launch threads if test disk operations passed and is not launched
-#     self.launch_threads_disk_and_long_operations()
-#
-#     l_hyps_to_test = get_hyps_with_status(list_status=['Error', 'Offline'], empty=True)
-#
-#     dict_hyps_to_test = {d['id']: {'hostname': d['hostname'],
-#                                    'port': d['port'] if 'port' in d.keys() else 22,
-#                                    'user': d['user'] if 'user' in d.keys() else 'root'} for d in
-#                          l_hyps_to_test}
-#
-#     # TRY hypervisor connexion and UPDATE hypervisors status
-#     # update status: ReadyToStart if all ok
-#     launch_try_hyps(dict_hyps_to_test)
-#
-#     # hyp_hostnames of hyps ready to start
-#     dict_hyps_ready = self.manager.dict_hyps_ready = get_hyps_ready_to_start()
-#
-#     if len(dict_hyps_ready) >  0:
-#         logs.main.debug('hyps_ready_to_start: ' + pprint.pformat(dict_hyps_ready))
-#
-#         # launch thread events if is None
-#         if self.manager.t_events is None:
-#             logs.main.info('launching hypervisor events thread')
-#             self.manager.t_events = launch_thread_hyps_event()
-#         # else:
-#         #     #if new hypervisor has added then add hypervisor to receive events
-#         #     logs.main.info('hypervisors added to thread events')
-#         #     logs.main.info(pprint.pformat(dict_hyps_ready))
-#         #     self.manager.t_events.hyps.update(dict_hyps_ready)
-#         #     for hyp_id, hostname in self.manager.t_events.hyps.items():
-#         #         self.manager.t_events.add_hyp_to_receive_events(hyp_id)
-#
-#         set_unknown_domains_not_in_hyps(dict_hyps_ready.keys())
-#         set_domains_coherence(dict_hyps_ready)
-#
-#         pools = set()
-#         for hyp_id, hostname in dict_hyps_ready.items():
-#             update_hyp_status(hyp_id, 'StartingThreads')
-#
-#             # launch worker thread
-#             self.manager.t_workers[hyp_id], self.manager.q.workers[hyp_id] = launch_thread_worker(hyp_id)
-#
-#             # LAUNCH status thread
-#             if self.manager.with_status_threads is True:
-#                 self.manager.t_status[hyp_id] = launch_thread_status(hyp_id,
-#                                                                      self.manager.STATUS_POLLING_INTERVAL)
-#
-#             # ADD hyp to receive_events
-#             self.manager.t_events.q_event_register.put({'type': 'add_hyp_to_receive_events', 'hyp_id': hyp_id})
-#
-#             # self.manager.launch_threads(hyp_id)
-#             # INFO TO DEVELOPER FALTA VERIFICAR QUE REALMENTE ESTÁN ARRANCADOS LOS THREADS??
-#             # comprobar alguna variable a true en alguno de los threads
-#             update_hyp_status(hyp_id, 'Online')
-#             pools.update(get_pools_from_hyp(hyp_id))
-#
-#         # if hypervisor not in pools defined in manager add it
-#         for id_pool in pools:
-#             if id_pool not in self.manager.pools.keys():
-#                 if self.manager.with_status_threads is True:
-#                     self.manager.pools[id_pool] = PoolHypervisors(id_pool, self.manager, len(dict_hyps_ready))
-#                 else:
-#                     self.manager.pools[id_pool] = PoolHypervisors(id_pool, self.manager, len(dict_hyps_ready)
-#                                                                   ,with_status_threads=False)

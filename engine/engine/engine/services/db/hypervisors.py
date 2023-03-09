@@ -1,4 +1,3 @@
-import logging
 import time
 from datetime import datetime
 
@@ -8,48 +7,12 @@ from engine.services.db import (
     close_rethink_connection,
     new_rethink_connection,
 )
+from engine.services.db.domains import get_vgpus_mdevs
 from engine.services.log import log, logs
 from rethinkdb import r
 from rethinkdb.errors import ReqlNonExistenceError
 
 from .db import rethink
-
-# def get_hyp_hostnames():
-#     """
-#     NOT USED
-#     :return:
-#     """
-#     r_conn = new_rethink_connection()
-#     rtable = r.table('hypervisors')
-#
-#     l = list(rtable. \
-#              filter({'enabled': True}). \
-#              pluck('id', 'hostname'). \
-#              run(r_conn))
-#     close_rethink_connection(r_conn)
-#
-#     hyps_hostnames = {d['id']: d['hostname'] for d in l}
-#
-#     return hyps_hostnames
-
-
-# def get_hyps_to_test():
-#     """
-#     NOT USED
-#     :return:
-#     """
-#     r_conn = new_rethink_connection()
-#     rtable = r.table('hypervisors')
-#
-#     l = list(rtable. \
-#              filter({'enabled': True, 'status': 'ReadyToStart'}). \
-#              pluck('id', 'hostname'). \
-#              run(r_conn))
-#     close_rethink_connection(r_conn)
-#
-#     hyps_hostnames = {d['id']: d['hostname'] for d in l}
-#
-#     return hyps_hostnames
 
 
 def get_hyps_ready_to_start():
@@ -89,15 +52,13 @@ def get_hypers_disk_operations():
 
 
 def update_hyp_thread_status(thread_type, hyp_id, status):
-
-    if thread_type in ["worker", "disk_operations", "long_operations"] and status in [
+    if thread_type in ["worker", "disk_operations"] and status in [
         "Started",
         "Stopped",
         "Starting",
         "Stopping",
         "Deleting",
     ]:
-
         r_conn = new_rethink_connection()
         rtable = r.table("hypervisors")
         result = (
@@ -122,10 +83,7 @@ def update_hyp_thread_status(thread_type, hyp_id, status):
             elif status_hyp == "Deleting":
                 ko_disk_operations = False
                 if d["capabilities"].get("disk_operations", False) is True:
-                    if (
-                        d["thread_status"].get("disk_operations", "") == "Stopped"
-                        and d["thread_status"].get("long_operations", "") == "Stopped"
-                    ):
+                    if d["thread_status"].get("disk_operations", "") == "Stopped":
                         ko_disk_operations = True
                 elif d["capabilities"].get("disk_operations", True) is False:
                     ko_disk_operations = True
@@ -151,10 +109,7 @@ def update_hyp_thread_status(thread_type, hyp_id, status):
 
             ok_disk_operations = False
             if d["capabilities"].get("disk_operations", False) is True:
-                if (
-                    d["thread_status"].get("disk_operations", "") == "Started"
-                    and d["thread_status"].get("long_operations", "") == "Started"
-                ):
+                if d["thread_status"].get("disk_operations", "") == "Started":
                     ok_disk_operations = True
             elif d["capabilities"].get("disk_operations", True) is False:
                 ok_disk_operations = True
@@ -497,7 +452,6 @@ def update_all_hyps_status(reset_status="Offline", reset_thread_status="Stopped"
     r_conn = new_rethink_connection()
     d_reset_thread_status = {
         "worker": reset_thread_status,
-        "long_operations": reset_thread_status,
         "disk_operations": reset_thread_status,
     }
     results = (
@@ -670,6 +624,188 @@ def get_pool_hypers_conf(id_pool="default"):
 
     close_rethink_connection(r_conn)
     return result
+
+
+def get_diskopts_online(
+    id_pool="default",
+    forced_hyp=None,
+    favourite_hyp=None,
+):
+    r_conn = new_rethink_connection()
+    disk_opts_online = list(
+        r.table("hypervisors")
+        .filter({"status": "Online", "capabilities": {"disk_operations": True}})
+        .filter(r.row["storage_pools"].contains(id_pool))
+        .pluck("id", "only_forced", "gpu_only", "stats", "mountpoints")
+        .run(r_conn)
+    )
+    return filter_available_hypers(
+        disk_opts_online, forced_hyp=forced_hyp, favourite_hyp=favourite_hyp
+    )
+
+
+def get_hypers_online(
+    id_pool="default",
+    forced_hyp=None,
+    favourite_hyp=None,
+):
+    r_conn = new_rethink_connection()
+    hypers_online = list(
+        r.table("hypervisors")
+        .filter({"status": "Online", "capabilities": {"hypervisor": True}})
+        .filter(r.row["hypervisors_pools"].contains(id_pool))
+        .pluck("id", "only_forced", "gpu_only", "stats", "mountpoints")
+        .run(r_conn)
+    )
+    return filter_available_hypers(
+        hypers_online,
+        forced_hyp=forced_hyp,
+        favourite_hyp=favourite_hyp,
+        exclude_gpu=True,
+    )
+
+
+def filter_available_hypers(
+    hypers_online,
+    forced_hyp=None,
+    favourite_hyp=None,
+    exclude_gpu=False,
+):
+    # exclude hypers with gpu
+    if exclude_gpu:
+        hypers_online = [h for h in hypers_online if not h.get("gpu_only", None)]
+        if forced_hyp:
+            forced_hyp_found = [h for h in hypers_online if h["id"] in forced_hyp]
+            if len(forced_hyp_found) > 0:
+                return forced_hyp_found
+            return []
+
+    # exclude now hypers only_forced
+    hypers_online = [h for h in hypers_online if not h.get("only_forced")]
+
+    if favourite_hyp:
+        favourite_hyp_found = [h for h in hypers_online if h["id"] in favourite_hyp]
+        if len(favourite_hyp_found) > 0:
+            return favourite_hyp_found
+
+    return hypers_online
+
+
+def get_hypers_gpu_online(
+    id_pool="default",
+    forced_hyp=None,
+    favourite_hyp=None,
+    gpu_profile=None,
+    forced_gpus_hypervisors=None,
+):
+    r_conn = new_rethink_connection()
+    hypers_online = list(
+        r.table("hypervisors")
+        .filter({"status": "Online"})
+        .filter(r.row["hypervisors_pools"].contains(id_pool))
+        .pluck("id", "only_forced", "gpu_only", "info", "stats", "mountpoints")
+        .run(r_conn)
+    )
+    hypers_online_with_gpu = [
+        h
+        for h in hypers_online
+        if len(
+            [
+                i
+                for i in h.get("info", {}).get("nvidia", {}).values()
+                if i == gpu_profile.split("-")[-2]
+            ]
+        )
+        > 0
+    ]
+
+    if gpu_profile.rfind("NVIDIA-") == 0:
+        gpu_profile = gpu_profile.split("NVIDIA-")[1]
+
+    if forced_hyp:
+        forced_hyp_found = [h["id"] for h in hypers_online_with_gpu]
+        if len(forced_hyp_found) > 0:
+            hypers_online_with_gpu = forced_hyp_found
+        else:
+            return []
+
+    if favourite_hyp:
+        favourite_hyp_found = [h["id"] for h in hypers_online_with_gpu]
+        if len(favourite_hyp_found) > 0:
+            hypers_online_with_gpu = favourite_hyp_found
+
+    if forced_gpus_hypervisors:
+        # get intersection of force_gpus and hypers_online_with_gpu ids
+        hypers_online_with_gpu = [
+            h for h in hypers_online_with_gpu if h["id"] in forced_gpus_hypervisors
+        ]
+        if not len(hypers_online_with_gpu):
+            return []
+
+    hypervisors_with_available_profile = []
+    # now find free uuids:
+    for h in hypers_online_with_gpu:
+        for pci, model in h["info"]["nvidia"].items():
+            if model == gpu_profile.split("-")[-2]:
+                gpu_type = gpu_profile.split("-")[-1]
+                gpu_id = h["id"] + "-" + pci
+                gpu_type_active, mdevs = get_vgpus_mdevs(gpu_id, gpu_type)
+                if gpu_type_active == gpu_type:
+                    for mdev_uuid, d in mdevs[gpu_type].items():
+                        if (
+                            d["domain_reserved"] is False
+                            and d["domain_started"] is False
+                            and d["created"] is True
+                        ):
+                            hypervisors_with_available_profile.append(
+                                {
+                                    **h,
+                                    **{
+                                        "gpu_selected": {
+                                            "uuid_selected": mdev_uuid,
+                                            "next_hyp": h["id"],
+                                            "next_available_uid": mdev_uuid,
+                                            "next_gpu_id": gpu_id,
+                                            "gpu_profile": gpu_profile,
+                                        }
+                                    },
+                                }
+                            )
+
+    if not len(hypervisors_with_available_profile):
+        logs.workers.error("No free mdevs found for gpu_profile: %s" % gpu_profile)
+        return []
+
+    if forced_hyp:
+        if forced_hyp in [h["id"] for h in hypervisors_with_available_profile]:
+            return [
+                h for h in hypervisors_with_available_profile if h["id"] == forced_hyp
+            ][0]
+        return []
+
+    if forced_gpus_hypervisors:
+        # If force_gpus is set, we return the hypervisors with the
+        # profiles requested. If no hypervisor is found, we return an empty
+        # list.
+        return [
+            h["id"]
+            for h in hypers_online_with_gpu
+            if h["id"] in hypervisors_with_available_profile
+        ]
+
+    # exclude now hypers only_forced
+    hypervisors_with_available_profile = [
+        h for h in hypervisors_with_available_profile if not h.get("only_forced")
+    ]
+
+    if favourite_hyp and favourite_hyp in [
+        h["id"] for h in hypervisors_with_available_profile
+    ]:
+        return [
+            h for h in hypervisors_with_available_profile if h["id"] == favourite_hyp
+        ]
+
+    return hypervisors_with_available_profile
 
 
 def get_hypers_in_pool(
