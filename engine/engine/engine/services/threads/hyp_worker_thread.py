@@ -2,18 +2,32 @@
 #      Alberto Larraz Dalmases
 #      Josep Maria Viñolas Auquer
 # License: AGPLv3
+# coding=utf-8
 
 import base64
+import os
 import queue
 import threading
 import time
+from time import sleep
+from xml.etree import ElementTree
 
-from engine.models.domain_xml import DomainXML
+from engine.models.domain_xml import (
+    XML_SNIPPET_CDROM,
+    XML_SNIPPET_DISK_CUSTOM,
+    XML_SNIPPET_DISK_VIRTIO,
+    DomainXML,
+)
 from engine.models.hyp import hyp
 from engine.services.db import (
+    get_all_domains_with_id_status_hyp_started,
+    get_domain_hardware_dict,
+    get_domains_started_in_hyp,
+    get_engine,
     get_hyp_hostname_from_id,
     get_hyp_status,
     update_db_hyp_info,
+    update_domain_hw_stats,
     update_domain_status,
     update_domain_viewer_started_values,
     update_domains_started_in_hyp_to_unknown,
@@ -22,8 +36,17 @@ from engine.services.db import (
     update_table_field,
     update_vgpu_uuid_domain_action,
 )
-from engine.services.db.hypervisors import update_hyp_thread_status
+from engine.services.db.hypervisors import (
+    get_hyp_info,
+    get_vgpu,
+    update_db_hyp_nvidia_info,
+    update_hyp_thread_status,
+    update_vgpu_profile,
+    update_vgpu_uuids,
+)
 from engine.services.lib.functions import (
+    PriorityQueueIsard,
+    engine_restart,
     exec_remote_list_of_cmds_dict,
     get_tid,
     update_status_db_from_running_domains,

@@ -5,15 +5,25 @@
 
 import json
 import pprint
+
+# /bin/python3
+# coding=utf-8
+import queue
 import threading
+import time
+import traceback
+from datetime import datetime
 
 from engine.models.hyp import hyp
 from engine.services.db import (
     get_domains_started_in_hyp,
+    remove_media,
     update_all_domains_status,
     update_disk_backing_chain,
     update_disk_template_created,
+    update_domains_started_in_hyp_to_unknown,
 )
+from engine.services.db.db import update_table_field
 from engine.services.db.domains import (
     get_domain_status,
     get_storage_ids_and_paths_from_domain,
@@ -22,15 +32,19 @@ from engine.services.db.domains import (
 )
 from engine.services.db.downloads import update_status_media_from_path
 from engine.services.db.hypervisors import (
+    get_hyp,
     get_hyp_hostname_from_id,
+    update_db_hyp_info,
     update_hyp_status,
     update_hyp_thread_status,
+    update_hypervisor_failed_connection,
 )
 from engine.services.lib.functions import (
     PriorityQueueIsard,
     dict_domain_libvirt_state_to_isard_state,
     execute_command_with_progress,
     execute_commands,
+    get_tid,
     state_and_cause_to_str,
 )
 from engine.services.lib.qcow import (
@@ -42,6 +56,8 @@ from engine.services.lib.qcow import (
 )
 from engine.services.lib.storage import update_storage_qemu_info, update_storage_status
 from engine.services.log import *
+
+# from pool_hypervisors. import PoolHypervisors
 
 TIMEOUT_QUEUES = float(CONFIG_DICT["TIMEOUTS"]["timeout_queues"])
 TIMEOUT_BETWEEN_RETRIES_HYP_IS_ALIVE = float(
@@ -93,6 +109,29 @@ def launch_disk_operations_thread(
     thread_disk_operation.daemon = True
     thread_disk_operation.start()
     return thread_disk_operation, queue_disk_operation
+
+
+def launch_long_operations_thread(
+    hyp_id, hostname, user="root", port=22, q_orchestrator=None
+):
+    if hyp_id is False:
+        return False, False
+
+    update_hyp_thread_status("long_operations", hyp_id, "Starting")
+
+    queue_long_operation = PriorityQueueIsard()
+    thread_long_operation = LongOperationsThread(
+        name="long_op_" + hyp_id,
+        hyp_id=hyp_id,
+        hostname=hostname,
+        queue_actions=queue_long_operation,
+        user=user,
+        port=port,
+        queue_master=q_orchestrator,
+    )
+    thread_long_operation.daemon = True
+    thread_long_operation.start()
+    return thread_long_operation, queue_long_operation
 
 
 def launch_delete_disk_action(action, hostname, user, port):
@@ -506,3 +545,4 @@ def set_domains_coherence(dict_hyps_ready):
 # IMPORT Thread Classes HERE
 from engine.services.threads.disk_operations_thread import DiskOperationsThread
 from engine.services.threads.hyp_worker_thread import HypWorkerThread
+from engine.services.threads.long_operations_thread import LongOperationsThread

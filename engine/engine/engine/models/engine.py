@@ -2,6 +2,7 @@
 #      Alberto Larraz Dalmases
 #      Josep Maria Viñolas Auquer
 # License: AGPLv3
+# coding=utf-8
 
 import pprint
 import queue
@@ -10,7 +11,6 @@ import traceback
 from datetime import datetime
 from time import sleep
 
-from _common.storage_pool import DEFAULT_STORAGE_POOL_ID
 from engine.config import (
     POLLING_INTERVAL_BACKGROUND,
     STATUS_POLLING_INTERVAL,
@@ -19,9 +19,10 @@ from engine.config import (
 )
 from engine.controllers.broom import launch_thread_broom
 from engine.controllers.events_recolector import launch_thread_hyps_event
+from engine.controllers.status import launch_thread_status
 from engine.controllers.ui_actions import UiActions
 from engine.models.hypervisor_orchestrator import HypervisorsOrchestratorThread
-from engine.models.pool_hypervisors import PoolDiskoperations, PoolHypervisors
+from engine.models.pool_hypervisors import PoolHypervisors
 from engine.services.db import (
     delete_table_item,
     get_domain,
@@ -29,24 +30,47 @@ from engine.services.db import (
     get_hypers_ids_with_status,
     get_if_all_disk_template_created,
     remove_domain,
+    set_unknown_domains_not_in_hyps,
     update_domain_history_from_id_domain,
 )
-from engine.services.db.db import new_rethink_connection, update_table_field
+from engine.services.db.db import (
+    get_pools_from_hyp,
+    new_rethink_connection,
+    update_table_field,
+)
 from engine.services.db.domains import (
+    update_domain_delete_after_stopped,
     update_domain_start_after_created,
     update_domain_status,
 )
-from engine.services.db.hypervisors import update_all_hyps_status
+from engine.services.db.hypervisors import (
+    get_hyp_hostname_user_port_from_id,
+    get_hypers_disk_operations,
+    get_hyps_ready_to_start,
+    get_hyps_with_status,
+    update_all_hyps_status,
+    update_hyp_status,
+)
 from engine.services.lib.functions import (
+    PriorityQueueIsard,
     QueuesThreads,
     clean_intermediate_status,
     clean_started_without_hyp,
     domain_status_from_started_to_unknown,
+    engine_restart,
     get_threads_running,
     get_tid,
 )
+from engine.services.lib.qcow import test_hypers_disk_operations
 from engine.services.log import logs
 from engine.services.threads.download_thread import launch_thread_download_changes
+from engine.services.threads.grafana_thread import launch_grafana_thread
+from engine.services.threads.threads import (
+    launch_disk_operations_thread,
+    launch_long_operations_thread,
+    launch_thread_worker,
+    set_domains_coherence,
+)
 from rethinkdb import r
 from tabulate import tabulate
 
@@ -82,15 +106,17 @@ class Engine(object):
         self.t_workers = {}
         self.t_status = {}
         self.pools = {}
-        self.diskoperations_pools = {}
         self.t_disk_operations = {}
         self.q_disk_operations = {}
+        self.t_long_operations = {}
+        self.q_long_operations = {}
         self.t_orchestrator = None
         self.t_events = None
         self.t_changes_domains = None
         self.t_broom = None
         self.t_background = None
         self.t_downloads_changes = None
+        self.t_grafana = None
         self.quit = False
 
         self.threads_info_main = {}
@@ -222,9 +248,11 @@ class Engine(object):
                 # - downloads_changes
                 # - broom
                 # - events
+                # - grafana
 
                 # Threads that depends on hypervisors availavility:
                 # - disk_operations
+                # - long_operations
                 # - for every hypervisor:
                 #     - worker
                 #     - status
@@ -242,18 +270,11 @@ class Engine(object):
                     self.manager.t_changes_domains.daemon = True
                     self.manager.t_changes_domains.start()
 
-                    # Hypervisors balancer pools
-                    self.manager.pools["default"] = PoolHypervisors("default")
-                    # Diskoperations balancer pools
-                    self.manager.diskoperations_pools[
-                        DEFAULT_STORAGE_POOL_ID
-                    ] = PoolDiskoperations(DEFAULT_STORAGE_POOL_ID)
-
                     # launch downloads changes thread
                     logs.main.debug("Launching Download Changes Thread")
+                    self.manager.pools["default"] = PoolHypervisors("default")
                     self.manager.t_downloads_changes = launch_thread_download_changes(
-                        self.manager,
-                        DEFAULT_STORAGE_POOL_ID,
+                        self.manager.pools["default"],
                         self.manager.q.workers,
                         self.manager.t_disk_operations,
                     )
@@ -272,10 +293,18 @@ class Engine(object):
                         t_events=self.manager.t_events,
                         t_disk_operations=self.manager.t_disk_operations,
                         q_disk_operations=self.manager.q_disk_operations,
+                        t_long_operations=self.manager.t_long_operations,
+                        q_long_operations=self.manager.q_long_operations,
                         queues_object=self.manager.q,
                     )
                     self.manager.t_orchestrator.daemon = True
                     self.manager.t_orchestrator.start()
+
+                    # launch grafana thread
+                    logs.main.debug("launching grafana thread")
+                    self.manager.t_grafana = launch_grafana_thread(
+                        self.manager.t_status, self.manager
+                    )
 
                     logs.main.info("THREADS LAUNCHED FROM BACKGROUND THREAD")
                     update_table_field(
@@ -594,13 +623,13 @@ class Engine(object):
                         old_status == "Failed" and new_status == "StartingPaused"
                     ):
                         ui.start_domain_from_id(
-                            id_domain=domain_id, ssl=True, starting_paused=True
+                            id=domain_id, ssl=True, starting_paused=True
                         )
 
                     if (old_status == "Stopped" and new_status == "Starting") or (
                         old_status == "Failed" and new_status == "Starting"
                     ):
-                        ui.start_domain_from_id(id_domain=domain_id, ssl=True)
+                        ui.start_domain_from_id(id=domain_id, ssl=True)
 
                     if old_status == "Started" and new_status == "Shutting-down":
                         # INFO TO DEVELOPER Esto es lo que debería ser, pero hay líos con el hyp_started
@@ -732,7 +761,7 @@ class Engine(object):
         alive = []
         dead = []
         not_defined = []
-        for name in ["workers", "status", "disk_operations"]:
+        for name in ["workers", "status", "disk_operations", "long_operations"]:
             for hyp, t in self.__getattribute__("t_" + name).items():
                 try:
                     alive.append(name + "_" + hyp) if t.is_alive() else dead.append(
@@ -762,6 +791,8 @@ class Engine(object):
         #    pass
         self.t_broom.stop = True
         # operations / status
+        for k, v in self.t_long_operations.items():
+            v.stop = True
         for k, v in self.t_disk_operations.items():
             v.stop = True
         for k, v in self.t_workers.items():
