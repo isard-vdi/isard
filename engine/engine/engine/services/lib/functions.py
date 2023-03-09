@@ -71,29 +71,19 @@ def get_threads_names_running():
 
 
 def get_pools_threads_running(hypervisors):
-    THREAD_PREFIX = "worker_"
-    d_threads_h = {THREAD_PREFIX + h["id"]: h for h in hypervisors}
-    return sorted(
-        [
-            d_threads_h[k]
-            for k in set(get_threads_names_running()).intersection(
-                set(d_threads_h.keys())
-            )
-        ]
-    )
+    hypervisors_with_thread = []
+    for hyp in hypervisors:
+        if "worker_" + hyp["id"] in get_threads_names_running():
+            hypervisors_with_thread.append(hyp)
+    return hypervisors_with_thread
 
 
 def get_diskoperations_pools_threads_running(hypervisors):
-    THREAD_PREFIX = "disk_op_"
-    d_threads_h = {THREAD_PREFIX + h["id"]: h for h in hypervisors}
-    return sorted(
-        [
-            d_threads_h[k]
-            for k in set(get_threads_names_running()).intersection(
-                set(d_threads_h.keys())
-            )
-        ]
-    )
+    hypervisors_with_thread = []
+    for hyp in hypervisors:
+        if "disk_op_" + hyp["id"] in get_threads_names_running():
+            hypervisors_with_thread.append(hyp)
+    return hypervisors_with_thread
 
 
 def get_tid():
