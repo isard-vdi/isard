@@ -48,6 +48,28 @@ class Balancer_free_ram:
         ][0]
 
 
+class Balancer_free_ram_percent:
+    # This balancer will return the hypervisor with more free ram in percentage
+    def _balancer(self, hypers):
+        logs.main.debug(
+            f"BALANCER FREE RAM%. MEMORY FREE: {[{h['id']: h['stats']['mem_stats']['free']*100/h['stats']['mem_stats']['total']} for h in hypers if h.get('stats',{}).get('mem_stats',{}).get('free')]}"
+        )
+        # Get the hypervisor with more free ram in percentage
+        return [
+            h
+            for h in hypers
+            if h.get("stats", {}).get("mem_stats", {}).get("free", 0)
+            / h.get("stats", {}).get("mem_stats", {}).get("total", 1)
+            == max(
+                [
+                    h.get("stats", {}).get("mem_stats", {}).get("free", 0)
+                    / h.get("stats", {}).get("mem_stats", {}).get("total", 1)
+                    for h in hypers
+                ]
+            )
+        ][0]
+
+
 class Balancer_less_cpu:
     # This balancer will return the hypervisor with less cpu usage
     def _balancer(self, hypers):
@@ -64,7 +86,7 @@ class Balancer_less_cpu:
         ][0]
 
 
-class Balancer_less_cpu_when_low_ram:
+class Balancer_less_cpu_when_low_ram_percent:
     # This balancer will return the hypervisor with less cpu usage when ram is below 50%
     def _balancer(self, hypers):
         RAM_LIMIT = 0.6  # If ram is below 60% of total ram, return hypervisor with less cpu usage
@@ -113,7 +135,13 @@ BALANCER INTERFACE
 Balancer interface is the interface that the engine uses to get the next hypervisor
 """
 
-BALANCERS = ["round_robin", "free_ram", "less_cpu", "less_cpu_when_low_ram"]
+BALANCERS = [
+    "round_robin",
+    "free_ram",
+    "free_ram_percent",
+    "less_cpu",
+    "less_cpu_when_low_ram_percent",
+]
 
 
 class BalancerInterface:
@@ -126,10 +154,12 @@ class BalancerInterface:
             self._balancer = Balancer_round_robin()
         if balancer_type == "free_ram":
             self._balancer = Balancer_free_ram()
+        if balancer_type == "free_ram_percent":
+            self._balancer = Balancer_free_ram_percent()
         if balancer_type == "less_cpu":
             self._balancer = Balancer_less_cpu()
-        if balancer_type == "less_cpu_when_low_ram":
-            self._balancer = Balancer_less_cpu_when_low_ram()
+        if balancer_type == "less_cpu_when_low_ram_percent":
+            self._balancer = Balancer_less_cpu_when_low_ram_percent()
 
     def get_next_hypervisor(
         self, forced_hyp=None, favourite_hyp=None, reservables=None, force_gpus=None
