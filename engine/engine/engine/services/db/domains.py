@@ -100,7 +100,7 @@ def fail_incomplete_creating_domains(
     rtable = r.table("domains")
     if only_domain_id:
         results = (
-            rtable.get(only_domain_id)
+            rtable.get_all(only_domain_id, index="id")
             .filter(lambda d: r.expr(status_to_failed).contains(d["status"]))
             .update({"status": "Failed", "detail": detail})
             .run(r_conn)
@@ -123,7 +123,7 @@ def stop_incomplete_starting_domains(
     rtable = r.table("domains")
     if only_domain_id:
         results = (
-            rtable.get(only_domain_id)
+            rtable.get_all(only_domain_id, index="id")
             .filter(lambda d: r.expr(status_to_stopped).contains(d["status"]))
             .update({"status": "Stopped", "detail": detail})
             .run(r_conn)
@@ -147,7 +147,7 @@ def start_incomplete_starting_domains(
     rtable = r.table("domains")
     if only_domain_id:
         results = (
-            rtable.get(only_domain_id)
+            rtable.get_all(only_domain_id, index="id")
             .filter(lambda d: r.expr(status_to_started).contains(d["status"]))
             .update({"status": "Started", "detail": detail})
             .run(r_conn)
