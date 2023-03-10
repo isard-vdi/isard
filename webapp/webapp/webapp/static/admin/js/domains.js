@@ -749,6 +749,8 @@ $(document).ready(function() {
 	// DataTable buttons
     $('#domains tbody').on( 'click', 'button', function () {
         var data = domains_table.row( $(this).parents('tr') ).data();
+        var reservables = data['create_dict']['reservables']
+        var desktop_id = data['id']
         switch($(this).attr('id')){
             case 'btn-play':
                 if($('.quota-play .perc').text() >=100){
@@ -762,24 +764,7 @@ $(document).ready(function() {
                             type: 'error'
                         });
                 }else{
-                    $.ajax({
-                        type: "GET",
-                        url: '/api/v3/desktop/start/' + data["id"],
-                        data: {'pk':data['id'],'name':'status','value':'Starting'},
-                        contentType: "application/json",
-                        cache: false,
-                        error: function(data) {
-                            new PNotify({
-                                title: 'ERROR starting desktop',
-                                text: data.responseJSON.description,
-                                type: 'error',
-                                hide: true,
-                                icon: 'fa fa-warning',
-                                delay: 5000,
-                                opacity: 1
-                            })
-                        },
-                    })
+                    checkReservablesAndStart(reservables, desktop_id, data['booking_id'])
                 }
                 break;
             case 'btn-stop':
@@ -1707,3 +1692,52 @@ function populate_tree_template_delete(id){
             });
         };
 
+        function startDesktop(domain_id) {
+            $.ajax({
+                type: "GET",
+                url: '/api/v3/desktop/start/' + domain_id,
+                data: {'pk':domain_id,'name':'status','value':'Starting'},
+                contentType: "application/json",
+                cache: false,
+                error: function(data) {
+                    new PNotify({
+                        title: 'ERROR starting desktop',
+                        text: data.responseJSON.description,
+                        type: 'error',
+                        hide: true,
+                        icon: 'fa fa-warning',
+                        delay: 5000,
+                        opacity: 1
+                    })
+                },
+            })
+        }
+
+        function checkReservablesAndStart(reservables, domain_id, booking_id) {
+            if (!(!reservables || reservables.length == 0 || !reservables.vgpus || reservables.vgpus.length == 0) || booking_id){
+                        new PNotify({
+                            title: 'Start this non-booked desktop?',
+                            text: "You could interfere with the GPU: " + reservables.vgpus +" from another desktop. Continue?",
+                            hide: false,
+                            opacity: 0.9,
+                            icon: 'fa fa-warning',
+                            type: 'error',
+                            confirm: {
+                                confirm: true
+                            },
+                            buttons: {
+                                closer: false,
+                                sticker: false
+                            },
+                            history: {
+                                history: false
+                            },
+                            addclass: 'pnotify-center'
+                        }).get().on('pnotify.confirm', function() {
+                            startDesktop(domain_id)
+                        }).on('pnotify.cancel', function() { });
+            } else {
+                // start without verifications if it doesn't have bookables or has an active booking
+                startDesktop(domain_id)
+            }
+        }

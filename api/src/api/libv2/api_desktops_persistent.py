@@ -5,10 +5,14 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
+import json
 import secrets
 import time
 import traceback
 import uuid
+from datetime import datetime, timedelta, timezone
+
+import pytz
 
 from ..libv2.quotas import Quotas
 
@@ -34,7 +38,9 @@ from ..libv2.isardViewer import isardViewer
 isardviewer = isardViewer()
 
 from ..libv2.api_cards import ApiCards, get_domain_stock_card
+from ..libv2.bookings.api_booking import Bookings
 
+apib = Bookings()
 api_cards = ApiCards()
 
 from ..libv2.quotas_process import QuotasProcess
@@ -48,6 +54,7 @@ ds = DS()
 
 from .helpers import (
     _check,
+    _parse_desktop_booking,
     _parse_media_info,
     _parse_string,
     default_guest_properties,
@@ -55,6 +62,9 @@ from .helpers import (
     parse_domain_insert,
     parse_domain_update,
 )
+
+MIN_AUTOBOOKING_TIME = 30
+MAX_BOOKING_TIME = 12 * 60  # 12h
 
 
 def api_jumperurl_gencode(length=32):
@@ -658,4 +668,84 @@ class ApiDesktopsPersistent:
                 "'Only GPU' mode only works with RDP viewers. Please remove non-RDP viewers or choose another video option",
                 traceback.format_exc(),
                 description_code="only_works_rdp",
+            )
+
+    def check_current_plan(self, payload, desktop_id):
+        fromDate = datetime.now(timezone.utc)
+        toDate = fromDate + timedelta(minutes=MAX_BOOKING_TIME)
+        fromDate = fromDate.strftime("%Y-%m-%dT%H:%M%z")
+        toDate = toDate.strftime("%Y-%m-%dT%H:%M%z")
+        current_plan = apib.get_item_bookings(
+            payload,
+            fromDate,
+            toDate,
+            "desktop",
+            desktop_id,
+            "availability",
+        )
+        if not current_plan or current_plan[0]["start"] > fromDate:
+            desktop = self.Get(desktop_id=desktop_id)
+            if desktop.get("tag"):
+                raise Error(
+                    "precondition_required",
+                    "The deployment desktop reservable does not match the current plan, its deployment must be booked in order to use it",
+                    description_code="needs_deployment_booking",
+                )
+            else:
+                raise Error(
+                    "precondition_required",
+                    "The desktop reservable does not match the current plan",
+                    description_code="current_plan_doesnt_match",
+                )
+
+        return current_plan
+
+    def check_max_booking_date(self, payload, desktop_id):
+
+        current_plan = self.check_current_plan(payload, desktop_id)
+        priority = apib.get_user_priority(payload, "desktop", desktop_id)
+
+        forbid_time = priority["forbid_time"]
+        if payload["role_id"] != "admin" and forbid_time < MIN_AUTOBOOKING_TIME:
+            raise Error(
+                "precondition_required",
+                "There's not enough advanced time to start the desktop",
+                description_code="not_enough_advanced_time",
+            )
+        max_time = priority["max_time"]
+        available_time = int(
+            (
+                datetime.strptime(
+                    current_plan[0]["end"], "%Y-%m-%dT%H:%M%z"
+                ).astimezone(pytz.UTC)
+                - datetime.now(timezone.utc)
+            ).total_seconds()
+            / 60
+        )
+
+        if payload["role_id"] == "admin":
+            max_booking_time = min(max_time, available_time)
+        else:
+            max_booking_time = min(forbid_time, max_time, available_time)
+
+        if max_booking_time >= MIN_AUTOBOOKING_TIME:
+            max_booking_time = min(max_booking_time, MAX_BOOKING_TIME)
+
+            max_booking_date = datetime.strftime(
+                datetime.now(timezone.utc) + timedelta(minutes=max_booking_time),
+                "%Y-%m-%dT%H:%M%z",
+            )
+            return json.dumps({"max_booking_date": max_booking_date})
+        else:
+            desktop = self.Get(desktop_id=desktop_id)
+            if desktop.get("tag"):
+                raise Error(
+                    "precondition_required",
+                    "There's not enough advanced time to start the deployment desktop, its deployment must be booked in order to use it",
+                    description_code="needs_deployment_booking",
+                )
+            raise Error(
+                "precondition_required",
+                "There's not enough time to start the desktop",
+                description_code="not_enough_time_to_start",
             )

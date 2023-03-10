@@ -625,6 +625,7 @@ class Quotas:
                         "name",
                         "category",
                         "group",
+                        "role",
                         "quota",
                         "category_name",
                         "group_name",
@@ -632,6 +633,8 @@ class Quotas:
                     )
                     .run(db.conn)
                 )
+                if user["role"] == "admin":
+                    return desktop
         except:
             raise Error("not_found", "User not found")
 
@@ -803,7 +806,7 @@ class Quotas:
 
         # Category limit
         if not category["limits"]:
-            return
+            return desktop
 
         started_desktops = self.get_started_desktops(user["category"], "kind_category")
         desktops = {
@@ -878,6 +881,8 @@ class Quotas:
                 "error_description_code": "category_total_size_limit_exceeded",
             },
         )
+
+        return desktop
 
     def deployment_create(self, users):
         # Group the users considering its groups and categories

@@ -9,6 +9,8 @@ import traceback
 from flask import request
 from rethinkdb import RethinkDB
 
+from ..libv2.helpers import _parse_desktop_booking
+
 r = RethinkDB()
 
 from api import app
@@ -50,8 +52,20 @@ def api_v3_desktops_check_quota(payload):
 def api_v3_desktop_start(payload, desktop_id):
     ownsDomainId(payload, desktop_id)
     user_id = desktops.UserDesktop(desktop_id)
-    if payload["role_id"] != "admin":
-        quotas.desktop_start(user_id, desktop_id)
+
+    desktop = quotas.desktop_start(user_id, desktop_id)
+    desktop = _parse_desktop_booking(desktop)
+
+    if desktop["needs_booking"]:
+        try:
+            desktops.check_current_plan(payload, desktop_id)
+        except Error as e:
+            err = e.error["description_code"]
+            if err in [
+                "current_plan_doesnt_match",
+                "needs_deployment_booking",
+            ] or payload["role_id"] not in ["admin", "manager"]:
+                raise e
 
     # So now we have checked if desktop exists and if we can create and/or start it
     desktop_id = desktops.Start(desktop_id)
