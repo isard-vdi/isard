@@ -20,41 +20,19 @@ function setHardwareOptions(id,default_boot,domain_id){
             } else {
                 $(id+"hardware-virtualization_nested").iCheck('uncheck').iCheck('update');
             }
-            if(hardware.interfaces.length == 1){
-                $(id+" #hardware-interfaces").attr("disabled",true);
-            }else{
-                $(id+" #hardware-interfaces").attr("disabled",false);
-            }
             $.each(hardware.interfaces,function(key, value)
             {
                 $(id+" #hardware-interfaces").append('<option value=' + value.id + '>' + value.name + ' - ' + value.description + '</option>');
             });
-            if(hardware.videos.length == 1){
-                $(id+" #hardware-videos").attr("disabled",true);
-            }else{
-                $(id+" #hardware-videos").attr("disabled",false);
-            }
             $.each(hardware.videos,function(key, value)
             {
                 $(id+" #hardware-videos").append('<option value=' + value.id + '>' + value.name + '</option>');
             });
-
-            if(hardware.boot_order.length == 1){
-                $(id+" #hardware-boot_order").attr("disabled",true);
-            }else{
-                $(id+" #hardware-boot_order").attr("disabled",false);
-            }
             $.each(hardware.boot_order,function(key, value)
             {
                 $(id+" #hardware-boot_order").append('<option value=' + value.id + '>' + value.name + '</option>');
             });
             $(id+' #hardware-boot_order option[value="'+default_boot+'"]').prop("selected",true);
-
-            if(hardware.qos_id.length <= 1 || !('qos_id' in hardware)){
-                $(id+" #hardware-qos_id").attr("disabled",true);
-            }else{
-                $(id+" #hardware-qos_id").attr("disabled",false);
-            }
             if(hardware.qos_id.length == 0){
                 $(id+" #hardware-qos_id").append('<option value="unlimited">Unlimited</option>');
             }else{
@@ -62,12 +40,6 @@ function setHardwareOptions(id,default_boot,domain_id){
                 {
                     $(id+" #hardware-qos_id").append('<option value=' + value.id + '>' + value.name + '</option>');
                 });
-            }
-
-            if(hardware.disk_bus.length == 1){
-                $(id+" #hardware-disk_bus").attr("disabled",true);
-            }else{
-                $(id+" #hardware-disk_bus").attr("disabled",false);
             }
             $.each(hardware.disk_bus,function(key, value)
             {
@@ -103,11 +75,6 @@ function setHardwareOptions(id,default_boot,domain_id){
 
             $(id+" #reservables-vgpus").find('option').remove();
             if("reservables" in hardware && "vgpus" in hardware.reservables){
-                if(hardware.reservables.vgpus.length == 1){
-                    $(id+" #reservables-vgpus").attr("disabled",true);
-                }else{
-                    $(id+" #reservables-vgpus").attr("disabled",false);
-                }
                 $.each(hardware.reservables.vgpus,function(key, value)
                 {
                     $(id+" #reservables-vgpus").append('<option value=' + value.id + '>' + value.name + ' - ' + value.description + '</option>');
