@@ -99,7 +99,7 @@
           v-model="memory"
           :options="availableHardware.memory"
           label="name"
-          @search:blur="v$.vcpus.$touch"
+          @search:blur="v$.memory.$touch"
         >
           <template #search="{ attributes, events }">
             <input
@@ -130,7 +130,7 @@
           :options="availableHardware.videos"
           label="name"
           :reduce="element => element.id"
-          @search:blur="v$.vcpus.$touch"
+          @search:blur="v$.videos.$touch"
         >
           <template #search="{ attributes, events }">
             <input
@@ -161,7 +161,7 @@
           :options="availableHardware.bootOrder"
           label="name"
           :reduce="element => element.id"
-          @search:blur="v$.vcpus.$touch"
+          @search:blur="v$.bootOrder.$touch"
         >
           <template #search="{ attributes, events }">
             <input
@@ -192,7 +192,7 @@
           :options="availableHardware.diskBus"
           label="name"
           :reduce="element => element.id"
-          @search:blur="v$.vcpus.$touch"
+          @search:blur="v$.diskBus.$touch"
         >
           <template #search="{ attributes, events }">
             <input
@@ -256,7 +256,7 @@
           :close-on-select="false"
           :multiple="true"
           :reduce="element => element.id"
-          @search:blur="v$.vcpus.$touch"
+          @search:blur="v$.interfaces.$touch"
         >
           <template #search="{ attributes, events }">
             <input
