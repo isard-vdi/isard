@@ -723,14 +723,16 @@ def get_hypers_gpu_online(
         gpu_profile = gpu_profile.split("NVIDIA-")[1]
 
     if forced_hyp:
-        forced_hyp_found = [h["id"] for h in hypers_online_with_gpu]
+        forced_hyp_found = [h for h in hypers_online_with_gpu if h["id"] == forced_hyp]
         if len(forced_hyp_found) > 0:
             hypers_online_with_gpu = forced_hyp_found
         else:
             return []
 
     if favourite_hyp:
-        favourite_hyp_found = [h["id"] for h in hypers_online_with_gpu]
+        favourite_hyp_found = [
+            h for h in hypers_online_with_gpu if h["id"] == favourite_hyp
+        ]
         if len(favourite_hyp_found) > 0:
             hypers_online_with_gpu = favourite_hyp_found
 
