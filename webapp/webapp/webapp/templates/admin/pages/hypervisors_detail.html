@@ -1,104 +1,93 @@
 <div style="display:none">
-    <div class="row hyper-detail">
-			  <div class="col-md-2 col-sm-2 col-xs-12">
-                        <div class="row">
-                           <div class="col-md-6 col-md-6 col-xs-6" id="actions-enable-d.id" data-pk="d.id">
-                                 <button class="btn btn-success btn-xs pull-right btn-enable" type="button"  data-placement="top" ><i class="fa fa-cubes m-right-xs"></i>Enable/Disable</button>
-                                 <button class="btn btn-success btn-xs pull-right btn-onlyforced" type="button"  data-placement="top" ><i class="fa fa-dot-circle-o m-right-xs"></i> Only forced</button>
-                                 <button class="btn btn-success btn-xs pull-right btn-gpu_only" type="button"  data-placement="top" ><i class="fa fa-briefcase m-right-xs"></i> GPU only</button>
-                            </div>
-                           <div class="col-md-6 col-md-6 col-xs-6" id="actions-delete-d.id" data-pk="d.id">
-                                <button class="btn btn-danger btn-xs pull-right btn-delete" type="button"  data-placement="top" ><i class="fa fa-remove m-right-xs"></i><span id="delete_btn_text">Delete</span></button>
-                                <button class="btn btn-info btn-xs pull-right btn-edit" type="button"  data-placement="top" ><i class="fa fa-cubes m-right-xs"></i>Edit</button>
-                            </div>
-                        </div>
-                        <br>
-                        <div class="row">
-                           <div class="col-md-12 col-md-12 col-xs-12" id="actions-domains-d.id" data-pk="d.id">
-                                 <button class="btn btn-warning btn-xs pull-right btn-domstop" type="button"  data-placement="top" ><i class="fa fa-remove m-right-xs"></i>Stop all domains</button>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-12 col-md-12 col-xs-12" id="actions-extra-d.id" data-pk="d.id">
-                                  <button class="btn btn-warning btn-xs pull-right btn-webstorage" type="button"  data-placement="top" ><i class="fa fa-hdd-o m-right-xs"></i>Access storage</button>
-                             </div>
-                         </div>
-			  </div>
-              <div class="col-md-10 col-sm-10 col-xs-12">
-                <div class="x_panel" style="background-color:#F7F7F7">
-                    <div class="row">
-                        <div class="col-md-12 col-md-12 col-xs-12">
-                            <div class="x_panel">
-                                  <div class="x_content">
-                                      <h2>Status detailed info:  <small id="status-detail-d.id"></small></h2>
-                                  </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 col-md-6 col-xs-6">
-                            <div class="x_panel">
-                                  <div class="x_content">
-                                    <div class="x_title">
-                                        <h3>Disk usage</h3>
-                                        <div class="clearfix"></div>
-                                    </div>
-                                        <table id="table-mountpoints-d.id" class="table">
-                                            <thead>
-                                                <tr>
-                                                    <th>mount</th>
-                                                    <th>usage</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                            </tbody>
-                                        </table>	
-                                  </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6 col-md-6 col-xs-6">
-                            <div class="x_panel">
-                                  <div class="x_content">
-                                        <table id="domains-table-d.id" class="table">
-                                            <thead>
-                                                <tr>
-                                                    <th>name</th>
-                                                    <th>os</th>
-                                                    <th>load</th>
-                                                    <th>net</th>
-                                                    <th>disk rw</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                            </tbody>
-                                        </table>	
-                                  </div>
-                            </div>
-                        </div>
-                    </div>
-					<div class="row" >
-						  <div class="col-md-4 col-md-4 col-xs-12">
-							  <div id="hardware-d.id" class="x_content">
-                                <!-- { include '/snippets/.html' } -->
-							  </div>
-						  </div>
-                          
-                          <div class="col-md-8 col-md-8 col-xs-12">
-                              <div class="row" >
-                                <div class="col-md-12 col-md-12 col-xs-12">
-                                    <div id="events-d.id" class="x_content">
-                                    <!-- { include '/snippets/.html' } -->
-                                    </div>
-                                </div>
-                                <div class="col-md-12 col-md-12 col-xs-12">
-                                    <div id="graphs-d.id" class="x_content">
-                                    <!-- { include '/snippets/.html' } -->
-                                    </div>
-                                </div>
-                              </div>
-					</div>
-				</div>
-			</div>
+  <div class="row hyper-detail">
+    <div class="col-md-1 col-sm-1 col-xs-12">
+      <div class="row">
+        <div class="col-md-12 col-md-12 col-xs-12" id="actions-enable-d.id" data-pk="d.id">
+          <button class="btn btn-success btn-xs pull-right btn-enable" type="button" data-placement="top"><i class="fa fa-power-off m-right-xs"></i> Enable/Disable</button>
+          <button class="btn btn-success btn-xs pull-right btn-onlyforced" type="button" data-placement="top"><i class="fa fa-rocket m-right-xs"></i> Only forced</button>
+          <button class="btn btn-success btn-xs pull-right btn-gpu_only" type="button" data-placement="top"><i class="fa fa-briefcase m-right-xs"></i> GPU only</button>
+        </div>
+        <div class="col-md-12 col-md-12 col-xs-12" id="actions-delete-d.id" data-pk="d.id">
+          <button class="btn btn-danger btn-xs pull-right btn-delete" type="button" data-placement="top"><i class="fa fa-trash m-right-xs"></i><span id="delete_btn_text"> Delete</span></button>
+          <button class="btn btn-info btn-xs pull-right btn-edit" type="button" data-placement="top"><i class="fa fa-pencil m-right-xs"></i> Edit</button>
+        </div>
+        <div class="col-md-12 col-md-12 col-xs-12" id="actions-domains-d.id" data-pk="d.id">
+          <button class="btn btn-warning btn-xs pull-right btn-domstop " type="button" data-placement="top"><i class="fa fa-ban m-right-xs"></i> Stop all domains</button>
+        </div>
+        <div class="col-md-12 col-md-12 col-xs-12" id="actions-extra-d.id" data-pk="d.id">
+          <button class="btn btn-warning btn-xs pull-right btn-webstorage" type="button" data-placement="top"><i class="fa fa-hdd-o m-right-xs"></i> Access storage</button>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-10 col-sm-10 col-xs-12">
+      <div class="x_panel" style="background-color:#F7F7F7">
+        <div class="row">
+          <div class="col-md-12 col-md-12 col-xs-12">
+            <div class="x_panel">
+              <div class="x_content">
+                <h2>Status detailed info: <small id="status-detail-d.id"></small></h2>
+              </div>
             </div>
-       </div>
+          </div>
+        </div>
+        <div class="row ">
+          <div class="col-md-6 col-md-6 col-xs-6">
+            <div class="x_panel">
+              <div class="x_content">
+                <div class="x_title">
+                  <h3>Disk usage</h3>
+                  <div class="clearfix"></div>
+                </div>
+                <table id="table-mountpoints-d.id" class="table">
+                  <thead>
+                    <tr>
+                      <th>Mount</th>
+                      <th>Usage</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6 col-md-6 col-xs-6">
+            <div class="x_panel">
+              <div class="x_content">
+                <table id="domains-table-d.id" class="table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>OS</th>
+                      <th>Load</th>
+                      <th>Net</th>
+                      <th>Disk rw</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-4 col-md-4 col-xs-12">
+            <div id="hardware-d.id" class="x_content"></div>
+          </div>
+
+          <div class="col-md-8 col-md-8 col-xs-12">
+            <div class="row">
+              <div class="col-md-12 col-md-12 col-xs-12">
+                <div id="events-d.id" class="x_content"></div>
+              </div>
+              <div class="col-md-12 col-md-12 col-xs-12">
+                <div id="graphs-d.id" class="x_content"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>

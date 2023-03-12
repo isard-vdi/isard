@@ -1,12 +1,9 @@
 <!-- extend base layout -->
-{% extends "base.html" %}
-
-{% block css %}
+{% extends "base.html" %} {% block css %}
 <!--
 <link rel="stylesheet" type="text/css" href="//cdnjs.cloudflare.com/ajax/libs/epoch/0.6.0/epoch.min.css">
 -->
-{% endblock %} 
-{% block content %}
+{% endblock %} {% block content %}
 <div class="row">
   <div class="col-md-12 col-sm-12 col-xs-12">
     <div class="x_panel">
@@ -27,23 +24,24 @@
           <thead>
             <tr>
               <th></th>
-              <th>enabled</th>
-              <th>forced</th>
-              <th>status</th>
-              <th>id</th>
-              <th>hostname</th>
-              <th>static</th>
-              <th>proxy_video</th>
-              <th>started</th>
-              <th>mem load</th>
-              <th>cpu load</th>
-              <th>gpus</th>
-              <th>Last status change</th>
-              <th>vpn</th>
-              <th>Virt</th>
+              <th>Enabled</th>
+              <th>Status</th>
+              <th>Only Forced</th>
+              <th>Only GPU</th>
+              <th>ID</th>
+              <th>Hostname</th>
+              <th>RAM</th>
+              <th>CPU</th>
+              <th>Last Status Change</th>
+              <th>Desktops</th>
+              <th>GPU Profiles</th>
+              <th>VPN</th>
               <th>Nested</th>
-              <th>qemu</th>
-              <th>libvirt</th>
+              <th>Static</th>
+              <th>Proxy Video</th>
+              <th>Virt</th>
+              <th>QEMU</th>
+              <th>Libvirt</th>
             </tr>
           </thead>
           <tbody>
@@ -61,7 +59,6 @@
       <div class="x_title">
         <h3><i class="fa fa-object-group"></i> Hypervisors pools list<small> Pools grouping</small></h3>
         <ul class="nav navbar-right panel_toolbox">
-          <!--<li><a class="btn-new-pool"><span style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a></li>-->
           <li class="pull-right"><a class="collapse-link"><i class="fa fa-chevron-up"></i></a></li>
         </ul>
         <div class="clearfix"></div>
@@ -81,58 +78,46 @@
       </div>
     </div>
   </div>
-  {% include '/admin/pages/hypervisors_modals.html' %}
-  {% include '/admin/pages/hypervisors_detail.html' %}
-  {% include '/admin/pages/hypervisor_pool_detail.html' %}
+  {% include '/admin/pages/hypervisors_modals.html' %} {% include '/admin/pages/hypervisors_detail.html' %} {% include '/admin/pages/hypervisor_pool_detail.html' %}
 </div>
 <div class="row">
   <div class="col-md-12 col-sm-12 col-xs-12">
-      <div class="x_panel">
-          <div class="x_title">
-              <h3><i class="fa fa-briefcase"></i> GPUS <small></small></h3>
-              <ul class="nav navbar-right panel_toolbox">
-                  <li><a class="btn-new-gpu" data-panel="gpus"><span style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a>
-                  <li><a class="btn-assing-vgpus" data-panel="gpus"><span style="color: #5499c7; "><i class="fa fa-spinner"></i> Reassign physical devices</span></a>
-              </ul>
-              <div class="clearfix"></div>
-          </div>
-          <div class="x_content">
-              <table id="table-gpus" class="table">
-                  <thead>
-                      <tr>
-                          <th></th>
-                          <th>Name</th>
-                          <th>Description</th>
-                          <th>Physical Dev</th>
-                          <th>Active Profile</th>
-                          <th>Brand</th>
-                          <th>Model</th>
-                          <th>Architecture</th>
-                          <th>Memory</th>
-                          <!-- <th></th> -->
-                      </tr>
-                  </thead>
-                  <tbody>
-                  </tbody>
-              </table>
-          </div>
+    <div class="x_panel">
+      <div class="x_title">
+        <h3><i class="fa fa-briefcase"></i> GPUS <small></small></h3>
+        <ul class="nav navbar-right panel_toolbox">
+          <li><a class="btn-new-gpu" data-panel="gpus"><span style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a>
+            <li><a class="btn-assing-vgpus" data-panel="gpus"><span style="color: #5499c7; "><i class="fa fa-spinner"></i> Reassign physical devices</span></a>
+        </ul>
+        <div class="clearfix"></div>
       </div>
+      <div class="x_content">
+        <table id="table-gpus" class="table">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Name</th>
+              <th>Description</th>
+              <th>Physical Dev</th>
+              <th>Active Profile</th>
+              <th>Brand</th>
+              <th>Model</th>
+              <th>Architecture</th>
+              <th>Memory</th>
+            </tr>
+          </thead>
+          <tbody>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </div>
-{% endblock %}
+{% endblock %} {% block pagescript %}
 
-{% block pagescript %}
-<!--
-    <script src="/isard-admin/bower_components/d3/d3.min.js"></script>
-    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/d3/3.5.3/d3.min.js"></script>
-    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/zepto/1.1.4/zepto.min.js"></script>
-    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/epoch/0.6.0/epoch.min.js"></script>
-    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/polymer/0.5.2/polymer.js"></script>
--->
-    
-    <script src="/isard-admin/static/js/restful.js"></script>
-    <script src="/isard-admin/static/admin/js/hypervisors.js"></script>  
-    <script src="/isard-admin/static/admin/js/hypervisors_detail.js"></script> 
-    <script src="/isard-admin/static/admin/js/hypervisors_gpus.js"></script>       
-    <script src="/isard-admin/static/admin/js/hypervisors_pools.js"></script>           
+<script src="/isard-admin/static/js/restful.js"></script>
+<script src="/isard-admin/static/admin/js/hypervisors.js"></script>
+<script src="/isard-admin/static/admin/js/hypervisors_detail.js"></script>
+<script src="/isard-admin/static/admin/js/hypervisors_gpus.js"></script>
+<script src="/isard-admin/static/admin/js/hypervisors_pools.js"></script>
 {% endblock %}
