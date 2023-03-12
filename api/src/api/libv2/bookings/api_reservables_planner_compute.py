@@ -601,6 +601,21 @@ def payload_priority(payload, reservables):
     return priority
 
 
+def min_profile_priority(reservables):
+    priority = None
+    items_priority = {}
+    for k, v in reservables.items():
+        for subitem in v:
+            with app.app_context():
+                reservable = r.table("reservables_" + k).get(subitem).run(db.conn)
+                if not reservable.get("priority_id") or reservable["priority_id"] == "":
+                    priority_id = "default"
+                else:
+                    priority_id = reservable.get("priority_id")
+    priority["priority"] = items_priority
+    return priority
+
+
 def get_user_default_priority(payload, subitem):
     # Get defaults
     log.debug("GETTING DEFAULT PRIORITY AS NONE DID MATCH")

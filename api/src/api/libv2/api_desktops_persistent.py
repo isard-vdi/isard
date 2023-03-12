@@ -703,7 +703,7 @@ class ApiDesktopsPersistent:
     def check_max_booking_date(self, payload, desktop_id):
 
         current_plan = self.check_current_plan(payload, desktop_id)
-        priority = apib.get_user_priority(payload, "desktop", desktop_id)
+        priority = apib.get_min_profile_priority("desktop", desktop_id)
 
         forbid_time = priority["forbid_time"]
         if payload["role_id"] != "admin" and forbid_time < MIN_AUTOBOOKING_TIME:
