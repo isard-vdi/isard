@@ -78,7 +78,41 @@
           <DesktopNewSkeleton />
         </template>
         <b-row class="mt-4">
-          <b-col>
+          <b-col
+            cols="12"
+            class="d-flex flex-row flex-wrap justify-content-start4"
+          >
+            <b-row
+              class="ml-auto mr-2"
+            >
+              <b-col>
+                <b-form-group
+                  :label="$t('forms.show-pages')"
+                  label-for="per-page-select"
+                  label-cols-md="5"
+                  label-align-sm="right"
+                  class="text-medium-gray mr-2 mr-lg-0"
+                >
+                  <b-form-select
+                    id="per-page-select"
+                    v-model="perPage"
+                    class="card-list"
+                    :label="$t('forms.show-pages')"
+                    :options="pageOptions"
+                    size="sm"
+                  />
+                </b-form-group>
+              </b-col>
+              <b-col>
+                <b-pagination
+                  v-model="currentPage"
+                  :total-rows="totalRows"
+                  :per-page="perPage"
+                  aria-controls="selectedTemplateId"
+                  size="sm"
+                />
+              </b-col>
+            </b-row>
             <b-table
               id="selectedTemplateId"
               striped
@@ -118,22 +152,40 @@
                 >
               </template>
             </b-table>
+            <b-row
+              class="ml-auto mr-2"
+            >
+              <b-col>
+                <b-form-group
+                  :label="$t('forms.show-pages')"
+                  label-for="per-page-select"
+                  label-cols-md="5"
+                  label-align-sm="right"
+                  class="text-medium-gray mr-2 mr-lg-0"
+                >
+                  <b-form-select
+                    id="per-page-select"
+                    v-model="perPage"
+                    class="card-list"
+                    :label="$t('forms.show-pages')"
+                    :options="pageOptions"
+                    size="sm"
+                  />
+                </b-form-group>
+              </b-col>
+              <b-col>
+                <b-pagination
+                  v-model="currentPage"
+                  :total-rows="totalRows"
+                  :per-page="perPage"
+                  aria-controls="selectedTemplateId"
+                  size="sm"
+                />
+              </b-col>
+            </b-row>
           </b-col>
         </b-row>
       </b-skeleton-wrapper>
-
-      <!-- Pagination -->
-      <b-row>
-        <b-col>
-          <b-pagination
-            v-model="currentPage"
-            :total-rows="totalRows"
-            :per-page="perPage"
-            aria-controls="selectedTemplateId"
-            size="sm"
-          />
-        </b-col>
-      </b-row>
 
       <!-- Advanced options section title -->
       <b-row class="mt-2 mt-xl-5">
@@ -221,6 +273,7 @@ export default {
     // Templates table
     const perPage = ref(5)
     const currentPage = ref(1)
+    const pageOptions = ref([5, 10, 20, 30, 50, 100])
     const filter = ref('')
     const filterOn = reactive(['name', 'description', 'categoryName', 'groupName', 'userName'])
     const selected = ref([])
@@ -362,6 +415,7 @@ export default {
       fields,
       perPage,
       currentPage,
+      pageOptions,
       filter,
       filterOn,
       selected,
