@@ -362,7 +362,11 @@
 /* BUTTONS */
 
 .btn {
-  box-shadow: 0px 8px 15px rgba(0, 0, 0, 0.1);
+  box-shadow: 2px 2px 3px rgba(0, 0, 0, 0.2);
+}
+
+.b-calendar-grid .btn {
+  box-shadow: 0px 0px !important;
 }
 
 .btn-green {
