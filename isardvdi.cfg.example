@@ -1,4 +1,4 @@
-# Isard main config v2.6.0
+# Isard main config v2.7.0
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -424,6 +424,14 @@ WG_GUESTS_RESERVED_HOSTS=20
 ## WARNING it is sent unencrypted, so the connection should be securized.
 ## See also https://redis.io/docs/management/security/
 #REDIS_PASSWORD=
+
+# Redis host
+## Where can isard-api and isard-storage host reach isard-redis host?
+## Need to be set for flavours:
+##   - storage
+##   - hypervisor
+##   - hypervisor-standalone
+#REDIS_HOST=isard-redis
 
 ##################################################################
 ## STATS PARAMETERS                                             ##
