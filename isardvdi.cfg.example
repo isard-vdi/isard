@@ -1,4 +1,4 @@
-# Isard main config v2.5.0
+# Isard main config v2.5.1
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -426,8 +426,11 @@ WG_GUESTS_RESERVED_HOSTS=20
 #GRAFANA_HOST=isard-grafana
 # This variable is used for provisioning alerts in Grafana
 #GRAFANA_TELEGRAM_TOKEN=
+#GRAFANA_TELEGRAM_TOKEN_ORCHESTRATOR=
+
 # This variable is used for provisioning alerts in Grafana
 #GRAFANA_TELEGRAM_CHAT_ID=
+#GRAFANA_TELEGRAM_CHAT_ID_ORCHESTRATOR=
 
 # ------ Prometheus -----------------------------------------------------
 #PROMETHEUS_ADDRESS=http://isard-prometheus:9090
