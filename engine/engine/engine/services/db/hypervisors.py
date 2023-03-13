@@ -1066,3 +1066,44 @@ def get_storage_pool_hypervisor_ids(connection, storage_pool_id):
         .pluck("id")
         .run(connection)
     ]
+
+
+def flatten(S):
+    if S == []:
+        return S
+    if isinstance(S[0], list):
+        return flatten(S[0]) + flatten(S[1:])
+    return S[:1] + flatten(S[1:])
+
+
+@rethink
+def get_domains_started_from_vgpus_table(connection):
+    rtable = r.table("vgpus")
+    l_vgpus = list(rtable.run(connection))
+    wow = [
+        b
+        for b in [
+            [
+                i
+                for i in [
+                    [
+                        {
+                            "hyp_id": l["hyp_id"],
+                            "model": l["model"],
+                            "gpu_id": l["id"],
+                            "profile": profile,
+                            "mdev": a,
+                            "domain_id": v["domain_started"],
+                        }
+                        for a, v in d.items()
+                        if v["domain_started"] != False
+                    ]
+                    for profile, d in l["mdevs"].items()
+                ]
+                if len(i) > 0
+            ]
+            for l in l_vgpus
+        ]
+        if len(b) > 0
+    ]
+    return flatten(wow)
