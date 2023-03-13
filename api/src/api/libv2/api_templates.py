@@ -220,6 +220,8 @@ class ApiTemplates:
                         "image",
                         "description",
                         "allowed",
+                        "guest_properties",
+                        "create_dict",
                     )
                     .run(db.conn)
                 )
