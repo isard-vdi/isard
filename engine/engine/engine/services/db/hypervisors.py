@@ -672,20 +672,24 @@ def filter_available_hypers(
     exclude_gpu=False,
 ):
     # exclude hypers with gpu
+    # NOTE: we are not excluding gpu when we are looking for disk operations,
+    #       we are only excluding gpu when we are looking for hypervisors
     if exclude_gpu:
         hypers_online = [h for h in hypers_online if not h.get("gpu_only", None)]
-        if forced_hyp:
-            forced_hyp_found = [h for h in hypers_online if h["id"] in forced_hyp]
-            if len(forced_hyp_found) > 0:
-                return forced_hyp_found
-            return []
+
+    # check if forced_hyp is online
+    if forced_hyp:
+        forced_hyp_found = [h for h in hypers_online if h["id"] in forced_hyp]
+        if len(forced_hyp_found):
+            return forced_hyp_found
+        return []
 
     # exclude now hypers only_forced
     hypers_online = [h for h in hypers_online if not h.get("only_forced")]
 
     if favourite_hyp:
         favourite_hyp_found = [h for h in hypers_online if h["id"] in favourite_hyp]
-        if len(favourite_hyp_found) > 0:
+        if len(favourite_hyp_found):
             return favourite_hyp_found
 
     return hypers_online
@@ -695,7 +699,7 @@ def get_hypers_gpu_online(
     id_pool="default",
     forced_hyp=None,
     favourite_hyp=None,
-    gpu_profile=None,
+    gpu_brand_model_profile=None,
     forced_gpus_hypervisors=None,
 ):
     r_conn = new_rethink_connection()
@@ -706,21 +710,23 @@ def get_hypers_gpu_online(
         .pluck("id", "only_forced", "gpu_only", "info", "stats", "mountpoints")
         .run(r_conn)
     )
+    # Check profile format: "NVIDIA-A10-2Q"
+    try:
+        gpu_brand, gpu_model, gpu_profile = gpu_brand_model_profile.split("-")
+    except:
+        logs.workers.error(
+            f"Error parsing gpu_profile: {gpu_brand_model_profile}. Not in format BRAND-MODEL-PROFILE"
+        )
+        return []
+
     hypers_online_with_gpu = [
         h
         for h in hypers_online
         if len(
-            [
-                i
-                for i in h.get("info", {}).get("nvidia", {}).values()
-                if i == gpu_profile.split("-")[-2]
-            ]
+            [i for i in h.get("info", {}).get("nvidia", {}).values() if i == gpu_model]
         )
         > 0
     ]
-
-    if gpu_profile.rfind("NVIDIA-") == 0:
-        gpu_profile = gpu_profile.split("NVIDIA-")[1]
 
     if forced_hyp:
         forced_hyp_found = [h for h in hypers_online_with_gpu if h["id"] == forced_hyp]
@@ -745,34 +751,38 @@ def get_hypers_gpu_online(
             return []
 
     hypervisors_with_available_profile = []
-    # now find free uuids:
+    # now find hypervisors with free uuids:
     for h in hypers_online_with_gpu:
+        hyper_with_free_uuid = False
         for pci, model in h["info"]["nvidia"].items():
-            if model == gpu_profile.split("-")[-2]:
-                gpu_type = gpu_profile.split("-")[-1]
+            if model == gpu_model:
                 gpu_id = h["id"] + "-" + pci
-                gpu_type_active, mdevs = get_vgpus_mdevs(gpu_id, gpu_type)
-                if gpu_type_active == gpu_type:
-                    for mdev_uuid, d in mdevs[gpu_type].items():
+                gpu_profile_active, mdevs = get_vgpus_mdevs(gpu_id, gpu_profile)
+
+                if gpu_profile_active == gpu_profile:
+                    for mdev_uuid, d in mdevs[gpu_profile].items():
                         if (
                             d["domain_reserved"] is False
                             and d["domain_started"] is False
                             and d["created"] is True
                         ):
-                            hypervisors_with_available_profile.append(
-                                {
-                                    **h,
-                                    **{
-                                        "gpu_selected": {
-                                            "uuid_selected": mdev_uuid,
-                                            "next_hyp": h["id"],
-                                            "next_available_uid": mdev_uuid,
-                                            "next_gpu_id": gpu_id,
-                                            "gpu_profile": gpu_profile,
-                                        }
-                                    },
-                                }
-                            )
+                            hyper_with_free_uuid = True
+                            break
+        if hyper_with_free_uuid:
+            hypervisors_with_available_profile.append(
+                {
+                    **h,
+                    **{
+                        "gpu_selected": {
+                            "uuid_selected": mdev_uuid,
+                            "next_hyp": h["id"],
+                            "next_available_uid": mdev_uuid,
+                            "next_gpu_id": gpu_id,
+                            "gpu_profile": gpu_brand_model_profile,
+                        }
+                    },
+                }
+            )
 
     if not len(hypervisors_with_available_profile):
         logs.workers.error("No free mdevs found for gpu_profile: %s" % gpu_profile)
@@ -800,12 +810,12 @@ def get_hypers_gpu_online(
         h for h in hypervisors_with_available_profile if not h.get("only_forced")
     ]
 
-    if favourite_hyp and favourite_hyp in [
-        h["id"] for h in hypervisors_with_available_profile
-    ]:
-        return [
+    if favourite_hyp:
+        favourite_hyp_found = [
             h for h in hypervisors_with_available_profile if h["id"] == favourite_hyp
         ]
+        if len(favourite_hyp_found):
+            return favourite_hyp_found
 
     return hypervisors_with_available_profile
 
