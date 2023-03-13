@@ -131,7 +131,7 @@ def api_v3_template(payload, template_id):
     template = templates.Get(template_id)
     allowed.is_allowed(payload, template, "domains")
     return (
-        json.dumps(templates.Get(template_id)),
+        json.dumps(template),
         200,
         {"Content-Type": "application/json"},
     )
