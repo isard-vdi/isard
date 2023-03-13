@@ -32,37 +32,40 @@ class Balancer_round_robin:
         return hypers[self.index_round_robin]
 
 
-class Balancer_free_ram:
-    # This balancer will return the hypervisor with more free ram
+class Balancer_available_ram:
+    # This balancer will return the hypervisor with more available ram
     def _balancer(self, hypers):
         logs.main.debug(
-            f"BALANCER FREE RAM. MEMORY FREE: {[{h['id']: h['stats']['mem_stats']['free']} for h in hypers if h.get('stats',{}).get('mem_stats',{}).get('free')]}"
+            f"BALANCER AVAILABLE RAM. MEMORY AVAILABLE: {[{h['id']: h['stats']['mem_stats']['available']} for h in hypers if h.get('stats',{}).get('mem_stats',{}).get('available')]}"
         )
         return [
             h
             for h in hypers
-            if h.get("stats", {}).get("mem_stats", {}).get("free", 0)
+            if h.get("stats", {}).get("mem_stats", {}).get("available", 0)
             == max(
-                [h.get("stats", {}).get("mem_stats", {}).get("free", 0) for h in hypers]
+                [
+                    h.get("stats", {}).get("mem_stats", {}).get("available", 0)
+                    for h in hypers
+                ]
             )
         ][0]
 
 
-class Balancer_free_ram_percent:
-    # This balancer will return the hypervisor with more free ram in percentage
+class Balancer_available_ram_percent:
+    # This balancer will return the hypervisor with more available ram in percentage
     def _balancer(self, hypers):
         logs.main.debug(
-            f"BALANCER FREE RAM%. MEMORY FREE: {[{h['id']: h['stats']['mem_stats']['free']*100/h['stats']['mem_stats']['total']} for h in hypers if h.get('stats',{}).get('mem_stats',{}).get('free')]}"
+            f"BALANCER AVAILABLE RAM%. MEMORY AVAILABLE: {[{h['id']: h['stats']['mem_stats']['available']*100/h['stats']['mem_stats']['total']} for h in hypers if h.get('stats',{}).get('mem_stats',{}).get('available')]}"
         )
-        # Get the hypervisor with more free ram in percentage
+        # Get the hypervisor with more available ram in percentage
         return [
             h
             for h in hypers
-            if h.get("stats", {}).get("mem_stats", {}).get("free", 0)
+            if h.get("stats", {}).get("mem_stats", {}).get("available", 0)
             / h.get("stats", {}).get("mem_stats", {}).get("total", 1)
             == max(
                 [
-                    h.get("stats", {}).get("mem_stats", {}).get("free", 0)
+                    h.get("stats", {}).get("mem_stats", {}).get("available", 0)
                     / h.get("stats", {}).get("mem_stats", {}).get("total", 1)
                     for h in hypers
                 ]
@@ -96,7 +99,7 @@ class Balancer_less_cpu_when_low_ram_percent:
         hypers_below_ram_limit = [
             h
             for h in hypers
-            if h.get("stats", {}).get("mem_stats", {}).get("free", 0)
+            if h.get("stats", {}).get("mem_stats", {}).get("available", 0)
             / h.get("stats", {}).get("mem_stats", {}).get("total", 1)
             <= RAM_LIMIT
         ]
@@ -137,8 +140,8 @@ Balancer interface is the interface that the engine uses to get the next hypervi
 
 BALANCERS = [
     "round_robin",
-    "free_ram",
-    "free_ram_percent",
+    "available_ram",
+    "available_ram_percent",
     "less_cpu",
     "less_cpu_when_low_ram_percent",
 ]
@@ -152,10 +155,10 @@ class BalancerInterface:
         self.id_pool = id_pool
         if balancer_type == "round_robin":
             self._balancer = Balancer_round_robin()
-        if balancer_type == "free_ram":
-            self._balancer = Balancer_free_ram()
-        if balancer_type == "free_ram_percent":
-            self._balancer = Balancer_free_ram_percent()
+        if balancer_type == "available_ram":
+            self._balancer = Balancer_available_ram()
+        if balancer_type == "available_ram_percent":
+            self._balancer = Balancer_available_ram_percent()
         if balancer_type == "less_cpu":
             self._balancer = Balancer_less_cpu()
         if balancer_type == "less_cpu_when_low_ram_percent":

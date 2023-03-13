@@ -97,7 +97,7 @@ def move_actions_to_others_hypers(
 
 
 class PoolHypervisors:
-    def __init__(self, id_pool, balancer_type="free_ram_percent"):
+    def __init__(self, id_pool, balancer_type="available_ram_percent"):
         self.id_pool = id_pool
         self.balancer = BalancerInterface(id_pool, balancer_type)
         self.conf = get_pool_hypers_conf(id_pool)
