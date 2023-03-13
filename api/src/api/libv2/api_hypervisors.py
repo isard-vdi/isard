@@ -662,4 +662,9 @@ class ApiHypervisors:
             status = (
                 r.table("hypervisors").get(hyper_id).pluck("mountpoints").run(db.conn)
             )
+            if not status:
+                raise Error(
+                    "not_found",
+                    "Mountpoints information still not available",
+                )
         return status
