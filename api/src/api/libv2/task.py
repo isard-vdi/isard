@@ -126,6 +126,14 @@ class Task(RedisBase):
                 task.job.save()
                 self.job.meta.setdefault("dependent_ids", []).append(task.id)
             self.job.save_meta()
+            if "user_id" in kwargs:
+                for task in self._chain:
+                    Queue("api", connection=self._redis).enqueue(
+                        "task.feedback",
+                        result_ttl=0,
+                        depends_on=Dependency(jobs=[task.job], allow_failure=True),
+                        kwargs={"task_id": self.id},
+                    )
             self.job = Queue(
                 kwargs.get("queue", "default"), connection=self._redis
             ).enqueue_job(self.job)
