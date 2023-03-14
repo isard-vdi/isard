@@ -13,6 +13,28 @@
 #PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 ## 12 4 * * * root /opt/isard/src/isardvdi/sysadm/isard-upgrade-cron.sh >/tmp/isard-upgrade.log 2>&1
 
+if [ ! $(which docker) ]; then
+        echo "REQUIREMENT: docker not found in system."
+        echo "             Follow guide at https://docs.docker.com/engine/install/"
+        echo "             or use scripts in sysadmin folder."
+        exit 1
+fi
+
+if [ ! "$(docker compose version 2> /dev/null)" ]; then
+
+        if [ ! $(which docker-compose) ]; then
+                echo "REQUIREMENT: docker-compose not found in system."
+                echo "             Follow guide at https://docs.docker.com/compose/install/"
+                echo "             or use scripts in sysadmin folder."
+                exit 1
+
+        else
+                export DOCKER_COMPOSE="docker-compose"
+        fi
+else
+        export DOCKER_COMPOSE="docker compose"
+fi
+
 script_path=$(readlink -f "$0")
 lock_path="${script_path%/*/*/*}"
 
@@ -178,16 +200,16 @@ fi
 ./build.sh
 if [ $EXCLUDE_HYPER = 1 ]
 then
-	services="$(docker-compose -f docker-compose$CONFIG_NAME.yml config --services | sed '/^isard-hypervisor$/d' | sed '/^isard-pipework$/d')"
+	services="$($DOCKER_COMPOSE -f docker-compose$CONFIG_NAME.yml config --services | sed '/^isard-hypervisor$/d' | sed '/^isard-pipework$/d')"
 else
-	services="$(docker-compose -f docker-compose$CONFIG_NAME.yml config --services)"
+	services="$($DOCKER_COMPOSE -f docker-compose$CONFIG_NAME.yml config --services)"
 fi
-docker-compose -f docker-compose$CONFIG_NAME.yml --ansi never pull $services
+$DOCKER_COMPOSE -f docker-compose$CONFIG_NAME.yml --ansi never pull $services
 
 if [ $DOCKERCOMPOSE_UP = 1 ]
 then
   echo "Bringing up new images: ${services} (isard-hypervisor is kept running)."
-  docker-compose -f docker-compose$CONFIG_NAME.yml --ansi never up -d $services
+  $DOCKER_COMPOSE -f docker-compose$CONFIG_NAME.yml --ansi never up -d $services
   docker image prune -f --filter "until=72h"
 else
   echo "Not bringing up new images, they were only pulled."
