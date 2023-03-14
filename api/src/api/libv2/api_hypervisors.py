@@ -52,7 +52,7 @@ class ApiHypervisors:
         if status:
             query = query.filter({"status": status})
         if orchestrator:
-            query = query.pluck(
+            query = query.filter({"gpu_only": False}).pluck(
                 "id",
                 "status",
                 "only_forced",
