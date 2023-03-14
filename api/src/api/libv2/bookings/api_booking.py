@@ -52,7 +52,7 @@ class Bookings:
         return payload_priority(payload, reservables)
 
     def get_min_profile_priority(self, item_type, item_id):
-        reservables = _get_reservables(item_type, item_id)
+        reservables, units, item_name = _get_reservables(item_type, item_id)
         return min_profile_priority(reservables)
 
     def get_users_priorities(self, rule_id):

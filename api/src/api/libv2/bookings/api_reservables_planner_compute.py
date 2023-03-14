@@ -603,7 +603,6 @@ def payload_priority(payload, reservables):
 
 def min_profile_priority(reservables):
     priority = None
-    items_priority = {}
     for k, v in reservables.items():
         for subitem in v:
             with app.app_context():
@@ -612,7 +611,12 @@ def min_profile_priority(reservables):
                     priority_id = "default"
                 else:
                     priority_id = reservable.get("priority_id")
-    priority["priority"] = items_priority
+                priority = (
+                    r.table("bookings_priority")
+                    .get_all(priority_id, index="rule_id")
+                    .min("forbid_time")
+                    .run(db.conn)
+                )
     return priority
 
 
