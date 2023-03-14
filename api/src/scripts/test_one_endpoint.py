@@ -1,11 +1,9 @@
 import json
-import os
-import secrets
 import time
-import traceback
 from datetime import datetime, timedelta
 from pprint import pprint
 
+import requests
 from jose import jwt
 from rethinkdb import r
 
@@ -13,15 +11,11 @@ domain = "localhost"
 verifycert = False
 ## End set global vars
 
-import unittest
-
-import requests
-import responses
 
 auths = {}
 dbconn = None
-base = "http://isard-scheduler:5000"
-dbconn = r.connect("isard-db", 28015).repl()
+base = "http://isard-api:5000/api/v3"
+dbconn = r.connect("isard-db", 28015, "isard").repl()
 
 admin_secret_data = r.db("isard").table("secrets").get("isardvdi").run()
 raw_jwt_data = {
@@ -30,6 +24,8 @@ raw_jwt_data = {
     "data": {
         "role_id": admin_secret_data["role_id"],
         "category_id": admin_secret_data["category_id"],
+        "user_id": "local-default-admin-admin",
+        "group_id": "default-default",
     },
 }
 admin_jwt = jwt.encode(raw_jwt_data, admin_secret_data["secret"], algorithm="HS256")
@@ -39,30 +35,50 @@ auths["isardvdi"] = {
     "header": {"Authorization": "Bearer " + admin_jwt},
 }
 
-pprint(raw_jwt_data)
-
-data = {"name": "My new desktop", "disk_user": True, "virt_install_id": "win10Virtio"}
-## Warning, second time will throw DesktopExists exception as the name has been used already
-
-data = {"forced_hyp": "fhy", "sample_data": 1}
-print(data)
+### GET USERS
 response = requests.get(
-    base + "/scheduler/actions",
-    json=data,
+    base + "/admin/users",
+    json={},
     headers=auths["isardvdi"]["header"],
     verify=False,
 )
-pprint(response.status_code)
-pprint(response.text)
+if response.status_code == 200:
+    pprint([d["id"] for d in json.loads(response.text)])
+
+
+### GET DOMAINS
+response = requests.get(
+    base + "/admin/table/domains",
+    json={},
+    headers=auths["isardvdi"]["header"],
+    verify=False,
+)
+print("Domains in system status code:" + str(response.status_code))
+if response.status_code == 200:
+    pprint([d["id"] for d in json.loads(response.text)])
+
+### GET DOWNLOADS
+response = requests.get(
+    base + "/admin/downloads/domains",
+    json={},
+    headers=auths["isardvdi"]["header"],
+    verify=False,
+)
+print("Domains in downloads status code:" + str(response.status_code))
+if response.status_code == 200:
+    pprint([d["id"] for d in json.loads(response.text)])
+
+### GET DOWNLOAD FOR TETROS
 response = requests.post(
-    base + "/scheduler/interval/resource_planner/0/1",
-    json=data,
+    base
+    + "/admin/downloads/download/domains/_local-default-admin-admin_downloaded_tetros",
+    json={},
     headers=auths["isardvdi"]["header"],
     verify=False,
 )
-
-pprint(response.status_code)
-pprint(response.text)
-
-## virt_installs ids
-# print([vi["id"] for vi in list(r.db("isard").table("virt_install").run())])
+print(
+    "Downloading _local-default-admin-admin_downloaded_tetros status code:"
+    + str(response.status_code)
+)
+if response.status_code == 200:
+    pprint([d["id"] for d in json.loads(response.text)])
