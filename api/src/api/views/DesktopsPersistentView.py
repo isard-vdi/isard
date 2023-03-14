@@ -155,59 +155,36 @@ def api_v3_persistent_desktop_new(payload):
     try:
         data = request.get_json(force=True)
     except:
-        Error(
+        raise Error(
             "bad_request",
             "Desktop persistent add incorrect body data",
             traceback.format_exc(),
             description_code="desktop_incorrect_body_data",
         )
+
     data = _validate_item("desktop_from_template", data)
     template = templates.Get(data["template_id"])
 
-    # Check viewers and required hardware
-    if not data.get("guest_properties", {}).get("viewers"):
-        if not len(template["guest_properties"].get("viewers", {})):
-            raise Error(
-                "bad_request",
-                "At least one viewer must be selected. This template doesn't have any viewer.",
-                traceback.format_exc(),
-                description_code="one_viewer_minimum",
-            )
-        data["guest_properties"]["viewers"] = template["guest_properties"]["viewers"]
+    data["description"] = data.get("description", template["description"])
 
-    if not data.get("hardware", {}).get("videos") or not data.get("hardware", {}).get(
-        "interfaces"
-    ):
-        viewers_hardware = {}
-        if not data.get("hardware", {}).get("videos"):
-            viewers_hardware["videos"] = template["create_dict"]["hardware"]["videos"]
-        if not data.get("hardware", {}).get("interfaces"):
-            viewers_hardware["interfaces"] = template["create_dict"]["hardware"][
-                "interfaces"
-            ]
-            desktops.check_viewers(
-                data["guest_properties"]["viewers"], viewers_hardware
-            )
-    else:
-        desktops.check_viewers(data["guest_properties"]["viewers"], data["hardware"])
+    desktop = desktops.check_viewers(data, template)
 
     allowed.is_allowed(payload, template, "domains")
     quotas.desktop_create(payload["user_id"])
     check_user_duplicated_domain_name(
-        data["name"],
+        desktop["name"],
         payload["user_id"],
     )
-
     desktops.NewFromTemplate(
-        desktop_name=data["name"],
-        desktop_description=data["description"],
-        template_id=data["template_id"],
+        desktop_name=desktop["name"],
+        desktop_description=desktop["description"],
+        template_id=desktop["template_id"],
         user_id=payload["user_id"],
-        new_data=data,
-        image=data.get("image"),
-        domain_id=data["id"],
+        new_data=desktop,
+        image=desktop.get("image"),
+        domain_id=desktop["id"],
     )
-    return json.dumps({"id": data["id"]}), 200, {"Content-Type": "application/json"}
+    return json.dumps({"id": desktop["id"]}), 200, {"Content-Type": "application/json"}
 
 
 # Bulk desktops action
@@ -308,32 +285,7 @@ def api_v3_domain_edit(payload, domain_id):
             traceback.format_exc(),
         )
 
-    # Check viewers and required hardware
-    if not data.get("guest_properties", {}).get("viewers"):
-        if not len(desktop["guest_properties"].get("viewers", {})):
-            raise Error(
-                "bad_request",
-                "At least one viewer must be selected. This template doesn't have any viewer.",
-                traceback.format_exc(),
-                description_code="one_viewer_minimum",
-            )
-        data["guest_properties"]["viewers"] = desktop["guest_properties"]["viewers"]
-
-    if not data.get("hardware", {}).get("videos") or not data.get("hardware", {}).get(
-        "interfaces"
-    ):
-        viewers_hardware = {}
-        if not data.get("hardware", {}).get("videos"):
-            viewers_hardware["videos"] = desktop["create_dict"]["hardware"]["videos"]
-        if not data.get("hardware", {}).get("interfaces"):
-            viewers_hardware["interfaces"] = desktop["create_dict"]["hardware"][
-                "interfaces"
-            ]
-            desktops.check_viewers(
-                data["guest_properties"]["viewers"], viewers_hardware
-            )
-    else:
-        desktops.check_viewers(data["guest_properties"]["viewers"], data["hardware"])
+    desktops.check_viewers(data, desktop)
 
     admin_or_manager = True if payload["role_id"] in ["manager", "admin"] else False
     desktops.Update(domain_id, data, admin_or_manager)
