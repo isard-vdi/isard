@@ -77,7 +77,7 @@ class InternalUsers(object):
         return self.users
 
 
-def _get_reservables(item_type, item_id, tolist=False):
+def _get_reservables(item_type, item_id):
     if item_type == "desktop":
         with app.app_context():
             data = r.table("domains").get(item_id).run(db.conn)
@@ -122,15 +122,10 @@ def _get_reservables(item_type, item_id, tolist=False):
         )
     data = data["create_dict"]["reservables"]
     data_without_falses = {k: v for k, v in data.items() if v}
-    if tolist:
-        return (
-            [item for sublist in list(reservables.values()) for item in sublist],
-            units,
-        )
     return (data_without_falses, units, item_name)
 
 
-def _get_domain_reservables(domain_id, toList=False):
+def _get_domain_reservables(domain_id):
     with app.app_context():
         data = r.table("domains").get(domain_id).run(db.conn)
     if not data["create_dict"].get("reservables") or not any(
@@ -139,8 +134,6 @@ def _get_domain_reservables(domain_id, toList=False):
         return {"vgpus": []}
     data = data["create_dict"]["reservables"]
     data_without_falses = {k: v for k, v in data.items() if v}
-    if toList:
-        return [item for sublist in list(reservables.values()) for item in sublist]
     return data_without_falses
 
 
