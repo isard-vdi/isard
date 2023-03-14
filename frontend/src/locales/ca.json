@@ -32,9 +32,9 @@
             "storage": "Emmagatzematge"
         },
         "statusbar": {
-            "desktops-started": "Escriptoris arrencats",
-            "checkbox-text": "Només arrencats",
-            "checkbox-text-short": "Arrencats",
+            "desktops-started": "Escriptoris iniciats",
+            "checkbox-text": "Només iniciats",
+            "checkbox-text-short": "Iniciats",
             "new-desktop": "Escriptori nou",
             "new-deployment": "Nou desplegament",
             "new-media": "Nou mitjà",
@@ -48,7 +48,7 @@
                         "title": "Iniciar tots els escriptoris del desplegament"
                     },
                     "stop": {
-                        "title": "Parar tots els escriptoris del desplegament"
+                        "title": "Aturar tots els escriptoris del desplegament"
                     },
                     "videowall": {
                         "title": "Anar a videowall"
@@ -239,7 +239,7 @@
                 "desktops": "Escriptoris creats / Total d'escriptoris",
                 "media": "Mitjans creats / Total de mitjans",
                 "memory": "Memòria utilitzada / Total de memòria (GB)",
-                "running": "Escriptoris arrencats / Total d'escriptoris arrencats",
+                "running": "Escriptoris iniciats / Total d'escriptoris iniciats",
                 "templates": "Plantilles creades / Total de plantilles",
                 "vcpus": "Vcpus utilitzades / Total de vcpus",
                 "total-disk-size": "Mida de disc utilitzat / Total de mida de disc (GB)",
@@ -400,11 +400,11 @@
                 },
                 "stop-error": {
                     "title": "Error",
-                    "description": "No s'ha pogut parar l'escriptori virtual degut a un error"
+                    "description": "No s'ha pogut aturar l'escriptori virtual degut a un error"
                 },
                 "stop-timeout": {
                     "title": "Temps excedit",
-                    "description": "L'escriptori s'està parant, pot trigar uns quants minuts"
+                    "description": "L'escriptori s'està aturant, pot trigar uns quants minuts"
                 },
                 "delete-error": {
                     "title": "Error",
@@ -451,8 +451,8 @@
                     "action": "treballant"
                 },
                 "shutting-down": {
-                    "text": "Apagant",
-                    "action": "Forçar parada"
+                    "text": "Aturant",
+                    "action": "Forçar aturada"
                 },
                 "downloading": {
                     "text": "Descarregant"
@@ -479,7 +479,7 @@
             "table-header": {
                 "name": "Nom",
                 "visible": "Visible",
-                "started-desktops": "Escriptoris arrencats / Total",
+                "started-desktops": "Escriptoris iniciats / Total",
                 "actions": "Accions",
                 "template": "Plantilla",
                 "desktop-name": "Nom de l'escriptori",
@@ -530,7 +530,7 @@
                 "browser": "Navegador",
                 "browser-rdp": "RDP al navegador"
             },
-            "waitingIP": "Esperant a que s'arranqui l'escriptori",
+            "waitingIP": "Esperant a que s'iniciï l'escriptori",
             "description": {
                 "vnc": "Accedir a l'escriptori directament des d'aquest navegador",
                 "rdp": "Accedir a l'escriptori directament des d'aquest navegador (requereix usuari i contrasenya del windows de l'escriptori)",
@@ -574,7 +574,7 @@
                     "reset-desktop": "Forçar reinici de l'escriptori"
                 }
             },
-            "waitingip": "Esperant que s'arrenqui l'escriptori"
+            "waitingip": "Esperant que s'iniciï l'escriptori"
         },
         "templates": {
             "tabs": {
@@ -651,7 +651,7 @@
                     "title": "Descarregar mitjà"
                 },
                 "stop-download": {
-                    "title": "Parar descàrrega"
+                    "title": "Aturar descàrrega"
                 }
             },
             "status": {
@@ -662,7 +662,7 @@
             },
             "delete-media": {
                 "title": "Esborrar mitjà",
-                "warning": "Aquest mitjà s'esborrarà dels següents escriptoris. En cas d'estar iniciats es pararan.",
+                "warning": "Aquest mitjà s'esborrarà dels següents escriptoris. En cas d'estar iniciats s'aturaran.",
                 "table-header": {
                     "name": "Nom",
                     "user": "Usuari",
@@ -844,26 +844,26 @@
         "show-pages": "Veure"
     },
     "errors": {
-        "desktop_new_user_quota_exceeded": "Has excedit la teva quota per a crear nous escriptoris. Cal que eliminis algun escriptori per a poder-ne crear de nous.",
+        "desktop_new_user_quota_exceeded": "Has excedit la teva quota per a crear nous escriptoris. Cal que eliminis algun escriptori per a poder crear-ne de nous.",
         "desktop_new_group_limit_exceeded": "S'ha excedit el límit per a crear nous escriptoris del grup",
         "desktop_new_category_limit_exceeded": "S'ha excedit el límit per a crear nous escriptoris de la categoria",
-        "desktop_start_user_quota_exceeded": "Has excedit la teva quota per a arrencar escriptoris. Cal que aturis altres escriptoris per a poder-ne iniciar de nous.",
-        "desktop_start_group_limit_exceeded": "S'ha excedit el límit d'escriptoris arrencats del grup",
-        "desktop_start_category_limit_exceeded": "S'ha excedit el límit d'escriptoris arrencats de la categoria",
-        "desktop_start_vcpu_quota_exceeded": "Has excedit la teva quota de vCPU. Cal que aturis altres escriptoris per a poder-ne iniciar de nous o bé editar aquest escriptori i reduir-ne les CPUs.",
+        "desktop_start_user_quota_exceeded": "Has excedit la teva quota per iniciar escriptoris. Cal que aturis altres escriptoris per a poder iniciar-ne de nous.",
+        "desktop_start_group_limit_exceeded": "S'ha excedit el límit d'escriptoris iniciats del grup",
+        "desktop_start_category_limit_exceeded": "S'ha excedit el límit d'escriptoris iniciats de la categoria",
+        "desktop_start_vcpu_quota_exceeded": "Has excedit la teva quota de vCPU. Cal que aturis altres escriptoris per a poder iniciar-ne de nous o bé editar aquest escriptori i reduir-ne les vCPU.",
         "desktop_start_group_vcpu_limit_exceeded": "S'ha excedit el límit de vCPU del grup",
         "desktop_start_category_vcpu_limit_exceeded": "S'ha excedit el límit de vCPU de la categoria",
-        "desktop_start_memory_quota_exceeded": "Has excedit la teva quota de memòria. Cal que aturis altres escriptoris per a poder-ne iniciar de nous o bé editar aquest escriptori i reduir-ne la memòria.",
+        "desktop_start_memory_quota_exceeded": "Has excedit la teva quota de memòria. Cal que aturis altres escriptoris per a poder iniciar-ne de nous o bé editar aquest escriptori i reduir-ne la memòria.",
         "desktop_start_group_memory_limit_exceeded": "S'ha excedit el límit de memòria del grup",
         "desktop_start_category_memory_limit_exceeded": "S'ha excedit el límit de memòria de la categoria",
-        "desktop_start_incorrect_body_data": "Dades incorrectes per arrencar el escriptori",
-        "desktop_incorrect_body_data": "Dades incorrectes per afegir l'escriptori",
+        "desktop_start_incorrect_body_data": "Dades incorrectes per iniciar l'escriptori",
+        "desktop_incorrect_body_data": "Dades incorrectes per a crear l'escriptori",
         "user_new_category_cuota_exceeded": "S'ha excedit el límit de creació d'usuaris de la categoria",
         "user_new_group_cuota_exceeded": "S'ha excedit el límit de creació d'usuaris del grup",
-        "template_new_user_quota_exceeded": "Has excedit la teva quota de plantilles. Cal que deshabilitis o eliminis alguna plantilla per a poder-ne crear o habilitar de noves.",
+        "template_new_user_quota_exceeded": "Has excedit la teva quota de plantilles. Cal que deshabilitis o eliminis alguna plantilla per a poder crear-ne o habilitar de noves.",
         "template_new_group_limit_exceeded": "S'ha excedit el límit de creació de plantilles del grup",
         "template_new_category_limit_exceeded": "S'ha excedit el límit de creació de plantilles de la categoria",
-        "media_new_user_quota_exceeded": "Has excedit la teva quota de creació de mitjans. Cal que eliminis algun mitjà per a poder-ne pujar de nous.",
+        "media_new_user_quota_exceeded": "Has excedit la teva quota de creació de mitjans. Cal que eliminis algun mitjà per a poder pujar-ne de nous.",
         "media_new_group_limit_exceeded": "S'ha excedit el límit de creació de mitjans del grup",
         "media_new_category_limit_exceeded": "S'ha excedit la quota de creació de mitjans de la categoria",
         "media_url_not_found": "L'adreça introduïda no s'ha trobat",
@@ -882,7 +882,7 @@
         "category_generic_exception": "S'ha produït un error recuperant la categoria",
         "register_generic_exception": "S'ha produït un error durant el procés de registre",
         "update_generic_exception": "S'ha produït un error durant l'actualització",
-        "desktop_action_failed": "Error al completar l'acció al escriptori",
+        "desktop_action_failed": "Error al completar l'acció a l'escriptori",
         "template_new_not_created": "S'ha produït un error creant la plantilla",
         "get_generic_exception": "S'ha produït un error recuperant les dades",
         "user_new_generic_exception": "S'ha produït un error creant l'usuari",
@@ -899,9 +899,9 @@
         "booking_new_event_start_error": "L'hora d'inici no és vàlida",
         "booking_new_event_end_error": "L'hora de finalització no és vàlida",
         "booking_new_event_overlap_error": "L'esdeveniment es solapa",
-        "booking_does_not_fit_date": "La reserva no pot realitzar a la data assenyalada",
-        "booking_desktop_delete_stop": "Per esborrar la reserva l'escriptori ha d'estar parat",
-        "booking_deployment_delete_stop": "Per esborrar la reserva és necessari que els escriptoris del desplegament estiguin parats",
+        "booking_does_not_fit_date": "La reserva no pot realitzar-se en la data assenyalada",
+        "booking_desktop_delete_stop": "Per esborrar la reserva, l'escriptori ha d'estar aturat",
+        "booking_deployment_delete_stop": "Per esborrar la reserva és necessari que els escriptoris del desplegament estiguin aturats",
         "booking_max_items_exceeded": "S'ha excedit el màxim de reserves de l'usuari",
         "unable_to_update": "No s'ha pogut actualitzar a la base de dades",
         "unable_to_insert": "No s'ha pogut introduir a la base de dades",
@@ -911,19 +911,19 @@
         "not_enough_rights_media": "Es requereixen més permisos per accedir a aquest mitjà",
         "not_enough_rights_desktop": "Es requereixen més permisos per accedir a aquest escriptori",
         "incorrect_viewer_body_data": "Dades incorrectes al visor de l'escriptori",
-        "unable_to_get_viewer_started": "No es possible obtenir el visor d'un escriptori que no està arrencat",
+        "unable_to_get_viewer_started": "No és possible obtenir el visor d'un escriptori que no està iniciat",
         "user_disabled": "L'usuari està deshabilitat",
         "deployment_desktop_new_group_limit_exceeded": "S'ha excedit el límit per a crear nous escriptoris del grup '{group}'",
         "deployment_desktop_new_category_limit_exceeded": "S'ha excedit el límit per a crear nous escriptoris de la categoria '{category}'",
-        "unable_to_stop_desktop_from": "No és possible aturar un escriptori des d'el seu estat",
-        "unable_to_start_desktop_from": "No és possible engegar un escriptori des d'el seu estat",
-        "deployment_delete_stop": "Per esborrar un desplegament és necessari que els seus escriptoris estiguin parats",
-        "desktop_not_booked": "Per engegar l'escriptori ha d'estar reservat",
-        "desktop_not_booked_until": "No es pot engegar l'escriptori fins a la propera reserva {start}",
+        "unable_to_stop_desktop_from": "No és possible aturar un escriptori des del seu estat",
+        "unable_to_start_desktop_from": "No és possible engegar un escriptori des del seu estat",
+        "deployment_delete_stop": "Per esborrar un desplegament és necessari que els seus escriptoris estiguin aturats",
+        "desktop_not_booked": "Per iniciar l'escriptori ha d'estar reservat",
+        "desktop_not_booked_until": "No es pot iniciar l'escriptori fins a la propera reserva {start}",
         "only_works_rdp":  "Mode 'Only GPU' només funciona amb visors RDP",
         "current_plan_doesnt_match": "No hi ha cap GPU disponible amb el perfil de l'escriptori",
-        "needs_deployment_booking": "Ara mateix no es pot arrancar l'escriptori, contacta amb el propietari d'aquest desplegament perque crei una reserva",
-        "not_enough_advanced_time": "No hi ha suficient antel·lació per arrancar l'escriptori"
+        "needs_deployment_booking": "Ara mateix no es pot iniciar l'escriptori, contacta amb el propietari d'aquest desplegament perquè creï una reserva",
+        "not_enough_advanced_time": "No hi ha suficient antelació per iniciar l'escriptori"
     },
     "messages": {
         "title": {
@@ -931,13 +931,13 @@
         },
         "confirmation": {
             "delete-desktop": "'{name}' s'esborrarà, continuar?",
-            "create-nonpersistent": "ATENCIÓ! Aquest escriptori és temporal. Al parar-ho totes les dades seràn esborrades. Crear escriptori?",
+            "create-nonpersistent": "ATENCIÓ! Aquest escriptori és temporal. A l'aturar-ho totes les dades seràn esborrades. Crear escriptori?",
             "visible-deployment": "'{name}' serà visible pels seus usuaris, continuar?",
-            "recreate-deployment": "Els escriptoris esborrats de '{name}' es crearàn de nou, continuar?",
+            "recreate-deployment": "Els escriptoris esborrats de '{name}' es crearan de nou, continuar?",
             "delete-deployment": "'{name}' s'esborrarà, continuar?",
             "delete-deployment-desktop": "L'escriptori de '{name}' s'esborrarà, continuar?",
             "start-deployment-desktops": "Els escriptoris de '{name}' s'iniciaran, continuar?",
-            "stop-deployment-desktops": "Els escriptoris de '{name}' es pararan, continuar?",
+            "stop-deployment-desktops": "Els escriptoris de '{name}' s'aturaran, continuar?",
             "delete-event": "La reserva '{name}' s'esborrarà, continuar?",
             "enable-template": "'{name}' serà visible pels seus usuaris, continuar?",
             "disable-template": "'{name}' serà invisible pels seus usuaris, continuar?",
@@ -951,13 +951,13 @@
             "change-desktop-gpu": "Modificar el perfil de l'escriptori"
         },
         "ok": "D'acord",
-        "yes": "Si",
+        "yes": "Sí",
         "no": "No",
         "cancel": "Cancel·lar",
         "info": {
             "deleting-desktop": "Esborrant escriptori",
-            "opening-desktop": "Obrint Escriptori",
-            "creating-desktop": "Creant Escriptori",
+            "opening-desktop": "Obrint escriptori",
+            "creating-desktop": "Creant escriptori",
             "file-downloaded": "Fitxer descarregat",
             "creating-deployment": "Creant desplegament",
             "recreating-deployment": "Recreant desplegament",
@@ -965,9 +965,9 @@
             "making-visible-deployment": "Fent el desplegament visible",
             "making-invisible-deployment": "Fent el desplegament invisible",
             "starting-desktops": "Iniciant els escriptoris del desplegament",
-            "stopping-desktops": "Parant els escriptoris del desplegament",
+            "stopping-desktops": "Aturant els escriptoris del desplegament",
             "creating-template": "Creant plantilla",
-            "new-template-stop": "Per crear una plantilla és necessari que l'escriptori estigui parat",
+            "new-template-stop": "Per crear una plantilla és necessari que l'escriptori estigui aturat",
             "no-availability-event": "No hi ha disponibilitat al rang seleccionat",
             "not-created-event": "No s'ha pogut crear l'esdeveniment",
             "missing-data": "Falten dades",
@@ -978,17 +978,17 @@
             "editing-event": "Editant esdeveniment",
             "creating-media": "Creant mitjà",
             "editing": "Editant",
-            "edit-desktop-stop": "Per editar un escriptori és necessari que estigui parat",
+            "edit-desktop-stop": "Per editar un escriptori és necessari que estigui aturat",
             "deleting-media": "Esborrant mitjà",
             "downloading-media": "Descarregant mitjà",
-            "stopping-download": "Parant la descàrrega",
+            "stopping-download": "Aturant la descàrrega",
             "counting-desktops": "Comptant quants escriptoris es crearan",
             "new-template-server": "No es pot crear una plantilla d'un servidor",
             "edit-desktop-server": "No es pot editar un servidor",
-            "delete-desktop-stop": "Per esborrar un escriptori és necessari que estigui parat",
-            "wireguard-network-added": "S'ha afegit la xarxa wireguard ja que és requerida per tal de fer servir els visors RDP",
-            "wireguard-viewers-removed": "Els visors RDP s'han eliminat ja que requereixen la xarxa wireguard",
-            "wireguard-network-required": "No es poden seleccionar els visors RDP ja que la xarxa wireguard és requerida. Contacta amb l'administrador per fer servir la xarxa wireguard"
+            "delete-desktop-stop": "Per esborrar un escriptori és necessari que estigui aturat",
+            "wireguard-network-added": "S'ha afegit la xarxa Wireguard, atès que és requerida per tal de fer servir els visors RDP",
+            "wireguard-viewers-removed": "Els visors RDP s'han eliminat, atès que requereixen la xarxa wireguard",
+            "wireguard-network-required": "No es poden seleccionar els visors RDP, atès que la xarxa Wireguard és requerida. Contacta amb l'administrador per poder fer servir la xarxa Wireguard"
         },
         "loading": "Carregant"
     },
@@ -1021,7 +1021,7 @@
     "message-modal": {
         "title": "Informació important",
         "messages": {
-            "desktop-time-limit": "L'escriptori '{name}' s'apagarà automàticament a les {date}.",
+            "desktop-time-limit": "L'escriptori '{name}' s'aturarà automàticament a les {date}.",
             "searching-resources": "Estem buscant recursos per l'escriptori. S'iniciarà en breus minuts, si us plau, esperi."
         }
     }
