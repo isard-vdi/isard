@@ -3,9 +3,6 @@
 #      Josep Maria Viñolas Auquer
 # License: AGPLv3
 
-# /bin/python3
-# coding=utf-8
-
 import itertools
 import time
 import traceback
@@ -30,43 +27,33 @@ from engine.services.db import (
     delete_domain,
     domains_with_attached_disk,
     domains_with_attached_storage_id,
-    get_custom_dict_from_domain,
     get_dict_from_item_in_table,
     get_domain,
-    get_domain_force_update,
     get_domain_forced_hyp,
     get_domain_hyp_started,
-    get_domain_kind,
     get_hypers_in_pool,
-    get_if_delete_after_stop,
-    get_interface,
-    get_pool_from_domain,
     get_table_field,
+    get_table_fields,
     insert_domain,
     remove_dict_new_template_from_domain,
     remove_disk_template_created_list_in_domain,
-    update_domain_dict_create_dict,
     update_domain_dict_hardware,
     update_domain_force_update,
     update_domain_forced_hyp,
     update_domain_hyp_started,
     update_domain_hyp_stopped,
     update_domain_status,
-    update_domain_viewer_started_values,
     update_origin_and_parents_to_new_template,
     update_table_field,
-    update_vgpu_reserved,
     update_vgpu_uuid_domain_action,
 )
 from engine.services.lib.functions import exec_remote_list_of_cmds
 from engine.services.lib.qcow import (
     add_cmds_if_custom,
     create_cmd_disk_from_scratch,
-    create_cmd_disk_from_virtbuilder,
     create_cmds_delete_disk,
     create_cmds_disk_from_base,
     get_host_disk_operations_from_path,
-    get_host_long_operations_from_path,
     get_path_to_disk,
 )
 from engine.services.lib.storage import (
@@ -107,25 +94,34 @@ class UiActions(object):
                 self.start_domain_from_id(parameters["domain_id"], ssl_spice)
 
     ### STARTING DOMAIN
-    def start_domain_from_id(self, id, ssl=True, starting_paused=False):
+    def start_domain_from_id(self, id_domain, ssl=True, starting_paused=False):
         # INFO TO DEVELOPER, QUE DE UN ERROR SI EL ID NO EXISTE
 
-        id_domain = id
-
-        kind = get_table_field("domains", id_domain, "kind")
-        d = get_table_field(
-            "domains", id_domain, {"create_dict": {"hardware": "memory"}}
+        domain = get_table_fields(
+            "domains",
+            id_domain,
+            [
+                "kind",
+                "name",
+                {"create_dict": {"hardware": "memory", "reservables": True}},
+                "forced_hyp",
+                "favourite_hyp",
+                "hypervisors_pools",
+                "force_gpus",
+            ],
         )
-        if type(d) is dict:
-            memory = d.get("create_dict", {}).get("hardware", {}).get("memory", 0)
+        if not domain:
+            log.error(f"Domain {id_domain} not found. Can't start. Maybe deleted?")
+            return False
+
+        memory = domain.get("create_dict", {}).get("hardware", {}).get("memory", 0)
         if type(memory) is int or type(memory) is float:
             memory_in_gb = memory / 1024 / 1024
         else:
             memory_in_gb = 0
-        if kind != "desktop":
-            domain_name = get_table_field("domains", id_domain, "name")
+        if domain["kind"] != "desktop":
             log.error(
-                f"DANGER, domain {id_domain} ({domain_name}) is a template and can't be started"
+                f"DANGER, domain {id_domain} ({domain['name']}) is a template and can't be started"
             )
             update_domain_status(
                 "Stopped",
@@ -134,12 +130,19 @@ class UiActions(object):
             )
             return False
 
-        pool_id = get_pool_from_domain(id_domain)
+        try:
+            pool_id = domain.get("hypervisors_pools", ["default"])[0]
+        except:
+            pool_id = "default"
+            log.error(
+                f"Domain {id_domain} has no hypervisors_pools. Using default pool."
+            )
+
         cpu_host_model = self.manager.pools[pool_id].conf.get(
             "cpu_host_model", DEFAULT_HOST_MODE
         )
 
-        if get_domain_force_update(id_domain):
+        if domain.get("force_update"):
             if self.update_hardware_dict_and_xml_from_create_dict(id_domain):
                 update_domain_force_update(id_domain, False)
             else:
@@ -163,39 +166,71 @@ class UiActions(object):
             return False
         else:
             if starting_paused is True:
-                hyp = self.start_domain_from_xml(
-                    xml, id_domain, pool_id=pool_id, action="start_paused_domain"
+                hyp = self.start_paused_domain_from_xml(
+                    xml,
+                    id_domain,
+                    pool_id=pool_id,
+                    forced_hyp=domain.get("forced_hyp"),
+                    favourite_hyp=domain.get("favourite_hyp"),
+                    force_gpus=domain.get("force_gpus"),
+                    reservables=domain.get("create_dict", {}).get("reservables", {}),
                 )
             else:
                 hyp = self.start_domain_from_xml(
-                    xml, id_domain, pool_id=pool_id, memory_in_gb=memory_in_gb
+                    xml,
+                    id_domain,
+                    pool_id=pool_id,
+                    memory_in_gb=memory_in_gb,
+                    forced_hyp=domain.get("forced_hyp"),
+                    favourite_hyp=domain.get("favourite_hyp"),
+                    force_gpus=domain.get("force_gpus"),
+                    reservables=domain.get("create_dict", {}).get("reservables", {}),
                 )
             return hyp
 
-    def start_paused_domain_from_xml(self, xml, id_domain, pool_id="default"):
+    def start_paused_domain_from_xml(
+        self,
+        xml,
+        id_domain,
+        pool_id="default",
+        forced_hyp=None,
+        favourite_hyp=None,
+        force_gpus=None,
+        reservables=None,
+    ):
         # def start_paused_domain_from_xml(self, xml, id_domain, pool_id, start_after_created=False):
         return self.start_domain_from_xml(
-            xml, id_domain, pool_id, action="start_paused_domain"
+            xml,
+            id_domain,
+            pool_id,
+            action="start_paused_domain",
+            forced_hyp=forced_hyp,
+            favourite_hyp=favourite_hyp,
+            force_gpus=force_gpus,
+            reservables=reservables,
         )
 
     def start_domain_from_xml(
-        self, xml, id_domain, pool_id="default", action="start_domain", memory_in_gb=0
+        self,
+        xml,
+        id_domain,
+        pool_id="default",
+        action="start_domain",
+        memory_in_gb=0,
+        forced_hyp=None,
+        favourite_hyp=None,
+        force_gpus=None,
+        reservables=None,
     ):
         failed = False
         if pool_id in self.manager.pools.keys():
-            forced_hyp, favourite_hyp = get_domain_forced_hyp(id_domain)
-
-            permit_reservables = True
-            if action == "start_paused_domain":
-                # in updates start paused doesn't try gpus
-                permit_reservables = False
-                logs.main.debug("RESERVAVLES PERMIT FALSE")
-
-            next_hyp, extra_info = self.manager.pools[pool_id].get_next(
-                domain_id=id_domain,
-                force_hyp=forced_hyp,
+            next_hyp, extra_info = self.manager.pools[
+                pool_id
+            ].balancer.get_next_hypervisor(
+                forced_hyp=forced_hyp,
                 favourite_hyp=favourite_hyp,
-                reservables=permit_reservables,
+                reservables=reservables,
+                force_gpus=force_gpus,
             )
             if next_hyp is not False:
                 if action == "start_paused_domain":
@@ -261,16 +296,12 @@ class UiActions(object):
             failed = True
 
         if failed is True:
-            if extra_info.get("nvidia", False) is True:
-                detail = f"desktop not started: no hypervisors online with GPU model available  and profile"
+            if reservables.get("vgpus") and len(reservables.get("vgpus", [])):
+                detail = f"desktop not started: no hypervisors online with GPU model available and profile"
             else:
                 detail = f"desktop not started: no hypervisors online in pool {pool_id}"
             update_domain_status(
                 status="Failed", id_domain=id_domain, hyp_id=next_hyp, detail=detail
-            )
-
-            log.error(
-                "desktop not started: no hypervisors online in pool {}".format(pool_id)
             )
             return False
         else:
@@ -304,12 +335,12 @@ class UiActions(object):
         if hyp_id is None:
             hyp_id = ""
         if len(hyp_id) <= 0:
-            log.debug("hypervisor where domain {} is started not finded".format(id))
+            log.debug("hypervisor where domain {} is started not found".format(id))
             update_domain_status(
                 status="Unknown",
-                id_domain=id_domain,
+                id_domain=id,
                 hyp_id=None,
-                detail="hypervisor where domain {} is started not finded".format(id),
+                detail="hypervisor where domain {} is started not found".format(id),
             )
         else:
             self.stop_domain(id, hyp_id)
@@ -670,7 +701,9 @@ class UiActions(object):
                 action["storage_id"] = disk.get("storage_id")
 
                 hyp_to_disk_create = get_host_disk_operations_from_path(
-                    path_selected, pool=pool_id, type_path=type_path_selected
+                    self.manager,
+                    pool=pool_id,
+                    type_path=type_path_selected,
                 )
 
                 # INFO TO DEVELOPER: falta terminar de ver que hacemos con el pool para crear
@@ -787,7 +820,9 @@ class UiActions(object):
         )
 
         hyp_to_disk_create = get_host_disk_operations_from_path(
-            path_selected, pool=pool_id, type_path=type_path
+            self.manager,
+            pool=pool_id,
+            type_path=type_path,
         )
 
         cmds = create_cmd_disk_from_scratch(
@@ -878,7 +913,9 @@ class UiActions(object):
                 size_str = dict_to_create["hardware"]["disks"][0]["size"]
 
                 hyp_to_disk_create = get_host_disk_operations_from_path(
-                    path_selected, pool=pool_id, type_path="desktop"
+                    self.manager,
+                    pool=pool_id,
+                    type_path="desktop",
                 )
 
                 cmds = create_cmd_disk_from_scratch(
@@ -945,81 +982,6 @@ class UiActions(object):
             log.error(f"domain {domain_id} does not exist in table domain")
         return result
 
-    def creating_disk_from_virtbuilder(self, id_new):
-        dict_domain = get_domain(id_new)
-
-        pool_id = dict_domain.get("storage_pool", DEFAULT_STORAGE_POOL_ID)
-
-        dict_to_create = dict_domain["create_dict"]
-
-        path_new_disk, path_selected = get_path_to_disk(
-            pool=pool_id, extension=dict_to_create["hardware"]["disks"][0]["extension"]
-        )
-        # UPDATE PATH IN DOMAIN
-        dict_to_create["hardware"]["disks"][0]["file"] = path_new_disk
-        dict_to_create["hardware"]["disks"][0]["path_selected"] = path_selected
-
-        size_str = dict_to_create["hardware"]["disks"][0]["size"]
-        memory_in_mb = int(dict_to_create["hardware"]["memory"] / 1024)
-        options_virt_builder = dict_to_create["builder"]["options"]
-        options_virt_install = dict_to_create["install"]["options"]
-        id_domains_virt_builder = dict_to_create["builder"]["id"]
-        id_os_virt_install = dict_to_create["install"]["id"]
-
-        # UPDATE HARDWARE DICT
-        hardware_update = {}
-        hardware_update["disks"] = dict_to_create["hardware"]["disks"]
-        update_domain_dict_hardware(id_new, hardware_update)
-
-        hyp_to_disk_create = get_host_long_operations_from_path(
-            path_selected, pool=pool_id, type_path="desktop"
-        )
-
-        cmds = create_cmd_disk_from_virtbuilder(
-            path_new_qcow=path_new_disk,
-            os_version=id_domains_virt_builder,
-            id_os_virt_install=id_os_virt_install,
-            name_domain_in_xml=id_new,
-            size_str=size_str,
-            memory_in_mb=memory_in_mb,
-            options_cmd=options_virt_builder,
-        )
-
-        # cmds = [{'cmd':'ls -lah > /tmp/prova.txt','title':'es un ls'}]
-
-        action = {}
-        action["type"] = "create_disk_virt_builder"
-        action["disk_path"] = path_new_disk
-        action["index_disk"] = 0
-        action["domain"] = id_new
-        action["ssh_commands"] = cmds
-
-        try:
-            update_domain_status(
-                status="RunningVirtBuilder",
-                id_domain=id_new,
-                hyp_id=False,
-                detail="Creating virt-builder image operation is launched in hypervisor {} ({} operations in queue)".format(
-                    hyp_to_disk_create,
-                    self.manager.q_long_operations[hyp_to_disk_create].qsize(),
-                ),
-            )
-            self.manager.q_long_operations[hyp_to_disk_create].put(action)
-
-        except Exception as e:
-            logs.exception_id.debug("0014")
-            update_domain_status(
-                status="Failed",
-                id_domain=id_new,
-                hyp_id=False,
-                detail="Creating disk operation failed when insert action in queue for disk operations",
-            )
-            log.error(
-                "Creating disk operation failed when insert action in queue for disk operations. Exception: {}".format(
-                    e
-                )
-            )
-
     def creating_disks_from_template(self, id_new):
         dict_domain = get_domain(id_new)
         persistent = dict_domain.get("persistent", True)
@@ -1073,7 +1035,9 @@ class UiActions(object):
                 "path_selected"
             ]
             hyp_to_disk_create = get_host_disk_operations_from_path(
-                path_selected, pool=pool_id, type_path=path_type
+                self.manager,
+                pool=pool_id,
+                type_path=path_type,
             )
             if persistent is False:
                 print(f"desktop not persistent, forced hyp: {hyp_to_disk_create}")
@@ -1179,15 +1143,29 @@ class UiActions(object):
                 id_domain,
                 detail="xml and hardware dict updated, waiting to test if domain start paused in hypervisor",
             )
-            pool_id = get_pool_from_domain(id_domain)
-            if pool_id is False:
+            domain = get_table_fields(
+                "domains",
+                id_domain,
+                [
+                    "kind",
+                    "name",
+                    {"create_dict": {"hardware": "memory", "reservables": True}},
+                    "forced_hyp",
+                    "favourite_hyp",
+                    "hypervisors_pools",
+                ],
+            )
+            pool_id = domain.get("hypervisors_pools")
+            if not pool_id or len(pool_id) == 0:
                 update_domain_status(
-                    "Failed", id_domain, detail="Updating aborted, domain has not pool"
+                    "Failed",
+                    id_domain,
+                    detail="Updating aborted, domain missing hypervisors pool",
                 )
                 return False
-
-            kind = get_domain_kind(id_domain)
-            if kind == "desktop":
+            if len(pool_id):
+                pool_id = pool_id[0]
+            if domain.get("kind") == "desktop":
                 cpu_host_model = self.manager.pools[pool_id].conf.get(
                     "cpu_host_model", DEFAULT_HOST_MODE
                 )
@@ -1208,7 +1186,12 @@ class UiActions(object):
                     return False
 
                 self.start_paused_domain_from_xml(
-                    xml=xml, id_domain=id_domain, pool_id=pool_id
+                    xml=xml,
+                    id_domain=id_domain,
+                    pool_id=pool_id,
+                    forced_hyp=domain.get("forced_hyp"),
+                    favourite_hyp=domain.get("favourite_hyp"),
+                    reservables=domain.get("create_dict", {}).get("reservables", {}),
                 )
             else:
                 update_domain_status(
@@ -1303,7 +1286,13 @@ class UiActions(object):
             id_domain,
             detail="xml and hardware dict updated, waiting to test if domain start paused in hypervisor",
         )
-        pool_id = get_pool_from_domain(id_domain)
+        try:
+            pool_id = domain.get("hypervisors_pools", ["default"])[0]
+        except:
+            pool_id = "default"
+            log.error(
+                f"Domain {id_domain} has no hypervisors_pools. Using default pool."
+            )
 
         if "start_after_created" in domain.keys():
             if domain["start_after_created"] is True:
@@ -1340,10 +1329,14 @@ class UiActions(object):
                 )
             else:
                 self.start_paused_domain_from_xml(
-                    xml=xml, id_domain=id_domain, pool_id=pool_id
+                    xml=xml,
+                    id_domain=id_domain,
+                    pool_id=pool_id,
+                    forced_hyp=domain.get("forced_hyp"),
+                    favourite_hyp=domain.get("favourite_hyp"),
+                    reservables=domain.get("create_dict", {}).get("reservables", {}),
                 )
 
-    # INFO TO DEVELOPER: HAY QUE QUITAR CATEGORY Y GROUP DE LOS PARÁMETROS QUE RECIBE LA FUNCIÓN
     def domain_from_template(
         self,
         id_template,

@@ -2,7 +2,6 @@
 #      Alberto Larraz Dalmases
 #      Josep Maria Viñolas Auquer
 # License: AGPLv3
-# coding=utf-8
 
 import os
 import pprint
@@ -33,12 +32,10 @@ from engine.services.db.db import (
 )
 from engine.services.db.domains import get_domains_with_status, update_domain_status
 from engine.services.db.downloads import (
-    get_downloads_in_progress,
     get_media,
     update_download_percent,
     update_status_table,
 )
-from engine.services.db.hypervisors import get_hypers_in_pool
 from engine.services.lib.download import test_url_for_download, test_url_google_drive
 from engine.services.lib.functions import get_tid
 from engine.services.lib.qcow import (
@@ -68,6 +65,7 @@ class DownloadThread(threading.Thread, object):
         pool_id,
         type_path_selected,
         storage_id=None,
+        manager=None,
     ):
         threading.Thread.__init__(self)
         self.name = "_".join([table, id_down])
@@ -87,6 +85,7 @@ class DownloadThread(threading.Thread, object):
         self.port = None
         self.pool_id = pool_id
         self.type_path_selected = type_path_selected
+        self.manager = manager
 
     def run(self):
 
@@ -114,7 +113,7 @@ class DownloadThread(threading.Thread, object):
             if len(self.threads_disk_operations) > 0:
 
                 hyp_to_disk_create = get_host_disk_operations_from_path(
-                    path_selected, pool=self.pool_id, type_path=self.type_path_selected
+                    self.manager, pool=self.pool_id, type_path=self.type_path_selected
                 )
                 logs.downloads.debug(
                     f"Thread download started to in hypervisor: {hyp_to_disk_create}"
@@ -385,7 +384,8 @@ class DownloadThread(threading.Thread, object):
 class DownloadChangesThread(threading.Thread):
     def __init__(
         self,
-        pool_hypervisors,
+        manager,
+        pool_id,
         q_workers,
         threads_disk_operations,
         name="download_changes",
@@ -394,7 +394,8 @@ class DownloadChangesThread(threading.Thread):
         self.name = name
         self.stop = False
         self.r_conn = False
-        self.pool_hypervisors = pool_hypervisors
+        self.manager = manager
+        self.pool_id = pool_id
         self.q_workers = q_workers
         self.threads_disk_operations = threads_disk_operations
 
@@ -471,7 +472,9 @@ class DownloadChangesThread(threading.Thread):
 
         # change for other pools when pools are implemented in all media
         try:
-            next_hyp, extra_info = self.pool_hypervisors.get_next()
+            next_hyp = self.manager.diskoperations_pools[
+                self.pool_id
+            ].balancer.get_next_diskoperations()
             logs.downloads.debug(
                 "hypervisor where delete media {}: {}".format(new_file_path, next_hyp)
             )
@@ -496,7 +499,9 @@ class DownloadChangesThread(threading.Thread):
         cmds = create_cmds_delete_disk(d_media["path_downloaded"])
 
         # change for other pools when pools are implemented in all media
-        next_hyp, extra_info = self.pool_hypervisors.get_next()
+        next_hyp = self.manager.diskoperations_pools[
+            self.pool_id
+        ].balancer.get_next_diskoperations()
         logs.downloads.debug(
             "hypervisor where delete media {}: {}".format(
                 d_media["path_downloaded"], next_hyp
@@ -575,6 +580,7 @@ class DownloadChangesThread(threading.Thread):
             storage_id = create_storage(
                 d_update_domain["hardware"]["disks"][0],
                 get_domain(dict_changes.get("id")).get("user"),
+                force_parent=None,
             )
             d_update_domain["hardware"]["disks"][0] = {"storage_id": storage_id}
             update_domain_dict_create_dict(id_down, d_update_domain)
@@ -600,6 +606,7 @@ class DownloadChangesThread(threading.Thread):
                 pool_id,
                 type_path_selected,
                 storage_id,
+                self.manager,
             )
             self.download_threads[new_file_path].daemon = True
             self.download_threads[new_file_path].start()
@@ -625,7 +632,9 @@ class DownloadChangesThread(threading.Thread):
                 next_hyp = False
                 while next_hyp is False:
                     # logs.downloads.info('waiting an hypervisor online to launch downloading actions')
-                    next_hyp, extra_info = self.pool_hypervisors.get_next()
+                    next_hyp = self.manager.diskoperations_pools[
+                        self.pool_id
+                    ].balancer.get_next_diskoperations()
                     if next_hyp:
                         break
                     sleep(1)
@@ -787,9 +796,10 @@ class DownloadChangesThread(threading.Thread):
 
 
 def launch_thread_download_changes(
-    pool_hypervisors, q_workers, threads_disk_operations
+    manager, pool_id, q_workers, threads_disk_operations
 ):
-    t = DownloadChangesThread(pool_hypervisors, q_workers, threads_disk_operations)
+    # q_workers should be q_disk_operations?
+    t = DownloadChangesThread(manager, pool_id, q_workers, threads_disk_operations)
     t.daemon = True
     t.start()
     return t

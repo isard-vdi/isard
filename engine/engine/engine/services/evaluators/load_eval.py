@@ -37,16 +37,13 @@ class LoadEval(EvaluatorInterface):
         self.templates = templates
         self.hyps = hyps
         self.params = params
-        self.running_grafana_stats = False
 
     def run(self):
-        self.t_grafana_stats = self._launch_thread_grafana_stats()
         data = {}
         data_start = self._start_domains()
         data.update(data_start)
         data_final_statistics = self._get_final_statistics()
         data.update(data_final_statistics)
-        self._stop_grafana_stats()
         return data
 
     def _start_domains(self):
@@ -130,29 +127,3 @@ class LoadEval(EvaluatorInterface):
             "domains_count": len(hyp.stats_domains_now),
         }
         return data
-
-    def _launch_thread_grafana_stats(self, interval=1):
-        self.running_grafana_stats = True
-        t = Thread(target=self._grafana_stats, args=(interval,))
-        t.start()
-        return t
-
-    def _grafana_stats(self, interval):
-        while self.running_grafana_stats:
-            total_domains = 0
-            for h in self.hyps:
-                statistics = self._process_stats(h)
-                self.sender.send(
-                    h.id + ".cpu_percent_free", statistics["cpu_percent_free"]
-                )
-                self.sender.send(
-                    h.id + ".ram_percent_free", statistics["ram_percent_free"]
-                )
-                self.sender.send(h.id + ".percent_ram_template", h.percent_ram_template)
-                self.sender.send(h.id + ".n_domains", statistics["domains_count"])
-                total_domains += statistics["domains_count"]
-            self.sender.send("n_domains", total_domains)
-            sleep(interval)
-
-    def _stop_grafana_stats(self):
-        self.running_grafana_stats = False

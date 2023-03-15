@@ -12,30 +12,26 @@ import subprocess
 import sys
 import threading
 import time
-from copy import deepcopy
-from pprint import pformat, pprint
+from pprint import pformat
 from time import sleep
 
 import libvirt
 import paramiko
 import xmltodict
 from engine.services.db import (
-    delete_domain,
     gen_new_mac,
-    get_all_domains_with_id_and_status,
     get_disks_all_domains,
-    get_domain,
-    get_domain_spice,
-    get_domain_status,
-    insert_domain,
     update_disk_backing_chain,
-    update_domain_createing_template,
     update_domain_status,
 )
-from engine.services.db.config import get_config, table_config_created_and_populated
+from engine.services.db.config import table_config_created_and_populated
 from engine.services.db.domains import (
-    STATUS_TO_FAILED,
-    get_all_domains_with_id_status_hyp_started,
+    delete_incomplete_creating_domains,
+    fail_incomplete_creating_domains,
+    fail_started_domains_without_hypervisors,
+    start_incomplete_starting_domains,
+    stop_incomplete_starting_domains,
+    unknown_started_domains,
     update_domain_progress,
     update_domain_status,
 )
@@ -68,14 +64,26 @@ def get_threads_running():
 
 
 def get_threads_names_running():
-    # t_enumerate = threading.Thread(name='THREAD_ENUMERATE',target=threading_enumerate)
-    # t_enumerate.daemon = True
-    # t_enumerate.start()
-
     e = threading.enumerate()
     l = [t.name for t in e]
     l.sort()
     return l
+
+
+def get_pools_threads_running(hypervisors):
+    hypervisors_with_thread = []
+    for hyp in hypervisors:
+        if "worker_" + hyp["id"] in get_threads_names_running():
+            hypervisors_with_thread.append(hyp)
+    return hypervisors_with_thread
+
+
+def get_diskoperations_pools_threads_running(hypervisors):
+    hypervisors_with_thread = []
+    for hyp in hypervisors:
+        if "disk_op_" + hyp["id"] in get_threads_names_running():
+            hypervisors_with_thread.append(hyp)
+    return hypervisors_with_thread
 
 
 def get_tid():
@@ -315,71 +323,6 @@ def exec_remote_list_of_cmds_dict(
     client.close()
 
     return returned_array
-
-
-# ~ def get_vv(id_domain):
-# ~ dict = get_domain_spice(id_domain)
-# ~ if not dict: return False
-# ~ config = get_config()
-# ~ ca = str(config['spice']['certificate'])
-# ~ if not dict['hostname'].endswith(str(config['spice']['domain'])):
-# ~ dict['hostname'] = dict['hostname'] + '.' + config['spice']['domain']
-# ~ if not dict['tlsport']:
-# ~ ######################
-# ~ # Consola sense TLS    #
-# ~ ######################
-# ~ c = '%'
-# ~ consola = """[virt-viewer]
-# ~ type=%s
-# ~ host=%s
-# ~ port=%s
-# ~ password=%s
-# ~ fullscreen=1
-# ~ title=%s:%sd - Prem SHIFT+F12 per sortir
-# ~ enable-smartcard=0
-# ~ enable-usb-autoshare=1
-# ~ delete-this-file=1
-# ~ usb-filter=-1,-1,-1,-1,0
-# ~ ;tls-ciphers=DEFAULT
-# ~ """ % (dict['kind'], dict['hostname'], dict['port'], dict['passwd'], id, c)
-
-# ~ consola = consola + """;host-subject=O=%s,CN=%s
-# ~ ;ca=%r
-# ~ toggle-fullscreen=shift+f11
-# ~ release-cursor=shift+f12
-# ~ secure-attention=ctrl+alt+end
-# ~ ;secure-channels=main;inputs;cursor;playback;record;display;usbredir;smartcard""" % (
-# ~ 'host-subject', 'hostname', ca)
-
-# ~ else:
-# ~ ######################
-# ~ # Consola amb TLS    #
-# ~ ######################
-# ~ c = '%'
-# ~ consola = """[virt-viewer]
-# ~ type=%s
-# ~ host=%s
-# ~ password=%s
-# ~ tls-port=%s
-# ~ fullscreen=1
-# ~ title=%s:%sd - Prem SHIFT+F12 per sortir
-# ~ enable-smartcard=0
-# ~ enable-usb-autoshare=1
-# ~ delete-this-file=1
-# ~ usb-filter=-1,-1,-1,-1,0
-# ~ tls-ciphers=DEFAULT
-# ~ """ % (dict['kind'], dict['hostname'], dict['passwd'], dict['tlsport'], id, c)
-
-# ~ consola = consola + """;host-subject=O=%s,CN=%s
-# ~ ca=%r
-# ~ toggle-fullscreen=shift+f11
-# ~ release-cursor=shift+f12
-# ~ secure-attention=ctrl+alt+end
-# ~ secure-channels=main;inputs;cursor;playback;record;display;usbredir;smartcard""" % (
-# ~ 'host-subject', 'hostname', ca)
-
-# ~ consola = consola.replace("'", "")
-# ~ return consola
 
 
 def new_dict_from_raw_dict_stats(raw_values, round_digits=6):
@@ -1099,40 +1042,11 @@ def engine_restart():
 
 
 def domain_status_from_started_to_unknown():
-    all_domains_started = get_all_domains_with_id_and_status(status="Started")
-    [
-        update_domain_status(
-            "Unknown",
-            d["id"],
-            keep_hyp_id=True,
-            detail=f"change from started to unknown",
-        )
-        for d in all_domains_started
-    ]
+    unknown_started_domains()
 
 
 def clean_started_without_hyp():
-    all_domains = get_all_domains_with_id_status_hyp_started()
-    for d in all_domains:
-        if d["status"] in STATUS_TO_FAILED:
-            if type(d.get("hyp_started", None)) is not str:
-                update_domain_status(
-                    "Failed",
-                    d["id"],
-                    detail=f"Failed, previous status not permitted without hyp_started",
-                )
-                logs.main.error(
-                    f'domain d["id"] was with status d["status"] in database but hyp_started has None Value'
-                )
-            elif len(d.get("hyp_started")) == 0:
-                update_domain_status(
-                    "Failed",
-                    d["id"],
-                    detail=f"Failed, previous status not permitted without hyp_started",
-                )
-                logs.main.error(
-                    f'domain d["id"] was with status d["status"] in database but hyp_started has None Value'
-                )
+    fail_started_domains_without_hypervisors()
 
 
 def update_status_db_from_running_domains(hyp_obj):
@@ -1140,74 +1054,40 @@ def update_status_db_from_running_domains(hyp_obj):
 
 
 def clean_intermediate_status(reason="engine is restarting", only_domain_id=None):
-    status_to_delete = [
-        "Creating",
-        "CreatingAndStarting",
-        "CreatingDiskFromScratch",
-        "CreatingFromBuilder",
-    ]
-    status_to_failed = [
-        "Updating",
-        "Deleting",
-        "DiskDeleted",
-        "CreatingDomain",
-        "DeletingDomainDisk",
-        "StartingDomainDisposable",
-    ]
-    status_to_stopped = ["Starting"]
-    status_to_started = ["Stopping", "Shutting-down"]
+    # Here only to remember the status that apply to each action
+    # status_to_delete = [
+    #     "Creating",
+    #     "CreatingAndStarting",
+    #     "CreatingDiskFromScratch",
+    #     "CreatingFromBuilder",
+    # ]
+    # status_to_failed = [
+    #     "Updating",
+    #     "Deleting",
+    #     "DiskDeleted",
+    #     "CreatingDomain",
+    #     "DeletingDomainDisk",
+    #     "StartingDomainDisposable",
+    # ]
+    # status_to_stopped = ["Starting"]
+    # status_to_started = ["Stopping", "Shutting-down"]
 
-    if type(only_domain_id) is str:
-        all_domains = []
-        status = get_domain_status(only_domain_id)
-        all_domains.append({"id": only_domain_id, "status": status})
-    else:
-        all_domains = get_all_domains_with_id_and_status()
+    delete_incomplete_creating_domains(only_domain_id=only_domain_id)
 
-    [
-        update_domain_status(
-            "SystemError",
-            d["id"],
-            detail=f"{reason} and delete domain {d['id']} that was not created",
-        )
-        for d in all_domains
-        if d["status"] in status_to_delete
-    ]
-    [delete_domain(d["id"]) for d in all_domains if d["status"] in status_to_delete]
+    fail_incomplete_creating_domains(
+        only_domain_id=only_domain_id,
+        detail=f"Domain status set to Failed because {reason}",
+    )
 
-    # To failed
-    [
-        update_domain_status(
-            "Failed",
-            d["id"],
-            detail=f"change status in domain {d['id']} from {d['status']} to Failed when {reason}",
-        )
-        for d in all_domains
-        if d["status"] in status_to_failed
-    ]
+    stop_incomplete_starting_domains(
+        only_domain_id=only_domain_id,
+        detail=f"Domain status set to Stopped because {reason}",
+    )
 
-    # To stopped
-    [
-        update_domain_status(
-            "Stopped",
-            d["id"],
-            detail=f"change status in domain {d['id']} from {d['status']} to Stopped when {reason}",
-        )
-        for d in all_domains
-        if d["status"] in status_to_stopped
-    ]
-
-    # To started
-    [
-        update_domain_status(
-            "Started",
-            d["id"],
-            keep_hyp_id=True,
-            detail=f"change status in domain {d['id']} from {d['status']} to Started when {reason}",
-        )
-        for d in all_domains
-        if d["status"] in status_to_started
-    ]
+    start_incomplete_starting_domains(
+        only_domain_id=only_domain_id,
+        detail=f"Domain status set to Started because {reason}",
+    )
 
 
 def flatten_dict(d):

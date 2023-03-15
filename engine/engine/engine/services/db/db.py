@@ -5,7 +5,6 @@
 
 import time
 from functools import wraps
-from pprint import pformat, pprint
 
 from engine.config import (
     MAX_QUEUE_DOMAINS_STATUS,
@@ -14,38 +13,15 @@ from engine.config import (
     RETHINK_PORT,
 )
 from engine.services.log import *
-
-# coding=utf-8
 from rethinkdb import r
 
-##INFO TO DEVELOPER => TODO: PASAR A config populate => se leerá del rethink
-## alberto => lo he de hacer independientemente de josep maria
 MAX_LEN_PREV_STATUS_HYP = 10
-
-
-# r_conn_global = r.connect("localhost", 28015, db='isard')
-#
-# def new_rethink_connection():
-#     global r_conn_global
-#
-#     if r_conn_global.is_open():
-#         return r_conn_global
-#
-#     else:
-#         r_conn_global = r.connect("localhost", 28015, db='isard')
-#         return r_conn_global
 
 
 def new_rethink_connection():
     r_conn = r.connect(RETHINK_HOST, RETHINK_PORT, db=RETHINK_DB)
     # r_conn = r.connect("localhost", 28015, db='isard')
     return r_conn
-
-
-# def close_rethink_connection(r_conn):
-#     #r_conn.close()
-#     #del r_conn
-#     return True
 
 
 def close_rethink_connection(r_conn):
@@ -65,15 +41,6 @@ def rethink(function):
         return result
 
     return decorate
-
-
-## TO BE DELETED
-def insert_event_in_db(self, dict_event):
-    return
-    # log.debug(pformat(dict_event))
-    # r_conn = new_rethink_connection()
-    # r.table("hypervisors_events").insert(dict_event).run(r_conn)
-    # close_rethink_connection(r_conn)
 
 
 def get_dict_from_item_in_table(table, id):
@@ -415,6 +382,18 @@ def get_table_field(table, id_item, field):
     if type(result) is dict:
         return result.get(field, None)
     return None
+
+
+def get_table_fields(table, id_item, fields):
+    rtable = r.table(table)
+    try:
+        r_conn = new_rethink_connection()
+        result = rtable.get(id_item).pluck(fields).run(r_conn)
+        close_rethink_connection(r_conn)
+        return result
+    except Exception as e:
+        close_rethink_connection(r_conn)
+        return None
 
 
 def delete_table_item(table, id_item):

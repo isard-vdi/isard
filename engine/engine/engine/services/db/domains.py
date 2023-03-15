@@ -1,5 +1,4 @@
 import json
-import logging
 import random
 import sys
 import time
@@ -7,7 +6,6 @@ import traceback
 from copy import deepcopy
 from pathlib import PurePath
 
-import flatten_dict
 from engine.config import TRANSITIONAL_STATUS
 from engine.services.db import (
     close_rethink_connection,
@@ -56,6 +54,142 @@ def delete_domain(id):
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
     results = rtable.get(id).delete().run(r_conn)
+    close_rethink_connection(r_conn)
+    return results
+
+
+def delete_incomplete_creating_domains(only_domain_id=None, kind="desktop"):
+    status_to_delete = [
+        "Creating",
+        "CreatingAndStarting",
+        "CreatingDiskFromScratch",
+        "CreatingFromBuilder",
+    ]
+    r_conn = new_rethink_connection()
+    rtable = r.table("domains")
+    if only_domain_id:
+        results = (
+            rtable.get_all(only_domain_id, index="id")
+            .filter(lambda d: r.expr(status_to_delete).contains(d["status"]))
+            .delete()
+            .run(r_conn)
+        )
+    else:
+        results = (
+            rtable.get_all(r.args(status_to_delete), index="status")
+            .filter({"kind": kind})
+            .delete()
+            .run(r_conn)
+        )
+    close_rethink_connection(r_conn)
+    return results
+
+
+def fail_incomplete_creating_domains(
+    only_domain_id=None, detail="Failed by engine as it was incomplete", kind="desktop"
+):
+    status_to_failed = [
+        "Updating",
+        "Deleting",
+        "DiskDeleted",
+        "CreatingDomain",
+        "DeletingDomainDisk",
+        "StartingDomainDisposable",
+    ]
+    r_conn = new_rethink_connection()
+    rtable = r.table("domains")
+    if only_domain_id:
+        results = (
+            rtable.get_all(only_domain_id, index="id")
+            .filter(lambda d: r.expr(status_to_failed).contains(d["status"]))
+            .update({"status": "Failed", "detail": detail})
+            .run(r_conn)
+        )
+    results = (
+        rtable.get_all(r.args(status_to_failed), index="status")
+        .filter({"kind": kind})
+        .update({"status": "Failed", "detail": detail})
+        .run(r_conn)
+    )
+    close_rethink_connection(r_conn)
+    return results
+
+
+def stop_incomplete_starting_domains(
+    only_domain_id=None, detail="Stopped by engine as it was incomplete", kind="desktop"
+):
+    status_to_stopped = ["Starting"]
+    r_conn = new_rethink_connection()
+    rtable = r.table("domains")
+    if only_domain_id:
+        results = (
+            rtable.get_all(only_domain_id, index="id")
+            .filter(lambda d: r.expr(status_to_stopped).contains(d["status"]))
+            .update({"status": "Stopped", "detail": detail})
+            .run(r_conn)
+        )
+    else:
+        results = (
+            rtable.get_all("Starting", index="status")
+            .filter({"kind": kind})
+            .update({"status": "Stopped", "detail": detail})
+            .run(r_conn)
+        )
+    close_rethink_connection(r_conn)
+    return results
+
+
+def start_incomplete_starting_domains(
+    only_domain_id, detail="Started by engine as it was incomplete", kind="desktop"
+):
+    status_to_started = ["Stopping", "Shutting-down"]
+    r_conn = new_rethink_connection()
+    rtable = r.table("domains")
+    if only_domain_id:
+        results = (
+            rtable.get_all(only_domain_id, index="id")
+            .filter(lambda d: r.expr(status_to_started).contains(d["status"]))
+            .update({"status": "Started", "detail": detail})
+            .run(r_conn)
+        )
+    else:
+        results = (
+            rtable.get_all(r.args(status_to_started), index="status")
+            .filter({"kind": kind})
+            .update({"status": "Started", "detail": detail})
+            .run(r_conn)
+        )
+    close_rethink_connection(r_conn)
+    return results
+
+
+def fail_started_domains_without_hypervisors(
+    detail=f"Set to Failed because did'nt have hyp_started but said started. Reason: engine restart.",
+    kind="desktop",
+):
+    r_conn = new_rethink_connection()
+    rtable = r.table("domains")
+    results = (
+        rtable.get_all(r.args(STATUS_TO_FAILED), index="status")
+        .filter({"kind": kind, "hyp_started": False})
+        .update({"status": "Failed", "detail": detail})
+        .run(r_conn)
+    )
+    close_rethink_connection(r_conn)
+    return results
+
+
+def unknown_started_domains(
+    detail="Set to Unknown. Reason: engine restart.", kind="desktop"
+):
+    r_conn = new_rethink_connection()
+    rtable = r.table("domains")
+    results = (
+        rtable.get_all("Started", index="status")
+        .filter({"kind": kind})
+        .update({"status": "Unknown", "detail": detail})
+        .run(r_conn)
+    )
     close_rethink_connection(r_conn)
     return results
 
@@ -705,59 +839,6 @@ def set_unknown_domains_not_in_hyps(hyps):
     )
     close_rethink_connection(r_conn)
     return l
-
-
-def get_pool_from_domain(domain_id):
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-    try:
-        d = rtable.get(domain_id).pluck("hypervisors_pools").run(r_conn)
-        if len(d) > 0:
-            if len(d["hypervisors_pools"]) > 0:
-                pool = d["hypervisors_pools"][0]
-            else:
-                logs.main.error(
-                    f"domain: {domain_id} with not hypervisors_pools in list. Pool default forced."
-                )
-                pool = "default"
-        else:
-            logs.main.error(
-                f"domain: {domain_id} withouth hypervisors_pools key defined. Pool default forced."
-            )
-            pool = "default"
-    except r.ReqlNonExistenceError:
-        logs.main.error(
-            "domain_id {} does not exist in domains table".format(domain_id)
-        )
-        logs.main.debug("function: {}".format(sys._getframe().f_code.co_name))
-        pool = "default"
-
-    close_rethink_connection(r_conn)
-    return pool
-
-
-def get_domain_force_update(domain_id):
-    r_conn = new_rethink_connection()
-    rtable = r.table("domains")
-
-    results = list(
-        rtable.get_all(domain_id, index="id").pluck("force_update").run(r_conn)
-    )
-
-    close_rethink_connection(r_conn)
-
-    # id_domain doesn't exist
-    if len(results) == 0:
-        return False
-
-    # force hyp doesn't exist as key in domain dict
-    if len(results[0]) == 0:
-        return False
-
-    if results[0]["force_update"] is True:
-        return True
-    else:
-        return False
 
 
 def get_domain_forced_hyp(id_domain):
