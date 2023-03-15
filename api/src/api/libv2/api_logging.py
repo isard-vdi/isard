@@ -25,10 +25,10 @@ db.init_app(app)
 def action_owner(action_owner, item_owner, direct_viewer=False):
     if action_owner == "isard-scheduler":
         return "isard-scheduler"
-    if not action_owner:
-        return "isard-engine"
     if direct_viewer:
         return "desktop-directviewer"
+    if not action_owner:
+        return "isard-engine"
     if str(action_owner) == str(item_owner):
         return "desktop-owner"
     return "system-admins"
@@ -37,10 +37,10 @@ def action_owner(action_owner, item_owner, direct_viewer=False):
 def action_owner_deploy(action_owner, item_owner, tag=None, direct_viewer=False):
     if action_owner == "isard-scheduler":
         return "isard-scheduler", None
-    if not action_owner:
-        return "isard-engine", None
     if direct_viewer:
         return "desktop-directviewer", None
+    if not action_owner:
+        return "isard-engine", None
     if tag:
         with app.app_context():
             try:
@@ -62,16 +62,34 @@ def action_owner_deploy(action_owner, item_owner, tag=None, direct_viewer=False)
     return "system-admins", action_owner
 
 
+def parse_user_request(user_request):
+    if user_request:
+        return {
+            "request_ip": user_request.headers.environ["HTTP_X_FORWARDED_FOR"],
+            "request_agent_browser": user_request.user_agent.browser,
+            "request_agent_platform": user_request.user_agent.platform,
+            "request_agent_version": user_request.user_agent.version,
+        }
+    return {
+        "request_ip": None,
+        "request_agent_browser": None,
+        "request_agent_platform": None,
+        "request_agent_version": None,
+    }
+
+
 # START DESKTOP
-def logs_domain_start_api(dom_id, action_user=None):
-    _logs_domain_start(dom_id, action_user)
+def logs_domain_start_api(dom_id, action_user=None, user_request=None):
+    _logs_domain_start(
+        dom_id, user_request=parse_user_request(user_request), action_user=action_user
+    )
 
 
-def logs_domain_start_directviewer(dom_id):
-    _logs_domain_start(dom_id, direct_viewer=True)
+def logs_domain_start_directviewer(dom_id, user_request=None):
+    _logs_domain_start(dom_id, parse_user_request(user_request), direct_viewer=True)
 
 
-def _logs_domain_start(dom_id, action_user=None, direct_viewer=False):
+def _logs_domain_start(dom_id, user_request, action_user=None, direct_viewer=False):
     # Who can start a desktop:
     # - User: desktop-owner|deployment-owner|system-admins
     # - Desktop direct viewer access: desktop-directviewer
@@ -147,6 +165,7 @@ def _logs_domain_start(dom_id, action_user=None, direct_viewer=False):
         if domain.get("tag"):
             data["deployment_id"] = domain.get("tag")
             data["deployment_name"] = deployment_name
+        data = {**data, **user_request}
     except:
         log.warning("Unable to fetch log data for start logs id")
         log.debug(traceback.format_exc())
@@ -280,41 +299,71 @@ def logs_domain_stop_engine(start_logs_id, new_status=""):
 # UPDATE EVENTS (unused now)
 
 
-def logs_domain_event_viewer(start_logs_id, action_user, viewer_type):
-    _logs_domain_event(start_logs_id, "viewer", action_user, data=viewer_type)
+def logs_domain_event_viewer(domain_id, action_user, viewer_type, user_request=None):
+    try:
+        with app.app_context():
+            start_logs_id = (
+                r.table("domains").get(domain_id).pluck("start_logs_id").run(db.conn)
+            )["start_logs_id"]
+        _logs_domain_event(
+            start_logs_id,
+            "viewer",
+            action_user,
+            viewer_type=viewer_type,
+            user_request=parse_user_request(user_request),
+        )
+    except:
+        log.warning("Unable to update viewer event logs for domain: " + str(domain_id))
+        log.debug(traceback.format_exc())
 
 
-def logs_domain_event_directviewer(start_logs_id, viewer_type):
-    _logs_domain_event(start_logs_id, "directviewer", data=viewer_type)
+def logs_domain_event_directviewer(
+    domain_id, action_user, viewer_type=None, user_request=None
+):
+    try:
+        with app.app_context():
+            start_logs_id = (
+                r.table("domains").get(domain_id).pluck("start_logs_id").run(db.conn)
+            )["start_logs_id"]
+        _logs_domain_event(
+            start_logs_id,
+            "directviewer",
+            action_user,
+            viewer_type=viewer_type,
+            user_request=parse_user_request(user_request),
+        )
+    except:
+        log.warning(
+            "Unable to update directviewer event logs for domain: " + str(domain_id)
+        )
+        log.debug(traceback.format_exc())
 
 
 def _logs_domain_event(
     start_logs_id,
     event,
     action_user=None,
-    data="",
+    viewer_type="",
+    user_request=None,
 ):
-
     try:
         with app.app_context():
-            log.debug(
-                r.table("logs_desktops")
-                .get(start_logs_id)
-                .update(
-                    {
-                        "events": r.row["events"].append(
-                            {
+            r.table("logs_desktops").get(start_logs_id).update(
+                {
+                    "events": r.row["events"].append(
+                        {
+                            **user_request,
+                            **{
                                 "event": event,
                                 "time": r.epoch_time(time()),
                                 "action_user": action_user,
-                                "data": data,
-                            }
-                        )
-                    },
-                    durability="soft",
-                )
-                .run(db.conn)
-            )
+                                "viewer_type": viewer_type,
+                            },
+                        }
+                    )
+                },
+                durability="soft",
+            ).run(db.conn)
     except:
         log.warning("Unable to update " + str(event) + " event logs")
         log.debug(traceback.format_exc())

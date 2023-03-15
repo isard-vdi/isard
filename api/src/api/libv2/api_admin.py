@@ -15,7 +15,7 @@ from .._common.api_exceptions import Error
 r = RethinkDB()
 import csv
 import io
-import time
+import os
 import traceback
 
 from .flask_rethink import RDB

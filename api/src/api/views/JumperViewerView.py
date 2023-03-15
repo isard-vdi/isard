@@ -6,11 +6,14 @@
 import json
 import logging as log
 
+from flask import request
+
 #!flask/bin/python
 # coding=utf-8
 from api import app
 
 from .._common.api_exceptions import Error
+from ..libv2.api_logging import logs_domain_event_directviewer
 from ..libv2.quotas import Quotas
 from .decorators import maintenance
 
@@ -26,7 +29,7 @@ desktops = ApiDesktopsPersistent()
 @app.route("/api/v3/direct/<token>", methods=["GET"])
 def api_v3_viewer(token):
     maintenance()
-    viewers = common.DesktopViewerFromToken(token)
+    viewers = common.DesktopViewerFromToken(token, request=request)
     if not viewers:
         return
     vmState = viewers.pop("vmState", None)
@@ -52,6 +55,7 @@ def api_v3_viewer(token):
 
 @app.route("/api/v3/desktop/reset/<desktop_id>", methods=["GET"])
 def api_v3_desktop_reset(desktop_id):
+    logs_domain_event_directviewer(desktop_id, "reset", user_request=request)
     return (
         json.dumps({"id": desktops.Reset(desktop_id)}),
         200,

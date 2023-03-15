@@ -23,7 +23,13 @@ db.init_app(app)
 
 from datetime import datetime
 
+from flask import request
+
 from .._common.api_exceptions import Error
+from ..libv2.api_logging import (
+    logs_domain_event_directviewer,
+    logs_domain_start_directviewer,
+)
 from ..libv2.api_scheduler import Scheduler
 from ..libv2.bookings.api_booking import is_future
 from ..libv2.helpers import _parse_desktop_booking, gen_payload_from_user
@@ -65,7 +71,7 @@ class ApiDesktopsCommon:
         else:
             return self.DesktopDirectViewer(desktop_id, viewer_txt, direct_protocol)
 
-    def DesktopViewerFromToken(self, token, start_desktop=True):
+    def DesktopViewerFromToken(self, token, start_desktop=True, request=None):
         with app.app_context():
             domains = list(
                 r.table("domains").get_all(token, index="jumperurl").run(db.conn)
@@ -109,10 +115,20 @@ class ApiDesktopsCommon:
                         params={"start": booking.get("next_booking_start")},
                     )
             scheduled = False
-            if start_desktop and domains[0]["status"] in ["Stopped", "Failed"]:
-                desktop_start(domains[0]["id"], wait_seconds=60)
-                payload = gen_payload_from_user(domains[0]["user"])
-                scheduled = scheduler.add_desktop_timeouts(payload, domains[0]["id"])
+            if start_desktop:
+                if domains[0]["status"] in ["Stopped", "Failed"]:
+                    logs_domain_start_directviewer(
+                        domains[0]["id"], user_request=request
+                    )
+                    desktop_start(domains[0]["id"], wait_seconds=60)
+                    payload = gen_payload_from_user(domains[0]["user"])
+                    scheduled = scheduler.add_desktop_timeouts(
+                        payload, domains[0]["id"]
+                    )
+                else:
+                    logs_domain_event_directviewer(
+                        domains[0]["id"], "directviewer-access", user_request=request
+                    )
             viewers = {
                 "desktopId": domains[0]["id"],
                 "jwt": viewer_jwt(domains[0]["id"], minutes=30),
