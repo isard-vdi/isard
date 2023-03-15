@@ -6,9 +6,12 @@
 import json
 import traceback
 
+from flask import request
+
 from api import app
 
 from .._common.api_exceptions import Error
+from ..libv2.api_logging import logs_domain_event_viewer
 from ..libv2.api_templates import ApiTemplates
 from ..libv2.quotas import Quotas
 
@@ -40,6 +43,9 @@ def api_v3_desktop_viewer(payload, desktop_id=False, protocol=False):
         )
 
     ownsDomainId(payload, desktop_id)
+    logs_domain_event_viewer(
+        desktop_id, payload["user_id"], protocol, user_request=request
+    )
     return (
         json.dumps(common.DesktopViewer(desktop_id, protocol, get_cookie=True)),
         200,
