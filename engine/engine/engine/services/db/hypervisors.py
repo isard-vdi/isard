@@ -710,6 +710,7 @@ def get_hypers_gpu_online(
         .pluck("id", "only_forced", "gpu_only", "info", "stats", "mountpoints")
         .run(r_conn)
     )
+
     # Check profile format: "NVIDIA-A10-2Q"
     try:
         gpu_brand, gpu_model, gpu_profile = gpu_brand_model_profile.split("-")
@@ -729,7 +730,7 @@ def get_hypers_gpu_online(
     ]
 
     if forced_hyp:
-        forced_hyp_found = [h for h in hypers_online_with_gpu if h["id"] == forced_hyp]
+        forced_hyp_found = [h for h in hypers_online_with_gpu if h["id"] in forced_hyp]
         if len(forced_hyp_found) > 0:
             hypers_online_with_gpu = forced_hyp_found
         else:
@@ -737,13 +738,12 @@ def get_hypers_gpu_online(
 
     if favourite_hyp:
         favourite_hyp_found = [
-            h for h in hypers_online_with_gpu if h["id"] == favourite_hyp
+            h for h in hypers_online_with_gpu if h["id"] in favourite_hyp
         ]
         if len(favourite_hyp_found) > 0:
             hypers_online_with_gpu = favourite_hyp_found
 
     if forced_gpus_hypervisors:
-        # get intersection of force_gpus and hypers_online_with_gpu ids
         hypers_online_with_gpu = [
             h for h in hypers_online_with_gpu if h["id"] in forced_gpus_hypervisors
         ]
@@ -789,16 +789,14 @@ def get_hypers_gpu_online(
         return []
 
     if forced_hyp:
-        if forced_hyp in [h["id"] for h in hypervisors_with_available_profile]:
-            return [
-                h for h in hypervisors_with_available_profile if h["id"] == forced_hyp
-            ][0]
-        return []
+        # return hypervisors_with_available_profile if it's id is in forced_hyp list
+        return [h for h in hypervisors_with_available_profile if h["id"] in forced_hyp]
 
     if forced_gpus_hypervisors:
         # If force_gpus is set, we return the hypervisors with the
         # profiles requested. If no hypervisor is found, we return an empty
         # list.
+
         return [
             h["id"]
             for h in hypers_online_with_gpu
@@ -812,7 +810,7 @@ def get_hypers_gpu_online(
 
     if favourite_hyp:
         favourite_hyp_found = [
-            h for h in hypervisors_with_available_profile if h["id"] == favourite_hyp
+            h for h in hypervisors_with_available_profile if h["id"] in favourite_hyp
         ]
         if len(favourite_hyp_found):
             return favourite_hyp_found
