@@ -24,6 +24,7 @@ from rethinkdb.errors import ReqlNonExistenceError
 
 from .._common.api_exceptions import Error
 from ..libv2.flask_rethink import RDB
+from ..libv2.utils import parse_delta
 
 db = RDB(app)
 db.init_app(app)
@@ -163,7 +164,17 @@ class isardViewer:
                     domain["viewer"]["guest_ip"],
                     domain["viewer"]["static"],
                     self.rdpgw_port,
-                    viewer_jwt(domain["id"], minutes=30),
+                    viewer_jwt(
+                        domain["id"],
+                        int(
+                            parse_delta(
+                                os.environ.get(
+                                    "AUTHENTICATION_AUTHENTICATION_TOKEN_DURATION", "4h"
+                                )
+                            ).total_seconds()
+                            / 60
+                        ),
+                    ),
                     domain["guest_properties"]["credentials"]["username"],
                     domain["guest_properties"]["credentials"]["password"],
                 ),
@@ -267,7 +278,17 @@ class isardViewer:
                     + "/Rdp?cookie="
                     + cookie
                     + "&jwt="
-                    + viewer_jwt(domain["id"], minutes=30)
+                    + viewer_jwt(
+                        domain["id"],
+                        int(
+                            parse_delta(
+                                os.environ.get(
+                                    "AUTHENTICATION_AUTHENTICATION_TOKEN_DURATION", "4h"
+                                )
+                            ).total_seconds()
+                            / 60
+                        ),
+                    )
                 )
             else:
                 viewer = viewer_url + "/Rdp"
