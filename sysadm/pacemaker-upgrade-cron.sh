@@ -11,6 +11,28 @@
 
 EXCLUDE_HYPER=${EXCLUDE_HYPER-1}
 
+if [ ! $(which docker) ]; then
+        echo "REQUIREMENT: docker not found in system."
+        echo "             Follow guide at https://docs.docker.com/engine/install/"
+        echo "             or use scripts in sysadmin folder."
+        exit 1
+fi
+
+if [ ! "$(docker compose version 2> /dev/null)" ]; then
+
+        if [ ! $(which docker-compose) ]; then
+                echo "REQUIREMENT: docker-compose not found in system."
+                echo "             Follow guide at https://docs.docker.com/compose/install/"
+                echo "             or use scripts in sysadmin folder."
+                exit 1
+
+        else
+                export DOCKER_COMPOSE="docker-compose"
+        fi
+else
+        export DOCKER_COMPOSE="docker compose"
+fi
+
 script_path=$(readlink -f "$0")
 cfgs_path="${script_path%/*/*}"
 
@@ -23,15 +45,15 @@ do
     then
          if [ $EXCLUDE_HYPER = 1 ]
          then
-            services="$(docker-compose -f "$cfgs_path"/docker-compose.$config_name.yml config --services | sed '/^isard-\(hypervisor\|pipework\)$/d')"
+            services="$($DOCKER_COMPOSE -f "$cfgs_path"/docker-compose.$config_name.yml config --services | sed '/^isard-\(hypervisor\|pipework\)$/d')"
          else
-            services="$(docker-compose -f "$cfgs_path"/docker-compose.$config_name.yml config --services)"
+            services="$($DOCKER_COMPOSE -f "$cfgs_path"/docker-compose.$config_name.yml config --services)"
          fi
          echo "This host is running flavour: $config_name, upgrading.."
          pcs property set maintenance-mode=true \
          && sleep 10 \
-         && docker-compose -f docker-compose.$config_name.yml pull \
-         && docker-compose -f "$cfgs_path"/docker-compose.$config_name.yml --ansi never up -d $services \
+         && $DOCKER_COMPOSE -f docker-compose.$config_name.yml pull \
+         && $DOCKER_COMPOSE -f "$cfgs_path"/docker-compose.$config_name.yml --ansi never up -d $services \
          && docker image prune -f --filter "until=72h" \
          && sleep 60 \
          && pcs property set maintenance-mode=false \
