@@ -9,4 +9,5 @@ template_id:
   type: string
   required: true
 allowed:
+  required: true
   schema: allowed
