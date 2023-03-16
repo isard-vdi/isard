@@ -153,10 +153,6 @@ class ApiDesktopsPersistent:
                     "reservables"
                 ]
                 template["create_dict"]["hardware"].pop("reservables")
-        else:
-            template["create_dict"]["hardware"]["memory"] = (
-                template["create_dict"]["hardware"]["memory"] / 1048576
-            )
 
         parent_disk = template["hardware"]["disks"][0]["file"]
         create_dict = template["create_dict"]
