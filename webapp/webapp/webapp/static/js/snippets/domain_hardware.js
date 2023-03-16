@@ -219,36 +219,45 @@ function populate_tree_template(id){
 }
 
 function setHardwareDomainDefaults_viewer(div_id,data){
-    div_id = div_id.replaceAll('.', '\\.')
-    div_id = div_id.replaceAll('=', '\\=')
-    data['hardware']=data['create_dict']['hardware']
-    $(div_id+" #vcpu").html(data.hardware.vcpus+' CPU(s)');
-    $(div_id+" #ram").html((data.hardware.memory/1048576).toFixed(2)+'GB');
-    if(data.create_dict.reservables){
-        $(div_id+" #gpu").html(data.create_dict.reservables.vgpus);
-        $(div_id+" #gpu").closest("tr").show();
-    }else{
-        $(div_id+" #gpu").closest("tr").hide();
-    }
-    $(div_id+" #net").html(data.hardware.interfaces.join(' '));
-    $(div_id+" #video").html(data.hardware.videos);
-    $(div_id+" #boot").html(data.hardware['boot_order']);
-    $(div_id+" #disk_bus").html(data.hardware.disk_bus);
-    if(data['forced_hyp']){
-        $(div_id+" #forced_hyp").html(data['forced_hyp']);
-        $(div_id+" #forced_hyp").closest("tr").show();
-    }else{
-        $(div_id+" #forced_hyp").closest("tr").hide();
-    }
-    if(data['favourite_hyp']){
-        $(div_id+" #favourite_hyp").html(data['favourite_hyp']);
-        $(div_id+" #favourite_hyp").closest("tr").show();
-    }else{
-        $(div_id+" #favourite_hyp").closest("tr").hide();
-    }
-    if (data.kind == 'desktop') {
-        populate_tree_template(data.create_dict.origin ? data.create_dict.origin : data.id);
-    }
+    $.ajax({
+        type: "GET",
+        url:"/api/v3/admin/domain/" + data.id + "/viewer_data",
+        // async: false,
+        success: function (resp) {
+            data["hardware"]=resp.create_dict.hardware
+
+            div_id = div_id.replaceAll('.', '\\.')
+            div_id = div_id.replaceAll('=', '\\=')
+            // data['hardware']=data['create_dict']['hardware']
+            $(div_id+" #vcpu").html(data.hardware.vcpus+' CPU(s)');
+            $(div_id+" #ram").html((data.hardware.memory/1048576).toFixed(2)+'GB');
+            if(data.create_dict.reservables){
+                $(div_id+" #gpu").html(data.create_dict.reservables.vgpus);
+                $(div_id+" #gpu").closest("tr").show();
+            }else{
+                $(div_id+" #gpu").closest("tr").hide();
+            }
+            $(div_id+" #net").html(data.hardware.interfaces.join(' '));
+            $(div_id+" #video").html(data.hardware.videos);
+            $(div_id+" #boot").html(data.hardware['boot_order']);
+            $(div_id+" #disk_bus").html(data.hardware.disk_bus);
+            if(data['forced_hyp']){
+                $(div_id+" #forced_hyp").html(data['forced_hyp']);
+                $(div_id+" #forced_hyp").closest("tr").show();
+            }else{
+                $(div_id+" #forced_hyp").closest("tr").hide();
+            }
+            if(data['favourite_hyp']){
+                $(div_id+" #favourite_hyp").html(data['favourite_hyp']);
+                $(div_id+" #favourite_hyp").closest("tr").show();
+            }else{
+                $(div_id+" #favourite_hyp").closest("tr").hide();
+            }
+            if (data.kind == 'desktop') {
+                populate_tree_template(data.create_dict.origin ? data.create_dict.origin : data.id);
+            }
+        }
+    });
 }
 
 function setDomainStorage(domain_id) {

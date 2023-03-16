@@ -749,8 +749,6 @@ $(document).ready(function() {
 	// DataTable buttons
     $('#domains tbody').on( 'click', 'button', function () {
         var data = domains_table.row( $(this).parents('tr') ).data();
-        var reservables = data['create_dict']['reservables']
-        var desktop_id = data['id']
         switch($(this).attr('id')){
             case 'btn-play':
                 if($('.quota-play .perc').text() >=100){
@@ -764,7 +762,13 @@ $(document).ready(function() {
                             type: 'error'
                         });
                 }else{
-                    checkReservablesAndStart(reservables, desktop_id, data['booking_id'])
+                    $.ajax({
+                        type: "GET",
+                        url:"/api/v3/admin/domain/" + data['id'] + "/viewer_data",
+                        success: function (resp) {
+                            checkReservablesAndStart(resp.create_dict.reservables, data['id'], data['booking_id'])
+                        }
+                    });
                 }
                 break;
             case 'btn-stop':
@@ -778,7 +782,7 @@ $(document).ready(function() {
             case 'btn-display':
                 new PNotify({
                         title: 'Connect to user viewer!',
-                            text: "By connecting to desktop "+ name+" you will disconnect and gain access to that user current desktop.\n\n \
+                            text: "By connecting to desktop "+ data["name"]+" you will disconnect and gain access to that user current desktop.\n\n \
                                    Please, think twice before doing this as it could be illegal depending on your relation with the user. \n\n ",
                             hide: false,
                             opacity: 0.9,
@@ -794,11 +798,7 @@ $(document).ready(function() {
                             },
                             addclass: 'pnotify-center'
                         }).get().on('pnotify.confirm', function() {
-                            setViewerButtons(data,socket);
-
-                            if('viewer' in data && 'guest_ip' in data['viewer']){
-                                viewerButtonsIP(data.id,data['viewer']['guest_ip'])
-                            }
+                            setViewerButtons(data.id)
                             $('#modalOpenViewer').modal({
                                 backdrop: 'static',
                                 keyboard: false
@@ -819,7 +819,6 @@ function socketio_on(){
         var data = JSON.parse(data);
         if(data.status =='Started' && 'viewer' in data && 'guest_ip' in data['viewer']){
             if(!('viewer' in domains_table.row('#'+data.id).data()) || !('guest_ip' in domains_table.row('#'+data.id).data())){
-                //console.log('NEW IP ARRIVED!: '+data['viewer']['guest_ip'])
                 viewerButtonsIP(data.id,data['viewer']['guest_ip'])
             }
         }
