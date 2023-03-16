@@ -13,7 +13,6 @@ from flask import request
 from api import app
 
 from .._common.api_exceptions import Error
-from ..libv2.api_logging import logs_domain_event_directviewer
 from ..libv2.quotas import Quotas
 from .decorators import maintenance
 
@@ -53,11 +52,10 @@ def api_v3_viewer(token):
     )
 
 
-@app.route("/api/v3/desktop/reset/<desktop_id>", methods=["GET"])
-def api_v3_desktop_reset(desktop_id):
-    logs_domain_event_directviewer(desktop_id, "reset", user_request=request)
+@app.route("/api/v3/direct/<token>/reset", methods=["PUT"])
+def api_v3_desktop_reset(token):
     return (
-        json.dumps({"id": desktops.Reset(desktop_id)}),
+        json.dumps({"id": desktops.Reset(token, request=request)}),
         200,
         {"Content-Type": "application/json"},
     )

@@ -72,6 +72,91 @@ class ApiDesktopsCommon:
             return self.DesktopDirectViewer(desktop_id, viewer_txt, direct_protocol)
 
     def DesktopViewerFromToken(self, token, start_desktop=True, request=None):
+        domain = self.DesktopFromToken(token)
+
+        booking = _parse_desktop_booking(domain)
+        if booking.get("needs_booking"):
+            if not booking.get("next_booking_start"):
+                raise Error(
+                    "precondition_required",
+                    "Bookable desktop can't be started without a booking",
+                    traceback.format_exc(),
+                    "desktop_not_booked",
+                )
+            elif is_future(
+                {
+                    "start": datetime.strptime(
+                        booking.get("next_booking_start"), "%Y-%m-%dT%H:%M%z"
+                    ).astimezone(pytz.UTC)
+                }
+            ):
+                raise Error(
+                    "precondition_required",
+                    "The next desktop booking is at "
+                    + booking.get("next_booking_start"),
+                    traceback.format_exc(),
+                    "desktop_not_booked_until",
+                    data=None,
+                    params={"start": booking.get("next_booking_start")},
+                )
+
+        scheduled = False
+        if start_desktop:
+            if domain["status"] in ["Stopped", "Failed"]:
+                desktop_start(domain["id"], wait_seconds=60)
+                payload = gen_payload_from_user(domain["user"])
+                scheduled = scheduler.add_desktop_timeouts(payload, domain["id"])
+            else:
+                logs_domain_event_directviewer(
+                    domain["id"], "directviewer-access", user_request=request
+                )
+        viewers = {
+            "desktopId": domain["id"],
+            "jwt": viewer_jwt(domain["id"], minutes=30),
+            "vmName": domain["name"],
+            "vmDescription": domain["description"],
+            "vmState": "Started",
+            "scheduled": scheduled if scheduled else domain.get("scheduled"),
+        }
+        desktop_viewers = list(domain["guest_properties"]["viewers"].keys())
+        if "file_spice" in desktop_viewers:
+            viewers["file-spice"] = self.DesktopViewer(
+                domain["id"], protocol="file-spice", get_cookie=True
+            )
+        if "browser_vnc" in desktop_viewers:
+            viewers["browser-vnc"] = self.DesktopViewer(
+                domain["id"], protocol="browser-vnc", get_cookie=True
+            )
+        if "browser_rdp" in desktop_viewers:
+            if domain.get("viewer", True) == False:
+                viewers["browser_rdp"] = {"kind": "browser", "protocol": "rdp"}
+                viewers["vmState"] = "WaitingIP"
+            elif not domain.get("viewer", {}).get("guest_ip"):
+                viewers["browser_rdp"] = {"kind": "browser", "protocol": "rdp"}
+                viewers["vmState"] = "WaitingIP"
+            else:
+                viewers["browser-rdp"] = self.DesktopViewer(
+                    domain["id"],
+                    protocol="browser-rdp",
+                    get_cookie=True,
+                )
+        if "file_rdpgw" in desktop_viewers:
+            if domain.get("viewer", True) == False:
+                viewers["file-rdpgw"] = {"kind": "file", "protocol": "rdpgw"}
+                viewers["vmState"] = "WaitingIP"
+            elif not domain.get("viewer", {}).get("guest_ip"):
+                viewers["file-rdpgw"] = {"kind": "file", "protocol": "rdpgw"}
+                viewers["vmState"] = "WaitingIP"
+            else:
+                viewers["file-rdpgw"] = self.DesktopViewer(
+                    domain["id"],
+                    protocol="file-rdpgw",
+                    get_cookie=True,
+                )
+        return viewers
+
+    def DesktopFromToken(self, token):
+        domains = []
         with app.app_context():
             domains = list(
                 r.table("domains").get_all(token, index="jumperurl").run(db.conn)
@@ -84,95 +169,12 @@ class ApiDesktopsCommon:
         if len(domains) == 0:
             raise Error(
                 "not_found",
-                "Desktop not found",
+                "Desktop not found or not visible",
                 traceback.format_exc(),
                 description_code="not_found",
             )
         if len(domains) == 1:
-            booking = _parse_desktop_booking(domains[0])
-            if booking.get("needs_booking"):
-                if not booking.get("next_booking_start"):
-                    raise Error(
-                        "precondition_required",
-                        "Bookable desktop can't be started without a booking",
-                        traceback.format_exc(),
-                        "desktop_not_booked",
-                    )
-                elif is_future(
-                    {
-                        "start": datetime.strptime(
-                            booking.get("next_booking_start"), "%Y-%m-%dT%H:%M%z"
-                        ).astimezone(pytz.UTC)
-                    }
-                ):
-                    raise Error(
-                        "precondition_required",
-                        "The next desktop booking is at "
-                        + booking.get("next_booking_start"),
-                        traceback.format_exc(),
-                        "desktop_not_booked_until",
-                        data=None,
-                        params={"start": booking.get("next_booking_start")},
-                    )
-            scheduled = False
-            if start_desktop:
-                if domains[0]["status"] in ["Stopped", "Failed"]:
-                    logs_domain_start_directviewer(
-                        domains[0]["id"], user_request=request
-                    )
-                    desktop_start(domains[0]["id"], wait_seconds=60)
-                    payload = gen_payload_from_user(domains[0]["user"])
-                    scheduled = scheduler.add_desktop_timeouts(
-                        payload, domains[0]["id"]
-                    )
-                else:
-                    logs_domain_event_directviewer(
-                        domains[0]["id"], "directviewer-access", user_request=request
-                    )
-            viewers = {
-                "desktopId": domains[0]["id"],
-                "jwt": viewer_jwt(domains[0]["id"], minutes=30),
-                "vmName": domains[0]["name"],
-                "vmDescription": domains[0]["description"],
-                "vmState": "Started",
-                "scheduled": scheduled if scheduled else domains[0].get("scheduled"),
-            }
-            desktop_viewers = list(domains[0]["guest_properties"]["viewers"].keys())
-            if "file_spice" in desktop_viewers:
-                viewers["file-spice"] = self.DesktopViewer(
-                    domains[0]["id"], protocol="file-spice", get_cookie=True
-                )
-            if "browser_vnc" in desktop_viewers:
-                viewers["browser-vnc"] = self.DesktopViewer(
-                    domains[0]["id"], protocol="browser-vnc", get_cookie=True
-                )
-            if "browser_rdp" in desktop_viewers:
-                if domains[0].get("viewer", True) == False:
-                    viewers["browser_rdp"] = {"kind": "browser", "protocol": "rdp"}
-                    viewers["vmState"] = "WaitingIP"
-                elif not domains[0].get("viewer", {}).get("guest_ip"):
-                    viewers["browser_rdp"] = {"kind": "browser", "protocol": "rdp"}
-                    viewers["vmState"] = "WaitingIP"
-                else:
-                    viewers["browser-rdp"] = self.DesktopViewer(
-                        domains[0]["id"],
-                        protocol="browser-rdp",
-                        get_cookie=True,
-                    )
-            if "file_rdpgw" in desktop_viewers:
-                if domains[0].get("viewer", True) == False:
-                    viewers["file-rdpgw"] = {"kind": "file", "protocol": "rdpgw"}
-                    viewers["vmState"] = "WaitingIP"
-                elif not domains[0].get("viewer", {}).get("guest_ip"):
-                    viewers["file-rdpgw"] = {"kind": "file", "protocol": "rdpgw"}
-                    viewers["vmState"] = "WaitingIP"
-                else:
-                    viewers["file-rdpgw"] = self.DesktopViewer(
-                        domains[0]["id"],
-                        protocol="file-rdpgw",
-                        get_cookie=True,
-                    )
-            return viewers
+            return domains[0]
         raise Error(
             "internal_server",
             "Jumperviewer token duplicated",

@@ -14,6 +14,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytz
 
+from ..libv2.api_desktops_common import ApiDesktopsCommon
+from ..libv2.api_logging import logs_domain_event_directviewer
 from ..libv2.quotas import Quotas
 
 quotas = Quotas()
@@ -42,6 +44,7 @@ from ..libv2.bookings.api_booking import Bookings
 
 apib = Bookings()
 api_cards = ApiCards()
+common = ApiDesktopsCommon()
 
 from ..libv2.quotas_process import QuotasProcess
 from .api_desktop_events import desktop_delete, desktop_reset, desktop_stop
@@ -553,9 +556,11 @@ class ApiDesktopsPersistent:
         desktop_stop(desktop_id)
         return desktop_id
 
-    def Reset(self, desktop_id):
+    def Reset(self, token, request):
+        desktop_id = common.DesktopFromToken(token)["id"]
+        logs_domain_event_directviewer(desktop_id, "reset", request)
         desktop_reset(desktop_id)
-        return desktop_id
+        return token
 
     def Update(self, desktop_id, desktop_data, admin_or_manager=False):
         if desktop_data.get("image"):
