@@ -46,10 +46,21 @@ def api_v3_admin_domains(payload):
 
 @app.route("/api/v3/admin/domain/<domain_id>/viewer_data", methods=["GET"])
 @is_admin_or_manager
-def api_v3_admin_domain_viewer_data(payload, domain_id):
+def api_v3_admin_deployment_viewer_data(payload, domain_id):
     ownsDomainId(payload, domain_id)
     return (
         json.dumps(admins.DesktopViewerData(domain_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/deployment/<deployment_id>/viewer_data", methods=["GET"])
+@is_admin_or_manager
+def api_v3_admin_domain_viewer_data(payload, deployment_id):
+    ownsDomainId(payload, deployment_id)
+    return (
+        json.dumps(admins.DeploymentViewerData(deployment_id)),
         200,
         {"Content-Type": "application/json"},
     )

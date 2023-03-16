@@ -218,10 +218,18 @@ function populate_tree_template(id){
 
 }
 
+function setHardwareDomainDefaults_deployment_viewer(deployment_id){
+    _setHardwareDomainDefaults_viewer(deployment_id,'deployment')
+}
+
 function setHardwareDomainDefaults_viewer(domain_id){
+    _setHardwareDomainDefaults_viewer(domain_id,'domain')
+}
+
+function _setHardwareDomainDefaults_viewer(domain_id,item){
     $.ajax({
         type: "GET",
-        url:"/api/v3/admin/domain/" + domain_id + "/viewer_data",
+        url:"/api/v3/admin/" + item + "/" + domain_id + "/viewer_data",
         // async: false,
         success: function (data) {
             div_id='#hardware-'+domain_id

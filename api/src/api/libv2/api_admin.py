@@ -417,6 +417,16 @@ class ApiAdmin:
             )
         return desktop_viewer
 
+    def DeploymentViewerData(self, deployment_id):
+        with app.app_context():
+            desktop_viewer = (
+                r.table("deployments")
+                .get(deployment_id)
+                .pluck("create_dict")
+                .run(db.conn)
+            )
+        return desktop_viewer
+
     def ListDesktops(self, category_id):
         try:
             with app.app_context():
