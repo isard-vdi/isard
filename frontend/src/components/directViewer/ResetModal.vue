@@ -47,8 +47,8 @@ export default {
     const $store = context.root.$store
     const modal = computed(() => $store.getters.getResetModal)
     const resetDesktop = () => {
-      $store.dispatch('changeDesktopStatus', {
-        desktopId: modal.value.item.id,
+      $store.dispatch('resetDesktop', {
+        token: modal.value.item.token,
         action: modal.value.item.action
       }).then(() => {
         closeModal()

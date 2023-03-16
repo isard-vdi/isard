@@ -209,6 +209,12 @@ export default {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
+    resetDesktop (_, data) {
+      axios.put(`${apiV3Segment}/direct/${data.token}/${data.action}`).then(response => {
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
     openDesktop (context, data) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.opening-desktop'))
 

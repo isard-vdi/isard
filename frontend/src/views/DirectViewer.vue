@@ -36,7 +36,7 @@
                 :spinner-active="false"
                 :butt-text="$t(`views.select-template.status.${status['restart'].action}.text`)"
                 :icon-name="status['restart'].icon"
-                @buttonClicked="resetDesktop(status['restart'].action, directViewer.desktopId)"
+                @buttonClicked="resetDesktop(status['restart'].action)"
               />
               <!-- MACHINE INFO -->
               <b-col
@@ -184,10 +184,11 @@ export default {
       rdpgw: i18n.t('views.direct-viewer.description.rdpgw')
     }
 
-    const resetDesktop = (action, desktopId) => {
+    const resetDesktop = (action) => {
+      const token = context.root.$route.params.pathMatch
       $store.dispatch('updateResetModal', {
         show: true,
-        item: { id: desktopId, action: action }
+        item: { token: token, action: action }
       })
     }
 
