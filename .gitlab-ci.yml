@@ -33,7 +33,7 @@ check-python:
 
 check-frontend:
   stage: lint
-  image: node
+  image: node:18
   script:
     - cd frontend
     - yarn
