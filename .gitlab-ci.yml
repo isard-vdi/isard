@@ -5,6 +5,24 @@ workflow:
       when: never
     - when: always
 
+# https://docs.gitlab.com/ee/ci/docker/using_docker_build.html#use-docker-in-docker
+variables:
+  # When you use the dind service, you must instruct Docker to talk with
+  # the daemon started inside of the service. The daemon is available
+  # with a network connection instead of the default
+  # /var/run/docker.sock socket. Docker 19.03 does this automatically
+  # by setting the DOCKER_HOST in
+  # https://github.com/docker-library/docker/blob/d45051476babc297257df490d22cbd806f1b11e4/19.03/docker-entrypoint.sh#L23-L29
+  #
+  # The 'docker' hostname is the alias of the service container as described at
+  # https://docs.gitlab.com/ee/ci/services/#accessing-the-services.
+  #
+  # Specify to Docker where to create the certificates. Docker
+  # creates them automatically on boot, and creates
+  # `/certs/client` to share between the service and job
+  # container, thanks to volume mount from config.toml
+  DOCKER_TLS_CERTDIR: "/certs"
+
 stages:
  - lint
  - version
@@ -128,8 +146,10 @@ docker-image-codegen:
     matrix:
       - DOCKERFILE: docker/codegen/Dockerfile
         IMAGE: codegen
-  script:
+  before_script:
+    - until docker info; do sleep 1; done
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  script:
     - docker build -f $DOCKERFILE -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
     - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
     - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
@@ -143,8 +163,10 @@ docker-image-autonomous:
     matrix:
       - DOCKERFILE: testing/check-isardvdi/Dockerfile
         IMAGE: check
-  script:
+  before_script:
+    - until docker info; do sleep 1; done
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  script:
     - docker build -f $DOCKERFILE -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
     - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
     - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
@@ -183,8 +205,10 @@ docker-image:
         IMAGE: video
       - DOCKER_COMPOSE: monitor.build
         IMAGE: monitor-proxy
-  script:
+  before_script:
+    - until docker info; do sleep 1; done
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  script:
     - apk add git docker-compose
     - git submodule update --init --recursive --remote
     - docker run -u $(id -u) -v "$(pwd):/build" "$CI_REGISTRY_IMAGE/codegen:git-$CI_COMMIT_SHORT_SHA"
