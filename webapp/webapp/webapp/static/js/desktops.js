@@ -139,8 +139,8 @@ $(document).ready(function() {
             actionsDesktopDetail();
             setDesktopDetailButtonsStatus(row.data().id,row.data().status, row.data().server)
             if(row.data().status=='Stopped' || row.data().status=='Started'){
-                setDomainHotplug(row.data().id, row.data());
-                setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data());
+                setDomainHotplug(row.data().id);
+                setHardwareDomainDefaults_viewer(row.data().id);
             }
           }
     } );

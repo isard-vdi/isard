@@ -140,7 +140,7 @@ $(document).ready(function() {
         }
         row.child(renderDeploymentDetailPannel(row.data())).show()
         tr.addClass('shown');
-        setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data());
+        setHardwareDomainDefaults_viewer(row.data().id);
         setAlloweds_viewer('#alloweds-' + row.data().id, row.data().id, "deployments");
       }
     });

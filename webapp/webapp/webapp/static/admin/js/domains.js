@@ -620,6 +620,7 @@ $(document).ready(function() {
     $('#domains').find('tbody').on('click', 'td.details-control', function () {
         var tr = $(this).closest('tr');
         var row = domains_table.row( tr );
+        domain_id=row.data().id
 
         if ( row.child.isShown() ) {
             // This row is already open - close it
@@ -647,14 +648,14 @@ $(document).ready(function() {
                 // Open this row
                 row.child( addDomainDetailPannel(row.data()) ).show();
                 tr.addClass('shown');
-                $('#status-detail-'+row.data().id).html(row.data().detail);
+                $('#status-detail-'+domain_id).html(row.data().detail);
                 actionsDomainDetail();
-                setDomainDetailButtonsStatus(row.data().id,row.data().status,row.data().server)
-                setDomainHotplug(row.data().id, row.data());
-                setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data());
-                setDomainStorage(row.data().id)
+                setDomainDetailButtonsStatus(domain_id,row.data().status,row.data().server)
+                setDomainHotplug(domain_id);
+                setHardwareDomainDefaults_viewer(domain_id);
+                setDomainStorage(domain_id)
                 if(kind!="desktop"){
-                    setAlloweds_viewer('#alloweds-'+row.data().id,row.data().id);
+                    setAlloweds_viewer('#alloweds-'+domain_id,domain_id);
                 }
             }
         }

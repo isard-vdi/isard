@@ -218,29 +218,28 @@ function populate_tree_template(id){
 
 }
 
-function setHardwareDomainDefaults_viewer(div_id,data){
+function setHardwareDomainDefaults_viewer(domain_id){
     $.ajax({
         type: "GET",
-        url:"/api/v3/admin/domain/" + data.id + "/viewer_data",
+        url:"/api/v3/admin/domain/" + domain_id + "/viewer_data",
         // async: false,
-        success: function (resp) {
-            data["hardware"]=resp.create_dict.hardware
-
+        success: function (data) {
+            div_id='#hardware-'+domain_id
             div_id = div_id.replaceAll('.', '\\.')
             div_id = div_id.replaceAll('=', '\\=')
             // data['hardware']=data['create_dict']['hardware']
-            $(div_id+" #vcpu").html(data.hardware.vcpus+' CPU(s)');
-            $(div_id+" #ram").html((data.hardware.memory/1048576).toFixed(2)+'GB');
+            $(div_id+" #vcpu").html(data.create_dict.hardware.vcpus+' CPU(s)');
+            $(div_id+" #ram").html((data.create_dict.hardware.memory/1048576).toFixed(2)+'GB');
             if(data.create_dict.reservables){
                 $(div_id+" #gpu").html(data.create_dict.reservables.vgpus);
                 $(div_id+" #gpu").closest("tr").show();
             }else{
                 $(div_id+" #gpu").closest("tr").hide();
             }
-            $(div_id+" #net").html(data.hardware.interfaces.join(' '));
-            $(div_id+" #video").html(data.hardware.videos);
-            $(div_id+" #boot").html(data.hardware['boot_order']);
-            $(div_id+" #disk_bus").html(data.hardware.disk_bus);
+            $(div_id+" #net").html(data.create_dict.hardware.interfaces.join(' '));
+            $(div_id+" #video").html(data.create_dict.hardware.videos);
+            $(div_id+" #boot").html(data.create_dict.hardware['boot_order']);
+            $(div_id+" #disk_bus").html(data.create_dict.hardware.disk_bus);
             if(data['forced_hyp']){
                 $(div_id+" #forced_hyp").html(data['forced_hyp']);
                 $(div_id+" #forced_hyp").closest("tr").show();
