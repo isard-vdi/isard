@@ -1,0 +1,133 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+{% block css %}
+    <link href="/isard-admin/static/vendor/fancytree/dist/skin-win8/ui.fancytree.css" rel="stylesheet">
+    <!-- Ion.RangeSlider -->
+    <link href="/isard-admin/vendors/normalize-css/normalize.css" rel="stylesheet">
+    <link href="/isard-admin/vendors/ion.rangeSlider/css/ion.rangeSlider.css" rel="stylesheet">
+    <link href="/isard-admin/vendors/ion.rangeSlider/css/ion.rangeSlider.skinFlat.css" rel="stylesheet">
+        <!-- Switchery -->
+    <link href="/isard-admin/vendors/switchery/dist/switchery.min.css" rel="stylesheet">
+{% endblock %}
+{% block content %}
+
+<div class="row">
+   <div class="col-md-12 col-sm-12 col-xs-12">
+      <div class="x_panel">
+         <div class="x_title">
+            <h3><i class="fa fa-{{icon}}"></i> Admin {{ nav }} <small>You have the power</small></h3>
+            <ul class="nav navbar-right panel_toolbox">
+               <li>
+                  <a class="btn-add-desktop">
+                     <span style="color: #5499c7; ">
+                        <i class="fa fa-plus"></i>
+                        Bulk Desktops</span>
+                  </a>
+               </li>
+            </ul>
+            <div class="clearfix"></div>
+         </div>
+         <div class="x_content">
+            <p class="text-muted font-13 m-b-30"></p>
+            <div id="global_actions" style="display:none; width: 15cm;">
+               <label class="control-label col-md-3 col-sm-3 col-xs-12 pull-left" for="mactions">
+                  <h4>
+                     Global actions:
+                  </h4>
+               </label>
+               <div class="col-md-5 col-sm-5 col-xs-12" style="margin-bottom: 20px;">
+                  <select class="form-control" id="mactions" name="mactions" >
+                     <option value="none">Select action</option>
+                     <option value="soft_toggle">Soft toggle started/shutting-down state</option>
+                     <option value="toggle">Toggle started/stopped state</option>
+                     <!-- <option value="stop_noviewer">Stop no viewers</option> -->
+                     <option value="shutting_down">Soft shut down</option>
+                     <option value="stopping">Shut down</option>
+                     <option value="force_failed">Force Failed state</option>
+                     <option value="delete">Delete</option>
+                     <option value="starting_paused">Start paused (check status)</option>
+                     <option value="remove_forced_hyper">Remove forced hypervisor</option>
+                     <option value="remove_favourite_hyper">Remove favourite hypervisor</option>
+                  </select>
+               </div>
+            </div>
+            <div id="tableDiv"></div>
+               <table id="domains" class="table">
+                  <thead>
+                     <tr>
+                        <th rowspan="2"></th>
+                        <th rowspan="2">Icon</th>
+                        <th rowspan="2">Name</th>
+                           <th rowspan="2">Status</th>
+                           <th rowspan="2">Action</th>
+                           <th rowspan="2">RAM(GB)</th>
+                           <th rowspan="2">vCPUs</th>
+                        <th rowspan="2">User</th>
+                        <th rowspan="2">Category</th>
+                        <th rowspan="2">Group</th>
+                           <th rowspan="2">Server</th>
+                           <th colspan="3" class="text-center">Hypervisor</th>
+                        <th rowspan="2">Last Access</th>
+                           <th rowspan="2">Selected</th>
+                        <th rowspan="2">Id</th>
+                     </tr>
+                     <tr>
+                           <th>Started</th>
+                        <th>Favourite</th>
+                        <th>Forced</th>
+                     </tr>
+                  </thead>
+                  <tbody>
+                  </tbody>
+                  <tfoot>
+                     <tr>
+                        <th></th>
+                        <th>Icon</th>
+                        <th>Name</th>
+                           <th>Status</th>
+                           <th>Action</th>
+                           <th>RAM(GB)</th>
+                           <th>vCPUs</th>
+                        <th>User</th>
+                        <th>Category</th>
+                        <th>Group</th>
+                           <th>Server</th>
+                           <th>Started Hyper</th>
+                        <th>Fav Hyper</th>
+                        <th>Forced Hyper</th>
+                        <th>Last Access</th>
+                           <th>Selected</th>
+                        <th>Id</th>
+                     </tr>
+                  </tfoot>
+               </table>
+            </div>
+         </div>
+      </div>
+   </div>
+   {% include '/admin/pages/domains_modals.html' %}
+   {% include '/pages/desktops_modals.html' %}
+   {% include '/pages/desktops_detail.html' %}
+   {% include 'admin/pages/templates_detail.html' %}
+   {% include '/pages/desktops_viewers.html' %}
+   {% include '/snippets/alloweds_form.html' %}
+</div>
+
+{% endblock %}
+
+{% block pagescript %}
+   <!-- Ion.RangeSlider -->
+   <script src="/isard-admin/vendors/ion.rangeSlider/js/ion.rangeSlider.min.js"></script>
+   <!-- iCheck -->
+   <script src="/isard-admin/vendors/iCheck/icheck.min.js"></script> 
+   <!-- Switchery -->
+   <script src="/isard-admin/vendors/switchery/dist/switchery.min.js"></script>
+   <!-- Isard restful ajax calls -->
+   <script src="/isard-admin/static/js/restful.js"></script>
+   <!-- Spice viewer -->
+   <script src="/isard-admin/static/js/viewer.js"></script> 
+   <!-- Domains sse & hardware subtables -->  
+   <script src="/isard-admin/static/js/snippets/desktop_add.js"></script> 
+   <script src="/isard-admin/static/admin/js/desktops.js"></script>
+   <!--<script src="/isard-admin/static/admin/js/domains_subtables.js"></script>-->
+{% endblock %}

@@ -144,6 +144,9 @@ def admin_domains(nav="Domains"):
     icon = ""
     if nav == "Desktops":
         icon = "desktop"
+        return render_template(
+            "admin/pages/desktops.html", title=nav, nav=nav, icon=icon
+        )
     if nav == "Templates":
         icon = "cubes"
     if nav == "Deployments":
