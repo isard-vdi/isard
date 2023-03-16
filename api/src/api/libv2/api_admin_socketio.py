@@ -56,14 +56,31 @@ class DomainsThread(threading.Thread):
                 with app.app_context():
                     for c in (
                         r.table("domains")
-                        .without(
-                            "xml",
-                            "xml_to_start",
-                            "hardware",
-                            "hardware_from_xml",
-                            "history_domain",
+                        .pluck(
+                            "id",
+                            {
+                                "create_dict": {
+                                    "reservables": True,
+                                    "hardware": {"vcpus": True, "memory": True},
+                                }
+                            },
+                            "kind",
+                            "server",
+                            "hyp_started",
+                            "name",
+                            "status",
+                            "username",
+                            "accessed",
+                            "forced_hyp",
+                            "favourite_hyp",
+                            "booking_id",
+                            "tag",
+                            "start_logs_id",
+                            "user",
+                            "category",
+                            {"viewer": {"guest_ip": True}},
                         )
-                        .changes(include_initial=False)
+                        .changes(include_initial=False, squash=0.5)
                         .run(db.conn)
                     ):
                         # ~ .pluck('id','kind','hyp_started','name','description','icon','status','user')
@@ -71,6 +88,7 @@ class DomainsThread(threading.Thread):
                             break
                         if c["new_val"] == None:
                             data = c["old_val"]
+                            data.pop("start_logs_id", None)
                             event = (
                                 "desktop_delete"
                                 if data["kind"] == "desktop"
@@ -95,20 +113,12 @@ class DomainsThread(threading.Thread):
                                         r.table("deployments").get(
                                             data["tag"]
                                         ).delete().run(db.conn)
+                            user = data.pop("user")
+                            category = data.pop("category")
+                            data = {"id": data["id"]}
                         else:
                             data = c["new_val"]
-                            data["category_name"] = (
-                                r.table("categories")
-                                .get(data["category"])
-                                .default({"name": "-"})
-                                .run(db.conn)["name"]
-                            )
-                            data["group_name"] = (
-                                r.table("groups")
-                                .get(data["group"])
-                                .default({"name": "-"})
-                                .run(db.conn)["name"]
-                            )
+                            data.pop("start_logs_id", None)
                             if data["kind"] == "desktop":
                                 event = "desktop_data"
                                 if c["new_val"].get("status") == "Started" and c[
@@ -138,31 +148,30 @@ class DomainsThread(threading.Thread):
                                     # New threaded events in ds.py toggles status before it can be processed here.
                                 except:
                                     continue
-
-                        original_event = event
-
+                            user = data.pop("user")
+                            category = data.pop("category")
+                        # socketio.emit(
+                        #     "user_quota",
+                        #     json.dumps(quotas.get(data["user"])),
+                        #     namespace="/administrators",
+                        #     room=data["user"],
+                        # )
                         socketio.emit(
-                            "user_quota",
-                            json.dumps(quotas.get(data["user"])),
-                            namespace="/administrators",
-                            room=data["user"],
-                        )
-                        socketio.emit(
-                            original_event,
+                            event,
                             json.dumps(data),
                             namespace="/administrators",
-                            room=data["user"],
+                            room=user,
                         )
                         ## Manager update
                         socketio.emit(
-                            original_event,
+                            event,
                             json.dumps(data),
                             namespace="/administrators",
-                            room=data["category"],
+                            room=category,
                         )
                         # All admins
                         socketio.emit(
-                            original_event,
+                            event,
                             json.dumps(data),
                             namespace="/administrators",
                             room="admins",
@@ -227,7 +236,7 @@ class MediaThread(threading.Thread):
                             "category",
                         )
                         .merge({"table": "domains"})
-                        .changes(include_initial=False)
+                        .changes(include_initial=False, squash=0.5)
                         .union(
                             r.table("media")
                             .get_all(
@@ -247,7 +256,7 @@ class MediaThread(threading.Thread):
                                 index="status",
                             )
                             .merge({"table": "media"})
-                            .changes(include_initial=False)
+                            .changes(include_initial=False, squash=0.5)
                         )
                         .run(db.conn)
                     ):
@@ -413,15 +422,15 @@ class UsersThread(threading.Thread):
                             "photo",
                             "email",
                         )
-                        .changes(include_initial=False)
+                        .changes(include_initial=False, squash=0.5)
                         .union(
                             r.table("categories")
                             .merge({"table": "categories"})
-                            .changes(include_initial=False)
+                            .changes(include_initial=False, squash=0.5)
                             .union(
                                 r.table("groups")
                                 .merge({"table": "groups"})
-                                .changes(include_initial=False)
+                                .changes(include_initial=False, squash=0.5)
                             )
                         )
                         .run(db.conn)

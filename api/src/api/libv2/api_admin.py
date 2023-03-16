@@ -427,6 +427,16 @@ class ApiAdmin:
             )
         return desktop_viewer
 
+    def DesktopDetailsData(self, desktop_id):
+        with app.app_context():
+            desktop_viewer = (
+                r.table("domains")
+                .get(desktop_id)
+                .pluck("detail", "description")
+                .run(db.conn)
+            )
+        return desktop_viewer
+
     def ListDesktops(self, category_id):
         try:
             with app.app_context():
@@ -463,6 +473,7 @@ class ApiAdmin:
                                     }
                                 },
                                 {"image": {"url": True}},
+                                "kind",
                                 "server",
                                 "hyp_started",
                                 "name",

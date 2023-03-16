@@ -44,6 +44,17 @@ def api_v3_admin_domains(payload):
     )
 
 
+@app.route("/api/v3/admin/domain/<domain_id>/details", methods=["GET"])
+@is_admin_or_manager
+def api_v3_admin_details_data(payload, domain_id):
+    ownsDomainId(payload, domain_id)
+    return (
+        json.dumps(admins.DesktopDetailsData(domain_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
 @app.route("/api/v3/admin/domain/<domain_id>/viewer_data", methods=["GET"])
 @is_admin_or_manager
 def api_v3_admin_deployment_viewer_data(payload, domain_id):

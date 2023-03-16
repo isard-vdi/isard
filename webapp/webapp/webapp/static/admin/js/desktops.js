@@ -532,7 +532,14 @@ $(document).ready(function() {
                 // Open this row
                 row.child( addDomainDetailPannel(row.data()) ).show();
                 tr.addClass('shown');
-                $('#status-detail-'+domain_id).html(row.data().detail);
+                $.ajax({
+                    type: "GET",
+                    url:"/api/v3/admin/domain/" + domain_id+ "/details",
+                    success: function (data) {
+                        $('#status-detail-'+domain_id).html(data.detail.replace(/\"/g,''));
+                        $('#status-description-'+domain_id).html(data.description);
+                    }
+                })
                 actionsDomainDetail();
                 setDomainDetailButtonsStatus(domain_id,row.data().status,row.data().server)
                 setDomainHotplug(domain_id);
