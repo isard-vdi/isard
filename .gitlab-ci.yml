@@ -41,7 +41,9 @@ check-frontend:
 
 check-protobuf:
   stage: lint
-  image: bufbuild/buf:1.15.0
+  image:
+    name: bufbuild/buf:1.15.0
+    entrypoint: [""]
   script:
     - buf lint
     # TODO: Add the breaking check
