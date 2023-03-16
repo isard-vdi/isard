@@ -155,7 +155,7 @@ def api_v3_persistent_desktop_new(payload):
     try:
         data = request.get_json(force=True)
     except:
-        Error(
+        raise Error(
             "bad_request",
             "Desktop persistent add incorrect body data",
             traceback.format_exc(),
@@ -164,24 +164,27 @@ def api_v3_persistent_desktop_new(payload):
 
     data = _validate_item("desktop_from_template", data)
     template = templates.Get(data["template_id"])
-    desktops.check_viewers(data["guest_properties"]["viewers"], data["hardware"])
+
+    data["description"] = data.get("description", template["description"])
+
+    desktop = desktops.check_viewers(data, template)
+
     allowed.is_allowed(payload, template, "domains")
     quotas.desktop_create(payload["user_id"])
     check_user_duplicated_domain_name(
-        data["name"],
+        desktop["name"],
         payload["user_id"],
     )
-
     desktops.NewFromTemplate(
-        desktop_name=data["name"],
-        desktop_description=data["description"],
-        template_id=data["template_id"],
+        desktop_name=desktop["name"],
+        desktop_description=desktop["description"],
+        template_id=desktop["template_id"],
         user_id=payload["user_id"],
-        new_data=data,
-        image=data.get("image"),
-        domain_id=data["id"],
+        new_data=desktop,
+        image=desktop.get("image"),
+        domain_id=desktop["id"],
     )
-    return json.dumps({"id": data["id"]}), 200, {"Content-Type": "application/json"}
+    return json.dumps({"id": desktop["id"]}), 200, {"Content-Type": "application/json"}
 
 
 # Bulk desktops action
@@ -282,8 +285,8 @@ def api_v3_domain_edit(payload, domain_id):
             traceback.format_exc(),
         )
 
-    if data.get("guest_properties"):
-        desktops.check_viewers(data["guest_properties"]["viewers"], data["hardware"])
+    desktops.check_viewers(data, desktop)
+
     admin_or_manager = True if payload["role_id"] in ["manager", "admin"] else False
     desktops.Update(domain_id, data, admin_or_manager)
     return (

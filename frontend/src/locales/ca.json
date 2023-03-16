@@ -923,7 +923,8 @@
         "only_works_rdp":  "Mode 'Only GPU' només funciona amb visors RDP",
         "current_plan_doesnt_match": "No hi ha cap GPU disponible amb el perfil de l'escriptori",
         "needs_deployment_booking": "Ara mateix no es pot iniciar l'escriptori, contacta amb el propietari d'aquest desplegament perquè creï una reserva",
-        "not_enough_advanced_time": "No hi ha suficient antelació per iniciar l'escriptori"
+        "not_enough_advanced_time": "No hi ha suficient antelació per iniciar l'escriptori",
+        "one_viewer_minimum": "S'ha de seleccionar un visor com a mínim"
     },
     "messages": {
         "title": {

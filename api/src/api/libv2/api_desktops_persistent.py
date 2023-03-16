@@ -153,10 +153,6 @@ class ApiDesktopsPersistent:
                     "reservables"
                 ]
                 template["create_dict"]["hardware"].pop("reservables")
-        else:
-            template["create_dict"]["hardware"]["memory"] = (
-                template["create_dict"]["hardware"]["memory"] / 1048576
-            )
 
         parent_disk = template["hardware"]["disks"][0]["file"]
         create_dict = template["create_dict"]
@@ -223,7 +219,7 @@ class ApiDesktopsPersistent:
         new_desktop["create_dict"]["hardware"]["memory"] = (
             int(new_data["hardware"]["memory"] * 1048576)
             if new_data and new_data.get("hardware", {}).get("memory")
-            else int(template["create_dict"]["hardware"]["memory"] * 1048576)
+            else int(template["create_dict"]["hardware"]["memory"])
         )
 
         if create_dict.get("reservables"):
@@ -642,7 +638,43 @@ class ApiDesktopsPersistent:
             .run(db.conn)
         )
 
-    def check_viewers(self, viewers, hardware):
+    def check_viewers(self, data, domain):
+        if data.get("guest_properties", {}).get("viewers") == None:
+            data["guest_properties"] = domain["guest_properties"]
+        elif not data.get("guest_properties", {}).get("viewers"):
+            raise Error(
+                "bad_request",
+                "At least one viewer must be selected.",
+                traceback.format_exc(),
+                description_code="one_viewer_minimum",
+            )
+        hardware = {}
+        if not data.get("hardware", {}).get("videos") or not data.get(
+            "hardware", {}
+        ).get("interfaces"):
+            viewers_hardware = {}
+            if not data.get("hardware", {}).get("videos"):
+                viewers_hardware["videos"] = domain["create_dict"]["hardware"]["videos"]
+            else:
+                viewers_hardware["videos"] = data["hardware"]["videos"]
+
+            if data.get("hardware", {}).get("interfaces") == None:
+                data["hardware"] = {
+                    "interfaces": domain["create_dict"]["hardware"]["interfaces"]
+                }
+                viewers_hardware["interfaces"] = []
+            elif not data.get("hardware", {}).get("interfaces"):
+                data["hardware"] = {"interfaces": []}
+                viewers_hardware["interfaces"] = []
+            else:
+                viewers_hardware["interfaces"] = data["hardware"]["interfaces"]
+
+            hardware = viewers_hardware
+        else:
+            hardware = data["hardware"]
+
+        viewers = data["guest_properties"]["viewers"]
+
         if (
             viewers.get("file_rdpgw")
             or viewers.get("browser_rdp")
@@ -669,6 +701,8 @@ class ApiDesktopsPersistent:
                 traceback.format_exc(),
                 description_code="only_works_rdp",
             )
+
+        return data
 
     def check_current_plan(self, payload, desktop_id):
         fromDate = datetime.now(timezone.utc)
