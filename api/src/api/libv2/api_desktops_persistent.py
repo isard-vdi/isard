@@ -667,8 +667,10 @@ class ApiDesktopsPersistent:
                 data["hardware"] = {
                     "interfaces": domain["create_dict"]["hardware"]["interfaces"]
                 }
-                viewers_hardware["interfaces"] = []
-            elif not data.get("hardware", {}).get("interfaces"):
+                viewers_hardware["interfaces"] = domain["create_dict"]["hardware"][
+                    "interfaces"
+                ]
+            elif data.get("hardware", {}).get("interfaces") == []:
                 data["hardware"] = {"interfaces": []}
                 viewers_hardware["interfaces"] = []
             else:
@@ -684,7 +686,10 @@ class ApiDesktopsPersistent:
             viewers.get("file_rdpgw")
             or viewers.get("browser_rdp")
             or viewers.get("file_rdpvpn")
-        ) and "wireguard" not in hardware["interfaces"]:
+        ) and (
+            "wireguard" not in hardware["interfaces"]
+            or hardware.get("interfaces") == []
+        ):
             raise Error(
                 "bad_request",
                 "RDP viewers need the wireguard network. Please add wireguard network to this desktop or remove RDP viewers.",
