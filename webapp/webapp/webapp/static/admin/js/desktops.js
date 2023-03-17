@@ -11,6 +11,7 @@ $('#global_actions').css('display','block');
 // Sort by Last Access in Desktops table
 order=15
 
+opened_row=null
 columns= [
     {
         "className": 'details-control',
@@ -508,6 +509,7 @@ $(document).ready(function() {
 
         if ( row.child.isShown() ) {
             // This row is already open - close it
+            opened_row=null;
             row.child.hide();
             tr.removeClass('shown');
         }
@@ -530,6 +532,7 @@ $(document).ready(function() {
                         });
              }else{
                 // Open this row
+                opened_row=row
                 row.child( addDomainDetailPannel(row.data()) ).show();
                 tr.addClass('shown');
                 $.ajax({
@@ -541,7 +544,7 @@ $(document).ready(function() {
                     }
                 })
                 actionsDomainDetail();
-                setDomainDetailButtonsStatus(domain_id,row.data().status,row.data().server)
+                setDomainDetailButtonsStatus(domain_id,row.data(),{})
                 setDomainHotplug(domain_id);
                 setHardwareDomainDefaults_viewer(domain_id);
                 setDomainStorage(domain_id)
@@ -711,9 +714,11 @@ function socketio_on(){
                 viewerButtonsIP(data.id,data['viewer']['guest_ip'])
             }
         }
+        if(opened_row != null && opened_row.data().id == data.id && opened_row.data().status != data.status){
+            setDomainDetailButtonsStatus(data.id, data, opened_row);
+        }
         data = {...domains_table.row("#"+data.id).data(),...data}
         dtUpdateInsert(domains_table,data,false);
-        setDomainDetailButtonsStatus(data.id, data.status, data.server);
         $('#domains tr.active .form-check-input').prop("checked", true);
     });
 
@@ -1268,16 +1273,27 @@ function addDomainDetailPannel ( d ) {
         return $newPanel
 }
 
-function setDomainDetailButtonsStatus(id,status,server){
-    if(status=='Started' || status=='Starting' || status == 'Shutting-down'){
-        $('#actions-'+id+' *[class^="btn"]').prop('disabled', true);
-        $('#actions-'+id+' .btn-jumperurl').prop('disabled', false);
-    }else{
-        $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
+disabled_status=['Starting','Started','Shutting-down','Stopping']
+function setDomainDetailButtonsStatus(id,data,old_data){
+    if(old_data.status != data.server){
+        $('#actions-'+id+' .btn-server').prop('disabled', data.server);
     }
-    $('#actions-'+id+' .btn-server').prop('disabled', false);
-    if (server) {
-        $('#actions-'+id+' .btn-template').prop('disabled', true);
+    if(old_data.status != data.status){
+        if(disabled_status.includes(old_data.status) && disabled_status.includes(data.status)){
+            return
+        }
+        if( ! old_data.status in ['Starting','Started','Shutting-down','Stopping'] && ! disabled_status.includes(data.status)){
+            console.log("no change transitional")
+            return
+        }
+        if(disabled_status.includes(data.status)){
+            console.log("in array")
+            $('#actions-'+id+' *[class^="btn"]').prop('disabled', true);
+            $('#actions-'+id+' .btn-jumperurl').prop('disabled', false);
+        }else{
+            console.log("not in array")
+            $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
+        }
     }
 }
 
