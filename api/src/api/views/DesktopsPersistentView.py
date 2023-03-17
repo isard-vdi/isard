@@ -229,6 +229,56 @@ def api_v3_desktop_from_media(payload):
     return json.dumps({"id": desktop_id}), 200, {"Content-Type": "application/json"}
 
 
+@app.route("/api/v3/domain/<domain_id>/without_updating", methods=["PUT"])
+@has_token
+def api_v3_domain_edit_without_updating(payload, domain_id):
+    try:
+        data = request.get_json(force=True)
+    except:
+        raise Error(
+            "bad_request",
+            "Desktop edit incorrect body data",
+            traceback.format_exc(),
+            description_code="desktop_incorrect_body_data",
+        )
+
+    fields_allowed = ["server", "forced_hyp", "favourite_hyp"]
+    for d in data.keys():
+        if d not in fields_allowed:
+            raise Error(
+                "bad_request",
+                "Desktop edit without updating incorrect body data. Only server, forced_hyp and favourite_hyp are allowed",
+                traceback.format_exc(),
+                description_code="desktop_incorrect_body_data",
+            )
+
+    data["id"] = domain_id
+    data = _validate_item("desktop_update", data)
+
+    ownsDomainId(payload, domain_id)
+    if payload["role_id"] not in ["admin", "manager"]:
+        raise Error(
+            "forbidden",
+            "Only administrators and managers can edit this desktop parameters",
+            traceback.format_exc(),
+        )
+    desktop = desktops.Get(desktop_id=domain_id)
+
+    if not "server" in data and desktop.get("status") not in ["Failed", "Stopped"]:
+        raise Error(
+            "precondition_required",
+            "Desktops only can be edited when stopped or failed",
+            traceback.format_exc(),
+        )
+
+    desktops.Update(domain_id, data, admin_or_manager=True)
+    return (
+        json.dumps(data),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
 @app.route("/api/v3/domain/<domain_id>", methods=["PUT"])
 @has_token
 def api_v3_domain_edit(payload, domain_id):
