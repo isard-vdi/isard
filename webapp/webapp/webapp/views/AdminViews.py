@@ -75,7 +75,7 @@ def login(category="default"):
         login_user(user)
         flash("Authenticated via backend.", "success")
         return render_template(
-            "admin/pages/domains.html",
+            "admin/pages/desktops.html",
             title="Desktops",
             nav="Desktops",
             icon="desktops",
