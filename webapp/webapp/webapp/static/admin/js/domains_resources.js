@@ -581,7 +581,7 @@ $(document).ready(function () {
             }
         }
         if ($('#kind').val() == 'personal') {
-            $('#ifname_label').html('Input vlan range (2000-3000)')
+            $('#ifname_label').html('Input vlan range (i.e. 2000-3000)')
             $('#ifname').attr('type', 'text').attr('data-parsley-vlanrange', 'true')
         }
     });
