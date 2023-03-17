@@ -135,12 +135,19 @@ $(document).ready(function() {
             // Open this row
             row.child( addDesktopDetailPannel(row.data()) ).show();
             tr.addClass('shown');
-            $('#status-detail-'+row.data().id).html(row.data().detail);
+            $.ajax({
+                type: "GET",
+                url:"/api/v3/admin/domain/" + row.data().id + "/details",
+                success: function (data) {
+                    $('#status-detail-'+row.data().id).html(data.detail);
+                    $('#status-description-'+row.data().id).html(data.description);
+                }
+            })
             actionsDesktopDetail();
             setDesktopDetailButtonsStatus(row.data().id,row.data().status, row.data().server)
             if(row.data().status=='Stopped' || row.data().status=='Started'){
-                setDomainHotplug(row.data().id, row.data());
-                setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data());
+                setDomainHotplug(row.data().id);
+                setHardwareDomainDefaults_viewer(row.data().id);
             }
           }
     } );

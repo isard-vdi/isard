@@ -1,5 +1,5 @@
 var derivates_table =''
-function setDomainHotplug(id,hardware){
+function setDomainHotplug(id){
     hotplug_table=$("#table-hotplug-"+id).DataTable({
         "ajax": {
             "url": "/api/v3/desktops/media_list",

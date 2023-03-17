@@ -144,8 +144,14 @@ def admin_domains(nav="Domains"):
     icon = ""
     if nav == "Desktops":
         icon = "desktop"
+        return render_template(
+            "admin/pages/desktops.html", title=nav, nav=nav, icon=icon
+        )
     if nav == "Templates":
         icon = "cubes"
+        return render_template(
+            "admin/pages/templates.html", title=nav, nav=nav, icon=icon
+        )
     if nav == "Deployments":
         icon = "tv"
         return render_template(
@@ -178,10 +184,7 @@ def admin_domains(nav="Domains"):
         return render_template(
             "admin/pages/bookables_priority.html", title=nav, nav=nav, icon=icon
         )
-    else:
-        return render_template(
-            "admin/pages/domains.html", title=nav, nav=nav, icon=icon
-        )
+    return render_template("admin/pages/desktops.html", title=nav, nav=nav, icon=icon)
 
 
 """

@@ -347,11 +347,12 @@ function dtUpdateInsert(table, data, append){
     //Locate and update rows by rowId or add if new
     }else{
         if(typeof(table.row('#'+data.id).id())=='undefined'){
-            // Does not exists yes
+            // Does not exists yet
             table.row.add(data);
             new_id=true
         }else{
             // Exists, do update
+            data={...table.row("#"+data.id).data(),...data}
             table.row('#'+data.id).data(data).invalidate();
         }
     }

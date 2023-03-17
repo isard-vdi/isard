@@ -5,6 +5,7 @@
 * License: AGPLv3
 */
 
+
 function startClientVpnSocket(socket){
     $('#btn-uservpnconfig').on('click', function () {
         $.ajax({
@@ -29,7 +30,7 @@ function startClientVpnSocket(socket){
     socket.on('vpn', function (data) {
         var data = JSON.parse(data);
         if(data['kind']=='url'){
-            window.open(data['url'], '_blank');            
+            window.open(data['url'], '_blank');
         }
         if(data['kind']=='file'){
             var vpnFile = new Blob([data['content']], {type: data['mime']});
@@ -43,7 +44,18 @@ function startClientVpnSocket(socket){
     });
 }
 
-function setViewerButtons(data,socket,offer){
+
+function setViewerButtons(desktop_id){
+    $.ajax({
+        type: "GET",
+        url:"/api/v3/admin/domain/" + desktop_id + "/viewer_data",
+        // async: false,
+        success: function (resp) {
+            setViewerButtonData(desktop_id,resp)
+        }
+    });
+}
+function setViewerButtonData(desktop_id,data){
     offer=[]
     if ("file_spice" in data["guest_properties"]["viewers"]){
         offer.push({
@@ -116,25 +128,28 @@ function setViewerButtons(data,socket,offer){
                 btntext=disp['type'].toUpperCase()+' Browser'
                 client='browser'
             }
-            html=br+html+prehtml+'<button data-pk="'+data.id+'" data-type="'+disp['type']+'" data-client="'+client+'" data-os="'+getOS()+'" type="button" class="btn '+success+' '+preferred+' btn-viewers" style="width:'+w+'%">'+lock+' '+type+' '+btntext+'</button>'+posthtml+br
+            html=br+html+prehtml+'<button data-pk="'+desktop_id+'" data-type="'+disp['type']+'" data-client="'+client+'" data-os="'+getOS()+'" type="button" class="btn '+success+' '+preferred+' btn-viewers" style="width:'+w+'%">'+lock+' '+type+' '+btntext+'</button>'+posthtml+br
     })
     if (data.create_dict.hardware.interfaces.includes("wireguard")) {
-        html+=prehtml+'<div id="vpn-ip-'+data.id+'" style="width:50% height:2000px"><i class="fa fa-lock"></i> <i class="fa fa-link"></i> Desktop IP (via VPN): </div>'+posthtml
+        if('viewer' in data && 'guest_ip' in data['viewer']){
+            html+=prehtml+'<div id="vpn-ip-'+desktop_id+'" style="width:50% height:2000px"><i class="fa fa-lock"></i> <i class="fa fa-link"></i> Desktop IP (via VPN): '+data['viewer']['guest_ip']+'</div>'+posthtml
+        }else{
+            html+=prehtml+'<div id="vpn-ip-'+desktop_id+'" style="width:50% height:2000px"><i class="fa fa-lock"></i> <i class="fa fa-link"></i> Desktop IP (via VPN): <i class="fa fa-spinner fa-pulse fa-1x fa-fw"></i></div>'+posthtml
+            loading='<i class="fa fa-spinner fa-pulse fa-1x fa-fw"></i>'
+            $('#viewer-buttons button[data-type^="rdp"]').prop("disabled", true).append(loading);
+            $('#vpn-ip-'+desktop_id).append(loading);
+        }
     }
     $('#viewer-buttons').html(html);
-    loading='<i class="fa fa-spinner fa-pulse fa-1x fa-fw"></i>'
-    $('#viewer-buttons button[data-type^="rdp"]').prop("disabled", true).append(loading);
-    $('#vpn-ip-'+data.id).append(loading);
     $('#viewer-buttons .btn-viewers').on('click', function () {
         if($('#chk-viewers').iCheck('update')[0].checked){
             preferred=true
         }else{
             preferred=false
         }
-        console.log($(this).data('type')+'-'+$(this).data('client'))
         $.ajax({
             type: "GET",
-            url:"/api/v3/desktop/" + $(this).data('pk') + "/viewer/" + $(this).data('client') + "-" + $(this).data('type'),
+            url:"/api/v3/desktop/" + desktop_id + "/viewer/" + $(this).data('client') + "-" + $(this).data('type'),
             success: function (data) {
                 var el = document.createElement('a')
                 if (data.kind === 'file') {
@@ -157,7 +172,7 @@ function setViewerButtons(data,socket,offer){
                 document.body.removeChild(el)
             }
         })
-        $("#modalOpenViewer").modal('hide');        
+        $("#modalOpenViewer").modal('hide');
     });
 }
 

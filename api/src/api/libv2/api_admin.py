@@ -405,6 +405,38 @@ def change_item_owner(table, item_id, new_user_id="admin"):
 
 
 class ApiAdmin:
+    def DesktopViewerData(self, desktop_id):
+        with app.app_context():
+            desktop_viewer = (
+                r.table("domains")
+                .get(desktop_id)
+                .pluck(
+                    "guest_properties", "create_dict", {"viewer": {"guest_ip": True}}
+                )
+                .run(db.conn)
+            )
+        return desktop_viewer
+
+    def DeploymentViewerData(self, deployment_id):
+        with app.app_context():
+            desktop_viewer = (
+                r.table("deployments")
+                .get(deployment_id)
+                .pluck("create_dict")
+                .run(db.conn)
+            )
+        return desktop_viewer
+
+    def DesktopDetailsData(self, desktop_id):
+        with app.app_context():
+            desktop_viewer = (
+                r.table("domains")
+                .get(desktop_id)
+                .pluck("detail", "description")
+                .run(db.conn)
+            )
+        return desktop_viewer
+
     def ListDesktops(self, category_id):
         try:
             with app.app_context():
@@ -434,26 +466,22 @@ class ApiAdmin:
                         {
                             "right": [
                                 "id",
-                                "create_dict",
-                                "viewer",
+                                {
+                                    "create_dict": {
+                                        "reservables": True,
+                                        "hardware": {"vcpus": True, "memory": True},
+                                    }
+                                },
+                                {"image": {"url": True}},
                                 "kind",
-                                "group",
-                                "icon",
-                                "image",
                                 "server",
                                 "hyp_started",
                                 "name",
-                                "description",
                                 "status",
-                                "user",
                                 "username",
-                                "category",
-                                "guest_properties",
                                 "accessed",
-                                "detail",
                                 "forced_hyp",
                                 "favourite_hyp",
-                                "os",
                                 "booking_id",
                             ],
                             "left": ["group_name", "category_name"],

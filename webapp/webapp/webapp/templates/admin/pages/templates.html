@@ -17,41 +17,19 @@
          <div class="x_title">
             <h3><i class="fa fa-{{icon}}"></i> Admin {{ nav }} <small>You have the power</small></h3>
             <ul class="nav navbar-right panel_toolbox">
-               {% if nav == "Desktops" %}
-                  <li>
-                     <a class="btn-add-desktop">
-                        <span style="color: #5499c7; ">
-                           <i class="fa fa-plus"></i>
-                           Bulk Desktops</span>
+               <li>
+                  <a class="btn-disabled" view="false" >
+
+                     <span style="color: #5499c7; display: none;" id="view-disabled">
+                        <i class="fa fa-eye"></i>
+                        View Disabled</span>
+
+                        <span style="color: #5499c7;" id="hide-disabled">
+                           <i class="fa fa-eye-slash"></i>
+                           Hide Disabled</span>
                      </a>
-                  </li>
-               {% endif %}
-               {% if nav == "Templates" %}
-                  <li>
-                     <a class="btn-disabled" view="false" >
-
-                        <span style="color: #5499c7; display: none;" id="view-disabled">
-                           <i class="fa fa-eye"></i>
-                           View Disabled</span>
-
-                           <span style="color: #5499c7;" id="hide-disabled">
-                              <i class="fa fa-eye-slash"></i>
-                              Hide Disabled</span>
-                        </a>
-                     </a>
-                  </li>
-               {% endif %}
-
-               <!--<li>
-                  <a class="btn btn-app add-new-media" style="background-color:#F5FFDC;">
-                     <i class="fa fa-circle-o"></i> New from ISO
                   </a>
-               </li>-->
-               <!--<li>
-                  <a class="btn btn-app add-new-virtbuilder"  style="background-color:#F5FFDC;">
-                     <i class="fa fa-wrench"></i> New From Builder
-                  </a>
-               </li>-->
+               </li>
             </ul>
             <div class="clearfix"></div>
          </div>
@@ -87,38 +65,17 @@
                         <th rowspan="2">Icon</th>
                         <th rowspan="2">Name</th>
                         <th rowspan="2">Description</th>
-                        {% if nav == "Desktops" %}
-                           <th rowspan="2">Status</th>
-                           <th rowspan="2">Action</th>
-                           <th rowspan="2">RAM(GB)</th>
-                           <th rowspan="2">vCPUs</th>
-                        {% endif %}
                         <th rowspan="2">User</th>
                         <th rowspan="2">Category</th>
                         <th rowspan="2">Group</th>
-                        {% if nav == "Desktops" %}
-                           <th rowspan="2">Server</th>
-                        {% endif %}
-                        {% if nav == "Templates" %}
                            <th colspan="2" class="text-center">Hypervisor</th>
-                        {% elif nav == "Desktops" %}
-                           <th colspan="3" class="text-center">Hypervisor</th>
-                        {% endif %}
-                        {% if nav!="Desktops" %}
                            <th rowspan="2">Enabled</th>
                            <th rowspan="2">Derivates</th>
                            <th rowspan="2">Shares</th>
-                        {% endif %}
                         <th rowspan="2">Last Access</th>
-                        {% if nav == "Desktops" %}
-                           <th rowspan="2">Selected</th>
-                        {% endif %}
                         <th rowspan="2">Id</th>
                      </tr>
                      <tr>
-                        {% if nav == "Desktops" %}
-                           <th>Started</th>
-                        {% endif %}
                         <th>Favourite</th>
                         <th>Forced</th>
                      </tr>
@@ -131,32 +88,15 @@
                         <th>Icon</th>
                         <th>Name</th>
                         <th>Description</th>
-                        {% if nav == "Desktops" %}
-                           <th>Status</th>
-                           <th>Action</th>
-                           <th>RAM(GB)</th>
-                           <th>vCPUs</th>
-                        {% endif %}
                         <th>User</th>
                         <th>Category</th>
                         <th>Group</th>
-                        {% if nav == "Desktops" %}
-                           <th>Server</th>
-                        {% endif %}
-                        {% if nav == "Desktops" %}
-                           <th>Started Hyper</th>
-                        {% endif %}
                         <th>Fav Hyper</th>
                         <th>Forced Hyper</th>
-                        {% if nav!="Desktops" %}
                            <th>Enabled</th>
                            <th>Derivates</th>
                            <th>Shares</th>
-                        {% endif %}
                         <th>Last Access</th>
-                        {% if nav == "Desktops" %}
-                           <th>Selected</th>
-                        {% endif %}
                         <th>Id</th>
                      </tr>
                   </tfoot>
@@ -188,6 +128,6 @@
    <script src="/isard-admin/static/js/viewer.js"></script> 
    <!-- Domains sse & hardware subtables -->  
    <script src="/isard-admin/static/js/snippets/desktop_add.js"></script> 
-   <script src="/isard-admin/static/admin/js/domains.js"></script>
+   <script src="/isard-admin/static/admin/js/templates.js"></script>
    <!--<script src="/isard-admin/static/admin/js/domains_subtables.js"></script>-->
 {% endblock %}

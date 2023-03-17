@@ -7,16 +7,13 @@
 
 var href = location.href;
 url=href.match(/([^\/]*)\/*$/)[1];
-if (url!="Desktops") {
-    kind='template'
-} else {
-    $('#global_actions').css('display','block');
-    kind='desktop'
-}
-
+$('#global_actions').css('display','block');
 // Sort by Last Access in Desktops table
 order=15
 
+loading_events=[]
+deleted_events=[]
+opened_row=null
 columns= [
     {
         "className": 'details-control',
@@ -26,7 +23,6 @@ columns= [
     },
     { "data": "icon" },
     { "data": "name"},
-    { "data": "description"},
     { "data": "status"},
     { "data": null, "className": 'viewer',},
     { "data": "ram"},
@@ -61,24 +57,24 @@ columnDefs = [
             return  renderBooking(full.create_dict.reservables, booking_id) + "<img src='"+img_url+"' width='50px'>"
         }
     },{
-        "targets": 4,
+        "targets": 3,
         "render": function (data, type, full, meta) {
             return renderStatus(full)
         }
     },{
-        "targets": 5,
+        "targets": 4,
         "width": "100px",
         "render": function (data, type, full, meta) {
             return renderAction(full) + renderDisplay(full)
         }
     },{
-        "targets": 6,
+        "targets": 5,
         "width": "100px",
         "render": function (data, type, full, meta) {
             return (full.create_dict.hardware.memory / 1024 / 1024).toFixed(2) + "GB"
         }
     },{
-        "targets": 11,
+        "targets": 10,
         "render": function (data, type, full, meta) {
             if('server' in full){
                 if(full["server"] == true){
@@ -91,7 +87,7 @@ columnDefs = [
             }
         }
     },{
-        "targets": 12,
+        "targets": 11,
         "render": function (data, type, full, meta) {
             if('hyp_started' in full && full.hyp_started != ''){
                 return full.hyp_started;
@@ -100,7 +96,7 @@ columnDefs = [
             }
         }
     },{
-        "targets": 13,
+        "targets": 12,
         "render": function (data, type, full, meta) {
             if('favourite_hyp' in full && full.favourite_hyp != ''){ 
                 return full.favourite_hyp;
@@ -109,7 +105,7 @@ columnDefs = [
             }
         }
     },{
-        "targets": 14,
+        "targets": 13,
         "render": function (data, type, full, meta) {
             if('forced_hyp' in full && full.forced_hyp != ''){
                 return full.forced_hyp;
@@ -118,7 +114,7 @@ columnDefs = [
             }
         }
     },{
-        "targets": 15,
+        "targets": 14,
         "render": function (data, type, full, meta) {
             if ( type === 'display' || type === 'filter' ) {
                 return moment.unix(full.accessed).fromNow()
@@ -128,62 +124,6 @@ columnDefs = [
     }
 ]
 
-// Templates table render
-if(url!="Desktops"){
-    // Remove Select column (used for bulk actions)
-    columns.splice(16, 1)
-    // Remove Server column
-    columns.splice(11, 1)
-    // Remove Started Hyper column
-    columns.splice(11, 1)
-    // Remove Status, Action, Memory(GB) and VCPUs columns
-    columns.splice(4, 4)
-    // Add Enabled, Derivates and Shared columns
-    columns.splice(
-        9,
-        0,
-        {
-            "data": 'enabled',
-            "className": 'text-center',
-            "orderable": false,
-            "defaultContent": '<input type="checkbox" class="form-check-input" checked></input>'
-        },
-        {"data": "derivates", "width": "2px"},
-        {"defaultContent": '<button id="btn-alloweds" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button>'},
-    );
-    // Remove custom rendering of Status, Action, Memory(GB), Server and Started Hyper columns
-    columnDefs.splice(1, 5)
-    // Change custom render target of Favourite Hyper, Forced Hyper and Last Access columns
-    columnDefs[1]["targets"]=7
-    columnDefs[2]["targets"]=8
-    columnDefs[3]["targets"]=12
-    // Add rendering of Enabled column 
-    columnDefs.push({
-        "targets": 9,
-        "render": function ( data, type, full, meta ) {
-            if( full.enabled ){
-                return '<input id="chk-enabled" type="checkbox" class="form-check-input" checked></input><span style="display: none;">' + data + '</span>'
-            }else{
-                return '<input id="chk-enabled" type="checkbox" class="form-check-input"></input><span style="display: none;">' +data + '</span>'
-            }
-        }
-    })
-    // Sort by Last Access in Templates table
-    order = 12;
-
-    $.fn.dataTable.ext.search.push(function (settings, searchData, index, rowData, counter ) {
-            search_val = $('.panel_toolbox .btn-disabled').attr('view')
-            if (search_val == 'false') {
-                return true;
-            }
-            else if (
-               searchData[9] == search_val
-            ) {
-                return true;
-            }
-            return false;
-    });
-}
 
 $(document).ready(function() {
     $('.admin-status').show()
@@ -396,57 +336,6 @@ $(document).ready(function() {
         })
     });
 
-    $("#modalDuplicateTemplate #send").on('click', function(e){
-        var form = $('#modalDuplicateTemplateForm');
-        form.parsley().validate();
-        if (form.parsley().isValid()){
-            data=$('#modalDuplicateTemplateForm').serializeObject();
-            data=replaceAlloweds_arrays('#modalDuplicateTemplateForm #alloweds-add',data)
-            sent_data = {"name": data.name,
-                        "description": data.description,
-                        "enabled": $('#modalDuplicateTemplateForm #enabled').prop('checked'),
-                        "allowed": data.allowed,
-                        ...("user_id" in data) && {"user_id": data["user_id"]}}
-            var notice = new PNotify({
-                text: 'Duplicating template...',
-                hide: false,
-                opacity: 1,
-                icon: 'fa fa-spinner fa-pulse'
-            })
-            $.ajax({
-                type: 'POST',
-                url: '/api/v3/template/duplicate/'+data.id,
-                data: JSON.stringify(sent_data),
-                contentType: 'application/json',
-                error: function(data) {
-                    notice.update({
-                        title: 'ERROR duplicating template',
-                        text: data.responseJSON.description,
-                        type: 'error',
-                        hide: true,
-                        icon: 'fa fa-warning',
-                        delay: 5000,
-                        opacity: 1
-                    })
-                },
-                success: function(data) {
-                    domains_table.ajax.reload()
-                    $('form').each(function() { this.reset() });
-                    $('.modal').modal('hide');
-                    notice.update({
-                        title: 'Duplicated',
-                        text: 'Template duplicated successfully',
-                        hide: true,
-                        delay: 2000,
-                        icon: 'fa fa-' + data.icon,
-                        opacity: 1,
-                        type: 'success'
-                    })
-                }
-            })
-        }
-    });
-
     // Setup - add a text input to each footer cell
     $('#domains tfoot th').each( function () {
         var title = $(this).text();
@@ -462,7 +351,18 @@ $(document).ready(function() {
             "url": "/admin/domains",
             "type": "GET",
             "dataSrc":'',
-            "data": { 'kind': kind, 'category_id': $('meta[id=user_data]').attr('data-role') == 'manager' ? $('meta[id=user_data]').attr('data-categoryid') : null }
+            "data": { 'kind': "desktop", 'category_id': $('meta[id=user_data]').attr('data-role') == 'manager' ? $('meta[id=user_data]').attr('data-categoryid') : null }
+        },
+        "initComplete": function(settings, json) {
+            $.each(deleted_events, function( index, value ) {
+                domains_table.row('#'+value.id).remove().draw();
+            })
+            deleted_events=[]
+            $.each(loading_events, function( index, value ) {
+                data = {...domains_table.row("#"+value.id).data(),...value}
+                dtUpdateInsert(domains_table, data, false)
+            })
+            loading_events=[]
         },
         "language": {
             "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
@@ -514,9 +414,7 @@ $(document).ready(function() {
     });
 
     domains_table.on( 'click', 'tr[role="row"]', function (e) {
-        if (kind =='desktop') {
             toggleRow(this, e);
-        }
      });
 
     // Bulk actions
@@ -620,9 +518,11 @@ $(document).ready(function() {
     $('#domains').find('tbody').on('click', 'td.details-control', function () {
         var tr = $(this).closest('tr');
         var row = domains_table.row( tr );
+        domain_id=row.data().id
 
         if ( row.child.isShown() ) {
             // This row is already open - close it
+            opened_row=null;
             row.child.hide();
             tr.removeClass('shown');
         }
@@ -645,17 +545,22 @@ $(document).ready(function() {
                         });
              }else{
                 // Open this row
+                opened_row=row
                 row.child( addDomainDetailPannel(row.data()) ).show();
                 tr.addClass('shown');
-                $('#status-detail-'+row.data().id).html(row.data().detail);
+                $.ajax({
+                    type: "GET",
+                    url:"/api/v3/admin/domain/" + domain_id+ "/details",
+                    success: function (data) {
+                        $('#status-detail-'+domain_id).html(data.detail.replace(/\"/g,''));
+                        $('#status-description-'+domain_id).html(data.description);
+                    }
+                })
                 actionsDomainDetail();
-                setDomainDetailButtonsStatus(row.data().id,row.data().status,row.data().server)
-                setDomainHotplug(row.data().id, row.data());
-                setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data());
-                setDomainStorage(row.data().id)
-                if(kind!="desktop"){
-                    setAlloweds_viewer('#alloweds-'+row.data().id,row.data().id);
-                }
+                setDomainDetailButtonsStatus(domain_id,row.data(),{})
+                setDomainHotplug(domain_id);
+                setHardwareDomainDefaults_viewer(domain_id);
+                setDomainStorage(domain_id)
             }
         }
     } );
@@ -749,8 +654,6 @@ $(document).ready(function() {
 	// DataTable buttons
     $('#domains tbody').on( 'click', 'button', function () {
         var data = domains_table.row( $(this).parents('tr') ).data();
-        var reservables = data['create_dict']['reservables']
-        var desktop_id = data['id']
         switch($(this).attr('id')){
             case 'btn-play':
                 if($('.quota-play .perc').text() >=100){
@@ -764,7 +667,13 @@ $(document).ready(function() {
                             type: 'error'
                         });
                 }else{
-                    checkReservablesAndStart(reservables, desktop_id, data['booking_id'])
+                    $.ajax({
+                        type: "GET",
+                        url:"/api/v3/admin/domain/" + data['id'] + "/viewer_data",
+                        success: function (resp) {
+                            checkReservablesAndStart(resp.create_dict.reservables, data['id'], data['booking_id'])
+                        }
+                    });
                 }
                 break;
             case 'btn-stop':
@@ -778,7 +687,7 @@ $(document).ready(function() {
             case 'btn-display':
                 new PNotify({
                         title: 'Connect to user viewer!',
-                            text: "By connecting to desktop "+ name+" you will disconnect and gain access to that user current desktop.\n\n \
+                            text: "By connecting to desktop "+ data["name"]+" you will disconnect and gain access to that user current desktop.\n\n \
                                    Please, think twice before doing this as it could be illegal depending on your relation with the user. \n\n ",
                             hide: false,
                             opacity: 0.9,
@@ -794,11 +703,7 @@ $(document).ready(function() {
                             },
                             addclass: 'pnotify-center'
                         }).get().on('pnotify.confirm', function() {
-                            setViewerButtons(data,socket);
-
-                            if('viewer' in data && 'guest_ip' in data['viewer']){
-                                viewerButtonsIP(data.id,data['viewer']['guest_ip'])
-                            }
+                            setViewerButtons(data.id)
                             $('#modalOpenViewer').modal({
                                 backdrop: 'static',
                                 keyboard: false
@@ -815,32 +720,41 @@ $(document).ready(function() {
 })
 function socketio_on(){
     startClientVpnSocket(socket)
-    socket.on(kind+'_data', function(data){
+    socket.on('desktop_data', function(data){
         var data = JSON.parse(data);
-        if(data.status =='Started' && 'viewer' in data && 'guest_ip' in data['viewer']){
-            if(!('viewer' in domains_table.row('#'+data.id).data()) || !('guest_ip' in domains_table.row('#'+data.id).data())){
-                //console.log('NEW IP ARRIVED!: '+data['viewer']['guest_ip'])
-                viewerButtonsIP(data.id,data['viewer']['guest_ip'])
+        if(typeof(domains_table.row('#'+data.id).id())=='undefined'){
+            loading_events.push(data)
+        }else{
+            if(data.status =='Started' && 'viewer' in data && 'guest_ip' in data['viewer']){
+                if(!('viewer' in domains_table.row('#'+data.id).data()) || !('guest_ip' in domains_table.row('#'+data.id).data())){
+                    viewerButtonsIP(data.id,data['viewer']['guest_ip'])
+                }
             }
+            if(opened_row != null && opened_row.data().id == data.id && opened_row.data().status != data.status){
+                setDomainDetailButtonsStatus(data.id, data, opened_row);
+            }
+            data = {...domains_table.row("#"+data.id).data(),...data}
+            dtUpdateInsert(domains_table,data,false);
+            $('#domains tr.active .form-check-input').prop("checked", true);
         }
-        data = {...domains_table.row("#"+data.id).data(),...data}
-        dtUpdateInsert(domains_table,data,false);
-        setDomainDetailButtonsStatus(data.id, data.status, data.server);
-        $('#domains tr.active .form-check-input').prop("checked", true);
     });
 
-    socket.on(kind+'_delete', function(data){
+    socket.on('desktop_delete', function(data){
         var data = JSON.parse(data);
-        var row = domains_table.row('#'+data.id).remove().draw();
-        new PNotify({
-                title: kind+" deleted",
-                text: kind+" "+data.name+" has been deleted",
-                hide: true,
-                delay: 4000,
-                icon: 'fa fa-success',
-                opacity: 1,
-                type: 'success'
-        });
+        if(typeof(domains_table.row('#'+data.id).id())=='undefined'){
+            deleted_events.push(data)
+        }else{
+            domains_table.row('#'+data.id).remove().draw();
+            new PNotify({
+                    title: "Desktop deleted",
+                    text: "Desktop "+data.name+" has been deleted",
+                    hide: true,
+                    delay: 4000,
+                    icon: 'fa fa-success',
+                    opacity: 1,
+                    type: 'success'
+            });
+        }
     });
 
     socket.on ('result', function (data) {
@@ -975,10 +889,9 @@ function actionsDomainDetail(){
                 }
             }
         });
-});
+    });
 
-    if(kind=="desktop"){
-        $('.btn-delete-template').remove()
+    $('.btn-delete-template').remove()
 
     $('.btn-template').on('click', function () {
         if($('.quota-templates .perc').text() >=100){
@@ -1006,66 +919,29 @@ function actionsDomainDetail(){
     });
 
     $('.btn-delete').on('click', function () {
-                    var pk=$(this).closest("[data-pk]").attr("data-pk");
-                    var name=$(this).closest("[data-pk]").attr("data-name");
-                    new PNotify({
-                            title: 'Confirmation Needed',
-                                text: "Are you sure you want to delete virtual machine: "+name+"?",
-                                hide: false,
-                                opacity: 0.9,
-                                confirm: {
-                                    confirm: true
-                                },
-                                buttons: {
-                                    closer: false,
-                                    sticker: false
-                                },
-                                history: {
-                                    history: false
-                                },
-                                addclass: 'pnotify-center'
-                            }).get().on('pnotify.confirm', function() {
-                                api.ajax('/api/v3/desktop/' + pk, 'DELETE').done(function() {});
-                            }).on('pnotify.cancel', function() {
-                    });
+        var pk=$(this).closest("[data-pk]").attr("data-pk");
+        var name=$(this).closest("[data-pk]").attr("data-name");
+        new PNotify({
+            title: 'Confirmation Needed',
+                text: "Are you sure you want to delete virtual machine: "+name+"?",
+                hide: false,
+                opacity: 0.9,
+                confirm: {
+                    confirm: true
+                },
+                buttons: {
+                    closer: false,
+                    sticker: false
+                },
+                history: {
+                    history: false
+                },
+                addclass: 'pnotify-center'
+            }).get().on('pnotify.confirm', function() {
+                api.ajax('/api/v3/desktop/' + pk, 'DELETE').done(function() {});
+            }).on('pnotify.cancel', function() {
         });
-    }else{
-        $('.btn-delete').remove()
-        $('.btn-template').remove()
-
-        $('.btn-delete-template').on('click', function () {
-            var pk = $(this).closest("[data-pk]").attr("data-pk")
-            $('#modalDeleteTemplate').modal({
-                backdrop: 'static',
-                keyboard: false
-            }).modal('show');
-            populate_tree_template_delete(pk);
-        });
-
-    $('.btn-duplicate-template').on('click', function () {
-        if($('.quota-templates .perc').text() >=100){
-            new PNotify({
-                title: "Quota for creating templates full.",
-                text: "Can't create another template, quota full.",
-                hide: true,
-                delay: 3000,
-                icon: 'fa fa-alert-sign',
-                opacity: 1,
-                type: 'error'
-            });
-        }else{
-            var pk=$(this).closest("[data-pk]").attr("data-pk");
-            setDefaultsTemplate(pk);
-            populate_users();
-            $('#modalDuplicateTemplate').modal({
-                backdrop: 'static',
-                keyboard: false
-            }).modal('show');
-            setAlloweds_add('#modalDuplicateTemplate #alloweds-add');
-        }
     });
-    }
-
 
     $('.btn-jumperurl').on('click', function () {
         var pk=$(this).closest("[data-pk]").attr("data-pk");
@@ -1409,28 +1285,33 @@ function setDefaultsTemplate(id) {
 //~ RENDER DATATABLE
 function addDomainDetailPannel ( d ) {
         $newPanel = $template_domain.clone();
-        if(kind=='desktop'){
-            $newPanel = $template_domain.clone();
-            $newPanel.find('#derivates-d\\.id').remove();
-        }else{
-            $newPanel = $admin_template_domain.clone();
-        }
+        $newPanel = $template_domain.clone();
+        $newPanel.find('#derivates-d\\.id').remove();
         $newPanel.html(function(i, oldHtml){
             return oldHtml.replace(/d.id/g, d.id).replace(/d.name/g, d.name);
         });
         return $newPanel
 }
 
-function setDomainDetailButtonsStatus(id,status,server){
-    if(status=='Started' || status=='Starting' || status == 'Shutting-down'){
-        $('#actions-'+id+' *[class^="btn"]').prop('disabled', true);
-        $('#actions-'+id+' .btn-jumperurl').prop('disabled', false);
-    }else{
-        $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
+disabled_status=['Starting','Started','Shutting-down','Stopping']
+function setDomainDetailButtonsStatus(id,data,old_data){
+    if(old_data.status != data.server){
+        $('#actions-'+id+' .btn-server').prop('disabled', data.server);
     }
-    $('#actions-'+id+' .btn-server').prop('disabled', false);
-    if (server) {
-        $('#actions-'+id+' .btn-template').prop('disabled', true);
+    if(old_data.status != data.status){
+        if(disabled_status.includes(old_data.status) && disabled_status.includes(data.status)){
+            return
+        }
+        if( ! old_data.status in ['Starting','Started','Shutting-down','Stopping'] && ! disabled_status.includes(data.status)){
+            return
+        }
+        if(disabled_status.includes(data.status)){
+            $('#actions-'+id+' *[class^="btn"]').prop('disabled', true);
+            $('#actions-'+id+' .btn-jumperurl').prop('disabled', false);
+            $('#actions-'+id+' .btn-server').prop('disabled', false);
+        }else{
+            $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
+        }
     }
 }
 
@@ -1523,15 +1404,9 @@ function populate_tree_template_delete(id){
             }else{
                 $tdList.eq(3).text(node.data.user);
             }
-            if(node.data.kind != "desktop"){
-                $tdList.eq(4).html('<p style="color:black">'+node.data.kind+'</p>');
-                $tdList.eq(5).html('<p style="color:black">'+node.data.category+'</p>');
-                $tdList.eq(6).html('<p style="color:black">'+node.data.group+'</p>');
-            }else{
-                $tdList.eq(4).text(node.data.kind);
-                $tdList.eq(5).text(node.data.category);
-                $tdList.eq(6).text(node.data.group);
-            }
+            $tdList.eq(4).text(node.data.kind);
+            $tdList.eq(5).text(node.data.category);
+            $tdList.eq(6).text(node.data.group);
             // Rendered by row template:
     //        $tdList.eq(4).html("<input type='checkbox' name='like' value='" + node.key + "'>");
           }
