@@ -1086,7 +1086,7 @@ function actionsDomainDetail(){
         data=$('#modalForcedhypForm').serializeObject();
         $.ajax({
             type: 'PUT',
-            url: '/api/v3/domain/'+data["id"],
+            url: '/api/v3/domain/'+data["id"]+"/without_updating",
             data: JSON.stringify({
                 ...( ! ("forced_hyp"  in data) && {"forced_hyp": false} ),
                 ...( "forced_hyp" in data && {"forced_hyp": [data.forced_hyp]} ),
@@ -1169,7 +1169,7 @@ function actionsDomainDetail(){
         data=$('#modalFavouriteHypForm').serializeObject();
         $.ajax({
             type: 'PUT',
-            url: '/api/v3/domain/'+data["id"],
+            url: '/api/v3/domain/'+data["id"]+"/without_updating",
             data: JSON.stringify({
                 ...( ! ("favourite_hyp"  in data) && {"favourite_hyp": false} ),
                 ...( "favourite_hyp" in data && {"favourite_hyp": [data.favourite_hyp]} ),
@@ -1208,9 +1208,8 @@ function actionsDomainDetail(){
         let server=$('#modalServerForm #server').prop('checked')
         $.ajax({
             type: "PUT",
-            url: "/api/v3/domain/" + pk,
+            url: "/api/v3/domain/" + pk+"/without_updating",
             data: JSON.stringify({
-                'id': pk,
                 'server': server
             }),
             contentType: "application/json",
