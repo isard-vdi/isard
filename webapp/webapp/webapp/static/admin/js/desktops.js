@@ -11,6 +11,8 @@ $('#global_actions').css('display','block');
 // Sort by Last Access in Desktops table
 order=15
 
+loading_events=[]
+deleted_events=[]
 opened_row=null
 columns= [
     {
@@ -350,6 +352,17 @@ $(document).ready(function() {
             "type": "GET",
             "dataSrc":'',
             "data": { 'kind': "desktop", 'category_id': $('meta[id=user_data]').attr('data-role') == 'manager' ? $('meta[id=user_data]').attr('data-categoryid') : null }
+        },
+        "initComplete": function(settings, json) {
+            $.each(deleted_events, function( index, value ) {
+                domains_table.row('#'+value.id).remove().draw();
+            })
+            deleted_events=[]
+            $.each(loading_events, function( index, value ) {
+                data = {...domains_table.row("#"+value.id).data(),...value}
+                dtUpdateInsert(domains_table, data, false)
+            })
+            loading_events=[]
         },
         "language": {
             "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
@@ -709,31 +722,39 @@ function socketio_on(){
     startClientVpnSocket(socket)
     socket.on('desktop_data', function(data){
         var data = JSON.parse(data);
-        if(data.status =='Started' && 'viewer' in data && 'guest_ip' in data['viewer']){
-            if(!('viewer' in domains_table.row('#'+data.id).data()) || !('guest_ip' in domains_table.row('#'+data.id).data())){
-                viewerButtonsIP(data.id,data['viewer']['guest_ip'])
+        if(typeof(domains_table.row('#'+data.id).id())=='undefined'){
+            loading_events.push(data)
+        }else{
+            if(data.status =='Started' && 'viewer' in data && 'guest_ip' in data['viewer']){
+                if(!('viewer' in domains_table.row('#'+data.id).data()) || !('guest_ip' in domains_table.row('#'+data.id).data())){
+                    viewerButtonsIP(data.id,data['viewer']['guest_ip'])
+                }
             }
+            if(opened_row != null && opened_row.data().id == data.id && opened_row.data().status != data.status){
+                setDomainDetailButtonsStatus(data.id, data, opened_row);
+            }
+            data = {...domains_table.row("#"+data.id).data(),...data}
+            dtUpdateInsert(domains_table,data,false);
+            $('#domains tr.active .form-check-input').prop("checked", true);
         }
-        if(opened_row != null && opened_row.data().id == data.id && opened_row.data().status != data.status){
-            setDomainDetailButtonsStatus(data.id, data, opened_row);
-        }
-        data = {...domains_table.row("#"+data.id).data(),...data}
-        dtUpdateInsert(domains_table,data,false);
-        $('#domains tr.active .form-check-input').prop("checked", true);
     });
 
     socket.on('desktop_delete', function(data){
         var data = JSON.parse(data);
-        var row = domains_table.row('#'+data.id).remove().draw();
-        new PNotify({
-                title: "Desktop deleted",
-                text: "Desktop "+data.name+" has been deleted",
-                hide: true,
-                delay: 4000,
-                icon: 'fa fa-success',
-                opacity: 1,
-                type: 'success'
-        });
+        if(typeof(domains_table.row('#'+data.id).id())=='undefined'){
+            deleted_events.push(data)
+        }else{
+            domains_table.row('#'+data.id).remove().draw();
+            new PNotify({
+                    title: "Desktop deleted",
+                    text: "Desktop "+data.name+" has been deleted",
+                    hide: true,
+                    delay: 4000,
+                    icon: 'fa fa-success',
+                    opacity: 1,
+                    type: 'success'
+            });
+        }
     });
 
     socket.on ('result', function (data) {
@@ -1283,15 +1304,13 @@ function setDomainDetailButtonsStatus(id,data,old_data){
             return
         }
         if( ! old_data.status in ['Starting','Started','Shutting-down','Stopping'] && ! disabled_status.includes(data.status)){
-            console.log("no change transitional")
             return
         }
         if(disabled_status.includes(data.status)){
-            console.log("in array")
             $('#actions-'+id+' *[class^="btn"]').prop('disabled', true);
             $('#actions-'+id+' .btn-jumperurl').prop('disabled', false);
+            $('#actions-'+id+' .btn-server').prop('disabled', false);
         }else{
-            console.log("not in array")
             $('#actions-'+id+' *[class^="btn"]').prop('disabled', false);
         }
     }
