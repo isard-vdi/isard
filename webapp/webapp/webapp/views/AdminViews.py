@@ -355,16 +355,10 @@ CONFIG
 """
 
 
-@app.route("/isard-admin/admin/config", methods=["GET", "POST"])
+@app.route("/isard-admin/admin/config", methods=["GET"])
 @login_required
 @isAdminManager
 def admin_config():
-    if request.method == "POST":
-        return (
-            json.dumps(app.adminapi.get_admin_config(1)),
-            200,
-            {"Content-Type": "application/json"},
-        )
     return render_template("admin/pages/config.html", nav="Config", title="Config")
 
 

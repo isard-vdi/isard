@@ -27,7 +27,7 @@ RUN apk del .build_deps
 COPY webapp/webapp /isard
 
 RUN cd /isard/webapp && yarn install
-
+COPY component/_common/src /isard/webapp/_common
 EXPOSE 5000
 WORKDIR /isard
 CMD [ "python3", "-u", "start.py" ]

@@ -12,7 +12,7 @@ from flask_login import current_user, logout_user
 
 from webapp import app
 
-from ..lib.api_client import ApiClient
+from .._common.api_rest import ApiRest
 from ..lib.flask_rethink import RethinkDB
 
 _MAINTENANCE_API_ENDPOINT = "maintenance"
@@ -58,7 +58,7 @@ def isAdminManager(fn):
 @cached(TTLCache(maxsize=1, ttl=5))
 def _get_maintenance():
     logging.debug("Check api maintenance mode")
-    return ApiClient().get(_MAINTENANCE_API_ENDPOINT)
+    return ApiRest().get(_MAINTENANCE_API_ENDPOINT)
 
 
 def maintenance(function):
