@@ -279,12 +279,17 @@ def ownsDomainId(payload, domain_id):
     if payload.get("role_id", "") == "admin":
         return True
 
-    with app.app_context():
-        domain = (
-            r.table("domains")
-            .get(domain_id)
-            .pluck("user", "category", "tag")
-            .run(db.conn)
+    try:
+        with app.app_context():
+            domain = (
+                r.table("domains")
+                .get(domain_id)
+                .pluck("user", "category", "tag")
+                .run(db.conn)
+            )
+    except:
+        raise Error(
+            "not_found", "Desktop not found", traceback.format_exc(), "not_found"
         )
 
     # User is owner
@@ -523,6 +528,7 @@ def allowedTemplateId(payload, template_id):
             "not_found",
             "Not found template_id " + str(template_id),
             traceback.format_exc(),
+            "not_found",
         )
     if payload["user_id"] == template["user"]:
         return True
