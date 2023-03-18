@@ -80,6 +80,10 @@ def admin_table_list(
                     }
                 )["category_name"]
                 .default(False),
+                "category": r.table("users")
+                .get(deploy["user"])
+                .merge(lambda user: {"category": user["category"]})["category"]
+                .default(False),
                 "group_name": r.table("users")
                 .get(deploy["user"])
                 .merge(
