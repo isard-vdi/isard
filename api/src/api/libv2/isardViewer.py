@@ -102,10 +102,14 @@ class isardViewer:
                     description_code="unable_to_get_viewer_inexistent",
                 )
 
-        if not domain.get("viewer", {}).get("base_port"):
+        if not domain.get("viewer", {}).get("base_port") or not domain.get(
+            "viewer", {}
+        ).get("guest_ip"):
             raise Error(
                 "bad_request",
-                "Desktop does not have a viewer. Is it really started? Actual status: "
+                "Desktop "
+                + id
+                + " does not have a viewer. Is it really started? Actual status: "
                 + str(domain.get("status")),
                 traceback.format_exc(),
                 description_code="unable_to_get_viewer",
