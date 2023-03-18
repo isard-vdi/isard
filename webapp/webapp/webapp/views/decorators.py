@@ -15,7 +15,7 @@ from webapp import app
 from .._common.api_rest import ApiRest
 from ..lib.flask_rethink import RethinkDB
 
-_MAINTENANCE_API_ENDPOINT = "maintenance"
+_MAINTENANCE_API_ENDPOINT = "/maintenance"
 
 db = RethinkDB(app)
 db.init_app(app)
