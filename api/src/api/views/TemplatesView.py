@@ -172,7 +172,7 @@ def api_v3_user_templates(payload):
             "not_found",
             "Group not found",
             traceback.format_exc(),
-            description_code="ot_found",
+            description_code="not_found",
         )
     dropdown_templates = [
         {
