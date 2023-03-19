@@ -71,10 +71,10 @@ class ApiTemplates:
                     traceback.format_exc(),
                     description_code="not_found",
                 )
-            if desktop.get("status") not in ["Failed", "Stopped"]:
+            if desktop.get("status") != "Stopped":
                 raise Error(
                     "precondition_required",
-                    "To create a template its desktop must be stopped or failed",
+                    "To create a template, status desktop must be Stopped",
                     traceback.format_exc(),
                 )
             if desktop.get("server"):
