@@ -102,9 +102,7 @@ class isardViewer:
                     description_code="unable_to_get_viewer_inexistent",
                 )
 
-        if not domain.get("viewer", {}).get("base_port") or not domain.get(
-            "viewer", {}
-        ).get("guest_ip"):
+        if not domain.get("viewer", {}).get("base_port"):
             raise Error(
                 "bad_request",
                 "Desktop "
