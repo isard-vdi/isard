@@ -1,4 +1,4 @@
-# Isard main config v2.9.0
+# Isard main config v2.10.0
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -357,6 +357,12 @@ LOG_LEVEL=INFO
 ##   - hypervisor
 ##   - hypervisor-standalone
 #STORAGE_DOMAIN=isard-storage
+
+# ------ WEB PORTS -----------------------------------------------------------
+# Note: On web flavours, if you set this variables you may also change
+#       accordingly the VIEWER_SPICE and VIEWER_BROWSER ports
+#HTTP_PORT=8081
+#HTTPS_PORT=8443
 
 # ------ Video proxy host ----------------------------------------------------
 ## Where will the client browser reach isard-video to this host?

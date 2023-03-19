@@ -287,7 +287,9 @@ class ApiHypervisors:
             "uri": "",
             "user": user,
             "viewer": {
-                "static": isard_static_url,  # isard-static nginx
+                "static": isard_static_url + ":" + os.environ.get("HTTPS_PORT")
+                if os.environ.get("HTTPS_PORT")
+                else isard_static_url,  # isard-static nginx
                 "proxy_video": isard_video_url,  # Video Proxy Host
                 "spice_ext_port": spice_port,  # 80
                 "html5_ext_port": browser_port,  # 443
