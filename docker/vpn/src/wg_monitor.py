@@ -30,13 +30,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 from __future__ import annotations
 
-import json
 import logging as log
 import subprocess
 import threading
 import time
+import traceback
 from datetime import datetime
-from typing import List, Mapping, MutableMapping, NamedTuple, Optional, Tuple
+from typing import List, MutableMapping, NamedTuple, Optional, Tuple
 
 from api_client import ApiClient
 
@@ -103,29 +103,82 @@ def log_wireguard_peers(poll_delay: int, handshake_timeout: int):
     t = threading.currentThread()
     peers_to_delete = []
     while True:
-        peers = get_peer_states()
-        for peer in peers:
-            now_connected = is_peer_connected(peer.latest_handshake, handshake_timeout)
-            payload = peer._asdict()
-            ## Sample payload (We can get remote addr & port)
-            ## {'device': 'users', 'name': None, 'public_key': 'k8rLxWlaD/Zq5KH5r296x+RBrI2UfdWOIAXrSxKLmjs=', 'remote_addr': '46.26.75.11:34762', 'allowed_ips': ['10.0.0.2/32'], 'latest_handshake': datetime.datetime(2021, 12, 3, 8, 12, 57), 'transfer_rx': 180, 'transfer_tx': 124}
+        try:
+            peers = get_peer_states()
+            for peer in peers:
+                now_connected = is_peer_connected(
+                    peer.latest_handshake, handshake_timeout
+                )
+                payload = peer._asdict()
+                ## Sample payload (We can get remote addr & port)
+                ## {'device': 'users', 'name': None, 'public_key': 'k8rLxWlaD/Zq5KH5r296x+RBrI2UfdWOIAXrSxKLmjs=', 'remote_addr': '46.26.75.11:34762', 'allowed_ips': ['10.0.0.2/32'], 'latest_handshake': datetime.datetime(2021, 12, 3, 8, 12, 57), 'transfer_rx': 180, 'transfer_tx': 124}
 
-            try:
-                remote_data = payload["remote_addr"].split(":")
-            except:
-                remote_data = ["", -1]
+                try:
+                    remote_data = payload["remote_addr"].split(":")
+                except:
+                    remote_data = ["", -1]
 
-            if peer.public_key not in peer_state:
-                if not peer.latest_handshake:
-                    peers_to_delete.append(
-                        {
-                            "kind": payload["device"],
-                            "client_ip": payload["allowed_ips"][0].split("/")[0],
-                        }
+                if peer.public_key not in peer_state:
+                    if not peer.latest_handshake:
+                        peers_to_delete.append(
+                            {
+                                "kind": payload["device"],
+                                "client_ip": payload["allowed_ips"][0].split("/")[0],
+                            }
+                        )
+                    else:
+                        log.debug(
+                            "POST: 1, NEW PEER FOUND, NOT PREVIOUSLY IN PEER STATE"
+                        )
+                        apic.post(
+                            "vpn_connection/"
+                            + payload["device"]
+                            + "/"
+                            + payload["allowed_ips"][0].split("/")[0],
+                            {
+                                "remote_ip": remote_data[0],
+                                "remote_port": int(remote_data[1]),
+                            },
+                        )
+                    peer_state[peer.public_key] = (
+                        now_connected,
+                        peer.latest_handshake,
+                        peer.remote_addr,
                     )
-                else:
-                    log.debug("POST: 1, NEW PEER FOUND, NOT PREVIOUSLY IN PEER STATE")
+                    continue
+                previously_connected, previous_handshake, remote_addr = peer_state[
+                    peer.public_key
+                ]
+                if previously_connected and not now_connected:
+                    log.debug("DELETE: 2, NOT CONNECTED ANYMORE")
+                    apic.delete(
+                        "vpn_connection/"
+                        + payload["device"]
+                        + "/"
+                        + payload["allowed_ips"][0].split("/")[0]
+                    )
+                elif not previously_connected and now_connected:
+                    log.debug("POST: 2, WAS NOT CONNECTED, NOW CONNECTED")
                     apic.post(
+                        "vpn_connection/"
+                        + payload["device"]
+                        + "/"
+                        + payload["allowed_ips"][0].split("/")[0],
+                        {
+                            "remote_ip": remote_data[0],
+                            "remote_port": int(remote_data[1]),
+                        },
+                    )
+                elif previously_connected and remote_addr != peer.remote_addr:
+                    # Peer roamed
+                    log.debug(
+                        "PUT: User migrated IP from "
+                        + str(remote_addr)
+                        + " to "
+                        + str(peer.remote_addr)
+                        + ".\nWARNING! If happens often could be that user is connected to the same vpn from different locations at the same time!"
+                    )
+                    apic.update(
                         "vpn_connection/"
                         + payload["device"]
                         + "/"
@@ -140,63 +193,21 @@ def log_wireguard_peers(poll_delay: int, handshake_timeout: int):
                     peer.latest_handshake,
                     peer.remote_addr,
                 )
-                continue
-            previously_connected, previous_handshake, remote_addr = peer_state[
-                peer.public_key
-            ]
-            if previously_connected and not now_connected:
-                log.debug("DELETE: 2, NOT CONNECTED ANYMORE")
-                apic.delete(
-                    "vpn_connection/"
-                    + payload["device"]
-                    + "/"
-                    + payload["allowed_ips"][0].split("/")[0]
-                )
-            elif not previously_connected and now_connected:
-                log.debug("POST: 2, WAS NOT CONNECTED, NOW CONNECTED")
-                apic.post(
-                    "vpn_connection/"
-                    + payload["device"]
-                    + "/"
-                    + payload["allowed_ips"][0].split("/")[0],
-                    {
-                        "remote_ip": remote_data[0],
-                        "remote_port": int(remote_data[1]),
-                    },
-                )
-            elif previously_connected and remote_addr != peer.remote_addr:
-                # Peer roamed
-                log.debug(
-                    "PUT: User migrated IP from "
-                    + str(remote_addr)
-                    + " to "
-                    + str(peer.remote_addr)
-                    + ".\nWARNING! If happens often could be that user is connected to the same vpn from different locations at the same time!"
-                )
-                apic.update(
-                    "vpn_connection/"
-                    + payload["device"]
-                    + "/"
-                    + payload["allowed_ips"][0].split("/")[0],
-                    {
-                        "remote_ip": remote_data[0],
-                        "remote_port": int(remote_data[1]),
-                    },
-                )
-            peer_state[peer.public_key] = (
-                now_connected,
-                peer.latest_handshake,
-                peer.remote_addr,
-            )
 
-        if len(peers_to_delete):
-            log.debug("DELETE (" + str(len(peers_to_delete)) + "): 1, LOST HANDSHAKE")
-            apic.delete(
-                "vpn_connections",
-                data=peers_to_delete,
-            )
-        peers_to_delete = []
-        time.sleep(poll_delay)
+            if len(peers_to_delete):
+                log.debug(
+                    "DELETE (" + str(len(peers_to_delete)) + "): 1, LOST HANDSHAKE"
+                )
+                apic.delete(
+                    "vpn_connections",
+                    data=peers_to_delete,
+                )
+            peers_to_delete = []
+            time.sleep(poll_delay)
+        except:
+            log.info("Exception in log_wireguard_peers")
+            log.debug(traceback.format_exc())
+            time.sleep(0.1)
 
 
 def start_monitoring_vpn_status():
