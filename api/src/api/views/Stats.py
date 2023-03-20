@@ -10,7 +10,7 @@ from ..libv2.api_stats import (
     CategoriesLimitsHardware,
     Desktops,
     GroupByCategories,
-    KindState,
+    Kind,
     OtherStatus,
     Templates,
     Users,
@@ -34,16 +34,12 @@ def stats_general(payload):
     )
 
 
+# kind can be users, desktops, templates or hypervisors
 @app.route("/api/v3/stats/<kind>", methods=["GET"])
-@app.route("/api/v3/stats/<kind>/<state>", methods=["GET"])
 @is_admin
-def stats_kind_state(payload, kind, state=False):
-    if state == False:
-        KindState(kind)
-    else:
-        KindState(kind, state)
+def stats_kind_pluck(payload, kind):
     return (
-        json.dumps({"query": KindState(kind, state)}),
+        json.dumps(Kind(kind)),
         200,
         {"Content-Type": "application/json"},
     )
