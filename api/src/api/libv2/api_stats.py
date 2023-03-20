@@ -29,8 +29,8 @@ def Users():
 
 def Desktops():
     with app.app_context():
-        desktops = r.table("domains").get_all("desktop", index="kind").count().count()
-        desktops_status = (
+        total = r.table("domains").get_all("desktop", index="kind").count().run(db.conn)
+        group_by_status = (
             r.table("domains")
             .get_all("desktop", index="kind")
             .group("status")
@@ -38,11 +38,8 @@ def Desktops():
             .run(db.conn)
         )
     return {
-        "total": desktops,
-        "status": {
-            **{"Started": 0, "Stopped": 0, "Failed": 0, "Unknown": 0},
-            **{desktops_status},
-        },
+        "total": total,
+        "status": group_by_status,
     }
 
 
