@@ -58,21 +58,21 @@ while True:
         # for user in r.table('users').pluck('id','vpn').changes(include_initial=False).run():
         for data in (
             r.table("users")
-            .without("password", {"vpn": {"wireguard": "connected"}})
             .pluck("id", "vpn")
+            .without({"vpn": {"wireguard": "connected"}})
             .merge({"table": "users"})
             .changes(include_initial=False)
             .union(
                 r.table("hypervisors")
-                .without({"vpn": {"wireguard": "connected"}})
                 .pluck("id", "vpn")
+                .without({"vpn": {"wireguard": "connected"}})
                 .merge({"table": "hypers"})
                 .changes(include_initial=False)
             )
             .union(
                 r.table("remotevpn")
-                .without({"vpn": {"wireguard": "connected"}})
                 .pluck("id", "vpn", "nets")
+                .without({"vpn": {"wireguard": "connected"}})
                 .merge({"table": "remotevpn"})
                 .changes(include_initial=False)
             )
