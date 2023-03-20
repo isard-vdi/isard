@@ -151,9 +151,9 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 		success = 0
 	}
 
-	a.cli.Token = ss
+	a.cli.SetToken(ss)
 
-	usr, err := a.cli.AdminUserList(context.Background())
+	usr, err := a.cli.StatsUsers(context.Background())
 	if err != nil {
 		a.Log.Info().Str("collector", a.String()).Err(err).Msg("list users")
 		success = 0
@@ -163,7 +163,7 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 		ch <- prometheus.MustNewConstMetric(a.descUserInfo, prometheus.GaugeValue, 1, client.GetString(u.ID), client.GetString(u.Role), client.GetString(u.Category), client.GetString(u.Group))
 	}
 
-	dsk, err := a.cli.AdminDesktopList(context.Background())
+	dsk, err := a.cli.StatsDesktops(context.Background())
 	if err != nil {
 		a.Log.Info().Str("collector", a.String()).Err(err).Msg("list desktops")
 		success = 0
@@ -185,14 +185,14 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 		ch <- prometheus.MustNewConstMetric(a.descTemplateNumberCategory, prometheus.GaugeValue, float64(client.GetInt(c.TemplateNum)), client.GetString(c.ID))
 	}
 
-	tmpl, err := a.cli.AdminTemplateList(context.Background())
+	tmpl, err := a.cli.StatsTemplates(context.Background())
 	if err != nil {
 		a.Log.Info().Str("collector", a.String()).Err(err).Msg("list templates")
 		success = 0
 	}
 	ch <- prometheus.MustNewConstMetric(a.descTemplateNumber, prometheus.GaugeValue, float64(len(tmpl)))
 
-	hyp, err := a.cli.HypervisorList(context.Background())
+	hyp, err := a.cli.StatsHypervisors(context.Background())
 	if err != nil {
 		a.Log.Info().Str("collector", a.String()).Err(err).Msg("list hypervisors")
 		success = 0
