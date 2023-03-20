@@ -18,6 +18,47 @@ from .flask_rethink import RethinkDB
 db = RethinkDB(app)
 db.init_app(app)
 
+from flask_login import current_user
+
+
+def get_login_path():
+    with app.app_context():
+        category = (
+            r.table("categories")
+            .get(current_user.category)
+            .pluck("id", "name", "frontend", "custom_url_name")
+            .run(db.conn)
+        )
+    if category.get("frontend", False):
+        return "/login/"
+    else:
+        return "/login/" + category.get("custom_url_name")
+
+
+def upload_backup(handler):
+    path = "./backups/"
+    id = handler.filename.split(".tar.gz")[0]
+    filename = secure_filename(handler.filename)
+    handler.save(os.path.join(path + filename))
+
+    with tarfile.open(path + handler.filename, "r:gz") as tar:
+        tar.extractall(path)
+        tar.close()
+    with open(path + id + ".rethink", "rb") as isard_rethink_file:
+        isard_rethink = pickle.load(isard_rethink_file)
+    with app.app_context():
+        log.info(
+            r.table("backups").insert(isard_rethink, conflict="update").run(db.conn)
+        )
+    with app.app_context():
+        r.table("backups").get(id).update({"status": "Finished uploading"}).run(db.conn)
+    try:
+        os.remove(path + id + ".json")
+        os.remove(path + id + ".rethink")
+    except OSError as e:
+        log.error(e)
+        pass
+
 
 class isardAdmin:
     def __init__(self):
@@ -29,32 +70,6 @@ class isardAdmin:
                 return self.f.flatten_dict(r.table("config").get(1).run(db.conn))
             else:
                 return self.f.flatten_dict(r.table("config").get(1).run(db.conn))
-
-    def upload_backup(self, handler):
-        path = "./backups/"
-        id = handler.filename.split(".tar.gz")[0]
-        filename = secure_filename(handler.filename)
-        handler.save(os.path.join(path + filename))
-
-        with tarfile.open(path + handler.filename, "r:gz") as tar:
-            tar.extractall(path)
-            tar.close()
-        with open(path + id + ".rethink", "rb") as isard_rethink_file:
-            isard_rethink = pickle.load(isard_rethink_file)
-        with app.app_context():
-            log.info(
-                r.table("backups").insert(isard_rethink, conflict="update").run(db.conn)
-            )
-        with app.app_context():
-            r.table("backups").get(id).update({"status": "Finished uploading"}).run(
-                db.conn
-            )
-        try:
-            os.remove(path + id + ".json")
-            os.remove(path + id + ".rethink")
-        except OSError as e:
-            log.error(e)
-            pass
 
 
 """
