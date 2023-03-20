@@ -6,24 +6,13 @@
 import json
 import logging as log
 
-from flask import (
-    flash,
-    jsonify,
-    make_response,
-    redirect,
-    render_template,
-    request,
-    url_for,
-)
+from flask import flash, jsonify, make_response, redirect, render_template, request
 from flask_login import current_user, login_required, login_user, logout_user
 
 from webapp import app
 
 from ..auth.authentication import *
-from ..lib import admin_api
-
-app.adminapi = admin_api.isardAdmin()
-
+from ..lib.admin_api import get_login_path, upload_backup
 from ..lib.isardUpdates import Updates
 from ..lib.log import *
 from .decorators import isAdmin, isAdminManager, maintenance
@@ -97,7 +86,7 @@ def remote_logout():
 @app.route("/isard-admin/logout")
 @login_required
 def logout():
-    login_path = app.isardapi.__class__.get_login_path()
+    login_path = get_login_path()
     response = make_response(
         f"""
             <!DOCTYPE html>
@@ -372,5 +361,5 @@ BACKUP & RESTORE
 @isAdmin
 def admin_backup_upload():
     for f in request.files:
-        app.adminapi.upload_backup(request.files[f])
+        upload_backup(request.files[f])
     return json.dumps("Updated"), 200, {"Content-Type": "application/json"}
