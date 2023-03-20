@@ -64,7 +64,7 @@ $(document).ready(function () {
             {
                 "targets": 4,
                 "render": function (data, type, full, meta) {
-                    return full.allowed_domain
+                    return full.allowed_domain ? full.allowed_domain : " ";
                 }
             },
             {
