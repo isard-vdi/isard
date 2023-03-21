@@ -209,6 +209,8 @@ $(document).ready(function() {
             { "data": "size"},
             { "data": "hyper"},
             { "data": "domains"},
+            { "data": "storage"},
+            { "data": "haschilds"},
             { "data": "tomigrate"},
             {
               "className": 'text-center',
@@ -229,7 +231,7 @@ $(document).ready(function() {
             "render": function ( data, type, full, meta ) {
               return '<button type="button" id="btn-info" class="btn btn-pill-right btn-success btn-xs"><i class="fa fa-info"></i></button>';
             }
-          }
+          },
         ],
       });
 
@@ -416,40 +418,41 @@ $(document).ready(function() {
             } )
       })
     }
-    $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
+    // $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
 })
-function socketio_on(){
-    var storage_migration_progress = null
-    socket.on('storage_migration_progress', function(data) {
-        var data = JSON.parse(data);
-        if (storage_migration_progress == null){
-          storage_migration_progress = new PNotify({
-            title: "Migrating disks. Maintenance mode active.",
-              text: data.description+ "\nProgress: "+data.current+"/"+data.total,
-              hide: false,
-              icon: 'fa fa-'+data.type,
-              opacity: 1,
-              type: data.type,
-          });
-        }else{
-          storage_migration_progress.update({
-            title: "Migrating disks. Maintenance mode active.",
-              text: data.description+ "\nProgress: "+data.current+"/"+data.total+"\nPLEASE WAIT!",
-              hide: false,
-              icon: 'fa fa-'+data.type,
-              opacity: 1,
-              type: data.type,
-          });
-        }
-        if ("id" in data){
-          storage_physical.row('#'+data.id).remove().draw();
-        }
 
-        if(data.current >= data.total){
-          PNotify.removeAll()
-          storage_ready.ajax.reload()}
-    });
-}
+// function socketio_on(){
+//     var storage_migration_progress = null
+//     socket.on('storage_migration_progress', function(data) {
+//         var data = JSON.parse(data);
+//         if (storage_migration_progress == null){
+//           storage_migration_progress = new PNotify({
+//             title: "Migrating disks. Maintenance mode active.",
+//               text: data.description+ "\nProgress: "+data.current+"/"+data.total,
+//               hide: false,
+//               icon: 'fa fa-'+data.type,
+//               opacity: 1,
+//               type: data.type,
+//           });
+//         }else{
+//           storage_migration_progress.update({
+//             title: "Migrating disks. Maintenance mode active.",
+//               text: data.description+ "\nProgress: "+data.current+"/"+data.total+"\nPLEASE WAIT!",
+//               hide: false,
+//               icon: 'fa fa-'+data.type,
+//               opacity: 1,
+//               type: data.type,
+//           });
+//         }
+//         if ("id" in data){
+//           storage_physical.row('#'+data.id).remove().draw();
+//         }
+
+//         if(data.current >= data.total){
+//           PNotify.removeAll()
+//           storage_ready.ajax.reload()}
+//     });
+// }
 
 function format(rowData) {
     var childTable =
