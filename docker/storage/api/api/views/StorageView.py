@@ -33,7 +33,7 @@ from .decorators import is_admin
 api_storage = Storage()
 
 
-@app.route("/toolbox/api/storage/disk/info", methods=["POST"])
+@app.route("/storage/api/storage/disk/info", methods=["POST"])
 @is_admin
 def storage_disk_info(payload):
     data = request.get_json(force=True)
@@ -44,7 +44,7 @@ def storage_disk_info(payload):
     )
 
 
-@app.route("/toolbox/api/storage/disks", methods=["PUT"])
+@app.route("/storage/api/storage/disks", methods=["PUT"])
 @is_admin
 def storage_disk_update(payload):
     return (
@@ -54,7 +54,7 @@ def storage_disk_update(payload):
     )
 
 
-@app.route("/toolbox/api/storage/media", methods=["PUT"])
+@app.route("/storage/api/storage/media", methods=["PUT"])
 @is_admin
 def storage_media_update(payload):
     return (
@@ -64,7 +64,7 @@ def storage_media_update(payload):
     )
 
 
-# @app.route("/toolbox/api/storage/disks", methods=["GET"])
+# @app.route("/storage/api/storage/disks", methods=["GET"])
 # @is_admin
 # def storage_list(payload=None):
 #     return (
@@ -74,7 +74,7 @@ def storage_media_update(payload):
 # )
 
 
-# @app.route("/toolbox/api/file/<item>/<uuid>", methods=["GET"])
+# @app.route("/storage/api/file/<item>/<uuid>", methods=["GET"])
 # # @has_token
 # def file_info(item, uuid):
 #     if item == "size":
@@ -97,8 +97,8 @@ def storage_media_update(payload):
 #         )
 
 
-# @app.route("/toolbox/api/file", methods=["POST"])
-# @app.route("/toolbox/api/file/<from_backing>", methods=["POST"])
+# @app.route("/storage/api/file", methods=["POST"])
+# @app.route("/storage/api/file/<from_backing>", methods=["POST"])
 # @has_token
 # def file_new(payload, from_backing=None):
 #     data = request.get_json(force=True)

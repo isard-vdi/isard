@@ -18,7 +18,9 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import itertools
 import json
+import logging as log
 import random
 import time
 import uuid
@@ -41,10 +43,86 @@ from .flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
+### Helpers ###
 
+
+def _is_old(path_or_id):
+    return True if len(path_or_id.split("/")) > 4 else False
+
+
+def _get_storageid_from_path(path):
+    return path.split(".qcow2")[0].split("/")[-1]
+
+
+def get_path_or_id_domains(path_or_id, domains):
+    if _is_old(path_or_id):
+        return [
+            d
+            for d in domains
+            if path_or_id
+            in [disk["file"] for disk in d["create_dict"]["hardware"]["disks"]]
+        ]
+    else:
+        return [
+            d
+            for d in domains
+            if _get_storageid_from_path(path_or_id)
+            in [disk["storage_id"] for disk in d["create_dict"]["hardware"]["disks"]]
+        ]
+
+
+def has_childs(path_or_id, storage_physical_parents):
+    if _is_old(path_or_id):
+        return -1
+    else:
+        return len(
+            [
+                p
+                for p in storage_physical_parents
+                if _get_storageid_from_path(path_or_id) in p
+            ]
+        )
+
+
+### API ###
 def phy_storage_list(table):
-    query = r.table("storage_physical_" + table)
-    return [{**d, **{"domains": "NaN"}} for d in list(query.run(db.conn))]
+    if table == "domains":
+        with app.app_context():
+            storage = list(
+                r.table("storage")
+                .pluck("qemu-img-info")["qemu-img-info"]["filename"]
+                .run(db.conn)
+            )
+            storage_physical = list(r.table("storage_physical_domains").run(db.conn))
+            domains = list(
+                r.table("domains")
+                .pluck("id", {"create_dict": {"hardware": {"disks": True}}})
+                .run(db.conn)
+            )
+        # Domains with this disk: should be 0 or 1
+        # Disk is in storage: True or False
+        # Disk is in physical_storage_parents: True or False (only if it not old)
+        storage_physical_parents = list(
+            itertools.chain.from_iterable([s["parents"] for s in storage_physical])
+        )
+        return [
+            {
+                **sp,
+                **{
+                    "domains": len(get_path_or_id_domains(sp["path"], domains)),
+                    "storage": len([s for s in storage if sp["path"] in s]),
+                    "haschilds": len(
+                        [s for s in storage_physical_parents if sp["path"] in s]
+                    ),
+                },
+            }
+            for sp in storage_physical
+        ]
+    if table == "media":
+        return [
+            {**sp, **{"domains": "NaN"}}
+            for sp in list(r.table("storage_physical_media").run(db.conn))
+        ]
 
 
 def phy_storage_reset_domains(data):
@@ -267,10 +345,10 @@ def _phy_internal_toolbox_host():
     if not len(viewers):
         raise Error("precondition_required", "No hypervisors currently online")
     if "isard-hypervisor" in [v["proxy_hyper_host"] for v in viewers]:
-        return "http://isard-storage:5000/toolbox/api"
+        return "http://isard-storage:5000/storage/api"
     data = viewers[random.randint(0, len(viewers) - 1)]
     return (
-        "https://" + data["proxy_video"] + ":" + data["html5_ext_port"] + "/toolbox/api"
+        "https://" + data["proxy_video"] + ":" + data["html5_ext_port"] + "/storage/api"
     )
 
 
@@ -286,5 +364,5 @@ def phy_toolbox_host():
         raise Error("precondition_required", "No hypervisors currently online")
     data = viewers[random.randint(0, len(viewers) - 1)]
     return (
-        "https://" + data["proxy_video"] + ":" + data["html5_ext_port"] + "/toolbox/api"
+        "https://" + data["proxy_video"] + ":" + data["html5_ext_port"] + "/storage/api"
     )
