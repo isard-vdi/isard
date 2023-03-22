@@ -5,7 +5,6 @@
 * License: AGPLv3
 */
 
-
 function getGroupParam() {
   return window.location.href.slice(window.location.href.indexOf('?') + 1).split('searchStorageId=')[1];
 }
@@ -30,59 +29,79 @@ $(document).ready(function() {
       },
       "rowId": "id",
       "deferRender": true,
-        "columns": [
-            {
-                "className":      'details-control',
-                "orderable":      false,
-                "data":           null,
-                "width": "10px",
-                "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
-            },
-            { "data": "directory_path",},
-            { "data": "id",},
-            { "data": "type",},
-            { "data": null},
-            { "data": null},
-            { "data": "parent",},
-            { "data": "user_name",},
-            { "data": "category",},
-            { "data": "domains",},
-            { "data": "status_logs",}
-        ],
-        "columnDefs": [
-            {
-                "targets": 4,
-                "render": function ( data, type, full, meta ) {
-                    if( full['status'] == 'ready' && 'qemu-img-info' in full){
-                        return Math.round(full["qemu-img-info"]["virtual-size"]/1024/1024/1024)+" GB"
-                    }else{
-                        return '-'
-                    }
-                }},
-                {
-                "targets": 5,
-                "render": function ( data, type, full, meta ) {
-                    if( full['status'] == 'ready' && 'qemu-img-info' in full){
-                        return Math.round(full["qemu-img-info"]["actual-size"]/1024/1024/1024)+' GB ('+Math.round(full["qemu-img-info"]["actual-size"]*100/full["qemu-img-info"]["virtual-size"])+'%)'
-                    }else{
-                        return '-'
-                    }
-                }},
-                {
-                  "targets": 9,
-                  "render": function ( data, type, full, meta ) {
-                      return full['domains'].length
-                  }},
-                {
-                  "targets": 10,
-                  "render": function ( data, type, full, meta ) {
-                    if( "status_logs" in full ){
-                      return moment.unix(full["status_logs"][full["status_logs"].length -1]["time"]).fromNow()
-                    }
-                    return "-"
-                }
-            }],
+      "columns": [
+        {
+          "className": 'details-control',
+          "orderable": false,
+          "data": null,
+          "width": "10px",
+          "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
+        },
+        { "data": "directory_path",},
+        { "data": "id",},
+        { "data": "type",},
+        { "data": null},
+        { "data": null},
+        { "data": "parent",},
+        { "data": "user_name",},
+        { "data": "category",},
+        { "data": "domains",},
+        { "data": "status_logs",}
+      ],
+      "columnDefs": [
+        {
+          "targets": 4,
+          "render": function ( data, type, full, meta ) {
+            if( full['status'] == 'ready' && 'qemu-img-info' in full){
+              return Math.round(full["qemu-img-info"]["virtual-size"]/1024/1024/1024)+" GB"
+            }else{
+              return '-'
+            }
+          }
+        },
+        {
+          "targets": 5,
+          "render": function ( data, type, full, meta ) {
+            if( full['status'] == 'ready' && 'qemu-img-info' in full){
+              return Math.round(full["qemu-img-info"]["actual-size"]/1024/1024/1024)+' GB ('+Math.round(full["qemu-img-info"]["actual-size"]*100/full["qemu-img-info"]["virtual-size"])+'%)'
+            }else{
+              return '-'
+            }
+          }
+        },
+        {
+          "targets": 9,
+          "render": function ( data, type, full, meta ) {
+            return full['domains'].length
+          }
+        },
+        {
+          "targets": 10,
+          "render": function ( data, type, full, meta ) {
+            if( "status_logs" in full ){
+              return moment.unix(full["status_logs"][full["status_logs"].length -1]["time"]).fromNow()
+            }
+            return "-"
+          }
+        }
+      ],
     });
+
+    $('#storage tfoot tr:first th').each( function () {
+      var title = $(this).text();
+      if ([''].indexOf(title) == -1){
+        $(this).html( '<input type="text" placeholder="Search '+title+'" />' );
+      }
+    } );
+
+    storage_ready.columns().every( function () {
+      var that = this;
+      $( 'input', this.footer() ).on( 'keyup change', function () {
+        if ( that.search() !== this.value ) {
+          that.search( this.value ).draw();
+        }
+      } );
+    } );
 
     $('#storage tbody').on('click', 'td.details-control', function () {
         var tr = $(this).closest("tr");
@@ -143,58 +162,77 @@ $(document).ready(function() {
     });
 
     var storage_deleted=$('#storage_deleted').DataTable( {
-        "ajax": {
+      "ajax": {
         "url": "/api/v3/admin/storage/deleted",
-                "contentType": "application/json",
-                "type": 'GET',
-        },
-        "sAjaxDataProp": "",
+        "contentType": "application/json",
+        "type": 'GET',
+      },
+      "sAjaxDataProp": "",
       "language": {
         "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
       },
       "rowId": "id",
       "deferRender": true,
         "columns": [
-            { "data": "id",},
-            { "data": "type",},
-            { "data": null},
-            { "data": null},
-            { "data": "user_id"},
-            { "data": "status_logs"}
+          { "data": "id",},
+          { "data": "type",},
+          { "data": null},
+          { "data": null},
+          { "data": "user_id"},
+          { "data": "status_logs"}
         ],
-        "columnDefs": [
-          {
-            "targets": 2,
-            "render": function ( data, type, full, meta ) {
-                if( 'qemu-img-info' in full){
-                    return Math.round(full["qemu-img-info"]["virtual-size"]/1024/1024/1024)+" GB"
-                }else{
-                    return '-'
-                }
-            }},
-            {
-            "targets": 3,
-            "render": function ( data, type, full, meta ) {
-                if( 'qemu-img-info' in full){
-                    return Math.round(full["qemu-img-info"]["actual-size"]/1024/1024/1024)+' GB ('+Math.round(full["qemu-img-info"]["actual-size"]*100/full["qemu-img-info"]["virtual-size"])+'%)'
-                }else{
-                    return '-'
-                }
-            }},
-          {
-            "targets": 5,
-            "render": function ( data, type, full, meta ) {
-              return moment.unix(full["status_logs"][full["status_logs"].length -1]["time"]).fromNow()
+      "columnDefs": [
+        {
+          "targets": 2,
+          "render": function ( data, type, full, meta ) {
+            if( 'qemu-img-info' in full){
+              return Math.round(full["qemu-img-info"]["virtual-size"]/1024/1024/1024)+" GB"
+            }else{
+              return '-'
+            }
           }
-        }],
+        },
+        {
+          "targets": 3,
+          "render": function ( data, type, full, meta ) {
+            if( 'qemu-img-info' in full){
+              return Math.round(full["qemu-img-info"]["actual-size"]/1024/1024/1024)+' GB ('+Math.round(full["qemu-img-info"]["actual-size"]*100/full["qemu-img-info"]["virtual-size"])+'%)'
+            }else{
+              return '-'
+            }
+          }
+        },
+        {
+          "targets": 5,
+          "render": function ( data, type, full, meta ) {
+            return moment.unix(full["status_logs"][full["status_logs"].length -1]["time"]).fromNow()
+          }
+        }
+      ],
     });
+
+    $('#storage_deleted tfoot tr:first th').each( function () {
+      var title = $(this).text();
+      if ([''].indexOf(title) == -1){
+        $(this).html( '<input type="text" placeholder="Search '+title+'" />' );
+      }
+    } );
+
+    storage_deleted.columns().every( function () {
+      var that = this;
+      $( 'input', this.footer() ).on( 'keyup change', function () {
+        if ( that.search() !== this.value ) {
+          that.search( this.value ).draw();
+        }
+      } );
+    } );
 
     if( $("#storage_physical").length != 0){
       var storage_physical=$('#storage_physical').DataTable( {
         "ajax": {
-        "url": "/api/v3/admin/storage/physical/domains",
-                "contentType": "application/json",
-                "type": 'GET',
+          "url": "/api/v3/admin/storage/physical/domains",
+          "contentType": "application/json",
+          "type": 'GET',
         },
         "sAjaxDataProp": "",
         "language": {
@@ -202,22 +240,22 @@ $(document).ready(function() {
         },
         "rowId": "id",
         "deferRender": true,
-          "columns": [
-            { "data": ""},
-            { "data": "path",},
-            { "data": "correct-chain",},
-            { "data": "size"},
-            { "data": "hyper"},
-            { "data": "domains"},
-            { "data": "storage"},
-            { "data": "haschilds"},
-            { "data": "tomigrate"},
-            {
-              "className": 'text-center',
-              "data": null,
-              "orderable": false,
-              "defaultContent": '<input type="checkbox" class="form-check-input"></input>'
-            }
+        "columns": [
+          { "data": ""},
+          { "data": "path",},
+          { "data": "correct-chain",},
+          { "data": "size"},
+          { "data": "hyper"},
+          { "data": "domains"},
+          { "data": "storage"},
+          { "data": "haschilds"},
+          { "data": "tomigrate"},
+          {
+            "className": 'text-center',
+            "data": null,
+            "orderable": false,
+            "defaultContent": '<input type="checkbox" class="form-check-input"></input>'
+          }
         ],
         "columnDefs": [
           {
@@ -234,6 +272,22 @@ $(document).ready(function() {
           },
         ],
       });
+
+      $('#storage_physical tfoot tr:first th').each( function () {
+        var title = $(this).text();
+        if (['', 'Selected'].indexOf(title) == -1){
+          $(this).html( '<input type="text" placeholder="Search '+title+'" />' );
+        }
+      } );
+  
+      storage_physical.columns().every( function () {
+        var that = this;
+        $( 'input', this.footer() ).on( 'keyup change', function () {
+          if ( that.search() !== this.value ) {
+            that.search( this.value ).draw();
+          }
+        } );
+      } );
 
       $('#storage_physical tbody').on( 'click', 'button', function () {
         var data = storage_physical.row( $(this).parents('tr') ).data();
