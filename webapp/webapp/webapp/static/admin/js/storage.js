@@ -159,8 +159,7 @@ $(document).ready(function() {
             { "data": "type",},
             { "data": null},
             { "data": null},
-            { "data": "user_name",},
-            { "data": "category",},
+            { "data": "user_id"},
             { "data": "status_logs"}
         ],
         "columnDefs": [
@@ -183,7 +182,7 @@ $(document).ready(function() {
                 }
             }},
           {
-            "targets": 6,
+            "targets": 5,
             "render": function ( data, type, full, meta ) {
               return moment.unix(full["status_logs"][full["status_logs"].length -1]["time"]).fromNow()
           }

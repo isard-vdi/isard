@@ -67,6 +67,9 @@ def get_disks(user_id=None, status=None, pluck=None):
             }
         )
     else:
+        if status == "deleted":
+            with app.app_context():
+                return list(query.run(db.conn))
         query = query.merge(
             lambda disk: {
                 "user_name": r.table("users")
