@@ -14,18 +14,26 @@ name:
 op:
   type: string
   default: shutdown
+  # Declare all kind of possible 'op' into 'allowed'
   allowed:
     - shutdown
 priority:
   type: integer
+# Next, declare every kind of possible 'op' into dictionaries and make them "required: false"
 shutdown:
   required: false
-  schema: 
+  default: false
+  type: dict
+  schema:
     max:
       type: integer
     notify_intervals:
       type: list
-    server:
-      type: boolean
-      required: false
-      default: false
+      schema:
+        type: dict
+        schema:
+          time:
+            type: integer
+          type:
+            type: string
+            allowed: ['danger', 'warning']
