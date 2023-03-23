@@ -274,6 +274,12 @@ class ApiDesktopsPersistent:
             except:
                 raise Error("not_found", "Template to create desktops not found")
 
+        if all(value is False for value in selected.values()):
+            raise Error(
+                "precondition_required",
+                "Target users must be selected in order to create desktops",
+                traceback.format_exc(),
+            )
         if payload["role_id"] == "admin":
             if selected["roles"] is not False:
                 if not selected["roles"]:
