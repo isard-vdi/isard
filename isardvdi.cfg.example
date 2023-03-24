@@ -1,4 +1,4 @@
-# Isard main config v2.7.1
+# Isard main config v2.7.2
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -277,6 +277,9 @@ LOG_LEVEL=INFO
 ## - false (default): get any domain
 ## - true: only get domains with forced_hyp
 #ONLY_FORCED_HYP=false
+
+# Comma separated CIDR networks/hosts you want guests to be blocked access
+#BLACKLIST_IPTABLES=10.10.10.1/24,10.10.11.1/24
 
 # Memory free at hypervisor
 ## How much memory (in GB) has to be kept free while starting desktops.

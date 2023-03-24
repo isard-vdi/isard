@@ -4,6 +4,7 @@ export DOMAIN
 export HYPER_ID
 export VIEWER_BROWSER
 export VIEWER_SPICE
+export BLACKLIST_IPTABLES
 
 # Will remove hyper on docker shutdown
 remove_hyper()
@@ -64,6 +65,14 @@ done
 
 echo "---> Securing network connections from guests..."
 iptables -I FORWARD -o eth0 -d $(ip -o -4 addr show dev eth0 | awk '{print $4}') -j REJECT
+
+echo "---> Applying iptables rules"
+BLACKLIST_IPTABLES=$(echo $BLACKLIST_IPTABLES | tr "," " ")
+for BLACKLIST_IPTABLES in $BLACKLIST_IPTABLES
+do
+   echo "$BLACKLIST_IPTABLES"
+   iptables -I FORWARD -d "$BLACKLIST_IPTABLES" -o eth0 -j REJECT --reject-with icmp-port-unreachable
+done
 
 echo "---> Checking hypervisor by creating/destroying test domain..."
 virsh create /src/checks/domain.xml
