@@ -30,6 +30,10 @@ type GRPC struct {
 	Port int
 }
 
+func (g *GRPC) Addr() string {
+	return fmt.Sprintf("%s:%d", g.Host, g.Port)
+}
+
 type HTTP struct {
 	Host string
 	Port int

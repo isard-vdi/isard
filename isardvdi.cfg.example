@@ -14,6 +14,7 @@
 ##  - web: services to manage desktops
 ##  - monitor: monitoring only host (grafana/loki/influxdb)
 ##  - backupninja: standalone backups
+##  - check: standalone check service
 #FLAVOUR=all-in-one
 
 ## This configuration should generate docker-compose file for the following
