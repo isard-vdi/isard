@@ -89,11 +89,19 @@ $(document).ready(function() {
         var api = this.api();
         // Current page
         pageTotal = api.column(4, {search: 'applied'}).data().reduce(function (a, b) {
-          return a + b["qemu-img-info"]["virtual-size"]/1024/1024/1024
+          if ("qemu-img-info" in b) {
+            return a + b["qemu-img-info"]["virtual-size"]/1024/1024/1024
+          } else {
+            return a + 0
+          }
         }, 0);
         // All pages
         total = api.column(4).data().reduce(function(a, b) {
-          return a + b["qemu-img-info"]["virtual-size"]/1024/1024/1024
+          if ("qemu-img-info" in b) {
+            return a + b["qemu-img-info"]["virtual-size"]/1024/1024/1024
+          } else {
+            return a + 0
+          }
         }, 0);
 
         $('.storage-total-size').html('Applied  filter storage size: ' + pageTotal.toFixed(1) + ' GB ( Total storage size: ' + total.toFixed(1) + ' GB )');
@@ -226,11 +234,19 @@ $(document).ready(function() {
         var api = this.api();
         // Current page
         pageTotal = api.column(2, {search: 'applied'}).data().reduce(function (a, b) {
-          return a + b["qemu-img-info"]["virtual-size"]/1024/1024/1024
+          if ("qemu-img-info" in b) {
+            return a + b["qemu-img-info"]["virtual-size"]/1024/1024/1024
+          } else {
+            return a + 0
+          }
         }, 0);
         // All pages
         total = api.column(2).data().reduce(function(a, b) {
-          return a + b["qemu-img-info"]["virtual-size"]/1024/1024/1024
+          if ("qemu-img-info" in b) {
+            return a + b["qemu-img-info"]["virtual-size"]/1024/1024/1024
+          } else {
+            return a + 0
+          }
         }, 0);
     
         $('.storage_deleted-total-size').html('Applied  filter storage size: ' + pageTotal.toFixed(1) + ' GB ( Total storage size: ' + total.toFixed(1) + ' GB )');
