@@ -43,48 +43,7 @@ from .flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
-### Helpers ###
 
-
-def _is_old(path_or_id):
-    return True if len(path_or_id.split("/")) > 4 else False
-
-
-def _get_storageid_from_path(path):
-    return path.split(".qcow2")[0].split("/")[-1]
-
-
-def get_path_or_id_domains(path_or_id, domains):
-    if _is_old(path_or_id):
-        return [
-            d
-            for d in domains
-            if path_or_id
-            in [disk["file"] for disk in d["create_dict"]["hardware"]["disks"]]
-        ]
-    else:
-        return [
-            d
-            for d in domains
-            if _get_storageid_from_path(path_or_id)
-            in [disk["storage_id"] for disk in d["create_dict"]["hardware"]["disks"]]
-        ]
-
-
-def has_childs(path_or_id, storage_physical_parents):
-    if _is_old(path_or_id):
-        return -1
-    else:
-        return len(
-            [
-                p
-                for p in storage_physical_parents
-                if _get_storageid_from_path(path_or_id) in p
-            ]
-        )
-
-
-### API ###
 def phy_storage_list(table):
     if table == "domains":
         with app.app_context():
@@ -99,21 +58,30 @@ def phy_storage_list(table):
                 .pluck("id", {"create_dict": {"hardware": {"disks": True}}})
                 .run(db.conn)
             )
-        # Domains with this disk: should be 0 or 1
-        # Disk is in storage: True or False
-        # Disk is in physical_storage_parents: True or False (only if it not old)
-        storage_physical_parents = list(
-            itertools.chain.from_iterable([s["parents"] for s in storage_physical])
-        )
+        # To speedup the search
+        domains_dict = {}
+        for d in domains:
+            for disk in d["create_dict"]["hardware"]["disks"]:
+                domains_dict[disk.get("storage_id", disk.get("file"))] = True
+
+        storage_dict = {}
+        for s in storage:
+            storage_dict[s] = True
+
+        storage_physical_parents_dict = {}
+        for sp in storage_physical:
+            if not sp["parents"]:
+                continue
+            for p in sp["parents"]:
+                storage_physical_parents_dict[p] = True
+
         return [
             {
                 **sp,
                 **{
-                    "domains": len(get_path_or_id_domains(sp["path"], domains)),
-                    "storage": len([s for s in storage if sp["path"] in s]),
-                    "haschilds": len(
-                        [s for s in storage_physical_parents if sp["path"] in s]
-                    ),
+                    "domains": domains_dict.get(sp["path"], False),
+                    "storage": storage_dict.get(sp["path"], False),
+                    "haschilds": storage_physical_parents_dict.get(sp["path"], False),
                 },
             }
             for sp in storage_physical
