@@ -52,7 +52,7 @@ do
          echo "This host is running flavour: $config_name, upgrading.."
          pcs property set maintenance-mode=true \
          && sleep 10 \
-         && $DOCKER_COMPOSE -f docker-compose.$config_name.yml pull \
+         && $DOCKER_COMPOSE -f "$cfgs_path"/docker-compose.$config_name.yml pull \
          && $DOCKER_COMPOSE -f "$cfgs_path"/docker-compose.$config_name.yml --ansi never up -d $services \
          && docker image prune -f --filter "until=72h" \
          && sleep 60 \
