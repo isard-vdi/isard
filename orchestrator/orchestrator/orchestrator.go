@@ -6,8 +6,10 @@ import (
 	"sync"
 	"time"
 
+	"gitlab.com/isard/isardvdi/orchestrator/cfg"
 	"gitlab.com/isard/isardvdi/orchestrator/log"
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/director"
+	checkv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/check/v1"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
 
 	"gitlab.com/isard/isardvdi-cli/pkg/client"
@@ -25,6 +27,10 @@ type Orchestrator struct {
 	operationsTimeout time.Duration
 
 	operationsCli operationsv1.OperationsServiceClient
+	checkCfg      cfg.Check
+	checkCli      checkv1.CheckServiceClient
+	apiAddress    string
+	apiSecret     string
 	apiCli        client.Interface
 
 	scaleMux sync.Mutex
@@ -45,7 +51,12 @@ type NewOrchestratorOpts struct {
 	Director      director.Director
 	OperationsCli operationsv1.OperationsServiceClient
 
-	APICli client.Interface
+	CheckCfg cfg.Check
+	CheckCli checkv1.CheckServiceClient
+
+	APIAddress string
+	APISecret  string
+	APICli     client.Interface
 }
 
 func New(cfg *NewOrchestratorOpts) *Orchestrator {
@@ -59,6 +70,10 @@ func New(cfg *NewOrchestratorOpts) *Orchestrator {
 		operationsTimeout: cfg.OperationsTimeout,
 
 		operationsCli: cfg.OperationsCli,
+		checkCfg:      cfg.CheckCfg,
+		checkCli:      cfg.CheckCli,
+		apiAddress:    cfg.APIAddress,
+		apiSecret:     cfg.APISecret,
 		apiCli:        cfg.APICli,
 
 		log: &log2,

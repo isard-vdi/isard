@@ -60,6 +60,7 @@ ALLINONE_PARTS="
 	nc
 	postgres
 	infrastructure
+	check
 "
 HYPERVISOR_KEY="hypervisor"
 HYPERVISOR_PARTS="
@@ -403,7 +404,7 @@ create_docker_compose_file(){
 
 	if [ -z "$INFRASTRUCTURE_MANAGEMENT" ] || [ "$INFRASTRUCTURE_MANAGEMENT" != "true" ]
 	then
-		parts="$(echo $parts | sed 's/infrastructure//')"
+		parts="$(echo $parts | sed 's/infrastructure//' | sed 's/check//')"
 	fi
 
 	# Build the docker-compose.yml

@@ -17,9 +17,12 @@ type Orchestrator struct {
 	PollingInterval   time.Duration `mapstructure:"polling_interval"`
 	OperationsTimeout time.Duration `mapstructure:"operations_timeout"`
 	OperationsAddress string        `mapstructure:"operations_address"`
+	CheckAddress      string        `mapstructure:"check_address"`
+	APIAddress        string        `mapstructure:"api_address"`
 	APISecret         string        `mapstructure:"api_secret"`
 	Director          string        `mapstructure:"director"`
 	DirectorRata      DirectorRata  `mapstructure:"director_rata"`
+	Check             Check         `mapstructure:"check"`
 }
 
 type DirectorRata struct {
@@ -33,6 +36,13 @@ type DirectorRata struct {
 	HyperMinRAM  int               `mapstructure:"hyper_min_ram"`
 	HyperMaxCPU  int               `mapstructure:"hyper_max_cpu"`
 	HyperMaxRAM  int               `mapstructure:"hyper_max_ram"`
+}
+
+type Check struct {
+	Enabled             bool   `mapstructure:"enabled"`
+	TemplateID          string `mapstructure:"template_id"`
+	FailMaintenanceMode bool   `mapstructure:"fail_maintenance_mode"`
+	FailSelfSigned      bool   `mapstructure:"fail_self_signed"`
 }
 
 func New() Cfg {
@@ -51,6 +61,8 @@ func setDefaults() {
 		"polling_interval":   "30s",
 		"operations_timeout": "5m",
 		"operations_address": "isard-operations:1312",
+		"check_address":      "isard-check:1312",
+		"api_address":        "http://isard-api:5000",
 		"api_secret":         "",
 		"director":           "",
 		"director_rata": map[string]interface{}{
@@ -62,6 +74,12 @@ func setDefaults() {
 			"hyper_min_ram":  0,
 			"hyper_max_cpu":  0,
 			"hyper_max_ram":  0,
+		},
+		"check": map[string]interface{}{
+			"enabled":               true,
+			"template_id":           "",
+			"fail_maintenance_mode": true,
+			"fail_self_signed":      true,
 		},
 	})
 	viper.SetDefault("dry_run", false)

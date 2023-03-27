@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"gitlab.com/isard/isardvdi-cli/pkg/client"
+	checkv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/check/v1"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
+	"gitlab.com/isard/isardvdi/pkg/jwt"
 )
 
 func (o *Orchestrator) createHypervisor(ctx context.Context, req *operationsv1.CreateHypervisorRequest) {
@@ -91,7 +93,33 @@ hyperOnline:
 
 	o.log.Debug().Str("id", req.Id).Msg("hypervisor online")
 
-	// TODO: IsardVDI Check
+	if o.checkCfg.Enabled {
+		tkn, err := jwt.SignAPIJWT(o.apiSecret)
+		if err != nil {
+			o.log.Error().Str("id", h.ID).Str("status", string(h.Status)).Err(err).Msg("sign the JWT token for the hypervisor check")
+			return
+		}
+
+		if _, err := o.checkCli.CheckHypervisor(ctx, &checkv1.CheckHypervisorRequest{
+			Host: o.apiAddress, // TODO: CHECK THIS HOST!!!?
+			Auth: &checkv1.Auth{
+				Method: &checkv1.Auth_Token{
+					Token: &checkv1.AuthToken{
+						Token: tkn,
+					},
+				},
+			},
+			HypervisorId:        req.Id,
+			TemplateId:          o.checkCfg.TemplateID,
+			FailMaintenanceMode: o.checkCfg.FailMaintenanceMode,
+			FailSelfSigned:      o.checkCfg.FailSelfSigned,
+		}); err != nil {
+			o.log.Error().Str("id", h.ID).Str("status", string(h.Status)).Err(err).Msg("run the hypervisor check")
+			return
+		}
+
+		o.log.Debug().Str("id", req.Id).Msg("hypervisor check success")
+	}
 
 	if err := o.apiCli.OrchestratorHypervisorManage(ctx, h.ID); err != nil {
 		o.log.Error().Str("id", h.ID).Str("status", string(h.Status)).Err(err).Msg("mark the hypervisor as managed by the orchestrator")

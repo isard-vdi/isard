@@ -12,6 +12,7 @@ import (
 	"gitlab.com/isard/isardvdi/orchestrator/cfg"
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator"
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/director"
+	checkv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/check/v1"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
 	"gitlab.com/isard/isardvdi/pkg/jwt"
 	"gitlab.com/isard/isardvdi/pkg/log"
@@ -27,7 +28,7 @@ func main() {
 	var wg sync.WaitGroup
 
 	api, err := client.NewClient(&apiCfg.Cfg{
-		Host: "http://isard-api:5000",
+		Host: cfg.Orchestrator.APIAddress,
 	})
 	if err != nil {
 		log.Fatal().Err(err).Msg("create API client")
@@ -62,6 +63,14 @@ func main() {
 
 	operationsCli := operationsv1.NewOperationsServiceClient(operationsConn)
 
+	checkConn, err := grpc.DialContext(ctx, cfg.Orchestrator.CheckAddress, opts...)
+	if err != nil {
+		log.Fatal().Str("addr", cfg.Orchestrator.CheckAddress).Err(err).Msg("dial gRPC check service")
+	}
+	defer checkConn.Close()
+
+	checkCli := checkv1.NewCheckServiceClient(checkConn)
+
 	orchestrator := orchestrator.New(&orchestrator.NewOrchestratorOpts{
 		Log:               log,
 		WG:                &wg,
@@ -70,6 +79,10 @@ func main() {
 		OperationsTimeout: cfg.Orchestrator.OperationsTimeout,
 		Director:          dir,
 		OperationsCli:     operationsCli,
+		CheckCfg:          cfg.Orchestrator.Check,
+		CheckCli:          checkCli,
+		APIAddress:        cfg.Orchestrator.APIAddress,
+		APISecret:         cfg.Orchestrator.APISecret,
 		APICli:            api,
 	})
 	go orchestrator.Start(ctx)

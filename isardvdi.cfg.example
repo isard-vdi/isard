@@ -516,16 +516,20 @@ WG_GUESTS_RESERVED_HOSTS=20
 # The timeout of the operations. If the timeout is reached, the operation fails and throws an error
 # The format is the Go time duration: https://pkg.go.dev/time#ParseDuration
 #ORCHESTRATOR_ORCHESTRATOR_OPERATIONS_TIMEOUT=5m
-# The address of the gRPC service
+# The address of the operations gRPC service
 #ORCHESTRATOR_ORCHESTRATOR_OPERATIONS_ADDRESS=isard-operations:1312
+# The address of the check gRPC service
+#ORCHESTRATOR_ORCHESTRATOR_CHECK_ADDRESS=isard-check:1312
+# The API address is the address of isard-api, which is going to be used for both making orchestrator operations and for the check service
+#ORCHESTRATOR_ORCHESTRATOR_API_ADDRESS=http://isard-api:5000
+# The API secret is the secret used to sign JWT tokens in order to talk with isard-api. By default, it gets the
+# value of API_ISARDVDI_SECRET
+#ORCHESTRATOR_ORCHESTRATOR_API_SECRET=
 # The director is the decision taker of the orchestrator.
 # Available directors:
 # - rata: It has minimum resources thresholds for the whole hypervisor pools and the hypervisors themselves.
 #         It doesnt take action unless those thresholds are not met
 #ORCHESTRATOR_ORCHESTRATOR_DIRECTOR=
-# The API secret is the secret used to sign JWT tokens in order to talk with isard-api. By default, it gets the
-# value of API_ISARDVDI_SECRET
-#ORCHESTRATOR_ORCHESTRATOR_DIRECTOR_RATA_API_SECRET=
 # This value is the minimum number of CPUs free in the whole hypervisor pool. If it's set to 0, there's no minimum
 #ORCHESTRATOR_ORCHESTRATOR_DIRECTOR_RATA_MIN_CPU=0
 # This value is the same as ORCHESTRATOR_ORCHESTRATOR_DIRECTOR_RATA_MIN_CPU. However, it's separated by hours.
@@ -554,3 +558,11 @@ WG_GUESTS_RESERVED_HOSTS=20
 # This value is the maximum MB of RAM that a hypervisor can have free.
 # If it reaches the limit, the hypervisor is removed from OnlyForced, and then desktops can be started in the hypervisor again
 #ORCHESTRATOR_ORCHESTRATOR_DIRECTOR_RATA_HYPER_MAX_RAM=0
+# If this is set to true, it will run the check the hypervisor (using the isard-check service) before adding it for real
+# ORCHESTRATOR_ORCHESTRATOR_CHECK_ENABLED=true
+# This should be the ID of the template that is going to be used for checking if the hypervisors work correctly
+#ORCHESTRATOR_ORCHESTRATOR_CHECK_TEMPLATE_ID=
+# If this is set to true, the check service will fail if the maintenance mode is enabled
+#ORCHESTRATOR_ORCHESTRATOR_CHECK_FAIL_MAINTENANCE_MODE=true
+# If this is set to true, the check service will fail if it encounters a self signed certificate
+#ORCHESTRATOR_ORCHESTRATOR_CHECK_FAIL_SELF_SIGNED=true
