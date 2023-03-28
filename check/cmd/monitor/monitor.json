@@ -1,0 +1,17 @@
+{
+    "config": {
+        "check_addr": "172.31.255.73:1312",
+        "chat_id": "-1234",
+        "bot_token": "abcd"
+    },
+    "instances": [
+        {
+            "host": "https://example.com",
+            "category": "default",
+            "username": "admin",
+            "password": "password",
+            "template_id": "tempalte_id",
+            "hypers_num": 3
+        }
+    ]
+}

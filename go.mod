@@ -18,6 +18,7 @@ require (
 	github.com/shirou/gopsutil/v3 v3.22.3
 	github.com/spf13/viper v1.8.1
 	github.com/stretchr/testify v1.7.1
+	github.com/teris-io/shortid v0.0.0-20220617161101-71ec9f2aa569
 	gitlab.com/isard/isardvdi-cli v0.33.3
 	golang.org/x/crypto v0.0.0-20220427172511-eb4f295cb31f
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8

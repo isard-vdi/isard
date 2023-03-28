@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/teris-io/shortid"
 	"gitlab.com/isard/isardvdi-cli/pkg/cfg"
 	"gitlab.com/isard/isardvdi-cli/pkg/client"
 	"golang.org/x/crypto/ssh"
@@ -76,10 +77,10 @@ func (c *Check) CheckIsardVDI(ctx context.Context, authMethod AuthMethod, auth A
 	}
 
 	for _, hyper := range h {
-		c.log.Debug().Str("id", *hyper.ID).Msg("checking hypervisor")
+		c.log.Debug().Str("host", host).Str("id", *hyper.ID).Msg("checking hypervisor")
 
 		if err := c.checkHypervisor(ctx, cli, client.GetString(hyper.ID), templateID, failSelfSigned); err != nil {
-			c.log.Error().Str("hypervisor", client.GetString(hyper.ID)).Str("template_id", templateID).Err(err).Msg("check hypervisor")
+			c.log.Error().Str("host", host).Str("hypervisor", client.GetString(hyper.ID)).Str("template_id", templateID).Err(err).Msg("check hypervisor")
 
 			return CheckResult{}, fmt.Errorf("check hypervisor: %w", err)
 		}
@@ -126,7 +127,7 @@ func (c *Check) CheckHypervisor(ctx context.Context, authMethod AuthMethod, auth
 	}
 
 	if err := c.checkHypervisor(ctx, cli, hyperID, templateID, failSelfSigned); err != nil {
-		c.log.Error().Str("hypervisor", hyperID).Str("template_id", templateID).Err(err).Msg("check hypervisor")
+		c.log.Error().Str("host", host).Str("hypervisor", hyperID).Str("template_id", templateID).Err(err).Msg("check hypervisor")
 
 		return CheckResult{}, fmt.Errorf("check hypervisor: %w", err)
 	}
@@ -201,9 +202,12 @@ func (c *Check) stopDocker(ctx context.Context, id string) {
 }
 
 func (c *Check) checkHypervisor(ctx context.Context, cli client.Interface, hyperID, templateID string, failSelfSigned bool) error {
-	checkID := fmt.Sprintf("check-%d", time.Now().Unix())
+	host := cli.URL().Host
+	log := c.log.With().Str("host", host).Logger()
 
-	c.log.Debug().Str("hyper_id", hyperID).Str("id", checkID).Msg("creating check docker")
+	checkID := fmt.Sprintf("check-%s", shortid.MustGenerate())
+
+	log.Debug().Str("hyper_id", hyperID).Str("id", checkID).Msg("creating check docker")
 
 	ssh, dockerID, err := c.prepareDocker(ctx, checkID)
 	if err != nil {
@@ -218,7 +222,7 @@ func (c *Check) checkHypervisor(ctx context.Context, cli client.Interface, hyper
 	defer ssh.Close()
 
 	// Create desktop
-	c.log.Debug().Str("hyper_id", hyperID).Str("id", checkID).Msg("creating check desktop")
+	log.Debug().Str("hyper_id", hyperID).Str("id", checkID).Msg("creating check desktop")
 	d, err := cli.DesktopCreate(ctx, checkID, templateID)
 	if err != nil {
 		return fmt.Errorf("create the desktop: %w", err)
@@ -250,7 +254,7 @@ func (c *Check) checkHypervisor(ctx context.Context, cli client.Interface, hyper
 	}
 
 	// Start the desktop & wait for it
-	c.log.Debug().Str("hyper_id", hyperID).Str("id", checkID).Msg("starting check desktop")
+	log.Debug().Str("hyper_id", hyperID).Str("id", checkID).Msg("starting check desktop")
 	if err := cli.DesktopStart(ctx, dktp); err != nil {
 		return fmt.Errorf("start the desktop: %w", err)
 	}
@@ -261,19 +265,19 @@ func (c *Check) checkHypervisor(ctx context.Context, cli client.Interface, hyper
 	}
 
 	// Test the VPN
-	c.log.Debug().Str("hyper_id", hyperID).Str("id", checkID).Msg("testing VPN")
+	log.Debug().Str("hyper_id", hyperID).Str("id", checkID).Msg("testing VPN")
 	if err := c.testVPN(ctx, cli, ssh, client.GetString(d.IP)); err != nil {
 		return fmt.Errorf("test the VPN: %w", err)
 	}
 
 	// Test the viewers
-	c.log.Debug().Str("hyper_id", hyperID).Str("id", checkID).Msg("testing viewers")
+	log.Debug().Str("hyper_id", hyperID).Str("id", checkID).Msg("testing viewers")
 	if err := c.testViewers(ctx, cli, ssh, failSelfSigned, dktp); err != nil {
 		return err
 	}
 
 	// Stop the desktop & wait for it
-	c.log.Debug().Str("hyper_id", hyperID).Str("id", checkID).Msg("stopping check desktop")
+	log.Debug().Str("hyper_id", hyperID).Str("id", checkID).Msg("stopping check desktop")
 	if err := cli.DesktopStop(ctx, dktp); err != nil {
 		return fmt.Errorf("stop the desktop: %w", err)
 	}
@@ -288,7 +292,7 @@ func (c *Check) checkHypervisor(ctx context.Context, cli client.Interface, hyper
 	}
 
 	// Remove the desktop
-	c.log.Debug().Str("hyper_id", hyperID).Str("id", checkID).Msg("deleting check desktop")
+	log.Debug().Str("hyper_id", hyperID).Str("id", checkID).Msg("deleting check desktop")
 	if err := cli.DesktopDelete(ctx, dktp); err != nil {
 		return fmt.Errorf("delete the desktop: %w", err)
 	}
