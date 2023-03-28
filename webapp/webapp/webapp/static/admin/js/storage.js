@@ -284,13 +284,15 @@ $(document).ready(function() {
         "deferRender": true,
         "columns": [
           { "data": ""},
-          { "data": "path",},
-          { "data": "correct-chain",},
+          { "data": "path"},
+          { "data": "correct-chain"},
           { "data": null},
           { "data": null},
           { "data": "hyper"},
           { "data": "domains"},
+          { "data": "domains_status"},
           { "data": "storage"},
+          { "data": "storage_status"},
           { "data": "haschilds"},
           { "data": "tomigrate"},
           {
@@ -304,7 +306,7 @@ $(document).ready(function() {
           {
             "targets": 3,
             "render": function ( data, type, full, meta ) {
-              if( 'qemu-img-info' in full["migrate_data"]){
+              if( 'migrate_data' in full && 'qemu-img-info' in full["migrate_data"]){
                 return Math.round(full["migrate_data"]["qemu-img-info"]["virtual-size"]/1024/1024/1024)+" GB"
               }else{
                 return '-'
@@ -314,7 +316,7 @@ $(document).ready(function() {
           {
             "targets": 4,
             "render": function ( data, type, full, meta ) {
-              if( 'qemu-img-info' in full["migrate_data"]){
+              if( 'migrate_data' in full && 'qemu-img-info' in full["migrate_data"]){
                 return Math.round(full["migrate_data"]["qemu-img-info"]["actual-size"]/1024/1024/1024)+' GB ('+Math.round(full["migrate_data"]["qemu-img-info"]["actual-size"]*100/full["migrate_data"]["qemu-img-info"]["virtual-size"])+'%)'
               }else{
                 return '-'
@@ -332,7 +334,7 @@ $(document).ready(function() {
           var api = this.api();
           // Current page
           pageTotal = api.column(4, {search: 'applied'}).data().reduce(function (a, b) {
-            if( 'qemu-img-info' in b["migrate_data"]){
+            if( 'migrate_data' in b && 'qemu-img-info' in b["migrate_data"]){
               return a + b["migrate_data"]["qemu-img-info"]["actual-size"]/1024/1024/1024
             } else {
               return a + 0
@@ -340,7 +342,7 @@ $(document).ready(function() {
           }, 0);
           // All pages
           total = api.column(4).data().reduce(function(a, b) {
-            if( 'qemu-img-info' in b["migrate_data"]){
+            if( 'migrate_data' in b && 'qemu-img-info' in b["migrate_data"]){
               return a + b["migrate_data"]["qemu-img-info"]["actual-size"]/1024/1024/1024
             } else {
               return a + 0

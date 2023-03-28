@@ -44,29 +44,47 @@ db = RDB(app)
 db.init_app(app)
 
 
+def build_path_from_storage(s):
+    return s["directory_path"] + "/" + s["id"] + "." + s["type"]
+
+
 def phy_storage_list(table):
     if table == "domains":
         with app.app_context():
             storage = list(
                 r.table("storage")
-                .pluck("qemu-img-info")["qemu-img-info"]["filename"]
+                .pluck("id", "directory_path", "type", "status")
                 .run(db.conn)
             )
             storage_physical = list(r.table("storage_physical_domains").run(db.conn))
             domains = list(
                 r.table("domains")
-                .pluck("id", {"create_dict": {"hardware": {"disks": True}}})
+                .pluck("id", "status", {"create_dict": {"hardware": {"disks": True}}})
                 .run(db.conn)
             )
         # To speedup the search
+        storage_dict = {}
+        for s in storage:
+            storage_dict[build_path_from_storage(s)] = {
+                "path": build_path_from_storage(s),
+                "status": s["status"],
+            }
+
         domains_dict = {}
         for d in domains:
             for disk in d["create_dict"]["hardware"]["disks"]:
-                domains_dict[disk.get("storage_id", disk.get("file"))] = True
-
-        storage_dict = {}
-        for s in storage:
-            storage_dict[s] = True
+                if disk.get("storage_id"):
+                    # If storage_id is not in storage table, then it is a file
+                    if not storage_dict.get(disk.get("storage_id")):
+                        # The storage_id is not in storage table. Must not happen.
+                        continue
+                    else:
+                        domains_dict[storage_dict[disk.get("storage_id")]["path"]] = {
+                            "d": d["id"],
+                            "ds": d["status"],
+                        }
+                else:
+                    domains_dict[disk.get("file")] = {"d": d["id"], "ds": d["status"]}
 
         storage_physical_parents_dict = {}
         for sp in storage_physical:
@@ -79,8 +97,16 @@ def phy_storage_list(table):
             {
                 **sp,
                 **{
-                    "domains": domains_dict.get(sp["path"], False),
-                    "storage": storage_dict.get(sp["path"], False),
+                    "domains": domains_dict[sp["path"]]["d"]
+                    if domains_dict.get(sp["path"])
+                    else False,
+                    "domains_status": False
+                    if not domains_dict.get(sp["path"])
+                    else domains_dict[sp["path"]]["ds"],
+                    "storage_status": False
+                    if not storage_dict.get(sp["path"])
+                    else storage_dict[sp["path"]]["status"],
+                    "storage": True if storage_dict.get(sp["path"]) else False,
                     "haschilds": storage_physical_parents_dict.get(sp["path"], False),
                 },
             }
