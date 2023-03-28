@@ -280,7 +280,8 @@ def admin_table_update(table, data, payload=False):
         _validate_item("user", old_data)
 
     if table == "desktops_priority":
-        IsardValidator()._check_with_validate_time_values(data)
+        if "allowed" not in data:
+            IsardValidator()._check_with_validate_time_values(data)
     with app.app_context():
         if not _check(
             r.table(table).get(data["id"]).update(data).run(db.conn),

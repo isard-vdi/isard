@@ -37,3 +37,7 @@ shutdown:
           type:
             type: string
             allowed: ['danger', 'warning']
+    server:
+      type: boolean
+      required: false
+      default: false

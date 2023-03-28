@@ -4,7 +4,6 @@
 # License: AGPLv3
 
 import os
-import traceback
 import uuid
 from base64 import b64encode
 from secrets import token_bytes
@@ -14,7 +13,6 @@ from cerberus import Validator, schema_registry
 
 from api import app
 
-from .._common.api_exceptions import Error
 from .._common.storage_pool import DEFAULT_STORAGE_POOL_ID
 from .helpers import _parse_string
 
@@ -58,16 +56,16 @@ class IsardValidator(Validator):
             self._error(field, "Range limits should be >= 1 and <= 4094")
 
     def _check_with_validate_time_values(self, data):
-        action = data["op"]
+        action = data.get("op", "shutdown")
         max_time = data[action]["max"]
         warning_time = data[action]["notify_intervals"][1]["time"]
         danger_time = data[action]["notify_intervals"][0]["time"]
         if (
-            max_time >= 0
+            max_time <= 0
             or warning_time >= 0
             or danger_time >= 0
-            or warning_time <= max_time
-            or danger_time <= max_time
+            or warning_time >= max_time
+            or danger_time >= max_time
             or danger_time <= warning_time
         ):
             self._error("bad_request", "Incorrect time values.")

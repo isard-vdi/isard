@@ -34,8 +34,8 @@ $(document).ready(function () {
       { data: "description" },
       { data: "priority" },
       { data: "max_time", defaultContent: "-" }, 
-      { data: "danger_time", defaultContent: "-" }, 
       { data: "warning_time", defaultContent: "-" },
+      { data: "danger_time", defaultContent: "-" }, 
       { data: "op", defaultContent: "-" },
       {
         className: "actions-control",
@@ -64,12 +64,12 @@ $(document).ready(function () {
           if (full[action]) {
             const intervals = full[action].notify_intervals;
             for (var i = 0; i < intervals.length; i++) {
-              if (intervals[i].type == "danger") {
+              if (intervals[i].type == "warning") {
                 return(intervals[i].time)
               }
             }
           }
-        }
+        },
       },
       {
         targets: 6,
@@ -78,12 +78,12 @@ $(document).ready(function () {
           if (full[action]) {
             const intervals = full[action].notify_intervals;
             for (var i = 0; i < intervals.length; i++) {
-              if (intervals[i].type == "warning") {
+              if (intervals[i].type == "danger") {
                 return(intervals[i].time)
               }
             }
           }
-        },
+        }
       },
     ],
   });
@@ -218,7 +218,6 @@ $(document).ready(function () {
     data["id"]=data.priority_id
     data = parseTimeValues(data)
 
-    delete data.op
     delete data.priority_id
     delete data.max_time
     delete data.danger_time
@@ -289,10 +288,10 @@ function renderDesktopPriorityDetail ( d ) {
 
 function parseTimeValues (data) {
   var action = data.op;
-  if ((data["max_time"] >= 0) || (data["warning_time"] >= 0) || (data["danger_time"] >= 0)) {
+  if ((data["warning_time"] >= 0) || (data["danger_time"] >= 0)) {
     return new PNotify({
       title: "ERROR",
-      text: "Time values must be under zero",
+      text: "Warning (min) and Danger (min) time values must be under zero",
       hide: true,
       delay: 3000,
       icon: 'fa fa-warning',
@@ -301,10 +300,22 @@ function parseTimeValues (data) {
     });
   }
 
-  if ((data["max_time"] >= data["warning_time"]) || (data["max_time"] >= data["danger_time"])) {
+  if (data["max_time"] <= 0) {
     return new PNotify({
       title: "ERROR",
-      text: "Max (min) must be the minor value",
+      text: "Max (min) must be over zero",
+      hide: true,
+      delay: 3000,
+      icon: 'fa fa-warning',
+      opacity: 1,
+      type: 'error'
+    });
+  }
+
+  if ((data["max_time"] <= data["warning_time"]) || (data["max_time"] <= data["danger_time"])) {
+    return new PNotify({
+      title: "ERROR",
+      text: "Max (min) must be the greatest value",
       hide: true,
       delay: 3000,
       icon: 'fa fa-warning',
@@ -337,6 +348,7 @@ function parseTimeValues (data) {
         "type": "warning"
       }
     ],
+    "server": false
   }
   return data
 }
