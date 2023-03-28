@@ -89,16 +89,16 @@ $(document).ready(function() {
         var api = this.api();
         // Current page
         pageTotal = api.column(4, {search: 'applied'}).data().reduce(function (a, b) {
-          if ("qemu-img-info" in b) {
-            return a + b["qemu-img-info"]["virtual-size"]/1024/1024/1024
+          if( b['status'] == 'ready' && 'qemu-img-info' in b){
+            return a + b["qemu-img-info"]["actual-size"]/1024/1024/1024
           } else {
             return a + 0
           }
         }, 0);
         // All pages
         total = api.column(4).data().reduce(function(a, b) {
-          if ("qemu-img-info" in b) {
-            return a + b["qemu-img-info"]["virtual-size"]/1024/1024/1024
+          if( b['status'] == 'ready' && 'qemu-img-info' in b){
+            return a + b["qemu-img-info"]["actual-size"]/1024/1024/1024
           } else {
             return a + 0
           }
@@ -206,7 +206,7 @@ $(document).ready(function() {
         {
           "targets": 2,
           "render": function ( data, type, full, meta ) {
-            if( 'qemu-img-info' in full){
+            if( full['status'] == 'deleted' && 'qemu-img-info' in full){
               return Math.round(full["qemu-img-info"]["virtual-size"]/1024/1024/1024)+" GB"
             }else{
               return '-'
@@ -216,7 +216,7 @@ $(document).ready(function() {
         {
           "targets": 3,
           "render": function ( data, type, full, meta ) {
-            if( 'qemu-img-info' in full){
+            if( full['status'] == 'deleted' && 'qemu-img-info' in full){
               return Math.round(full["qemu-img-info"]["actual-size"]/1024/1024/1024)+' GB ('+Math.round(full["qemu-img-info"]["actual-size"]*100/full["qemu-img-info"]["virtual-size"])+'%)'
             }else{
               return '-'
@@ -234,16 +234,16 @@ $(document).ready(function() {
         var api = this.api();
         // Current page
         pageTotal = api.column(2, {search: 'applied'}).data().reduce(function (a, b) {
-          if ("qemu-img-info" in b) {
-            return a + b["qemu-img-info"]["virtual-size"]/1024/1024/1024
+          if( b['status'] == 'deleted' && 'qemu-img-info' in b){
+            return a + b["qemu-img-info"]["actual-size"]/1024/1024/1024
           } else {
             return a + 0
           }
         }, 0);
         // All pages
         total = api.column(2).data().reduce(function(a, b) {
-          if ("qemu-img-info" in b) {
-            return a + b["qemu-img-info"]["virtual-size"]/1024/1024/1024
+          if( b['status'] == 'deleted' && 'qemu-img-info' in b){
+            return a + b["qemu-img-info"]["actual-size"]/1024/1024/1024
           } else {
             return a + 0
           }
@@ -286,7 +286,8 @@ $(document).ready(function() {
           { "data": ""},
           { "data": "path",},
           { "data": "correct-chain",},
-          { "data": "size"},
+          { "data": null},
+          { "data": null},
           { "data": "hyper"},
           { "data": "domains"},
           { "data": "storage"},
@@ -303,7 +304,21 @@ $(document).ready(function() {
           {
             "targets": 3,
             "render": function ( data, type, full, meta ) {
-              return Math.round(data/1000/1000/1000)+" GB"
+              if( 'qemu-img-info' in full["migrate_data"]){
+                return Math.round(full["migrate_data"]["qemu-img-info"]["virtual-size"]/1024/1024/1024)+" GB"
+              }else{
+                return '-'
+              }
+            }
+          },
+          {
+            "targets": 4,
+            "render": function ( data, type, full, meta ) {
+              if( 'qemu-img-info' in full["migrate_data"]){
+                return Math.round(full["migrate_data"]["qemu-img-info"]["actual-size"]/1024/1024/1024)+' GB ('+Math.round(full["migrate_data"]["qemu-img-info"]["actual-size"]*100/full["migrate_data"]["qemu-img-info"]["virtual-size"])+'%)'
+              }else{
+                return '-'
+              }
             }
           },
           {
@@ -316,12 +331,20 @@ $(document).ready(function() {
         footerCallback: function () {
           var api = this.api();
           // Current page
-          pageTotal = api.column(3, {search: 'applied'}).data().reduce(function (a, b) {
-            return a + b/1000/1000/1000
+          pageTotal = api.column(4, {search: 'applied'}).data().reduce(function (a, b) {
+            if( 'qemu-img-info' in b["migrate_data"]){
+              return a + b["migrate_data"]["qemu-img-info"]["actual-size"]/1024/1024/1024
+            } else {
+              return a + 0
+            }
           }, 0);
           // All pages
-          total = api.column(3).data().reduce(function(a, b) {
-            return a + b/1000/1000/1000
+          total = api.column(4).data().reduce(function(a, b) {
+            if( 'qemu-img-info' in b["migrate_data"]){
+              return a + b["migrate_data"]["qemu-img-info"]["actual-size"]/1024/1024/1024
+            } else {
+              return a + 0
+            }
           }, 0);
       
           $('.storage_physical-total-size').html('Applied  filter storage size: ' + pageTotal.toFixed(1) + ' GB ( Total storage size: ' + total.toFixed(1) + ' GB )');
