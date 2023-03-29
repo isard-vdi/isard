@@ -27,7 +27,8 @@ RUN apk add --no-cache --virtual .build_deps \
 
 # python-iptables
 # Avoid temporary build errors of iptables master branch by setting iptables version.
-RUN git clone -b v1.8.7 git://git.netfilter.org/iptables
+# RUN git clone -b v1.8.7 git://git.netfilter.org/iptables
+RUN git clone https://gitlab.com/isard/iptables.git
 WORKDIR /iptables
 RUN ./autogen.sh
 RUN ./configure --prefix=/tmp/iptables
