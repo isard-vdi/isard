@@ -10,7 +10,7 @@ stop_background_tasks()
 {
   echo Stopping background tasks...
   trap - SIGTERM
-  kill -TERM 0
+  kill -TERM -$$
   wait
 }
 trap stop_background_tasks SIGTERM SIGINT SIGQUIT 
