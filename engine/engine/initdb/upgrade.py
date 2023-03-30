@@ -17,7 +17,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 81
+release_version = 82
+# release 82: Remove orphan deployments
 # release 81: Add desktops_priority "name" index
 # release 80: "tag_status" index for domains table
 # release 79: added item_type_user bookings index
@@ -1403,6 +1404,23 @@ class Upgrade(object):
         if version == 66:
             try:
                 r.table(table).index_create("name").run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 82:
+            try:
+                deployments = (
+                    r.table(table)
+                    .merge(
+                        lambda deployment: {
+                            "user": r.table("users").get(deployment["user"])
+                        }
+                    )
+                    .filter({"user": None})
+                    .pluck("id")["id"]
+                    .run(self.conn)
+                )
+                r.table(table).get_all(r.args(deployments)).delete().run(self.conn)
             except Exception as e:
                 print(e)
 
