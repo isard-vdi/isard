@@ -263,6 +263,6 @@ def groups_users_count(payload):
 @app.route("/api/v3/user/appliedquota", methods=["GET"])
 @has_token
 def get_user_applied_quota(payload):
-    applied_quota = quotas.getAppliedQuota(payload["user_id"])
+    applied_quota = quotas.get_applied_quota(payload["user_id"])
 
     return json.dumps(applied_quota), 200, {"Content-Type": "application/json"}

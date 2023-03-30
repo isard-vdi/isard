@@ -33,7 +33,7 @@ class Quotas:
     def __init__(self):
         None
 
-    def getAppliedQuota(self, user_id):
+    def get_applied_quota(self, user_id):
         with app.app_context():
             user = (
                 r.table("users")
@@ -70,7 +70,7 @@ class Quotas:
             return {"quota": False, "restriction_applied": "user_quota"}
 
     # Get in user["quota"] the applied quota, either user, group or category
-    # TODO: Use getAppliedQuota function
+    # TODO: Use get_applied_quota function
     def Get(self, user_id, started_info=True):
         with app.app_context():
             user = (
@@ -1322,7 +1322,7 @@ class Quotas:
             dict["favourite_hyp"] = []
 
         if not kind or kind == "quota":
-            quota = self.Get(payload["user_id"])
+            quota = self.get_applied_quota(payload["user_id"])
         else:
             quota = {}
 
