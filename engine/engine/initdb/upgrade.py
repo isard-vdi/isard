@@ -17,7 +17,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 80
+release_version = 81
+# release 81: Add desktops_priority "name" index
 # release 80: "tag_status" index for domains table
 # release 79: added item_type_user bookings index
 # release 78: remove status_logs from domains
@@ -111,6 +112,7 @@ tables = [
     "qos_disk",
     "storage_node",
     "gpu_profiles",
+    "desktops_priority",
 ]
 
 
@@ -2597,6 +2599,20 @@ class Upgrade(object):
 
             try:
                 r.table(table).index_create("custom_url_name").run(self.conn)
+            except Exception as e:
+                print(e)
+
+        return True
+
+    """
+    DESKTOPS PRIORITY TABLE UPGRADES
+    """
+
+    def desktops_priority(self, version):
+        table = "desktops_priority"
+        if version == 81:
+            try:
+                r.table(table).index_create("name").run(self.conn)
             except Exception as e:
                 print(e)
 

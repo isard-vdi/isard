@@ -55,6 +55,21 @@ class IsardValidator(Validator):
         elif not 1 <= int(range[0]) <= 4094 or not 1 <= int(range[1]) <= 4094:
             self._error(field, "Range limits should be >= 1 and <= 4094")
 
+    def _check_with_validate_time_values(self, data):
+        action = data.get("op", "shutdown")
+        max_time = data[action]["max"]
+        warning_time = data[action]["notify_intervals"][1]["time"]
+        danger_time = data[action]["notify_intervals"][0]["time"]
+        if (
+            max_time <= 0
+            or warning_time >= 0
+            or danger_time >= 0
+            or warning_time >= max_time
+            or danger_time >= max_time
+            or danger_time <= warning_time
+        ):
+            self._error("bad_request", "Incorrect time values.")
+
     def _normalize_default_setter_gensecret(self, document):
         return b64encode(token_bytes(32)).decode()
 

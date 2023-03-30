@@ -28,6 +28,7 @@ from .api_desktop_events import desktops_start, desktops_stop
 from .api_desktops_persistent import ApiDesktopsPersistent
 from .api_templates import ApiTemplates
 from .helpers import _check, get_user_data
+from .load_validator_schemas import IsardValidator
 from .validators import _validate_item, _validate_table
 
 
@@ -186,8 +187,11 @@ def admin_table_insert(table, data):
         "qos_disk",
         "remotevpn",
         "bookings_priority",
+        "desktops_priority",
     ]:
         data = _validate_item(table, data)
+        if table == "desktops_priority":
+            IsardValidator()._check_with_validate_time_values(data)
     with app.app_context():
         if r.table(table).get(data["id"]).run(db.conn) == None:
             if not _check(r.table(table).insert(data).run(db.conn), "inserted"):
@@ -274,6 +278,10 @@ def admin_table_update(table, data, payload=False):
             old_data = r.table("users").get(data["id"]).run(db.conn)
         old_data.update(data)
         _validate_item("user", old_data)
+
+    if table == "desktops_priority":
+        if "allowed" not in data:
+            IsardValidator()._check_with_validate_time_values(data)
     with app.app_context():
         if not _check(
             r.table(table).get(data["id"]).update(data).run(db.conn),
