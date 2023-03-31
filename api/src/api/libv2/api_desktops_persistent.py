@@ -5,6 +5,7 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
+import copy
 import json
 import secrets
 import time
@@ -568,28 +569,35 @@ class ApiDesktopsPersistent:
         desktop_reset(desktop_id)
         return token
 
-    def Update(self, desktop_id, desktop_data, admin_or_manager=False):
-        if desktop_data.get("image"):
-            image_data = desktop_data.pop("image")
+    def Update(self, desktop_id, desktop_data, admin_or_manager=False, bulk=False):
+        desktops = desktop_id if bulk else [desktop_id]
+        for d in desktops:
+            if desktop_data.get("image"):
+                image_data = desktop_data.pop("image")
 
-            if not image_data.get("file"):
-                img_uuid = api_cards.update(
-                    desktop_id, image_data["id"], image_data["type"]
-                )
-                card = api_cards.get_card(img_uuid, image_data["type"])
-            else:
-                img_uuid = api_cards.upload(desktop_id, image_data)
-                card = api_cards.get_card(img_uuid, image_data["type"])
+                if not image_data.get("file"):
+                    img_uuid = api_cards.update(d, image_data["id"], image_data["type"])
+                    api_cards.get_card(img_uuid, image_data["type"])
+                else:
+                    img_uuid = api_cards.upload(d, image_data)
+                    api_cards.get_card(img_uuid, image_data["type"])
 
-        desktop = parse_domain_update(desktop_id, desktop_data, admin_or_manager)
+            data = copy.deepcopy(desktop_data)
+            desktop = parse_domain_update(d, data, admin_or_manager)
+
+        query = (
+            (r.table("domains").get_all(*desktop_id).update(desktop))
+            if bulk
+            else (r.table("domains").get(desktop_id).update(desktop))
+        )
         with app.app_context():
             if not _check(
-                r.table("domains").get(desktop_id).update(desktop).run(db.conn),
+                query.run(db.conn),
                 "replaced",
             ):
                 raise Error(
                     "internal_server",
-                    "Unable to update desktop in database",
+                    "Unable to update desktop(s) in database",
                     traceback.format_exc(),
                     description_code="unable_to_update" + str(desktop["status"]),
                 )
@@ -798,4 +806,40 @@ class ApiDesktopsPersistent:
                 "precondition_required",
                 "There's not enough time to start the desktop",
                 description_code="not_enough_time_to_start",
+            )
+
+    def validate_desktop_update(self, data, domain_id):
+        desktop = self.Get(domain_id)
+        data["id"] = domain_id
+        if data.get("name"):
+            check_user_duplicated_domain_name(
+                data["name"], desktop["user"], desktop.get("kind"), data["id"]
+            )
+        new_data = copy.deepcopy(data)
+        self.check_viewers(new_data, desktop)
+        if not "server" in data and desktop.get("status") not in ["Failed", "Stopped"]:
+            raise Error(
+                "precondition_required",
+                "Desktops only can be edited when stopped or failed",
+                traceback.format_exc(),
+            )
+
+        if (
+            desktop.get("server")
+            and not "server" in data
+            and desktop.get("status") != "Failed"
+        ):
+            raise Error(
+                "precondition_required",
+                "Servers can't be edited",
+                traceback.format_exc(),
+            )
+
+        if desktop.get("create_dict", {}).get("reservables", {}).get(
+            "vgpus"
+        ) and data.get("server"):
+            raise Error(
+                "precondition_required",
+                "Servers can not have a bookable item",
+                traceback.format_exc(),
             )
