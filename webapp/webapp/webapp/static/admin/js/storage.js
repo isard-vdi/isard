@@ -466,66 +466,77 @@ $(document).ready(function() {
         ids=[]
 
         if(storage_physical.rows('.active').data().length){
-            $.each(storage_physical.rows('.active').data(),function(key, value){
-                if(value["tomigrate"] == true){
-                  names+=value['path']+'\n';
-                  ids.push(value['path']);
-                }
-            });
-            var text = "You are about to\n- Activate maintenance mode\n- Stop all desktops\n while executing "+action+" these 'To Migrate' physical disks:\n\n "+names
+          $.each(storage_physical.rows('.active').data(),function(key, value){
+            if(value["tomigrate"] == true){
+              names+=value['path']+'\n';
+              ids.push(value['path']);
+            }
+          });
+          var text = "<b>You are about to\n- Activate maintenance mode\n- Stop all desktops\n To execute "+action+" these 'To Migrate' physical disks:\n\n "+names+"</b>"
         }else{
-            $.each(storage_physical.rows({filter: 'applied'}).data(),function(key, value){
-              if(value["tomigrate"] == true){
-                ids.push(value['path']);
-              }
-            });
-            var text = "You are about to\n- Activate maintenance mode\n- Stop all desktops\n while executing "+action+" "+ids.length+" disks!\n All the 'To Migrate' disks in list!"
+          $.each(storage_physical.rows({filter: 'applied'}).data(),function(key, value){
+            if(value["tomigrate"] == true){
+              ids.push(value['path']);
+            }
+          });
+          var text = "<b>You are about to\n- Activate maintenance mode\n- Stop all desktops\n To execute "+action+" to "+ids.length+" disks!\n (Every 'To Migrate' desktop in table)</b>"
         }
-
+        
         new PNotify({
-            title: 'Warning!',
-              text: text,
-              hide: false,
-              opacity: 0.9,
-              confirm: {
-                confirm: true
-              },
-              buttons: {
-                closer: false,
-                sticker: false
-              },
-              history: {
-                history: false
-              },
-              addclass: 'pnotify-center'
-            }).get().on('pnotify.confirm', function() {
-              new PNotify({
-                title: "Migrating disks.",
-                  text: "Activating maintenance mode and stopping domains",
-                  hide: true,
-                  delay: 4250,
-                  icon: 'fa fa-alert',
-                  opacity: 1,
-                  type: 'warning',
+          title: "<b>WARNING</b>",
+          type: "error",
+          text: text,
+          hide: false,
+          opacity: 0.9,
+          confirm: {
+            confirm: true
+          },
+          buttons: {
+            closer: false,
+            sticker: false
+          },
+          history: {
+            history: false
+          },
+          addclass: 'pnotify-center-large',
+          width: "550"
+        }).get().on('pnotify.confirm', function() {
+          var notice = new PNotify({
+            title: "<b>Migrating disks...</b>",
+            text: "<b>Activating maintenance mode and stopping domains. \n Please, wait until the migration is completed.\n Migrating " + ids.length + " disks...</b>",
+            hide: true,
+            delay: 4250,
+            icon: 'fa fa-alert',
+            opacity: 1,
+            type: 'warning',
+            addclass: 'pnotify-center-large',
+            width: "550"
+          });
+          $.ajax({
+            type: "POST",
+            url:"/api/v3/admin/storage/physical/multiple_actions/"+action,
+            data: JSON.stringify({'paths':ids}),
+            contentType: 'application/json',
+            success: function(data){
+              notice.update({
+                title: "<b>Disks migrated</b>",
+                text: ids.length + " disks migrated successfully \n Manteinance mode disabled.",
+                hide: true,
+                delay: 4250,
+                icon: 'fa fa-success',
+                opacity: 1,
+                type: 'success',
               });
-              $.ajax({
-                type: "POST",
-                url:"/api/v3/admin/storage/physical/multiple_actions/"+action,
-                data: JSON.stringify({'paths':ids}),
-                contentType: 'application/json',
-                success: function(data)
-                {
-                  storage_physical.ajax.reload()
-                },
-                always: function(data)
-                {
-                  $('#mactions option[value="none"]').prop("selected", true);
-                  $('#domains tr.active').removeClass('active')
-                  $('#mactions option[value="none"]').prop("selected",true);
-                }
-              });
-            } )
-      })
+              storage_physical.ajax.reload()
+            },
+            always: function(data){
+              $('#mactions option[value="none"]').prop("selected", true);
+              $('#domains tr.active').removeClass('active')
+              $('#mactions option[value="none"]').prop("selected",true);
+            }
+          });
+        });
+      });
     }
     // $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
 })

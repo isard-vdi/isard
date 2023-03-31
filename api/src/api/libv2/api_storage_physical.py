@@ -223,9 +223,22 @@ def phy_storage_upgrade_to_storage(data, user_id):
         namespace="/administrators",
         room="admins",
     )
+
+    with app.app_context():
+        domains = list(
+            r.table("domains")
+            .pluck("id", "user", {"create_dict": {"hardware": {"disks": True}}})
+            .run(db.conn)
+        )
+    # To speedup the search
+    domains_dict = {}
+    for d in domains:
+        for disk in d["create_dict"]["hardware"]["disks"]:
+            domains_dict[disk.get("storage_id", disk.get("file"))] = d["user"]
+
     errors = []
     for path_id in data["paths"]:
-        new_disk = phy_add_to_storage(path_id, user_id)
+        new_disk = phy_add_to_storage(path_id, domains_dict.get(path_id, user_id))
         if not new_disk:
             errors.append("disk path " + str(path_id) + ": bad format.")
             socketio.emit(
