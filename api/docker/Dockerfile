@@ -13,12 +13,10 @@ RUN apk del .build_deps
 
 COPY api/src /api
 COPY component/_common/src /api/api/_common
-COPY api/docker/run.sh /
-WORKDIR /api
 
-CMD /run.sh
+ENV PYTHONWARNINGS "ignore:Unverified HTTPS request"
+CMD ["python3", "-u", "/api/startv3.py"]
 HEALTHCHECK --interval=10s CMD curl -f http://localhost:5000/api/v3
-STOPSIGNAL SIGKILL
 
 ARG SRC_VERSION_ID
 RUN echo -n "$SRC_VERSION_ID" > /version
