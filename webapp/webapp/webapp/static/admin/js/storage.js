@@ -52,7 +52,7 @@ $(document).ready(function() {
         {
           "targets": 4,
           "render": function ( data, type, full, meta ) {
-            if( full['status'] == 'ready' && 'qemu-img-info' in full){
+            if( 'qemu-img-info' in full){
               return Math.round(full["qemu-img-info"]["virtual-size"]/1024/1024/1024)+" GB"
             }else{
               return '-'
@@ -62,7 +62,7 @@ $(document).ready(function() {
         {
           "targets": 5,
           "render": function ( data, type, full, meta ) {
-            if( full['status'] == 'ready' && 'qemu-img-info' in full){
+            if( 'qemu-img-info' in full){
               return Math.round(full["qemu-img-info"]["actual-size"]/1024/1024/1024)+' GB ('+Math.round(full["qemu-img-info"]["actual-size"]*100/full["qemu-img-info"]["virtual-size"])+'%)'
             }else{
               return '-'
@@ -89,7 +89,7 @@ $(document).ready(function() {
         var api = this.api();
         // Current page
         pageTotal = api.column(4, {search: 'applied'}).data().reduce(function (a, b) {
-          if( b['status'] == 'ready' && 'qemu-img-info' in b){
+          if( 'qemu-img-info' in b){
             return a + b["qemu-img-info"]["actual-size"]/1024/1024/1024
           } else {
             return a + 0
@@ -97,7 +97,7 @@ $(document).ready(function() {
         }, 0);
         // All pages
         total = api.column(4).data().reduce(function(a, b) {
-          if( b['status'] == 'ready' && 'qemu-img-info' in b){
+          if( 'qemu-img-info' in b){
             return a + b["qemu-img-info"]["actual-size"]/1024/1024/1024
           } else {
             return a + 0
@@ -206,7 +206,7 @@ $(document).ready(function() {
         {
           "targets": 2,
           "render": function ( data, type, full, meta ) {
-            if( full['status'] == 'deleted' && 'qemu-img-info' in full){
+            if( 'qemu-img-info' in full){
               return Math.round(full["qemu-img-info"]["virtual-size"]/1024/1024/1024)+" GB"
             }else{
               return '-'
@@ -216,7 +216,7 @@ $(document).ready(function() {
         {
           "targets": 3,
           "render": function ( data, type, full, meta ) {
-            if( full['status'] == 'deleted' && 'qemu-img-info' in full){
+            if( 'qemu-img-info' in full){
               return Math.round(full["qemu-img-info"]["actual-size"]/1024/1024/1024)+' GB ('+Math.round(full["qemu-img-info"]["actual-size"]*100/full["qemu-img-info"]["virtual-size"])+'%)'
             }else{
               return '-'
@@ -234,7 +234,7 @@ $(document).ready(function() {
         var api = this.api();
         // Current page
         pageTotal = api.column(2, {search: 'applied'}).data().reduce(function (a, b) {
-          if( b['status'] == 'deleted' && 'qemu-img-info' in b){
+          if( 'qemu-img-info' in b){
             return a + b["qemu-img-info"]["actual-size"]/1024/1024/1024
           } else {
             return a + 0
@@ -242,7 +242,7 @@ $(document).ready(function() {
         }, 0);
         // All pages
         total = api.column(2).data().reduce(function(a, b) {
-          if( b['status'] == 'deleted' && 'qemu-img-info' in b){
+          if( 'qemu-img-info' in b){
             return a + b["qemu-img-info"]["actual-size"]/1024/1024/1024
           } else {
             return a + 0
