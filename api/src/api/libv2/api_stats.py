@@ -8,7 +8,7 @@ from ..libv2.flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
-stable_status = ["Started", "Stopped", "Failed", "Unknown"]
+stable_status = ["Started", "Stopped", "Failed"]
 
 
 def Users():
@@ -79,19 +79,25 @@ def OtherStatus():
         )
     result = {}
     for key, value in desktops.items():
+        if key[1] in stable_status:
+            continue
         if key[0] not in result.keys():
-            if value not in stable_status:
-                result[key[0]] = {"desktops_wrong_status": {key[1]: value}}
+            result[key[0]] = {"desktops_wrong_status": {key[1]: value}}
         else:
-            if value not in stable_status:
-                result[key[0]]["desktops_wrong_status"][key[1]] = value
+            result[key[0]] = {
+                **result[key[0]],
+                **{"desktops_wrong_status": {key[1]: value}},
+            }
     for key, value in templates.items():
+        if key[1] == "Stopped":
+            continue
         if key[0] not in result.keys():
-            if value not in stable_status:
-                result[key[0]] = {"templates_wrong_status": {key[1]: value}}
+            result[key[0]] = {"templates_wrong_status": {key[1]: value}}
         else:
-            if value not in stable_status:
-                result[key[0]]["templates_wrong_status"][key[1]] = value
+            result[key[0]] = {
+                **result[key[0]],
+                **{"templates_wrong_status": {key[1]: value}},
+            }
     return result
 
 
