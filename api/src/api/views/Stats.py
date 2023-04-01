@@ -9,6 +9,7 @@ from ..libv2.api_stats import (
     CategoriesKindState,
     CategoriesLimitsHardware,
     Desktops,
+    DomainsStatus,
     GroupByCategories,
     Kind,
     OtherStatus,
@@ -40,6 +41,16 @@ def stats_general(payload):
 def stats_kind_pluck(payload, kind):
     return (
         json.dumps(Kind(kind)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/stats/domains/status", methods=["GET"])
+@is_admin
+def stats_domains_status(payload):
+    return (
+        json.dumps(DomainsStatus()),
         200,
         {"Content-Type": "application/json"},
     )

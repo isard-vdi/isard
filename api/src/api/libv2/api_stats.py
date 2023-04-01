@@ -59,6 +59,23 @@ def Templates():
     }
 
 
+def DomainsStatus():
+    with app.app_context():
+        domains = (
+            r.table("domains")
+            .pluck("status", "kind")
+            .group("kind", "status")
+            .count()
+            .run(db.conn)
+        )
+    d = {}
+    for k, v in domains.items():
+        if k[0] not in d:
+            d[k[0]] = {}
+        d[k[0]][k[1]] = v
+    return d
+
+
 def OtherStatus():
     with app.app_context():
         desktops = (
