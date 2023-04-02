@@ -143,8 +143,7 @@ export default {
     const currentPage = ref(1)
     const filter = ref('')
     const filterOn = reactive([])
-    const selected = ref([])
-    const selectedOSTemplateId = computed(() => selected.value[0] ? selected.value[0].id : '')
+    const selectedOSTemplateId = computed(() => $store.getters.getSelectedOSTemplateId)
     const totalRows = ref(1)
     const mediaInstallsLoaded = computed(() => $store.getters.getMediaInstallsLoaded)
     const onFiltered = (filteredItems) => {
@@ -154,8 +153,7 @@ export default {
     }
 
     const onRowSelected = (items) => {
-      selected.value = items
-      $store.dispatch('setSelectedOSTemplateId', items)
+      $store.dispatch('setSelectedOSTemplateId', items[0].id)
     }
 
     const items = computed(() => $store.getters.getMediaInstalls)
@@ -197,7 +195,6 @@ export default {
       currentPage,
       filter,
       filterOn,
-      selected,
       selectedOSTemplateId,
       totalRows,
       mediaInstallsLoaded,
