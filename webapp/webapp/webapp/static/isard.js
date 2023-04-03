@@ -396,6 +396,23 @@ function infoDomains(value, tbody) {
     return tbody.append(html);
 }
 
+function disableFirstOption (id) {
+  $(id + ' select').prepend(
+    $('<option></option>').attr('value', null).text('  -- ')
+  )
+}
+
+function showAndHideByCheckbox (checkboxSelector, divSelector) {
+  divSelector.hide()
+  checkboxSelector.on('ifChecked', function (event) {
+    divSelector.show()
+  })
+  checkboxSelector.on('ifUnchecked', function (event) {
+    divSelector.hide()
+  })
+}
+
+
 // Panel toolbox
 $(document).ready(function() {
     $('.collapse-link').on('click', function() {

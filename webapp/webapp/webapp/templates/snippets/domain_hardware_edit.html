@@ -1,6 +1,6 @@
 <div class="row">
    <div class="col-md-12 col-sm-12 col-xs-12">
-      <div class="checkbox">
+      <div class="checkbox" id="virtualization_nested-checkbox">
             <label class="">
                <div class="icheckbox_flat-green" style="position: relative;">
                   <input type="checkbox" id="hardware-virtualization_nested" name="hardware-virtualization_nested" style="position: absolute; opacity: 0;">
@@ -47,7 +47,18 @@
       </select>
    </div> -->
 </div>
-<div class="row">
+<div class="checkbox" id="edit-network-checkbox"" style="display: none; margin-top: 12px">
+   <label class="">
+      <div class="icheckbox_flat-green" style="position: relative;">
+         <input type="checkbox" id="edit-network" name="edit-network" style="position: absolute; opacity: 0;">
+         <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+         </ins>
+      </div>
+      <b>Update network</b>
+   </label>
+</div> 
+
+<div class="row" id="network-row">
    <div class="col-md-12 col-sm-12 col-xs-12">
       <label class="control-label" for="hardware-interfaces">Networks: (select multiple networks holding Control key and clicking them)
       </label>

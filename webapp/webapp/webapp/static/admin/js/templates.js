@@ -286,6 +286,115 @@ $(document).ready(function() {
         }
     });
 
+
+    $('.btn-bulk-edit-desktops').on('click', function () {
+        ids = []
+        filter = domains_table.rows('.active').data().length ? '.active' : { filter: 'applied' }
+
+        $('#modalBulkEdit #desktops-list').empty()
+        $('#modalBulkEdit #desktops-number').text(domains_table.rows(filter).data().length + " desktop(s) will be updated")
+        $.each(domains_table.rows(filter).data(), function (key, value) {
+            ids.push(value['id']);
+            $('#modalBulkEdit #desktops-list').append(
+                '<p style="font-size:smaller; margin: 0px">' + value['name'] + '</p>'
+            )
+        });
+
+        setHardwareOptions('#modalBulkEdit');
+        disableFirstOption('#modalBulkEdit');
+
+        $('#modalBulkEdit #edit-network-checkbox').show();
+        $('#modalBulkEdit #hardware-interfaces option:first').remove();
+        $('#modalBulkEdit #virtualization_nested-checkbox').remove();
+
+        showAndHideByCheckbox($('#modalBulkEdit #edit-network'), $('#modalBulkEdit #network-row'));
+        showAndHideByCheckbox($('#modalBulkEdit #edit-viewers'), $('#modalBulkEdit #viewers-row'));
+        showAndHideByCheckbox($('#modalBulkEdit #edit-credentials'), $('#modalBulkEdit #credentials-row'))
+
+        $('#modalBulkEdit #ids').val(ids.join(','));
+        $("#modalBulkEditForm")[0].reset();
+        $('#modalBulkEditForm :checkbox').iCheck('uncheck').iCheck('update');
+        $('#modalBulkEdit').modal({
+            backdrop: 'static',
+            keyboard: false
+        }).modal('show');
+    });
+
+    $('#modalBulkEdit #send').on('click', function (e) {
+        var form = $('#modalBulkEditForm')
+        if (form.parsley().isValid()) {
+            data = form.serializeObject()
+
+            for (let [key, value] of Object.entries(data)) {
+                if (key.startsWith('guest_properties-credentials-')) {
+                    if (!data['edit-viewers'] || !data['edit-credentials']) {
+                        delete data[key]
+                    }
+                } else if (key.startsWith('viewers-')) {
+                    if (!data['edit-viewers']) {
+                        delete data[key]
+                    }
+                } else if (key === 'hardware-interfaces') {
+                    if (!data['edit-network']) {
+                        delete data[key]
+                    }
+                } else if (key === 'ids') {
+                    data['ids'] = data['ids'].split(',')
+                } else if (value === '--') {
+                    delete data[key]
+                } else if (value === 'on') {
+                    data[key] = true
+                }
+                if (key.startsWith('hardware-')) {
+                    data['edit-hardware'] = true
+                }
+            }
+        }
+
+        data = parse_desktop_bulk(data)
+
+        var notice = new PNotify({
+            title: 'Updating ' + ids.length + ' desktop(s)',
+            hide: true,
+            opacity: 1,
+            icon: 'fa fa-spinner fa-pulse'
+        })
+
+        $.ajax({
+            type: 'PUT',
+            url: '/api/v3/domain/bulk',
+            data: JSON.stringify(data),
+            contentType: 'application/json',
+            success: function (data) {
+                $('form').each(function () {
+                    this.reset()
+                })
+                $('.modal').modal('hide')
+                notice.update({
+                    title: 'Updated',
+                    text: ids.length + ' desktop(s) updated successfully',
+                    hide: true,
+                    icon: 'fa fa-success',
+                    delay: 4000,
+                    opacity: 1,
+                    type: 'success'
+                })
+            },
+            error: function (data) {
+                notice.update({
+                    title: 'ERROR updating multiple desktops',
+                    text: data.responseJSON.description,
+                    type: 'error',
+                    hide: true,
+                    icon: 'fa fa-warning',
+                    delay: 5000,
+                    opacity: 1
+                })
+            }
+        })
+    })
+
+
     $("#modalTemplateDesktop #send").on('click', function(e){
             var form = $('#modalTemplateDesktopForm');
             form.parsley().validate();
@@ -1654,6 +1763,49 @@ function populate_tree_template_delete(id){
                   },
                 }
         }
+
+        function parse_desktop_bulk(data) {
+            return {
+                "ids": data['ids'],
+                ...("edit-hardware" in data) && {
+                    "hardware": {
+                        ...("hardware-vcpus" in data) && { "vcpus": parseInt(data["hardware-vcpus"]) },
+                        ...("hardware-memory" in data) && { "memory": parseFloat(data["hardware-memory"]) },
+                        ...("hardware-videos" in data) && { "videos": [data["hardware-videos"]] },
+                        ...("hardware-boot_order" in data) && { "boot_order": [data["hardware-boot_order"]] },
+                        ...("hardware-edit_network" in data) && { "interfaces": data["hardware-interfaces"] },
+                        ...("hardware-disk_bus" in data) && { "disk_bus": data["hardware-disk_bus"] },
+                        ...("hardware-disk_size" in data) && { "disk_size": parseInt(data["hardware-disk_size"]) },
+                        ...("reservables-vgpus" in data) && {
+                            "reservables": {
+                                ...(true) && { "vgpus": [data["reservables-vgpus"]] },
+                                ...(data["reservables-vgpus"].includes(undefined) || data["reservables-vgpus"] == null || data["reservables-vgpus"].includes("None")) && { "vgpus": null },
+                            },
+                        },
+                        ...("edit-network" in data) && { "interfaces": data['hardware-interfaces'] },
+                    }
+                },
+                ...("edit-viewers" in data) && {
+                    "guest_properties": {
+                        "viewers": {
+                            ...("viewers-file_rdpgw" in data) && { "file_rdpgw": { "options": null } },
+                            ...("viewers-file_rdpvpn" in data) && { "file_rdpvpn": { "options": null } },
+                            ...("viewers-file_spice" in data) && { "file_spice": { "options": null } },
+                            ...("viewers-browser_rdp" in data) && { "browser_rdp": { "options": null } },
+                            ...("viewers-browser_vnc" in data) && { "browser_vnc": { "options": null } },
+                        },
+                        ...("edit-credentials" in data) && {
+                            "credentials": {
+                                ...("guest_properties-credentials-password" in data) && { "password": data["guest_properties-credentials-password"] },
+                                ...("guest_properties-credentials-username" in data) && { "username": data["guest_properties-credentials-username"] },
+                            }
+                        }
+                    },
+                },
+
+            }
+        }
+
 
         function populate_users(){
             if($("#user_id").data('select2')){

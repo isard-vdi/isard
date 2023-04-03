@@ -538,81 +538,207 @@
    </div>
 </div>
 
-<div class="modal fade" id="modalBulkEdit" tabindex="-1" role="dialog" 
-     aria-labelledby="modalBulkEdit" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <!-- Modal Header -->
-            <div class="modal-header"  style="padding: 5px;">   
-                <button type="button" class="close" 
-                   data-dismiss="modal">
-                       <span aria-hidden="true">&times;</span>
-                       <span class="sr-only">Close</span>
-                </button>
-                <h4 class="modal-title" id="myModalLabel">
-                    <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-desktop"> </i>   Edit multiple desktops
-                </h4>
-            </div>
-            
-            <!-- Modal Body -->
-            <div class="modal-body" style="padding: 7px;">
-                
-              <form id="modalBulkEditForm" class="form-inline form-label-left"> 
-			  <div class="x_panel" style="padding: 5px;">
-                  <p style="font-size: 18px;margin-bottom:0px;">Desktop name and description</p>
-					<div class="x_content" style="padding: 0px;">
-<!--
-                         <input type="hidden" id="id" name="id"/>
-                         <input type="hidden" id="name" name="name"/>
--->
-                        <div class="row">
-<!--
-                            <div class="col-md-4 col-xs-12">
-                                <label class="control-label" for="name">Name <span class="required">*</span>
-                                </label>
-                                  <input id="name_hidden" disabled maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text">
-                            </div>
--->
+<div class="modal fade" id="modalBulkEdit" tabindex="-1" role="dialog" aria-labelledby="modalBulkEdit"
+   aria-hidden="true">
+   <div class="modal-dialog  modal-lg">
+      <div class="modal-content">
+         <!-- Modal Header -->
+         <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal">
+               <span aria-hidden="true">&times;</span>
+               <span class="sr-only">Close</span>
+            </button>
+            <h4 class="modal-title" id="myModalLabel">
+               <i class="fa fa-pencil fa-1x"> </i> <i class="fa fa-desktop"> </i> Edit multiple desktops
+            </h4>
+         </div>
 
-                            <div class="col-md-8 col-xs-12">
-                                <label class="control-label" for="description">Domains afected 
-                                </label>
-                                  <select id="ids" name="ids[]" class="select2_multiple form-control" multiple="multiple">
-                                  </select>                                
-                            </div>
-                            <div class="col-md-4 col-xs-12">
-                                <button class="btn btn-success btn-xs pull-right btn-select-all" type="button"  data-placement="top" ><i class="fa fa-cubes m-right-xs"></i>Select all</button>
-                                <button class="btn btn-success btn-xs pull-right btn-unselect-all" type="button"  data-placement="top" ><i class="fa fa-cubes m-right-xs"></i>Unselect all</button>
-                            </div>                            
+         <!-- Modal Body -->
+         <div class="modal-body" style="padding:20px;">
+            <form id="modalBulkEditForm" class="form-inline form-label-left">
+
+               <div class="x_panel" style="padding: 5px; margin-bottom: 0px">
+                  <div class="x_title">
+                     <h4><i class="fa fa-desktop"></i> Desktops to edit</h4>
+                     <div class="clearfix"></div>
+                  </div>
+               </div>
+
+               <div class="clearfix" style="margin-left: 5px; margin-bottom: 10px;">
+                  <div class="" style="margin-bottom:5px; color: red; font-size: 18px" id="desktops-number"></div>
+                  <div class="table-responsive" id="desktops-list"
+                     style="max-height: 169px; overflow-y: scroll; margin-left: 5px;">
+                  </div>
+               </div>
+
+               <div class="x_panel" id="viewers-block" style="padding: 5px;">
+                  <div class="x_title">
+                     <h4><i class="fa fa-eye" aria-hidden="true"></i> Desktop viewers</h4>
+                     <div class="clearfix"></div>
+                  </div>
+
+                  <div class="checkbox" id="edit-viewers-checkbox" style="margin-top: 2px; margin-bottom: 7px;">
+                     <label class="">
+                        <div class="icheckbox_flat-green" style="position: relative;">
+                           <input type="checkbox" id="edit-viewers" name="edit-viewers"
+                              style="position: absolute; opacity: 0;">
+                           <ins class="iCheck-helper"
+                              style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                           </ins>
                         </div>
-				</div>
-			  </div>
+                        <b>Update viewers</b>
+                     </label>
+                  </div>
 
-            
-			  <div class="x_panel" id="hardware-block" style="padding: 5px;">
-					 <p style="font-size: 18px;margin-bottom:0px;">Hardware</p>
-					{% include '/snippets/domain_hardware_edit.html' %}
-              </div>
+                  <div class="item form-group" id="viewers-row">
+                     <label class="control-label col-md-12 col-sm-12 col-xs-12"
+                        for="guest_properties-fullscreen">Available viewers
+                     </label>
+                     <div class="col-md-3 col-sm-3 col-xs-12">
+                        <div class="checkbox">
+                           <label class="">
+                              <div class="icheckbox_flat-green" style="position: relative;">
+                                 <input type="checkbox" id="viewers-file_spice" name="viewers-file_spice"
+                                    class="flat capabilities_hypervisor" style="position: absolute; opacity: 0;">
+                                 <ins class="iCheck-helper"
+                                    style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                 </ins>
+                              </div>
+                              Spice (Client)
+                           </label>
+                        </div>
+                     </div>
+                     <div class="col-md-3 col-sm-3 col-xs-12">
+                        <div class="checkbox">
+                           <label class="">
+                              <div class="icheckbox_flat-green" style="position: relative;">
+                                 <input type="checkbox" id="viewers-browser_vnc" name="viewers-browser_vnc"
+                                    class="flat capabilities_hypervisor" style="position: absolute; opacity: 0;">
+                                 <ins class="iCheck-helper"
+                                    style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                 </ins>
+                              </div>
+                              VNC (browser)
+                           </label>
+                        </div>
+                     </div>
+                     <div class="col-md-3 col-sm-3 col-xs-12">
+                        <div class="checkbox">
+                           <label class="">
+                              <div class="icheckbox_flat-green" style="position: relative;">
+                                 <input type="checkbox" id="viewers-file_rdpgw" name="viewers-file_rdpgw"
+                                    class="flat capabilities_hypervisor" style="position: absolute; opacity: 0;">
+                                 <ins class="iCheck-helper"
+                                    style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                 </ins>
+                              </div>
+                              RDP (Client)
+                           </label>
+                        </div>
+                     </div>
+                     <div class="col-md-3 col-sm-3 col-xs-12">
+                        <div class="checkbox">
+                           <label class="">
+                              <div class="icheckbox_flat-green" style="position: relative;">
+                                 <input type="checkbox" id="viewers-file_rdpvpn" name="viewers-file_rdpvpn"
+                                    class="flat capabilities_hypervisor" style="position: absolute; opacity: 0;">
+                                 <ins class="iCheck-helper"
+                                    style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                 </ins>
+                              </div>
+                              RDP (Client over VPN)
+                           </label>
+                        </div>
+                     </div>
+                     <div class="col-md-3 col-sm-3 col-xs-12">
+                        <div class="checkbox">
+                           <label class="">
+                              <div class="icheckbox_flat-green" style="position: relative;">
+                                 <input type="checkbox" id="viewers-browser_rdp" name="viewers-browser_rdp"
+                                    class="flat capabilities_hypervisor" style="position: absolute; opacity: 0;">
+                                 <ins class="iCheck-helper"
+                                    style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                 </ins>
+                              </div>
+                              RDP (Browser)
+                           </label>
+                        </div>
+                     </div>
 
-            </div>
-            
-            <!-- Modal Footer -->
-            <div class="modal-footer" style="padding: 5px;">
-                <ul class="nav navbar-left panel_toolbox">
-                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
-                   </li>
-                </ul>
-                <ul class="nav navbar-right panel_toolbox">
-<!--
-                    <li><button id="btn-hardware" type="button" class="btn btn-info" style="display: none;">Edit hardware</button></li>
--->
-                    <li><button id="send" type="button" class="btn btn-success">Modify desktop</button></li>
-                   </li>
-                </ul>
-            </div>                       
-            </form>
-        </div>
-    </div>
+                     <div class="x_content">
+                        <div class="checkbox" id="edit-credentials-checkbox"
+                           style="margin-top: 12px; margin-bottom: 7px;">
+                           <label class="">
+                              <div class="icheckbox_flat-green" style="position: relative;">
+                                 <input type="checkbox" id="edit-credentials" name="edit-credentials"
+                                    style="position: absolute; opacity: 0;">
+                                 <ins class="iCheck-helper"
+                                    style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                 </ins>
+                              </div>
+                              <b>Update RDP credentials</b>
+                           </label>
+                        </div>
+
+                        <div class="item form-group" id="credentials-row">
+                           <label class="col-md-6 col-sm-6 col-xs-12 my-error">WARNING: Guest password will be stored
+                              in plain text!!
+                           </label>
+                           <div class="col-md-4 col-xs-12">
+                              <label class="control-label" for="name">Guest username
+                              </label>
+                              <input id="guest_properties-credentials-username" maxlength="40"
+                                 data-parsley-length="[0, 40]" name="guest_properties-credentials-username"
+                                 placeholder="Guest username" data-parsley-trigger="change" type="text"
+                                 style="width:100%">
+                           </div>
+                           <div class="col-md-4 col-xs-12">
+                              <label class="control-label" for="name">Guest password
+                              </label>
+                              <input id="guest_properties-credentials-password" maxlength="40"
+                                 data-parsley-length="[1, 40]" name="guest_properties-credentials-password"
+                                 placeholder="Guest password" data-parsley-trigger="change" type="text"
+                                 style="width:100%">
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+
+               <div class="x_panel" id="hardware-block" style="padding: 5px; margin-bottom: 0px">
+                  <div class="x_title">
+                     <h4><i class="fa fa-gear" aria-hidden="true"></i> Hardware</h4>
+                     <div class="clearfix"></div>
+                  </div>
+                  {% include '/snippets/domain_hardware_edit.html' %}
+               </div>
+
+               <div class="x_panel" id="bookables-block" style="padding: 5px; margin-top: 10px;">
+                  <div class="x_title">
+                     <h4><i class="fa fa-briefcase" aria-hidden="true"></i> Bookable resources</h4>
+                     <div class="clearfix"></div>
+                  </div>
+                  <div id="bookables-row">
+                     {% include '/snippets/domain_reservables_edit.html' %}
+                  </div>
+               </div>
+               <input type="hidden" name="ids" id="ids" />
+         </div>
+
+         <!-- Modal Footer -->
+         <div class="modal-footer" style="padding: 15px;">
+            <ul class="nav navbar-left panel_toolbox">
+               <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+               </li>
+            </ul>
+            <ul class="nav navbar-right panel_toolbox">
+               <li><button id="send" type="button" class="btn btn-success">Modify desktops</button></li>
+               </li>
+            </ul>
+         </div>
+         </form>
+      </div>
+   </div>
 </div>
 
 

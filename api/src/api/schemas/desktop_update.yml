@@ -1,5 +1,4 @@
 id:
-  required: true
   type: string
   empty: false
 name:
@@ -25,3 +24,5 @@ favourite_hyp:
     - list
 xml:
   type: string
+ids:
+  type: list

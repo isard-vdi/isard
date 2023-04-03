@@ -3,6 +3,7 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
+import copy
 import json
 import traceback
 
@@ -280,8 +281,9 @@ def api_v3_domain_edit_without_updating(payload, domain_id):
 
 
 @app.route("/api/v3/domain/<domain_id>", methods=["PUT"])
+@app.route("/api/v3/domain/bulk", methods=["PUT"])
 @has_token
-def api_v3_domain_edit(payload, domain_id):
+def api_v3_domain_edit(payload, domain_id=None):
     try:
         data = request.get_json(force=True)
     except:
@@ -291,42 +293,8 @@ def api_v3_domain_edit(payload, domain_id):
             traceback.format_exc(),
             description_code="desktop_incorrect_body_data",
         )
-    data["id"] = domain_id
-    data = _validate_item("desktop_update", data)
-    ownsDomainId(payload, domain_id)
-    desktop = desktops.Get(desktop_id=domain_id)
 
-    if not "server" in data and desktop.get("status") not in ["Failed", "Stopped"]:
-        raise Error(
-            "precondition_required",
-            "Desktops only can be edited when stopped or failed",
-            traceback.format_exc(),
-        )
-
-    if (
-        desktop.get("server")
-        and not "server" in data
-        and desktop.get("status") != "Failed"
-    ):
-        raise Error(
-            "precondition_required",
-            "Servers can't be edited",
-            traceback.format_exc(),
-        )
-
-    if desktop.get("create_dict", {}).get("reservables", {}).get("vgpus") and data.get(
-        "server"
-    ):
-        raise Error(
-            "precondition_required",
-            "Servers can not have a bookable item",
-            traceback.format_exc(),
-        )
-
-    if data.get("name"):
-        check_user_duplicated_domain_name(
-            data["name"], desktop["user"], desktop.get("kind"), data["id"]
-        )
+    admin_or_manager = payload["role_id"] in ["manager", "admin"]
 
     if data.get("forced_hyp") and payload["role_id"] != "admin":
         raise Error(
@@ -334,11 +302,25 @@ def api_v3_domain_edit(payload, domain_id):
             "Only administrators can force an hypervisor",
             traceback.format_exc(),
         )
+    data = _validate_item("desktop_update", data)
 
-    desktops.check_viewers(data, desktop)
+    # Update an existing domain
+    if domain_id:
+        ownsDomainId(payload, domain_id)
+        desktops.validate_desktop_update(data, domain_id)
+        desktops.Update(domain_id, data, admin_or_manager)
 
-    admin_or_manager = True if payload["role_id"] in ["manager", "admin"] else False
-    desktops.Update(domain_id, data, admin_or_manager)
+    # Update multiple domains
+    else:
+        desktop_list = []
+        for domain_id in data.get("ids"):
+            ownsDomainId(payload, domain_id)
+            new_data = copy.deepcopy(data)
+            desktops.validate_desktop_update(new_data, domain_id)
+            desktop_list.append(domain_id)
+
+        desktops.Update(desktop_list, copy.deepcopy(data), admin_or_manager, bulk=True)
+
     return (
         json.dumps(data),
         200,
