@@ -35,27 +35,27 @@
             />
             <!-- Title -->
             <b-row class="justify-content-center mb-3">
-              <h1 v-if="show_login_extras">
+              <h1 v-if="showLoginExtras">
                 {{ $t('views.login.title') }}
               </h1>
             </b-row>
             <!-- Category by path display -->
             <b-row
-              v-if="category_by_path"
+              v-if="categoryByPath"
               class="ml-2 mt-2"
             >
-              <h3>{{ category_name }}</h3>
+              <h3>{{ categoryName }}</h3>
             </b-row>
             <!-- Language selection -->
             <b-row>
               <Language
-                v-if="show_login_extras"
+                v-if="showLoginExtras"
                 class="ml-3 mt-2 mt-md-4 mb-3"
               />
             </b-row>
             <!-- Login form -->
             <b-form
-              v-if="show_login_form"
+              v-if="showLoginForm"
               class="m-0"
               @submit.prevent="login('form')"
             >
@@ -65,41 +65,43 @@
                 dismissible
                 variant="danger"
               >
-                {{ getPageErrorMessage }}
+                {{ errorMessage }}
               </b-alert>
               <!-- Category selection -->
               <v-select
-                v-if="!category_by_path && getCategories.length > 1"
-                ref="select_category"
+                v-if="!categoryByPath && categories.length > 1"
                 v-model="category"
                 class="mb-3"
                 size="md"
-                required
-                :options="categories_select"
+                :options="categoriesSelect"
                 :reduce="category => category.value"
                 :placeholder="$t('views.login.form.select-category')"
               >
                 <template #search="{attributes, events}">
                   <input
+                    id="category"
                     class="vs__search"
                     style="margin-bottom: 0px"
-                    :required="!category"
                     v-bind="attributes"
                     v-on="events"
                   >
                 </template>
               </v-select>
               <b-form-input
+                id="usr"
                 v-model="usr"
                 type="text"
-                required
                 :placeholder="$t('views.login.form.usr')"
+                :state="v$.usr.$error ? false : null"
+                @blur="v$.usr.$touch"
               />
               <b-form-input
+                id="pwd"
                 v-model="pwd"
                 type="password"
-                required
                 :placeholder="$t('views.login.form.pwd')"
+                :state="v$.pwd.$error ? false : null"
+                @blur="v$.pwd.$touch"
               />
               <b-button
                 type="submit"
@@ -109,7 +111,7 @@
                 {{ $t('views.login.form.login') }}
               </b-button>
             </b-form>
-            <div v-if="show_login_providers">
+            <div v-if="showLoginProviders">
               <hr
                 class="m-4"
                 style="border-bottom: 1px solid #ececec;"
@@ -119,7 +121,7 @@
                   {{ $t('views.login.other-logins') }}
                 </p>
                 <b-button
-                  v-for="provider in getProviders"
+                  v-for="provider in providers"
                   :key="provider"
                   :class="'rounded-pill mt-0 btn-sm login-btn btn-' + provider.toLowerCase()"
                   @click="login(provider.toLowerCase())"
@@ -157,11 +159,13 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex'
 import Language from '@/components/Language.vue'
 import Logo from '@/components/Logo.vue'
 import { authenticationSegment } from '@/shared/constants'
 import PoweredBy from '@/components/shared/PoweredBy.vue'
+import { watch, ref, computed, onBeforeMount } from '@vue/composition-api'
+import useVuelidate from '@vuelidate/core'
+import { required } from '@vuelidate/validators'
 
 export default {
   name: 'Login',
@@ -170,109 +174,129 @@ export default {
     Logo,
     PoweredBy
   },
-  data () {
-    return {
-      loading: false,
-      usr: '',
-      pwd: '',
-      window: window,
-      error: '',
-      showDismissibleAlert: false,
-      category: ''
-    }
-  },
-  computed: {
-    ...mapGetters([
-      'getCategories',
-      'getCategory',
-      'getProviders',
-      'getPageErrorMessage'
-    ]),
-    categories_select () {
-      return this.getCategories.map(category =>
-        ({
-          value: category.id,
-          label: category.name
-        })
-      )
-    },
-    category_by_path () {
-      return this.$route.params.customUrlName !== undefined
-    },
-    category_name () {
-      return this.getCategory.name ? this.getCategory.name : ''
-    },
-    show_login_form () {
-      return this.getCategories.length || this.category_by_path
-    },
-    show_login_providers () {
-      return this.show_login_form && this.getProviders.length
-    },
-    show_login_extras () {
-      return this.show_login_form || this.show_login_providers
-    }
-  },
-  watch: {
-    category: function () {
-      if (!this.category_by_path) {
-        localStorage.category = this.category
+  setup (props, context) {
+    const $store = context.root.$store
+    const category = ref('')
+    const loading = ref(false)
+    const usr = ref('')
+    const pwd = ref('')
+    const showDismissibleAlert = ref(false)
+    const version = ref(null)
+
+    const providers = computed(() => $store.getters.getProviders)
+    const categories = computed(() => $store.getters.getCategories)
+    const urlCategory = computed(() => $store.getters.getCategory)
+    const errorMessage = computed(() => $store.getters.getPageErrorMessage)
+
+    const categoryByPath = computed(() => context.root.$route.params.customUrlName !== undefined)
+    const categoryName = computed(() => urlCategory.value.name ? urlCategory.value.name : '')
+    const showLoginProviders = computed(() => showLoginForm.value && providers.value.length)
+    const showLoginExtras = computed(() => showLoginForm || showLoginProviders)
+    const categoriesSelect = computed(() => categories.value.map(category =>
+      ({
+        value: category.id,
+        label: category.name
+      })
+    ))
+    const showLoginForm = computed(() => categories.value.length || categoryByPath.value)
+
+    onBeforeMount(() => {
+      if (localStorage.token) {
+        $store.dispatch('navigate', 'desktops')
       }
-    }
-  },
-  beforeMount: async function () {
-    if (localStorage.token) {
-      this.$router.push({ name: 'desktops' })
-    }
-    this.$store.dispatch('removeAuthorizationCookie')
-    this.$store.dispatch('fetchProviders')
-    this.$store.dispatch('fetchCategories').then(() => {
-      let defaultCategory = ''
-      if (this.getCategories.length === 1) {
-        defaultCategory = this.getCategories[0].id
-      }
-      if (this.category_by_path) {
-        const customUrlName = this.$route.params.customUrlName
-        this.$store.dispatch('fetchCategory', customUrlName).then(() => {
-          this.category = this.getCategory.id
-        })
-      } else {
-        if (this.getCategories.map(i => i.id).includes(localStorage.category)) {
-          this.category = localStorage.category
-        } else {
-          this.category = defaultCategory
+      $store.dispatch('removeAuthorizationCookie')
+      $store.dispatch('fetchProviders')
+      $store.dispatch('fetchCategories').then(() => {
+        let defaultCategory = ''
+        if (categories.value.length === 1) {
+          defaultCategory = categories.value[0].id
         }
+        if (categoryByPath.value) {
+          const customUrlName = context.root.$route.params.customUrlName
+          $store.dispatch('fetchCategory', customUrlName).then(() => {
+            category.value = urlCategory.value.id
+          })
+        } else {
+          if (categories.value.map(i => i.id).includes(localStorage.category)) {
+            category.value = localStorage.category
+          } else {
+            category.value = defaultCategory
+          }
+        }
+      })
+    })
+
+    watch(category, (newVal, prevVal) => {
+      if (!categoryByPath.value) {
+        localStorage.category = category.value
       }
     })
 
-    if (this.$route.query.error) {
-      this.$store.dispatch('parseErrorFromQuery', this.$route.query.error)
-      this.showDismissibleAlert = true
-    }
-  },
-  methods: {
-    login (provider) {
+    const v$ = useVuelidate({
+      category: {
+        required
+      },
+      usr: {
+        required
+      },
+      pwd: {
+        required
+      }
+    }, {
+      category,
+      usr,
+      pwd
+    })
+
+    const login = (provider) => {
       if (provider === 'form') {
-        this.loading = true
+        v$.value.$touch()
+        if (v$.value.$invalid) {
+          document.getElementById(v$.value.$errors[0].$property).focus()
+          return
+        }
+        loading.value = true
         const data = new FormData()
-        data.append('category_id', this.category)
+        data.append('category_id', category.value)
         data.append('provider', provider)
-        data.append('username', this.usr)
-        data.append('password', this.pwd)
-        this.$store
-          .dispatch('login', data, this.$refs.version)
+        data.append('username', usr.value)
+        data.append('password', pwd.value)
+        $store
+          .dispatch('login', data, version.value)
           .then(() => {})
           .catch(err => {
             console.log(err)
-            this.showDismissibleAlert = true
-            this.loading = false
+            showDismissibleAlert.value = true
+            loading.value = false
           })
       } else {
-        if (this.category) {
-          window.location = `${window.location.protocol}//${window.location.host}${authenticationSegment}/login?provider=${provider}&category_id=${this.category}&redirect=/`
+        if (category.value) {
+          window.location = `${window.location.protocol}//${window.location.host}${authenticationSegment}/login?provider=${provider}&category_id=${category.value}&redirect=/`
         } else {
-          this.$refs.select_category.$el.reportValidity()
+          v$.value.$reset()
+          document.getElementById('category').focus()
         }
       }
+    }
+
+    return {
+      category,
+      loading,
+      usr,
+      pwd,
+      showDismissibleAlert,
+      providers,
+      categories,
+      urlCategory,
+      errorMessage,
+      categoryByPath,
+      categoryName,
+      showLoginProviders,
+      showLoginExtras,
+      categoriesSelect,
+      showLoginForm,
+      v$,
+      login
     }
   }
 }
