@@ -477,13 +477,6 @@ function actionsHyperDetail() {
     }).on('pnotify.cancel', function() {});
   });
 
-  $('.btn-webstorage').on('click', function() {
-    var pk = $(this).closest("div").attr("data-pk");
-    var data = table.row("#" + pk).data();
-    storage_url = 'https://' + data.viewer.proxy_video + ':' + data.viewer.html5_ext_port + '/storage'
-    window.open(storage_url, '_blank');
-  });
-
   $('.btn-edit').on('click', function() {
     $("#checkbox_edit_error").hide()
     var pk = $(this).closest("div").attr("data-pk");
