@@ -96,7 +96,7 @@ export default {
       return state.floppies
     },
     getSelectedOSTemplateId: state => {
-      return state.OSTemplateId
+      return state.domain.OSTemplateId
     },
     getMediaInstalls: state => {
       return state.mediaInstalls
