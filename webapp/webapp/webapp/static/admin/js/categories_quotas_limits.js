@@ -192,7 +192,7 @@ function renderCategoriesDetailPannel ( d ) {
 
 function actionsCategoryDetail(){
     
-    $('.btn-edit-quotas').off('click').on('click', function () {
+    $('.btn-edit-category-quotas').off('click').on('click', function () {
         var pk=$(this).closest("div").attr("data-pk");
         $("#modalEditQuotaForm")[0].reset();
         $('#modalEditQuotaForm #id').val(pk);
