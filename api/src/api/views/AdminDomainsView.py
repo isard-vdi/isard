@@ -7,6 +7,7 @@ import json
 import logging as log
 import traceback
 
+from cachetools import TTLCache, cached
 from flask import request
 
 #!flask/bin/python
@@ -27,13 +28,20 @@ admins = ApiAdmin()
 desktops_persistent = ApiDesktopsPersistent()
 
 
-@app.route("/api/v3/admin/domains", methods=["GET"])
+@app.route("/api/v3/admin/domains", methods=["POST"])
 @is_admin_or_manager
 def api_v3_admin_domains(payload):
-    params = request.args
+    params = request.get_json(force=True)
+    domains = []
     if params.get("kind") == "desktop":
-        category_id = None if payload["role_id"] == "admin" else payload["category_id"]
-        domains = admins.ListDesktops(category_id)
+        categories = (
+            json.loads(params.get("categories")) if params.get("categories") else None
+        )
+        if payload["role_id"] == "manager":
+            categories = [payload["category_id"]]
+        domains = admins.ListDesktops(
+            categories,
+        )
     else:
         domains = admins.ListTemplates(payload["user_id"])
         if payload["role_id"] == "manager":
@@ -165,3 +173,10 @@ def api_v3_admin_domains_delete(payload):
 
         admin_domains_delete(domains)
         return json.dumps({}), 200, {"Content-Type": "application/json"}
+
+
+@cached(TTLCache(maxsize=10, ttl=5))
+@app.route("/api/v3/admin/domains/<field>/<kind>", methods=["GET"])
+@is_admin_or_manager
+def api_v3_admin_domains_field(payload, field, kind):
+    return json.dumps(admins.get_domains_field(field, kind, payload))

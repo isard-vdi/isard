@@ -449,13 +449,12 @@ class ApiAdmin:
             )
         return desktop_viewer
 
-    def ListDesktops(self, category_id):
+    def ListDesktops(self, categories=None):
         try:
             with app.app_context():
                 query = r.table("categories")
-                if category_id:
-                    query = query.get_all(category_id)
-
+                if categories:
+                    query = query.get_all(r.args(categories))
                 query = query.eq_join("id", r.table("groups"), index="parent_category")
 
                 query = query.map(
@@ -466,12 +465,11 @@ class ApiAdmin:
                         "category_name": doc["left"]["name"],
                     }
                 )
-
                 query = query.eq_join(
                     "group_id", r.table("domains"), index="group"
                 ).filter({"right": {"kind": "desktop"}})
-                if category_id:
-                    query.filter({"right": {"category": category_id}})
+                if categories:
+                    query.filter(r.row["right"]["category"] in categories)
 
                 query = list(
                     query.pluck(
@@ -1052,6 +1050,35 @@ class ApiAdmin:
                     .run(db.conn)
                 )
             ]
+
+    def get_domains_field(self, field, kind, payload):
+        query = r.table("domains")
+
+        if payload["role_id"] == "manager" and kind:
+            query = query.get_all([kind, payload["category_id"]], index="kind_category")
+        elif payload["role_id"] == "admin" and kind:
+            query = query.get_all(kind, index="kind")
+        elif payload["role_id"] == "manager" and not kind:
+            query = query.get_all(payload["category_id"], index="category")
+
+        if field not in ["vcpus", "memory"]:
+            pluck = field
+        else:
+            pluck = {"create_dict": {"hardware": field}}
+        query = query.pluck(pluck)
+
+        query = (
+            query["create_dict"]["hardware"] if field in ["vcpus", "memory"] else query
+        )
+        query = (
+            query.map(lambda value: {"memory": (value["memory"] / 1048576)})
+            if field == "memory"
+            else query
+        )
+
+        with app.app_context():
+            result = query.distinct().run(db.conn)
+        return result
 
 
 def admin_table_update_book(table, id, data):

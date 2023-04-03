@@ -18,6 +18,30 @@
             <h3><i class="fa fa-{{icon}}"></i> Admin {{ nav }} <small>You have the power</small></h3>
             <ul class="nav navbar-right panel_toolbox">
                <li>
+                  <div id="global_actions">
+                     <label class="control-label pull-left" style="color: #5499c7; margin-right:10px" for="mactions">
+                        <h4 style="font-size: 14px">
+                           Global actions:
+                        </h4>
+                     </label>
+         
+                     <div class="col-md-5 col-sm-5 col-xs-12">
+                        <select class="form-control" id="mactions" name="mactions">
+                           <option value="none">Select action</option>
+                           <option value="soft_toggle">Soft toggle started/shutting-down state</option>
+                           <option value="toggle">Toggle started/stopped state</option>
+                           <option value="shutting_down">Soft shut down</option>
+                           <option value="stopping">Shut down</option>
+                           <option value="force_failed">Force Failed state</option>
+                           <option value="delete">Delete</option>
+                           <option value="starting_paused">Start paused (check status)</option>
+                           <option value="remove_forced_hyper">Remove forced hypervisor</option>
+                           <option value="remove_favourite_hyper">Remove favourite hypervisor</option>
+                        </select>
+                     </div>
+                  </div>
+               </li>
+               <li>
                   <a class="btn-bulk-edit-desktops">
                      <span style="color: #5499c7; ">
                         <i class="fa fa-pencil"></i>
@@ -35,29 +59,32 @@
             <div class="clearfix"></div>
          </div>
          <div class="x_content">
-            <p class="text-muted font-13 m-b-30"></p>
-            <div id="global_actions" style="display:none; width: 15cm;">
-               <label class="control-label col-md-3 col-sm-3 col-xs-12 pull-left" for="mactions">
-                  <h4>
-                     Global actions:
-                  </h4>
-               </label>
-               <div class="col-md-5 col-sm-5 col-xs-12" style="margin-bottom: 20px;">
-                  <select class="form-control" id="mactions" name="mactions" >
-                     <option value="none">Select action</option>
-                     <option value="soft_toggle">Soft toggle started/shutting-down state</option>
-                     <option value="toggle">Toggle started/stopped state</option>
-                     <!-- <option value="stop_noviewer">Stop no viewers</option> -->
-                     <option value="shutting_down">Soft shut down</option>
-                     <option value="stopping">Shut down</option>
-                     <option value="force_failed">Force Failed state</option>
-                     <option value="delete">Delete</option>
-                     <option value="starting_paused">Start paused (check status)</option>
-                     <option value="remove_forced_hyper">Remove forced hypervisor</option>
-                     <option value="remove_favourite_hyper">Remove favourite hypervisor</option>
-                  </select>
+            <div class="row" style="display:inline-flex;">
+               <div id="filter-section" style="display:grid;" class="x_content">
+                  <div id="add_filter" style="width: 20cm">
+                     <label class="control-label col-md-2 col-sm-4 col-xs-12 pull-left" for="mactions">
+                        <h4>
+                           Add Filter:
+                        </h4>
+                     </label>
+                     <div class="col-md-5 col-sm-5 col-xs-12" style="margin-bottom: 20px; margin-right: 20px;">
+                        <select class="form-control" id="filter-select" name="filter-select">
+                           <option value="null">Select filter</option>
+                        </select>
+                     </div>
+                     <button type="button" id="btn-search" class="btn btn-pill-right btn-info"><i class="fa fa-search"></i>
+                        Search</button>
+                     <button type="button" id="btn-reload" class="btn btn-pill-right btn-info"><i class="fa fa-refresh"></i>
+                        Reload</button>
+                     <button type="button" id="btn-clear" class="btn btn-pill-right btn-danger"><i class="fa fa-eraser"></i>
+                        Clear</button>
+                  </div>
+                  <div id="filter-boxes" style="margin-bottom:-40px; margin-top:15px"></div>
+                  <hr>
                </div>
-            </div>
+
+         </div>
+         </div>
             <div id="tableDiv"></div>
                <table id="domains" class="table">
                   <thead>
