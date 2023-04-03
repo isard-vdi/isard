@@ -167,7 +167,7 @@ $(document).ready(function() {
 
 
 function actionsGroupDetail(){
-    $('.btn-edit-quotas').off('click').on('click', function () {
+    $('.btn-edit-group-quotas').off('click').on('click', function () {
         var pk=$(this).closest("div").attr("data-pk");
         $("#modalEditQuotaForm")[0].reset();
         $("#modalEditQuotaForm #propagate").removeAttr('checked').iCheck('update')
