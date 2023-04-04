@@ -12,9 +12,6 @@ fi
 if [ ! -n "$GRAFANA_HOST" ]; then
         export GRAFANA_HOST='isard-grafana'
 fi
-if [ ! -n "$INFLUXDB_HOST" ]; then
-        export INFLUXDB_HOST='isard-influxdb'
-fi
 
 if [ ! -f /certs/chain.pem ]; then
         auto-generate-certs.sh
