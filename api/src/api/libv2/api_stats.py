@@ -8,194 +8,114 @@ from ..libv2.flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
+stable_status = ["Started", "Stopped", "Failed"]
+
 
 def Users():
     with app.app_context():
-        return {
-            "total": r.table("users").count().run(db.conn),
-            "status": {
-                "enabled": r.table("users")
-                .get_all(True, index="active")
-                .count()
-                .run(db.conn),
-                "disabled": r.table("users")
-                .get_all(False, index="active")
-                .count()
-                .run(db.conn),
-            },
-            "roles": r.table("users").group("role").count().run(db.conn),
-        }
+        users = list(r.table("users").pluck("active").run(db.conn))
+        roles = r.table("users").group("role").count().run(db.conn)
+    users_count = len(users)
+    users_active = len([u for u in users if u["active"]])
+    return {
+        "total": users_count,
+        "status": {
+            "enabled": users_active,
+            "disabled": users_count - users_active,
+        },
+        "roles": roles,
+    }
 
 
 def Desktops():
     with app.app_context():
-        desktop_status = ["Started", "Stopped", "Failed", "Unknown"]
-        return {
-            "total": r.table("domains")
+        total = r.table("domains").get_all("desktop", index="kind").count().run(db.conn)
+        group_by_status = (
+            r.table("domains")
             .get_all("desktop", index="kind")
+            .group("status")
             .count()
-            .run(db.conn),
-            "status": {
-                "Started": r.table("domains")
-                .get_all(["desktop", "Started"], index="kind_status")
-                .count()
-                .run(db.conn),
-                "Stopped": r.table("domains")
-                .get_all(["desktop", "Stopped"], index="kind_status")
-                .count()
-                .run(db.conn),
-                "Failed": r.table("domains")
-                .get_all(["desktop", "Failed"], index="kind_status")
-                .count()
-                .run(db.conn),
-                "Unknown": r.table("domains")
-                .get_all(["desktop", "Unknown"], index="kind_status")
-                .count()
-                .run(db.conn),
-                "Other": r.table("domains")
-                .get_all("desktop", index="kind")
-                .filter(
-                    lambda desktop: r.not_(
-                        r.expr(desktop_status).contains(desktop["status"])
-                    )
-                )
-                .count()
-                .run(db.conn),
-            },
-        }
+            .run(db.conn)
+        )
+    return {
+        "total": total,
+        "status": group_by_status,
+    }
 
 
 def Templates():
     with app.app_context():
-        return {
-            "total": r.table("domains")
+        templates = list(
+            r.table("domains")
             .get_all("template", index="kind")
+            .pluck("enabled")
+            .run(db.conn)
+        )
+    templates_enabled = len([t for t in templates if t["enabled"]])
+    return {
+        "total": len(templates),
+        "enabled": templates_enabled,
+        "disabled": len(templates) - templates_enabled,
+    }
+
+
+def DomainsStatus():
+    with app.app_context():
+        domains = (
+            r.table("domains")
+            .pluck("status", "kind")
+            .group("kind", "status")
             .count()
-            .run(db.conn),
-            "status": {
-                "enabled": r.table("domains")
-                .get_all(["template", True], index="template_enabled")
-                .count()
-                .run(db.conn),
-                "disabled": r.table("domains")
-                .get_all(["template", False], index="template_enabled")
-                .count()
-                .run(db.conn),
-            },
-        }
+            .run(db.conn)
+        )
+    d = {}
+    for k, v in domains.items():
+        if k[0] not in d:
+            d[k[0]] = {}
+        d[k[0]][k[1]] = v
+    return d
 
 
 def OtherStatus():
     with app.app_context():
-        query = {}
-        categories = r.table("categories")["id"].run(db.conn)
-        status = [
-            "Creating",
-            "CreatingAndStarting",
-            "CreatingDisk",
-            "CreatingDiskFromScratch",
-            "CreatingDomain",
-            "CreatingDomainFromBuilder",
-            "CreatingDomainFromDisk",
-            "CreatingFromBuilder",
-            "CreatingNewTemplateInDB",
-            "CreatingTemplateDisk",
-            "CreatingTemplate",
-            "Deleting",
-            "DeletingDomainDisk",
-            "DiskDeleted",
-            "Failed",
-            "FailedDeleted",
-            "Resumed",
-            "RunningVirtBuilder",
-            "Shutting-down",
-            "Starting",
-            "StartingDomainDisposable",
-            "StartingPaused",
-            "Stopping",
-            "StoppingAndDeleting",
-            "Suspended",
-            "TemplateDiskCreated",
-            "Unknown",
-            "Updating",
-        ]
-        for category in categories:
-            query[category] = {
-                "desktops_wrong_status": {
-                    "Creating": "",
-                    "CreatingAndStarting": "",
-                    "CreatingDisk": "",
-                    "CreatingDiskFromScratch": "",
-                    "CreatingDomain": "",
-                    "CreatingDomainFromBuilder": "",
-                    "CreatingDomainFromDisk": "",
-                    "CreatingFromBuilder": "",
-                    "CreatingNewTemplateInDB": "",
-                    "CreatingTemplateDisk": "",
-                    "CreatingTemplate": "",
-                    "Deleting": "",
-                    "DeletingDomainDisk": "",
-                    "DiskDeleted": "",
-                    "Failed": "",
-                    "FailedDeleted": "",
-                    "Resumed": "",
-                    "RunningVirtBuilder": "",
-                    "Shutting-down": "",
-                    "Starting": "",
-                    "StartingDomainDisposable": "",
-                    "StartingPaused": "",
-                    "Stopping": "",
-                    "StoppingAndDeleting": "",
-                    "Suspended": "",
-                    "TemplateDiskCreated": "",
-                    "Unknown": "",
-                    "Updating": "",
-                },
-                "templates_wrong_status": {
-                    "Creating": "",
-                    "CreatingAndStarting": "",
-                    "CreatingDisk": "",
-                    "CreatingDiskFromScratch": "",
-                    "CreatingDomain": "",
-                    "CreatingDomainFromBuilder": "",
-                    "CreatingDomainFromDisk": "",
-                    "CreatingFromBuilder": "",
-                    "CreatingNewTemplateInDB": "",
-                    "CreatingTemplateDisk": "",
-                    "CreatingTemplate": "",
-                    "Deleting": "",
-                    "DeletingDomainDisk": "",
-                    "DiskDeleted": "",
-                    "Failed": "",
-                    "FailedDeleted": "",
-                    "Resumed": "",
-                    "RunningVirtBuilder": "",
-                    "Shutting-down": "",
-                    "Starting": "",
-                    "StartingDomainDisposable": "",
-                    "StartingPaused": "",
-                    "Stopping": "",
-                    "StoppingAndDeleting": "",
-                    "Suspended": "",
-                    "TemplateDiskCreated": "",
-                    "Unknown": "",
-                    "Updating": "",
-                },
+        desktops = (
+            r.table("domains")
+            .get_all("desktop", index="kind")
+            .pluck("category", "status", "kind")
+            .group("category", "status")
+            .count()
+            .run(db.conn)
+        )
+        templates = (
+            r.table("domains")
+            .get_all("template", index="kind")
+            .pluck("category", "status", "kind")
+            .group("category", "status")
+            .count()
+            .run(db.conn)
+        )
+    result = {}
+    for key, value in desktops.items():
+        if key[1] in stable_status:
+            continue
+        if key[0] not in result.keys():
+            result[key[0]] = {"desktops_wrong_status": {key[1]: value}}
+        else:
+            result[key[0]] = {
+                **result[key[0]],
+                **{"desktops_wrong_status": {key[1]: value}},
             }
-            for s in status:
-                query[category]["desktops_wrong_status"][s] = (
-                    r.table("domains")
-                    .get_all(["desktop", s, category], index="kind_status_category")
-                    .count()
-                    .run(db.conn)
-                )
-                query[category]["templates_wrong_status"][s] = (
-                    r.table("domains")
-                    .get_all(["template", s, category], index="kind_status_category")
-                    .count()
-                    .run(db.conn)
-                )
-    return query
+    for key, value in templates.items():
+        if key[1] == "Stopped":
+            continue
+        if key[0] not in result.keys():
+            result[key[0]] = {"templates_wrong_status": {key[1]: value}}
+        else:
+            result[key[0]] = {
+                **result[key[0]],
+                **{"templates_wrong_status": {key[1]: value}},
+            }
+    return result
 
 
 def Kind(kind):
@@ -221,7 +141,6 @@ def GroupByCategories():
         query = {}
         categories = r.table("categories").pluck("id")["id"].run(db.conn)
         user_role = ["admin", "manager", "advanced", "user"]
-        desktop_status = ["Started", "Stopped", "Failed", "Unknown"]
         for category in categories:
             query[category] = {
                 "users": {
@@ -284,7 +203,7 @@ def GroupByCategories():
                 .count()
                 .run(db.conn)
             )
-            for status in desktop_status:
+            for status in stable_status:
                 query[category]["desktops"]["status"][status] = (
                     r.table("domains")
                     .get_all(
@@ -298,7 +217,7 @@ def GroupByCategories():
                 .get_all(["desktop", category], index="kind_category")
                 .filter(
                     lambda desktop: r.not_(
-                        r.expr(desktop_status).contains(desktop["status"])
+                        r.expr(stable_status).contains(desktop["status"])
                     )
                 )
                 .count()
@@ -334,7 +253,6 @@ def CategoriesKindState(kind, state=False):
     with app.app_context():
         query = {}
         categories = r.table("categories").pluck("id")["id"].run(db.conn)
-        desktop_status = ["Started", "Stopped", "Failed", "Unknown"]
         for category in categories:
             if kind == "desktop":
                 if state:
@@ -353,7 +271,7 @@ def CategoriesKindState(kind, state=False):
                             .get_all(["desktop", category], index="kind_category")
                             .filter(
                                 lambda desktop: r.not_(
-                                    r.expr(desktop_status).contains(desktop["status"])
+                                    r.expr(stable_status).contains(desktop["status"])
                                 )
                             )
                             .count()
@@ -380,7 +298,7 @@ def CategoriesKindState(kind, state=False):
                         .run(db.conn)
                     )
 
-                    for ds in desktop_status:
+                    for ds in stable_status:
                         query[category]["desktops"]["status"][ds] = (
                             r.table("domains")
                             .get_all(
@@ -394,7 +312,7 @@ def CategoriesKindState(kind, state=False):
                         .get_all(["desktop", category], index="kind_category")
                         .filter(
                             lambda desktop: r.not_(
-                                r.expr(desktop_status).contains(desktop["status"])
+                                r.expr(stable_status).contains(desktop["status"])
                             )
                         )
                         .count()
