@@ -216,6 +216,26 @@ class Task(RedisBase):
         """
         return global_status(self._chain)
 
+    @property
+    def progress(self):
+        """
+        Get progress of task including the progress of jobs related by dependencies.
+
+        :return: Progress percentage as decimal
+        :rtype: float
+        """
+        done = 0
+        todo = 0
+        for task in self._chain:
+            timeout = task.job.timeout if task.job.timeout else Queue.DEFAULT_TIMEOUT
+            done += (
+                1
+                if task.job.get_status() == JobStatus.FINISHED
+                else task.job.meta.get("progress", 0)
+            ) * timeout
+            todo += timeout
+        return done / todo
+
     def to_dict(self, filter=None):
         """
         Returns Task and related ones as a dictionary.
