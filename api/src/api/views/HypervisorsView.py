@@ -239,12 +239,8 @@ def api_v3_hypervisors_status(payload, hyper_id):
 def api_v3_orch_hypers_list(payload, hypervisor_id=None):
     return (
         json.dumps(
-            api_hypervisors.get_hypervisors(
-                status=None,
+            api_hypervisors.get_orchestrator_hypervisors(
                 hyp_id=hypervisor_id,
-                started_desktops=True,
-                without_servers=True,
-                orchestrator=True,
             )
         ),
         200,
