@@ -41,6 +41,32 @@ def tasks_from_ids(task_ids):
     return tasks
 
 
+def global_status(tasks):
+    """
+    Get global status of provided tasks.
+
+    :param tasks: Tasks
+    :type tasks: list
+    :return: Status
+    :rtype: str
+    """
+    status_priority = [
+        JobStatus.CANCELED,
+        JobStatus.FAILED,
+        JobStatus.STARTED,
+        JobStatus.SCHEDULED,
+        JobStatus.STOPPED,
+        JobStatus.QUEUED,
+        JobStatus.DEFERRED,
+        JobStatus.FINISHED,
+    ]
+    for status in status_priority:
+        for task in tasks:
+            if task.job.get_status() == status:
+                return status
+    return "unknown"
+
+
 def register_dependencies(job_kwargs, dependencies):
     """
     Register dependencies in job_kwargs
@@ -169,6 +195,26 @@ class Task(RedisBase):
         :rtype: list
         """
         return self.dependencies + [self] + self.dependents
+
+    @property
+    def depending_status(self):
+        """
+        Get global status of depending tasks.
+
+        :return: Status
+        :rtype: str
+        """
+        return global_status(self.dependencies)
+
+    @property
+    def status(self):
+        """
+        Get global status of Task including the status of tasks that are related by dependencies.
+
+        :return: Status
+        :rtype: str
+        """
+        return global_status(self._chain)
 
     def to_dict(self, filter=None):
         """
