@@ -71,6 +71,19 @@ body {
   width: 100% !important;
 }
 
+div.dataTables_wrapper div.dataTables_processing {
+  position: absolute;
+  left: 50%;
+  width: 30%;
+  height: 120px;
+  margin-left: -15%;
+  margin-top: -25px;
+  padding-top: 20px;
+  text-align: center;
+  font-size: 2rem;
+  background: white;
+}
+
 table.dataTable td.details-show > button > i:before,
 table.dataTable td.details-control > button > i:before {
 	content: '\f067';
@@ -146,4 +159,37 @@ table.dataTable tr.shown td.details-control > button > i:before {
 .nav.side-menu li:not(.active):hover,
 .nav.child_menu li:hover {
   background: rgba(255, 255, 255, 0.05)
+}
+
+#filter-boxes .select2-selection--multiple {
+  height: 50px;
+}
+
+.filter-item {
+  width: 325px;
+}
+
+
+.select2-container--resize .select2-selection, 
+.select2-container--resize .select2-search__field {
+  resize: vertical;
+  overflow-y: auto;
+}
+.select2-container--resize .select2-selection {
+  min-height: 38px;
+}
+
+#domains_wrapper > div:first-of-type {
+  margin-bottom: -10px;
+}
+
+#domains_filter {
+  position: relative;
+  margin-right: 20px;
+  float: right;
+}
+
+#filter-section {
+  padding: 20px;
+  background: #f7f7f790;
 }

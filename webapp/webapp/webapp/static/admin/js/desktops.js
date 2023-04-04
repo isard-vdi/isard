@@ -99,7 +99,7 @@ columnDefs = [
         "targets": 12,
         "render": function (data, type, full, meta) {
             if('favourite_hyp' in full && full.favourite_hyp != ''){ 
-                return full.favourite_hyp;
+                return full.favourite_hyp.join(",");
             } else {
                 return '-'
             }
@@ -108,7 +108,7 @@ columnDefs = [
         "targets": 13,
         "render": function (data, type, full, meta) {
             if('forced_hyp' in full && full.forced_hyp != ''){
-                return full.forced_hyp;
+                return full.forced_hyp.join(",");
             } else {
                 return '-'
             }
@@ -449,71 +449,161 @@ $(document).ready(function() {
         }
     } );
 
-    domains_table= $('#domains').DataTable({
-        scrollY: false,
-        scrollX: false,
-        "ajax": {
-            "url": "/admin/domains",
-            "type": "GET",
-            "dataSrc":'',
-            "data": { 'kind': "desktop", 'category_id': $('meta[id=user_data]').attr('data-role') == 'manager' ? $('meta[id=user_data]').attr('data-categoryid') : null }
-        },
-        "initComplete": function(settings, json) {
-            $.each(deleted_events, function( index, value ) {
-                domains_table.row('#'+value.id).remove().draw();
-            })
-            deleted_events=[]
-            $.each(loading_events, function( index, value ) {
-                data = {...domains_table.row("#"+value.id).data(),...value}
-                dtUpdateInsert(domains_table, data, false)
-            })
-            loading_events=[]
-        },
-        "language": {
-            "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
-        },
-        "rowId": "id",
-        "deferRender": true,
-        "paging": true,
-        "columns": columns,
-        "order": [[order, 'des']],
-        "columnDefs": columnDefs,
-        "rowCallback": function (row, data) {
-            if('server' in data){
-                if(data['server'] == true){
-                    $(row).css("background-color", "#f7eac6");
-                }else{
-                    $(row).css("background-color", "#ffffff");
-                }
+    $template = $(".template-detail-domain");
+
+    const filter_list = ['category', 'favourite_hyp', 'forced_hyp', 'group', 'hyp_started', 'memory', 'name', 'status', 'user', 'vcpus'];
+    const options = filter_list.map(item => `<option value="${item}">${item.charAt(0).toUpperCase() + item.slice(1).replace(/_/g, ' ')}</option>`);
+    $('#filter-select').append(options.join(''));
+    var selectedCategories = [$('meta[id=user_data]').attr('data-categoryid')]
+
+    // set the filter box category on loading the document
+    initial_filters();
+
+    domains_table = $("#domains").DataTable({
+      scrollY: false,
+      scrollX: false,
+      ajax: {
+        url: "/admin/domains",
+        type: "POST",
+        contentType: 'application/json',
+        dataSrc : "",
+        data: function () {
+            var categories = [];
+            categories = $('#filter-category #category').val();
+            if ($('#filter-category').length) {
+                return JSON.stringify({
+                    'kind': "desktop",
+                    'categories': JSON.stringify(categories)
+                });
+            } else {
+                return JSON.stringify({
+                    'kind': "desktop",
+                    'categories': JSON.stringify([])
+                });
             }
         }
-    } );
+    },
+      initComplete: function (settings, json) {
+        $.each(deleted_events, function (index, value) {
+          domains_table
+            .row("#" + value.id)
+            .remove()
+            .draw();
+        });
+        deleted_events = [];
+        $.each(loading_events, function (index, value) {
+          data = { ...domains_table.row("#" + value.id).data(), ...value };
+          dtUpdateInsert(domains_table, data, false);
+        });
+        loading_events = [];
+      },
+      language: {
+        loadingRecords: "&nbsp",
+        processing:
+          '<p>Loading...</p><i syle="font-size: 1rem;" class="fa fa-spinner fa-pulse fa-2x fa-fw"></i>',
+      },
+      processing: true,
+      rowId: "id",
+      deferRender: true,
+      paging: true,
+      cache: false,
+      columns: columns,
+      order: [[order, "des"]],
+      columnDefs: columnDefs,
+      rowCallback: function (row, data) {
+        if ("server" in data) {
+          if (data["server"] == true) {
+            $(row).css("background-color", "#f7eac6");
+          } else {
+            $(row).css("background-color", "#ffffff");
+          }
+        }
+      },
+    });
 
     // Apply the search
-    domains_table.columns().every( function () {
+    domains_table.columns().every(function () {
         var that = this;
 
-        $( 'input', this.footer() ).on( 'keyup change', function () {
-            if ( that.search() !== this.value ) {
+        $('input', this.footer()).on('keyup change', function () {
+            if (that.search() !== this.value) {
                 that
-                    .search( this.value )
+                    .search(this.value)
                     .draw();
             }
-        } );
-    } );
+        });
+    });
 
-    $('.btn-disabled').on('click', function(e) {
-    if ($('.btn-disabled').attr('view')=='false') {
-        $('.btn-disabled #view-disabled').show();
-        $('.btn-disabled #hide-disabled').hide();
-        $('.btn-disabled').attr('view', 'true')
-    }
-    else {
-        $('.btn-disabled #view-disabled').hide();
-        $('.btn-disabled #hide-disabled').show();
-        $('.btn-disabled').attr('view', 'false')
-    }
-    })
+    var selectedCategories = ''
+
+    $("#btn-search").on("click", function () {
+        var table = $("#domains").DataTable();
+        // do for each item filter box
+        $("#filter-boxes .filter-item").each(function () {
+            var operator = $(this).find(".operator-select").val();
+            var title = $(this).find(".filter-box").attr("index");
+            if ($(this)
+            .find(".filter-box").val()==null) {
+                var values = [""]
+            } else {
+                var values = $(this)
+                    .find(".filter-box").val()
+                    .map(function (value) {
+                        // matches the word exactly
+                        return '^' + value.trim() + '$'
+                    })
+            }
+            var searchParams = values.join("|");
+            if (title === "category") {
+                if (JSON.stringify(selectedCategories) !== JSON.stringify(values)) {
+                selectedCategories = $(".filter-item #" + title).val();
+                table.ajax.reload();
+            }
+            } else {
+            // search in the loaded table content
+            table.columns().every(function () {
+                header = $(this.header()).text().trim().toLowerCase();
+                if (header === title) {
+                    if (searchParams.length) {
+                        if (operator === "is") {
+                            const regex = searchParams ?
+                                '(?:' + searchParams + ')' : '';
+                            this.search(regex, true, false).draw();
+                        } else if (operator === "is-not" && values.length) {
+                            const regex = "^(?!.*?(" + searchParams + ")).*$"
+                            this.search(regex, true, false).draw();
+                        }
+                    } else {
+                        this.search("").draw()
+                    }
+                }
+            });
+        }
+    });
+        if (!$("#filter-category").length && selectedCategories !== null) {
+            $('#category').empty();
+            selectedCategories = null;
+            table.ajax.reload();
+        }
+        
+    });
+
+    $("#btn-reload").on("click", function () {
+        reloadOtherFiltersContent(domains_table);
+    });
+
+     $("#btn-clear").on("click", function () {
+        $('.filter-box').each(function () {
+            removeFilter($(this).attr('id'))
+        })
+    });
+
+    $('#filter-boxes').on('click', '.btn-delete-filter', function () {
+        var name = $(this).prop('name');
+        removeFilter(name);
+    });
+
+
     $('.panel_toolbox .btn-disabled').click(function () {
         domains_table.draw();
     });
@@ -521,6 +611,16 @@ $(document).ready(function() {
     domains_table.on( 'click', 'tr[role="row"]', function (e) {
             toggleRow(this, e);
      });
+
+     $('#filter-select').on('change', function () {
+        const item = $(this).val();
+        if (item !== "null" && !$(`#filter-boxes #${item}`).length) {
+          const node = newFilterBox(item);
+          $('#filter-boxes').append(node);
+          populateSelect(item);
+          $(this).find(`option[value='${item}']`).remove();
+        }
+      });
 
     // Bulk actions
     $('#mactions').on('change', function () {
@@ -658,7 +758,7 @@ $(document).ready(function() {
                     url:"/api/v3/admin/domain/" + domain_id+ "/details",
                     success: function (data) {
                         $('#status-detail-'+domain_id).html(data.detail.replace(/\"/g,''));
-                        $('#status-description-'+domain_id).html(data.description);
+                        $('#description-'+domain_id).html(data.description);
                     }
                 })
                 actionsDomainDetail();
@@ -1762,3 +1862,157 @@ function populate_tree_template_delete(id){
                 startDesktop(domain_id)
             }
         }
+
+        function newFilterBox(item) {
+            $('#filter-select').val('null');
+            const operator =
+                item !== 'category'
+                    ? `
+                        <select class="form-control operator-select" id="operator-${item}" style="width: 100%;">
+                            <option value="is" selected=""> is </option>
+                            <option value="is-not"> is not </option>
+                        </select>`
+                    : ''
+            return `
+                <div class="filter-item col-md-3 col-sm-8 col-xs-12 select2-container--focus select2-container--resize" id="filter-${item}" style="margin-bottom:20px;margin-right:10px">
+                    <button name="${item}" class="btn btn-delete-filter btn-xs" type="button" data-placement="top"><i class="fa fa-times" style="color:darkred"></i></button>
+                    <label>
+                        <h4>${item.charAt(0).toUpperCase() + item.slice(1).replace(/_/g, ' ')}</h4>
+                    </label>
+                    <div style="display: inline-flex;margin-left: 10px;">
+                        ${operator}
+                    </div>
+                    <select class="filter-box form-control" id="${item}" name="${item}[]"
+                    ${$('meta[id=user_data]').attr('data-role') == 'manager' && item == 'category' ? "disabled" : ""} 
+                    multiple="multiple"></select>
+                    <div class="select2-resize-handle"></div>
+                </div>
+            `;
+        }
+
+        function fetchCategories() {
+            api.ajax_async('/api/v3/admin/userschema','POST','').then(function(d) {
+                return d.category
+            });
+        } 
+    
+        function populateSelect(item) {
+            const elem = $("#" + item)
+            elem.select2();
+            elem.attr("index", item);
+            switch (item) {
+                case ("category"):
+                case ("group"):
+                    api.ajax_async('/api/v3/admin/userschema', 'POST', '')
+                    .then(function(d) {
+                        $.each(d[item], function(pos, it) {
+                            if (item=='category') { var value = it.id } else { var value = it.name }
+                            if ($("#" + item + " option:contains(" + it.name + ")").length == 0) {
+                                elem.append('<option value=' + value + '>' + it.name + '</option>');
+                            }
+                        });
+                    });
+                    if (item=='category') { elem.val([$('meta[id=user_data]').attr('data-categoryid')]); }
+                    break;
+                case ("user"):
+                    $.each(domains_table.data(), function (pos, it) {
+                        var itemName = item != 'user' ? item + "_name" : "username";
+                        if ($("#" + item + " option:contains(" + it[itemName] + ")").length == 0) {
+                            elem.append('<option value=' + it[itemName] + '>' + it[itemName] + '</option>');
+                        }
+                    });
+                    break;
+                case ('memory'):
+                    api.ajax_async('/api/v3/admin/domains/'+item+'/desktop', 'GET')
+                    .then(function(f) {
+                        $.each(f, function(pos, field) {
+                            field = field[item]
+                            parsedMemory = field.toFixed(2)
+                            if (elem.find('option[value="' + parsedMemory  + 'GB"]').length === 0) {
+                                elem.append('<option value=' + parsedMemory + 'GB>' + parsedMemory + 'GB</option>');
+                            }
+                        });
+                    });
+                    elem.attr("index", 'ram(gb)')
+                    break;
+                case ("hyp_started"):
+                case ("forced_hyp"):
+                case ("favourite_hyp"):
+                    api.ajax_async('/api/v3/admin/table/hypervisors', 'POST', {pluck: "id"})
+                    .then(function(f) {
+                        $.each(f, function(pos, field) {
+                            field = field['id']
+                            if (typeof field === 'undefined' || field === false) {
+                                field = '-'
+                            }
+                            if (elem.find('option[value="' + field + '"]').length === 0) {
+                                elem.append('<option value="' + field+ '">' + field + '</option>');
+                            }
+                        });
+                        elem.append('<option value="-">-</option>');
+                    });
+                        index = item.replace(/_/g, "").replace("hyp", "")
+                        elem.attr("index", index)
+                    break;
+                default:
+                    api.ajax_async('/api/v3/admin/domains/'+item+'/desktop', 'GET')
+                    .then(function(f) {
+                        $.each(f, function(pos, field) {
+                            field = field[item]
+                            if (elem.find('option[value="' + field + '"]').length === 0) {
+                                elem.append('<option value="' + field+ '">' + field + '</option>');
+                              }
+                        });
+                    });
+                    break;
+            }
+            elem.html(elem.children('option').sort(function(a, b){
+                return a.text.localeCompare(b.text);
+            }));
+        }
+
+  
+    // set the filter box category on loading the document
+    function initial_filters() {
+        var node = newFilterBox('category');
+        $('#filter-boxes').append(node);
+        populateSelect('category');
+        $('#filter-select').find(`option[value='category']`).remove();
+    }
+
+    function reloadOtherFiltersContent(table) {
+        table.draw(false);
+        $("#filter-boxes .filter-item[id!='filter-category']").each(function () {
+          index = $(this).find(".filter-box").attr("id")
+          populateSelect(index);
+        });
+      }
+
+
+    function removeFilter(name) {
+        if ($('#filter-' + name + ' #' + name).val() && name !== 'category') {
+            var title = $('#filter-' + name + ' #' + name).attr("index");
+            $('#domains').DataTable().columns().every(function () {
+                header = $(this.header()).text().trim().toLowerCase();
+                if (header === title) {
+                    this.search('').draw();
+                }
+            });
+        }
+        if (name != 'category' || $('meta[id=user_data]').attr('data-role') == 'admin') {
+            $('#filter-' + name).remove();
+            $('#filter-select').append(`<option value="${name}">${name.charAt(0).toUpperCase() + name.slice(1).replace(/_/g, ' ')}</option>`);
+            $('#filter-select').children('option').sort(function(a, b) {
+                if (a.value === 'null') {
+                  return -1;
+                } else if (b.value === 'null') {
+                  return 1;
+                } else {
+                  return a.text.localeCompare(b.text);
+                }
+              }).appendTo('#filter-select');            $('#filter-select').val('null');
+        }
+    }
+
+
+    
