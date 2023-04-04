@@ -41,59 +41,67 @@ class ApiHypervisors:
     def get_hypervisors(
         self,
         status=None,
-        hyp_id=None,
-        started_desktops=False,
-        without_servers=False,
-        orchestrator=False,
     ):
         query = r.table("hypervisors")
-        if hyp_id:
-            query = query.get(hyp_id)
         if status:
             query = query.filter({"status": status})
-        if orchestrator:
-            query = query.filter({"gpu_only": False}).pluck(
-                "id",
-                "status",
-                "only_forced",
-                "buffering_hyper",
-                "destroy_time",
-                "stats",
-                "orchestrator_managed",
-            )
-        if started_desktops:
-            if without_servers:
-                query = query.merge(
-                    lambda hyper: {
-                        "desktops_started": r.table("domains")
-                        .get_all(hyper["id"], index="hyp_started")
-                        .filter({"server": False})
-                        .count()
-                    }
-                )
-            else:
-                query = query.merge(
-                    lambda hyper: {
-                        "desktops_started": r.table("domains")
-                        .get_all(hyper["id"], index="hyp_started")
-                        .count()
-                    }
-                )
+        query = query.merge(
+            lambda hyper: {
+                "desktops_started": r.table("domains")
+                .get_all(hyper["id"], index="hyp_started")
+                .count()
+            }
+        )
+
+        with app.app_context():
+            data = list(query.run(db.conn))
+        return data
+
+    def get_orchestrator_hypervisors(
+        self,
+        hyp_id=None,
+    ):
+        query = r.table("hypervisors")
+
         if hyp_id:
-            try:
-                with app.app_context():
-                    data = query.run(db.conn)
-            except:
-                raise Error(
-                    "not_found", "Hypervisor with ID " + hyp_id + " does not exist."
-                )
+            query = query.get(hyp_id)
+        else:
+            query = query.filter({"gpu_only": False})
+        query = query.pluck(
+            "id",
+            "status",
+            "only_forced",
+            "buffering_hyper",
+            "destroy_time",
+            "stats",
+            "orchestrator_managed",
+        )
+        query = query.merge(
+            lambda hyper: {
+                "desktops_started": r.table("domains")
+                .get_all(hyper["id"], index="hyp_started")
+                .filter({"server": False})
+                .count()
+            }
+        )
+        if hyp_id:
+            with app.app_context():
+                data = query.run(db.conn)
+            return {
+                **{
+                    "only_forced": False,
+                    "buffering_hyper": False,
+                    "destroy_time": None,
+                    "stats": {},
+                    "orchestrator_managed": False,
+                },
+                **data,
+            }
         else:
             with app.app_context():
                 data = list(query.run(db.conn))
-        if orchestrator:
-            if hyp_id:
-                # add missing keys on dict result
-                return {
+            return [
+                {
                     **{
                         "only_forced": False,
                         "buffering_hyper": False,
@@ -101,25 +109,10 @@ class ApiHypervisors:
                         "stats": {},
                         "orchestrator_managed": False,
                     },
-                    **data,
+                    **d,
                 }
-            else:
-                # add missing keys on list of dict results
-                return [
-                    {
-                        **{
-                            "only_forced": False,
-                            "buffering_hyper": False,
-                            "destroy_time": None,
-                            "stats": {},
-                            "orchestrator_managed": False,
-                        },
-                        **d,
-                    }
-                    for d in data
-                ]
-        else:
-            return data
+                for d in data
+            ]
 
     def hyper(
         self,
