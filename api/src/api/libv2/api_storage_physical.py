@@ -202,7 +202,11 @@ def phy_storage_delete(table, path_id):
         )
 
 
-def phy_add_to_storage(path_id, user_id):
+def phy_add_to_storage(
+    path_id,
+    user_id,
+    timestamp,
+):
     qemu_img_info = ApiRest(
         service="isard-storage", base_url=_phy_internal_toolbox_host()
     ).post("/storage/disk/info", {"path_id": path_id})
@@ -215,7 +219,10 @@ def phy_add_to_storage(path_id, user_id):
             "status": "ready",
             "type": qemu_img_info.get("format"),
             "user_id": user_id,
-            "status_logs": [{"status": "ready", "time": int(time.time())}],
+            "status_logs": [
+                {"status": "created", "time": timestamp - 1},
+                {"status": "ready", "time": timestamp},
+            ],
         }
         with app.app_context():
             r.table("storage").insert(new_disk).run(db.conn)
@@ -253,18 +260,28 @@ def phy_storage_upgrade_to_storage(data, user_id):
     with app.app_context():
         domains = list(
             r.table("domains")
-            .pluck("id", "user", {"create_dict": {"hardware": {"disks": True}}})
+            .pluck(
+                "id", "user", "accessed", {"create_dict": {"hardware": {"disks": True}}}
+            )
             .run(db.conn)
         )
     # To speedup the search
     domains_dict = {}
+    timestamp_dict = {}
     for d in domains:
         for disk in d["create_dict"]["hardware"]["disks"]:
             domains_dict[disk.get("storage_id", disk.get("file"))] = d["user"]
+            timestamp_dict[disk.get("storage_id", disk.get("file"))] = d.get(
+                "accessed", int(time.time())
+            )
 
     errors = []
     for path_id in data["paths"]:
-        new_disk = phy_add_to_storage(path_id, domains_dict.get(path_id, user_id))
+        new_disk = phy_add_to_storage(
+            path_id,
+            domains_dict.get(path_id, user_id),
+            timestamp_dict.get(path_id, int(time.time())),
+        )
         if not new_disk:
             errors.append("disk path " + str(path_id) + ": bad format.")
             socketio.emit(
