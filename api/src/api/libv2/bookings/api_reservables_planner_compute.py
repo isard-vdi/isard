@@ -614,6 +614,7 @@ def min_profile_priority(reservables):
                 priority = (
                     r.table("bookings_priority")
                     .get_all(priority_id, index="rule_id")
+                    .filter(lambda row: row["id"] != "default admins")
                     .min("forbid_time")
                     .run(db.conn)
                 )
