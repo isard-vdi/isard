@@ -29,6 +29,7 @@ from .._common.tokens import (
     get_auto_register_jwt_payload,
     get_header_jwt_payload,
 )
+from ..libv2.api_allowed import get_all_linked_groups
 from ..libv2.maintenance import Maintenance
 
 
@@ -555,6 +556,17 @@ def allowedTemplateId(payload, template_id):
             return True
         if payload["group_id"] in alloweds["groups"]:
             return True
+        secondary_groups = (
+            r.table("users")
+            .get(payload["user_id"])
+            .pluck("secondary_groups")
+            .run(db.conn)
+        )
+        for group in get_all_linked_groups(
+            [payload["group_id"]] + secondary_groups.get("secondary_groups", [])
+        ):
+            if group in alloweds["groups"]:
+                return True
     if alloweds["users"] != False:
         if alloweds["users"] == []:
             return True
