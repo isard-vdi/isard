@@ -276,7 +276,10 @@ class ThreadBroom(threading.Thread):
                                         logs.broom.error(
                                             f"broom find domain {id_domain} with status {d_status['status']} with detail {d_status['detail']} in hypervisor {hyp_id} and updated status and hyp_started in databse"
                                         )
-                                        if d_domain["status"] not in ["ForceDeleting"]:
+                                        if d_domain["status"] not in [
+                                            "Stopped",
+                                            "ForceDeleting",
+                                        ]:
                                             update_domain_hyp_started(
                                                 id_domain,
                                                 hyp_id,
