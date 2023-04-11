@@ -625,6 +625,7 @@ class ApiAdmin:
                         },
                         "forced_hyp",
                         "favourite_hyp",
+                        "status",
                     )
                     .merge(
                         lambda domain: {

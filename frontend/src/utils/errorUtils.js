@@ -14,9 +14,9 @@ export class ErrorUtils {
     return errorMessage
   }
 
-  static showErrorNotification (snotify, errorMessage, position = 'centerTop') {
+  static showErrorNotification (snotify, errorMessage, position = 'centerTop', timeout = 2000) {
     snotify.error(errorMessage, {
-      timeout: 2000,
+      timeout,
       showProgressBar: false,
       closeOnClick: true,
       pauseOnHover: true,

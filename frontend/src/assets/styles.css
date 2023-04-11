@@ -322,6 +322,14 @@
   z-index: 100 !important;
 }
 
+.card-list .card .danger-icon {
+  top: 20px;
+  right: 25px;
+  fill: var(--red-color);
+  z-index: 100 !important;
+}
+
+
 .card-list .card .info-icon-left {
   top: 20px;
   left: 25px;
@@ -662,7 +670,12 @@
   cursor: wait !important;
 }
 
-.booking-bar > td:first-child {
+.list-orange-bar > td:first-child {
   border-radius: 11px;
   border-left: 10px solid var(--orange-color) !important;
+}
+
+.list-red-bar > td:first-child {
+  border-radius: 11px;
+  border-left: 10px solid #dc3545 !important;
 }

@@ -23,7 +23,7 @@ from ..libv2.quotas import Quotas
 quotas = Quotas()
 
 from ..libv2.api_allowed import ApiAllowed
-from ..libv2.api_desktops_persistent import ApiDesktopsPersistent
+from ..libv2.api_desktops_persistent import ApiDesktopsPersistent, check_template_status
 from ..libv2.api_templates import ApiTemplates
 
 templates = ApiTemplates()
@@ -168,6 +168,7 @@ def api_v3_persistent_desktop_new(payload):
 
     data["description"] = data.get("description", template["description"])
 
+    check_template_status(None, template)
     desktop = desktops.check_viewers(data, template)
 
     allowed.is_allowed(payload, template, "domains")
@@ -202,6 +203,7 @@ def api_v3_persistent_desktop_bulk_new(payload):
         )
     data = _validate_item("desktops_from_template", data)
     template = templates.Get(data["template_id"])
+    check_template_status(None, template)
     allowed.is_allowed(payload, template, "domains")
     desktops_list = desktops.BulkDesktops(payload, data)
 

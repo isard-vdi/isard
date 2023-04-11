@@ -115,6 +115,7 @@
             </b-row>
             <b-table
               id="selectedTemplateId"
+              ref="templateTable"
               striped
               hover
               :items="items"
@@ -145,6 +146,13 @@
 
               <!-- Scoped slot for image -->
               <template #cell(image)="data">
+                <b-icon
+                  v-if="data.item.status.toLowerCase() === desktopStates.failed"
+                  v-b-tooltip="{ title: $t(`errors.template_failed`), placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
+                  icon="exclamation-triangle-fill"
+                  variant="danger"
+                  class="danger-icon position-absolute cursor-pointer"
+                />
                 <img
                   :src="`..${data.item.image.url}`"
                   alt=""
@@ -248,6 +256,10 @@ import DomainMedia from '@/components/domain/DomainMedia.vue'
 import DomainBookables from '@/components/domain/DomainBookables.vue'
 import DomainImage from '@/components/domain/DomainImage.vue'
 import DomainInfo from '@/components/domain/DomainInfo.vue'
+import { ErrorUtils } from '@/utils/errorUtils'
+import { desktopStates } from '@/shared/constants'
+
+const templateTable = ref(null)
 
 export default {
   components: {
@@ -286,8 +298,13 @@ export default {
       currentPage.value = 1
     }
 
-    const onRowSelected = (items) => {
-      selected.value = items
+    const onRowSelected = (item) => {
+      if (item[0] && item[0].status.toLowerCase() === desktopStates.failed) {
+        ErrorUtils.showErrorNotification(context.root.$snotify, i18n.t('errors.template_failed'), 'centerTop', 5000)
+        templateTable.value.clearSelected()
+      } else {
+        selected.value = item
+      }
     }
 
     const items = computed(() => $store.getters.getTemplates)
@@ -427,7 +444,9 @@ export default {
       navigate,
       onRowSelected,
       onFiltered,
-      v$
+      v$,
+      templateTable,
+      desktopStates
     }
   }
 }

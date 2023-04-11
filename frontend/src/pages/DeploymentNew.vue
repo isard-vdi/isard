@@ -143,6 +143,7 @@
           <b-col>
             <b-table
               id="selectedTemplateId"
+              ref="templateTable"
               striped
               hover
               :items="items"
@@ -173,6 +174,13 @@
 
               <!-- Scoped slot for image -->
               <template #cell(image)="data">
+                <b-icon
+                  v-if="data.item.status.toLowerCase() === desktopStates.failed"
+                  v-b-tooltip="{ title: $t(`errors.template_failed`), placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
+                  icon="exclamation-triangle-fill"
+                  variant="danger"
+                  class="danger-icon position-absolute cursor-pointer"
+                />
                 <img
                   :src="`..${data.item.image.url}`"
                   alt=""
@@ -264,9 +272,11 @@ import DomainHardware from '@/components/domain/DomainHardware.vue'
 import DomainMedia from '@/components/domain/DomainMedia.vue'
 import DomainBookables from '@/components/domain/DomainBookables.vue'
 import DomainImage from '@/components/domain/DomainImage.vue'
+import { desktopStates } from '@/shared/constants'
 
 // const inputFormat = helpers.regex('inputFormat', /^1(3|4|5|7|8)\d{9}$/) // /^\D*7(\D*\d){12}\D*$'
 const inputFormat = value => /^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$/.test(value)
+const templateTable = ref(null)
 
 export default {
   components: {
@@ -313,8 +323,13 @@ export default {
       currentPage.value = 1
     }
 
-    const onRowSelected = (items) => {
-      selected.value = items
+    const onRowSelected = (item) => {
+      if (item[0] && item[0].status.toLowerCase() === desktopStates.failed) {
+        ErrorUtils.showErrorNotification(context.root.$snotify, i18n.t('errors.template_failed'), 'centerTop', 5000)
+        templateTable.value.clearSelected()
+      } else {
+        selected.value = item
+      }
     }
 
     // Selected template validation
@@ -516,7 +531,9 @@ export default {
       navigate,
       onFiltered,
       onRowSelected,
-      collapseVisible
+      collapseVisible,
+      templateTable,
+      desktopStates
     }
   }
 }
