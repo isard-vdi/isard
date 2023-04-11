@@ -18,11 +18,11 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-import itertools
 import json
 import logging as log
 import random
 import time
+import traceback
 import uuid
 
 from rethinkdb import RethinkDB
@@ -207,27 +207,36 @@ def phy_add_to_storage(
     user_id,
     timestamp,
 ):
-    qemu_img_info = ApiRest(
-        service="isard-storage", base_url=_phy_internal_toolbox_host()
-    ).post("/storage/disk/info", {"path_id": path_id})
-    if qemu_img_info.get("format") in ["qcow2"]:
-        new_disk = {
-            "directory_path": "/".join(path_id.split("/")[:3]),
-            "id": str(uuid.uuid4()),
-            "parent": qemu_img_info.get("backing-filename"),
-            "qemu-img-info": qemu_img_info,
-            "status": "ready",
-            "type": qemu_img_info.get("format"),
-            "user_id": user_id,
-            "status_logs": [
-                {"status": "created", "time": timestamp - 1},
-                {"status": "ready", "time": timestamp},
-            ],
-        }
-        with app.app_context():
-            r.table("storage").insert(new_disk).run(db.conn)
-        return new_disk
-    else:
+    try:
+        qemu_img_info = ApiRest(
+            service="isard-storage", base_url=_phy_internal_toolbox_host()
+        ).post("/storage/disk/info", {"path_id": path_id})
+        if qemu_img_info.get("format") in ["qcow2"]:
+            new_disk = {
+                "directory_path": "/".join(path_id.split("/")[:3]),
+                "id": str(uuid.uuid4()),
+                "parent": qemu_img_info.get("backing-filename"),
+                "qemu-img-info": qemu_img_info,
+                "status": "ready",
+                "type": qemu_img_info.get("format"),
+                "user_id": user_id,
+                "status_logs": [
+                    {"status": "created", "time": timestamp - 1},
+                    {"status": "ready", "time": timestamp},
+                ],
+            }
+            with app.app_context():
+                r.table("storage").insert(new_disk).run(db.conn)
+            return new_disk
+        else:
+            return None
+    except:
+        log.error(
+            "Error migrating disk to storage: "
+            + path_id
+            + ": "
+            + traceback.format_exc()
+        )
         return None
 
 
