@@ -96,7 +96,7 @@ def api_v3_template_new(payload):
 @app.route("/api/v3/template/duplicate/<template_id>", methods=["POST"])
 @has_token
 def api_v3_template_duplicate(payload, template_id):
-    ownsDomainId(payload, template_id)
+    allowedTemplateId(payload, template_id)
     data = request.get_json(force=True)
     if data.get("user_id"):
         payload = gen_payload_from_user(data["user_id"])

@@ -113,38 +113,52 @@
               </template>
               <template #cell(actions)="data">
                 <div class="d-flex justify-content-center align-items-center">
-                  <b-button
-                    class="rounded-circle px-2 mr-2 btn-blue"
-                    :title="$t('views.templates.buttons.edit.title')"
-                    @click="onClickGoToEditTemplate(data.item.id)"
-                  >
-                    <b-icon
-                      icon="pencil-fill"
-                      scale="0.75"
-                    />
-                  </b-button>
-                  <b-button
-                    class="rounded-circle px-2 mr-2 btn-dark-blue"
-                    :title="$t('views.templates.buttons.allowed.title')"
-                    @click="showAllowedModal(data.item)"
-                  >
-                    <b-icon
-                      icon="people-fill"
-                      scale="0.75"
-                    />
-                  </b-button>
-                  <b-button
-                    class="rounded-circle px-2 mr-2"
-                    :class="enabledClass(data.item)"
-                    :title="data.item.enabled ? $t('views.templates.buttons.disable.title') : $t('views.templates.buttons.enable.title')"
-                    @click="toggleEnabled(data.item)"
-                  >
-                    <b-icon
-                      :icon="toggleEnabledIcon(data.item)"
-                      scale="0.75"
-                    />
-                  </b-button>
+                  <template v-if="shared">
+                    <b-button
+                      class="rounded-circle px-2 mr-2 btn-green"
+                      :title="$t('views.templates.buttons.duplicate.title')"
+                      @click="onClickGoToDuplicate(data.item.id)"
+                    >
+                      <b-icon
+                        icon="files"
+                        scale="0.75"
+                      />
+                    </b-button>
+                  </template>
+                  <template v-else>
+                    <b-button
+                      class="rounded-circle px-2 mr-2 btn-blue"
+                      :title="$t('views.templates.buttons.edit.title')"
+                      @click="onClickGoToEditTemplate(data.item.id)"
+                    >
+                      <b-icon
+                        icon="pencil-fill"
+                        scale="0.75"
+                      />
+                    </b-button>
+                    <b-button
+                      class="rounded-circle px-2 mr-2 btn-dark-blue"
+                      :title="$t('views.templates.buttons.allowed.title')"
+                      @click="showAllowedModal(data.item)"
+                    >
+                      <b-icon
+                        icon="people-fill"
+                        scale="0.75"
+                      />
+                    </b-button>
+                    <b-button
+                      class="rounded-circle px-2 mr-2"
+                      :class="enabledClass(data.item)"
+                      :title="data.item.enabled ? $t('views.templates.buttons.disable.title') : $t('views.templates.buttons.enable.title')"
+                      @click="toggleEnabled(data.item)"
+                    >
+                      <b-icon
+                        :icon="toggleEnabledIcon(data.item)"
+                        scale="0.75"
+                      />
+                    </b-button>
                   <!-- Pagination -->
+                  </template>
                 </div>
               </template>
             </b-table>
@@ -188,6 +202,7 @@
 import i18n from '@/i18n'
 import ListItemSkeleton from '@/components/ListItemSkeleton.vue'
 import { ref, reactive, watch } from '@vue/composition-api'
+import { mapActions } from 'vuex'
 
 export default {
   components: { ListItemSkeleton },
@@ -334,8 +349,22 @@ export default {
           sortable: true,
           label: i18n.t('views.templates.table-header.description'),
           thStyle: { width: '35%' }
+        },
+        {
+          key: 'actions',
+          label: i18n.t('views.templates.table-header.actions'),
+          thStyle: { width: '5%' }
         }
       ]
+    }
+  },
+  methods: {
+    ...mapActions([
+      'goToDuplicate'
+    ]
+    ),
+    onClickGoToDuplicate (templateId) {
+      this.goToDuplicate(templateId)
     }
   }
 }

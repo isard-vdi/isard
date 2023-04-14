@@ -64,6 +64,9 @@
             "enabled": "Enabled",
             "disabled": "Disabled"
         },
+        "duplicate-template": {
+            "title": "Duplicate template"
+        },
         "new-deployment": {
             "title": "Create new deployment:",
             "name": "Deployment name",
@@ -156,6 +159,7 @@
         "cancel": "Cancel",
         "submit": "Submit",
         "create": "Create",
+        "duplicate": "Duplicate",
         "show-pages": "Show"
     },
     "components": {
@@ -766,6 +770,9 @@
                 },
                 "edit": {
                     "title": "Edit"
+                },
+                "duplicate": {
+                    "title": "Duplicate template"
                 }
             }
         },
@@ -1027,6 +1034,7 @@
             "planning": "Planning",
             "templates": "Templates",
             "new_template": "New template",
+            "duplicate_template": "Duplicate template",
             "deployments": "Deployments",
             "deployment_videowall": "Deployment videowall",
             "new_deployment": "New deployment",
