@@ -404,7 +404,13 @@ create_docker_compose_file(){
 
 	if [ -z "$INFRASTRUCTURE_MANAGEMENT" ] || [ "$INFRASTRUCTURE_MANAGEMENT" != "true" ]
 	then
-		parts="$(echo $parts | sed 's/infrastructure//' | sed 's/check//')"
+		parts="$(echo $parts | sed 's/infrastructure//')"
+
+		# If the flavour is check, it doesn't require INFRASTRUCTURE_MANAGEMENT to be set
+		if [ "$FLAVOUR" != "check" ]
+		then
+			parts="$(echo $parts | sed 's/check//')"
+		fi
 	fi
 
 	# Build the docker-compose.yml
