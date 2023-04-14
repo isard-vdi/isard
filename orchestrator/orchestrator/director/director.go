@@ -14,7 +14,7 @@ var Available = []string{DirectorTypeRata}
 
 type Director interface {
 	// NeedToScaleHypervisors states if there's a scale needed to be done.
-	NeedToScaleHypervisors(ctx context.Context, operationsHypers []*operationsv1.ListHypervisorsResponseHypervisor, hypers []*client.OrchestratorHypervisor) (*operationsv1.CreateHypervisorRequest, *operationsv1.DestroyHypervisorRequest, error)
+	NeedToScaleHypervisors(ctx context.Context, operationsHypers []*operationsv1.ListHypervisorsResponseHypervisor, hypers []*client.OrchestratorHypervisor) (create *operationsv1.CreateHypervisorRequest, remove *operationsv1.DestroyHypervisorRequest, hyperToRemoveFromDeadRow string, hyperToAddToDeadRow string, err error)
 	// ExtraOperations is a place for running infrastructure operations that don't fit in the other functions but are required
 	ExtraOperations(ctx context.Context, hypers []*client.OrchestratorHypervisor) error
 	String() string

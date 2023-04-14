@@ -181,6 +181,36 @@ func (o *Orchestrator) destroyHypervisor(ctx context.Context, req *operationsv1.
 	o.log.Info().Str("id", req.Id).Msg("hypervisor destroyed")
 }
 
+func (o *Orchestrator) removeHypervisorFromDeadRow(ctx context.Context, id string) {
+	o.scaleMux.Lock()
+	defer o.scaleMux.Unlock()
+
+	o.wg.Add(1)
+	defer o.wg.Done()
+
+	o.scaling = true
+	defer func() {
+		o.scaling = false
+	}()
+
+	if err := o.apiCli.OrchestratorHypervisorRemoveFromDeadRow(ctx, id); err != nil {
+		o.log.Error().Str("id", id).Err(err).Msg("cancel hypervisor destruction")
+		return
+	}
+
+	o.log.Info().Str("id", id).Msg("hypervisor destruction cancelled")
+}
+
+func (o *Orchestrator) addHypervisorToDeadRow(ctx context.Context, id string) {
+	destroyTime, err := o.apiCli.OrchestratorHypervisorAddToDeadRow(ctx, id)
+	if err != nil {
+		o.log.Error().Str("id", id).Err(err).Msg("set hypervisor to destroy")
+		return
+	}
+
+	o.log.Info().Str("id", id).Time("destroy_time", destroyTime).Msg("hypervisor destruction time scheduled")
+}
+
 func (o *Orchestrator) bufferingHypervisorOperation(ctx context.Context, onlyForced bool) error {
 	hypers, err := o.apiCli.HypervisorList(ctx)
 	if err != nil {

@@ -25,9 +25,10 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 		Hypers                    []*client.OrchestratorHypervisor
 		RataMinCPU                int
 		RataMinRAM                int
-		PrepareAPI                func(*apiMock.Client)
 		ExpectedErr               string
+		ExpectedRemoveDeadRow     string
 		ExpectedCreateHypervisor  *operationsv1.CreateHypervisorRequest
+		ExpectedAddDeadRow        string
 		ExpectedDestroyHypervisor *operationsv1.DestroyHypervisorRequest
 	}{
 		"if there's enough RAM, it should return 0": {
@@ -105,10 +106,8 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 					Free:  200,
 				},
 			}},
-			RataMinRAM: 300,
-			PrepareAPI: func(c *apiMock.Client) {
-				c.On("OrchestratorHypervisorAddToDeadRow", mock.AnythingOfType("*context.emptyCtx"), "2").Return(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), nil)
-			},
+			RataMinRAM:         300,
+			ExpectedAddDeadRow: "2",
 		},
 		"if there's not enough RAM but there are hypervisors on the dead row, it should remove those from it": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{{
@@ -140,10 +139,8 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 					Free:  1000,
 				},
 			}},
-			RataMinRAM: 500,
-			PrepareAPI: func(c *apiMock.Client) {
-				c.On("OrchestratorHypervisorRemoveFromDeadRow", mock.AnythingOfType("*context.emptyCtx"), "existing-2").Return(nil)
-			},
+			RataMinRAM:            500,
+			ExpectedRemoveDeadRow: "existing-2",
 		},
 		"if there's not enough RAM and there are multiple hypervisors on the dead row, it should remove the smallest hypervisor from it": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{{
@@ -188,10 +185,8 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 					Free:  700,
 				},
 			}},
-			RataMinRAM: 500,
-			PrepareAPI: func(c *apiMock.Client) {
-				c.On("OrchestratorHypervisorRemoveFromDeadRow", mock.AnythingOfType("*context.emptyCtx"), "existing-3").Return(nil)
-			},
+			RataMinRAM:            500,
+			ExpectedRemoveDeadRow: "existing-3",
 		},
 		"if there's an hypervisor that's been too much time on the dead row, KILL THEM!! >:(": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
@@ -269,23 +264,46 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				Id: "2",
 			},
 		},
+		"if there aren't enough ram, but there's a small hyper in the dead row and with it the system can work, remove it from the dead row": {
+			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
+			Hypers: []*client.OrchestratorHypervisor{{
+				ID:                  "1",
+				Status:              client.HypervisorStatusOnline,
+				OnlyForced:          true,
+				DestroyTime:         time.Now().Add(2 * director.DeadRowDuration),
+				OrchestratorManaged: true,
+				RAM: client.OrchestratorResourceLoad{
+					Total: 600,
+					Used:  400,
+					Free:  200,
+				},
+			}, {
+				ID:                  "2",
+				Status:              client.HypervisorStatusOnline,
+				DesktopsStarted:     0,
+				OnlyForced:          false,
+				OrchestratorManaged: true,
+				RAM: client.OrchestratorResourceLoad{
+					Total: 700,
+					Used:  100,
+					Free:  600,
+				},
+			}},
+			RataMinRAM:            700,
+			ExpectedRemoveDeadRow: "1",
+		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			log := zerolog.New(os.Stdout)
 
-			cli := &apiMock.Client{}
-			if tc.PrepareAPI != nil {
-				tc.PrepareAPI(cli)
-			}
-
 			rata := director.NewRata(cfg.DirectorRata{
 				MinCPU: tc.RataMinCPU,
 				MinRAM: tc.RataMinRAM,
-			}, false, &log, cli)
+			}, false, &log, nil)
 
-			create, destroy, err := rata.NeedToScaleHypervisors(context.Background(), tc.AvailHypers, tc.Hypers)
+			create, destroy, removeDeadRow, addDeadRow, err := rata.NeedToScaleHypervisors(context.Background(), tc.AvailHypers, tc.Hypers)
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)
@@ -293,10 +311,10 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				assert.NoError(err)
 			}
 
+			assert.Equal(tc.ExpectedRemoveDeadRow, removeDeadRow)
 			assert.Equal(tc.ExpectedCreateHypervisor, create)
+			assert.Equal(tc.ExpectedAddDeadRow, addDeadRow)
 			assert.Equal(tc.ExpectedDestroyHypervisor, destroy)
-
-			cli.AssertExpectations(t)
 		})
 	}
 }

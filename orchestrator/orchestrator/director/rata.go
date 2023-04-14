@@ -113,12 +113,10 @@ func (r *Rata) minRAM() int {
 
 // TODO: GPUs
 // TODO: Start a smaller available hypervisor in order to scale down afterwards
-func (r *Rata) NeedToScaleHypervisors(ctx context.Context, operationsHypers []*operationsv1.ListHypervisorsResponseHypervisor, hypers []*client.OrchestratorHypervisor) (*operationsv1.CreateHypervisorRequest, *operationsv1.DestroyHypervisorRequest, error) {
+func (r *Rata) NeedToScaleHypervisors(ctx context.Context, operationsHypers []*operationsv1.ListHypervisorsResponseHypervisor, hypers []*client.OrchestratorHypervisor) (*operationsv1.CreateHypervisorRequest, *operationsv1.DestroyHypervisorRequest, string, string, error) {
 	var (
 		cpuAvail = 0
 		ramAvail = 0
-		create   *operationsv1.CreateHypervisorRequest
-		destroy  *operationsv1.DestroyHypervisorRequest
 	)
 
 	availHypers := []*operationsv1.ListHypervisorsResponseHypervisor{}
@@ -183,12 +181,12 @@ availHypersLoop:
 			// TODO: CPU
 			for _, h := range hypersOnDeadRow {
 				if hyperToPardon != nil {
-					if h.RAM.Free > r.minRAM() && h.RAM.Total < hyperToPardon.RAM.Total {
+					if ramAvail+h.RAM.Free > r.minRAM() && h.RAM.Total < hyperToPardon.RAM.Total {
 						hyperToPardon = h
 					}
 
 				} else {
-					if h.RAM.Free > r.minRAM() {
+					if ramAvail+h.RAM.Free > r.minRAM() {
 						hyperToPardon = h
 					}
 				}
@@ -196,29 +194,20 @@ availHypersLoop:
 		}
 
 		if hyperToPardon != nil {
-			if r.dryRun {
-				r.log.Info().Bool("DRY_RUN", true).Str("id", hyperToPardon.ID).Int("avail_cpu", cpuAvail).Int("avail_ram", ramAvail).Int("req_cpu", reqHypersCPU).Int("req_ram", reqHypersRAM).Str("scaling", "up").Msg("cancel hypervisor destruction")
-
-			} else {
-				if err := r.apiCli.OrchestratorHypervisorRemoveFromDeadRow(ctx, hyperToPardon.ID); err != nil {
-					return nil, nil, fmt.Errorf("cancel hypervisor '%s' destruction: %w", hyperToPardon.ID, err)
-				}
-
-				r.log.Info().Str("id", hyperToPardon.ID).Int("avail_cpu", cpuAvail).Int("avail_ram", ramAvail).Int("req_cpu", reqHypersCPU).Int("req_ram", reqHypersRAM).Str("scaling", "up").Msg("cancel hypervisor destruction")
-			}
+			r.log.Info().Str("id", hyperToPardon.ID).Int("avail_cpu", cpuAvail).Int("avail_ram", ramAvail).Int("req_cpu", reqHypersCPU).Int("req_ram", reqHypersRAM).Str("scaling", "up").Msg("cancel hypervisor destruction")
+			return nil, nil, hyperToPardon.ID, "", nil
 
 		} else {
 			// If not, create a new hypervisor
 			id, err := bestHyperToCreate(availHypers, reqHypersCPU, reqHypersRAM)
 			if err != nil {
-				return nil, nil, err
-			}
-
-			create = &operationsv1.CreateHypervisorRequest{
-				Id: id,
+				return nil, nil, "", "", err
 			}
 
 			r.log.Info().Str("id", id).Int("avail_cpu", cpuAvail).Int("avail_ram", ramAvail).Int("req_cpu", reqHypersCPU).Int("req_ram", reqHypersRAM).Str("scaling", "up").Msg("create hypervisor to scale up")
+			return &operationsv1.CreateHypervisorRequest{
+				Id: id,
+			}, nil, "", "", nil
 		}
 	}
 
@@ -232,9 +221,9 @@ availHypersLoop:
 
 				// Check if we need to kill the hypervisor (because it's time to kill it or it has 0 desktops started)
 				if !h.DestroyTime.IsZero() && (h.DestroyTime.Before(time.Now()) || h.DesktopsStarted == 0) {
-					destroy = &operationsv1.DestroyHypervisorRequest{Id: h.ID}
-
 					r.log.Info().Str("id", h.ID).Str("scaling", "down").Msg("destroy hypervisor")
+					return nil, &operationsv1.DestroyHypervisorRequest{Id: h.ID}, "", "", nil
+
 				} else {
 					// Check if we need to move the hypervisor to the dead row
 					// TODO: CPU
@@ -261,20 +250,11 @@ availHypersLoop:
 	}
 
 	if deadRow != nil {
-		if r.dryRun {
-			r.log.Info().Bool("DRY_RUN", true).Str("id", deadRow.ID).Str("scaling", "down").Time("destroy_time", deadRow.DestroyTime).Msg("set hypervisor to destroy")
-
-		} else {
-			destroyTime, err := r.apiCli.OrchestratorHypervisorAddToDeadRow(ctx, deadRow.ID)
-			if err != nil {
-				return nil, nil, fmt.Errorf("set hypervisor '%s' to destroy: %w", deadRow.ID, err)
-			}
-
-			r.log.Info().Str("id", deadRow.ID).Str("scaling", "down").Time("destroy_time", destroyTime).Msg("set hypervisor to destroy")
-		}
+		r.log.Info().Str("id", deadRow.ID).Int("avail_cpu", cpuAvail).Int("avail_ram", ramAvail).Int("req_cpu", reqHypersCPU).Int("req_ram", reqHypersRAM).Str("scaling", "down").Msg("set hypervisor to destroy")
+		return nil, nil, "", deadRow.ID, nil
 	}
 
-	return create, destroy, nil
+	return nil, nil, "", "", nil
 }
 
 // TODO: CPU
@@ -326,7 +306,7 @@ func (r *Rata) ExtraOperations(ctx context.Context, hypers []*client.Orchestrato
 								return fmt.Errorf("set hypervisor '%s' to only_forced: %w", h.ID, err)
 							}
 
-							r.log.Info().Int("free_cpu", h.CPU.Free).Int("free_ram", h.RAM.Free).Int("hyper_min_cpu", r.hyperMinCPU).Int("hyper_min_ram", r.hyperMinRAM).Msg("set hypervisor to only_forced")
+							r.log.Info().Str("id", h.ID).Int("free_cpu", h.CPU.Free).Int("free_ram", h.RAM.Free).Int("hyper_min_cpu", r.hyperMinCPU).Int("hyper_min_ram", r.hyperMinRAM).Msg("set hypervisor to only_forced")
 						}
 
 					}
@@ -344,7 +324,7 @@ func (r *Rata) ExtraOperations(ctx context.Context, hypers []*client.Orchestrato
 								return fmt.Errorf("set hypervisor '%s' to only_forced: %w", h.ID, err)
 							}
 
-							r.log.Info().Int("free_cpu", h.CPU.Free).Int("free_ram", h.RAM.Free).Int("hyper_max_cpu", r.hyperMaxCPU).Int("hyper_max_ram", r.hyperMaxRAM).Msg("remove hypervisor from only_forced")
+							r.log.Info().Str("id", h.ID).Int("free_cpu", h.CPU.Free).Int("free_ram", h.RAM.Free).Int("hyper_max_cpu", r.hyperMaxCPU).Int("hyper_max_ram", r.hyperMaxRAM).Msg("remove hypervisor from only_forced")
 						}
 
 					}

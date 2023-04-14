@@ -106,7 +106,7 @@ func (o *Orchestrator) Start(ctx context.Context) {
 
 				o.log.Debug().Array("isard_hypervisors", log.NewModelHypervisors(hypers)).Array("infrastructure_hypervisors", log.NewOperationsV1ListHypervisorsResponse(operationsHypers)).Msg("infrastructure state")
 
-				create, destroy, err := o.director.NeedToScaleHypervisors(ctx, operationsHypers.Hypervisors, hypers)
+				create, destroy, removeDeadRow, addDeadRow, err := o.director.NeedToScaleHypervisors(ctx, operationsHypers.Hypervisors, hypers)
 				if err != nil {
 					o.log.Error().Err(err).Msg("check if there are hypervisors that need to scale")
 					continue
@@ -115,12 +115,30 @@ func (o *Orchestrator) Start(ctx context.Context) {
 				timeout, cancel := context.WithTimeout(ctx, o.operationsTimeout)
 				defer cancel()
 
+				if removeDeadRow != "" {
+					if o.dryRun {
+						o.log.Info().Bool("DRY_RUN", true).Str("id", removeDeadRow).Msg("cancel hypervisor destruction")
+
+					} else {
+						go o.removeHypervisorFromDeadRow(timeout, removeDeadRow)
+					}
+				}
+
 				if create != nil {
 					if o.dryRun {
 						o.log.Info().Bool("DRY_RUN", true).Str("id", create.Id).Msg("create hypervisor")
 
 					} else {
 						go o.createHypervisor(timeout, create)
+					}
+				}
+
+				if addDeadRow != "" {
+					if o.dryRun {
+						o.log.Info().Bool("DRY_RUN", true).Str("id", addDeadRow).Msg("set hypervisor to destroy")
+
+					} else {
+						go o.addHypervisorToDeadRow(timeout, addDeadRow)
 					}
 				}
 
@@ -132,6 +150,12 @@ func (o *Orchestrator) Start(ctx context.Context) {
 						go o.destroyHypervisor(timeout, destroy)
 					}
 				}
+			}
+
+			hypers, err = o.apiCli.OrchestratorHypervisorList(ctx)
+			if err != nil {
+				o.log.Error().Err(err).Msg("get hypervisors")
+				continue
 			}
 
 			if err := o.director.ExtraOperations(ctx, hypers); err != nil {
