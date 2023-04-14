@@ -118,6 +118,7 @@ from .views import (
     VpnViews,
     maintenance,
     storage_node,
+    task,
 )
 from .views.bookings import BookingView, ReservablesView
 from .views.deployments import DeploymentsView

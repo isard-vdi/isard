@@ -1,6 +1,6 @@
 #
 #   IsardVDI - Open Source KVM Virtual Desktops based on KVM Linux and dockers
-#   Copyright (C) 2022 Simó Albert i Beltran
+#   Copyright (C) 2023 Simó Albert i Beltran
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU Affero General Public License as published by
@@ -17,17 +17,18 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from .rethink_base import RethinkBase
+import os
+from abc import ABC
+
+from redis import Redis
 
 
-class StorageNode(RethinkBase):
+class RedisBase(ABC):
     """
-    Manage Storage Node.
-
-    Use constructor with keyword arguments to create new Storage Node or
-    update an existing one using id keyword. Use constructor with id as
-    first argument to create an object representing an existing Storage
-    Node.
+    Redis connection.
     """
 
-    _table = "storage_node"
+    _redis = Redis(
+        host=os.environ.get("REDIS_HOST", "isard-redis"),
+        password=os.environ.get("REDIS_PASSWORD", ""),
+    )

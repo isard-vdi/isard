@@ -52,6 +52,7 @@ ALLINONE_PARTS="
 	authentication
 	vpn
 	guac
+	redis
 	storage
 	backupninja
 "
@@ -105,6 +106,7 @@ WEB_PARTS="
 	vpn
 	stats
 	guac
+	redis
 "
 MONITOR_STANDALONE_KEY="monitor"
 MONITOR_STANDALONE_PARTS="

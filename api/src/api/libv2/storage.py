@@ -1,6 +1,6 @@
 #
 #   IsardVDI - Open Source KVM Virtual Desktops based on KVM Linux and dockers
-#   Copyright (C) 2022 Simó Albert i Beltran
+#   Copyright (C) 2023 Simó Albert i Beltran
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU Affero General Public License as published by
@@ -20,14 +20,13 @@
 from .rethink_base import RethinkBase
 
 
-class StorageNode(RethinkBase):
+class Storage(RethinkBase):
     """
-    Manage Storage Node.
+    Manage Storage Objects
 
-    Use constructor with keyword arguments to create new Storage Node or
+    Use constructor with keyword arguments to create new Storage Objects or
     update an existing one using id keyword. Use constructor with id as
-    first argument to create an object representing an existing Storage
-    Node.
+    first argument to create an object representing an existing Storage Object.
     """
 
-    _table = "storage_node"
+    _table = "storage"
