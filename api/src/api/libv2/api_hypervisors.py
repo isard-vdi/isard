@@ -23,6 +23,8 @@ from .flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
+from rethinkdb.errors import ReqlNonExistenceError
+
 from .._common.api_exceptions import Error
 from .._common.storage_pool import DEFAULT_STORAGE_POOL_ID
 from ..libv2.isardVpn import isardVpn
@@ -85,8 +87,13 @@ class ApiHypervisors:
             }
         )
         if hyp_id:
-            with app.app_context():
-                data = query.run(db.conn)
+            try:
+                with app.app_context():
+                    data = query.run(db.conn)
+            except ReqlNonExistenceError:
+                raise Error(
+                    "not_found", "Hypervisor with ID " + hyp_id + " does not exist."
+                )
             return {
                 **{
                     "only_forced": False,
