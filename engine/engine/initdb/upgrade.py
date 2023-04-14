@@ -17,7 +17,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 82
+release_version = 83
+# release 83: Add accessed to missing templates
 # release 82: Remove orphan deployments
 # release 81: Add desktops_priority "name" index
 # release 80: "tag_status" index for domains table
@@ -1376,6 +1377,16 @@ class Upgrade(object):
                 r.table(table).index_create(
                     "tag_status", [r.row["tag"], r.row["status"]]
                 ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 83:
+            try:
+                r.table(table).filter(
+                    lambda domain: r.not_(domain.has_fields("accessed"))
+                ).update({"accessed": r.row["history_domain"][-1]["when"]}).run(
+                    self.conn
+                )
             except Exception as e:
                 print(e)
 
