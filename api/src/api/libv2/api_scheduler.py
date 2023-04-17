@@ -72,7 +72,11 @@ class Scheduler:
                 r.table("domains")
                 .get(desktop_id)
                 .pluck(
-                    "name", "user", "server", {"create_dict": {"reservables": "vgpus"}}
+                    "name",
+                    "user",
+                    "server",
+                    {"create_dict": {"reservables": "vgpus"}},
+                    "tag",
                 )
                 .run(db.conn)
             )
@@ -95,9 +99,12 @@ class Scheduler:
         start_date = datetime.now(pytz.utc)
 
         if desktop.get("create_dict", {}).get("reservables", {}).get("vgpus"):
+            item_id = desktop_id
+            if desktop.get("tag"):
+                item_id = desktop.get("tag")
             booking = (
                 r.table("bookings")
-                .get_all(desktop_id, index="item_id")
+                .get_all(item_id, index="item_id")
                 .filter(
                     lambda plan: plan["end"]
                     > r.now() & plan["reservables"]["vgpus"]
