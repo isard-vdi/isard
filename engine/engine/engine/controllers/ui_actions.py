@@ -13,6 +13,7 @@ from pprint import pformat
 from time import sleep
 
 from _common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+from _common.domain import Domain
 from engine.models.domain_xml import (
     BUS_TYPES,
     DomainXML,
@@ -111,6 +112,14 @@ class UiActions(object):
         )
         if not domain:
             log.error(f"Domain {id_domain} not found. Can't start. Maybe deleted?")
+            return False
+
+        if not Domain(id_domain).storage_ready:
+            update_domain_status(
+                "Stopped",
+                id_domain,
+                detail=f"Desktop storage not ready",
+            )
             return False
 
         memory = domain.get("create_dict", {}).get("hardware", {}).get("memory", 0)
