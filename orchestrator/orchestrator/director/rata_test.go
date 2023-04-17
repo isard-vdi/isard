@@ -25,6 +25,8 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 		Hypers                    []*client.OrchestratorHypervisor
 		RataMinCPU                int
 		RataMinRAM                int
+		RataMaxCPU                int
+		RataMaxRAM                int
 		ExpectedErr               string
 		ExpectedRemoveDeadRow     string
 		ExpectedCreateHypervisor  *operationsv1.CreateHypervisorRequest
@@ -106,7 +108,8 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 					Free:  200,
 				},
 			}},
-			RataMinRAM:         300,
+			// RataMinRAM:         300,
+			RataMaxRAM:         300,
 			ExpectedAddDeadRow: "2",
 		},
 		"if there's not enough RAM but there are hypervisors on the dead row, it should remove those from it": {
@@ -301,6 +304,8 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 			rata := director.NewRata(cfg.DirectorRata{
 				MinCPU: tc.RataMinCPU,
 				MinRAM: tc.RataMinRAM,
+				MaxCPU: tc.RataMaxCPU,
+				MaxRAM: tc.RataMaxRAM,
 			}, false, &log, nil)
 
 			create, destroy, removeDeadRow, addDeadRow, err := rata.NeedToScaleHypervisors(context.Background(), tc.AvailHypers, tc.Hypers)

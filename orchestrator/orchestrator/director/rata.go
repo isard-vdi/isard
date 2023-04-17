@@ -111,6 +111,14 @@ func (r *Rata) minRAM() int {
 	return getCurrentHourlyLimit(r.cfg.MinRAMHourly, time.Now())
 }
 
+func (r *Rata) maxRAM() int {
+	if r.cfg.MaxRAMHourly == nil {
+		return r.cfg.MaxRAM
+	}
+
+	return getCurrentHourlyLimit(r.cfg.MaxRAMHourly, time.Now())
+}
+
 // TODO: GPUs
 // TODO: Start a smaller available hypervisor in order to scale down afterwards
 func (r *Rata) NeedToScaleHypervisors(ctx context.Context, operationsHypers []*operationsv1.ListHypervisorsResponseHypervisor, hypers []*client.OrchestratorHypervisor) (*operationsv1.CreateHypervisorRequest, *operationsv1.DestroyHypervisorRequest, string, string, error) {
@@ -227,7 +235,7 @@ availHypersLoop:
 				} else {
 					// Check if we need to move the hypervisor to the dead row
 					// TODO: CPU
-					if h.DestroyTime.IsZero() && (h.OnlyForced || (r.minRAM() > 0 && r.minRAM() < ramAvail-h.RAM.Free)) {
+					if h.DestroyTime.IsZero() && ((h.OnlyForced && r.maxRAM() > 0 && r.maxRAM() < ramAvail) || (r.maxRAM() > 0 && r.maxRAM() < ramAvail-h.RAM.Free)) {
 						hypersToMoveInTheDeadRow = append(hypersToMoveInTheDeadRow, h)
 					}
 				}

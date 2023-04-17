@@ -28,10 +28,12 @@ type Orchestrator struct {
 type DirectorRata struct {
 	MinCPU       int               `mapstructure:"min_cpu"`
 	MinRAM       int               `mapstructure:"min_ram"`
-	MaxCPU       int               `mapstructure:"max_cpu"`
-	MaxRAM       int               `mapstructure:"max_ram"`
 	MinCPUHourly map[time.Time]int `mapstructure:"min_cpu_hourly"`
 	MinRAMHourly map[time.Time]int `mapstructure:"min_ram_hourly"`
+	MaxCPU       int               `mapstructure:"max_cpu"`
+	MaxRAM       int               `mapstructure:"max_ram"`
+	MaxCPUHourly map[time.Time]int `mapstructure:"max_cpu_hourly"`
+	MaxRAMHourly map[time.Time]int `mapstructure:"max_ram_hourly"`
 	HyperMinCPU  int               `mapstructure:"hyper_min_cpu"`
 	HyperMinRAM  int               `mapstructure:"hyper_min_ram"`
 	HyperMaxCPU  int               `mapstructure:"hyper_max_cpu"`
@@ -70,6 +72,10 @@ func setDefaults() {
 			"min_ram":        0,
 			"min_cpu_hourly": nil,
 			"min_ram_hourly": nil,
+			"max_cpu":        0,
+			"max_ram":        0,
+			"max_cpu_hourly": nil,
+			"max_ram_hourly": nil,
 			"hyper_min_cpu":  0,
 			"hyper_min_ram":  0,
 			"hyper_max_cpu":  0,
