@@ -122,6 +122,15 @@ const router = new VueRouter({
             title: i18n.t('router.titles.new_template'),
             allowedRoles: ['admin', 'manager', 'advanced']
           }
+        },
+        {
+          path: 'template/duplicate',
+          name: 'templateduplicate',
+          component: TemplateNew,
+          meta: {
+            title: i18n.t('router.titles.duplicate_template'),
+            allowedRoles: ['admin', 'manager', 'advanced']
+          }
         }
       ],
       meta: {

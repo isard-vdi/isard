@@ -83,9 +83,14 @@ export default {
 
     const currentTab = computed(() => $store.getters.getCurrentTab)
 
+    const updateCurrentTab = (currentTab) => {
+      $store.dispatch('updateCurrentTab', currentTab)
+    }
+
     return {
       updateAllowed,
-      currentTab
+      currentTab,
+      updateCurrentTab
     }
   },
   computed: {

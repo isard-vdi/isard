@@ -64,6 +64,9 @@
             "enabled": "Habilitada",
             "disabled": "Deshabilitada"
         },
+        "duplicate-template": {
+            "title": "Duplicar plantilla"
+        },
         "new-deployment": {
             "title": "Crear nuevo despliegue:",
             "name": "Nombre del despliegue",
@@ -156,6 +159,7 @@
         "cancel": "Cancela",
         "submit": "Envía",
         "create": "Crea",
+        "duplicate": "Duplicar",
         "show-pages": "Mostrar"
     },
     "components": {
@@ -782,6 +786,9 @@
                 },
                 "edit": {
                     "title": "Editar"
+                },
+                "duplicate": {
+                    "title": "Duplicar plantilla"
                 }
             }
         },
@@ -1040,6 +1047,7 @@
             "planning": "Planificación",
             "templates": "Plantillas",
             "new_template": "Nueva plantilla",
+            "duplicate_template": "Duplicar plantilla",
             "deployments": "Despliegues",
             "new_deployment": "Nuevo despliegue",
             "deployment_videowall": "Videowall de despliegues",

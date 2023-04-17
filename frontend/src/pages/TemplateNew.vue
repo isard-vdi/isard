@@ -7,7 +7,11 @@
       <!-- Title -->
       <b-row clas="mt-2">
         <h4 class="p-1 mb-4 mt-2 mt-xl-4 ml-2">
-          <strong>{{ $t('forms.new-template.title') }}</strong>
+          <strong
+            v-if="templateNewOrigin ===
+              'template'"
+          >{{ $t('forms.duplicate-template.title') }} </strong>
+          <strong v-else>{{ $t('forms.new-template.title') }} </strong>
         </h4>
       </b-row>
 
@@ -109,6 +113,16 @@
           {{ $t('forms.cancel') }}
         </b-button>
         <b-button
+          v-if="templateNewOrigin ===
+            'template'"
+          type="submit"
+          size="md"
+          class="btn-green rounded-pill mt-4 ml-2 mr-5"
+        >
+          {{ $t('forms.duplicate') }}
+        </b-button>
+        <b-button
+          v-else
           type="submit"
           size="md"
           class="btn-green rounded-pill mt-4 ml-2 mr-5"
@@ -153,6 +167,7 @@ export default {
     const usersChecked = computed(() => $store.getters.getUsersChecked)
     const selectedUsers = computed(() => $store.getters.getSelectedUsers)
     const templateNewItemId = computed(() => $store.getters.getTemplateNewItemId)
+    const templateNewOrigin = computed(() => $store.getters.getTemplateNewOrigin)
     const v$ = useVuelidate({
       name: {
         required,
@@ -171,18 +186,33 @@ export default {
       }
       const groups = groupsChecked.value ? map(selectedGroups.value, 'id') : false
       const users = usersChecked.value ? map(selectedUsers.value, 'id') : false
-      $store.dispatch('createNewTemplate',
-        {
-          desktop_id: templateNewItemId.value,
-          name: name.value,
-          description: description.value,
-          allowed: {
-            users,
-            groups
-          },
-          enabled: enabled.value
-        }
-      )
+      if (templateNewOrigin.value === 'desktop') {
+        $store.dispatch('createNewTemplate',
+          {
+            desktop_id: templateNewItemId.value,
+            name: name.value,
+            description: description.value,
+            allowed: {
+              users,
+              groups
+            },
+            enabled: enabled.value
+          }
+        )
+      } else if (templateNewOrigin.value === 'template') {
+        $store.dispatch('duplicateTemplate',
+          {
+            template_id: templateNewItemId.value,
+            name: name.value,
+            description: description.value,
+            allowed: {
+              users,
+              groups
+            },
+            enabled: enabled.value
+          }
+        )
+      }
     }
 
     onUnmounted(() => {
@@ -199,7 +229,8 @@ export default {
       selectedUsers,
       v$,
       submitForm,
-      navigate
+      navigate,
+      templateNewOrigin
     }
   }
 }

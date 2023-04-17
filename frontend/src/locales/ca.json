@@ -609,6 +609,9 @@
                 },
                 "edit": {
                     "title": "Editar"
+                },
+                "duplicate": {
+                    "title": "Duplicar plantilla"
                 }
             }
         },
@@ -749,6 +752,9 @@
             "enabled": "Habilitada",
             "disabled": "Inhabilitada"
         },
+        "duplicate-template": {
+            "title": "Duplicar plantilla"
+        },
         "new-deployment": {
             "title": "Crear nou desplegament:",
             "name": "Nom del desplegament",
@@ -841,6 +847,7 @@
         "cancel": "Cancel·la",
         "submit": "Envia",
         "create": "Crea",
+        "duplicate": "Duplicar",
         "show-pages": "Veure"
     },
     "errors": {
@@ -1002,6 +1009,7 @@
             "planning": "Planificació",
             "templates": "Plantilles",
             "new_template": "Nova plantilla",
+            "duplicate_template": "Duplicar plantilla",
             "deployments": "Desplegaments",
             "new_deployment": "Nou desplegament",
             "deployment_videowall": "Videowall de desplegaments",
