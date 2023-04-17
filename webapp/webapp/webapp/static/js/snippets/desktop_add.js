@@ -1,7 +1,7 @@
 function modal_add_desktop_datatables(){
     modal_add_desktops.destroy()
     $('#modalAddDesktop #template').val('');
-    $('#modalAddDesktop #datatables-error-status').empty()
+    $('#modalAddDesktop #datatables-error-status').empty().removeClass('my-error')
 
     $('#modal_add_desktops thead th').each( function () {
         var title = $(this).text();
@@ -40,7 +40,7 @@ function modal_add_desktop_datatables(){
                             {
                             "targets": 0,
                             "render": function ( data, type, full, meta ) {
-                              return renderIcon1x(full)+" "+full.name;
+                              return renderIcon1x(full) + renderFailed(full.status) +" "+full.name;
                             }},
                             ]
     } );
@@ -63,6 +63,14 @@ function modal_add_desktop_datatables(){
 
 }
 
+function renderFailed (status) {
+    if (status !== 'Failed') {
+        return ' '
+    } else {
+        return '<div style=display:none>2</div><i data-toggle="tooltip" title="Due to an error this template can\'t be used to create a new desktop, check its status detailed info to see the reason" class="fa fa-exclamation-triangle" aria-hidden="true" style="color: red; margin-left: 5px"></i>'
+    }
+}
+
 function initalize_modal_all_desktops_events(){
    $('#modal_add_desktops tbody').on( 'click', 'tr', function () {
         rdata=modal_add_desktops.row(this).data()
@@ -76,15 +84,20 @@ function initalize_modal_all_desktops_events(){
             $('#modalAddDesktop #hardware-block').hide();
         }
         else {
-            modal_add_desktops.$('tr.selected').removeClass('selected');
-            $(this).addClass('selected');
-            $('#modal_add_desktops').closest('.x_panel').removeClass('datatables-error');
-            $('#modalAddDesktop #datatables-error-status').empty().html('<b style="color:DarkSeaGreen">Template selected: '+rdata['name']+'</b>').removeClass('my-error');
-            $('#modalAddDesktop #template').val(rdata['id']);
-            //if(user['role']!='user'){
-                $('#modalAddDesktop #btn-hardware').show();
-                setHardwareDomainIdDefaults('#modalAddDesktop',rdata['id'])
-            //}
+            if (rdata['status'] === 'Failed') {
+                $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
+            $('#modalAddDesktop #datatables-error-status').html('Due to an error the template \'' + rdata['name'] + '\' can\'t be used to create a new desktop, check its status detailed info to see the reason').addClass('my-error');
+            } else {
+                modal_add_desktops.$('tr.selected').removeClass('selected');
+                $(this).addClass('selected');
+                $('#modal_add_desktops').closest('.x_panel').removeClass('datatables-error');
+                $('#modalAddDesktop #datatables-error-status').empty().html('<b style="color:DarkSeaGreen">Template selected: '+rdata['name']+'</b>').removeClass('my-error');
+                $('#modalAddDesktop #template').val(rdata['id']);
+                //if(user['role']!='user'){
+                    $('#modalAddDesktop #btn-hardware').show();
+                    setHardwareDomainIdDefaults('#modalAddDesktop',rdata['id'])
+                //}
+            }
         }
     } );
 

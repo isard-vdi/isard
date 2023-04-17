@@ -58,7 +58,7 @@ columnDefs = [
             }else{
                 booking_id=full.booking_id
             }
-            return  renderBooking(full.create_dict.reservables, booking_id) + "<img src='"+img_url+"' width='50px'>"
+            return  renderFailed(full.status, full.create_dict.reservables) + renderBooking(full.create_dict.reservables, booking_id) + "<img src='"+img_url+"' width='50px'>"
         }
     },{
         "targets": 4,
@@ -857,6 +857,17 @@ $(document).ready(function() {
         style = "color:"+color+"; position:absolute; margin-top:-5px; margin-left: -15px; text-shadow: 0 0 1px grey"
         return '<div style=display:none>'+sort_order+'</div><i data-toggle="tooltip" title="'+tooltip+'" class="fa fa-calendar" aria-hidden="true" style="'+style+'"></i>'
         }
+    }
+
+    renderFailed = (status, reservables) => {
+        var margin = '15px'
+        if (status !== 'Failed') {
+            return ' '
+        } else if (!reservables || reservables.length == 0 || !reservables.vgpus || reservables.vgpus.length == 0){
+            margin = '-5px'
+        }
+        var style = "color: red; position:absolute; margin-top:" + margin +"; margin-left: -15px; text-shadow: 0 0 1px grey"
+        return '<div style=display:none>2</div><i data-toggle="tooltip" title="Due to an error this template isn\'t working properly, check its status detailed info to see the reason" class="fa fa-exclamation-triangle" aria-hidden="true" style="'+style+'"></i>'
     }
 
 	// DataTable buttons

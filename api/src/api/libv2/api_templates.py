@@ -226,6 +226,7 @@ class ApiTemplates:
                         "allowed",
                         "guest_properties",
                         "create_dict",
+                        "status",
                     )
                     .run(db.conn)
                 )

@@ -431,7 +431,7 @@ export default {
 
     const rowClass = (item, type) => {
       if (!item || type !== 'row') return
-      if (item.needsBooking) return 'booking-bar'
+      if (item.needsBooking) return 'list-orange-bar'
     }
 
     return {

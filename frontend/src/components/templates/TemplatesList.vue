@@ -87,9 +87,17 @@
               :current-page="currentPage"
               :filter="filter"
               :filter-included-fields="filterOn"
+              :tbody-tr-class="rowClass"
               @filtered="onFiltered"
             >
               <template #cell(image)="data">
+                <b-icon
+                  v-if="data.item.status.toLowerCase() === desktopStates.failed"
+                  v-b-tooltip="{ title: $t(`errors.template_failed`), placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
+                  icon="exclamation-triangle-fill"
+                  variant="danger"
+                  class="danger-icon position-absolute cursor-pointer"
+                />
                 <!-- IMAGE -->
                 <div
                   class="rounded-circle bg-red"
@@ -203,6 +211,7 @@ import i18n from '@/i18n'
 import ListItemSkeleton from '@/components/ListItemSkeleton.vue'
 import { ref, reactive, watch } from '@vue/composition-api'
 import { mapActions } from 'vuex'
+import { desktopStates } from '@/shared/constants'
 
 export default {
   components: { ListItemSkeleton },
@@ -279,6 +288,12 @@ export default {
       totalRows.value = newVal.length
     })
 
+    const rowClass = (item, type) => {
+      if (!item || type !== 'row') return
+      if (item.status.toLowerCase() === desktopStates.failed) return 'list-red-bar'
+      if (item.needsBooking) return 'list-orange-bar'
+    }
+
     return {
       showAllowedModal,
       enabledClass,
@@ -291,7 +306,9 @@ export default {
       perPage,
       pageOptions,
       currentPage,
-      totalRows
+      totalRows,
+      desktopStates,
+      rowClass
     }
   },
   data () {

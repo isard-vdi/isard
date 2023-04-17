@@ -1023,7 +1023,8 @@
         "current_plan_doesnt_match": "There's no GPU available with the desktop profile",
         "needs_deployment_booking": "The desktop can't be started now, contact with the deployment owner in order to book it",
         "not_enough_advanced_time": "There's not enough advanced time to start the desktop",
-        "one_viewer_minimum": "At least one viewer must be selected"
+        "one_viewer_minimum": "At least one viewer must be selected",
+        "template_failed": "Due to an error this template can't be used to create a new desktop, please contact the administrator"
     },
     "router": {
         "titles": {

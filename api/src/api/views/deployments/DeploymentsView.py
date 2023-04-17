@@ -5,6 +5,7 @@
 
 import json
 
+from api.libv2.api_desktops_persistent import check_template_status
 from api.libv2.deployments import api_deployments
 from api.libv2.validators import _validate_item
 from flask import request
@@ -47,6 +48,7 @@ def api_v3_deployments_new(payload):
 
     data = _validate_item("deployment", data)
     allowedTemplateId(payload, data["template_id"])
+    check_template_status(data["template_id"])
     checkDuplicate("deployments", data["name"], user=payload["user_id"])
 
     api_deployments.new(

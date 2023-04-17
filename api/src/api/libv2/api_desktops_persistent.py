@@ -17,8 +17,10 @@ import pytz
 
 from ..libv2.api_desktops_common import ApiDesktopsCommon
 from ..libv2.api_logging import logs_domain_event_directviewer
+from ..libv2.api_templates import ApiTemplates
 from ..libv2.quotas import Quotas
 
+templates = ApiTemplates()
 quotas = Quotas()
 
 from rethinkdb import RethinkDB
@@ -843,3 +845,16 @@ class ApiDesktopsPersistent:
                 "Servers can not have a bookable item",
                 traceback.format_exc(),
             )
+
+
+def check_template_status(template_id=None, template=None):
+    if template_id:
+        template = templates.Get(template_id)
+
+    if template["status"] == "Failed":
+        raise Error(
+            "bad_request",
+            "Can't create a desktop with a Failed template.",
+            traceback.format_exc(),
+            description_code="template_failed",
+        )

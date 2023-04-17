@@ -44,7 +44,7 @@ export class DesktopUtils {
   }
 
   static parseTemplate (item) {
-    const { description, icon, id, name, category, category_name: categoryName, group, group_name: groupName, user_name: userName, image, editable, allowed, enabled, desktop_size: desktopSize } = item
+    const { description, icon, id, name, category, category_name: categoryName, group, group_name: groupName, user_name: userName, image, editable, allowed, enabled, desktop_size: desktopSize, status } = item
     return {
       description,
       icon: !icon || !(icon in cardIcons) ? ['fas', 'desktop'] : this.getIcon(icon),
@@ -61,7 +61,8 @@ export class DesktopUtils {
       editable,
       allowed,
       enabled,
-      desktopSize
+      desktopSize,
+      status: this.getState(status)
     }
   }
 

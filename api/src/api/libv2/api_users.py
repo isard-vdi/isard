@@ -627,6 +627,7 @@ class ApiUsers:
                             "image",
                             "user",
                             "description",
+                            "status",
                         },
                         {"create_dict": {"hardware": {"disks": {"storage_id": True}}}},
                     )

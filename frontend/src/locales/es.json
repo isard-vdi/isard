@@ -1036,7 +1036,8 @@
         "needs_deployment_booking": "Ahora mismo no se puede arrancar el escritorio, contacta con el propietario del despliegue para que cree una reserva",
         "not_enough_advanced_time": "No hay suficiente antelación para arrancar el escritorio",
         "no_wireguard_keys": "Todavía no hay claves de wireguard en la configuración de la aplicación web. Inténtelo de nuevo pasados unos segundos...",
-        "one_viewer_minimum": "Se ha de seleccionar mínimo un visor"
+        "one_viewer_minimum": "Se ha de seleccionar mínimo un visor",
+        "template_failed": "Debido a un error la plantilla no se puede utilizar para crear un nuevo escritorio, por favor contacta con el administrador"
     },
     "router": {
         "titles": {

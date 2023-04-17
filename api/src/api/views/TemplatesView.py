@@ -186,6 +186,7 @@ def api_v3_user_templates(payload):
             "allowed": t["allowed"],
             "description": t["description"],
             "enabled": t["enabled"],
+            "status": t["status"],
             "desktop_size": (
                 r.table("storage")
                 .get(t["create_dict"]["hardware"]["disks"][0]["storage_id"])
@@ -209,7 +210,7 @@ def api_v3_user_templates_allowed(payload, kind):
             & templates["enabled"]
         )
     elif kind == "all":
-        query_filter = {"enabled": True, "status": "Stopped"}
+        query_filter = {"enabled": True}
     templates = allowed.get_items_allowed(
         payload=payload,
         table="domains",
@@ -225,6 +226,7 @@ def api_v3_user_templates_allowed(payload, kind):
             "image",
             "user",
             "description",
+            "status",
         ],
         query_filter=query_filter,
         index_key="kind",
