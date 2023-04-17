@@ -17,7 +17,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 83
+release_version = 84
+# release 84: "duplicate_parent_template" of old duplicated with oldest as parent
 # release 83: Add accessed to missing templates
 # release 82: Remove orphan deployments
 # release 81: Add desktops_priority "name" index
@@ -1390,6 +1391,56 @@ class Upgrade(object):
             except Exception as e:
                 print(e)
 
+        if version == 84:
+            try:
+                templates = list(
+                    r.table("domains")
+                    .get_all("template", index="kind")
+                    .pluck(
+                        "id", "accessed", {"create_dict": {"hardware": {"disks": True}}}
+                    )
+                    .run(self.conn)
+                )
+                templates_dict = {}
+                for d in templates:
+                    for disk in d["create_dict"]["hardware"]["disks"]:
+                        if (
+                            disk.get("storage_id", disk.get("file"))
+                            not in templates_dict
+                        ):
+                            templates_dict[disk.get("storage_id", disk.get("file"))] = [
+                                d
+                            ]
+                        else:
+                            templates_dict[
+                                disk.get("storage_id", disk.get("file"))
+                            ].append(d)
+                duplicated = [t for t in templates_dict if len(templates_dict[t]) > 1]
+
+                duplicated = [
+                    templates_dict[t]
+                    for t in templates_dict
+                    if len(templates_dict[t]) > 1
+                ]
+
+                for templates in duplicated:
+                    if len(templates) > 1:
+                        # assume parent is the one with oldest accessed time
+                        min_accessed_template = min(
+                            templates, key=lambda t: t["accessed"]
+                        )
+                        for t in templates:
+                            if t != min_accessed_template:
+                                # update every duplicated with new duplicate_parent_template
+                                r.table("domains").get(t["id"]).update(
+                                    {
+                                        "duplicate_parent_template": min_accessed_template[
+                                            "id"
+                                        ]
+                                    }
+                                ).run(self.conn)
+            except Exception as e:
+                print(e)
         return True
 
     """

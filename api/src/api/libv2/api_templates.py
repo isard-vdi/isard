@@ -189,6 +189,10 @@ class ApiTemplates:
         template["enabled"] = enabled
         template["status"] = "Stopped"
         template["accessed"] = int(time.time())
+        template["parents"] = []
+        template["duplicate_parent_template"] = template.get(
+            "duplicate_parent_template", template_id
+        )
 
         _validate_item("template", template)
         try:

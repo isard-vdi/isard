@@ -787,6 +787,7 @@ class ApiAdmin:
                 .table("domains")
                 .pluck(
                     "id",
+                    "duplicate_parent_template",
                     "name",
                     "kind",
                     "category",
@@ -796,7 +797,11 @@ class ApiAdmin:
                     "status",
                     "parents",
                 )
-                .filter(lambda derivates: derivates["parents"].contains(template_id))
+                .filter(
+                    lambda derivates: derivates["parents"].contains(template_id)
+                    | derivates["duplicate_parent_template"]
+                    == template_id
+                )
                 .merge(
                     lambda d: {
                         "category_name": r.table("categories").get(d["category"])[
@@ -821,7 +826,9 @@ class ApiAdmin:
                         "expanded": True,
                         "unselectable": False,
                         "selected": True if user_id["id"] == d["user"] else False,
-                        "parent": d["parents"][-1],
+                        "parent": d["parents"][-1]
+                        if d.get("parents")
+                        else d["duplicate_parent_template"],
                         "user": d["username"],
                         "category": d["category_name"],
                         "group": d["group_name"],
