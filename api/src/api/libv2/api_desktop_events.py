@@ -1,3 +1,4 @@
+from api._common.domain import Domain
 from rethinkdb import RethinkDB
 
 from api import app
@@ -112,6 +113,12 @@ def desktop_start(desktop_id, wait_seconds=0, paused=False):
             "Desktop can't be started from " + status,
             traceback.format_exc(),
             description_code="unable_to_start_desktop_from",
+        )
+    if not Domain(desktop_id).storage_ready:
+        raise Error(
+            error="precondition_required",
+            description="Desktop storages aren't ready",
+            description_code="desktop_storage_not_ready",
         )
     with app.app_context():
         domain = (
