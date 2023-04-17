@@ -122,23 +122,26 @@ func TimeMapHook() mapstructure.DecodeHookFuncType {
 			return data, nil
 		}
 
-		if t != reflect.TypeOf(map[time.Time]int{}) {
+		if t != reflect.TypeOf(map[time.Weekday]map[time.Time]int{}) {
 			return data, nil
 		}
 
-		strMap := map[string]int{}
-		if err := json.Unmarshal([]byte(data.(string)), &strMap); err != nil {
+		weekMap := map[time.Weekday]map[string]int{}
+		if err := json.Unmarshal([]byte(data.(string)), &weekMap); err != nil {
 			return nil, fmt.Errorf("invalid time map: %w", err)
 		}
 
-		timeMap := map[time.Time]int{}
-		for k, v := range strMap {
-			t, err := time.Parse("15:04", k)
-			if err != nil {
-				return nil, fmt.Errorf("invalid time '%s': %w", k, err)
-			}
+		timeMap := map[time.Weekday]map[time.Time]int{}
+		for i, strMap := range weekMap {
+			timeMap[i] = map[time.Time]int{}
+			for k, v := range strMap {
+				t, err := time.Parse("15:04", k)
+				if err != nil {
+					return nil, fmt.Errorf("invalid time '%s': %w", k, err)
+				}
 
-			timeMap[t] = v
+				timeMap[i][t] = v
+			}
 		}
 
 		return timeMap, nil
