@@ -10,7 +10,6 @@ class RethinkHypEvent(object):
         pass
 
     def update_viewer_client(self, domain_id, phase, ip_client=False, when=False):
-
         dict_viewer = {}
         r_conn = new_rethink_connection()
 

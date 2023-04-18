@@ -149,7 +149,6 @@ class ThreadStatus(threading.Thread):
         self.status_obj = None
 
     def polling_status(self):
-
         self.status_obj = UpdateStatus(
             self.hyp_id,
             self.hostname,

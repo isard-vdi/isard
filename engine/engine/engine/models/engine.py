@@ -71,7 +71,6 @@ class Engine(object):
         status_polling_interval=STATUS_POLLING_INTERVAL,
         test_hyp_fail_interval=TEST_HYP_FAIL_INTERVAL,
     ):
-
         logs.main.info("MAIN TID: {}".format(get_tid()))
 
         self.time_between_polling = TIME_BETWEEN_POLLING
@@ -465,7 +464,6 @@ class Engine(object):
                         # if engine is stopped/restarting or not hypervisors online
 
                         if old_status != new_status:
-
                             # print('&&&&&&& ID DOMAIN {} - old_status: {} , new_status: {}, detail: {}'.format(domain_id,old_status,new_status, new_detail))
                             # if new_status[-3:] == 'ing':
                             if 1 > 0:

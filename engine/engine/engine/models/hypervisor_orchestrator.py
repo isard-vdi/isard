@@ -76,7 +76,6 @@ def add_hyper_to_db(
     isard_video_url=os.environ["DOMAIN"],
     isard_proxy_hyper_url="isard-hypervisor",
 ):
-
     if hostname is None:
         hostname = hyp_id
 
@@ -380,7 +379,6 @@ class HypervisorChangesThread(threading.Thread):
             )
             .run(self.r_conn)
         ):
-
             # stop thread
             if self.stop is True:
                 break

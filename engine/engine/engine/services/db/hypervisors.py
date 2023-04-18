@@ -768,7 +768,13 @@ def get_hypers_gpu_online(
                         ):
                             hyper_with_free_uuid = True
                             break
+                    if hyper_with_free_uuid:
+                        break
         if hyper_with_free_uuid:
+            logs.workers.info(
+                f"hypervisor with available profile gpu: {h['id']}, uuid_selected: {mdev_uuid}, "
+                + f"gpu_profile: {gpu_brand_model_profile}, gpu_id: {gpu_id}"
+            )
             hypervisors_with_available_profile.append(
                 {
                     **h,
@@ -1006,11 +1012,6 @@ def update_vgpu_uuids(vgpu_id, d_uuids):
 
     rtable.filter({"id": vgpu_id}).update({"mdevs": d_uuids}).run(r_conn)
     close_rethink_connection(r_conn)
-
-
-def update_vgpu_uuid_started_in_domain(hyp_id, pci_id, profile, mdev_uuid, domain_id):
-    r_conn = new_rethink_connection()
-    rtable = r.table("vgpus")
 
 
 def update_vgpu_uuid_started_in_domain(hyp_id, pci_id, profile, mdev_uuid, domain_id):

@@ -4,7 +4,6 @@ from rethinkdb import r
 
 
 def get_media(id_media):
-
     r_conn = new_rethink_connection()
     d = r.table("media").get(id_media).run(r_conn)
 
