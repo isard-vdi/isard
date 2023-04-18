@@ -26,7 +26,7 @@
                          placement: 'right',
                          customClass: 'isard-tooltip',
                          trigger: 'hover' }"
-          :idx="4"
+          :idx="getUser.role_id != 'user' ? 4 : 2"
           icon="event"
           color="#eead47"
           @clickItem="onClickBookingDesktop(desktop)"
