@@ -170,7 +170,6 @@ class Upgrade(object):
         None
 
     def upgrade_if_needed(self):
-
         print(release_version)
         print(self.cfg["version"])
         if not release_version > self.cfg["version"]:
@@ -194,7 +193,6 @@ class Upgrade(object):
         d = r.table(table).get(1).run(self.conn)
         log.info("UPGRADING " + table + " TABLE TO VERSION " + str(version))
         if version == 1:
-
             """CONVERSION FIELDS PRE CHECKS"""
             try:
                 if not self.check_done(d, ["grafana"], [["engine", "carbon"]]):
@@ -274,7 +272,6 @@ class Upgrade(object):
             r.table(table).update(d).run(self.conn)
 
         if version == 6:
-
             """CONVERSION FIELDS PRE CHECKS"""
             try:
                 url = d["engine"]["grafana"]["url"]
@@ -2030,7 +2027,6 @@ class Upgrade(object):
                 print(e)
 
         if version == 59:
-
             r.table(table).index_create(
                 "uid_category_provider",
                 [r.row["uid"], r.row["category"], r.row["provider"]],
@@ -2761,7 +2757,6 @@ class Upgrade(object):
         return True
 
     def index_create(self, table, indexes):
-
         indexes_ontable = r.table(table).index_list().run(self.conn)
         apply_indexes = [mi for mi in indexes if mi not in indexes_ontable]
         for i in apply_indexes:

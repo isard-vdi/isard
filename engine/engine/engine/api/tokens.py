@@ -56,7 +56,6 @@ def get_token_auth_header():
 
 
 def get_token_payload(token):
-
     try:
         payload = jwt.decode(
             token,

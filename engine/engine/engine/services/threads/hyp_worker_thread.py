@@ -20,6 +20,7 @@ from engine.services.db import (
     update_hyp_status,
     update_last_hyp_id,
     update_table_field,
+    update_vgpu_info_if_stopped,
     update_vgpu_uuid_domain_action,
 )
 from engine.services.db.hypervisors import update_hyp_thread_status
@@ -75,7 +76,6 @@ class HypWorkerThread(threading.Thread):
             port = int(port)
             self.hostname = host
             try:
-
                 self.h = hyp(
                     self.hostname,
                     user=user,
@@ -528,6 +528,7 @@ class HypWorkerThread(threading.Thread):
                                 update_domain_status(
                                     "Stopped", action["id_domain"], hyp_id=""
                                 )
+                                update_vgpu_info_if_stopped(action["id_domain"])
                                 update_domain_status(
                                     "Deleting", action["id_domain"], hyp_id=""
                                 )
@@ -535,6 +536,7 @@ class HypWorkerThread(threading.Thread):
                                 update_domain_status(
                                     "Stopped", action["id_domain"], hyp_id=""
                                 )
+                                update_vgpu_info_if_stopped(action["id_domain"])
 
                     except Exception as e:
                         logs.exception_id.debug("0065")
@@ -594,14 +596,12 @@ class HypWorkerThread(threading.Thread):
                     )
 
                 elif action["type"] == "create_disk":
-
                     pass
 
                 elif action["type"] == "update_status_db_from_running_domains":
                     update_status_db_from_running_domains(self.h)
 
                 elif action["type"] == "hyp_info":
-
                     self.h.get_kvm_mod()
                     self.h.get_hyp_info()
                     logs.workers.debug(

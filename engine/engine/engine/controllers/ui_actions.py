@@ -87,7 +87,6 @@ class UiActions(object):
 
     def action_from_api(self, action, parameters):
         if action == "start_domain":
-
             if "ssl" in parameters.keys() and parameters["ssl"] == False:
                 ssl_spice = False
             if "domain_id" in parameters.keys():
@@ -316,7 +315,6 @@ class UiActions(object):
         # 100 ms que nos de el hypervisor
         time_wait = 0.0
         while time_wait <= 20.0:
-
             hyp_id = get_domain_hyp_started(id)
             if hyp_id != None:
                 if len(hyp_id) > 0:
@@ -665,7 +663,6 @@ class UiActions(object):
 
         disk_index_in_bus = 0
         if "disks" in dict_domain["hardware"]:
-
             disk_list = [d for d in create_dict["hardware"]["disks"]]
             create_disk_template_created_list_in_domain(id_domain)
             for i in range(len(disk_list)):
@@ -709,7 +706,6 @@ class UiActions(object):
                 # INFO TO DEVELOPER: falta terminar de ver que hacemos con el pool para crear
                 # discos, debería haber un disk operations por pool
                 try:
-
                     update_domain_status(
                         status="CreatingTemplateDisk",
                         id_domain=id_domain,
@@ -814,7 +810,6 @@ class UiActions(object):
         type_path="media",
         pool_id=DEFAULT_STORAGE_POOL_ID,
     ):
-
         path_new_disk, path_selected = get_path_to_disk(
             test_disk_relative_route, pool=pool_id, type_path=type_path
         )
@@ -847,7 +842,6 @@ class UiActions(object):
 
         if "disks" in dict_to_create["hardware"].keys():
             if len(dict_to_create["hardware"]["disks"]) > 0:
-
                 # for index_disk in range(len(dict_to_create['hardware']['disks'])):
                 #     relative_path = dict_to_create['hardware']['disks'][index_disk]['file']
                 #     path_new_file, path_selected = get_path_to_disk(relative_path, pool=pool_id)
@@ -1356,7 +1350,6 @@ class UiActions(object):
         disk_filename=None,
         create_domain_in_db=True,
     ):
-
         # INFO TO DEVELOPER: falta verificar que el id no existe y si existe salir enseguida, ya que si no haríamos updates y
         # creaciónes de disco peligrosas
         dict_domain_template = get_domain(id_template)
@@ -1475,7 +1468,6 @@ class UiActions(object):
         dir_to_ferrary_disks=None,
         prefix=None,
     ):
-
         if dir_to_ferrary_disks is None:
             dir_to_ferrary_disks = CONFIG_DICT["FERRARY"][
                 "DIR_TO_FERRARY_DISKS".lower()

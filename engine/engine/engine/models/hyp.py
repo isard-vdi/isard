@@ -133,7 +133,6 @@ class hyp(object):
         try_ssh_autologin=False,
         hyp_id=None,
     ):
-
         # dictionary of domains
         # self.id = 0
         self.domains = {}
@@ -177,11 +176,9 @@ class hyp(object):
                 self.launch_events()
 
     def try_ssh(self):
-
         # try socket
         timeout = float(CONFIG_DICT["TIMEOUTS"]["ssh_paramiko_hyp_test_connection"])
         if try_socket(self.hostname, self.port, timeout):
-
             # ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             ssh = paramiko.SSHClient()
             # ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -706,7 +703,6 @@ class hyp(object):
         return False
 
     def get_hyp_info(self, nvidia_enabled=False):
-
         libvirt_version = str(self.conn.getLibVersion())
         self.info["libvirt_version"] = "{}.{}.{}".format(
             int(libvirt_version[-9:-6]),
@@ -1027,7 +1023,6 @@ class hyp(object):
                 new_video_dict["vram"] = ram
 
     def get_types_from_ampere(self, d):
-
         parent = d["device"]["parent"]
         dev_parent = self.conn.nodeDeviceLookupByName(parent)
         d_dev_parent = xmltodict.parse(dev_parent.XMLDesc())
@@ -1068,7 +1063,6 @@ class hyp(object):
                 )
             return l_types, paths, path_parent
         else:
-
             return False, False, False
 
     def get_mdevs_with_domains(self):
@@ -1845,7 +1839,6 @@ class hyp(object):
                         break
 
     def get_load(self):
-
         if len(self.info) == 0:
             self.get_hyp_info()
 
@@ -1925,7 +1918,6 @@ class hyp(object):
             update_actual_stats_hyp(self.id_hyp_rethink, self.stats_hyp_now)
 
             for id_domain, s in self.stats_domains_now.items():
-
                 means = {
                     "near": self.stats_domains[id_domain].get("means_near", False),
                     "medium": self.stats_domains[id_domain].get("means_medium", False),

@@ -88,7 +88,6 @@ class DownloadThread(threading.Thread, object):
         self.manager = manager
 
     def run(self):
-
         # if self.table == 'domains':
         #     type_path_selected = 'groups'
         # elif self.table in ['isos']:
@@ -111,7 +110,6 @@ class DownloadThread(threading.Thread, object):
         path_selected = self.path_selected
         while True:
             if len(self.threads_disk_operations) > 0:
-
                 hyp_to_disk_create = get_host_disk_operations_from_path(
                     self.manager, pool=self.pool_id, type_path=self.type_path_selected
                 )
@@ -203,7 +201,6 @@ class DownloadThread(threading.Thread, object):
                 return False
 
         else:
-
             # TEST IF url return an stream of data
             ok, error_msg = test_url_for_download(
                 self.url,
@@ -280,10 +277,8 @@ class DownloadThread(threading.Thread, object):
             line = ""
 
             while rc is None:
-
                 c = p.stderr.read(1).decode("utf8")
                 if self.stop is True:
-
                     curl_cmd = curl_template.format(
                         path=self.path,
                         headers=headers,
@@ -526,7 +521,6 @@ class DownloadChangesThread(threading.Thread):
             self.download_threads.pop(new_file_path)
 
     def start_download(self, dict_changes):
-
         new_file_path, path_selected, type_path_selected, pool_id = self.get_file_path(
             dict_changes
         )
@@ -716,7 +710,6 @@ class DownloadChangesThread(threading.Thread):
                 )
                 .run(self.r_conn)
             ):
-
                 if self.stop:
                     break
                 if c.get("new_val", None) != None:

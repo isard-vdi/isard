@@ -32,7 +32,6 @@ def stop_last_domain_status(name):
         )
         close_rethink_connection(r_conn)
     except:
-
         close_rethink_connection(r_conn)
         return None
 

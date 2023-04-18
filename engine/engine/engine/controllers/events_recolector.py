@@ -516,7 +516,7 @@ def myDomainEventCallbackRethink(conn, dom, event, detail, opaque):
                     detail="Event received: " + domDetailToString(event, detail),
                 )
 
-        if dict_event["event"] == "Stopped":
+        if dict_event["event"] in ("Stopped"):
             remove_domain_viewer_values(dom_id)
             if domain_status != "Stopped" and domain_status not in ["ForceDeleting"]:
                 logs.status.debug(
@@ -534,6 +534,7 @@ def myDomainEventCallbackRethink(conn, dom, event, detail, opaque):
                     hyp_id=False,
                     detail="Ready to Start",
                 )
+            if dict_event["detail"] in ("Shutdown"):
                 update_vgpu_info_if_stopped(dom_id)
 
         if dict_event["event"] in (
@@ -547,7 +548,6 @@ def myDomainEventCallbackRethink(conn, dom, event, detail, opaque):
             "PMSuspended",
             "Crashed",
         ):
-
             logs.status.error(
                 "event strange, why?? event: {}, domain: {}, hyp_id: {}, detail: {}".format(
                     dict_event["event"],
@@ -581,7 +581,6 @@ def myDomainEventGraphicsCallbackRethink(
     global lock
 
     with lock:
-
         global last_chain_event_graphics
         global last_timestamp_event_graphics
 
@@ -633,7 +632,6 @@ def myDomainEventGraphicsCallbackRethink(
             )
 
         else:
-
             dict_event = {
                 "domain": domain_name,
                 "hyp_hostname": hypervisor_hostname,
@@ -808,7 +806,6 @@ class ThreadHypEvents(threading.Thread):
             self.hyps.pop(hyp_id)
 
     def register_events(self, hyp_libvirt_conn):
-
         # r_status = self.r_status
         global r_status
         cb_ids = {}
@@ -866,7 +863,6 @@ class ThreadHypEvents(threading.Thread):
         return cb_ids
 
     def unregister_events(self, hyp_libvirt_conn, cb_ids):
-
         # deregister
         for k in list(cb_ids.keys()):
             hyp_libvirt_conn.domainEventDeregisterAny(cb_ids[k])

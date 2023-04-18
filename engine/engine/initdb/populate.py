@@ -1206,7 +1206,6 @@ class Populate(object):
         self.create_table("storage_pool")
 
     def index_create(self, table, indexes):
-
         indexes_ontable = r.table(table).index_list().run(self.conn)
         apply_indexes = [mi for mi in indexes if mi not in indexes_ontable]
         for i in apply_indexes:

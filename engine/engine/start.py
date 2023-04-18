@@ -52,7 +52,6 @@ def run(app):
 #     app.wsgi_app = DebuggedApplication( app.wsgi_app, True )
 
 if __name__ == "__main__":
-
     p = PidFile("engine")
     try:
         p.create()

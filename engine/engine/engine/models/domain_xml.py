@@ -254,7 +254,8 @@ class DomainXML(object):
         """delete the mac address from xml. In the next boot libvirt create a random mac
         If you want to fix mac address mac parameter is optional.
         If there are more than one network device, the dev_index indicates the network device position
-        in the xml definition. dev_index = 0 is the first network interface defined in xml."""
+        in the xml definition. dev_index = 0 is the first network interface defined in xml.
+        """
 
         if mac is None:
             mac = randomMAC()
@@ -448,7 +449,6 @@ class DomainXML(object):
                 self.tree.xpath("/domain/name")[0].addnext(element)
 
     def set_memory(self, memory, unit="KiB", current=-1, max=-1):
-
         if self.tree.xpath("/domain/memory"):
             self.tree.xpath("/domain/memory")[0].set("unit", unit)
             self.tree.xpath("/domain/memory")[0].text = str(memory)
@@ -491,7 +491,6 @@ class DomainXML(object):
                 self.remove_branch("/domain/maxMemory")
 
     def set_vcpu(self, vcpus, placement="static"):
-
         # example from libvirt.org  <vcpu placement='static' cpuset="1-4,^3,6" current="1">2</vcpu>
         if self.tree.xpath("/domain/vcpu"):
             # self.tree.xpath('/domain/vcpu')[0].attrib.pop('placement')
@@ -1105,7 +1104,6 @@ class DomainXML(object):
                     disk_xpath.remove(tag_xpath)
 
     def update_boot_order(self, list_ordered_devs, boot_menu_enable=False):
-
         # number of boot devices
         boot_elements = self.tree.xpath("/domain/os/boot")
         diff_elements = len(boot_elements) - len(list_ordered_devs)

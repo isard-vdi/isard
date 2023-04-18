@@ -211,7 +211,6 @@ def launch_action_disk(action, hostname, user, port, from_scratch=False):
                         detail="new disk created, now go to creating desktop and testing if desktop start",
                     )
         else:
-
             log.error(
                 "operations creating disk {} for new domain {} failed.".format(
                     disk_path, id_domain
@@ -329,7 +328,6 @@ def launch_action_create_template_disk(action, hostname, user, port):
         cmds_done, path_domain_disk, path_template_disk, id_domain
     )
     if error_severity == None:
-
         # move file
         log.debug("commnad to move disk template: {}".format(cmd_to_move))
         if move_tool == "mv":
@@ -358,7 +356,6 @@ def launch_action_create_template_disk(action, hostname, user, port):
             cmds_done, path_domain_disk, path_template_disk, id_domain
         )
         if error is None:
-
             cmds_done = execute_commands(
                 hostname, ssh_commands=cmds3, dict_mode=True, user=user, port=port
             )
