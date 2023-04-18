@@ -91,7 +91,7 @@ def storage_convert(payload, storage_id, new_storage_type, compress=None):
     )
     Task(
         user_id=payload.get("user_id"),
-        queue=f"storage.{StoragePool.get_by_path(origin_storage.directory_path)[0].id}.default",
+        queue=f"storage.{StoragePool.get_best_for_action_by_path('convert', origin_storage.directory_path).id}.default",
         task="convert",
         job_kwargs={
             "timeout": 4096,

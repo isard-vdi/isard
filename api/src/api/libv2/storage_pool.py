@@ -17,6 +17,8 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+from random import choice
+
 from rethinkdb import r
 
 from api import app
@@ -61,3 +63,16 @@ class StoragePool(RethinkBase):
                 .pluck("id")
                 .run(cls._rdb.conn)
             ]
+
+    @classmethod
+    def get_best_for_action_by_path(cls, action, path):
+        """
+        Get the best Storage Pool for an action that has a specific path.
+        Currently the best Storage Pool is selected randomly.
+
+        :param path: Path
+        :type path: str
+        :return: StoragePool object
+        :rtype: StoragePool
+        """
+        return choice(cls.get_by_path(path))
