@@ -8,6 +8,7 @@
 import time
 import traceback
 
+from api._common.domain import Domain
 from rethinkdb import RethinkDB
 
 from api import app
@@ -83,6 +84,12 @@ class ApiTemplates:
                     "Can't create a template from a server",
                     traceback.format_exc(),
                 )
+        if not Domain(desktop.get("id")).storage_ready:
+            raise Error(
+                error="precondition_required",
+                description="Desktop storages are not ready",
+                description_code="desktop_storage_not_ready",
+            )
 
         parent_disk = desktop["hardware"]["disks"][0]["file"]
 
