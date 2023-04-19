@@ -12,9 +12,9 @@ from isardvdi_protobuf.queue.storage.v1 import ConvertRequest, DiskFormat
 from api import app
 
 from .._common.api_exceptions import Error
+from .._common.storage import Storage
+from .._common.storage_pool import StoragePool
 from ..libv2.api_storage import get_disks, parse_disks
-from ..libv2.storage import Storage
-from ..libv2.storage_pool import StoragePool
 from ..libv2.task import Task
 from .decorators import has_token, ownsStorageId
 

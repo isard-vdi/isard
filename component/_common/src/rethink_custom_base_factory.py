@@ -17,16 +17,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from .rethink_base import RethinkBase
+import importlib
 
-
-class Storage(RethinkBase):
-    """
-    Manage Storage Objects
-
-    Use constructor with keyword arguments to create new Storage Objects or
-    update an existing one using id keyword. Use constructor with id as
-    first argument to create an object representing an existing Storage Object.
-    """
-
-    _table = "storage"
+if importlib.util.find_spec("api") is not None:
+    from api.libv2.rethink_custom_base import RethinkCustomBase

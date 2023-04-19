@@ -21,12 +21,10 @@ from random import choice
 
 from rethinkdb import r
 
-from api import app
-
-from .rethink_base import RethinkBase
+from .rethink_custom_base_factory import RethinkCustomBase
 
 
-class StoragePool(RethinkBase):
+class StoragePool(RethinkCustomBase):
     """
     Manage Storage Pool.
 
@@ -35,7 +33,7 @@ class StoragePool(RethinkBase):
     first argument to create an object representing an existing Storage Pool.
     """
 
-    _table = "storage_pool"
+    _rdb_table = "storage_pool"
 
     @classmethod
     def get_by_path(cls, path):
@@ -47,10 +45,10 @@ class StoragePool(RethinkBase):
         :return: StoragePool objects
         :rtype: list
         """
-        with app.app_context():
+        with cls._rdb_context():
             return [
                 cls(storage_pool["id"])
-                for storage_pool in r.table(cls._table)
+                for storage_pool in r.table(cls._rdb_table)
                 .filter(
                     lambda document: document["paths"]
                     .values()
@@ -61,7 +59,7 @@ class StoragePool(RethinkBase):
                     )
                 )
                 .pluck("id")
-                .run(cls._rdb.conn)
+                .run(cls._rdb_connection)
             ]
 
     @classmethod

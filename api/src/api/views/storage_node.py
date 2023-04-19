@@ -26,7 +26,7 @@ from flask import request
 from api import app
 
 from .._common.api_exceptions import Error
-from ..libv2.storage_node import StorageNode
+from .._common.storage_node import StorageNode
 from .decorators import is_hyper
 
 
