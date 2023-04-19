@@ -17,9 +17,33 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-import importlib
+from abc import ABC
+from atexit import register
 
-if importlib.util.find_spec("api") is not None:
-    from api.libv2.rethink_custom_base import RethinkCustomBase
-elif importlib.util.find_spec("engine") is not None:
-    from engine.models.rethink_custom_base import RethinkCustomBase
+from _common.rethink_base import RethinkBase
+from engine.services.db import new_rethink_connection
+
+
+class atexit_register(classmethod):
+    """
+    Decorator to register a classmethod as atexit method
+    """
+
+    def __set_name__(self, type, name):
+        register(self.__func__, type)
+
+
+class RethinkCustomBase(RethinkBase, ABC):
+    """
+    Manage Rethink Documents with RethinkDB connection from engine.
+
+    Use constructor with keyword arguments to create new Rethink Documents or
+    update an existing one using id keyword. Use constructor with id as first
+    argument to create an object representing an existing Rethink Document.
+    """
+
+    _rdb_connection = new_rethink_connection()
+
+    @atexit_register
+    def _rethink_disconnect(cls):
+        cls._rdb_connection.close()
