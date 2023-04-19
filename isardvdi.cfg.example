@@ -1,4 +1,4 @@
-# Isard main config v2.7.0
+# Isard main config v2.7.1
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -241,6 +241,15 @@ LOG_LEVEL=INFO
 
 ## Only start desktops with GPU reservables (avoid )
 #GPU_ONLY=false
+
+# ------ ENGINE BALANCERS ---------------------------------------------------
+## Available balancers: round_robin, available_ram, available_ram_percent, 
+##                      less_cpu, less_cpu_when_low_ram_percent
+## ----- Hypervisors balancer
+#ENGINE_HYPER_BALANCER=available_ram_percent
+## ----- Disk operations balancer
+#ENGINE_DISK_BALANCER=less_cpu
+
 
 ##################################################################
 ## INFRASTRUCTURE PARAMETERS. Used on remote hypervisors        ##
