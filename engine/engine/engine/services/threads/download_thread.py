@@ -14,7 +14,7 @@ from os.path import dirname
 from time import sleep
 
 import humanfriendly as hf
-from _common.storage_pool import DEFAULT_STORAGE_POOL_ID
+from _common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from engine.config import CONFIG_DICT
 from engine.services.db import (
     delete_domain,

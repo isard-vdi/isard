@@ -10,7 +10,7 @@ from time import sleep
 from api_client import ApiClient
 
 DEFAULT_STORAGE_POOL_ID = (
-    SourceFileLoader("storage_pool", "/src/_common/storage_pool.py")
+    SourceFileLoader("storage_pool", "/src/_common/default_storage_pool.py")
     .load_module()
     .DEFAULT_STORAGE_POOL_ID
 )

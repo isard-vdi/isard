@@ -25,7 +25,7 @@ from distutils.util import strtobool
 from time import sleep
 
 from api._common.api_rest import ApiRest, is_ip
-from api._common.storage_pool import DEFAULT_STORAGE_POOL_ID
+from api._common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 
 # from api.libv2 import api_disks_watchdog
 from flask import Flask

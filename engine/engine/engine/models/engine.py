@@ -10,7 +10,7 @@ import traceback
 from datetime import datetime
 from time import sleep
 
-from _common.storage_pool import DEFAULT_STORAGE_POOL_ID
+from _common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from engine.config import (
     POLLING_INTERVAL_BACKGROUND,
     STATUS_POLLING_INTERVAL,

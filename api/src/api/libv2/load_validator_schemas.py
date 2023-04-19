@@ -13,7 +13,7 @@ from cerberus import Validator, schema_registry
 
 from api import app
 
-from .._common.storage_pool import DEFAULT_STORAGE_POOL_ID
+from .._common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from .helpers import _parse_string
 
 
