@@ -44,6 +44,58 @@ def api_v3_storage(payload, status):
     )
 
 
+@app.route("/api/v3/storage/<storage_id>", methods=["DELETE"])
+@has_token
+def storage_delete(payload, storage_id):
+    """
+    Endpoint to delete a storage
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :param storage_id: Storage ID
+    :type storage_id: str
+    :return: Task ID
+    :rtype: Set with Flask response values and data in JSON
+    """
+    if not Storage.exists(storage_id):
+        raise Error(error="not_found", description="Storage not found")
+    ownsStorageId(payload, storage_id)
+    storage = Storage(storage_id)
+    if storage.status != "ready":
+        raise Error(error="precondition_required", description="Storage not ready")
+    storage.status = "maintenance"
+    return jsonify(
+        Task(
+            user_id=payload.get("user_id"),
+            queue=f"storage.{StoragePool.get_best_for_action_by_path('delete', storage.directory_path).id}.default",
+            task="delete",
+            job_kwargs={
+                "kwargs": {
+                    "path": f"{storage.directory_path}/{storage.id}.{storage.type}",
+                },
+            },
+            dependents=[
+                {
+                    "queue": "api",
+                    "task": "storage_status",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "statuses": {
+                                "finished": {
+                                    "deleted": [storage.id],
+                                },
+                                "canceled": {
+                                    "ready": [storage.id],
+                                },
+                            },
+                        },
+                    },
+                }
+            ],
+        ).id
+    )
+
+
 @app.route(
     "/api/v3/storage/<storage_id>/convert/<new_storage_type>",
     methods=["POST"],
