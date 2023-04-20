@@ -61,34 +61,45 @@ def feedback(task_id=None):
     )
 
 
-def storage_ready(
-    storage_ids=None,
-    on_finished_storage_ids=None,
-    on_failed_storage_ids=None,
-    on_canceled_delete_storage_ids=None,
-):
+def storage_status(statuses={}):
     """
-    Set storage as ready
+    Set storage status depending on task status
 
-    :param storage_ids: Storage IDs to be ready always
-    :type storage_ids: list
-    :param on_failed_storage_ids: Storage IDs to be ready if depending tasks failed
-    :type on_failed_storage_ids: list
-    :param on_finished_storage_ids: Storage IDs to be ready if depending tasks success
-    :type on_finished_storage_ids: list
-    :param on_canceled_delete_storage_ids: Storage IDs to be marked as teleted if depending tasks was canceled
-    :type on_canceled_delete_storage_ids: list
+    :param statuses: Nested dictionary that contains task status and status of storages.
+        First level keys are the status of the task, nested keys are the status for storage.
+        First level "_all" key is to set storage status for all task status.
+        Example:
+        ```
+            {
+                "_all": {
+                    # Set storage_id1 to "ready" for all task statuses
+                    "ready": ["storage_id1"],
+                },
+                "finished": {
+                    # Set storage_id2 to "ready" if task was finished
+                    "ready": ["storage_id2"],
+                    # Set storage_id4 to "deleted" if task was finished
+                    "deleted": ["storage_id4"],
+                },
+                "canceled": {
+                    # Set storage_id2 and storage_id3 to "deleted" if task was canceled
+                    "deleted": ["storage_id2", "storage_id3"],
+                    # Set storage_id4 to "maintenance" if task was canceled
+                    "maintenance": ["storage_id4"],
+                },
+                "failed": {
+                    # Set storage_id2 to "maintenance" if task was failed
+                    "maintenance": ["storage_id2"],
+                }
+            }
+        ```
+    :type statuses: dict
     """
     task = Task(get_current_job().id)
-    ready_storage_ids = []
-    if storage_ids:
-        ready_storage_ids.extend(storage_ids)
-    if on_finished_storage_ids and task.depending_status == "finished":
-        ready_storage_ids.extend(on_finished_storage_ids)
-    if on_failed_storage_ids and task.depending_status == "failed":
-        ready_storage_ids.extend(on_failed_storage_ids)
-    for storage_id in ready_storage_ids:
-        Storage(storage_id, status="ready")
-    if on_canceled_delete_storage_ids and task.depending_status == "canceled":
-        for storage_id in on_canceled_delete_storage_ids:
-            Storage(storage_id, status="deleted")
+    for storage_statuses_storage_ids in [
+        statuses.get("_all", {}),
+        statuses.get(task.depending_status, {}),
+    ]:
+        for storage_status, storage_ids in storage_statuses_storage_ids.items():
+            for storage_id in storage_ids:
+                Storage(storage_id, status=storage_status)
