@@ -25,6 +25,19 @@ func TestGetCurrentHourlyLimit(t *testing.T) {
 			},
 			Expected: 2,
 		},
+		"should work as expected 2": {
+			Limit: map[time.Weekday]map[time.Time]int{
+				time.Monday: {
+					time.Date(0, time.January, 1, 0, 0, 0, 0, time.UTC):   102400,
+					time.Date(0, time.January, 1, 8, 0, 0, 0, time.UTC):   327680,
+					time.Date(0, time.January, 1, 12, 30, 0, 0, time.UTC): 153600,
+					time.Date(0, time.January, 1, 16, 0, 0, 0, time.UTC):  256000,
+					time.Date(0, time.January, 1, 17, 30, 0, 0, time.UTC): 153600,
+					time.Date(0, time.January, 1, 19, 30, 0, 0, time.UTC): 102400,
+				},
+			},
+			Expected: 153600,
+		},
 		"should get the previous weekday correctly": {
 			Limit: map[time.Weekday]map[time.Time]int{
 				time.Tuesday: {

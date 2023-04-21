@@ -193,7 +193,7 @@ availHypersLoop:
 		}
 	}
 
-	r.log.Debug().Int("cpu_avail", cpuAvail).Int("ram_avail", ramAvail).Msg("available resources")
+	r.log.Debug().Int("cpu_avail", cpuAvail).Int("ram_avail", ramAvail).Int("min_ram", r.minRAM()).Int("max_ram", r.maxRAM()).Msg("available resources")
 
 	reqHypersCPU := 0
 	if r.minCPU() > 0 {
