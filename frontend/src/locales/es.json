@@ -1037,7 +1037,8 @@
         "not_enough_advanced_time": "No hay suficiente antelación para arrancar el escritorio",
         "no_wireguard_keys": "Todavía no hay claves de wireguard en la configuración de la aplicación web. Inténtelo de nuevo pasados unos segundos...",
         "one_viewer_minimum": "Se ha de seleccionar mínimo un visor",
-        "template_failed": "Debido a un error la plantilla no se puede utilizar para crear un nuevo escritorio, por favor contacta con el administrador"
+        "template_failed": "Debido a un error la plantilla no se puede utilizar para crear un nuevo escritorio, por favor contacta con el administrador",
+        "desktop_storage_not_ready": "El almacenamiento del escritorio no está listo"
     },
     "router": {
         "titles": {
