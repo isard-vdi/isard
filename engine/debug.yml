@@ -32,7 +32,6 @@ services:
       PYTHONUNBUFFERED: 1
     volumes:
     - ./api/src:/api:rw
-    - ./api/srcv2:/apiv2:rw
     - /opt/isard-local/.ipython:/root/.ipython:rw
 
 version: '3.5'
