@@ -11,7 +11,7 @@ from pprint import pprint
 from random import choices
 from uuid import uuid4
 
-from _common.storage_pool import DEFAULT_STORAGE_POOL_ID
+from _common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from engine.services.db import get_hyp_hostname_user_port_from_id
 from engine.services.db.db import get_pool, get_pools_from_hyp
 from engine.services.db.domains import (

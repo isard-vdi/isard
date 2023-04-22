@@ -9,7 +9,7 @@ from uuid import uuid4
 
 import humanfriendly as hf
 import rethinkdb as r
-from _common.storage_pool import DEFAULT_STORAGE_POOL_ID
+from _common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 
 from .lib import *
 from .log import *

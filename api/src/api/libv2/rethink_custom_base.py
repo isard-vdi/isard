@@ -18,91 +18,52 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import json
-from abc import ABC, abstractmethod
+from abc import ABC
 from time import time
 
-from cachetools import TTLCache, cached
-from rethinkdb import r
+from api._common.rethink_base import RethinkBase
+from api.libv2.flask_rethink import RDB
 
-from api import app
-
-from .. import socketio
-from .flask_rethink import RDB
+from api import app, socketio
 
 
-class RethinkBase(ABC):
+class RethinkCustomBase(RethinkBase, ABC):
     """
-    Manage Rethink Documents.
+    Manage Rethink Documents with RethinkDB connection from Flask and socketio
+    updates.
 
     Use constructor with keyword arguments to create new Rethink Documents or
     update an existing one using id keyword. Use constructor with id as first
     argument to create an object representing an existing Rethink Document.
     """
 
-    _rdb = RDB(app)
+    _rdb_context = app.app_context
 
+    _rdb_flask = RDB(app)
+
+    @classmethod
     @property
-    @abstractmethod
-    def _table(self):
-        pass
+    def _rdb_connection(cls):
+        return cls._rdb_flask.conn
 
     def __init__(self, *args, **kwargs):
-        if args:
-            kwargs["id"] = args[0]
-        with app.app_context():
-            self.__dict__["id"] = (
-                r.table(self._table)
-                .insert(kwargs, conflict="update")
-                .run(self._rdb.conn)
-                .get("generated_keys", [kwargs.get("id")])[0]
-            )
-        if not "id" in kwargs:
-            kwargs["id"] = self.id
+        super().__init__(*args, **kwargs)
         socketio.emit(
-            self._table,
+            self._rdb_table,
             json.dumps(kwargs),
             namespace="/administrators",
             room="admins",
         )
 
-    @cached(TTLCache(maxsize=10, ttl=5))
-    def __getattr__(self, name):
-        if name in self.__dict__:
-            return self.__dict__[name]
-        with app.app_context():
-            return (
-                r.table(self._table)
-                .get(self.id)
-                .pluck(name)
-                .run(self._rdb.conn)
-                .get(name)
-            )
-
     def __setattr__(self, name, value):
-        if name == "id":
-            raise AttributeError
+        super().__setattr__(name, value)
         updated_data = {name: value}
         if name == "status":
             updated_data["status_time"] = time()
-        with app.app_context():
-            r.table(self._table).get(self.id).update(updated_data).run(self._rdb.conn)
         updated_data["id"] = self.id
         socketio.emit(
-            self._table,
+            self._rdb_table,
             json.dumps(updated_data),
             namespace="/administrators",
             room="admins",
         )
-
-    @classmethod
-    def exists(cls, document_id):
-        """
-        Check if a document ID exists.
-
-        :param document_id: Document ID
-        :type document_id: str
-        :return: True if exists, False otherwise.
-        :rtype: bool
-        """
-        with app.app_context():
-            return bool(r.table(cls._table).get(document_id).run(cls._rdb.conn))

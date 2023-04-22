@@ -12,7 +12,7 @@ from pprint import pformat
 # from qcow import create_disk_from_base, backing_chain, create_cmds_disk_from_base
 from time import sleep
 
-from _common.storage_pool import DEFAULT_STORAGE_POOL_ID
+from _common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from engine.models.domain_xml import (
     BUS_TYPES,
     DomainXML,

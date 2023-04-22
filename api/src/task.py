@@ -19,8 +19,8 @@
 
 import json
 
+from api._common.storage import Storage
 from api.libv2.api_users import ApiUsers
-from api.libv2.storage import Storage
 from api.libv2.task import Task
 from rq import get_current_job
 
