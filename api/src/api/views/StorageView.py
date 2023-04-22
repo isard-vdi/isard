@@ -107,12 +107,20 @@ def storage_convert(payload, storage_id, new_storage_type, compress=None):
         dependents=[
             {
                 "queue": "api",
-                "task": "storage_ready",
+                "task": "storage_status",
                 "job_kwargs": {
                     "kwargs": {
-                        "storage_ids": [origin_storage.id],
-                        "on_finished_storage_ids": [new_storage.id],
-                        "on_canceled_delete_storage_ids": [new_storage.id],
+                        "statuses": {
+                            "_all": {
+                                "ready": [origin_storage.id],
+                            },
+                            "finished": {
+                                "ready": [new_storage.id],
+                            },
+                            "canceled": {
+                                "deleted": [new_storage.id],
+                            },
+                        }
                     }
                 },
             }
