@@ -65,7 +65,7 @@ def storage_convert(payload, storage_id, new_storage_type, compress=None):
     :type new_storage_type: str
     :param compress: if 'compress' compress new qcow2 storage
     :type compress: str
-    :return: Task ID
+    :return: New storage ID
     :rtype: Set with Flask response values and data in JSON
     """
     # https://github.com/danielgtaylor/python-betterproto/issues/174
