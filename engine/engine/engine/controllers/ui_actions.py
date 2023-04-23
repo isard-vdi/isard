@@ -13,6 +13,7 @@ from pprint import pformat
 from time import sleep
 
 from _common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+from _common.domain import Domain
 from engine.models.domain_xml import (
     BUS_TYPES,
     DomainXML,
@@ -658,6 +659,14 @@ class UiActions(object):
                 "No template_dict in keys of domain dictionary, when creating template form domain {}. Exception: {}".format(
                     id_domain, str(e)
                 )
+            )
+            return False
+
+        if not Domain(id_domain).storage_ready:
+            update_domain_status(
+                "Stopped",
+                id_domain,
+                detail="Desktop storages aren't ready",
             )
             return False
 
