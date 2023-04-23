@@ -114,6 +114,14 @@ class UiActions(object):
             log.error(f"Domain {id_domain} not found. Can't start. Maybe deleted?")
             return False
 
+        if not Domain(id_domain).storage_ready:
+            update_domain_status(
+                "Stopped",
+                id_domain,
+                detail=f"Desktop storage not ready",
+            )
+            return False
+
         memory = domain.get("create_dict", {}).get("hardware", {}).get("memory", 0)
         if type(memory) is int or type(memory) is float:
             memory_in_gb = memory / 1024 / 1024
