@@ -289,6 +289,28 @@ def desktops_delete(desktops_ids, force=False):
             ).update({"status": "Deleting", "accessed": int(time.time())}).run(db.conn)
 
 
+def template_delete(template_id):
+    with app.app_context():
+        r.table("domains").get(template_id).update(
+            {"status": "Deleting", "accessed": int(time.time())}
+        ).run(db.conn)
+
+
+def templates_delete(templates_ids, force=False):
+    if force:
+        with app.app_context():
+            r.table("domains").get_all(r.args(templates_ids)).filter(
+                {"kind": "template"}
+            ).update({"status": "ForceDeleting", "accessed": int(time.time())}).run(
+                db.conn
+            )
+    else:
+        with app.app_context():
+            r.table("domains").get_all(r.args(templates_ids), index="id").filter(
+                {"kind": "template"}
+            ).update({"status": "Deleting", "accessed": int(time.time())}).run(db.conn)
+
+
 def desktops_non_persistent_delete(user_id, template=False):
     if template == False:
         with app.app_context():

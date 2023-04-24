@@ -15,6 +15,7 @@ from api import app
 
 from ..libv2.validators import _validate_item
 from .api_cards import ApiCards
+from .api_desktop_events import template_delete, templates_delete
 
 r = RethinkDB()
 import logging as log
@@ -243,9 +244,11 @@ class ApiTemplates:
 
     def Delete(self, template_id):
         ## TODO: Delete all related desktops!!!
-        ds.delete_desktop(template_id, "Stopped")
+        template_delete(template_id)
 
-    # Disable or enable template
+    def DeleteMultiple(self, templates_ids):
+        templates_delete(templates_ids)
+
     def UpdateTemplate(self, template_id, data):
         with app.app_context():
             template = r.table("domains").get(template_id).run(db.conn)
