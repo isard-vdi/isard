@@ -124,6 +124,23 @@ class ApiHypervisors:
                 for d in data
             ]
 
+    def get_orchestrator_managed_hypervisors(self):
+        hypervisors = (
+            r.table("hypervisors")
+            .filter({"orchestrator_managed": True})
+            .pluck("id", "info", "stats", "status", "destroy_time", "status_time")
+            .merge(
+                lambda hyper: {
+                    "desktops_started": r.table("domains")
+                    .get_all(hyper["id"], index="hyp_started")
+                    .filter({"server": False})
+                    .count()
+                }
+            )
+        )
+        with app.app_context():
+            return list(hypervisors.run(db.conn))
+
     def hyper(
         self,
         hyper_id,

@@ -295,6 +295,12 @@ function socketio_on() {
     table.draw(false)
     if (new_hyper) { tablepools.draw(false); }
     setHypervisorDetailButtonsStatus(data.id, data.status)
+    if ("orchestrator_managed" in data){
+      if (data.orchestrator_managed){
+        new_hyper = dtUpdateInsert(orchestrator_hypers_table, data, false);
+        orchestrator_hypers_table.draw(false)
+      }
+    }
   });
 
   socket.on('hyper_deleted', function(data) {
@@ -702,6 +708,63 @@ function actionsHyperDetail() {
       });
     }).on('pnotify.cancel', function() {});
   });
+
+  $('.btn-orchestrator').off('click').on('click', function() {
+    var closest = $(this).closest("div");
+    var pk = closest.attr("data-pk");
+    var data = table.row("#" + pk).data();
+    let change = data["orchestrator_managed"] ? "unmanaged" : "managed";
+    new PNotify({
+      title: "<b>WARNING</b>",
+      type: "error",
+      text: "<b>Do you want this hyper to be " + change + " by Orchestrator?</b>",
+      hide: false,
+      opacity: 0.9,
+      confirm: {
+        confirm: true
+      },
+      buttons: {
+        closer: false,
+        sticker: false
+      },
+      history: {
+        history: false
+      },
+      addclass: 'pnotify-center-large',
+      width: '550'
+
+    }).get().on('pnotify.confirm', function() {
+      $.ajax({
+        url: "/admin/table/update/hypervisors",
+        type: "PUT",
+        data: JSON.stringify({ 'id': pk, 'orchestrator_managed': !data.orchestrator_managed }),
+        contentType: "application/json",
+        success: function(data) {
+          new PNotify({
+            title: 'Updated',
+            text: 'Hypervisor updated successfully',
+            hide: true,
+            delay: 2000,
+            opacity: 1,
+            type: 'success'
+          })
+          orchestrator_hypers_table.ajax.reload()
+          table.ajax.reload()
+        },
+        error: function(data) {
+          new PNotify({
+            title: 'ERROR updating hypervisor',
+            text: data.responseJSON.description,
+            type: 'error',
+            hide: true,
+            icon: 'fa fa-warning',
+            delay: 2000,
+            opacity: 1
+          })
+        },
+      });
+    }).on('pnotify.cancel', function() {});
+  });
 }
 
 
@@ -745,6 +808,9 @@ function renderStatus(data) {
       break;
     default:
       icon = '<i class="fa fa-question fa-2x" style="color:lightred"></i>'
+  }
+  if ("orchestrator_managed" in data && data.orchestrator_managed == true) {
+    icon = icon+'<i class="fa fa-magic fa-1x" style="color:rgb(166, 144, 238)"></i>';
   }
   return icon + '<br>' + data.status;
 }

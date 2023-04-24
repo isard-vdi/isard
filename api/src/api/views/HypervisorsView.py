@@ -248,6 +248,17 @@ def api_v3_orch_hypers_list(payload, hypervisor_id=None):
     )
 
 
+# Returns only "orchestrator_managed":True hypervisors
+@app.route("/api/v3/hypervisors/orchestrator_managed", methods=["POST"])
+@is_admin
+def api_v3_orch_managed_true_hypers_list(payload):
+    return (
+        json.dumps(api_hypervisors.get_orchestrator_managed_hypervisors()),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
 # Add/Reset hyper dead row timeout
 @app.route(
     "/api/v3/orchestrator/hypervisor/<hypervisor_id>/dead_row",
