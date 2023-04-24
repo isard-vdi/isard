@@ -29,8 +29,11 @@ from api._common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 
 # from api.libv2 import api_disks_watchdog
 from flask import Flask
+from gunicorn_application import GunicornApplication
 
 from api import app
+
+APP_PORT = 5000
 
 storage_domain = os.environ.get("STORAGE_DOMAIN")
 video_port = os.environ.get("VIEWER_BROWSER")
@@ -103,4 +106,7 @@ if __name__ == "__main__":
         app.logger.warning(
             "Storage does not have disk capabilities. Not registering in system."
         )
-    app.run(host="0.0.0.0", debug=debug, port=5000)
+    if os.environ.get("USAGE") == "devel":
+        app.run(host="0.0.0.0", debug=debug, port=APP_PORT)
+    else:
+        GunicornApplication(app, APP_PORT).run()
