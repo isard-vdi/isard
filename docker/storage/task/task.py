@@ -17,6 +17,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+from os import remove
 from subprocess import PIPE, Popen
 from time import sleep
 
@@ -76,3 +77,13 @@ def convert(convert_request):
             job.meta["progress"] = 1
             job.save_meta()
         return process.returncode
+
+
+def delete(path):
+    """
+    Delete disk.
+
+    :param path: Path to disk
+    :type path: str
+    """
+    remove(path)
