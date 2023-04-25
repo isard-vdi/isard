@@ -44,6 +44,7 @@ from .api_logging import logs_domain_start_engine, logs_domain_stop_engine
 
 admins = ApiAdmin()
 
+
 ## Domains Threading
 class DomainsThread(threading.Thread):
     def __init__(self):
@@ -143,11 +144,6 @@ class DomainsThread(threading.Thread):
                                 #        event='desktop_guestip'
                             else:
                                 event = "template_data"
-                                try:
-                                    data = admins.GetTemplate(c["new_val"]["id"])
-                                    # New threaded events in ds.py toggles status before it can be processed here.
-                                except:
-                                    continue
                             user = data.pop("user")
                             category = data.pop("category")
                         # socketio.emit(
@@ -544,7 +540,6 @@ class HypervisorsThread(threading.Thread):
     def run(self):
         while True:
             try:
-
                 with app.app_context():
                     for c in (
                         r.table("hypervisors")

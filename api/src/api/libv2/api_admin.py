@@ -553,18 +553,14 @@ class ApiAdmin:
                             .table("domains")
                             .get_all(template_id, index="parents")
                             .count(),
-                            "category_name": r.table("categories").get(
-                                domain["category"]
-                            )["name"],
-                            "group_name": r.table("groups").get(domain["group"])[
-                                "name"
-                            ],
-                            "group_name": r.table("groups").get(domain["group"])[
-                                "name"
-                            ],
+                            "category_name": r.table("categories")
+                            .get(domain["category"])["name"]
+                            .default(False),
+                            "group_name": r.table("groups")
+                            .get(domain["group"])["name"]
+                            .default(False),
                         }
                     )
-                    .order_by("name")
                     .run(db.conn)
                 )
         except Exception:
