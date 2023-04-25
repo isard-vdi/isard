@@ -215,7 +215,6 @@ class ApiTemplates:
                 "Unable to insert duplicate template",
                 traceback.format_exc(),
             )
-        ds._wait_for_domain_status(new_template_id, "Stopped", "Updating", "Stopped")
         return new_template_id
 
     def Get(self, template_id):
