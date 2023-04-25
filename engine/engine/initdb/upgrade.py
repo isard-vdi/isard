@@ -17,7 +17,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 85
+release_version = 86
+# release 86: Fix parents to already duplicated templates
 # release 85: fixed domains parents index and duplicated_parent_template index added
 # release 84: "duplicate_parent_template" of old duplicated with oldest as parent
 # release 83: Add accessed to missing templates
@@ -1454,6 +1455,32 @@ class Upgrade(object):
             except Exception as e:
                 print(e)
 
+        if version == 86:
+            try:
+                duplicated = list(
+                    r.table(table)
+                    .has_fields("duplicate_parent_template")
+                    .run(self.conn)
+                )
+                for d in duplicated:
+                    try:
+                        parents = (
+                            r.table("domains")
+                            .get(d["duplicate_parent_template"])
+                            .pluck("parents")["parents"]
+                            .run(self.conn)
+                        )
+                        r.table(table).get(d["id"]).update({"parents": parents}).run(
+                            self.conn
+                        )
+                    except:
+                        print(
+                            "Unable to update duplicated template "
+                            + d["id"]
+                            + " with parents"
+                        )
+            except Exception as e:
+                print(e)
         return True
 
     """

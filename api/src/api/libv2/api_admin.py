@@ -680,6 +680,7 @@ class ApiAdmin:
             )
         return desktop_storage
 
+    # This is the function to be called
     def GetTemplateTreeList(self, template_id, user_id):
         levels = {}
         derivated = self.TemplateTreeList(template_id, user_id)
@@ -737,6 +738,7 @@ class ApiAdmin:
         ]
         return root
 
+    # Call GetTemplateTreeList. This is a subfunction only.
     def TemplateTreeRecursion(self, template_id, levels):
         nodes = [dict(n) for n in levels.get(template_id, [])]
         for n in nodes:
@@ -749,6 +751,70 @@ class ApiAdmin:
                     break
         return nodes
 
+    def _derivated(self, template_id):
+        with app.app_context():
+            return list(
+                r.db("isard")
+                .table("domains")
+                .get_all(template_id, index="parents")
+                .pluck(
+                    "id",
+                    "duplicate_parent_template",
+                    "name",
+                    "kind",
+                    "category",
+                    "group",
+                    "user",
+                    "username",
+                    "status",
+                    "parents",
+                )
+                .merge(
+                    lambda d: {
+                        "category_name": r.table("categories").get(d["category"])[
+                            "name"
+                        ],
+                        "group_name": r.table("groups").get(d["group"])["name"],
+                    }
+                )
+                .run(db.conn)
+            )
+
+    def _duplicated(self, template_id):
+        with app.app_context():
+            duplicated_from_original = list(
+                r.table("domains")
+                .get_all(template_id, index="duplicate_parent_template")
+                .pluck(
+                    "id",
+                    "duplicate_parent_template",
+                    "name",
+                    "kind",
+                    "category",
+                    "group",
+                    "user",
+                    "username",
+                    "status",
+                    "parents",
+                )
+                .merge(
+                    lambda d: {
+                        "category_name": r.table("categories").get(d["category"])[
+                            "name"
+                        ],
+                        "group_name": r.table("groups").get(d["group"])["name"],
+                    }
+                )
+                .run(db.conn)
+            )
+
+        # Recursively get templates derived from duplicated templates
+        derivated_from_duplicated = []
+        for d in duplicated_from_original:
+            derivated_from_duplicated += self._derivated(d["id"])
+        return duplicated_from_original + derivated_from_duplicated
+
+    # This has no recursion. Call GetTemplateTreeList
     def TemplateTreeList(self, template_id, user_id):
         with app.app_context():
             user_id = r.table("users").get(user_id).run(db.conn)
@@ -778,57 +844,14 @@ class ApiAdmin:
                 )
                 .run(db.conn)
             )
-            derivated = list(
-                r.db("isard")
-                .table("domains")
-                .get_all(template_id, index="parents")
-                .pluck(
-                    "id",
-                    "duplicate_parent_template",
-                    "name",
-                    "kind",
-                    "category",
-                    "group",
-                    "user",
-                    "username",
-                    "status",
-                    "parents",
-                )
-                .merge(
-                    lambda d: {
-                        "category_name": r.table("categories").get(d["category"])[
-                            "name"
-                        ],
-                        "group_name": r.table("groups").get(d["group"])["name"],
-                    }
-                )
-                .run(db.conn)
-            )
-            duplicated = (
-                r.table("domains")
-                .get_all(template_id, index="duplicate_parent_template")
-                .pluck(
-                    "id",
-                    "duplicate_parent_template",
-                    "name",
-                    "kind",
-                    "category",
-                    "group",
-                    "user",
-                    "username",
-                    "status",
-                    "parents",
-                )
-                .merge(
-                    lambda d: {
-                        "category_name": r.table("categories").get(d["category"])[
-                            "name"
-                        ],
-                        "group_name": r.table("groups").get(d["group"])["name"],
-                    }
-                )
-                .run(db.conn)
-            )
+
+        # Get derivated from this template (and derivated from itself)
+        derivated = self._derivated(template_id)
+
+        # Duplicated templates should have the same parent as the original
+        # Except for duplicates from root template
+        duplicated = self._duplicated(template_id)
+
         derivated = list(derivated) + list(duplicated)
 
         if user_id["role"] == "manager":
@@ -857,6 +880,9 @@ class ApiAdmin:
                         "icon": "fa fa-desktop"
                         if d["kind"] == "desktop"
                         else "fa fa-cube",
+                        "duplicate_parent_template": d.get(
+                            "duplicate_parent_template", False
+                        ),
                     }
                 )
             else:
@@ -877,6 +903,9 @@ class ApiAdmin:
                         "icon": "fa fa-desktop"
                         if d["kind"] == "desktop"
                         else "fa fa-cube",
+                        "duplicate_parent_template": d.get(
+                            "duplicate_parent_template", False
+                        ),
                     }
                 )
         return fancyd
