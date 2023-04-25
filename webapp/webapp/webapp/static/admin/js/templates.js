@@ -1640,20 +1640,26 @@ function populate_tree_template_delete(id){
             // (index #0 is rendered by fancytree by adding the checkbox)
             $tdList.eq(1).text(node.getIndexHier());
             // (index #2 is rendered by fancytree)
-            if(node.unselectable){
-                $tdList.eq(3).html('<i class="fa fa-exclamation-triangle"></i> '+node.data.user);
+            if( node.data.duplicate_parent_template == false ){
+                $tdList.eq(3).html('');
 
             }else{
-                $tdList.eq(3).text(node.data.user);
+                $tdList.eq(3).html('<i class="fa fa-check"></i>');
+            }
+            if(node.unselectable){
+                $tdList.eq(4).html('<i class="fa fa-exclamation-triangle"></i> '+node.data.user);
+
+            }else{
+                $tdList.eq(4).text(node.data.user);
             }
             if(node.data.kind != "desktop"){
-                $tdList.eq(4).html('<p style="color:black">'+node.data.kind+'</p>');
-                $tdList.eq(5).html('<p style="color:black">'+node.data.category+'</p>');
-                $tdList.eq(6).html('<p style="color:black">'+node.data.group+'</p>');
+                $tdList.eq(5).html('<p style="color:black">'+node.data.kind+'</p>');
+                $tdList.eq(6).html('<p style="color:black">'+node.data.category+'</p>');
+                $tdList.eq(7).html('<p style="color:black">'+node.data.group+'</p>');
             }else{
-                $tdList.eq(4).text(node.data.kind);
-                $tdList.eq(5).text(node.data.category);
-                $tdList.eq(6).text(node.data.group);
+                $tdList.eq(5).text(node.data.kind);
+                $tdList.eq(6).text(node.data.category);
+                $tdList.eq(7).text(node.data.group);
             }
             // Rendered by row template:
     //        $tdList.eq(4).html("<input type='checkbox' name='like' value='" + node.key + "'>");

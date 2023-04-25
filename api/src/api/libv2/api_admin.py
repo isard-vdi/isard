@@ -880,6 +880,9 @@ class ApiAdmin:
                         "icon": "fa fa-desktop"
                         if d["kind"] == "desktop"
                         else "fa fa-cube",
+                        "duplicate_parent_template": d.get(
+                            "duplicate_parent_template", False
+                        ),
                     }
                 )
             else:
@@ -900,6 +903,9 @@ class ApiAdmin:
                         "icon": "fa fa-desktop"
                         if d["kind"] == "desktop"
                         else "fa fa-cube",
+                        "duplicate_parent_template": d.get(
+                            "duplicate_parent_template", False
+                        ),
                     }
                 )
         return fancyd
