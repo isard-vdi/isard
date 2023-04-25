@@ -551,8 +551,7 @@ class ApiAdmin:
                         lambda domain: {
                             "derivates": r.db("isard")
                             .table("domains")
-                            .get_all([1, template_id], index="parents")
-                            .distinct()
+                            .get_all(template_id, index="parents")
                             .count(),
                             "category_name": r.table("categories").get(
                                 domain["category"]
@@ -571,7 +570,7 @@ class ApiAdmin:
         except Exception:
             raise Error(
                 "internal_server",
-                "Internal server error " + user_id,
+                "Internal server error ",
                 traceback.format_exc(),
             )
 
@@ -631,7 +630,7 @@ class ApiAdmin:
                         lambda domain: {
                             "derivates": r.db("isard")
                             .table("domains")
-                            .get_all([1, domain["id"]], index="parents")
+                            .get_all(domain["id"], index="parents")
                             .distinct()
                             .count(),
                             "category_name": r.table("categories").get(
@@ -786,6 +785,7 @@ class ApiAdmin:
             derivated = list(
                 r.db("isard")
                 .table("domains")
+                .get_all(template_id, index="parents")
                 .pluck(
                     "id",
                     "duplicate_parent_template",
@@ -798,10 +798,30 @@ class ApiAdmin:
                     "status",
                     "parents",
                 )
-                .filter(
-                    lambda derivates: derivates["parents"].contains(template_id)
-                    | derivates["duplicate_parent_template"]
-                    == template_id
+                .merge(
+                    lambda d: {
+                        "category_name": r.table("categories").get(d["category"])[
+                            "name"
+                        ],
+                        "group_name": r.table("groups").get(d["group"])["name"],
+                    }
+                )
+                .run(db.conn)
+            )
+            duplicated = (
+                r.table("domains")
+                .get_all(template_id, index="duplicate_parent_template")
+                .pluck(
+                    "id",
+                    "duplicate_parent_template",
+                    "name",
+                    "kind",
+                    "category",
+                    "group",
+                    "user",
+                    "username",
+                    "status",
+                    "parents",
                 )
                 .merge(
                     lambda d: {
@@ -813,10 +833,13 @@ class ApiAdmin:
                 )
                 .run(db.conn)
             )
+        derivated = list(derivated) + list(duplicated)
+
         if user_id["role"] == "manager":
             if template["category"] != user_id["category"]:
                 return []
             derivated = [d for d in derivated if d["category"] == user_id["category"]]
+
         fancyd = []
         for d in derivated:
             if user_id["role"] == "manager" or user_id["role"] == "admin":
