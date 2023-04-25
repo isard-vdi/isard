@@ -46,7 +46,6 @@ class ApiTemplates:
         description="",
         enabled=False,
     ):
-
         parsed_name = _parse_string(name)
 
         with app.app_context():
@@ -196,7 +195,7 @@ class ApiTemplates:
         template["enabled"] = enabled
         template["status"] = "Stopped"
         template["accessed"] = int(time.time())
-        template["parents"] = []
+        template["parents"] = template.get("parents", [])
         template["duplicate_parent_template"] = template.get(
             "duplicate_parent_template", template_id
         )
