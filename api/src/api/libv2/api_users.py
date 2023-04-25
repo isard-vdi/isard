@@ -30,21 +30,18 @@ from .flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
-from .api_admin import (
-    change_category_items_owner,
-    change_group_items_owner,
-    change_user_items_owner,
-)
-from .ds import DS
-from .helpers import _check, _parse_desktop, _random_password, gen_payload_from_user
-
-ds = DS()
-
 import os
 import secrets
 
 import bcrypt
 from jose import jwt
+
+from .api_admin import (
+    change_category_items_owner,
+    change_group_items_owner,
+    change_user_items_owner,
+)
+from .helpers import _check, _parse_desktop, _random_password, gen_payload_from_user
 
 
 def check_category_domain(category_id, domain):
@@ -1141,7 +1138,6 @@ class ApiUsers:
         return [i for n, i in enumerate(domains) if i not in domains[n + 1 :]]
 
     def GroupDelete(self, group_id):
-
         self.GroupGet(group_id)
 
         with app.app_context():
@@ -1255,7 +1251,6 @@ class ApiUsers:
         category = self.CategoryGet(group["parent_category"], True)
         # Managers can't update a group quota with a higher value than its category quota
         if user_role == "manager":
-
             if category["quota"] != False:
                 for k, v in category["quota"].items():
                     if quota and quota.get(k) and v < quota[k]:
@@ -1366,7 +1361,6 @@ class ApiUsers:
         return templates
 
     def groups_users_count(self, groups, user_id):
-
         query_groups = (
             r.table("users").get_all(r.args(groups), index="group").pluck("id")["id"]
         )

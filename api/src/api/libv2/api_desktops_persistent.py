@@ -59,9 +59,6 @@ from .api_desktop_events import (
 
 qp = QuotasProcess()
 
-from .ds import DS
-
-ds = DS()
 
 from .helpers import (
     _check,

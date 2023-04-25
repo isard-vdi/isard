@@ -35,10 +35,6 @@ from .validators import _validate_item
 
 isardviewer = isardViewer()
 
-from .ds import DS
-
-ds = DS()
-
 from .helpers import _check, _parse_media_info
 
 

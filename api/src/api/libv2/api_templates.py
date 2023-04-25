@@ -26,9 +26,6 @@ from .flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
-from .ds import DS
-
-ds = DS()
 
 from .helpers import _check, _parse_media_info, _parse_string, get_user_data
 

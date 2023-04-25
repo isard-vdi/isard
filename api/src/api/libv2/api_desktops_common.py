@@ -37,10 +37,6 @@ from .api_desktop_events import desktop_start
 from .isardViewer import isardViewer, viewer_jwt
 
 isardviewer = isardViewer()
-
-from .ds import DS
-
-ds = DS()
 scheduler = Scheduler()
 
 import secrets
