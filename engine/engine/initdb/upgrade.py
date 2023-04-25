@@ -17,7 +17,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 84
+release_version = 85
+# release 85: fixed domains parents index and duplicated_parent_template index added
 # release 84: "duplicate_parent_template" of old duplicated with oldest as parent
 # release 83: Add accessed to missing templates
 # release 82: Remove orphan deployments
@@ -1438,6 +1439,21 @@ class Upgrade(object):
                                 ).run(self.conn)
             except Exception as e:
                 print(e)
+
+        if version == 85:
+            try:
+                r.table(table).index_drop("parents").run(self.conn)
+                r.table(table).index_create("parents", multi=True).run(self.conn)
+                r.table(table).index_wait("parents").run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).index_create("duplicate_parent_template").run(self.conn)
+                r.table(table).index_wait("duplicate_parent_template").run(self.conn)
+            except Exception as e:
+                print(e)
+
         return True
 
     """
