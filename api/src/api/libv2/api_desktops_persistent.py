@@ -50,13 +50,15 @@ api_cards = ApiCards()
 common = ApiDesktopsCommon()
 
 from ..libv2.quotas_process import QuotasProcess
-from .api_desktop_events import desktop_delete, desktop_reset, desktop_stop
+from .api_desktop_events import (
+    desktop_delete,
+    desktop_reset,
+    desktop_stop,
+    desktops_delete,
+)
 
 qp = QuotasProcess()
 
-from .ds import DS
-
-ds = DS()
 
 from .helpers import (
     _check,
@@ -106,6 +108,9 @@ class ApiDesktopsPersistent:
                 description_code="not_found",
             )
         desktop_delete(desktop_id)
+
+    def DeleteMultiple(self, desktop_ids):
+        desktops_delete(desktop_ids)
 
     def Get(self, desktop_id):
         with app.app_context():
@@ -761,7 +766,6 @@ class ApiDesktopsPersistent:
         return current_plan
 
     def check_max_booking_date(self, payload, desktop_id):
-
         current_plan = self.check_current_plan(payload, desktop_id)
         priority = apib.get_min_profile_priority("desktop", desktop_id)
 

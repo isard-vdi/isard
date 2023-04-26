@@ -31,7 +31,6 @@ from ..api_desktop_events import desktops_delete, desktops_stop
 from ..api_desktops_common import ApiDesktopsCommon
 from ..api_desktops_persistent import ApiDesktopsPersistent
 from ..bookings.api_booking import Bookings
-from ..ds import DS
 from ..helpers import (
     _check,
     _parse_deployment_booking,
@@ -44,8 +43,6 @@ from ..validators import _validate_item
 apib = Bookings()
 
 quotas = Quotas()
-
-ds = DS()
 
 
 def lists(user_id):
@@ -315,7 +312,6 @@ def get_selected_users(payload, selected, desktop_name, skip_existing_desktops):
 
 def create_deployment_desktops(deployment_tag, desktop_data, users):
     for user in users:
-
         desktop = _validate_item("desktop_from_template", desktop_data)
 
         ApiDesktopsPersistent().NewFromTemplate(

@@ -24,10 +24,6 @@ from ..libv2.isardViewer import isardViewer
 
 isardviewer = isardViewer()
 
-from .ds import DS
-
-ds = DS()
-
 
 class ApiXml:
     def __init__(self):

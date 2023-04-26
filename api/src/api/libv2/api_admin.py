@@ -361,8 +361,10 @@ def admin_table_delete(table, item_id):
 
 
 def admin_domains_delete(list):
-    [ApiDesktopsPersistent().Delete(d["id"]) for d in list if d["kind"] == "desktop"]
-    [ApiTemplates().Delete(d["id"]) for d in list if d["kind"] == "template"]
+    ApiDesktopsPersistent().DeleteMultiple(
+        [d["id"] for d in list if d["kind"] == "desktop"]
+    )
+    ApiTemplates().DeleteMultiple([d["id"] for d in list if d["kind"] == "template"])
 
 
 ## CHANGE ITEMS OWNER
