@@ -161,6 +161,11 @@ class DomainsThread(threading.Thread):
                         if (
                             event == "update"
                             and item == "desktop"
+                            and not data.get("tag", False)
+                            or (
+                                data.get("tag", False)
+                                and data.get("tag_visible", False)
+                            )
                             and data.get("jumperurl")
                             and c.get("new_val", {}).get("status") == "Started"
                             and c.get("new_val", {}).get("viewer", {}).get("tls", {})
