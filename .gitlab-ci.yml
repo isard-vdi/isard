@@ -5,44 +5,12 @@ workflow:
       when: never
     - when: always
 
-# https://docs.gitlab.com/ee/ci/docker/using_docker_build.html#use-docker-in-docker
-variables:
-  # When you use the dind service, you must instruct Docker to talk with
-  # the daemon started inside of the service. The daemon is available
-  # with a network connection instead of the default
-  # /var/run/docker.sock socket. Docker 19.03 does this automatically
-  # by setting the DOCKER_HOST in
-  # https://github.com/docker-library/docker/blob/d45051476babc297257df490d22cbd806f1b11e4/19.03/docker-entrypoint.sh#L23-L29
-  #
-  # The 'docker' hostname is the alias of the service container as described at
-  # https://docs.gitlab.com/ee/ci/services/#accessing-the-services.
-  #
-  # Specify to Docker where to create the certificates. Docker
-  # creates them automatically on boot, and creates
-  # `/certs/client` to share between the service and job
-  # container, thanks to volume mount from config.toml
-  DOCKER_TLS_CERTDIR: "/certs"
-
-default:
-  cache: &global_cache
-    - key:
-        files:
-          - go.mod
-          - go.sum
-      paths:
-        - /go/pkg/mod
-    - key:
-        files:
-          - frontend/package.json
-          - frontend/yarn.lock
-      paths:
-        - frontend/node_modules
-
 stages:
  - lint
  - version
  - docker-compose
  - docker-image-codegen
+ - docker-codegen
  - docker-images
  - test
  - docker-registry
@@ -114,9 +82,6 @@ changelog-preview:
 docker-compose-demo:
   stage: docker-compose
   image: docker:latest
-  services:
-    - name: "docker:dind"
-      command: ["--registry-mirror", "http://192.168.0.5:5000"]
   script:
     - test "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" -a ! -e ".VERSION" && exit 0
     - apk add bash git
@@ -136,9 +101,6 @@ docker-compose-demo:
 docker-compose-build:
   stage: docker-compose
   image: docker:latest
-  services:
-    - name: "docker:dind"
-      command: ["--registry-mirror", "http://192.168.0.5:5000"]
   script:
     - apk add bash git docker-compose
     - cp isardvdi.cfg.example isardvdi.build.cfg
@@ -155,47 +117,45 @@ docker-compose-build:
       - docker-compose*.yml
 
 docker-image-codegen:
-  image: docker:latest
   stage: docker-image-codegen
-  services:
-  - name: "docker:dind"
-    command: ["--registry-mirror", "http://192.168.0.5:5000"]
+  image: quay.io/buildah/stable
   parallel:
     matrix:
       - DOCKERFILE: docker/codegen/Dockerfile
         IMAGE: codegen
   before_script:
-    - until docker info; do sleep 1; done
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - buildah login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
-    - docker build -f $DOCKERFILE -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
-    - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
-    - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
+    - buildah build -f $DOCKERFILE -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
+    - buildah tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
+    - buildah push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
+
+docker-codegen:
+  stage: docker-codegen  
+  image: quay.io/podman/stable
+  script:
+    - podman run -u $(id -u) -v "$(pwd):/build" "$CI_REGISTRY_IMAGE/codegen:git-$CI_COMMIT_SHORT_SHA"
+  artifacts:
+    paths:
+      - pkg/gen
 
 docker-image-autonomous:
-  image: docker:latest
   stage: docker-images
-  services:
-    - name: "docker:dind"
-      command: ["--registry-mirror", "http://192.168.0.5:5000"]
+  image: quay.io/buildah/stable
   parallel:
     matrix:
       - DOCKERFILE: testing/check-isardvdi/Dockerfile
         IMAGE: check
   before_script:
-    - until docker info; do sleep 1; done
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - buildah login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
-    - docker build -f $DOCKERFILE -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
-    - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
-    - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
+    - buildah build -f $DOCKERFILE -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
+    - buildah tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
+    - buildah push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
 
 docker-image:
-  image: docker:latest
   stage: docker-images
-  services:
-    - name: "docker:dind"
-      command: ["--registry-mirror", "http://192.168.0.5:5000"]
+  image: quay.io/buildah/stable
   parallel:
     matrix:
       - DOCKER_COMPOSE: build
@@ -226,15 +186,13 @@ docker-image:
       - DOCKER_COMPOSE: monitor.build
         IMAGE: monitor-proxy
   before_script:
-    - until docker info; do sleep 1; done
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - buildah login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
-    - apk add git docker-compose
+    - dnf install -y git podman-compose
     - git submodule update --init --recursive --remote
-    - docker run -u $(id -u) -v "$(pwd):/build" "$CI_REGISTRY_IMAGE/codegen:git-$CI_COMMIT_SHORT_SHA"
-    - echo $IMAGE_DEPENDENCY isard-$IMAGE | xargs -n1 docker-compose -f docker-compose.$DOCKER_COMPOSE.yml build
-    - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
-    - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
+    - echo $IMAGE_DEPENDENCY isard-$IMAGE | xargs -n1 podman-compose --podman-path /usr/bin/buildah -f docker-compose.$DOCKER_COMPOSE.yml build
+    - buildah tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
+    - buildah push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
 
 # test-selenium:
 #   stage: test
