@@ -4,6 +4,7 @@
 #      Daniel Criado Casas
 # License: AGPLv3
 
+import os
 import pprint
 
 from _common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
@@ -97,9 +98,14 @@ def move_actions_to_others_hypers(
 
 
 class PoolHypervisors:
-    def __init__(self, id_pool, balancer_type="available_ram_percent"):
+    def __init__(self, id_pool, balancer_type=None):
         self.id_pool = id_pool
-        self.balancer = BalancerInterface(id_pool, balancer_type)
+        self.balancer = BalancerInterface(
+            id_pool,
+            balancer_type=os.environ.get(
+                "ENGINE_HYPER_BALANCER", "available_ram_percent"
+            ),
+        )
         self.conf = get_pool_hypers_conf(id_pool)
 
 
@@ -107,8 +113,10 @@ class PoolDiskoperations:
     def __init__(
         self,
         id_pool=DEFAULT_STORAGE_POOL_ID,
-        balancer_type="less_cpu_when_low_ram_percent",
+        balancer_type=None,
     ):
         self.id_pool = id_pool
-        self.balancer = BalancerInterface(id_pool, balancer_type)
+        self.balancer = BalancerInterface(
+            id_pool, balancer_type=os.environ.get("ENGINE_DISK_BALANCER", "less_cpu")
+        )
         self.conf = get_pool_hypers_conf(id_pool)
