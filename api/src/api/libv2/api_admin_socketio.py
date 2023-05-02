@@ -84,12 +84,10 @@ class DomainsThread(threading.Thread):
                         .changes(include_initial=False, squash=0.5)
                         .run(db.conn)
                     ):
-                        # ~ .pluck('id','kind','hyp_started','name','description','icon','status','user')
                         if self.stop == True:
                             break
                         if c["new_val"] == None:
                             data = c["old_val"]
-                            data.pop("start_logs_id", None)
                             event = (
                                 "desktop_delete"
                                 if data["kind"] == "desktop"
@@ -119,26 +117,29 @@ class DomainsThread(threading.Thread):
                             data = {"id": data["id"]}
                         else:
                             data = c["new_val"]
-                            data.pop("start_logs_id", None)
                             if data["kind"] == "desktop":
                                 event = "desktop_data"
-                                if c["new_val"].get("status") == "Started" and c[
-                                    "old_val"
-                                ].get("status") != c["new_val"].get("status"):
-                                    logs_domain_start_engine(
-                                        data.get("start_logs_id"),
-                                        data.get("hyp_started"),
-                                    )
-                                if c["new_val"].get("status") in [
-                                    "Stopped",
-                                    "Failed",
-                                ] and c["old_val"].get("status") != c["new_val"].get(
-                                    "status"
-                                ):
-                                    logs_domain_stop_engine(
-                                        data.get("start_logs_id"),
-                                        c["new_val"].get("status"),
-                                    )
+                                start_logs_id = data.pop("start_logs_id", None)
+                                if start_logs_id:
+                                    if c["new_val"].get("status") == "Started" and c[
+                                        "old_val"
+                                    ].get("status") != c["new_val"].get("status"):
+                                        logs_domain_start_engine(
+                                            start_logs_id,
+                                            data.get("hyp_started"),
+                                        )
+                                    if c["new_val"].get("status") in [
+                                        "Stopped",
+                                        "Failed",
+                                    ] and c["old_val"].get("status") != c[
+                                        "new_val"
+                                    ].get(
+                                        "status"
+                                    ):
+                                        logs_domain_stop_engine(
+                                            start_logs_id,
+                                            c["new_val"].get("status"),
+                                        )
                                 # if data['status'] == 'Started' and 'viewer' in data.keys() and 'guest_ip' in data['viewer'].keys():
                                 #    if 'viewer' not in c['old_val'] or 'guest_ip' not in c['old_val']:
                                 #        event='desktop_guestip'
