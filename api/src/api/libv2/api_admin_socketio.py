@@ -554,7 +554,7 @@ class HypervisorsThread(threading.Thread):
                                 "status_time",
                                 {
                                     "stats": {
-                                        "mem_stats": {"total": True, "available": True},
+                                        "mem_stats": {"total": True, "free": True},
                                         "cpu_current": {"used": True},
                                     }
                                 },

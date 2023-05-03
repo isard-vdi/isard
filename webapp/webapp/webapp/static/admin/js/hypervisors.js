@@ -133,27 +133,26 @@ $(document).ready(function() {
         "className": 'details-control',
         "orderable": false,
         "data": null,
-        "width": "10px",
         "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
       },
-      { "data": "enabled", "width": "10px" },
-      { "data": "status", "width": "10px" },
-      { "data": "only_forced", "width": "10px" },
-      { "data": "gpu_only", "width": "10px", "defaultContent": 0 },
-      { "data": "id", "width": "10px" },
+      { "data": "enabled" },
+      { "data": "status" },
+      { "data": "only_forced" },
+      { "data": "gpu_only", "defaultContent": 0 },
+      { "data": "id" },
       { "data": "hostname", "width": "100px" },
-      { "data": "info.memory_in_MB", "width": "10px", "defaultContent": 'NaN' },
-      { "data": "info.cpu_cores", "width": "10px", "defaultContent": 'NaN' },
-      { "data": "status_time", "width": "10px" },
-      { "data": "dom_started", "width": "10px", "defaultContent": 0 },
-      { "data": "gpus", "width": "10px", "defaultContent": 0 },
-      { "data": "vpn.wireguard.connected", "width": "10px", "defaultContent": 'NaN' },
-      { "data": "info.nested", "width": "10px", "defaultContent": 'NaN' },
-      { "data": "viewer.static", "width": "10px" },
-      { "data": "viewer.proxy_video", "width": "10px" },
-      { "data": "info.virtualization_capabilities", "width": "10px", "defaultContent": 'NaN' },
-      { "data": "info.qemu_version", "width": "10px", "defaultContent": 'NaN' },
-      { "data": "info.libvirt_version", "width": "10px", "defaultContent": 'NaN' },
+      { "data": "info.memory_in_MB", "width": "1000px", "defaultContent": 'NaN' },
+      { "data": "info.cpu_cores", "defaultContent": 'NaN' },
+      { "data": "status_time" },
+      { "data": "dom_started", "defaultContent": 0 },
+      { "data": "gpus", "defaultContent": 0 },
+      { "data": "vpn.wireguard.connected", "defaultContent": 'NaN' },
+      { "data": "info.nested", "defaultContent": 'NaN' },
+      { "data": "viewer.static" },
+      { "data": "viewer.proxy_video" },
+      { "data": "info.virtualization_capabilities", "defaultContent": 'NaN' },
+      { "data": "info.qemu_version", "defaultContent": 'NaN' },
+      { "data": "info.libvirt_version", "defaultContent": 'NaN' },
     ],
     "order": [
       [9, 'asc']
@@ -187,14 +186,11 @@ $(document).ready(function() {
         "targets": 7,
         "render": function(data, type, full, meta) {
           if (!("min_free_mem_gb" in full)) { full.min_free_mem_gb = 0 }
-          memTotalGB = Math.round(data / 1024 * 10) / 10
+          memTotalGB = Math.round(full.stats.mem_stats.total / 1024 / 1024)
           if (!("stats" in full)) { return "-% " + memTotalGB + 'GB' }
-          memUsedGB = Math.round((full.stats.mem_stats.total - full.stats.mem_stats.available) / 1024 / 1024)
-          limit = ""
-          if (full.min_free_mem_gb > 0) {
-            limit = " Limit:" + (memTotalGB - full.min_free_mem_gb) + "GB"
-          }
-          return Math.round(memUsedGB * 100 / memTotalGB) + "% " + memTotalGB + "GB" + limit
+          memUsedGB= Math.round(memTotalGB - (full.stats.mem_stats.free) / 1024 / 1024)
+          perc = Math.round(memUsedGB * 100 / memTotalGB)
+          return memUsedGB+'GB/'+memTotalGB+'GB'+renderProgress(perc, 70, Math.round((memTotalGB-full.min_free_mem_gb)*100/memTotalGB))
         }
       },
       {
@@ -202,8 +198,8 @@ $(document).ready(function() {
         "targets": 8,
         "render": function(data, type, full, meta) {
           if (full.info) {
-            if (!("stats" in full)) { return "-% " + full.info.cpu_cores * full.info.threads_x_core + "th" }
-            return Math.round(full.stats.cpu_current.used) + "% " + full.info.cpu_cores * full.info.threads_x_core + "th";
+            if (!("stats" in full)) { return full.info.cpu_cores+"c/"+full.info.cpu_cores * full.info.threads_x_core+"th" }
+            return full.info.cpu_cores+"c/"+full.info.cpu_cores * full.info.threads_x_core+"th "+renderProgress(Math.round(full.stats.cpu_current.used),20,40)
           }
         }
       },
@@ -251,16 +247,18 @@ $(document).ready(function() {
         }
       },
     ],
-    "createdRow": function(row, data, dataIndex) {
+    "rowCallback": function(row, data, dataIndex) {
       if (!("min_free_mem_gb" in data)) { data.min_free_mem_gb = 0 }
-      memTotalGB = Math.round(data.info.memory_in_MB / 1024 * 10) / 10
       if ('stats' in data) {
-        memUsedGB = Math.round((data.stats.mem_stats.total - data.stats.mem_stats.available) / 1024 / 1024)
+        memTotalGB = Math.round(data.stats.mem_stats.total / 1024 / 1024)
+        memUsedGB= Math.round(memTotalGB - (data.stats.mem_stats.free) / 1024 / 1024)
         if (memTotalGB - memUsedGB - data.min_free_mem_gb <= 0) {
           $(row).css({ "background-color": "#FFCCCB" })
         } else {
           $(row).css({ "background-color": "white" })
         }
+      }else{
+        $(row).css({ "background-color": "white" })
       }
     }
   });
@@ -749,6 +747,22 @@ function renderStatus(data) {
       icon = '<i class="fa fa-question fa-2x" style="color:lightred"></i>'
   }
   return icon + '<br>' + data.status;
+}
+
+function renderProgress(perc,green,orange){
+  if(perc < green){
+    cl="lightgreen"
+  }else if(perc < orange){
+    cl="orange"
+  }else{
+    cl="red"
+  }
+  return '<div class="progress" > \
+        <div class="progress-bar" role="progressbar" aria-valuenow="'+perc+'" \
+        aria-valuemin="0" aria-valuemax="100" style="width:'+perc+'%;color: black;;background: '+cl+'"> \
+          '+perc+'%  \
+        </div> \
+      </<div> '
 }
 
 function renderGraph(data) {
