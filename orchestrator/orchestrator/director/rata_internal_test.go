@@ -12,6 +12,7 @@ func TestGetCurrentHourlyLimit(t *testing.T) {
 
 	cases := map[string]struct {
 		Limit    map[time.Weekday]map[time.Time]int
+		Now      time.Time
 		Expected int
 		Panic    string
 	}{
@@ -37,6 +38,23 @@ func TestGetCurrentHourlyLimit(t *testing.T) {
 				},
 			},
 			Expected: 153600,
+		},
+		"should work as expected 3": {
+			Limit: map[time.Weekday]map[time.Time]int{
+				time.Monday: {
+					time.Date(0, time.January, 1, 0, 0, 0, 0, time.UTC):   102400,
+					time.Date(0, time.January, 1, 8, 0, 0, 0, time.UTC):   327680,
+					time.Date(0, time.January, 1, 12, 30, 0, 0, time.UTC): 153600,
+					time.Date(0, time.January, 1, 16, 0, 0, 0, time.UTC):  256000,
+					time.Date(0, time.January, 1, 17, 30, 0, 0, time.UTC): 153600,
+					time.Date(0, time.January, 1, 19, 30, 0, 0, time.UTC): 102400,
+				},
+				time.Saturday: {
+					time.Date(0, time.January, 1, 0, 0, 0, 0, time.UTC): 102400,
+				},
+			},
+			Now:      time.Date(2023, time.April, 30, 10, 58, 36, 0, time.FixedZone("Europe/Madrid", 0)),
+			Expected: 102400,
 		},
 		"should get the previous weekday correctly": {
 			Limit: map[time.Weekday]map[time.Time]int{
@@ -87,10 +105,13 @@ func TestGetCurrentHourlyLimit(t *testing.T) {
 		},
 	}
 
-	now := time.Date(0, time.January, 5, 15, 30, 0, 0, time.UTC)
-
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
+			now := tc.Now
+			if now.IsZero() {
+				now = time.Date(0, time.January, 5, 15, 30, 0, 0, time.UTC)
+			}
+
 			if tc.Panic != "" {
 				assert.PanicsWithValue(tc.Panic, func() {
 					getCurrentHourlyLimit(tc.Limit, now)

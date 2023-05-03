@@ -68,7 +68,7 @@ func getCurrentHourlyLimit(limit map[time.Weekday]map[time.Time]int, now time.Ti
 	}
 
 	sort.Slice(weekdays, func(i, j int) bool {
-		return i > j
+		return weekdays[i] < weekdays[j]
 	})
 
 	var weekday time.Weekday = -1
