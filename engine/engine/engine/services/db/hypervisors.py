@@ -640,7 +640,10 @@ def get_diskopts_online(
         .run(r_conn)
     )
     return filter_available_hypers(
-        disk_opts_online, forced_hyp=forced_hyp, favourite_hyp=favourite_hyp
+        disk_opts_online,
+        forced_hyp=forced_hyp,
+        favourite_hyp=favourite_hyp,
+        exclude_outofmem=False,
     )
 
 
@@ -654,7 +657,9 @@ def get_hypers_online(
         r.table("hypervisors")
         .filter({"status": "Online", "capabilities": {"hypervisor": True}})
         .filter(r.row["hypervisors_pools"].contains(id_pool))
-        .pluck("id", "only_forced", "gpu_only", "stats", "mountpoints")
+        .pluck(
+            "id", "only_forced", "gpu_only", "stats", "mountpoints", "min_free_mem_gb"
+        )
         .run(r_conn)
     )
     return filter_available_hypers(
@@ -662,6 +667,7 @@ def get_hypers_online(
         forced_hyp=forced_hyp,
         favourite_hyp=favourite_hyp,
         exclude_gpu=True,
+        exclude_outofmem=True,
     )
 
 
@@ -670,7 +676,12 @@ def filter_available_hypers(
     forced_hyp=None,
     favourite_hyp=None,
     exclude_gpu=False,
+    exclude_outofmem=True,
 ):
+    # exclude hypers with low memory (HYPER_FREE_MEM)
+    if exclude_outofmem:
+        hypers_online = filter_outofmem_hypers(hypers_online)
+
     # exclude hypers with gpu
     # NOTE: we are not excluding gpu when we are looking for disk operations,
     #       we are only excluding gpu when we are looking for hypervisors
@@ -695,21 +706,64 @@ def filter_available_hypers(
     return hypers_online
 
 
+def filter_outofmem_hypers(hypers_online):
+    hypers_with_ram = []
+    for hyper in hypers_online:
+        if (
+            int(hyper.get("stats", {}).get("mem_stats", {}).get("available", 0))
+            >= int(hyper.get("min_free_mem_gb", 0)) * 1048576
+        ):
+            hypers_with_ram.append(hyper)
+        else:
+            logs.workers.error(
+                "Hyper %s removed from start desktops pool because low available ram. %s"
+                % (
+                    hyper["id"],
+                    hyper,
+                )
+            )
+    if not len(hypers_with_ram):
+        logs.workers.error(
+            "No hypers left with ram available to start desktops from %s active."
+            % len(hypers_online)
+        )
+    logs.workers.debug("--------------------------------------")
+    logs.workers.debug(
+        "hypers_with_ram: %s"
+        % int(hyper.get("stats", {}).get("mem_stats", {}).get("available", 0))
+    )
+    logs.workers.debug("--------------------------------------")
+    return hypers_with_ram
+
+
 def get_hypers_gpu_online(
     id_pool="default",
     forced_hyp=None,
     favourite_hyp=None,
     gpu_brand_model_profile=None,
     forced_gpus_hypervisors=None,
+    exclude_outofmem=True,
 ):
     r_conn = new_rethink_connection()
     hypers_online = list(
         r.table("hypervisors")
         .filter({"status": "Online"})
         .filter(r.row["hypervisors_pools"].contains(id_pool))
-        .pluck("id", "only_forced", "gpu_only", "info", "stats", "mountpoints")
+        .pluck(
+            "id",
+            "only_forced",
+            "gpu_only",
+            "info",
+            "stats",
+            "mountpoints",
+            "min_free_mem_gb",
+        )
         .run(r_conn)
     )
+
+    # exclude hypers with low memory (HYPER_FREE_MEM)
+    if exclude_outofmem:
+        hypers_online = filter_outofmem_hypers(hypers_online)
 
     # Check profile format: "NVIDIA-A10-2Q"
     try:
