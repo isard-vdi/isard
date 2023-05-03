@@ -20,6 +20,7 @@
 import json
 
 from isardvdi_common.api_rest import ApiRest
+from isardvdi_common.domain import Domain
 from isardvdi_common.media import Media
 from isardvdi_common.storage import Storage
 from isardvdi_common.task import Task
@@ -128,3 +129,16 @@ def update_status(statuses={}):
             for item_class, item_ids in items.items():
                 for item_id in item_ids:
                     globals()[item_class.capitalize()](item_id, status=item_status)
+
+
+def storage_update(**storage_dict):
+    """
+    Update storage if task success.
+
+    :param storage_dict: Storage data
+    :type storage_dict: dict
+    """
+    if Task(get_current_job().id).depending_status == "finished":
+        storage_object = Storage(**storage_dict)
+        for domain in Domain.get_with_storage(storage_object):
+            domain.force_update = True
