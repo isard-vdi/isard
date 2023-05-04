@@ -1,0 +1,271 @@
+<style>
+  #pathsTableAdd > tbody > tr > td,
+  #pathsTableEdit > tbody > tr > td  {
+    border-top: none;
+  }
+</style>
+
+<!-- ADD STORAGE POOL -->
+<div class="modal fade" id="modalAddStoragePool" tabindex="-1" role="dialog" aria-labelledby="modalAddStoragePool" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <!-- Modal Header -->
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">
+          <span aria-hidden="true">&times;</span>
+          <span class="sr-only">Close</span>
+        </button>
+        <h4 class="modal-title" id="myModalLabel">
+          <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-object-group"> </i> Add Storage Pool
+        </h4>
+      </div>
+      <!-- Modal Body -->
+      <div class="modal-body">
+        <form id="modalAdd" class="form-inline form-label-left">
+          <div class="x_panel">
+            <div class="x_content" style="padding: 0px;">
+              <div class="row">
+                <div class="col-md-4 col-xs-12">
+                  <label class="control-label" for="name">Name <span class="required">*</span>
+                  </label>
+                  <input id="name" name="name" placeholder="Pool name" class="roundbox" maxlength="40" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" data-parsley-trigger="change" required type="text" style="width:100%">
+                </div>
+
+                <div class="col-md-8 col-xs-12">
+                  <label class="control-label" for="description">Description
+                  </label>
+                  <input id="description" name="description" placeholder="Pool description" class="roundbox" type="text" style="width:100%">
+                </div>
+              </div>
+              <br>
+              <div class="row">
+                <table id="pathsTableAdd" class="table">
+                  <thead>
+                    <tr>
+                      <th>Type</th>
+                      <th>Path</th>
+                      <th>Weight</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr id="desktop">
+                      <td id="type"><i class="fa fa-desktop fa-1x"></i><b> Desktops</b></td>
+                      <td>
+                        <input id="path" name="desktop-path" value="/isard/groups" class="roundbox" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9/]+$" data-parsley-trigger="change" type="text" style="width:100%">
+                      </td>
+                      <td><input id="weight" name="desktop-weight" type="number" value="100"></td>
+                      <td>
+                        <input id="modalAdd-addrow-desktop" type="button" value="+" onclick="addRow('desktop', 'modalAdd')"/>
+                        <input id="modalAdd-delrow-desktop" type="button" value="-" onclick="delRow('desktop', 'modalAdd')"/>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td colspan="100%" style="border-top: 3px solid rgb(221, 221, 221);"></td>
+                    </tr>
+                    <tr id="media">
+                      <td id="type"><i class="fa fa-circle-o fa-1x"></i><b> Media</b></td>
+                      <td>
+                        <input id="path" name="media-path" value="/isard/media" class="roundbox" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9/]+$" data-parsley-trigger="change" type="text" style="width:100%">
+                      </td>
+                      <td><input id="weight" name="media-weight" type="number" value="100"></td>
+                      <td>
+                        <input id="modalAdd-addrow-media" type="button" value="+" onclick="addRow('media', 'modalAdd')"/>
+                        <input id="modalAdd-delrow-media" type="button" value="-" onclick="delRow('media', 'modalAdd')"/>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td colspan="100%" style="border-top: 3px solid rgb(221, 221, 221);"></td>
+                    </tr>
+                    <tr id="template">
+                      <td id="type"><i class="fa fa-cubes fa-1x"></i><b> Templates</b></td>
+                      <td>
+                        <input id="path" name="template-path" value="/isard/templates" class="roundbox" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9/]+$" data-parsley-trigger="change" type="text" style="width:100%">
+                      </td>
+                      <td><input id="weight" name="template-weight" type="number" value="100"></td>
+                      <td>
+                        <input id="modalAdd-addrow-template" type="button" value="+" onclick="addRow('template', 'modalAdd')"/>
+                        <input id="modalAdd-delrow-template" type="button" value="-" onclick="delRow('template', 'modalAdd')"/>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td colspan="100%" style="border-top: 3px solid rgb(221, 221, 221);"></td>
+                    </tr>
+                    <tr id="volatile">
+                      <td id="type"><i class="fa fa-clock-o fa-1x"></i><b> Volatile</b></td>
+                      <td>
+                        <input id="path" name="volatile-path" value="/isard/volatile" class="roundbox" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9/]+$" data-parsley-trigger="change" type="text" style="width:100%">
+                      </td>
+                      <td><input id="weight" name="volatile-weight" type="number" value="100"></td>
+                      <td>
+                        <input id="modalAdd-addrow-volatile" type="button" value="+" onclick="addRow('volatile', 'modalAdd')"/>
+                        <input id="modalAdd-delrow-volatile" type="button" value="-" onclick="delRow('volatile', 'modalAdd')"/>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <br>
+
+              <div class="row">
+                <div class="col-md-4 col-xs-12">
+                  <div class="checkbox">
+                    <label><b>Startable</b> 
+                      <div class="icheckbox_flat-green" style="position: relative;">
+                        <input id="startable" name="startable" class="checkbox" type="checkbox" style="position: absolute; opacity: 0;">
+                        <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                        </ins>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="col-md-4 col-xs-12">
+                  <div class="checkbox">
+                    <label><b>Read</b> 
+                      <div class="icheckbox_flat-green" style="position: relative;">
+                        <input id="read" name="read" class="checkbox" type="checkbox" style="position: absolute; opacity: 0;">
+                        <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                        </ins>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="col-md-4 col-xs-12">
+                  <div class="checkbox">
+                    <label><b>Write</b> 
+                      <div class="icheckbox_flat-green" style="position: relative;">
+                        <input id="write" name="write" class="checkbox" type="checkbox" style="position: absolute; opacity: 0;">
+                        <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                        </ins>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+        <!-- Modal Footer -->
+        <div class="modal-footer">
+          <ul class="nav navbar-left panel_toolbox">
+            <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+            </li>
+          </ul>
+          <ul class="nav navbar-right panel_toolbox">
+            <li><button id="send" type="button" class="btn btn-success">Create pool</button></li>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT STORAGE POOL -->
+<div class="modal fade" id="modalEditStoragePool" tabindex="-1" role="dialog" aria-labelledby="modalEditStoragePool" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <!-- Modal Header -->
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">
+          <span aria-hidden="true">&times;</span>
+          <span class="sr-only">Close</span>
+        </button>
+        <h4 class="modal-title" id="myModalLabel">
+          <i class="fa fa-pencil fa-1x"> </i> <i class="fa fa-object-group"> </i> Edit Storage Pool
+        </h4>
+      </div>
+      <!-- Modal Body -->
+      <div class="modal-body">
+        <form id="modalEdit" class="form-inline form-label-left">
+          <div class="x_panel">
+            <input id="id" name="id" type="hidden" required>
+            <div class="x_content" style="padding: 0px;">
+              <div class="row">
+                <div class="col-md-4 col-xs-12">
+                  <label class="control-label" for="name">Name <span class="required">*</span>
+                  </label>
+                  <input id="name" name="name" placeholder="Pool name" class="roundbox" maxlength="40" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" data-parsley-trigger="change" required type="text" style="width:100%">
+                </div>
+
+                <div class="col-md-8 col-xs-12">
+                  <label class="control-label" for="description">Description
+                  </label>
+                  <input id="description" name="description" placeholder="Pool description" class="roundbox" type="text" style="width:100%">
+                </div>
+              </div>
+              <br>
+
+              <div class="row">
+                <table id="pathsTableEdit" class="table">
+                  <thead>
+                    <tr>
+                      <th>Type</th>
+                      <th>Path</th>
+                      <th>Weight</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                  </tbody>
+                </table>
+              </div>
+              <br>
+
+              <div class="row">
+                <div class="col-md-4 col-xs-12">
+                  <div class="checkbox">
+                    <label><b>Startable</b> 
+                      <div class="icheckbox_flat-green" style="position: relative;">
+                        <input id="startable" name="startable" class="checkbox" type="checkbox" style="position: absolute; opacity: 0;">
+                        <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                        </ins>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="col-md-4 col-xs-12">
+                  <div class="checkbox">
+                    <label><b>Read</b> 
+                      <div class="icheckbox_flat-green" style="position: relative;">
+                        <input id="read" name="read" class="checkbox" type="checkbox" style="position: absolute; opacity: 0;">
+                        <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                        </ins>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="col-md-4 col-xs-12">
+                  <div class="checkbox">
+                    <label><b>Write</b> 
+                      <div class="icheckbox_flat-green" style="position: relative;">
+                        <input id="write" name="write" class="checkbox" type="checkbox" style="position: absolute; opacity: 0;">
+                        <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                        </ins>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+        <!-- Modal Footer -->
+        <div class="modal-footer">
+          <ul class="nav navbar-left panel_toolbox">
+            <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+            </li>
+          </ul>
+          <ul class="nav navbar-right panel_toolbox">
+            <li><button id="send" type="button" class="btn btn-success">Update pool</button></li>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

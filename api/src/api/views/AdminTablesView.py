@@ -88,6 +88,7 @@ def api_v3_admin_insert_table(payload, table):
         "remotevpn",
         "bookings_priority",
         "desktops_priority",
+        "storage_pool",
     ]:
         checkDuplicate(table, data["name"])
     admin_table_insert(table, data)
@@ -107,6 +108,7 @@ def api_v3_admin_update_table(payload, table):
         "remotevpn",
         "bookings_priority",
         "desktops_priority",
+        "storage_pool",
     ]:
         checkDuplicate(table, data["name"], item_id=data["id"])
     admin_table_update(table, data)

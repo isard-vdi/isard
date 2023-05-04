@@ -1,0 +1,75 @@
+id:
+  required: true
+  default_setter: genuuid
+allowed:
+  type: dict
+  schema: allowed
+description:
+  type: string
+enabled:
+  type: boolean
+  required: false
+  default: true
+name:
+  type: string
+  required: true
+  empty: false
+paths:
+  type: dict
+  schema:
+    desktop:
+      type: list
+      schema:
+        type: dict
+        schema:
+          path:
+            type: string
+            required: true
+          weight:
+            type: integer
+            required: true
+    media:
+      type: list
+      schema:
+        type: dict
+        schema:
+          path:
+            type: string
+            required: true
+          weight:
+            type: integer
+            required: true
+    template:
+      type: list
+      schema:
+        type: dict
+        schema:
+          path:
+            type: string
+            required: true
+          weight:
+            type: integer
+            required: true
+    volatile:
+      type: list
+      schema:
+        type: dict
+        schema:
+          path:
+            type: string
+            required: true
+          weight:
+            type: integer
+            required: true
+read:
+  type: boolean
+  required: true
+  default: true
+startable:
+  type: boolean
+  required: true
+  default: true
+write:
+  type: boolean
+  required: true
+  default: true

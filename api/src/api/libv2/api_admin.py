@@ -211,10 +211,14 @@ def admin_table_insert(table, data):
         "remotevpn",
         "bookings_priority",
         "desktops_priority",
+        "storage_pool",
     ]:
         data = _validate_item(table, data)
         if table == "desktops_priority":
             IsardValidator()._check_with_validate_time_values(data)
+        if table == "storage_pool":
+            IsardValidator()._check_with_validate_weight(data["paths"])
+
     with app.app_context():
         if r.table(table).get(data["id"]).run(db.conn) == None:
             if not _check(r.table(table).insert(data).run(db.conn), "inserted"):
@@ -322,6 +326,11 @@ def admin_table_update(table, data, payload=False):
     if table == "desktops_priority":
         if "allowed" not in data:
             IsardValidator()._check_with_validate_time_values(data)
+
+    if table == "storage_pool":
+        if data.get("paths"):
+            IsardValidator()._check_with_validate_weight(data["paths"])
+
     if table == "categories":
         isard_user_storage_update_category(data["id"], data["name"])
     if table == "groups":
@@ -366,6 +375,9 @@ def admin_table_get(table, id, pluck=None):
 
 def admin_table_delete(table, item_id):
     _validate_table(table)
+    if table == "storage_pool":
+        if item_id == "00000000-0000-0000-0000-000000000000":
+            raise Error("bad_request", "Default pool can't be removed")
     with app.app_context():
         if r.table(table).get(item_id).run(db.conn):
             if not _check(
