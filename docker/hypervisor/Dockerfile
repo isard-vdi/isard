@@ -17,7 +17,7 @@ RUN CARGO_INCREMENTAL=0 cargo build --release
 RUN make install || true
 
 # Image isard-hypervisor
-FROM alpine:3.17 as production
+FROM alpine:3.16 as production
 MAINTAINER isard <info@isardvdi.com>
 
 RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories
