@@ -212,7 +212,7 @@
             v-b-tooltip="{ title: `${template.name.length > MAX_TEMPLATE_TEXT_SIZE ? template.name : ''}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
             class="w-100 mb-0 card-text ml-2"
           >
-            Plantilla: {{ template.name | truncate(MAX_TEMPLATE_TEXT_SIZE) }}
+            {{ $t('forms.new-desktop.desktop-template') }}: {{ template.name | truncate(MAX_TEMPLATE_TEXT_SIZE) }}
           </p>
         </div>
 
