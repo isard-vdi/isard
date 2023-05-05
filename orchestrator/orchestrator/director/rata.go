@@ -3,6 +3,7 @@ package director
 import (
 	"context"
 	"fmt"
+	"math"
 	"sort"
 	"time"
 
@@ -133,12 +134,37 @@ func (r *Rata) minCPU() int {
 }
 
 // minRAM is the minimum MB of RAM that need to be free in the pool. If it's zero, it's not going to use it
-func (r *Rata) minRAM() int {
-	if r.cfg.MinRAMHourly == nil {
+func (r *Rata) minRAM(hypers []*client.OrchestratorHypervisor) int {
+	if r.cfg.MinRAMHourly != nil {
+		return getCurrentHourlyLimit(r.cfg.MinRAMHourly, time.Now())
+	}
+
+	if r.cfg.MinRAM != 0 {
 		return r.cfg.MinRAM
 	}
 
-	return getCurrentHourlyLimit(r.cfg.MinRAMHourly, time.Now())
+	if r.cfg.MinRAMLimitPercent != 0 {
+		margin := 0
+		if r.cfg.MinRAMLimitMarginHourly != nil {
+			margin = getCurrentHourlyLimit(r.cfg.MinRAMLimitMarginHourly, time.Now())
+		} else {
+			margin = r.cfg.MinRAMLimitMargin
+		}
+
+		minRAM := 0
+		for _, h := range hypers {
+			minRAM += (h.MinFreeMemGB * 1024) // we want it as MB, not GB
+		}
+
+		// Apply the limit percentage
+		minRAM = int(math.Round((float64(r.cfg.MinRAMLimitPercent) / 100.0) * float64(minRAM)))
+		// Sum the extra margin
+		minRAM += margin
+
+		return minRAM
+	}
+
+	return 0
 }
 
 func (r *Rata) maxRAM() int {
@@ -157,7 +183,7 @@ func (r *Rata) NeedToScaleHypervisors(ctx context.Context, operationsHypers []*o
 		ramAvail = 0
 	)
 
-	availHypers := []*operationsv1.ListHypervisorsResponseHypervisor{}
+	operationsHypersAvail := []*operationsv1.ListHypervisorsResponseHypervisor{}
 availHypersLoop:
 	for _, h := range operationsHypers {
 		for _, hyp := range hypers {
@@ -167,9 +193,10 @@ availHypersLoop:
 			}
 		}
 
-		availHypers = append(availHypers, h)
+		operationsHypersAvail = append(operationsHypersAvail, h)
 	}
 
+	hypersAvail := []*client.OrchestratorHypervisor{}
 	hypersOnDeadRow := []*client.OrchestratorHypervisor{}
 	for _, h := range hypers {
 		switch h.Status {
@@ -181,6 +208,7 @@ availHypersLoop:
 						// It's online and not only forced, count it as available resources
 						cpuAvail += h.CPU.Free
 						ramAvail += h.RAM.Free
+						hypersAvail = append(hypersAvail, h)
 					}
 				}
 
@@ -193,7 +221,9 @@ availHypersLoop:
 		}
 	}
 
-	r.log.Debug().Int("cpu_avail", cpuAvail).Int("ram_avail", ramAvail).Int("min_ram", r.minRAM()).Int("max_ram", r.maxRAM()).Msg("available resources")
+	minRAM := r.minRAM(hypersAvail)
+
+	r.log.Debug().Int("cpu_avail", cpuAvail).Int("ram_avail", ramAvail).Int("min_ram", minRAM).Int("max_ram", r.maxRAM()).Msg("available resources")
 
 	reqHypersCPU := 0
 	if r.minCPU() > 0 {
@@ -204,10 +234,10 @@ availHypersLoop:
 	}
 
 	reqHypersRAM := 0
-	if r.minRAM() > 0 {
-		hasEnough := ramAvail / r.minRAM()
+	if minRAM > 0 {
+		hasEnough := ramAvail / minRAM
 		if hasEnough == 0 {
-			reqHypersRAM = r.minRAM() - ramAvail
+			reqHypersRAM = minRAM - ramAvail
 		}
 	}
 
@@ -219,12 +249,12 @@ availHypersLoop:
 			// TODO: CPU
 			for _, h := range hypersOnDeadRow {
 				if hyperToPardon != nil {
-					if ramAvail+h.RAM.Free > r.minRAM() && h.RAM.Total < hyperToPardon.RAM.Total {
+					if ramAvail+h.RAM.Free > minRAM && h.RAM.Total < hyperToPardon.RAM.Total {
 						hyperToPardon = h
 					}
 
 				} else {
-					if ramAvail+h.RAM.Free > r.minRAM() {
+					if ramAvail+h.RAM.Free > minRAM {
 						hyperToPardon = h
 					}
 				}
@@ -237,7 +267,7 @@ availHypersLoop:
 
 		} else {
 			// If not, create a new hypervisor
-			id, err := bestHyperToCreate(availHypers, reqHypersCPU, reqHypersRAM)
+			id, err := bestHyperToCreate(operationsHypersAvail, reqHypersCPU, reqHypersRAM)
 			if err != nil {
 				return nil, nil, "", "", err
 			}

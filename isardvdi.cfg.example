@@ -553,6 +553,9 @@ WG_GUESTS_RESERVED_HOSTS=20
 # If there's only one value, it's going to take it, even when it's out of range
 # So, if for example, the map looks like `{"3":{"00:00": 50, "10:30": 100, "20:30": 150}, "5": {"00:00", 20}}` and the current day is monday and the current hour is 15:00h,
 # the value is going to be "100"
+#ORCHESTRATOR_ORCHESTRATOR_DIRECTOR_RATA_MIN_RAM_LIMIT_PERCENT=0
+#ORCHESTRATOR_ORCHESTRATOR_DIRECTOR_RATA_MIN_RAM_LIMIT_MARGIN=0
+#ORCHESTRATOR_ORCHESTRATOR_DIRECTOR_RATA_MIN_RAM_LIMIT_MARGIN_HOURLY=0
 #ORCHESTRATOR_ORCHESTRATOR_DIRECTOR_RATA_MAX_CPU_HOURLY=
 # This value is the maximum number of MB of RAM free in the whole hypervisor pool. If it's set to 0, there's no maximum
 #ORCHESTRATOR_ORCHESTRATOR_DIRECTOR_RATA_MAX_RAM=0

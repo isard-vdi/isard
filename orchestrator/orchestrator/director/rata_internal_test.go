@@ -1,10 +1,14 @@
 package director
 
 import (
+	"os"
 	"testing"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
+	"gitlab.com/isard/isardvdi-cli/pkg/client"
+	"gitlab.com/isard/isardvdi/orchestrator/cfg"
 )
 
 func TestGetCurrentHourlyLimit(t *testing.T) {
@@ -120,6 +124,86 @@ func TestGetCurrentHourlyLimit(t *testing.T) {
 			} else {
 				assert.Equal(tc.Expected, getCurrentHourlyLimit(tc.Limit, now))
 			}
+		})
+	}
+}
+
+func TestMinRAM(t *testing.T) {
+	assert := assert.New(t)
+
+	cases := map[string]struct {
+		Hypers                  []*client.OrchestratorHypervisor
+		MinRAM                  int
+		MinRAMHourly            map[time.Weekday]map[time.Time]int
+		MinRAMLimitPercent      int
+		MinRAMLimitMargin       int
+		MinRAMLimitMarginHourly map[time.Weekday]map[time.Time]int
+		Expected                int
+	}{
+		"should return 0 if it's not configured": {
+			Expected: 0,
+		},
+		"should get the min ram correctly": {
+			MinRAM:   3,
+			Expected: 3,
+		},
+		"should get the hourly limit correctly": {
+			MinRAMHourly: map[time.Weekday]map[time.Time]int{
+				time.Monday: {
+					time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC): 25,
+				},
+			},
+			Expected: 25,
+		},
+		"should apply the percentage correctly using a fixed margin": {
+			MinRAMLimitPercent: 200,
+			MinRAMLimitMargin:  300,
+			Hypers: []*client.OrchestratorHypervisor{
+				{
+					ID:           "1",
+					MinFreeMemGB: 2,
+				},
+				{
+					ID:           "2",
+					MinFreeMemGB: 5,
+				},
+			},
+			Expected: 5*1024*2 + 2*1024*2 + 300,
+		},
+		"should apply the percentage correctly using a hourly margin": {
+			MinRAMLimitPercent: 150,
+			MinRAMLimitMarginHourly: map[time.Weekday]map[time.Time]int{
+				time.Monday: {
+					time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC): 1312,
+				},
+			},
+			Hypers: []*client.OrchestratorHypervisor{
+				{
+					ID:           "1",
+					MinFreeMemGB: 3,
+				},
+				{
+					ID:           "2",
+					MinFreeMemGB: 2,
+				},
+			},
+			Expected: (3*1024)*1.5 + (2*1024)*1.5 + 1312,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			log := zerolog.New(os.Stdout)
+
+			rata := NewRata(cfg.DirectorRata{
+				MinRAM:                  tc.MinRAM,
+				MinRAMHourly:            tc.MinRAMHourly,
+				MinRAMLimitPercent:      tc.MinRAMLimitPercent,
+				MinRAMLimitMargin:       tc.MinRAMLimitMargin,
+				MinRAMLimitMarginHourly: tc.MinRAMLimitMarginHourly,
+			}, false, &log, nil)
+
+			assert.Equal(tc.Expected, rata.minRAM(tc.Hypers))
 		})
 	}
 }

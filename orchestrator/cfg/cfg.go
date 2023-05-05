@@ -30,14 +30,20 @@ type DirectorRata struct {
 	MinRAM       int                                `mapstructure:"min_ram"`
 	MinCPUHourly map[time.Weekday]map[time.Time]int `mapstructure:"min_cpu_hourly"`
 	MinRAMHourly map[time.Weekday]map[time.Time]int `mapstructure:"min_ram_hourly"`
+
+	MinRAMLimitPercent      int                                `mapstructure:"min_ram_limit_percent"` // 150%
+	MinRAMLimitMargin       int                                `mapstructure:"min_ram_limit_margin"`
+	MinRAMLimitMarginHourly map[time.Weekday]map[time.Time]int `mapstructure:"min_ram_limit_margin_hourly"` // Pujada 150, Baixada 75
+
 	MaxCPU       int                                `mapstructure:"max_cpu"`
 	MaxRAM       int                                `mapstructure:"max_ram"`
 	MaxCPUHourly map[time.Weekday]map[time.Time]int `mapstructure:"max_cpu_hourly"`
-	MaxRAMHourly map[time.Weekday]map[time.Time]int `mapstructure:"max_ram_hourly"`
-	HyperMinCPU  int                                `mapstructure:"hyper_min_cpu"`
-	HyperMinRAM  int                                `mapstructure:"hyper_min_ram"`
-	HyperMaxCPU  int                                `mapstructure:"hyper_max_cpu"`
-	HyperMaxRAM  int                                `mapstructure:"hyper_max_ram"`
+	MaxRAMHourly map[time.Weekday]map[time.Time]int `mapstructure:"max_ram_hourly"` // 350
+
+	HyperMinCPU int `mapstructure:"hyper_min_cpu"`
+	HyperMinRAM int `mapstructure:"hyper_min_ram"`
+	HyperMaxCPU int `mapstructure:"hyper_max_cpu"`
+	HyperMaxRAM int `mapstructure:"hyper_max_ram"`
 }
 
 type Check struct {
@@ -68,18 +74,21 @@ func setDefaults() {
 		"api_secret":         "",
 		"director":           "",
 		"director_rata": map[string]interface{}{
-			"min_cpu":        0,
-			"min_ram":        0,
-			"min_cpu_hourly": nil,
-			"min_ram_hourly": nil,
-			"max_cpu":        0,
-			"max_ram":        0,
-			"max_cpu_hourly": nil,
-			"max_ram_hourly": nil,
-			"hyper_min_cpu":  0,
-			"hyper_min_ram":  0,
-			"hyper_max_cpu":  0,
-			"hyper_max_ram":  0,
+			"min_cpu":                     0,
+			"min_ram":                     0,
+			"min_cpu_hourly":              nil,
+			"min_ram_hourly":              nil,
+			"min_ram_limit_percent":       0,
+			"min_ram_limit_margin":        0,
+			"min_ram_limit_margin_hourly": nil,
+			"max_cpu":                     0,
+			"max_ram":                     0,
+			"max_cpu_hourly":              nil,
+			"max_ram_hourly":              nil,
+			"hyper_min_cpu":               0,
+			"hyper_min_ram":               0,
+			"hyper_max_cpu":               0,
+			"hyper_max_ram":               0,
 		},
 		"check": map[string]interface{}{
 			"enabled":               true,
