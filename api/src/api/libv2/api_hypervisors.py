@@ -77,6 +77,7 @@ class ApiHypervisors:
             "destroy_time",
             "stats",
             "orchestrator_managed",
+            "min_free_mem_gb",
         )
         query = query.merge(
             lambda hyper: {
@@ -101,6 +102,7 @@ class ApiHypervisors:
                     "destroy_time": None,
                     "stats": {},
                     "orchestrator_managed": False,
+                    "min_free_mem_gb": 0,
                 },
                 **data,
             }
@@ -115,6 +117,7 @@ class ApiHypervisors:
                         "destroy_time": None,
                         "stats": {},
                         "orchestrator_managed": False,
+                        "min_free_mem_gb": 0,
                     },
                     **d,
                 }
