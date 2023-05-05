@@ -93,7 +93,6 @@ Import all views
 """
 # from .views import XmlView
 from .views import (
-    AdminBackupsView,
     AdminDomainsView,
     AdminDownloadsView,
     AdminResourcesView,

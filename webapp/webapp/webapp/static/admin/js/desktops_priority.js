@@ -274,8 +274,6 @@ $(document).ready(function () {
       setAlloweds_viewer('#alloweds-' + row.data().id, row.data().id, "desktops_priority");
     }
   });
-  
-  $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
 });
 
 function renderDesktopPriorityDetail ( d ) {

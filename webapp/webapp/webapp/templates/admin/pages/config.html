@@ -111,36 +111,6 @@
             </div>
         </div>
     </div>
-
-    <div class="col-md-6 col-sm-6 col-xs-12">
-        <div class="x_panel">
-            <div class="x_title">
-                <h3><i class="fa fa-briefcase"></i> Backup database <small></small></h3>
-                <ul class="nav navbar-right panel_toolbox">
-                    <li><a class="btn-backup" data-panel="backup"><span style="color: #5499c7; "><i class="fa fa-life-saver"></i> Backup</span></a>
-                    <li><a class="btn-backups-upload" data-panel="backup"><span style="color: darkgreen; "><i class="fa fa-upload"></i> Upload</span></a>
-                </ul>
-                <div class="clearfix"></div>
-            </div>
-            <div class="alert alert-warning" style="color: black" role="alert">
-                This section will be removed in the future. It is advised to download and save your data
-            </div>
-            <div class="x_content">
-                <table id="table-backups" class="table">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Status</th>
-                            <th>Vers</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
 </div>
 <div class="clearfix"></div>
 <div class="clearfix"></div>
@@ -151,8 +121,6 @@
 {% include '/admin/pages/desktops_priority_detail.html' %}
 {% endblock %}
 {% block pagescript %}
-    <!-- Dropzone.js -->
-    <script src="/isard-admin/vendors/dropzone/dist/min/dropzone.min.js"></script>
     <script src="/isard-admin/static/js/restful.js"></script>
     <script src="/isard-admin/static/admin/js/config.js"></script>
     <script src="/isard-admin/static/js/snippets/form_items.js"></script>
