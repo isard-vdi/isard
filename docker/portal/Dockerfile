@@ -1,4 +1,4 @@
-FROM haproxy:lts-alpine3.15 as production
+FROM haproxy:lts-alpine3.17 as production
 USER root
 RUN apk add openssl certbot
 COPY docker/portal/prepare.sh /usr/local/sbin/
