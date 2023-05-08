@@ -22,10 +22,12 @@ from ..libv2.api_admin import (
     admin_table_update,
 )
 from ..libv2.api_desktops_persistent import ApiDesktopsPersistent
+from ..libv2.api_domains import ApiDomains
 from .decorators import is_admin_or_manager, ownsDomainId
 
 admins = ApiAdmin()
 desktops_persistent = ApiDesktopsPersistent()
+domains = ApiDomains()
 
 
 @app.route("/api/v3/admin/domains", methods=["POST"])
@@ -180,3 +182,15 @@ def api_v3_admin_domains_delete(payload):
 @is_admin_or_manager
 def api_v3_admin_domains_field(payload, field, kind):
     return json.dumps(admins.get_domains_field(field, kind, payload))
+
+
+# Render domain Hardware at domain details' Hardware table
+@app.route("/api/v3/domain/hardware/<domain_id>", methods=["GET"])
+@is_admin_or_manager
+def api_v3_domain_hardware(payload, domain_id):
+    ownsDomainId(payload, domain_id)
+    return (
+        json.dumps(domains.get_domain_details_hardware(domain_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )

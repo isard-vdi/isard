@@ -147,7 +147,7 @@ $(document).ready(function() {
             setDesktopDetailButtonsStatus(row.data().id,row.data().status, row.data().server)
             if(row.data().status=='Stopped' || row.data().status=='Started'){
                 setDomainHotplug(row.data().id);
-                setHardwareDomainDefaults_viewer(row.data().id);
+                setHardwareDomainDefaultsDetails(row.data().id, 'domain');
             }
           }
     } );
@@ -295,7 +295,6 @@ function socketio_on(){
         if(data.result){
             $("#modalEdit")[0].reset();
             $("#modalEditDesktop").modal('hide');
-            //setHardwareDomainDefaults_viewer('#hardware-'+data.id,data);
         }
         new PNotify({
                 title: data.title,

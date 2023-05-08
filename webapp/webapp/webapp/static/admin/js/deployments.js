@@ -241,7 +241,7 @@ $(document).ready(function() {
       }
       row.child(renderDeploymentDetailPannel(row.data())).show()
       tr.addClass('shown');
-      setHardwareDomainDefaults_deployment_viewer(row.data().id);
+      setHardwareDomainDefaultsDetails(row.data().id, 'deployment');
       setAlloweds_viewer('#alloweds-' + row.data().id, row.data().id, "deployments");
     }
   });

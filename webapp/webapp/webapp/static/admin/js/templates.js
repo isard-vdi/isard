@@ -764,7 +764,7 @@ $(document).ready(function() {
                 actionsDomainDetail();
                 setDomainDetailButtonsStatus(domain_id,row.data().status,row.data().server)
                 setDomainHotplug(domain_id);
-                setHardwareDomainDefaults_viewer(domain_id);
+                setHardwareDomainDefaultsDetails(domain_id, 'domain');
                 setDomainStorage(domain_id)
                 if(kind!="desktop"){
                     setAlloweds_viewer('#alloweds-'+domain_id,domain_id);
