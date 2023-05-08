@@ -106,17 +106,6 @@ def api_v3_domains_default_hardware_reservables(payload, kind, domain_id):
         return Error("bad_request", "Not implemented")
 
 
-@app.route("/api/v3/domain/hardware/<desktop_id>", methods=["GET"])
-@has_token
-def api_v3_desktop_hardware(payload, desktop_id):
-    ownsDomainId(payload, desktop_id)
-    return (
-        json.dumps(common.get_domain_hardware(desktop_id)),
-        200,
-        {"Content-Type": "application/json"},
-    )
-
-
 # Will get allowed hardware quota max resources for different items
 @app.route("/api/v3/quota/<kind>", methods=["GET"])
 @app.route("/api/v3/quota/<kind>/<item_id>", methods=["GET"])

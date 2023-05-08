@@ -96,8 +96,7 @@ $(document).ready(function() {
             // Open this row
             row.child( formatPanel(row.data()) ).show();
             tr.addClass('shown');
-            setHardwareDomainDefaults_viewer(row.data().id);
-	    //~ setDomainGenealogy(row.data().id)
+            setHardwareDomainDefaultsDetails(row.data().id, 'domain');
             setAlloweds_viewer('#alloweds-'+row.data().id,row.data().id);
             actionsTmplDetail();
             
@@ -150,7 +149,6 @@ $(document).ready(function() {
                     //~ // Open this row
                     //~ row.child( formatPanel(row.data()) ).show();
                     //~ tr.addClass('shown');
-                    //~ setHardwareDomainDefaults_viewer('#hardware-'+row.data().id,row.data().id);
                     //~ setHardwareGraph();
                     //~ setAlloweds_viewer('#alloweds-'+row.data().id,row.data().id);
                     //~ actionsTmplDetail();

@@ -554,3 +554,57 @@ def jumper_url_reset(deployment_id):
 
         for deployment_desktop in deployment_desktops:
             ApiDesktopsCommon().gen_jumpertoken(deployment_desktop["id"])
+
+
+def get_deployment_details_hardware(deployment_id):
+    with app.app_context():
+        hardware = (
+            r.table("deployments")
+            .get(deployment_id)
+            .pluck("create_dict")["create_dict"]
+            .merge(
+                lambda domain: {
+                    "interfaces_names": domain["hardware"]["interfaces"].map(
+                        lambda interface: r.table("interfaces").get(interface)["name"]
+                    ),
+                    "video_name": domain["hardware"]["videos"].map(
+                        lambda video: r.table("videos").get(video)["name"]
+                    ),
+                    "boot_name": domain["hardware"]["boot_order"].map(
+                        lambda boot_order: r.table("boots").get(boot_order)["name"]
+                    ),
+                    "reservable_name": r.branch(
+                        domain["reservables"]["vgpus"].default(None),
+                        domain["reservables"]["vgpus"].map(
+                            lambda reservable: r.table("reservables_vgpus").get(
+                                reservable
+                            )["name"]
+                        ),
+                        False,
+                    ),
+                }
+            )
+            .run(db.conn)
+        )
+    if "isos" in hardware["hardware"]:
+        with app.app_context():
+            isos = hardware["hardware"]["isos"]
+            hardware["hardware"]["isos"] = []
+            # Loop instead of a get_all query to keep the isos array order
+            for iso in isos:
+                hardware["hardware"]["isos"].append(
+                    r.table("media").get(iso["id"]).pluck("id", "name").run(db.conn)
+                )
+    if "floppies" in hardware["hardware"]:
+        with app.app_context():
+            hardware["hardware"]["floppies"] = list(
+                r.table("media")
+                .get_all(
+                    r.args([i["id"] for i in hardware["hardware"]["floppies"]]),
+                    index="id",
+                )
+                .pluck("id", "name")
+                .run(db.conn)
+            )
+    hardware["hardware"]["memory"] = hardware["hardware"]["memory"] / 1048576
+    return hardware

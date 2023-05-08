@@ -120,3 +120,14 @@ def api_v3_deployments_directviewer_csv(payload, deployment_id):
         200,
         {"Content-Type": "text/csv"},
     )
+
+
+# Render deployment Hardware at deployment details' Hardware table
+@app.route("/api/v3/deployment/hardware/<deployment_id>", methods=["GET"])
+@is_not_user
+def api_v3_deployment_hardware(payload, deployment_id):
+    return (
+        json.dumps(api_deployments.get_deployment_details_hardware(deployment_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )
