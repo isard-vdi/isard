@@ -668,7 +668,7 @@ class ApiHypervisors:
                 hypervisor = (
                     r.table("hypervisors")
                     .get(hyper_id)
-                    .update({"orchestrator_managed": not reset})
+                    .update({"destroy_time": None, "orchestrator_managed": not reset})
                     .run(db.conn)
                 )
             return True
