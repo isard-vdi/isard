@@ -729,6 +729,7 @@ def start_config_thread():
 @socketio.on("connect", namespace="/administrators")
 def socketio_admins_connect():
     try:
+        # Possible Log injection!
         log.debug(request.args)
         payload = get_token_payload(request.args.get("jwt"))
     except Exception as e:
