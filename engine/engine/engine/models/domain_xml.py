@@ -521,10 +521,16 @@ class DomainXML(object):
         xpath_next="",
         xpath_previous="",
         xpath_parent="/domain",
+        merge=False,
     ):
         if self.tree.xpath(xpath_parent):
             if self.tree.xpath(xpath_same):
-                self.tree.xpath(xpath_same)[-1].addnext(element_tree)
+                if merge:
+                    for child in list(element_tree):
+                        self.tree.xpath(xpath_same)[0].append(child)
+
+                else:
+                    self.tree.xpath(xpath_same)[-1].addnext(element_tree)
 
             elif xpath_next and self.tree.xpath(xpath_next):
                 self.tree.xpath(xpath_next)[0].addprevious(element_tree)
@@ -818,7 +824,9 @@ class DomainXML(object):
         )
 
         metadata_etree = etree.parse(StringIO(xml_snippet)).getroot()
-        self.add_to_domain(xpath_same, metadata_etree, xpath_next, xpath_previous)
+        self.add_to_domain(
+            xpath_same, metadata_etree, xpath_next, xpath_previous, merge=True
+        )
 
     def add_vnc_with_websockets(self):
         xpath_same = "/domain/devices/graphics"
