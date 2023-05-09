@@ -155,7 +155,7 @@ $(document).ready(function() {
       { "data": "info.libvirt_version", "defaultContent": 'NaN' },
     ],
     "order": [
-      [9, 'asc']
+      [5, 'asc']
     ],
     "columnDefs": [{
         // Enabled
