@@ -77,59 +77,119 @@ class Balancer_less_cpu:
     # This balancer will return the hypervisor with less cpu usage
     def _balancer(self, hypers):
         logs.main.debug(
-            f"BALANCER LESS CPU. CPU IDLE: {[{h['id']: h['stats']['cpu_5min']['idle']} for h in hypers if h.get('stats',{}).get('cpu_5min',{}).get('idle')]}"
+            f"BALANCER LESS CPU. CPU IDLE: {[{h['id']: h['stats']['cpu_current']['idle']} for h in hypers if h.get('stats',{}).get('cpu_current',{}).get('idle')]}"
         )
         return [
             h
             for h in hypers
-            if h.get("stats", {}).get("cpu_5min", {}).get("idle", 0)
+            if h.get("stats", {}).get("cpu_current", {}).get("idle", 0)
             == max(
-                [h.get("stats", {}).get("cpu_5min", {}).get("idle", 0) for h in hypers]
+                [
+                    h.get("stats", {}).get("cpu_current", {}).get("idle", 0)
+                    for h in hypers
+                ]
             )
         ][0]
 
 
-class Balancer_less_cpu_when_low_ram_percent:
-    # This balancer will return the hypervisor with less cpu usage when ram is below 50%
+class Balancer_less_cpu_till_low_ram:
+    # This balancer will return the hypervisor with less cpu usage when ram is below 85%
+    # After that, it will return the hypervisor with more available ram
     def _balancer(self, hypers):
-        RAM_LIMIT = 0.6  # If ram is below 60% of total ram, return hypervisor with less cpu usage
-        logs.main.debug(
-            f"BALANCER LESS CPU WITH LOW RAM. CPU IDLE: {[{h['id']: h['stats']['cpu_5min']['idle']} for h in hypers if h.get('stats',{}).get('cpu_5min',{}).get('idle')]}"
+        RAM_LIMIT = 0.85  # If ram is below 85%, return hypervisor with less cpu usage
+        hypers_ordered_by_cpu = sorted(
+            hypers,
+            key=lambda h: h.get("stats", {}).get("cpu_current", {}).get("idle", 0),
+            reverse=True,
         )
-        hypers_below_ram_limit = [
+        logs.main.debug(
+            f"BALANCER LESS CPU TILL LOW RAM. CPU IDLE: {[{h['id']: h['stats']['cpu_current']['idle']} for h in hypers_ordered_by_cpu if h.get('stats',{}).get('cpu_current',{}).get('idle')]}"
+        )
+        logs.main.debug(
+            f"BALANCER LESS CPU TILL LOW RAM. RAM PERCENTAGE: {[{h['id']: (h['stats']['mem_stats']['total']-h['stats']['mem_stats']['available'])/h['stats']['mem_stats']['total']} for h in hypers_ordered_by_cpu if h.get('stats',{}).get('cpu_current',{}).get('idle')]}"
+        )
+        for hyper in hypers_ordered_by_cpu:
+            if (
+                hyper.get("stats", {}).get("mem_stats", {}).get("total", 1)
+                - hyper.get("stats", {}).get("mem_stats", {}).get("available", 0)
+            ) / hyper.get("stats", {}).get("mem_stats", {}).get(
+                "total", 1
+            ) <= RAM_LIMIT:
+                logs.main.info(
+                    "BALANCER LESS CPU TILL LOW RAM. BEST CPU HYPER SELECTED: %s"
+                    % hyper["id"]
+                )
+                return hyper
+        hyper = [
             h
             for h in hypers
             if h.get("stats", {}).get("mem_stats", {}).get("available", 0)
-            / h.get("stats", {}).get("mem_stats", {}).get("total", 1)
-            <= RAM_LIMIT
-        ]
+            == max(
+                [
+                    h.get("stats", {}).get("mem_stats", {}).get("available", 0)
+                    for h in hypers
+                ]
+            )
+        ][0]
+        logs.main.info(
+            "BALANCER LESS CPU TILL LOW RAM. NO BEST CPU HYPER, SELECTED BY RAM: %s"
+            % hyper["id"]
+        )
+        return hyper
 
-        if len(hypers_below_ram_limit) > 0:
-            # If there are hypervisors with less than RAM_LIMIT ram, return the one with less cpu usage from
-            return [
-                h
-                for h in hypers_below_ram_limit
-                if h.get("stats", {}).get("cpu_5min", {}).get("idle", 0)
-                == max(
-                    [
-                        h.get("stats", {}).get("cpu_5min", {}).get("idle", 0)
-                        for h in hypers_below_ram_limit
-                    ]
+
+class Balancer_less_cpu_till_low_ram_percent:
+    # This balancer will return the hypervisor with less cpu usage when ram is below 85%
+    # After that, it will return the hypervisor with more available ram in percentage
+    def _balancer(self, hypers):
+        RAM_LIMIT = 0.85  # If ram is below 85%, return hypervisor with less cpu usage
+        hypers_ordered_by_cpu = sorted(
+            hypers,
+            key=lambda h: h.get("stats", {}).get("cpu_current", {}).get("idle", 0),
+            reverse=True,
+        )
+        logs.main.debug(
+            f"BALANCER LESS CPU TILL LOW RAM PERCENTAGE. CPU IDLE: {[{h['id']: h['stats']['cpu_current']['idle']} for h in hypers_ordered_by_cpu if h.get('stats',{}).get('cpu_current',{}).get('idle')]}"
+        )
+        logs.main.debug(
+            f"BALANCER LESS CPU TILL LOW RAM. RAM PERCENTAGE: {[{h['id']: (h['stats']['mem_stats']['total']-h['stats']['mem_stats']['available'])/h['stats']['mem_stats']['total']} for h in hypers_ordered_by_cpu if h.get('stats',{}).get('cpu_current',{}).get('idle')]}"
+        )
+        for hyper in hypers_ordered_by_cpu:
+            if (
+                hyper.get("stats", {}).get("mem_stats", {}).get("total", 1)
+                - hyper.get("stats", {}).get("mem_stats", {}).get("available", 0)
+            ) / hyper.get("stats", {}).get("mem_stats", {}).get(
+                "total", 1
+            ) <= RAM_LIMIT:
+                logs.main.info(
+                    "BALANCER LESS CPU TILL LOW RAM. BEST CPU HYPER SELECTED: %s"
+                    % hyper["id"]
                 )
-            ][0]
-        else:
-            # If there are no hypervisors with less than RAM_LIMIT ram, return the one with less cpu usage from all hypervisors
-            return [
-                h
-                for h in hypers
-                if h.get("stats", {}).get("cpu_5min", {}).get("idle", 0)
-                == max(
-                    [
-                        h.get("stats", {}).get("cpu_5min", {}).get("idle", 0)
-                        for h in hypers
-                    ]
-                )
-            ][0]
+                return hyper
+        hyper = [
+            h
+            for h in hypers
+            if (
+                h.get("stats", {}).get("mem_stats", {}).get("total", 1)
+                - h.get("stats", {}).get("mem_stats", {}).get("available", 0)
+            )
+            / h.get("stats", {}).get("mem_stats", {}).get("total", 1)
+            == max(
+                [
+                    (
+                        h.get("stats", {}).get("mem_stats", {}).get("total", 1)
+                        - h.get("stats", {}).get("mem_stats", {}).get("available", 0)
+                    )
+                    / h.get("stats", {}).get("mem_stats", {}).get("total", 1)
+                    for h in hypers
+                ]
+            )
+        ][0]
+        logs.main.info(
+            "BALANCER LESS CPU TILL LOW RAM PERCENTAGE. NO BEST CPU HYPER, SELECTED BY RAM %: %s"
+            % hyper["id"]
+        )
+        return hyper
 
 
 """
@@ -143,7 +203,8 @@ BALANCERS = [
     "available_ram",
     "available_ram_percent",
     "less_cpu",
-    "less_cpu_when_low_ram_percent",
+    "less_cpu_till_low_ram",
+    "less_cpu_till_low_ram_percent",
 ]
 
 
@@ -161,8 +222,10 @@ class BalancerInterface:
             self._balancer = Balancer_available_ram_percent()
         if balancer_type == "less_cpu":
             self._balancer = Balancer_less_cpu()
-        if balancer_type == "less_cpu_when_low_ram_percent":
-            self._balancer = Balancer_less_cpu_when_low_ram_percent()
+        if balancer_type == "less_cpu_till_low_ram":
+            self._balancer = Balancer_less_cpu_till_low_ram()
+        if balancer_type == "less_cpu_till_low_ram_percent":
+            self._balancer = Balancer_less_cpu_till_low_ram_percent()
 
     def get_next_hypervisor(
         self, forced_hyp=None, favourite_hyp=None, reservables=None, force_gpus=None
