@@ -18,22 +18,28 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from abc import ABC
+from os import environ
 
-from _common.atexit_register import atexit_register
-from _common.rethink_base import RethinkBase
-from engine.services.db import new_rethink_connection
+from isardvdi_common.atexit_register import atexit_register
+from isardvdi_common.rethink_base import RethinkBase
+from rethinkdb import r
 
 
 class RethinkCustomBase(RethinkBase, ABC):
     """
-    Manage Rethink Documents with RethinkDB connection from engine.
+    Manage Rethink Documents with RethinkDB connection from core_worker.
 
     Use constructor with keyword arguments to create new Rethink Documents or
     update an existing one using id keyword. Use constructor with id as first
     argument to create an object representing an existing Rethink Document.
     """
 
-    _rdb_connection = new_rethink_connection()
+    _rdb_connection = r.connect(
+        host=environ.get("RETHINKDB_HOST", "isard-db"),
+        port=environ.get("RETHINKDB_PORT", "28015"),
+        auth_key=environ.get("RETHINKDB_AUTH", ""),
+        db=environ.get("RETHINKDB_DB", "isard"),
+    )
 
     @classmethod
     @atexit_register

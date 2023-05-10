@@ -23,3 +23,5 @@ if importlib.util.find_spec("api") is not None:
     from api.libv2.rethink_custom_base import RethinkCustomBase
 elif importlib.util.find_spec("engine") is not None:
     from engine.models.rethink_custom_base import RethinkCustomBase
+elif importlib.util.find_spec("isardvdi_core_worker") is not None:
+    from isardvdi_core_worker.rethink_custom_base import RethinkCustomBase

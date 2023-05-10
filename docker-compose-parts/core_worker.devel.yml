@@ -18,21 +18,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 version: '3.5'
 services:
-  isard-redis:
-    container_name: isard-redis
-    image: redis:alpine3.17
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "100m"
-        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
-    networks:
-      isard-network:
-        ipv4_address: ${DOCKER_NET:-172.31.255}.12
+  isard-core_worker:
     volumes:
-      - /opt/isard/redis/data:/data
-    command: /bin/sh -c "redis-server --requirepass \"$$REDIS_PASSWORD\""
-    environment:
-      REDIS_PASSWORD:
-    healthcheck:
-      test: ["CMD", "redis-cli","ping"]
+    - ${BUILD_ROOT_PATH}/component/core_worker/src:/opt/isardvdi/isardvdi_core_worker
+    - ${BUILD_ROOT_PATH}/component/_common/src:/opt/isardvdi/isardvdi_common

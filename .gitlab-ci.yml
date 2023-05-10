@@ -204,6 +204,7 @@ docker-image:
           - scheduler
           - authentication
           - backupninja
+          - core_worker
           - db
           - engine
           - grafana

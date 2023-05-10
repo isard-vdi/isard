@@ -129,7 +129,7 @@ class Task(RedisBase):
             self.job.save_meta()
             if "user_id" in kwargs:
                 for task in self._chain:
-                    Queue("api", connection=self._redis).enqueue(
+                    Queue("core", connection=self._redis).enqueue(
                         "task.feedback",
                         result_ttl=0,
                         depends_on=Dependency(jobs=[task.job], allow_failure=True),

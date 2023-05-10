@@ -18,9 +18,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 version: '3.5'
 services:
-  isard-redis:
-    container_name: isard-redis
-    image: redis:alpine3.17
+  isard-core_worker:
+    container_name: isard-core_worker
+    image: ${DOCKER_IMAGE_PREFIX}core_worker:${DOCKER_IMAGE_TAG:-latest}
     logging:
       driver: "json-file"
       options:
@@ -28,11 +28,10 @@ services:
         tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
     networks:
       isard-network:
-        ipv4_address: ${DOCKER_NET:-172.31.255}.12
-    volumes:
-      - /opt/isard/redis/data:/data
-    command: /bin/sh -c "redis-server --requirepass \"$$REDIS_PASSWORD\""
+        ipv4_address: ${DOCKER_NET:-172.31.255}.29
     environment:
-      REDIS_PASSWORD:
-    healthcheck:
-      test: ["CMD", "redis-cli","ping"]
+      RETHINKDB_HOST: ${RETHINKDB_HOST:-isard-db}
+      RETHINKDB_PORT: ${RETHINKDB_PORT:-28015}
+      RETHINKDB_DB: ${RETHINKDB_DB:-isard}
+      API_ISARDVDI_SECRET:
+      RQ_REDIS_URL: "redis://:${REDIS_PASSWORD}@${REDIS_HOST:-isard-redis}"

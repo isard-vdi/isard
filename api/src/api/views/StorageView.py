@@ -76,7 +76,7 @@ def storage_delete(payload, storage_id):
             },
             dependents=[
                 {
-                    "queue": "api",
+                    "queue": "core",
                     "task": "storage_status",
                     "job_kwargs": {
                         "kwargs": {
@@ -158,7 +158,7 @@ def storage_convert(payload, storage_id, new_storage_type, compress=None):
         },
         dependents=[
             {
-                "queue": "api",
+                "queue": "core",
                 "task": "storage_status",
                 "job_kwargs": {
                     "kwargs": {
