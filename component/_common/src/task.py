@@ -19,9 +19,10 @@
 
 import os
 
-from api.libv2.redis_base import RedisBase
 from rq import Queue
 from rq.job import Dependency, Job, JobStatus
+
+from .redis_base import RedisBase
 
 
 def tasks_from_ids(task_ids):

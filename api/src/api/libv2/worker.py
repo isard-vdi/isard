@@ -17,10 +17,11 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from api.libv2.redis_base import RedisBase
 from gevent import Greenlet
 from rq import Worker as RqWorker
 from rq.worker import StopRequested
+
+from .._common.redis_base import RedisBase
 
 
 class RqWorkerGreenlet(RqWorker):
