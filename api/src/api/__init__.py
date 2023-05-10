@@ -119,6 +119,7 @@ from .views import (
     UsersView,
     VpnViews,
     maintenance,
+    socketio_emit,
     storage_node,
     task,
 )
