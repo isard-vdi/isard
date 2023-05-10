@@ -11,7 +11,6 @@ from api import app
 
 from ... import socketio
 from ..flask_rethink import RDB
-from ..log import log
 
 r = RethinkDB()
 
@@ -63,8 +62,8 @@ class BookingsThread(threading.Thread):
                             room=user,
                         )
                         # Emit event to item room
-                        log.error("SENDING: bookingitem_" + event)
-                        log.error("TO: " + user)
+                        app.logger.error("SENDING: bookingitem_" + event)
+                        app.logger.error("TO: " + user)
                         socketio.emit(
                             "bookingitem_" + event,
                             json.dumps(booking),
@@ -101,12 +100,12 @@ class BookingsThread(threading.Thread):
                             )
             except ReqlDriverError:
                 print("BookingsThread: Rethink db connection lost!")
-                log.error("BookingsThread: Rethink db connection lost!")
+                app.logger.error("BookingsThread: Rethink db connection lost!")
                 time.sleep(0.5)
             except Exception:
                 print("BookingsThread internal error: restarting")
-                log.error("BookingsThread internal error: restarting")
-                log.error(traceback.format_exc())
+                app.logger.error("BookingsThread internal error: restarting")
+                app.logger.error(traceback.format_exc())
                 time.sleep(2)
 
 
@@ -118,4 +117,4 @@ def start_bookings_thread():
         threads["bookings"] = BookingsThread()
         threads["bookings"].daemon = True
         threads["bookings"].start()
-        log.info("BookingsThread Started")
+        app.logger.info("BookingsThread Started")

@@ -17,7 +17,6 @@ import traceback
 from rethinkdb.errors import ReqlDriverError
 
 from .flask_rethink import RDB
-from .log import log
 
 db = RDB(app)
 db.init_app(app)
@@ -55,16 +54,16 @@ class SecretsThread(threading.Thread):
 
             except ReqlDriverError:
                 print("SecretsThread: Rethink db connection lost!")
-                log.error("SecretsThread: Rethink db connection lost!")
+                app.logger.error("SecretsThread: Rethink db connection lost!")
                 time.sleep(0.5)
             except Exception:
                 print("SecretsThread internal error: restarting")
-                log.error("SecretsThread internal error: restarting")
-                log.error(traceback.format_exc())
+                app.logger.error("SecretsThread internal error: restarting")
+                app.logger.error(traceback.format_exc())
                 time.sleep(2)
 
         print("SecretsThread ENDED!!!!!!!")
-        log.error("SecretsThread ENDED!!!!!!!")
+        app.logger.error("SecretsThread ENDED!!!!!!!")
 
 
 def start_secrets_thread():
@@ -75,4 +74,4 @@ def start_secrets_thread():
         threads["secrets"] = SecretsThread()
         threads["secrets"].daemon = True
         threads["secrets"].start()
-        log.info("SecretsThread Started")
+        app.logger.info("SecretsThread Started")

@@ -21,3 +21,4 @@ cachetools
 # https://github.com/rq/rq/pull/1837
 https://github.com/sim6/rq/archive/check_dependencies_when_enqueue_via_Queue.enqueue_job.tar.gz
 betterproto~=1.2
+python-json-logger
