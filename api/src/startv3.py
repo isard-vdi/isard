@@ -4,8 +4,6 @@ monkey.patch_all()
 
 import logging
 import os
-import signal
-import sys
 
 import api.libv2.log
 from api.libv2 import (
@@ -40,5 +38,4 @@ if __name__ == "__main__":
     api_admin_socketio.start_config_thread()
     api_admin_socketio.start_resources_thread()
 
-    signal.signal(signal.SIGTERM, lambda *args: sys.exit(0))
     socketio.run(app, host="0.0.0.0", port=5000, debug=debug, log_output=debug)
