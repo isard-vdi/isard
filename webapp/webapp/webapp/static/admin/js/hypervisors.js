@@ -185,7 +185,7 @@ $(document).ready(function() {
         // RAM
         "targets": 7,
         "render": function(data, type, full, meta) {
-          if (!("stats" in full)) { return "-% " + memTotalGB + 'GB' }
+          if (!("stats" in full)) { return '<i class="fa fa-spinner fa-lg fa-spin"></i>' }
           if (!("min_free_mem_gb" in full)) { full.min_free_mem_gb = 0 }
           mem_used=(full.stats.mem_stats.total - full.stats.mem_stats.available)
           perc=mem_used*100/full.stats.mem_stats.total
@@ -197,7 +197,7 @@ $(document).ready(function() {
         "targets": 8,
         "render": function(data, type, full, meta) {
           if (full.info) {
-            if (!("stats" in full)) { return full.info.cpu_cores+"c/"+full.info.cpu_cores * full.info.threads_x_core+"th" }
+            if (!("stats" in full)) { return '<i class="fa fa-spinner fa-lg fa-spin"></i>' }
             return full.info.cpu_cores+"c/"+full.info.cpu_cores * full.info.threads_x_core+"th "+renderProgress(Math.round(full.stats.cpu_1min.used),20,40)
           }
         }
@@ -247,7 +247,7 @@ $(document).ready(function() {
       },
     ],
     "rowCallback": function(row, data, dataIndex) {
-      if (!("stats" in data)) { return "-% " + memTotalGB + 'GB' }
+      if (!("stats" in data)) { return '<i class="fa fa-spinner fa-lg fa-spin"></i>'}
       if (!("min_free_mem_gb" in data)) { data.min_free_mem_gb = 0 }
       mem_used=(data.stats.mem_stats.total - data.stats.mem_stats.available)
       perc=mem_used*100/data.stats.mem_stats.total

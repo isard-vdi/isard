@@ -55,7 +55,7 @@ $(document).ready(function() {
         // RAM
         "targets": 2,
         "render": function(data, type, full, meta) {
-          if (!("stats" in full)) { return "-% " + memTotalGB + 'GB' }
+          if (!("stats" in full)) { return '<i class="fa fa-spinner fa-lg fa-spin"></i>' }
           if (!("min_free_mem_gb" in full)) { full.min_free_mem_gb = 0 }
           mem_used=(full.stats.mem_stats.total - full.stats.mem_stats.available)
           perc=mem_used*100/full.stats.mem_stats.total
@@ -67,7 +67,7 @@ $(document).ready(function() {
         "targets": 3,
         "render": function(data, type, full, meta) {
           if (full.info) {
-            if (!("stats" in full)) { return full.info.cpu_cores+"c/"+full.info.cpu_cores * full.info.threads_x_core+"th" }
+            if (!("stats" in full)) { return '<i class="fa fa-spinner fa-lg fa-spin"></i>' }
             return full.info.cpu_cores+"c/"+full.info.cpu_cores * full.info.threads_x_core+"th "+renderProgress(Math.round(full.stats.cpu_1min.used),20,40)
           }
         }
