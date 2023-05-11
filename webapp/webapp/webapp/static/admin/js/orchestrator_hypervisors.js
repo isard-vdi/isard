@@ -68,7 +68,7 @@ $(document).ready(function() {
         "render": function(data, type, full, meta) {
           if (full.info) {
             if (!("stats" in full)) { return full.info.cpu_cores+"c/"+full.info.cpu_cores * full.info.threads_x_core+"th" }
-            return full.info.cpu_cores+"c/"+full.info.cpu_cores * full.info.threads_x_core+"th "+renderProgress(Math.round(full.stats.cpu_current.used),20,40)
+            return full.info.cpu_cores+"c/"+full.info.cpu_cores * full.info.threads_x_core+"th "+renderProgress(Math.round(full.stats.cpu_1min.used),20,40)
           }
         }
       },

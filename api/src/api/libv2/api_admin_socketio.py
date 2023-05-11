@@ -555,7 +555,7 @@ class HypervisorsThread(threading.Thread):
                                 {
                                     "stats": {
                                         "mem_stats": {"total": True, "available": True},
-                                        "cpu_current": {"used": True},
+                                        "cpu_1min": {"used": True},
                                     }
                                 },
                                 {"vpn": {"wireguard": {"connected": True}}},
