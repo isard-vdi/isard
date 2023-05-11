@@ -9,6 +9,9 @@ import shutil
 from flask import Flask, render_template, send_from_directory
 
 app = Flask(__name__, static_url_path="")
+
+import api.libv2.log
+
 app.url_map.strict_slashes = False
 
 APP_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -82,8 +85,8 @@ socketio = SocketIO(
     app,
     path="/api/v3/socket.io/",
     cors_allowed_origins="*",
-    logger=debug,
-    engineio_logger=debug,
+    logger=app.logger if debug else False,
+    engineio_logger=app.logger if debug else False,
 )
 
 import logging as log

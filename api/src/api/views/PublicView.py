@@ -11,7 +11,6 @@ from api import app
 
 from .._common.api_exceptions import Error
 from ..libv2.api_users import ApiUsers
-from ..libv2.log import log
 
 users = ApiUsers()
 

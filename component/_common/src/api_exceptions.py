@@ -158,7 +158,7 @@ class Error(Exception):
         self.status_code = ex[error]["status_code"]
         self.content_type = content_type
         self.error["params"] = params
-        log.debug(
+        app.logger.debug(
             "%s - %s - [%s -> %s]\r\n%s\r\n%s\r\n%s"
             % (
                 error,

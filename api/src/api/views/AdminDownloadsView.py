@@ -10,7 +10,6 @@ from api import app
 from .._common.api_exceptions import Error
 from ..libv2.api_admin import admin_table_delete, admin_table_insert, admin_table_update
 from ..libv2.api_downloads import Downloads
-from ..libv2.log import log
 from .decorators import is_admin
 
 downloads = Downloads()
@@ -34,7 +33,7 @@ def admin_updates_register():
             if not downloads.is_registered():
                 downloads.register()
         except Exception as e:
-            log.error("Error registering client: " + str(e))
+            app.logger.error("Error registering client: " + str(e))
             # ~ return False
     if not downloads.is_conected():
         raise Error(

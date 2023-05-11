@@ -7,6 +7,7 @@ import os
 import signal
 import sys
 
+import api.libv2.log
 from api.libv2 import (
     api_admin_socketio,
     api_socketio_deployments,

@@ -18,7 +18,6 @@ import traceback
 from rethinkdb.errors import ReqlDriverError
 
 from .flask_rethink import RDB
-from .log import log
 
 db = RDB(app)
 db.init_app(app)
@@ -176,14 +175,16 @@ class DomainsThread(threading.Thread):
 
             except ReqlDriverError:
                 print("DomainsThread: Rethink db connection lost!")
-                log.error("DomainsThread: Rethink db connection lost!")
+                app.logger.error("DomainsThread: Rethink db connection lost!")
                 time.sleep(0.5)
             except Exception as e:
                 print("DomainsThread internal error: \n" + traceback.format_exc())
-                log.error("DomainsThread internal error: \n" + traceback.format_exc())
+                app.logger.error(
+                    "DomainsThread internal error: \n" + traceback.format_exc()
+                )
 
         print("DomainsThread ENDED!!!!!!!")
-        log.error("DomainsThread ENDED!!!!!!!")
+        app.logger.error("DomainsThread ENDED!!!!!!!")
 
 
 def start_domains_thread():
@@ -194,7 +195,7 @@ def start_domains_thread():
         threads["domains"] = DomainsThread()
         threads["domains"].daemon = True
         threads["domains"].start()
-        log.info("DomainsThread Started")
+        app.logger.info("DomainsThread Started")
 
 
 ## MEDIA Threading
@@ -292,14 +293,16 @@ class MediaThread(threading.Thread):
                         )
             except ReqlDriverError:
                 print("MediaThread: Rethink db connection lost!")
-                log.error("MediaThread: Rethink db connection lost!")
+                app.logger.error("MediaThread: Rethink db connection lost!")
                 time.sleep(5)
             except Exception as e:
                 print("MediaThread internal error: \n" + traceback.format_exc())
-                log.error("MediaThread internal error: \n" + traceback.format_exc())
+                app.logger.error(
+                    "MediaThread internal error: \n" + traceback.format_exc()
+                )
 
         print("MediaThread ENDED!!!!!!!")
-        log.error("MediaThread ENDED!!!!!!!")
+        app.logger.error("MediaThread ENDED!!!!!!!")
 
 
 def start_media_thread():
@@ -310,7 +313,7 @@ def start_media_thread():
         threads["media"] = MediaThread()
         threads["media"].daemon = True
         threads["media"].start()
-        log.info("MediaThread Started")
+        app.logger.info("MediaThread Started")
 
 
 ## RESOURCES Threading
@@ -382,11 +385,13 @@ class ResourcesThread(threading.Thread):
                         )
             except ReqlDriverError:
                 print("ResourcesThread: Rethink db connection lost!")
-                log.error("ResourcesThread: Rethink db connection lost!")
+                app.logger.error("ResourcesThread: Rethink db connection lost!")
                 time.sleep(6)
             except Exception as e:
                 print("ResourcesThread internal error: \n" + traceback.format_exc())
-                log.error("ResourcesThread internal error: \n" + traceback.format_exc())
+                app.logger.error(
+                    "ResourcesThread internal error: \n" + traceback.format_exc()
+                )
 
 
 def start_resources_thread():
@@ -397,7 +402,7 @@ def start_resources_thread():
         threads["resources"] = ResourcesThread()
         threads["resources"].daemon = True
         threads["resources"].start()
-        log.info("ResourcesThread Started")
+        app.logger.info("ResourcesThread Started")
 
 
 ## Users Threading
@@ -514,11 +519,13 @@ class UsersThread(threading.Thread):
 
             except ReqlDriverError:
                 print("UsersThread: Rethink db connection lost!")
-                log.error("UsersThread: Rethink db connection lost!")
+                app.logger.error("UsersThread: Rethink db connection lost!")
                 time.sleep(2)
             except Exception as e:
                 print("UsersThread internal error: \n" + traceback.format_exc())
-                log.error("UsersThread internal error: \n" + traceback.format_exc())
+                app.logger.error(
+                    "UsersThread internal error: \n" + traceback.format_exc()
+                )
 
 
 def start_users_thread():
@@ -529,7 +536,7 @@ def start_users_thread():
         threads["users"] = UsersThread()
         threads["users"].daemon = True
         threads["users"].start()
-        log.info("UsersThread Started")
+        app.logger.info("UsersThread Started")
 
 
 ## Hypervisors Threading
@@ -625,11 +632,11 @@ class HypervisorsThread(threading.Thread):
                             )
             except ReqlDriverError:
                 print("HypervisorsThread: Rethink db connection lost!")
-                log.error("HypervisorsThread: Rethink db connection lost!")
+                app.logger.error("HypervisorsThread: Rethink db connection lost!")
                 time.sleep(2)
             except Exception as e:
                 print("HypervisorsThread internal error: \n" + traceback.format_exc())
-                log.error(
+                app.logger.error(
                     "HypervisorsThread internal error: \n" + traceback.format_exc()
                 )
 
@@ -642,7 +649,7 @@ def start_hypervisors_thread():
         threads["hypervisors"] = HypervisorsThread()
         threads["hypervisors"].daemon = True
         threads["hypervisors"].start()
-        log.info("HypervisorsThread Started")
+        app.logger.info("HypervisorsThread Started")
 
 
 ## Config Threading
@@ -707,11 +714,13 @@ class ConfigThread(threading.Thread):
                         # ~ room='config')
             except ReqlDriverError:
                 print("ConfigThread: Rethink db connection lost!")
-                log.error("ConfigThread: Rethink db connection lost!")
+                app.logger.error("ConfigThread: Rethink db connection lost!")
                 time.sleep(15)
             except Exception as e:
                 print("ConfigThread internal error: \n" + traceback.format_exc())
-                log.error("ConfigThread internal error: \n" + traceback.format_exc())
+                app.logger.error(
+                    "ConfigThread internal error: \n" + traceback.format_exc()
+                )
 
 
 def start_config_thread():
@@ -722,25 +731,25 @@ def start_config_thread():
         threads["config"] = ConfigThread()
         threads["config"].daemon = True
         threads["config"].start()
-        log.info("ConfigThread Started")
+        app.logger.info("ConfigThread Started")
 
 
 ## Admin namespace CONNECT
 @socketio.on("connect", namespace="/administrators")
 def socketio_admins_connect():
     try:
-        log.debug(request.args)
+        app.logger.debug(request.args)
         payload = get_token_payload(request.args.get("jwt"))
     except Exception as e:
-        log.error(traceback.format_exc())
+        app.logger.error(traceback.format_exc())
     try:
         join_room(payload["user_id"])
         if payload["role_id"] == "admin":
             join_room("admins")
-            log.debug("USER: " + payload["user_id"] + " JOINED ADMIN ROOM")
+            app.logger.debug("USER: " + payload["user_id"] + " JOINED ADMIN ROOM")
         if payload["role_id"] == "manager":
             join_room(payload["category_id"])
-            log.debug(
+            app.logger.debug(
                 "USER: "
                 + payload["user_id"]
                 + " JOINED MANAGER "
@@ -754,15 +763,15 @@ def socketio_admins_connect():
             room=payload["user_id"],
         )
     except Exception as e:
-        log.error(traceback.format_exc())
+        app.logger.error(traceback.format_exc())
 
 
 @socketio.on("disconnect", namespace="/administrators")
 def socketio_admins_disconnect():
     leave_room("admins")
     try:
-        log.debug("Here we should leave rooms...")
+        app.logger.debug("Here we should leave rooms...")
         # leave_room("user_" + current_user.id)
     except Exception as e:
-        log.debug(e)
-        log.debug("USER leaved without disconnect")
+        app.logger.debug(e)
+        app.logger.debug("USER leaved without disconnect")
