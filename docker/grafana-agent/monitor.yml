@@ -1,0 +1,11 @@
+metrics:
+  configs:
+    - name: agent-monitor
+      scrape_configs:
+        - job_name: haproxy-monitor
+          static_configs:
+            - targets: ['isard-monitor-proxy:9090']
+              labels:
+                domain: ${DOMAIN}
+      remote_write:
+        - url: ${PROMETHEUS_ADDRESS}/api/v1/write

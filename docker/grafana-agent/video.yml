@@ -1,0 +1,11 @@
+metrics:
+  configs:
+    - name: agent-video
+      scrape_configs:
+        - job_name: haproxy-video
+          static_configs:
+            - targets: ['isard-video:9090']
+              labels:
+                domain: ${DOMAIN}
+      remote_write:
+        - url: ${PROMETHEUS_ADDRESS}/api/v1/write
