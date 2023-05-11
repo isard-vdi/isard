@@ -114,7 +114,7 @@
                 </p>
               </template>
               <template #cell(actions)="data">
-                <div class="d-flex justify-content-center align-items-center">
+                <div class="d-flex align-items-center">
                   <b-button
                     class="rounded-circle btn btn-red px-2 mr-2"
                     :title="$t('components.statusbar.deployment.buttons.delete.title')"
