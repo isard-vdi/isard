@@ -175,7 +175,7 @@
 
                 <!-- Main action button persistent-->
                 <span
-                  v-b-tooltip.hover="{ title: `${getTooltipTitle(data.item.nextBookingStart, data.item.nextBookingEnd)}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
+                  v-b-tooltip.hover="data.item.needsBooking ? { title: `${getTooltipTitle(data.item.nextBookingStart, data.item.nextBookingEnd)}`, placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' } : ''"
                 >
                   <DesktopButton
                     v-if="(data.item.type === 'persistent' || (data.item.type === 'nonpersistent' && data.item.state && getItemState(data.item) === desktopStates.stopped )) && ![desktopStates.working, desktopStates.downloading].includes(getItemState(data.item))"
