@@ -84,7 +84,9 @@ services:
     image: grafana/agent:v0.24.2
     volumes:
       - ${BUILD_ROOT_PATH}/docker/grafana-agent/config.yml:/etc/agent/config.yml
-      - ${BUILD_ROOT_PATH}/docker/grafana-agent/db.yml:/etc/agent/db.yml
+      - ${BUILD_ROOT_PATH}/docker/grafana-agent/web.yml:/etc/agent/web.yml
+      - ${BUILD_ROOT_PATH}/docker/grafana-agent/video.yml:/etc/agent/video.yml
+      - ${BUILD_ROOT_PATH}/docker/grafana-agent/monitor.yml:/etc/agent/monitor.yml
       - ${BUILD_ROOT_PATH}/docker/grafana-agent/run.sh:/run.sh
       - /var/log:/var/log
       - /var/lib/docker/containers:/var/lib/docker/containers
