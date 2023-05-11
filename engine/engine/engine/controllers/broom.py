@@ -49,8 +49,6 @@ class ThreadBroom(threading.Thread):
         self.stop = False
 
     def polling(self):
-        cpu_stats_previous = {}
-        cpu_stats_5min_previous = {}
         disk_interval = 0
         while self.stop is not True:
             try:
@@ -118,8 +116,6 @@ class ThreadBroom(threading.Thread):
                                 )
                             )
                         else:
-                            previous = time()
-
                             h = hyp(hostname, user=user, port=port)
                             if h.connected:
                                 hyps_domain_started[hyp_id] = {}
@@ -199,24 +195,19 @@ class ThreadBroom(threading.Thread):
 
                                 # Update the current hypervisor memory and CPU usage in the DB
                                 try:
-                                    if not cpu_stats_previous.get(hyp_id, False):
-                                        cpu_stats_previous[hyp_id] = {}
-
-                                    if not cpu_stats_5min_previous.get(hyp_id, False):
-                                        cpu_stats_5min_previous[hyp_id] = OrderedDict()
-
-                                    h.get_system_stats(
-                                        cpu_stats_previous[hyp_id],
-                                        cpu_stats_5min_previous[hyp_id],
+                                    h.get_system_stats()
+                                    update_table_field(
+                                        "hypervisors",
+                                        hyp_id,
+                                        "stats",
+                                        h.stats,
+                                        soft=True,
+                                    )
+                                except Exception as e:
+                                    logs.broom.error(
+                                        "HYPERVISOR {} libvirt stats connection failed"
                                     )
 
-                                except Exception as e:
-                                    h.disconnect()
-                                    continue
-
-                                update_table_field(
-                                    "hypervisors", hyp_id, "stats", h.stats, soft=True
-                                )
                                 if disk_interval == 1:
                                     update_table_dict(
                                         "hypervisors",

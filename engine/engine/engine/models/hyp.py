@@ -14,7 +14,6 @@ import threading
 import time
 import traceback
 import uuid
-from collections import OrderedDict, deque
 from copy import deepcopy
 from datetime import datetime
 from io import StringIO
@@ -118,6 +117,91 @@ devid_nvidia_ampere[0x20F3] = "A800-SXM4-80GB"
 devid_nvidia_ampere[0x2331] = "H100 PCIe"
 
 
+class HypStats(object):
+    def __init__(self):
+        self.hyper_stats_history = {}
+        self.hyper_stats_current = {}
+        self.hyper_libvirt_last_stats = {}
+
+    def get_stats(self, hyp_id, minutes=0):
+        if minutes == 0:
+            if hyp_id not in self.hyper_stats_current.keys():
+                return {
+                    "memory": {
+                        "available": 0,
+                        "buffers": 0,
+                        "cached": 0,
+                        "free": 0,
+                        "total": 0,
+                    },
+                    "cpu": {
+                        "idle": 100.0,
+                        "iowait": 0.0,
+                        "kernel": 0.0,
+                        "user": 0.0,
+                    },
+                }
+            else:
+                return self.hyper_stats_current[hyp_id]
+        # Get dicts in self.stats_previous["history"] which keys are less than 1 minutes
+        minutes_keys = [
+            self.hyper_stats_history[hyp_id][k]
+            for k in self.hyper_stats_history[hyp_id].keys()
+            if time.time() - k < minutes * 60
+        ]
+        # Get dict of means of all values in cpu_1min_keys dicts
+        cpu_minutes_mean = {
+            kk: round(
+                sum([vv["cpu"][kk] for vv in minutes_keys]) / len(minutes_keys), 3
+            )
+            for kk in minutes_keys[0]["cpu"].keys()
+        }
+        memory_minutes_mean = {
+            kk: round(
+                sum([vv["memory"][kk] for vv in minutes_keys]) / len(minutes_keys), 0
+            )
+            for kk in minutes_keys[0]["memory"].keys()
+        }
+        self.remove_old_stats(hyp_id=hyp_id)
+        return {"memory": memory_minutes_mean, "cpu": cpu_minutes_mean}
+
+    def remove_old_stats(self, hyp_id=None, minutes=20):
+        if hyp_id is None:
+            for hyper in self.hyper_stats_history.keys():
+                for key in list(self.hyper_stats_history[hyper].keys()):
+                    if time.time() - key >= minutes * 60:
+                        del self.hyper_stats_history[hyper][key]
+        else:
+            for key in list(self.hyper_stats_history[hyp_id].keys()):
+                if time.time() - key >= minutes * 60:
+                    del self.hyper_stats_history[hyp_id][key]
+
+    def set_stats(self, hyp_id, memory, cpu):
+        memory["available"] = memory["free"] + memory["cached"]
+        current_libvirt_stats = {"memory": memory, "cpu": cpu}
+        if hyp_id not in self.hyper_libvirt_last_stats.keys():
+            cpu_current, _, _ = calcule_cpu_hyp_stats(
+                self.get_stats(hyp_id=hyp_id)["cpu"], current_libvirt_stats["cpu"]
+            )
+            self.hyper_stats_current[hyp_id] = {"memory": memory, "cpu": cpu_current}
+            self.hyper_stats_history[hyp_id] = {
+                time.time(): self.hyper_stats_current[hyp_id]
+            }
+        else:
+            cpu_current, _, _ = calcule_cpu_hyp_stats(
+                self.hyper_libvirt_last_stats[hyp_id]["cpu"],
+                current_libvirt_stats["cpu"],
+            )
+            self.hyper_stats_current[hyp_id] = {"memory": memory, "cpu": cpu_current}
+            self.hyper_stats_history[hyp_id][time.time()] = self.hyper_stats_current[
+                hyp_id
+            ]
+        self.hyper_libvirt_last_stats[hyp_id] = current_libvirt_stats
+
+
+hyp_stats = HypStats()
+
+
 class hyp(object):
     """
     operates with hypervisor
@@ -152,7 +236,6 @@ class hyp(object):
         self.eventLoopThread = None
         self.info = {}
         self.stats = {}
-        self.stats_previous = {"cpu": {}, "cpu_5min": OrderedDict()}
         self.nvidia_enabled = nvidia_enabled
         self.info_nvidia = {}
         self.mdevs = {}
@@ -804,57 +887,31 @@ class hyp(object):
         # nested virtualization
         self.info["nested"] = self.get_nested()
 
-    def get_system_stats(self, cpu_stats_previous=None, cpu_stats_5min_previous=None):
-        start = time.time()
-
-        if cpu_stats_previous:
-            self.stats_previous["cpu"] = cpu_stats_previous
-
-        if cpu_stats_5min_previous:
-            self.stats_previous["cpu_5min"] = cpu_stats_5min_previous
-
+    def get_system_stats(self):
         try:
-            mem_stats = self.conn.getMemoryStats(-1)
-            mem_stats["available"] = mem_stats["free"] + mem_stats["cached"]
-
-            # If there are no previous CPU readings, read and wait 2 seconds to be able to compare it
-            if not len(self.stats_previous.get("cpu", {})):
-                cpu_stats = self.conn.getCPUStats(-1)
-                self.stats_previous["cpu"].update(cpu_stats)
-                self.stats_previous["cpu_5min"][start] = cpu_stats
-
-                time.sleep(2)
-
-            now = time.time()
-            cpu_stats = self.conn.getCPUStats(-1)
-
-            cpu_current, _, _ = calcule_cpu_hyp_stats(
-                self.stats_previous["cpu"], cpu_stats
-            )
-            self.stats_previous["cpu"].update(cpu_stats)
-
-            oldest = None
-            to_delete = []
-            for key, value in self.stats_previous["cpu_5min"].items():
-                # If the stat is older than 5 minutes, remove it
-                if now - key >= 5 * 60:
-                    to_delete.append(key)
-                    continue
-
-                # Get the oldest value (since it's an ordered dict) and stop the loop
-                oldest = value
-                break
-
-            for key in to_delete:
-                del self.stats_previous["cpu_5min"][key]
-
-            self.stats_previous["cpu_5min"][now] = cpu_stats
-            cpu_5min_current, _, _ = calcule_cpu_hyp_stats(oldest, cpu_stats)
-
-            self.stats["mem_stats"] = mem_stats
-            self.stats["cpu_current"] = cpu_current
-            self.stats["cpu_5min"] = cpu_5min_current
-            self.stats["time"] = round(time.time() - start, 3)
+            start = time.time()
+            memory = self.conn.getMemoryStats(-1)
+            cpu = self.conn.getCPUStats(-1)
+            hyp_stats.set_stats(self.id_hyp_rethink, memory, cpu)
+            self.stats = {
+                "mem_stats": hyp_stats.get_stats(self.id_hyp_rethink)["memory"],
+                "mem_stats_1min": hyp_stats.get_stats(self.id_hyp_rethink, minutes=1)[
+                    "memory"
+                ],
+                "mem_stats_5min": hyp_stats.get_stats(self.id_hyp_rethink, minutes=5)[
+                    "memory"
+                ],
+                "mem_stats_15min": hyp_stats.get_stats(self.id_hyp_rethink, minutes=15)[
+                    "memory"
+                ],
+                "cpu_current": hyp_stats.get_stats(self.id_hyp_rethink)["cpu"],
+                "cpu_1min": hyp_stats.get_stats(self.id_hyp_rethink, minutes=1)["cpu"],
+                "cpu_5min": hyp_stats.get_stats(self.id_hyp_rethink, minutes=5)["cpu"],
+                "cpu_15min": hyp_stats.get_stats(self.id_hyp_rethink, minutes=15)[
+                    "cpu"
+                ],
+                "time": round(time.time() - start, 3),
+            }
 
         except Exception as e:
             log.error(
