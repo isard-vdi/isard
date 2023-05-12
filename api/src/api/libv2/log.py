@@ -43,6 +43,9 @@ def parse_data(request):
     if request.method not in ["POST", "PUT"]:
         return data
 
+    if type(data) is not dict:
+        return data
+
     if data.get("password"):
         data["password"] = "****"
         return data
