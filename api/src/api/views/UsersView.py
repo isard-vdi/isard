@@ -126,24 +126,22 @@ def api_v3_user_owns_desktop(payload):
     if payload.get("desktop_id"):
         return json.dumps({}), 200, {"Content-Type": "application/json"}
     else:
-        try:
-            ip = request.form.get("ip", False)
-        except:
-            raise Error(
-                "bad_request",
-                "Missing parameters.",
-                traceback.format_exc(),
-                description_code="bad_request",
-            )
-
-        if ip == False:
-            raise Error(
-                "bad_request",
-                "Incorrect access parameters",
-                traceback.format_exc(),
-            )
-        users.OwnsDesktop(payload["user_id"], ip)
-        return json.dumps({}), 200, {"Content-Type": "application/json"}
+        ip = request.form.get("ip", False)
+        if ip:
+            users.OwnsDesktop(payload["user_id"], ip)
+            return json.dumps({}), 200, {"Content-Type": "application/json"}
+        else:
+            proxy_hyper_host = request.form.get("proxy_hyper_host", False)
+            port = request.form.get("port", False)
+            if not proxy_hyper_host or not port:
+                raise Error(
+                    "bad_request",
+                    "Missing or incorrect parameters.",
+                    traceback.format_exc(),
+                    description_code="bad_request",
+                )
+            users.OwnsDesktopHyperPort(payload["user_id"], proxy_hyper_host, port)
+            return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
 # Update user name

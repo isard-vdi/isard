@@ -861,6 +861,32 @@ class ApiUsers:
             traceback.format_exc(),
         )
 
+    def OwnsDesktopHyperPort(self, user_id, proxy_hyper_host, port):
+        with app.app_context():
+            domains = list(
+                r.table("domains")
+                .get_all(user_id, index="user")
+                .pluck({"viewer": {"proxy_hyper_host", "base_port"}})
+                .run(db.conn)
+            )
+        # Get domain which matches proxy_hyper_host and base_port <= port <= base_port + 3
+        if len(
+            [
+                domain
+                for domain in domains
+                if domain.get("viewer", False)
+                and domain["viewer"].get("proxy_hyper_host", False) == proxy_hyper_host
+                and domain["viewer"].get("base_port", False) <= int(port)
+                and domain["viewer"].get("base_port", False) + 3 >= int(port)
+            ]
+        ):
+            return True
+        raise Error(
+            "forbidden",
+            "Forbidden access to desktop viewer",
+            traceback.format_exc(),
+        )
+
     def CodeSearch(self, code):
         with app.app_context():
             found = list(
