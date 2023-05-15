@@ -46,7 +46,7 @@ class ApiDesktopsCommon:
     def __init__(self):
         None
 
-    def DesktopViewer(self, desktop_id, protocol, get_cookie=False):
+    def DesktopViewer(self, desktop_id, protocol, get_cookie=False, admin_role=False):
         if protocol in ["url", "file"]:
             direct_protocol = protocol
             protocol = "browser-vnc"
@@ -54,7 +54,7 @@ class ApiDesktopsCommon:
             direct_protocol = False
 
         viewer_txt = isardviewer.viewer_data(
-            desktop_id, protocol=protocol, get_cookie=get_cookie
+            desktop_id, protocol=protocol, get_cookie=get_cookie, admin_role=admin_role
         )
 
         with app.app_context():
