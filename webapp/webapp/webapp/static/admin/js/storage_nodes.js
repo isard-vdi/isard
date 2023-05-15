@@ -28,7 +28,6 @@ function socketio_on () {
     })
 }
 $(document).ready(function () {
-    $('.admin-status').show()
     table = $('#storage_nodes').DataTable({
         "ajax": {
             "url": "/admin/table/storage_node",

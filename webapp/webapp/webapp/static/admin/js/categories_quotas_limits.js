@@ -152,7 +152,6 @@ $(document).ready(function() {
     function initCategorySockets() {
         socket.on('categories_data', function (data) {
             categories_table.ajax.reload()
-            socket.emit('user_quota','')
         });
 
         socket.on('categories_delete', function (data) {

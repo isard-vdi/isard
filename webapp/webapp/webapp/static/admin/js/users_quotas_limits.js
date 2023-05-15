@@ -15,7 +15,6 @@ $(document).ready(function() {
         'transports': ['websocket']
     });
 
-    $('.admin-status').show()
     $template = $(".template-detail-users");
 
     users_table=$('#users').DataTable( {
@@ -229,12 +228,6 @@ function initUsersSockets () {
 
     socket.on('connect_error', function(data) {
       connection_lost();
-    });
-
-    socket.on('user_quota', function(data) {
-        console.log('Quota update')
-        var data = JSON.parse(data);
-        drawUserQuota(data);
     });
 
     socket.on('users_data', function(data) {

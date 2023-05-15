@@ -30,8 +30,7 @@
     </ul>
     {% endif %}
 
-    {% if current_user.role == 'manager' %}
-    <div class="panel-body admin-status" style="display:none">
+    <div class="panel-body manager-status" style="display:none">
       <div class="alert alert-success">
         <div class="container">
           <p>
@@ -75,11 +74,10 @@
             <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
               <div class="limits-users-bar progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
             </div>
-          </p>                                                                                                                                                                
+          </p>
         </div>
       </div>
     </div>
-    {% endif %}
 
     {% if current_user.role == 'admin'  and current_user.role != 'manager' %}
     <h3>Administrator</h3>
@@ -126,7 +124,6 @@
       </ul>
     {% endif %}
 
-    {% if current_user.role == 'admin' %}
     <div class="panel-body admin-status" style="display:none">
       <div class="alert alert-success">
         <div class="container">
@@ -175,7 +172,6 @@
         </div>
       </div>
     </div>
-    {% endif %}
 
     <ul class="nav side-menu">
       <li><a href="/isard-admin/about"><i class="fa fa-question"></i> About</span></a>

@@ -13,7 +13,6 @@ $(document).on('shown.bs.modal', '#modalAddDesktop', function () {
 }); 
 
 $(document).ready(function() {
-    $('.admin-status').hide()
     user['role']=$('#user-data').data("role");
     $('.btn-delete-template').remove()
     modal_add_desktops = $('#modal_add_desktops').DataTable()

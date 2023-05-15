@@ -34,10 +34,6 @@ threads = {}
 from flask import request
 
 from .._common.tokens import get_token_payload
-from .quotas_process import QuotasProcess
-
-quotas = QuotasProcess()
-
 from .api_admin import ApiAdmin
 from .api_logging import logs_domain_start_engine, logs_domain_stop_engine
 
@@ -146,12 +142,6 @@ class DomainsThread(threading.Thread):
                                 event = "template_data"
                             user = data.pop("user")
                             category = data.pop("category")
-                        # socketio.emit(
-                        #     "user_quota",
-                        #     json.dumps(quotas.get(data["user"])),
-                        #     namespace="/administrators",
-                        #     room=data["user"],
-                        # )
                         socketio.emit(
                             event,
                             json.dumps(data),
@@ -267,12 +257,6 @@ class MediaThread(threading.Thread):
                             data = c["new_val"]
                             event = c["new_val"]["table"] + "_data"
 
-                        socketio.emit(
-                            "user_quota",
-                            json.dumps(quotas.get(data["user"])),
-                            namespace="/administrators",
-                            room=data["user"],
-                        )
                         socketio.emit(
                             event,
                             json.dumps(data),
@@ -501,21 +485,6 @@ class UsersThread(threading.Thread):
                                 namespace="/administrators",
                                 room=category,
                             )
-
-                        socketio.emit(
-                            "user_quota",
-                            json.dumps(quotas.get(False, admin=True)),
-                            namespace="/administrators",
-                            room=category,
-                        )
-
-                        ## Admins should receive all updates on /isard-admin/admin namespace
-                        socketio.emit(
-                            "user_quota",
-                            json.dumps(quotas.get(False, admin=True)),
-                            namespace="/administrators",
-                            room="admins",
-                        )
 
             except ReqlDriverError:
                 print("UsersThread: Rethink db connection lost!")
@@ -756,12 +725,6 @@ def socketio_admins_connect():
                 + payload["category_id"]
                 + "ROOM"
             )
-        socketio.emit(
-            "user_quota",
-            json.dumps(quotas.get(payload["user_id"])),
-            namespace="/administrators",
-            room=payload["user_id"],
-        )
     except Exception as e:
         app.logger.error(traceback.format_exc())
 

@@ -23,6 +23,7 @@ from ..libv2.api_admin import (
 )
 from ..libv2.api_users import ApiUsers, Password
 from ..libv2.quotas import Quotas
+from ..libv2.quotas_process import QuotasProcess
 from ..libv2.users import *
 from ..libv2.validators import _validate_item
 
@@ -119,7 +120,6 @@ def api_v3_admin_categories_nav(payload, nav):
 @app.route("/api/v3/admin/user/<user_id>", methods=["PUT"])
 @has_token
 def api_v3_admin_user_update(payload, user_id):
-
     try:
         data = request.get_json()
     except:
@@ -235,7 +235,6 @@ def api_v3_admin_user_insert(payload):
 @app.route("/api/v3/admin/user", methods=["DELETE"])
 @has_token
 def api_v3_admin_user_delete(payload):
-
     data = request.get_json()
 
     for user in data:
@@ -326,7 +325,6 @@ def api_v3_admin_user_desktops(payload, user_id=None):
 @app.route("/api/v3/admin/users/delete/check", methods=["POST"])
 @is_admin_or_manager
 def api_v3_admin_users_delete_check(payload):
-
     data = request.get_json()
 
     desktops = []
@@ -504,7 +502,6 @@ def api_v3_admin_group_insert(payload):
 @app.route("/api/v3/admin/group/<group_id>", methods=["PUT"])
 @has_token
 def api_v3_admin_group_update(payload, group_id):
-
     try:
         data = request.get_json()
     except:
@@ -527,7 +524,6 @@ def api_v3_admin_group_update(payload, group_id):
 @app.route("/api/v3/admin/group/enrollment", methods=["POST"])
 @is_admin_or_manager
 def api_v3_admin_group_enrollment(payload):
-
     data = request.get_json()
     ownsCategoryId(payload, users.GroupGet(data["id"])["parent_category"])
 
@@ -576,7 +572,6 @@ def api_v3_admin_groups(payload):
 @app.route("/api/v3/admin/group/<group_id>", methods=["DELETE"])
 @is_admin_or_manager
 def api_v3_admin_group_delete(group_id, payload):
-
     if payload["group_id"] == group_id:
         raise Error(
             "precondition_required",
@@ -596,7 +591,6 @@ def api_v3_admin_group_delete(group_id, payload):
 @app.route("/api/v3/admin/delete/check", methods=["POST"])
 @is_admin_or_manager
 def api_v3_admin_delete_check(payload):
-
     data = request.get_json()
 
     if data["table"] == "category":
@@ -766,7 +760,6 @@ def admin_users_validate(payload):
 @app.route("/api/v3/admin/check/group/category", methods=["POST"])
 @is_admin_or_manager
 def check_group_category(payload):
-
     data = request.get_json()
     enabled = []
 
@@ -835,4 +828,20 @@ def socketio_broadcast(payload):
         namespace="/userspace",
         broadcast=True,
         include_self=True,
+    )
+
+
+@app.route("/api/v3/admin/quotas", methods=["GET"])
+@is_admin_or_manager
+def admin_quotas(payload):
+    return (
+        json.dumps(
+            QuotasProcess().get(
+                user_id=payload.get("user_id"),
+                category_id=payload.get("category_id"),
+                role_id=payload.get("role_id"),
+            )
+        ),
+        200,
+        {"Content-Type": "application/json"},
     )

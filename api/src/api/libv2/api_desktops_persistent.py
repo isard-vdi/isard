@@ -49,17 +49,12 @@ apib = Bookings()
 api_cards = ApiCards()
 common = ApiDesktopsCommon()
 
-from ..libv2.quotas_process import QuotasProcess
 from .api_desktop_events import (
     desktop_delete,
     desktop_reset,
     desktop_stop,
     desktops_delete,
 )
-
-qp = QuotasProcess()
-
-
 from .helpers import (
     _check,
     _parse_desktop_booking,

@@ -7,7 +7,6 @@
 
 
 $(document).ready(function() {
-    $('.admin-status').hide()
     user=$('#user_data').data("userid");
 
     modal_add_install = $('#modal_add_install').DataTable()
