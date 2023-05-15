@@ -7,6 +7,7 @@
 
 import traceback
 
+from cachetools import TTLCache, cached
 from rethinkdb import RethinkDB
 
 from api import app
@@ -26,6 +27,7 @@ class QuotasProcess:
     def __init__(self):
         None
 
+    @cached(TTLCache(maxsize=10, ttl=10))
     def get(self, user_id, category_id, role_id):
         userquotas = {}
         userquotas["user"] = self.process_user_quota(user_id)
