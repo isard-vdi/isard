@@ -8,7 +8,6 @@
 var $template='';
 var table='';
 $(document).ready(function() {
-    $('.admin-status').hide()
     $template = $(".template-detail");
     table = $('#templates').DataTable({
             "ajax": {

@@ -7,8 +7,6 @@
 
 // VPN
 $(document).ready(function () {
-    $('.admin-status').show()
-
     remotevpn_table = $('#table-remotevpn').DataTable({
         "ajax": {
             "url": "/admin/table/remotevpn",

@@ -9,7 +9,6 @@ var users_table= ''
 var current_category = ''
 
 $(document).ready(function() {
-    $('.admin-status').show()
     $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
 })
 function socketio_on(){

@@ -9,7 +9,6 @@ var table = ''
 
 $(document).ready(function() {
     $template = $(".template-media-detail");
-    $('.admin-status').show()
     modal_add_install = $('#modal_add_install').DataTable()
     initialize_modal_all_install_events()
     $('.btn-new').on('click', function () {

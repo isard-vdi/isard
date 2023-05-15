@@ -30,7 +30,3 @@ socket.on('connect', function () {
 socket.on('connect_error', function (data) {
     connection_lost()
 })
-
-socket.on('user_quota', function (data) {
-    drawUserQuota(JSON.parse(data))
-})

@@ -8,7 +8,6 @@
 $hypervisor_template = $(".hyper-detail");
 
 $(document).ready(function() {
-  $('.admin-status').show();
   $('.btn-new-hyper').on('click', function() {
     $("#checkbox_add_error").hide()
     $('#modalAddHyper').modal({

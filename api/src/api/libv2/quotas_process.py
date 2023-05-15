@@ -26,27 +26,18 @@ class QuotasProcess:
     def __init__(self):
         None
 
-    def get(self, user_id=False, category_id=False, admin=False):
-        """Used by socketio to inform of user quotas"""
+    def get(self, user_id, category_id, role_id):
         userquotas = {}
-        if user_id != False:
-            if isinstance(user_id, str):
-                with app.app_context():
-                    user = r.table("users").get(user_id).run(db.conn)
-                if not user:
-                    return userquotas
-            userquotas = self.process_user_quota(user["id"])
-            if user["role"] == "manager":
-                userquotas["limits"] = self.process_category_limits(
-                    user_id, from_user_id=True
-                )
-            if user["role"] == "admin":
-                userquotas["global"] = self.get_admin_usage()
-        else:
-            if category_id != False:
-                userquotas["limits"] = self.process_category_limits(category_id)
-            if admin == True:
-                userquotas["global"] = self.get_admin_usage()
+        userquotas["user"] = self.process_user_quota(user_id)
+        if role_id == "manager":
+            userquotas["limits"] = (
+                self.process_category_limits(category_id)
+                if self.process_category_limits(category_id)
+                else self.get_manager_usage(category_id)
+            )
+        if role_id == "admin":
+            userquotas["global"] = self.get_admin_usage()
+
         return userquotas
 
     def process_user_quota(self, user_id):
@@ -434,6 +425,66 @@ class QuotasProcess:
             "u": users,
             "uq": uq,
             "uqp": int(round(qpusers, 0)),
+        }
+
+    def get_manager_usage(self, category_id):
+        with app.app_context():
+            desktops = (
+                r.table("domains")
+                .get_all(["desktop", category_id], index="kind_category")
+                .count()
+                .run(db.conn)
+            )
+            desktopsup = (
+                r.table("domains")
+                .get_all(
+                    ["desktop", "Started", category_id], index="kind_status_category"
+                )
+                .count()
+                .run(db.conn)
+            )
+            templates = (
+                r.table("domains")
+                .get_all(["template", category_id], index="kind_category")
+                .count()
+                .run(db.conn)
+            )
+            isos = (
+                r.table("media")
+                .get_all(category_id, index="category")
+                .count()
+                .run(db.conn)
+            )
+
+            starteds = (
+                r.table("domains")
+                .get_all(["Started", category_id], index="status_category")
+                .pluck("hardware")
+                .run(db.conn)
+            )
+
+            users = (
+                r.table("users")
+                .get_all(category_id, index="category")
+                .count()
+                .run(db.conn)
+            )
+
+        vcpus = 0
+        memory = 0
+        for s in starteds:
+            vcpus = vcpus + s["hardware"].get("vcpus", 0)
+            memory = memory + s["hardware"].get("memory", 0)
+        memory = memory / 1000000
+
+        return {
+            "d": desktops,
+            "r": desktopsup,
+            "t": templates,
+            "i": isos,
+            "v": vcpus,
+            "m": int(round(memory)),
+            "u": users,
         }
 
     def get_admin_usage(self):

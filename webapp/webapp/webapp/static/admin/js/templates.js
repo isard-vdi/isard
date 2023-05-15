@@ -186,7 +186,6 @@ if(url!="Desktops"){
 }
 
 $(document).ready(function() {
-    $('.admin-status').show()
     $template_domain = $(".template-detail-domain");
     $admin_template_domain = $(".admin-template-detail-domain");
 
