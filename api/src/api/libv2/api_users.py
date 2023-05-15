@@ -838,7 +838,7 @@ class ApiUsers:
         domains = desktops + templates + derivated + users + groups
         return [i for n, i in enumerate(domains) if i not in domains[n + 1 :]]
 
-    def OwnsDesktop(self, user_id, guess_ip):
+    def OwnsDesktop(self, user_id, guess_ip, manager_category=False):
         with app.app_context():
             ips = list(
                 r.table("domains")
@@ -855,13 +855,32 @@ class ApiUsers:
             ]
         ):
             return True
+        if manager_category:
+            with app.app_context():
+                ips = list(
+                    r.table("domains")
+                    .get_all(manager_category, index="category")
+                    .pluck({"viewer": "guest_ip"})
+                    .run(db.conn)
+                )
+            if len(
+                [
+                    ip
+                    for ip in ips
+                    if ip.get("viewer", False)
+                    and ip["viewer"].get("guest_ip", False) == guess_ip
+                ]
+            ):
+                return True
         raise Error(
             "forbidden",
             "Forbidden access to desktop viewer",
             traceback.format_exc(),
         )
 
-    def OwnsDesktopHyperPort(self, user_id, proxy_hyper_host, port):
+    def OwnsDesktopHyperPort(
+        self, user_id, proxy_hyper_host, port, manager_category=False
+    ):
         with app.app_context():
             domains = list(
                 r.table("domains")
@@ -881,6 +900,27 @@ class ApiUsers:
             ]
         ):
             return True
+        if manager_category:
+            with app.app_context():
+                domains = list(
+                    r.table("domains")
+                    .get_all(manager_category, index="category")
+                    .pluck({"viewer": {"proxy_hyper_host", "base_port"}})
+                    .run(db.conn)
+                )
+            # Get domain which matches proxy_hyper_host and base_port <= port <= base_port + 3
+            if len(
+                [
+                    domain
+                    for domain in domains
+                    if domain.get("viewer", False)
+                    and domain["viewer"].get("proxy_hyper_host", False)
+                    == proxy_hyper_host
+                    and domain["viewer"].get("base_port", False) <= int(port)
+                    and domain["viewer"].get("base_port", False) + 3 >= int(port)
+                ]
+            ):
+                return True
         raise Error(
             "forbidden",
             "Forbidden access to desktop viewer",

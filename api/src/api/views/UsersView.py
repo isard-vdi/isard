@@ -125,23 +125,35 @@ def api_v3_user_config(payload):
 def api_v3_user_owns_desktop(payload):
     if payload.get("desktop_id"):
         return json.dumps({}), 200, {"Content-Type": "application/json"}
-    else:
-        ip = request.form.get("ip", False)
-        if ip:
-            users.OwnsDesktop(payload["user_id"], ip)
+    if payload.get("role_id"):
+        if payload.get("role_id") == "admin":
             return json.dumps({}), 200, {"Content-Type": "application/json"}
+        if payload.get("role_id") == "manager":
+            manager_category = payload.get("category_id")
         else:
-            proxy_hyper_host = request.form.get("proxy_hyper_host", False)
-            port = request.form.get("port", False)
-            if not proxy_hyper_host or not port:
-                raise Error(
-                    "bad_request",
-                    "Missing or incorrect parameters.",
-                    traceback.format_exc(),
-                    description_code="bad_request",
-                )
-            users.OwnsDesktopHyperPort(payload["user_id"], proxy_hyper_host, port)
-            return json.dumps({}), 200, {"Content-Type": "application/json"}
+            manager_category = False
+
+    ip = request.form.get("ip", False)
+    if ip:
+        users.OwnsDesktop(payload["user_id"], ip, manager_category=manager_category)
+        return json.dumps({}), 200, {"Content-Type": "application/json"}
+    else:
+        proxy_hyper_host = request.form.get("proxy_hyper_host", False)
+        port = request.form.get("port", False)
+        if not proxy_hyper_host or not port:
+            raise Error(
+                "bad_request",
+                "Missing or incorrect parameters.",
+                traceback.format_exc(),
+                description_code="bad_request",
+            )
+        users.OwnsDesktopHyperPort(
+            payload["user_id"],
+            proxy_hyper_host,
+            port,
+            manager_category=manager_category,
+        )
+        return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
 # Update user name
