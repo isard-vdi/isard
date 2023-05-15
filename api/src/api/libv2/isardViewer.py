@@ -51,12 +51,14 @@ def default_guest_properties():
     }
 
 
-def viewer_jwt(desktop_id, minutes=240):
+def viewer_jwt(desktop_id, minutes=240, admin_role=False):
     return jwt.encode(
         {
             "exp": datetime.utcnow() + timedelta(minutes=minutes),
             "kid": "isardvdi-viewer",
-            "data": {"desktop_id": desktop_id},
+            "data": {"desktop_id": desktop_id}
+            if not admin_role
+            else {"desktop_id": desktop_id, "role_id": "admin"},
         },
         app.ram["secrets"]["isardvdi"]["secret"],
         algorithm="HS256",
@@ -83,6 +85,7 @@ class isardViewer:
         get_dict=False,
         domain=False,
         user_id=False,
+        admin_role=False,
     ):
         if not domain:
             try:
@@ -176,6 +179,7 @@ class isardViewer:
                             ).total_seconds()
                             / 60
                         ),
+                        admin_role,
                     ),
                     domain["guest_properties"]["credentials"]["username"],
                     domain["guest_properties"]["credentials"]["password"],
@@ -290,6 +294,7 @@ class isardViewer:
                             ).total_seconds()
                             / 60
                         ),
+                        admin_role,
                     )
                 )
             else:

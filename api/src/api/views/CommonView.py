@@ -46,8 +46,16 @@ def api_v3_desktop_viewer(payload, desktop_id=False, protocol=False):
     logs_domain_event_viewer(
         desktop_id, payload["user_id"], protocol, user_request=request
     )
+    if payload.get("role_id") and payload.get("role_id") == "admin":
+        admin_role = True
+    else:
+        admin_role = False
     return (
-        json.dumps(common.DesktopViewer(desktop_id, protocol, get_cookie=True)),
+        json.dumps(
+            common.DesktopViewer(
+                desktop_id, protocol, get_cookie=True, admin_role=admin_role
+            )
+        ),
         200,
         {"Content-Type": "application/json"},
     )
