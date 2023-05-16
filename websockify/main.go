@@ -4,6 +4,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -85,8 +86,43 @@ func proxy(wsConn *websocket.Conn, tcpConn net.Conn) {
 	}
 }
 
+// taken from https://ankitbko.github.io/blog/2022/06/websocket-latency/
+func connQuality(w http.ResponseWriter, r *http.Request) {
+	wsConn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Printf("websocket upgrade: %v", err)
+		return
+	}
+
+	defer wsConn.Close()
+
+	for {
+		msg := map[string]interface{}{}
+		if err := wsConn.ReadJSON(&msg); err != nil {
+			log.Printf("read ws message: %v", err)
+			return
+		}
+
+		t, ok := msg["type"]
+		if ok {
+			switch t {
+			case "start":
+				msg["server_ts"] = time.Now().UnixMicro()
+			case "ack":
+				msg["server_ack_ts"] = time.Now().UnixMicro()
+			}
+
+			if err := wsConn.WriteJSON(msg); err != nil {
+				log.Printf("write ws message: %v", err)
+				return
+			}
+		}
+	}
+}
+
 func main() {
 	r := mux.NewRouter()
+	r.HandleFunc("/conn-quality", connQuality)
 	r.HandleFunc("/{hyper}/{port:[0-9]+}", handler)
 
 	http.Handle("/", r)
