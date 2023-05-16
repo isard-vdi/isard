@@ -58,6 +58,10 @@ def parse_data(request):
         data["guest_properties"]["credentials"]["password"] = "****"
         return data
 
+    if data.get("image", {}).get("file", {}).get("data"):
+        data["image"]["file"]["data"] = "[binary removed]"
+        return data
+
     return data
 
 
