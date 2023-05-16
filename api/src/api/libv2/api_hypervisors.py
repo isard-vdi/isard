@@ -49,7 +49,7 @@ class ApiHypervisors:
             query = query.filter({"status": status})
         query = query.merge(
             lambda hyper: {
-                "desktops_started": r.table("domains")
+                "dom_started": r.table("domains")
                 .get_all(hyper["id"], index="hyp_started")
                 .count()
             }
@@ -81,7 +81,7 @@ class ApiHypervisors:
         )
         query = query.merge(
             lambda hyper: {
-                "desktops_started": r.table("domains")
+                "dom_started": r.table("domains")
                 .get_all(hyper["id"], index="hyp_started")
                 .filter({"server": False})
                 .count()
@@ -131,7 +131,7 @@ class ApiHypervisors:
             .pluck("id", "info", "stats", "status", "destroy_time", "status_time")
             .merge(
                 lambda hyper: {
-                    "desktops_started": r.table("domains")
+                    "dom_started": r.table("domains")
                     .get_all(hyper["id"], index="hyp_started")
                     .filter({"server": False})
                     .count()

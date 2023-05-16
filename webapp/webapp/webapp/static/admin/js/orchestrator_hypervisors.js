@@ -24,7 +24,7 @@ $(document).ready(function() {
       { "data": "destroy_time", "width": "10px" },
       { "data": "info.memory_in_MB", "width": "10px", "defaultContent": 'NaN' },
       { "data": "info.cpu_cores", "width": "10px", "defaultContent": 'NaN' },
-      { "data": "desktops_started", "width": "10px", "defaultContent": 0 },
+      { "data": "dom_started", "width": "10px", "defaultContent": 0 },
       { "data": "status_time", "width": "10px" },
     ],
     "order": [
@@ -86,9 +86,9 @@ $(document).ready(function() {
         "targets": 4,
         "render": function(data, type, full, meta) {
           if (full.status != "Online") {
-            return '<p>No Desktops running</p>'
+            return "0"
           }
-          return '<p>'+data+' desktops running</p>'
+          return data
         }
       },
       {
