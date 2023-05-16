@@ -52,7 +52,8 @@
         }
 
         #toggleFullscreen,
-        #sendCtrlAltDelButton {
+        #sendCtrlAltDelButton,
+        #connQuality {
             position: fixed;
             top: 0px;
             border: 1px outset;
@@ -66,6 +67,38 @@
 
         #toggleFullscreen {
             right: 145px;
+        }
+
+        #connQuality {
+            cursor: help;
+            right: 235px;
+        }
+
+        #connQualityIcon {
+            height: 15px;
+        }
+
+        #connQuality:hover #connQualityText {
+            visibility: visible;
+        }
+
+        #connQualityText {
+            visibility: hidden;
+            width: 120px;
+            background-color: black;
+            color: #fff;
+            text-align: center;
+            padding: 5px 0;
+            border-radius: 6px;
+
+            /* Position the tooltip text - see examples below! */
+            position: absolute;
+            width: 120px;
+            top: 100%;
+            left: 50%;
+            margin-left: -60px;
+            /* Use half of the width (120/2 = 60), to center the tooltip */
+            z-index: 1;
         }
 
         #screen {
@@ -315,6 +348,68 @@
             });
         }
 
+        // taken from https://ankitbko.github.io/blog/2022/06/websocket-latency/
+        function calculate_socket_latency(data) {
+            let client_ack_ts = performance.now()
+            let ack_round_trip_time = client_ack_ts - data.client_ts
+            let ack_one_way = ack_round_trip_time / 2
+            let vid_round_trip_time = (data.server_ack_ts - data.server_ts) / 1000
+            let vid_one_way = Math.round(vid_round_trip_time - ack_one_way)
+
+            let text = 'Connection quality: latency: ' + vid_one_way + 'ms'
+
+            let connText = document.getElementById('connQualityText')
+            let connIcon = document.getElementById('connQualityIcon')
+
+            connText.innerText = text
+            console.log(text)
+
+            if (vid_one_way < 80) {
+                // #ffffff
+                connIcon.style.filter = 'invert(100%) sepia(0%) saturate(7500%) hue-rotate(46deg) brightness(116%) contrast(112%)'
+            } else if (vid_one_way < 200) {
+                // #ffd500
+                connIcon.style.filter = 'invert(89%) sepia(15%) saturate(7499%) hue-rotate(360deg) brightness(104%) contrast(104%)'
+            } else {
+                // #c81d25
+                connIcon.style.filter = 'invert(19%) sepia(58%) saturate(5063%) hue-rotate(347deg) brightness(80%) contrast(95%)'
+            }
+        }
+
+        // taken from https://ankitbko.github.io/blog/2022/06/websocket-latency/
+        function connQuality(host, port) {
+            let client = new WebSocket('wss://' + host + port + '/conn-quality');
+
+            client.addEventListener("open", () => {
+                client.send(JSON.stringify({ "type": "start" }))
+
+                const interval = setInterval(() => {
+                    client.send(JSON.stringify({ "type": "start" }))
+                }, 5000)
+            });
+
+            client.addEventListener("close", (event) => {
+                console.log("Connection quality websocket close event from " + url + ", reason :" + event.reason + ", code: " + event.code);
+                client = null;
+            });
+
+            client.addEventListener("error", (err) => {
+                console.log("Connection quality websocket error event: " + err.message + ", error code = " + err.code + ", error reason = " + err.reason);
+            });
+
+            client.addEventListener("message", (event) => {
+                if (event?.data) {
+                    const data = JSON.parse(event.data)
+                    if (data.type === "ack") {
+                        calculate_socket_latency(data)
+                        return
+                    }
+
+                    client.send(JSON.stringify({ type: 'ack', server_ts: data.server_ts, client_ts: performance.now() }))
+                }
+            });
+        }
+
         document.getElementById('sendCtrlAltDelButton')
             .onclick = sendCtrlAltDel;
         document.getElementById('toggleFullscreen').onclick = toggleFullscreen;
@@ -335,6 +430,8 @@
         status("Connecting");
 
         resize()
+
+        connQuality(host, port)
 
         // Build the websocket URL used to connect
         let url = 'wss://' + host + port + '/' + vmHost + '/' + vmPort
@@ -365,6 +462,10 @@
     <div id="top_bar">
         <div id="statusDesktopName"></div>
         <div id="status">Loading...</div>
+        <div id="connQuality">
+            <img id="connQualityIcon" src="./signal.svg" alt="Signal icon (four bars)">
+            <span id="connQualityText">Calculating connection quality...</span>
+        </div>
         <div id="sendCtrlAltDelButton">Send 'Ctrl+Alt+Supr'</div>
         <div id="toggleFullscreen">Full Screen</div>
     </div>
