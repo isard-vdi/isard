@@ -705,12 +705,19 @@ def start_config_thread():
 
 ## Admin namespace CONNECT
 @socketio.on("connect", namespace="/administrators")
-def socketio_admins_connect():
+def socketio_admins_connect(nothing_should_be_here=None):
+    if nothing_should_be_here != None:
+        app.logger.debug(
+            "Call to socketio_admins_connect with args, wtf? args="
+            + str(nothing_should_be_here)
+        )
+        return
     try:
         app.logger.debug(request.args)
         payload = get_token_payload(request.args.get("jwt"))
     except Exception as e:
-        app.logger.error(traceback.format_exc())
+        app.logger.debug("Invalid socketio_admins_connect ws token")
+        return
     try:
         join_room(payload["user_id"])
         if payload["role_id"] == "admin":
@@ -726,7 +733,10 @@ def socketio_admins_connect():
                 + "ROOM"
             )
     except Exception as e:
-        app.logger.error(traceback.format_exc())
+        app.logger.debug(
+            "Token expired or invalid in socketio_admins_connect for user: "
+            + str(payload.get("user_id"))
+        )
 
 
 @socketio.on("disconnect", namespace="/administrators")
