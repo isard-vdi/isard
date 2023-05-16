@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-# coding=utf-8
 # Copyright 2017 the Isard-vdi project authors:
 #      Josep Maria Viñolas Auquer
 #      Alberto Larraz Dalmases
@@ -53,12 +51,6 @@ class QuotasProcess:
                 .count()
                 .run(db.conn)
             )
-            desktopsup = (
-                r.table("domains")
-                .get_all(["desktop", "Started", user_id], index="kind_status_user")
-                .count()
-                .run(db.conn)
-            )
             templates = (
                 r.table("domains")
                 .get_all(["template", user_id], index="kind_user")
@@ -66,20 +58,32 @@ class QuotasProcess:
                 .run(db.conn)
             )
             isos = r.table("media").get_all(user_id, index="user").count().run(db.conn)
+            try:
+                starteds = (
+                    r.table("domains")
+                    .get_all(["Started", user_id], index="status_user")
+                    .pluck("create_dict")
+                    .map(
+                        lambda domain: {
+                            "count": 1,
+                            "memory": domain["create_dict"]["hardware"]["memory"],
+                            "vcpus": domain["create_dict"]["hardware"]["vcpus"],
+                        }
+                    )
+                    .reduce(
+                        lambda left, right: {
+                            "count": left["count"] + right["count"],
+                            "vcpus": left["vcpus"].add(right["vcpus"]),
+                            "memory": left["memory"].add(right["memory"]),
+                        }
+                    )
+                    .run(db.conn)
+                )
+            except r.ReqlNonExistenceError:
+                starteds = {"count": 0, "memory": 0, "vcpus": 0}
 
-            starteds = (
-                r.table("domains")
-                .get_all(["Started", user_id], index="status_user")
-                .pluck("hardware")
-                .run(db.conn)
-            )
-
-        vcpus = 0
-        memory = 0
-        for s in starteds:
-            vcpus = vcpus + s["hardware"]["vcpus"]
-            memory = memory + s["hardware"]["memory"]
-        memory = memory / 1000000
+        vcpus = starteds["vcpus"]
+        memory = round(starteds["memory"] / 1048576)
 
         if user["quota"] == False:
             qpdesktops = qpup = qptemplates = qpisos = qpvcpus = qpmemory = 0
@@ -93,7 +97,7 @@ class QuotasProcess:
             dq = user["quota"]["desktops"]
 
             qpup = (
-                desktopsup * 100 / user["quota"]["running"]
+                starteds["count"] * 100 / user["quota"]["running"]
                 if user["quota"]["running"]
                 else 100
             )
@@ -128,7 +132,7 @@ class QuotasProcess:
             "d": desktops,
             "dq": dq,
             "dqp": int(round(qpdesktops, 0)),
-            "r": desktopsup,
+            "r": starteds["count"],
             "rq": rq,
             "rqp": int(round(qpup, 0)),
             "t": templates,
@@ -175,14 +179,6 @@ class QuotasProcess:
                 .count()
                 .run(db.conn)
             )
-            desktopsup = (
-                r.table("domains")
-                .get_all(
-                    ["desktop", "Started", category["id"]], index="kind_status_category"
-                )
-                .count()
-                .run(db.conn)
-            )
             templates = (
                 r.table("domains")
                 .get_all(["template", category["id"]], index="kind_category")
@@ -195,13 +191,29 @@ class QuotasProcess:
                 .count()
                 .run(db.conn)
             )
-
-            starteds = (
-                r.table("domains")
-                .get_all(["Started", category["id"]], index="status_category")
-                .pluck("hardware")
-                .run(db.conn)
-            )
+            try:
+                starteds = (
+                    r.table("domains")
+                    .get_all(["Started", category["id"]], index="status_category")
+                    .pluck("create_dict")
+                    .map(
+                        lambda domain: {
+                            "count": 1,
+                            "memory": domain["create_dict"]["hardware"]["memory"],
+                            "vcpus": domain["create_dict"]["hardware"]["vcpus"],
+                        }
+                    )
+                    .reduce(
+                        lambda left, right: {
+                            "count": left["count"] + right["count"],
+                            "vcpus": left["vcpus"].add(right["vcpus"]),
+                            "memory": left["memory"].add(right["memory"]),
+                        }
+                    )
+                    .run(db.conn)
+                )
+            except r.ReqlNonExistenceError:
+                starteds = {"count": 0, "memory": 0, "vcpus": 0}
 
             users = (
                 r.table("users")
@@ -210,12 +222,8 @@ class QuotasProcess:
                 .run(db.conn)
             )
 
-        vcpus = 0
-        memory = 0
-        for s in starteds:
-            vcpus = vcpus + s["hardware"]["vcpus"]
-            memory = memory + s["hardware"]["memory"]
-        memory = memory / 1000000
+        vcpus = starteds["vcpus"]
+        memory = round(starteds["memory"] / 1048576)
 
         if category["limits"] == False:
             qpdesktops = qpup = qptemplates = qpisos = qpvcpus = qpmemory = qpusers = 0
@@ -229,7 +237,7 @@ class QuotasProcess:
             dq = category["limits"]["desktops"]
 
             qpup = (
-                desktopsup * 100 / category["limits"]["running"]
+                starteds["count"] * 100 / category["limits"]["running"]
                 if category["limits"]["running"]
                 else 100
             )
@@ -275,7 +283,7 @@ class QuotasProcess:
             "d": desktops,
             "dq": dq,
             "dqp": int(round(qpdesktops, 0)),
-            "r": desktopsup,
+            "r": starteds["count"],
             "rq": rq,
             "rqp": int(round(qpup, 0)),
             "t": templates,
@@ -315,12 +323,6 @@ class QuotasProcess:
                 .count()
                 .run(db.conn)
             )
-            desktopsup = (
-                r.table("domains")
-                .get_all(["desktop", "Started", group["id"]], index="kind_status_group")
-                .count()
-                .run(db.conn)
-            )
             templates = (
                 r.table("domains")
                 .get_all(["template", group["id"]], index="kind_group")
@@ -333,14 +335,29 @@ class QuotasProcess:
                 .count()
                 .run(db.conn)
             )
-
-            starteds = (
-                r.table("domains")
-                .get_all(["Started", group["id"]], index="status_group")
-                .pluck("hardware")
-                .run(db.conn)
-            )
-
+            try:
+                starteds = (
+                    r.table("domains")
+                    .get_all(["Started", group["id"]], index="status_group")
+                    .pluck("create_dict")
+                    .map(
+                        lambda domain: {
+                            "count": 1,
+                            "memory": domain["create_dict"]["hardware"]["memory"],
+                            "vcpus": domain["create_dict"]["hardware"]["vcpus"],
+                        }
+                    )
+                    .reduce(
+                        lambda left, right: {
+                            "count": left["count"] + right["count"],
+                            "vcpus": left["vcpus"].add(right["vcpus"]),
+                            "memory": left["memory"].add(right["memory"]),
+                        }
+                    )
+                    .run(db.conn)
+                )
+            except r.ReqlNonExistenceError:
+                starteds = {"count": 0, "memory": 0, "vcpus": 0}
             users = (
                 r.table("users")
                 .get_all(group["id"], index="group")
@@ -348,12 +365,8 @@ class QuotasProcess:
                 .run(db.conn)
             )
 
-        vcpus = 0
-        memory = 0
-        for s in starteds:
-            vcpus = vcpus + s["hardware"]["vcpus"]
-            memory = memory + s["hardware"]["memory"]
-        memory = memory / 1000000
+        vcpus = starteds["vcpus"]
+        memory = round(starteds["memory"] / 1048576)
 
         if group["limits"] == False:
             qpdesktops = qpup = qptemplates = qpisos = qpvcpus = qpmemory = qpusers = 0
@@ -367,7 +380,7 @@ class QuotasProcess:
             dq = group["limits"]["desktops"]
 
             qpup = (
-                desktopsup * 100 / group["limits"]["running"]
+                starteds["count"] * 100 / group["limits"]["running"]
                 if group["limits"]["running"]
                 else 100
             )
@@ -409,7 +422,7 @@ class QuotasProcess:
             "d": desktops,
             "dq": dq,
             "dqp": int(round(qpdesktops, 0)),
-            "r": desktopsup,
+            "r": starteds["count"],
             "rq": rq,
             "rqp": int(round(qpup, 0)),
             "t": templates,
@@ -437,14 +450,6 @@ class QuotasProcess:
                 .count()
                 .run(db.conn)
             )
-            desktopsup = (
-                r.table("domains")
-                .get_all(
-                    ["desktop", "Started", category_id], index="kind_status_category"
-                )
-                .count()
-                .run(db.conn)
-            )
             templates = (
                 r.table("domains")
                 .get_all(["template", category_id], index="kind_category")
@@ -457,14 +462,29 @@ class QuotasProcess:
                 .count()
                 .run(db.conn)
             )
-
-            starteds = (
-                r.table("domains")
-                .get_all(["Started", category_id], index="status_category")
-                .pluck("hardware")
-                .run(db.conn)
-            )
-
+            try:
+                starteds = (
+                    r.table("domains")
+                    .get_all(["Started", category_id], index="status_category")
+                    .pluck("create_dict")
+                    .map(
+                        lambda domain: {
+                            "count": 1,
+                            "memory": domain["create_dict"]["hardware"]["memory"],
+                            "vcpus": domain["create_dict"]["hardware"]["vcpus"],
+                        }
+                    )
+                    .reduce(
+                        lambda left, right: {
+                            "count": left["count"] + right["count"],
+                            "vcpus": left["vcpus"].add(right["vcpus"]),
+                            "memory": left["memory"].add(right["memory"]),
+                        }
+                    )
+                    .run(db.conn)
+                )
+            except r.ReqlNonExistenceError:
+                starteds = {"count": 0, "memory": 0, "vcpus": 0}
             users = (
                 r.table("users")
                 .get_all(category_id, index="category")
@@ -472,20 +492,13 @@ class QuotasProcess:
                 .run(db.conn)
             )
 
-        vcpus = 0
-        memory = 0
-        for s in starteds:
-            vcpus = vcpus + s["hardware"].get("vcpus", 0)
-            memory = memory + s["hardware"].get("memory", 0)
-        memory = memory / 1000000
-
         return {
             "d": desktops,
-            "r": desktopsup,
+            "r": starteds["count"],
             "t": templates,
             "i": isos,
-            "v": vcpus,
-            "m": int(round(memory)),
+            "v": starteds["vcpus"],
+            "m": round(starteds["memory"] / 1048576),
             "u": users,
         }
 
@@ -494,12 +507,6 @@ class QuotasProcess:
             desktops = (
                 r.table("domains").get_all("desktop", index="kind").count().run(db.conn)
             )
-            desktopsup = (
-                r.table("domains")
-                .get_all("Started", index="status")
-                .count()
-                .run(db.conn)
-            )
             templates = (
                 r.table("domains")
                 .get_all("template", index="kind")
@@ -507,28 +514,38 @@ class QuotasProcess:
                 .run(db.conn)
             )
             isos = r.table("media").count().run(db.conn)
-            starteds = (
-                r.table("domains")
-                .get_all("Started", index="status")
-                .pluck("hardware")
-                .run(db.conn)
-            )
-        vcpus = 0
-        memory = 0
-        for s in starteds:
-            vcpus = vcpus + s["hardware"].get("vcpus", 0)
-            memory = memory + s["hardware"].get("memory", 0)
-        memory = memory / 1000000
-        with app.app_context():
+            try:
+                starteds = (
+                    r.table("domains")
+                    .get_all("Started", index="status")
+                    .pluck("create_dict")
+                    .map(
+                        lambda domain: {
+                            "count": 1,
+                            "memory": domain["create_dict"]["hardware"]["memory"],
+                            "vcpus": domain["create_dict"]["hardware"]["vcpus"],
+                        }
+                    )
+                    .reduce(
+                        lambda left, right: {
+                            "count": left["count"] + right["count"],
+                            "vcpus": left["vcpus"].add(right["vcpus"]),
+                            "memory": left["memory"].add(right["memory"]),
+                        }
+                    )
+                    .run(db.conn)
+                )
+            except r.ReqlNonExistenceError:
+                starteds = {"count": 0, "memory": 0, "vcpus": 0}
             users = r.table("users").count().run(db.conn)
 
         return {
             "d": desktops,
-            "r": desktopsup,
+            "r": starteds["count"],
             "t": templates,
             "i": isos,
-            "v": vcpus,
-            "m": int(round(memory)),
+            "v": starteds["vcpus"],
+            "m": round(starteds["memory"] / 1048576),
             "u": users,
         }
 
@@ -825,7 +842,7 @@ class QuotasProcess:
 
     def get_user(self, user_id):
         with app.app_context():
-            user = r.table("users").get(user_id).run(db.conn)
+            user = r.table("users").get(user_id).without("password", "vpn").run(db.conn)
             group = r.table("groups").get(user["group"]).run(db.conn)
         limits = group["limits"]
         if limits == False:
