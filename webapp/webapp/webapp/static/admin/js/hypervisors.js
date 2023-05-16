@@ -733,10 +733,11 @@ function actionsHyperDetail() {
       width: '550'
 
     }).get().on('pnotify.confirm', function() {
+      type = ""
+      type = data["orchestrator_managed"] ? "DELETE" : "POST";
       $.ajax({
-        url: "/admin/table/update/hypervisors",
-        type: "PUT",
-        data: JSON.stringify({ 'id': pk, 'orchestrator_managed': !data.orchestrator_managed }),
+        url: "/api/v3/orchestrator/hypervisor/" + pk + "/manage",
+        type: type,
         contentType: "application/json",
         success: function(data) {
           new PNotify({
