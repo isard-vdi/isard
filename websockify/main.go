@@ -1,14 +1,38 @@
 package main
 
 import (
+	"encoding/base64"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
+	"net/url"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"gitlab.com/isard/isardvdi-cli/pkg/cfg"
+	"gitlab.com/isard/isardvdi-cli/pkg/client"
 )
+
+var (
+	apiAddr        string
+	apiIgnoreCerts = true
+	apiProtocol    = "https"
+)
+
+func init() {
+	apiAddr = os.Getenv("API_DOMAIN")
+	if apiAddr == "" {
+		apiAddr = "isard-api:5000"
+		apiIgnoreCerts = false
+		apiProtocol = "http"
+	}
+}
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -19,8 +43,88 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+type browserViewer struct {
+	WebViewer browserViewerWebViewer `json:"web_viewer,omitempty"`
+}
+
+type browserViewerWebViewer struct {
+	Host string `json:"host,omitempty"`
+}
+
 func handler(w http.ResponseWriter, r *http.Request) {
+	tkn, err := r.Cookie("token")
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	browserViewerCookie, err := r.Cookie("browser_viewer")
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	browserViewerRaw, err := url.QueryUnescape(browserViewerCookie.Value)
+	if err != nil {
+		log.Println("SAAAAAAAAAAAAD #0")
+		log.Println(err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	browserViewerRawJSON, err := base64.StdEncoding.DecodeString(browserViewerRaw)
+	if err != nil {
+		log.Println("SAAAAAAAAAAAAD")
+		log.Println(err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	browserViewer := &browserViewer{}
+	if err := json.Unmarshal(browserViewerRawJSON, browserViewer); err != nil {
+		log.Println("SAAAAAAAAAAAAD #2")
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	if browserViewer == nil {
+		log.Println("SAAAAAAAAAAAAD #3")
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	cli, err := client.NewClient(&cfg.Cfg{
+		Host:        fmt.Sprintf("%s://%s", apiProtocol, apiAddr),
+		IgnoreCerts: apiIgnoreCerts,
+		Token:       tkn.Value,
+	})
+	if err != nil {
+		log.Printf("error creating the client: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
 	vars := mux.Vars(r)
+
+	port, err := strconv.Atoi(vars["port"])
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	if err := cli.UserOwnsDesktop(r.Context(), &client.UserOwnsDesktopOpts{
+		ProxyVideo:     browserViewer.WebViewer.Host,
+		ProxyHyperHost: vars["hyper"],
+		Port:           port,
+	}); err != nil {
+		if errors.Is(err, client.ErrForbidden) {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		log.Printf("unknown error: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
 	wsConn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {

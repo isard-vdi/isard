@@ -240,9 +240,10 @@ export default {
           ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.file-downloaded'), '', false, 1000)
         } else if (response.data.kind === 'browser') {
           if (response.data.protocol === 'rdp') {
-            localStorage.rdpToken = localStorage.token
+            localStorage.viewerToken = localStorage.token
           }
           cookies.setCookie('browser_viewer', response.data.cookie)
+          cookies.setCookie('token', localStorage.token)
           el.setAttribute('href', response.data.viewer)
           el.setAttribute('target', '_blank')
         }
@@ -325,6 +326,7 @@ export default {
         el.setAttribute('download', `${payload.name}.${payload.ext}`)
       } else if (payload.kind === 'browser') {
         const exp = new Date(JSON.parse(atob(decodeURIComponent(payload.cookie))).web_viewer.exp * 1000)
+        cookies.setCookie('token', localStorage.viewerToken)
         cookies.setCookie('browser_viewer', payload.cookie, { expires: exp })
         el.setAttribute('href', payload.viewer)
       }

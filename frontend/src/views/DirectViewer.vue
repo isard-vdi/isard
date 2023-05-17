@@ -207,7 +207,7 @@ export default {
           $store.dispatch('openDirectViewerDesktop', directViewer.value.viewers[0])
         }
         $store.dispatch('openSocket', { jwt: directViewer.value.jwt, room: directViewer.value.desktopId })
-        localStorage.rdpToken = directViewer.value.jwt
+        localStorage.viewerToken = directViewer.value.jwt
       })
     }
 
