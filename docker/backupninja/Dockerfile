@@ -7,7 +7,7 @@ RUN apk add --no-cache \
     gcc \
     git \
     make
-RUN git clone https://0xacab.org/liberate/backupninja.git && \
+RUN git clone https://gitlab.com/isard/backupninja.git && \
     cd backupninja && \
     bash ./autogen.sh && bash configure && \
     make && make install
