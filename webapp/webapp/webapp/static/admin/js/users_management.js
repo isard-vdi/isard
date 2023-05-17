@@ -558,7 +558,7 @@ function socketio_on(){
             {
                 "targets":11,
                 "render": function ( data, type, full, meta ) {
-                    return moment.unix(full.accessed).toISOString("YYYY-MM-DDTHH:mm:ssZ");
+                    return formatTimestampUTC(full.accessed*1000)
                 }
             }
         ]

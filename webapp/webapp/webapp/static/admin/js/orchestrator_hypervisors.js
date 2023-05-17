@@ -43,18 +43,7 @@ $(document).ready(function() {
         "targets": 1,
         "render": function(data, type, full, meta) {
           if (full.hasOwnProperty("destroy_time") && full.destroy_time) {
-            const date = new Date(full.destroy_time);
-            const output = { 
-              timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-              year: 'numeric', 
-              month: '2-digit', 
-              day: '2-digit',
-              hour: '2-digit',
-              minute:'2-digit',
-              second:'2-digit'
-            };
-            const formattedDate = new Intl.DateTimeFormat([], output).format(date);
-            return formattedDate
+            return formatTimestampUTC(full.destroy_time)
           } else {
             return '<p>No destroy time</p>'
           }

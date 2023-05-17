@@ -58,7 +58,7 @@ $(document).ready(function() {
         "targets": 9,
         "render": function ( data, type, full, meta ) {
           if ( type === 'display' || type === 'filter' ) {
-            return moment.unix(full.last_access).fromNow()
+            return formatTimestampUTC(full.last_access*1000)
           }
           return full.last_access
         }
