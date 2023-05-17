@@ -24,7 +24,7 @@ $(document).ready(function() {
       { "data": "destroy_time", "width": "10px" },
       { "data": "info.memory_in_MB", "width": "10px", "defaultContent": 'NaN' },
       { "data": "info.cpu_cores", "width": "10px", "defaultContent": 'NaN' },
-      { "data": "desktops_started", "width": "10px", "defaultContent": 0 },
+      { "data": "dom_started", "width": "10px", "defaultContent": 0 },
       { "data": "status_time", "width": "10px" },
     ],
     "order": [
@@ -43,8 +43,17 @@ $(document).ready(function() {
         "targets": 1,
         "render": function(data, type, full, meta) {
           if (full.hasOwnProperty("destroy_time") && full.destroy_time) {
-            const dateObj = new Date(full.destroy_time);
-            const formattedDate = `${dateObj.getUTCDate()}/${dateObj.getUTCMonth() + 1}/${dateObj.getUTCFullYear()} ${dateObj.getUTCHours()}:${dateObj.getUTCMinutes()}`;
+            const date = new Date(full.destroy_time);
+            const output = { 
+              timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+              year: 'numeric', 
+              month: '2-digit', 
+              day: '2-digit',
+              hour: '2-digit',
+              minute:'2-digit',
+              second:'2-digit'
+            };
+            const formattedDate = new Intl.DateTimeFormat([], output).format(date);
             return formattedDate
           } else {
             return '<p>No destroy time</p>'
@@ -77,9 +86,9 @@ $(document).ready(function() {
         "targets": 4,
         "render": function(data, type, full, meta) {
           if (full.status != "Online") {
-            return '<p>No Desktops running</p>'
+            return "0"
           }
-          return '<p>'+data+' desktops running</p>'
+          return data
         }
       },
       {

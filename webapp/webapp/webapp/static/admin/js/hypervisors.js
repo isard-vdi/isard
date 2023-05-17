@@ -404,10 +404,16 @@ function actionsHyperDetail() {
     var pk = closest.attr("data-pk");
     var data = table.row("#" + pk).data();
     let change = data["enabled"] ? "disable" : "enable";
+    text = ""
+    if (data["enabled"] && data["orchestrator_managed"]) {
+      text = "<b>You are about to disable " + pk + "!\nThis action will remove hypervisor from orchestrator managing\nAre you sure?</b>"
+    } else {
+      text = "<b>You are about to " + change + " " + pk + "!\nAre you sure?</b>"
+    }
     new PNotify({
       title: "<b>WARNING</b>",
       type: "error",
-      text: "<b>You are about to " + change + " " + pk + "!<br>Are you sure?</b>",
+      text: text,
       hide: false,
       opacity: 0.9,
       confirm: {
@@ -425,6 +431,9 @@ function actionsHyperDetail() {
 
     }).get().on('pnotify.confirm', function() {
       api.ajax('/admin/table/update/hypervisors', 'PUT', { 'id': pk, 'enabled': !data.enabled }).done(function(hyp) {});
+      if (data["enabled"] && data["orchestrator_managed"]) {
+        api.ajax("/api/v3/orchestrator/hypervisor/" + pk + "/manage", 'DELETE', "").done(function(hyp) {});
+      }
     }).on('pnotify.cancel', function() {});
   });
 
@@ -598,15 +607,20 @@ function actionsHyperDetail() {
     });
   });
 
-  $('.btn-onlyforced').on('click', function() {
+  $('.btn-onlyforced').off('click').on('click', function() {
 
     var pk = $(this).closest("div").attr("data-pk");
-    var only_forced = table.row("#" + pk).data()['only_forced'];
-
+    var data = table.row("#" + pk).data();
+    text = ""
+    if (!data["only_forced"] && data["orchestrator_managed"]) {
+      text = "<b>You are about to set Only Forced to true for hyper " + pk + "!\nThis action will remove hypervisor from orchestrator managing\nAre you sure?</b>"
+    } else {
+      text = "<b>You are about to set Only Forced to " + !data.only_forced + " for hyper " + pk + "!\nAre you sure?</b>"
+    }
     new PNotify({
       title: "<b>WARNING</b>",
       type: "error",
-      text: "<b>You are about to set Only Forced to " + !only_forced + "!<br>Are you sure?</b>",
+      text: text,
       hide: false,
       opacity: 0.9,
       confirm: {
@@ -626,7 +640,7 @@ function actionsHyperDetail() {
       $.ajax({
         url: "/admin/table/update/hypervisors",
         type: "PUT",
-        data: JSON.stringify({ 'id': pk, 'only_forced': !only_forced }),
+        data: JSON.stringify({ 'id': pk, 'only_forced': !data.only_forced }),
         contentType: "application/json",
         success: function(data) {
           new PNotify({
@@ -650,6 +664,9 @@ function actionsHyperDetail() {
           })
         },
       });
+      if (!data["only_forced"] && data["orchestrator_managed"]) {
+        api.ajax("/api/v3/orchestrator/hypervisor/" + pk + "/manage", 'DELETE', "").done(function(hyp) {});
+      }
     }).on('pnotify.cancel', function() {});
   });
 
@@ -733,10 +750,11 @@ function actionsHyperDetail() {
       width: '550'
 
     }).get().on('pnotify.confirm', function() {
+      type = ""
+      type = data["orchestrator_managed"] ? "DELETE" : "POST";
       $.ajax({
-        url: "/admin/table/update/hypervisors",
-        type: "PUT",
-        data: JSON.stringify({ 'id': pk, 'orchestrator_managed': !data.orchestrator_managed }),
+        url: "/api/v3/orchestrator/hypervisor/" + pk + "/manage",
+        type: type,
         contentType: "application/json",
         success: function(data) {
           new PNotify({
