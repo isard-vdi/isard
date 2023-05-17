@@ -17,7 +17,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 86
+release_version = 87
+# release 87: Add viewer guest_ip and proxies indexes
 # release 86: Fix parents to already duplicated templates
 # release 85: fixed domains parents index and duplicated_parent_template index added
 # release 84: "duplicate_parent_template" of old duplicated with oldest as parent
@@ -1480,6 +1481,22 @@ class Upgrade(object):
                             + " with parents"
                         )
             except Exception as e:
+                print(e)
+
+        if version == 87:
+            try:
+                r.table(table).index_create(
+                    "guest_ip", [r.row["status"], r.row["viewer"]["guest_ip"]]
+                ).run(self.conn)
+                r.table(table).index_create(
+                    "proxies",
+                    [
+                        r.row["status"],
+                        r.row["viewer"]["proxy_video"],
+                        r.row["viewer"]["proxy_hyper_host"],
+                    ],
+                ).run(self.conn)
+            except:
                 print(e)
         return True
 

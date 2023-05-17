@@ -10,6 +10,7 @@ import time
 import uuid
 from datetime import datetime, timedelta
 
+from cachetools import TTLCache, cached
 from rethinkdb import RethinkDB
 
 from api import app
@@ -838,93 +839,116 @@ class ApiUsers:
         domains = desktops + templates + derivated + users + groups
         return [i for n, i in enumerate(domains) if i not in domains[n + 1 :]]
 
-    def OwnsDesktop(self, user_id, guess_ip, manager_category=False):
-        with app.app_context():
-            ips = list(
-                r.table("domains")
-                .get_all(user_id, index="user")
-                .pluck({"viewer": "guest_ip"})
-                .run(db.conn)
-            )
-        if len(
-            [
-                ip
-                for ip in ips
-                if ip.get("viewer", False)
-                and ip["viewer"].get("guest_ip", False) == guess_ip
-            ]
-        ):
-            return True
-        if manager_category:
-            with app.app_context():
-                ips = list(
-                    r.table("domains")
-                    .get_all(manager_category, index="category")
-                    .pluck({"viewer": "guest_ip"})
-                    .run(db.conn)
-                )
-            if len(
-                [
-                    ip
-                    for ip in ips
-                    if ip.get("viewer", False)
-                    and ip["viewer"].get("guest_ip", False) == guess_ip
-                ]
-            ):
-                return True
-        raise Error(
-            "forbidden",
-            "Forbidden access to desktop viewer",
-            traceback.format_exc(),
-        )
-
-    def OwnsDesktopHyperPort(
-        self, user_id, proxy_hyper_host, port, manager_category=False
-    ):
-        with app.app_context():
-            domains = list(
-                r.table("domains")
-                .get_all(user_id, index="user")
-                .pluck({"viewer": {"proxy_hyper_host", "base_port"}})
-                .run(db.conn)
-            )
-        # Get domain which matches proxy_hyper_host and base_port <= port <= base_port + 3
-        if len(
-            [
-                domain
-                for domain in domains
-                if domain.get("viewer", False)
-                and domain["viewer"].get("proxy_hyper_host", False) == proxy_hyper_host
-                and domain["viewer"].get("base_port", False) <= int(port)
-                and domain["viewer"].get("base_port", False) + 3 >= int(port)
-            ]
-        ):
-            return True
-        if manager_category:
+    @cached(TTLCache(maxsize=50, ttl=10))
+    def OwnsDesktopViewerIP(self, user_id, category_id, role_id, guess_ip):
+        try:
             with app.app_context():
                 domains = list(
                     r.table("domains")
-                    .get_all(manager_category, index="category")
-                    .pluck({"viewer": {"proxy_hyper_host", "base_port"}})
+                    .get_all(["Started", guess_ip], index="guest_ip")
+                    .pluck("user", "category")
                     .run(db.conn)
                 )
-            # Get domain which matches proxy_hyper_host and base_port <= port <= base_port + 3
-            if len(
-                [
-                    domain
-                    for domain in domains
-                    if domain.get("viewer", False)
-                    and domain["viewer"].get("proxy_hyper_host", False)
-                    == proxy_hyper_host
-                    and domain["viewer"].get("base_port", False) <= int(port)
-                    and domain["viewer"].get("base_port", False) + 3 >= int(port)
-                ]
-            ):
-                return True
+            if not len(domains):
+                domains = list(
+                    r.table("domains")
+                    .get_all(["Shutting-down", guess_ip], index="guest_ip")
+                    .pluck("user", "category")
+                    .run(db.conn)
+                )
+        except:
+            raise Error(
+                "internal_server",
+                "Error in access to desktop viewer with guest_ip",
+                traceback.format_exc(),
+            )
+        if not len(domains):
+            raise Error(
+                "forbidden",
+                "No desktop started with this viewer guest_ip",
+            )
+        if len(domains) > 1:
+            raise Error(
+                "internal_server",
+                "Two desktops with the same viewer guest_ip",
+                traceback.format_exc(),
+            )
+
+        if role_id == "admin":
+            return True
+        elif role_id == "manager" and domains[0].get("category") == category_id:
+            return True
+        elif domains[0].get("user") == user_id:
+            return True
+
         raise Error(
             "forbidden",
-            "Forbidden access to desktop viewer",
-            traceback.format_exc(),
+            "Forbidden access to desktop viewer guest_ip with provides jwt",
+        )
+
+    @cached(TTLCache(maxsize=50, ttl=10))
+    def OwnsDesktopViewerProxiesPort(
+        self, user_id, category_id, role_id, proxy_video, proxy_hyper_host, port
+    ):
+        try:
+            with app.app_context():
+                domains = list(
+                    r.table("domains")
+                    .get_all(
+                        [
+                            "Started",
+                            proxy_video,
+                            proxy_hyper_host,
+                            port,
+                        ],
+                        index="proxies",
+                    )
+                    .pluck("user", "category")
+                    .run(db.conn)
+                )
+            if not len(domains):
+                with app.app_context():
+                    domains = list(
+                        r.table("domains")
+                        .get_all(
+                            [
+                                "Shutting-down",
+                                proxy_video,
+                                proxy_hyper_host,
+                                port,
+                            ],
+                            index="proxies",
+                        )
+                        .pluck("user", "category")
+                        .run(db.conn)
+                    )
+        except:
+            raise Error(
+                "forbidden",
+                "Forbidden access to desktop viewer with proxies and port",
+                traceback.format_exc(),
+            )
+        if not len(domains):
+            raise Error(
+                "forbidden",
+                "No desktop started with this viewer proxies and port",
+            )
+        if len(domains) > 1:
+            raise Error(
+                "internal_server",
+                "Two desktops with the same viewer proxies and port",
+            )
+
+        if role_id == "admin":
+            return True
+        elif role_id == "manager" and domains[0].get("category") == category_id:
+            return True
+        elif domains[0].get("user") == user_id:
+            return True
+
+        raise Error(
+            "forbidden",
+            "Forbidden access to desktop viewer proxies and port with provided jwt",
         )
 
     def CodeSearch(self, code):

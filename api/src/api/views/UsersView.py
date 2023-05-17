@@ -123,35 +123,38 @@ def api_v3_user_config(payload):
 @app.route("/api/v3/user/owns_desktop", methods=["GET"])
 @has_token
 def api_v3_user_owns_desktop(payload):
+    # Signed jwt token. Direct viewer access.
     if payload.get("desktop_id"):
         return json.dumps({}), 200, {"Content-Type": "application/json"}
-    if payload.get("role_id"):
-        if payload.get("role_id") == "admin":
-            return json.dumps({}), 200, {"Content-Type": "application/json"}
-        if payload.get("role_id") == "manager":
-            manager_category = payload.get("category_id")
-        else:
-            manager_category = False
 
-    ip = request.form.get("ip", False)
-    if ip:
-        users.OwnsDesktop(payload["user_id"], ip, manager_category=manager_category)
+    params = request.get_json(force=True)
+    guess_ip = params.get("ip")
+    if guess_ip:
+        users.OwnsDesktopViewerIP(
+            user_id=payload.get("user_id"),
+            category_id=payload.get("category_id"),
+            role_id=payload.get("role_id"),
+            guess_ip=guess_ip,
+        )
         return json.dumps({}), 200, {"Content-Type": "application/json"}
     else:
-        proxy_hyper_host = request.form.get("proxy_hyper_host", False)
-        port = request.form.get("port", False)
-        if not proxy_hyper_host or not port:
+        proxy_video = params.get("proxy_video")
+        proxy_hyper_host = params.get("proxy_hyper_host")
+        port = params.get("port")
+        if not proxy_video or not proxy_hyper_host or not port:
             raise Error(
                 "bad_request",
                 "Missing or incorrect parameters.",
                 traceback.format_exc(),
                 description_code="bad_request",
             )
-        users.OwnsDesktopHyperPort(
-            payload["user_id"],
-            proxy_hyper_host,
-            port,
-            manager_category=manager_category,
+        users.OwnsDesktopViewerProxiesPort(
+            user_id=payload.get("user_id"),
+            category_id=payload.get("category_id"),
+            role_id=payload.get("role_id"),
+            proxy_video=proxy_video,
+            proxy_hyper_host=proxy_hyper_host,
+            port=port,
         )
         return json.dumps({}), 200, {"Content-Type": "application/json"}
 
