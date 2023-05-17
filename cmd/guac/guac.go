@@ -1,10 +1,9 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -14,6 +13,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/wwt/guac"
+	"gitlab.com/isard/isardvdi-cli/pkg/cfg"
+	"gitlab.com/isard/isardvdi-cli/pkg/client"
 )
 
 var (
@@ -35,58 +36,36 @@ func init() {
 
 func isAuthenticated(handler http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		u := &url.URL{
-			Scheme: "http",
-			Host:   apiAddr,
-			Path:   "/api/v3/user/owns_desktop",
-		}
-
-		body := url.Values{}
-		body.Set("ip", r.URL.Query().Get("hostname"))
-
-		req, err := http.NewRequest(http.MethodGet, u.String(), bytes.NewBufferString(body.Encode()))
-		if err != nil {
-			logrus.Fatal("create http request to check for authentication: %v", err)
-		}
-
-		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-		req.Header.Add("Content-Length", strconv.Itoa(len(body.Encode())))
-
-		session := r.URL.Query().Get("session")
-		if session == "" {
+		tkn := r.URL.Query().Get("session")
+		if tkn == "" {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", session))
-
-		rsp, err := http.DefaultClient.Do(req)
+		cli, err := client.NewClient(&cfg.Cfg{
+			Host:  fmt.Sprintf("http://%s", apiAddr),
+			Token: tkn,
+		})
 		if err != nil {
-			logrus.Error("do http request to check for authentication: %v", err)
+			logrus.Errorf("error creating the client: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		switch rsp.StatusCode {
-		case http.StatusOK:
-			handler.ServeHTTP(w, r)
-
-		case http.StatusUnauthorized:
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-
-		default:
-			b, err := io.ReadAll(rsp.Body)
-			if err != nil {
-				logrus.Errorf("read http response: %v", err)
-				w.WriteHeader(http.StatusInternalServerError)
+		if err := cli.UserOwnsDesktop(r.Context(), &client.UserOwnsDesktopOpts{
+			IP: r.URL.Query().Get("hostname"),
+		}); err != nil {
+			if errors.Is(err, client.ErrForbidden) {
+				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
-			defer rsp.Body.Close()
 
-			w.WriteHeader(rsp.StatusCode)
-			w.Write(b)
+			logrus.Error("unknown error: %w", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
+
+		handler.ServeHTTP(w, r)
 	})
 }
 
