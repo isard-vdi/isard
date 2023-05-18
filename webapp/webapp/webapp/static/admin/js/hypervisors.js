@@ -143,7 +143,7 @@ $(document).ready(function() {
       { "data": "info.memory_in_MB", "width": "1000px", "defaultContent": 'NaN' },
       { "data": "info.cpu_cores", "defaultContent": 'NaN' },
       { "data": "status_time" },
-      { "data": "dom_started", "defaultContent": 0 },
+      { "data": "desktops_started", "defaultContent": 0 },
       { "data": "gpus", "defaultContent": 0 },
       { "data": "vpn.wireguard.connected", "defaultContent": 'NaN' },
       { "data": "info.nested", "defaultContent": 'NaN' },
