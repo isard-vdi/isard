@@ -109,7 +109,7 @@ class DomainsThread(threading.Thread):
                                         ).delete().run(db.conn)
                             user = data.pop("user")
                             category = data.pop("category")
-                            data = {"id": data["id"]}
+                            data = {"id": data["id"], "name": data["name"]}
                         else:
                             data = c["new_val"]
                             if data["kind"] == "desktop":
