@@ -24,7 +24,7 @@ $(document).ready(function() {
       { "data": "destroy_time", "width": "10px" },
       { "data": "info.memory_in_MB", "width": "10px", "defaultContent": 'NaN' },
       { "data": "info.cpu_cores", "width": "10px", "defaultContent": 'NaN' },
-      { "data": "dom_started", "width": "10px", "defaultContent": 0 },
+      { "data": "desktops_started", "width": "10px", "defaultContent": 0 },
       { "data": "status_time", "width": "10px" },
     ],
     "order": [

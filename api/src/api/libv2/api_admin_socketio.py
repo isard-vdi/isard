@@ -564,7 +564,7 @@ class HypervisorsThread(threading.Thread):
                                             "gpus": r.table("vgpus")
                                             .filter({"hyp_id": hyper["id"]})
                                             .count(),
-                                            "dom_started": r.table("domains")
+                                            "desktops_started": r.table("domains")
                                             .get_all(hyper["id"], index="hyp_started")
                                             .count(),
                                         }
@@ -580,12 +580,12 @@ class HypervisorsThread(threading.Thread):
                                 continue
                             if c["new_val"]["status"] != "Online":
                                 data = c["new_val"]
-                                data["dom_started"] = 0
+                                data["desktops_started"] = 0
                             else:
                                 data = {
                                     **c["new_val"],
                                     **{
-                                        "dom_started": r.table("domains")
+                                        "desktops_started": r.table("domains")
                                         .get_all(
                                             c["new_val"]["id"], index="hyp_started"
                                         )
