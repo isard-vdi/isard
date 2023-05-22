@@ -3,12 +3,15 @@ import time
 import traceback
 import urllib.request
 
-from flask import request
+from flask import jsonify, request
 from rethinkdb import RethinkDB
 
 from api import app
 
 from .._common.api_exceptions import Error
+from .._common.media import Media
+from .._common.storage_pool import StoragePool
+from .._common.task import Task
 from ..libv2.api_admin import admin_table_list, admin_table_update
 from ..libv2.flask_rethink import RDB
 from ..libv2.quotas import Quotas
@@ -219,7 +222,49 @@ def api_v3_admin_media_desktops(payload, media_id):
 @app.route("/api/v3/media/<media_id>", methods=["DELETE"])
 @is_admin_or_manager_or_advanced
 def api_v3_admin_media_delete(payload, media_id):
-    media = api_media.Get(media_id)
+    if not Media.exists(media_id):
+        raise Error(error="not_found", description="Media not found")
     ownsMediaId(payload, media_id)
+    media = Media(media_id)
+    if media.status != "Downloaded":
+        raise Error(
+            error="precondition_required",
+            description="Media not Downloaded",
+            description_code="media_not_downloaded",
+        )
+    media.status = "maintenance"
     api_media.DeleteDesktops(media_id)
-    return json.dumps(media_id), 200, {"Content-Type": "application/json"}
+    return jsonify(
+        Task(
+            user_id=payload.get("user_id"),
+            queue=f"storage.{StoragePool.get_best_for_action_by_path('delete', media.path_downloaded.rsplit('/', 1)[0]).id}.default",
+            task="delete",
+            job_kwargs={
+                "kwargs": {
+                    "path": media.path_downloaded,
+                },
+            },
+            dependents=[
+                {
+                    "queue": "core",
+                    "task": "update_status",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "statuses": {
+                                "finished": {
+                                    "deleted": {
+                                        "media": [media.id],
+                                    },
+                                },
+                                "canceled": {
+                                    "Downloaded": {
+                                        "media": [media.id],
+                                    },
+                                },
+                            },
+                        },
+                    },
+                }
+            ],
+        ).id
+    )

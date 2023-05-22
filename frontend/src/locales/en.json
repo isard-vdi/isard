@@ -939,6 +939,7 @@
         "media_new_user_quota_exceeded": "You've exceeded your media creation quota. You must delete a media in order to create a new one.",
         "media_new_group_limit_exceeded": "Group media creation limit has been exceeded",
         "media_new_category_limit_exceeded": "Category media creation limit has been exceeded",
+        "media_not_downloaded": "Media not Downloaded",
         "media_url_not_found": "The given url could not be found",
         "media_url_not_valid": "The given url is not valid",
         "group_total_size_limit_exceeded": "Group media storage size limit has been exceeded",

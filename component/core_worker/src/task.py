@@ -20,6 +20,7 @@
 import json
 
 from isardvdi_common.api_rest import ApiRest
+from isardvdi_common.media import Media
 from isardvdi_common.storage import Storage
 from isardvdi_common.task import Task
 from rq import get_current_job
