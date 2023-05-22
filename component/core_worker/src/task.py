@@ -70,45 +70,60 @@ def feedback(task_id=None):
     )
 
 
-def storage_status(statuses={}):
+def update_status(statuses={}):
     """
-    Set storage status depending on task status
+    Set status on items depending on task status
 
-    :param statuses: Nested dictionary that contains task status and status of storages.
-        First level keys are the status of the task, nested keys are the status for storage.
-        First level "_all" key is to set storage status for all task status.
+    :param statuses: Nested dictionary that contains task status and status for items.
+        First level keys are the status of the task, nested keys are the status for items.
+        First level "_all" key is to set status for all task status.
         Example:
         ```
             {
                 "_all": {
-                    # Set storage_id1 to "ready" for all task statuses
-                    "ready": ["storage_id1"],
+                    # Set storage_id1 and media_id1 to "ready" for all task statuses
+                    "ready": {
+                        "storage": ["storage_id1"],
+                        "media": ["media_id1"],
+                    }
                 },
                 "finished": {
                     # Set storage_id2 to "ready" if task was finished
-                    "ready": ["storage_id2"],
+                    "ready": {
+                        "storage": ["storage_id2"],
+                    }
                     # Set storage_id4 to "deleted" if task was finished
-                    "deleted": ["storage_id4"],
+                    "deleted": {
+                        "storage": ["storage_id4"],
+                    }
                 },
                 "canceled": {
                     # Set storage_id2 and storage_id3 to "deleted" if task was canceled
-                    "deleted": ["storage_id2", "storage_id3"],
-                    # Set storage_id4 to "maintenance" if task was canceled
-                    "maintenance": ["storage_id4"],
+                    "deleted": {
+                        storage: ["storage_id2", "storage_id3"],
+                    }
+                    # Set storage_id4 and media_id2 to "maintenance" if task was canceled
+                    "maintenance": {
+                        "storage": ["storage_id4"],
+                        "media": ["media_id2"],
+                    }
                 },
                 "failed": {
                     # Set storage_id2 to "maintenance" if task was failed
-                    "maintenance": ["storage_id2"],
+                    "maintenance": {
+                        "storage": ["storage_id2"],
+                    }
                 }
             }
         ```
     :type statuses: dict
     """
     task = Task(get_current_job().id)
-    for storage_statuses_storage_ids in [
+    for item_statuses_item_ids in [
         statuses.get("_all", {}),
         statuses.get(task.depending_status, {}),
     ]:
-        for storage_status, storage_ids in storage_statuses_storage_ids.items():
-            for storage_id in storage_ids:
-                Storage(storage_id, status=storage_status)
+        for item_status, items in item_statuses_item_ids.items():
+            for item_class, item_ids in items.items():
+                for item_id in item_ids:
+                    globals()[item_class.capitalize()](item_id, status=item_status)

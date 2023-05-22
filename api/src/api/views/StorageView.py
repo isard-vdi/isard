@@ -77,15 +77,19 @@ def storage_delete(payload, storage_id):
             dependents=[
                 {
                     "queue": "core",
-                    "task": "storage_status",
+                    "task": "update_status",
                     "job_kwargs": {
                         "kwargs": {
                             "statuses": {
                                 "finished": {
-                                    "deleted": [storage.id],
+                                    "deleted": {
+                                        "storage": [storage.id],
+                                    },
                                 },
                                 "canceled": {
-                                    "ready": [storage.id],
+                                    "ready": {
+                                        "storage": [storage.id],
+                                    },
                                 },
                             },
                         },
@@ -159,18 +163,24 @@ def storage_convert(payload, storage_id, new_storage_type, compress=None):
         dependents=[
             {
                 "queue": "core",
-                "task": "storage_status",
+                "task": "update_status",
                 "job_kwargs": {
                     "kwargs": {
                         "statuses": {
                             "_all": {
-                                "ready": [origin_storage.id],
+                                "ready": {
+                                    "storage": [origin_storage.id],
+                                },
                             },
                             "finished": {
-                                "ready": [new_storage.id],
+                                "ready": {
+                                    "storage": [new_storage.id],
+                                },
                             },
                             "canceled": {
-                                "deleted": [new_storage.id],
+                                "deleted": {
+                                    "storage": [new_storage.id],
+                                },
                             },
                         }
                     }
