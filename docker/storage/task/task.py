@@ -68,7 +68,7 @@ def convert(convert_request):
                 / 100
             )
             job.save_meta()
-            Queue("api", connection=job.connection).enqueue(
+            Queue("core", connection=job.connection).enqueue(
                 "task.feedback", task_id=job.id, result_ttl=0
             )
             sleep(5)

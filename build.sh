@@ -55,6 +55,7 @@ ALLINONE_PARTS="
 	redis
 	storage
 	backupninja
+	core_worker
 "
 HYPERVISOR_KEY="hypervisor"
 HYPERVISOR_PARTS="
@@ -107,6 +108,7 @@ WEB_PARTS="
 	stats
 	guac
 	redis
+	core_worker
 "
 MONITOR_STANDALONE_KEY="monitor"
 MONITOR_STANDALONE_PARTS="

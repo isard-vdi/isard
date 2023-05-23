@@ -14,8 +14,8 @@ from api import app
 from .._common.api_exceptions import Error
 from .._common.storage import Storage
 from .._common.storage_pool import StoragePool
+from .._common.task import Task
 from ..libv2.api_storage import get_disks, parse_disks
-from ..libv2.task import Task
 from .decorators import has_token, ownsStorageId
 
 
@@ -76,7 +76,7 @@ def storage_delete(payload, storage_id):
             },
             dependents=[
                 {
-                    "queue": "api",
+                    "queue": "core",
                     "task": "storage_status",
                     "job_kwargs": {
                         "kwargs": {
@@ -158,7 +158,7 @@ def storage_convert(payload, storage_id, new_storage_type, compress=None):
         },
         dependents=[
             {
-                "queue": "api",
+                "queue": "core",
                 "task": "storage_status",
                 "job_kwargs": {
                     "kwargs": {

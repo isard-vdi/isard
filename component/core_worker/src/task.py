@@ -19,12 +19,14 @@
 
 import json
 
-from api._common.storage import Storage
-from api.libv2.api_users import ApiUsers
-from api.libv2.task import Task
+from isardvdi_common.api_rest import ApiRest
+from isardvdi_common.storage import Storage
+from isardvdi_common.task import Task
 from rq import get_current_job
 
-from api import socketio
+
+def socketio(data):
+    ApiRest().post("/socketio", data=data)
 
 
 def feedback(task_id=None):
@@ -41,23 +43,30 @@ def feedback(task_id=None):
         task_id = get_current_job().dependency.id
     task = Task(task_id)
     task_as_json = json.dumps(task.to_dict())
-    socketio.emit(
-        "task",
-        task_as_json,
-        namespace="/administrators",
-        room="admins",
+    socketio(
+        {
+            "event": "task",
+            "data": task_as_json,
+            "namespace": "/administrators",
+            "room": "admins",
+        }
     )
-    socketio.emit(
-        "task",
-        task_as_json,
-        namespace="/administrators",
-        room=ApiUsers().Get(task.user_id).get("category"),
+    user = ApiRest().get(f"/admin/user/{task.user_id}")
+    socketio(
+        {
+            "event": "task",
+            "data": task_as_json,
+            "namespace": "/administrators",
+            "room": user.get("category"),
+        }
     )
-    socketio.emit(
-        "task",
-        task_as_json,
-        namespace="/userspace",
-        room=task.user_id,
+    socketio(
+        {
+            "event": "task",
+            "data": task_as_json,
+            "namespace": "/userspace",
+            "room": task.user_id,
+        }
     )
 
 

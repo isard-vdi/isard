@@ -16,23 +16,14 @@
 #   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
-version: '3.5'
-services:
-  isard-redis:
-    container_name: isard-redis
-    image: redis:alpine3.17
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "100m"
-        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
-    networks:
-      isard-network:
-        ipv4_address: ${DOCKER_NET:-172.31.255}.12
-    volumes:
-      - /opt/isard/redis/data:/data
-    command: /bin/sh -c "redis-server --requirepass \"$$REDIS_PASSWORD\""
-    environment:
-      REDIS_PASSWORD:
-    healthcheck:
-      test: ["CMD", "redis-cli","ping"]
+
+from atexit import register
+
+
+class atexit_register(classmethod):
+    """
+    Decorator to register a classmethod as atexit method
+    """
+
+    def __set_name__(self, type, name):
+        register(self.__func__, type)

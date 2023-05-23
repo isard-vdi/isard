@@ -19,9 +19,10 @@
 
 import os
 
-from api.libv2.redis_base import RedisBase
 from rq import Queue
 from rq.job import Dependency, Job, JobStatus
+
+from .redis_base import RedisBase
 
 
 def tasks_from_ids(task_ids):
@@ -128,7 +129,7 @@ class Task(RedisBase):
             self.job.save_meta()
             if "user_id" in kwargs:
                 for task in self._chain:
-                    Queue("api", connection=self._redis).enqueue(
+                    Queue("core", connection=self._redis).enqueue(
                         "task.feedback",
                         result_ttl=0,
                         depends_on=Dependency(jobs=[task.job], allow_failure=True),

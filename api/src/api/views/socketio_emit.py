@@ -16,23 +16,27 @@
 #   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
-version: '3.5'
-services:
-  isard-redis:
-    container_name: isard-redis
-    image: redis:alpine3.17
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "100m"
-        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
-    networks:
-      isard-network:
-        ipv4_address: ${DOCKER_NET:-172.31.255}.12
-    volumes:
-      - /opt/isard/redis/data:/data
-    command: /bin/sh -c "redis-server --requirepass \"$$REDIS_PASSWORD\""
-    environment:
-      REDIS_PASSWORD:
-    healthcheck:
-      test: ["CMD", "redis-cli","ping"]
+
+from flask import jsonify, request
+
+from api import app, socketio
+
+from .._common.api_exceptions import Error
+from .decorators import is_admin
+
+
+@app.route("/api/v3/socketio", methods=["POST"])
+@is_admin
+def emit_socketio(payload):
+    """
+    Endpoint to send a socketio message.
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :return: True
+    :rtype: flask.Response
+    """
+    if not request.is_json:
+        raise Error(description="JSON expected")
+    socketio.emit(**request.json)
+    return jsonify(True)
