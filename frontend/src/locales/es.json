@@ -838,7 +838,8 @@
                 "downloading": "Descargando",
                 "download-failed": "Descarga fallida",
                 "downloaded": "Descargado",
-                "deleting": "Borrando"
+                "deleting": "Borrando",
+                "maintenance": "Mantenimiento"
             },
             "delete-media": {
                 "title": "Borrar medio",

@@ -822,7 +822,8 @@
                 "downloading": "Downloading",
                 "download-failed": "Download failed",
                 "downloaded": "Downloaded",
-                "deleting": "Deleting"
+                "deleting": "Deleting",
+                "maintenance": "Maintenance"
             },
             "delete-media": {
                 "title": "Delete media",

@@ -86,7 +86,8 @@ export const mediaStatus = {
   DownloadFailed: i18n.t('views.media.status.download-failed'),
   Downloaded: i18n.t('views.media.status.downloaded'),
   Downloading: i18n.t('views.media.status.downloading'),
-  Deleting: i18n.t('views.media.status.deleting')
+  Deleting: i18n.t('views.media.status.deleting'),
+  maintenance: i18n.t('views.media.status.maintenance')
 }
 
 export const availableViewers = [
