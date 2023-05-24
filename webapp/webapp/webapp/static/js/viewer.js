@@ -160,10 +160,11 @@ function setViewerButtonData(desktop_id,data){
                     el.setAttribute('download', `${data.name}.${data.ext}`)
                 } else if (data.kind === 'browser') {
                     setCookie('browser_viewer', data.cookie)
+                    setCookie('token', localStorage.token)
                     el.setAttribute('href', data.viewer)
                     el.setAttribute('target', '_blank')
                     if (data.protocol === 'rdp') {
-                        localStorage.rdpToken = localStorage.token
+                        localStorage.viewerToken = localStorage.token
                     }
                 }
                 el.style.display = 'none'
