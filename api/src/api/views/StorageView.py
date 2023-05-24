@@ -12,6 +12,7 @@ from isardvdi_protobuf.queue.storage.v1 import ConvertRequest, DiskFormat
 from api import app
 
 from .._common.api_exceptions import Error
+from .._common.domain import Domain
 from .._common.storage import Storage
 from .._common.storage_pool import StoragePool
 from .._common.task import Task
@@ -127,6 +128,12 @@ def storage_move(payload, storage_id, path):
         raise Error(error="precondition_required", description="Storage not ready")
     if storage.directory_path == path:
         raise Error(error="bad_request", description="Storage already in path")
+    for domain in Domain.get_with_storage(storage):
+        if domain.status != "Stopped":
+            raise Error(
+                error="precondition_required",
+                description=f"Storage in use by domain {domain.id}",
+            )
     storage.status = "maintenance"
     storage_pool_origin = StoragePool.get_best_for_action_by_path(
         "move", storage.directory_path
