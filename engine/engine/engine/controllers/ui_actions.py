@@ -109,6 +109,7 @@ class UiActions(object):
                 "favourite_hyp",
                 "hypervisors_pools",
                 "force_gpus",
+                "force_update",
             ],
         )
         if not domain:
