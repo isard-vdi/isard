@@ -33,13 +33,22 @@ class Domain(RethinkCustomBase):
     _rdb_table = "domains"
 
     @property
+    def storages(self):
+        """
+        Returns domain Storages.
+        """
+        return [
+            Storage(disk["storage_id"])
+            for disk in self.create_dict.get("hardware", {}).get("disks", [])
+            if "storage_id" in disk
+        ]
+
+    @property
     def storage_ready(self):
         """
         Returns True if storages are ready, otherwise False
         """
-        disks = self.create_dict.get("hardware", {}).get("disks", [])
-        for disk in disks:
-            storage_id = disk.get("storage_id")
-            if storage_id and Storage(storage_id).status != "ready":
+        for storage in self.storages:
+            if storage.status != "ready":
                 return False
         return True
