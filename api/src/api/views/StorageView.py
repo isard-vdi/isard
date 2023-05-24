@@ -134,6 +134,11 @@ def storage_move(payload, storage_id, path):
                 error="precondition_required",
                 description=f"Storage in use by domain {domain.id}",
             )
+    if storage.children:
+        raise Error(
+            error="conflict",
+            description=f"Used as backing file for {', '.join([storage.id for storage in storage.children])}",
+        )
     storage.status = "maintenance"
     storage_pool_origin = StoragePool.get_best_for_action_by_path(
         "move", storage.directory_path
