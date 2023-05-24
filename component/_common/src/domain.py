@@ -52,3 +52,15 @@ class Domain(RethinkCustomBase):
             if storage.status != "ready":
                 return False
         return True
+
+    @classmethod
+    def get_with_storage(cls, storage):
+        """
+        Get domains with specific Storage
+        """
+        return [
+            domain
+            for domain in cls.get_all()
+            for domain_storage in domain.storages
+            if storage == domain_storage
+        ]
