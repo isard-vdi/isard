@@ -641,7 +641,7 @@ class ApiHypervisors:
             desktops_max_timeout = list(
                 r.table("desktops_priority")
                 .has_fields({"shutdown": {"max": True}})
-                .order_by(r.desc({"shutdown": {"max"}}))
+                .order_by(r.desc(lambda priority: priority["shutdown"]["max"]))
                 .run(db.conn)
             )
         if not len(desktops_max_timeout):
