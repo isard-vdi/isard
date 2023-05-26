@@ -27,7 +27,7 @@ var (
 
 func init() {
 	apiAddr = os.Getenv("API_DOMAIN")
-	if apiAddr == "" {
+	if apiAddr == "" || apiAddr == "isard-api" {
 		apiAddr = "isard-api:5000"
 		apiIgnoreCerts = false
 		apiProtocol = "http"
