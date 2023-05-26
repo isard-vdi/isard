@@ -839,33 +839,27 @@ class ApiUsers:
         domains = desktops + templates + derivated + users + groups
         return [i for n, i in enumerate(domains) if i not in domains[n + 1 :]]
 
-    @cached(TTLCache(maxsize=50, ttl=10))
+    @cached(TTLCache(maxsize=10, ttl=5))
     def OwnsDesktopViewerIP(self, user_id, category_id, role_id, guess_ip):
         try:
             with app.app_context():
                 domains = list(
                     r.table("domains")
-                    .get_all(["Started", guess_ip], index="guest_ip")
-                    .pluck("user", "category")
-                    .run(db.conn)
-                )
-            if not len(domains):
-                domains = list(
-                    r.table("domains")
-                    .get_all(["Shutting-down", guess_ip], index="guest_ip")
+                    .get_all(guess_ip, index="guest_ip")
                     .pluck("user", "category")
                     .run(db.conn)
                 )
         except:
             raise Error(
-                "internal_server",
-                "Error in access to desktop viewer with guest_ip",
+                "forbidden",
+                "Forbidden access to desktop viewer",
                 traceback.format_exc(),
             )
         if not len(domains):
             raise Error(
                 "forbidden",
-                "No desktop started with this viewer guest_ip",
+                "Forbidden access to desktop viewer",
+                traceback.format_exc(),
             )
         if len(domains) > 1:
             raise Error(
@@ -883,10 +877,11 @@ class ApiUsers:
 
         raise Error(
             "forbidden",
-            "Forbidden access to desktop viewer guest_ip with provides jwt",
+            "Forbidden access to desktop viewer",
+            traceback.format_exc(),
         )
 
-    @cached(TTLCache(maxsize=50, ttl=10))
+    @cached(TTLCache(maxsize=10, ttl=5))
     def OwnsDesktopViewerProxiesPort(
         self, user_id, category_id, role_id, proxy_video, proxy_hyper_host, port
     ):
@@ -894,49 +889,28 @@ class ApiUsers:
             with app.app_context():
                 domains = list(
                     r.table("domains")
-                    .get_all(
-                        [
-                            "Started",
-                            proxy_video,
-                            proxy_hyper_host,
-                            port,
-                        ],
-                        index="proxies",
-                    )
+                    .get_all([proxy_video, proxy_hyper_host], index="proxies")
+                    .filter(r.row["viewer"]["ports"].contains(port))
                     .pluck("user", "category")
                     .run(db.conn)
                 )
-            if not len(domains):
-                with app.app_context():
-                    domains = list(
-                        r.table("domains")
-                        .get_all(
-                            [
-                                "Shutting-down",
-                                proxy_video,
-                                proxy_hyper_host,
-                                port,
-                            ],
-                            index="proxies",
-                        )
-                        .pluck("user", "category")
-                        .run(db.conn)
-                    )
         except:
             raise Error(
                 "forbidden",
-                "Forbidden access to desktop viewer with proxies and port",
+                "Forbidden access to desktop viewer",
                 traceback.format_exc(),
             )
         if not len(domains):
             raise Error(
                 "forbidden",
-                "No desktop started with this viewer proxies and port",
+                "Forbidden access to desktop viewer",
+                traceback.format_exc(),
             )
         if len(domains) > 1:
             raise Error(
                 "internal_server",
-                "Two desktops with the same viewer proxies and port",
+                "Two desktops with the same viewer hyper and port",
+                traceback.format_exc(),
             )
 
         if role_id == "admin":
@@ -948,7 +922,8 @@ class ApiUsers:
 
         raise Error(
             "forbidden",
-            "Forbidden access to desktop viewer proxies and port with provided jwt",
+            "Forbidden access to desktop viewer",
+            traceback.format_exc(),
         )
 
     def CodeSearch(self, code):
