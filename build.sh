@@ -44,6 +44,7 @@ ALLINONE_PARTS="
 	hypervisor
 	websockify
 	squid
+	squid-hypervisor
 	webapp
 	stats
 	monitor
@@ -66,6 +67,7 @@ HYPERVISOR_PARTS="
 	hypervisor
 	websockify
 	squid
+	squid-hypervisor
 	stats
 	storage
 "

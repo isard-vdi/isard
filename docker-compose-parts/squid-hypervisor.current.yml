@@ -1,0 +1,6 @@
+version: '3.5'
+services:
+  isard-squid:
+    depends_on:
+      isard-hypervisor:
+        condition: service_started
