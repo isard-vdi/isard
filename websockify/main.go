@@ -1,8 +1,6 @@
 package main
 
 import (
-	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -11,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -43,60 +42,18 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-type browserViewer struct {
-	WebViewer browserViewerWebViewer `json:"web_viewer,omitempty"`
-}
-
-type browserViewerWebViewer struct {
-	Host string `json:"host,omitempty"`
-}
-
 func handler(w http.ResponseWriter, r *http.Request) {
-	tkn, err := r.Cookie("token")
+	vars := mux.Vars(r)
+	tkn, err := url.QueryUnescape(vars["token"])
 	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	browserViewerCookie, err := r.Cookie("browser_viewer")
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	browserViewerRaw, err := url.QueryUnescape(browserViewerCookie.Value)
-	if err != nil {
-		log.Println("SAAAAAAAAAAAAD #0")
-		log.Println(err)
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	browserViewerRawJSON, err := base64.StdEncoding.DecodeString(browserViewerRaw)
-	if err != nil {
-		log.Println("SAAAAAAAAAAAAD")
-		log.Println(err)
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	browserViewer := &browserViewer{}
-	if err := json.Unmarshal(browserViewerRawJSON, browserViewer); err != nil {
-		log.Println("SAAAAAAAAAAAAD #2")
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	if browserViewer == nil {
-		log.Println("SAAAAAAAAAAAAD #3")
-		w.WriteHeader(http.StatusUnauthorized)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	cli, err := client.NewClient(&cfg.Cfg{
 		Host:        fmt.Sprintf("%s://%s", apiProtocol, apiAddr),
 		IgnoreCerts: apiIgnoreCerts,
-		Token:       tkn.Value,
+		Token:       tkn,
 	})
 	if err != nil {
 		log.Printf("error creating the client: %v", err)
@@ -104,15 +61,15 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	vars := mux.Vars(r)
-
 	port, err := strconv.Atoi(vars["port"])
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
+
+	proxyVideo := strings.Split(r.Host, ":")
 	if err := cli.UserOwnsDesktop(r.Context(), &client.UserOwnsDesktopOpts{
-		ProxyVideo:     browserViewer.WebViewer.Host,
+		ProxyVideo:     proxyVideo[0],
 		ProxyHyperHost: vars["hyper"],
 		Port:           port,
 	}); err != nil {
@@ -227,7 +184,7 @@ func connQuality(w http.ResponseWriter, r *http.Request) {
 func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/conn-quality", connQuality)
-	r.HandleFunc("/{hyper}/{port:[0-9]+}", handler)
+	r.HandleFunc("/{hyper}/{port:[0-9]+}/{token}", handler)
 
 	http.Handle("/", r)
 	if err := http.ListenAndServe(":8080", nil); err != nil {
