@@ -314,6 +314,7 @@
         }
 
         let webViewer = getWebViewer()
+        const securityToken = encodeURIComponent(localStorage.getItem("token") || localStorage.getItem("viewerToken"));
 
         function getParameter(name) {
             return webViewer[name] ? webViewer[name] : false
@@ -339,7 +340,10 @@
                 'port': getParameter('port') || '443',
                 'desktopName': decodeURI(getParameter('vmName')) || decodeURI(readQueryVariable('vmName')),
                 'vmHost': getParameter('vmHost') || readQueryVariable('vmHost'),
-                'vmPort': (getParameter('vmPort') || readQueryVariable('vmPort')) - 2, // the spice (no TLS) port is two ports less than the vnc
+                'vmPort': (
+                    (getParameter('vmPort') || readQueryVariable('vmPort')) - 2 // TODO: MANUAL PORTS COUNT, -2 the spice (no TLS) port is two ports less than the vnc
+                    + '/' + securityToken // This is really ugly, but it's a simple way to pass the token without changing the spice code
+                ),
                 'token': getParameter('token') || readQueryVariable('passwd'),
                 'clientOffset': {
                     'x': 0,
@@ -434,7 +438,7 @@
         connQuality(host, port)
 
         // Build the websocket URL used to connect
-        let url = 'wss://' + host + port + '/' + vmHost + '/' + vmPort
+        let url = 'wss://' + host + port + '/' + vmHost + '/' + vmPort + '/' + securityToken
 
         // Creating a new RFB object will start a new connection
         rfb = new RFB(document.getElementById('screen'), url,
