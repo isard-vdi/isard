@@ -1,0 +1,16 @@
+id:
+  required: true
+  type: string
+  empty: false
+  default_setter: genuuid
+name:
+  type: string
+desc:
+  type: string
+parameters:
+  type: list
+  required: true
+item_sub_type:
+  type: string
+item_type:
+  type: string

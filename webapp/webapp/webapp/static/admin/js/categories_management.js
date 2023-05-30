@@ -80,6 +80,7 @@ $(document).ready(function () {
         ],
     });
 
+    showExportButtons(categories_table, 'categories-buttons-row')
     adminShowIdCol(categories_table)
 
     // Setup - add a text input to each footer cell

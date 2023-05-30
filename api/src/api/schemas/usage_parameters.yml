@@ -1,0 +1,22 @@
+id:
+  required: true
+  type: string
+  empty: false
+  default_setter: genuuid
+name:
+  required: true
+  type: string
+desc:
+  type: string
+formula:
+  type: string
+item_type:
+  type: string
+units:
+  required: false
+  type: string
+default:
+  type: integer
+custom:
+  required: true
+  type: boolean

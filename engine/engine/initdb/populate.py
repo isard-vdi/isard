@@ -119,6 +119,11 @@ class Populate(object):
             "storage_pool",
             "logs_desktops",
             "logs_users",
+            "usage_consumption",
+            "usage_credit",
+            "usage_parameter",
+            "usage_grouping",
+            "usage_limit",
             # config should be the last table to be created
             # api waits for config table to start
             "config",
@@ -1543,4 +1548,198 @@ class Populate(object):
             r.table("logs_users").index_create("started_time").run(self.conn)
             r.table("logs_users").index_create("stopped_time").run(self.conn)
         except:
+            None
+
+    def usage_consumption(self):
+        try:
+            log.info("Table usage_consumption not found, creating...")
+            r.table_create("usage_consumption", primary_key="pk").run(self.conn)
+            r.table("usage_consumption").index_create("item_id").run(self.conn)
+            r.table("usage_consumption").index_create("item_type").run(self.conn)
+            r.table("usage_consumption").index_create("item_consumer").run(self.conn)
+
+        except:
+            None
+
+    def usage_credit(self):
+        # Credits per category and range start/end
+        # Each entry will be related to a grouping and a limit
+        # If no entry for the given category and range, None will
+        try:
+            log.info("Table usage_credit not found, creating...")
+            r.table_create("usage_credit", primary_key="id").run(self.conn)
+            r.table("usage_credit").index_create(
+                "item_id-item_type-grouping",
+                [r.row["item_id"], r.row["item_type"], r.row["grouping_id"]],
+            ).run(self.conn)
+        except:
+            None
+
+    def usage_parameter(self):
+        try:
+            log.info("Table usage_parameter not found, creating...")
+            r.table_create("usage_parameter", primary_key="id").run(self.conn)
+            r.table("usage_parameter").index_create(
+                "custom_type", [r.row["custom"], r.row["item_type"]]
+            ).run(self.conn)
+            r.table("usage_parameter").insert(
+                [  # DESKTOP PARAMETERS
+                    {
+                        "id": "dsk_starts",
+                        "name": "Desktops started",
+                        "desc": "Number of desktops started",
+                        "units": "",
+                        "item_type": "desktop",
+                        "custom": False,
+                        "default": 0,
+                        "formula": None,
+                    },
+                    {
+                        "id": "dsk_hours",
+                        "name": "Desktop hours",
+                        "desc": "Number of desktop hours used",
+                        "units": "Desktop/hour",
+                        "item_type": "desktop",
+                        "custom": False,
+                        "default": 0,
+                        "formula": None,
+                    },
+                    {
+                        "id": "dsk_gpu_mem",
+                        "name": "GPU desktop memory",
+                        "desc": "GPU desktop memory per hour",
+                        "units": "MB/hour",
+                        "item_type": "desktop",
+                        "custom": False,
+                        "default": 0,
+                        "formula": None,
+                    },
+                    {
+                        "id": "dsk_gpu_hours",
+                        "name": "GPU hours",
+                        "desc": "Number of GPU desktop hours used",
+                        "units": "GPU/hour",
+                        "item_type": "desktop",
+                        "custom": False,
+                        "default": 0,
+                        "formula": None,
+                    },
+                    {
+                        "id": "dsk_vcpus",
+                        "name": "Desktop vCPUs",
+                        "desc": "Desktop vCPUs per hour",
+                        "units": "vCPU/hour",
+                        "item_type": "desktop",
+                        "custom": False,
+                        "default": 0,
+                        "formula": None,
+                    },
+                    {
+                        "id": "dsk_mem",
+                        "name": "Desktop memory",
+                        "desc": "Desktop memory per hour",
+                        "units": "MB/hour",
+                        "item_type": "desktop",
+                        "custom": False,
+                        "default": 0,
+                        "formula": None,
+                    },  # STORAGE PARAMETERS
+                    {
+                        "id": "str_size",
+                        "name": "Storage size",
+                        "desc": "Storage size",
+                        "units": "GB",
+                        "item_type": "storage",
+                        "custom": False,
+                        "default": 0,
+                        "formula": None,
+                    },
+                    {
+                        "id": "str_created",
+                        "name": "Storage created",
+                        "desc": "Storage created",
+                        "units": "GB",
+                        "item_type": "storage",
+                        "custom": False,
+                        "default": 0,
+                        "formula": None,
+                    },  # MEDIA PARAMETERS
+                    {
+                        "id": "mda_created",
+                        "name": "Media created",
+                        "desc": "Number of media created",
+                        "units": "",
+                        "item_type": "media",
+                        "custom": False,
+                        "default": 0,
+                        "formula": None,
+                    },
+                    {
+                        "id": "mda_size",
+                        "name": "Media size",
+                        "desc": "Media size",
+                        "units": "GB",
+                        "item_type": "media",
+                        "custom": False,
+                        "default": 0,
+                        "formula": None,
+                    },  # USER PARAMETERS
+                    {
+                        "id": "usr_created",
+                        "name": "Users created",
+                        "desc": "Number of users created",
+                        "units": "",
+                        "item_type": "user",
+                        "custom": False,
+                        "default": 0,
+                        "formula": None,
+                    },
+                    {
+                        "id": "usr_hours",
+                        "name": "User hours",
+                        "desc": "Number of user hours used",
+                        "units": "User/hour",
+                        "item_type": "user",
+                        "custom": False,
+                        "default": 0,
+                        "formula": None,
+                    },
+                    {
+                        "id": "usr_active",
+                        "name": "Users active",
+                        "desc": "Number of users active",
+                        "units": "",
+                        "item_type": "user",
+                        "custom": False,
+                        "default": 0,
+                        "formula": None,
+                    },  # CUSTOM PARAMETERS
+                    {
+                        "id": "DHN",
+                        "name": "Desktop hours normalized",
+                        "desc": "vCPU normalized to 4th and memory to 6GB. It weights more for memory than vcpus.",
+                        "units": "DH/N",
+                        "item_type": "desktop",
+                        "custom": True,
+                        "default": 0,
+                        "formula": "0.2 * dsk_vcpus / 4 + 0.8 * dsk_mem / 6",
+                    },
+                ]
+            ).run(self.conn)
+        except:
+            None
+
+    def usage_grouping(self):
+        try:
+            log.info("Table usage_grouping not found, creating...")
+            r.table_create("usage_grouping", primary_key="id").run(self.conn)
+        except:
+            None
+
+    def usage_limit(self):
+        try:
+            log.info("Table usage_limit not found, creating...")
+            r.table_create("usage_limit", primary_key="id").run(self.conn)
+        except Exception as e:
+            log.error(e)
             None

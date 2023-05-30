@@ -96,6 +96,20 @@ def send_static_js(path):
     return send_from_directory(os.path.join(app.root_path, "static"), path)
 
 
+@app.route("/isard-admin/mathjs/<path:path>")
+def send_mathjs(path):
+    return send_from_directory(
+        os.path.join(app.root_path, "node_modules/mathjs/lib/browser"), path
+    )
+
+
+@app.route("/isard-admin/echarts/<path:path>")
+def send_echarts(path):
+    return send_from_directory(
+        os.path.join(app.root_path, "node_modules/echarts"), path
+    )
+
+
 @app.errorhandler(404)
 def not_found_error(error):
     return render_template("page_404.html"), 404
