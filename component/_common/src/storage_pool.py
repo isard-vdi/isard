@@ -17,7 +17,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from random import choice
+from random import choice, choices
 
 from rethinkdb import r
 
@@ -34,6 +34,22 @@ class StoragePool(RethinkCustomBase):
     """
 
     _rdb_table = "storage_pool"
+
+    def get_directory_path_by_usage(self, usage):
+        """
+        Get best directory path by usage.
+
+        :param usage: Usage type: desktop, media, template or volatile.
+        :type path: str
+        :return: Directory path
+        :rtype: str
+        """
+        paths = []
+        weights = []
+        for path in self.paths.get(usage, []):
+            paths.append(path.get("path"))
+            weights.append(path.get("weight"))
+        return choices(paths, weights=weights)[0]
 
     @classmethod
     def get_by_path(cls, path):
