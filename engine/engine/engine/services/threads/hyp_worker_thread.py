@@ -29,7 +29,7 @@ from engine.services.lib.functions import (
     get_tid,
     update_status_db_from_running_domains,
 )
-from engine.services.lib.qmp import notify_desktop
+from engine.services.lib.qmp import Notifier, PersonalUnit
 from engine.services.log import logs
 from engine.services.threads.threads import (
     RETRIES_HYP_IS_ALIVE,
@@ -107,6 +107,7 @@ class HypWorkerThread(threading.Thread):
                                 {
                                     "type": "add_hyp_to_receive_events",
                                     "hyp_id": self.hyp_id,
+                                    "worker": self,
                                 }
                             )
 
@@ -625,7 +626,20 @@ class HypWorkerThread(threading.Thread):
                             f"{error}"
                         )
                     else:
-                        notify_desktop(domain, action["message"])
+                        Notifier.notify_desktop(domain, action["message"])
+
+                elif action["type"] == "personal_unit":
+                    try:
+                        domain = self.h.conn.lookupByName(action["desktop_id"])
+                    except libvirtError as error:
+                        logs.workers.error(
+                            f'libvirt error getting desktop {action["desktop_id"]} to '
+                            "mount personal unit: "
+                            f"{error}"
+                        )
+                    else:
+                        PersonalUnit.connect_personal_unit(domain)
+
                 else:
                     logs.workers.error(
                         "type action {} not supported in queue actions".format(

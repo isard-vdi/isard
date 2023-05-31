@@ -392,6 +392,7 @@ create_docker_compose_file(){
 	then
 		parts="$(echo $parts | sed 's/postgres//' | sed 's/nc//' )"
 	fi
+
 	flavour "$config_name" $parts
 
 	if [ "$BACKUP_NFS_ENABLED" = "true" ]

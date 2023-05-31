@@ -5,6 +5,7 @@ import time
 import traceback
 from copy import deepcopy
 from pathlib import PurePath
+from typing import TypedDict
 
 from engine.config import TRANSITIONAL_STATUS
 from engine.services.db import (
@@ -1011,6 +1012,29 @@ def get_disks_all_domains():
 
     close_rethink_connection(r_conn)
     return tuples_id_disk
+
+
+class PersonalUnit(TypedDict):
+    user_id: str
+    password: str
+    dav: str
+    tls: bool
+    verify_cert: bool
+    web: str
+
+
+def get_personal_unit_from_domain(domain_id: str) -> PersonalUnit:
+    """Get the personal unit configuration that applies to a domain"""
+    r_conn = new_rethink_connection()
+
+    user_id = (r.table("domains").get(domain_id).pluck("user").run(r_conn)).get("user")
+
+    personal_unit = (
+        r.table("users").get(user_id).pluck("user_storage").run(r_conn)
+    ).get("user_storage")
+
+    close_rethink_connection(r_conn)
+    return personal_unit
 
 
 def get_vgpu_uuid_status(uuid, gpu_id=None, profile=None):

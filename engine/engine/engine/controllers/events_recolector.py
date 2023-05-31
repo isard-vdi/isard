@@ -18,6 +18,7 @@ import time
 import traceback
 
 import libvirt
+from engine.controllers.ui_actions import Q_PRIORITY_PERSONAL_UNIT
 from engine.models.domain_xml import DomainXML
 from engine.models.rethink_hyp_event import RethinkHypEvent
 from engine.services.db import (
@@ -330,18 +331,6 @@ def myDomainEventTunableCallback(conn, dom, params, opaque):
     logs.status.debug(
         "myDomainEventTunableCallback: Domain %s(%s) %s"
         % (dom.name(), dom.ID(), params)
-    )
-
-
-def myDomainEventAgentLifecycleCallback(conn, dom, state, reason, opaque):
-    logs.status.debug(
-        "myDomainEventAgentLifecycleCallback: Domain %s(%s) %s %s"
-        % (
-            dom.name(),
-            dom.ID(),
-            agentLifecycleStateToString(state),
-            agentLifecycleReasonToString(reason),
-        )
     )
 
 
@@ -687,6 +676,7 @@ class ThreadHypEvents(threading.Thread):
         self.hyps = {}
         # self.hostname = get_hyp_hostname_from_id(hyp_id)
         self.hyps_conn = dict()
+        self.hyps_workers = dict()
         self.events_ids = dict()
         self.q_event_register = PriorityQueueIsard()
 
@@ -715,7 +705,7 @@ class ThreadHypEvents(threading.Thread):
                 )
                 if action["type"] in ["add_hyp_to_receive_events"]:
                     hyp_id = action["hyp_id"]
-                    self.add_hyp_to_receive_events(hyp_id)
+                    self.add_hyp_to_receive_events(hyp_id, action["worker"])
                 elif action["type"] in ["del_hyp_to_receive_events"]:
                     hyp_id = action["hyp_id"]
                     self.del_hyp_to_receive_events(hyp_id)
@@ -738,7 +728,7 @@ class ThreadHypEvents(threading.Thread):
         while self.thread_event_loop.is_alive():
             pass
 
-    def add_hyp_to_receive_events(self, hyp_id):
+    def add_hyp_to_receive_events(self, hyp_id, worker):
         print("add_hyp_to_receive_events")
         d_hyp_parameters = get_hyp_hostname_user_port_from_id(hyp_id)
         hostname = d_hyp_parameters["hostname"]
@@ -749,6 +739,7 @@ class ThreadHypEvents(threading.Thread):
         conn_ok = False
         try:
             self.hyps_conn[hyp_id] = libvirt.openReadOnly(uri)
+            self.hyps_workers[hyp_id] = worker
             logs.status.info(
                 "####################connection to {} ready in events thread".format(
                     hyp_id
@@ -858,6 +849,40 @@ class ThreadHypEvents(threading.Thread):
         # hyp_libvirt_conn.domainEventRegisterAny(None, libvirt.VIR_DOMAIN_EVENT_ID_DEVICE_REMOVED, myDomainEventDeviceRemovedCallback, None)
         # hyp_libvirt_conn.domainEventRegisterAny(None, libvirt.VIR_DOMAIN_EVENT_ID_TUNABLE, myDomainEventTunableCallback, None)
         # hyp_libvirt_conn.networkEventRegisterAny(None, libvirt.VIR_NETWORK_EVENT_ID_LIFECYCLE, myNetworkEventLifecycleCallback, None)
+
+        # QEMU Guest Agent
+        def myDomainEventAgentLifecycleCallback(conn, dom, state, reason, opaque):
+            # TODO: RethinkDB
+            logs.status.info(
+                "myDomainEventAgentLifecycleCallback: Domain %s(%s) %s %s"
+                % (
+                    dom.name(),
+                    dom.ID(),
+                    agentLifecycleStateToString(state),
+                    agentLifecycleReasonToString(reason),
+                )
+            )
+
+            if (
+                state
+                == libvirt.VIR_CONNECT_DOMAIN_EVENT_AGENT_LIFECYCLE_STATE_CONNECTED
+            ):
+                hyp_id = get_id_hyp_from_uri(conn.getURI())
+                desktop_id = dom.name()
+                self.hyps_workers[hyp_id].queue_actions.put(
+                    {"type": "personal_unit", "desktop_id": desktop_id},
+                    Q_PRIORITY_PERSONAL_UNIT,
+                )
+                logs.main.info(f"Personal unit mount of {desktop_id} queued")
+
+        cb_ids[
+            "VIR_DOMAIN_EVENT_ID_AGENT_LIFECYCLE"
+        ] = hyp_libvirt_conn.domainEventRegisterAny(
+            None,
+            libvirt.VIR_DOMAIN_EVENT_ID_AGENT_LIFECYCLE,
+            myDomainEventAgentLifecycleCallback,
+            None,
+        )
 
         hyp_libvirt_conn.setKeepAlive(5, 3)
         return cb_ids
