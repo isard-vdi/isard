@@ -26,3 +26,5 @@ services:
     environment:
       ENV: /usr/local/etc/environment
       STORAGE_DOMAIN:
+      QCOW2_CLUSTER_SIZE:
+      QCOW2_EXTENDED_L2:

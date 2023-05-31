@@ -17,12 +17,56 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from os import remove, rename
-from subprocess import PIPE, Popen
+from os import environ, remove, rename
+from subprocess import PIPE, Popen, run
 from time import sleep
 
 from isardvdi_protobuf.queue.storage.v1 import ConvertRequest, DiskFormat
 from rq import Queue, get_current_job
+
+
+def create(storage_path, storage_type, size=None, parent_path=None, parent_type=None):
+    """
+    Create disk.
+
+    :param storage_path: Path of new disk
+    :type storage_path: str
+    :param storage_type: Format of new disk
+    :type storage_type: str
+    :param size: Size of new disk as qemu-img string format
+    :type size: str
+    :param parent_path: Path of backing file
+    :type parent_path: str
+    :param parent_type: Format of backing file
+    :type parent_type: str
+    :return: Exit code of qemu-img command
+    :rtype: int
+    """
+    backing_file = []
+    if parent_path and parent_type:
+        backing_file = ["-b", parent_path, "-F", parent_type]
+    if size:
+        size = [size]
+    else:
+        size = []
+    return run(
+        [
+            "qemu-img",
+            "create",
+            "-f",
+            storage_type,
+            *backing_file,
+            "-o",
+            f"""cluster_size={
+                environ.get('QCOW2_CLUSTER_SIZE','4k')
+            },extended_l2={
+                environ.get('QCOW2_EXTENDED_L2','off')
+            }""",
+            storage_path,
+            *size,
+        ],
+        check=True,
+    ).returncode
 
 
 def move(origin_path, destination_path):
