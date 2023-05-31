@@ -63,9 +63,9 @@ class StoragePool(RethinkCustomBase):
             ]
 
     @classmethod
-    def get_best_for_action_by_path(cls, action, path):
+    def get_best_for_action(cls, action, path=None):
         """
-        Get the best Storage Pool for an action that has a specific path.
+        Get the best Storage Pool for an action.
         Currently the best Storage Pool is selected randomly.
 
         :param path: Path
@@ -73,4 +73,8 @@ class StoragePool(RethinkCustomBase):
         :return: StoragePool object
         :rtype: StoragePool
         """
-        return choice(cls.get_by_path(path))
+        if path:
+            storage_pools = cls.get_by_path(path)
+        else:
+            storage_pools = cls.get_all()
+        return choice(storage_pools)

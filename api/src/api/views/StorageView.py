@@ -68,7 +68,7 @@ def storage_delete(payload, storage_id):
     return jsonify(
         Task(
             user_id=payload.get("user_id"),
-            queue=f"storage.{StoragePool.get_best_for_action_by_path('delete', storage.directory_path).id}.default",
+            queue=f"storage.{StoragePool.get_best_for_action('delete', path=storage.directory_path).id}.default",
             task="delete",
             job_kwargs={
                 "kwargs": {
@@ -120,7 +120,7 @@ def storage_move(payload, storage_id, path):
         raise Error(error="not_found", description="Storage not found")
     ownsStorageId(payload, storage_id)
     path = f"/{path}"
-    storage_pool_destination = StoragePool.get_best_for_action_by_path("move", path)
+    storage_pool_destination = StoragePool.get_best_for_action("move", path=path)
     if not storage_pool_destination:
         raise Error(error="not_found", description="Path not found")
     storage = Storage(storage_id)
@@ -140,8 +140,8 @@ def storage_move(payload, storage_id, path):
             description=f"Used as backing file for {', '.join([storage.id for storage in storage.children])}",
         )
     storage.status = "maintenance"
-    storage_pool_origin = StoragePool.get_best_for_action_by_path(
-        "move", storage.directory_path
+    storage_pool_origin = StoragePool.get_best_for_action(
+        "move", path=storage.directory_path
     )
     if storage_pool_origin == storage_pool_destination:
         queue = storage_pool_origin.id
@@ -242,7 +242,7 @@ def storage_convert(payload, storage_id, new_storage_type, compress=None):
     )
     Task(
         user_id=payload.get("user_id"),
-        queue=f"storage.{StoragePool.get_best_for_action_by_path('convert', origin_storage.directory_path).id}.default",
+        queue=f"storage.{StoragePool.get_best_for_action('convert', path=origin_storage.directory_path).id}.default",
         task="convert",
         job_kwargs={
             "timeout": 4096,
