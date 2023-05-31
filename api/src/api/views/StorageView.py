@@ -20,6 +20,101 @@ from ..libv2.api_storage import get_disks, parse_disks
 from .decorators import has_token, ownsStorageId
 
 
+@app.route("/api/v3/storage", methods=["POST"])
+@has_token
+def create_storage(payload):
+    """
+    Endpoint to create a storage with storage specifications as JSON in body request.
+
+    Storage specifications in JSON:
+    {
+        "usage_type": "Usage: desktop, media, template, volatile",
+        "storage_type": "disk format of the new storage",
+        "size": "string with the size of new storage like qemu-img command",
+        "parent": "Storage ID to be used as backing file",
+        "priority": "low, default or high",
+    }
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :return: Storage ID
+    :rtype: Set with Flask response values and data in JSON
+    """
+    if not request.is_json:
+        raise Error(
+            description="No JSON in body request with storage specifications",
+        )
+    request_json = request.get_json()
+    for specification in ["usage_type", "storage_type"]:
+        if specification not in request_json:
+            raise Error(
+                description=f"No {specification} in JSON of body request",
+            )
+    if "size" not in request_json and "parent" not in request_json:
+        raise Error(
+            description="size or parent must be specified in JSON of body request",
+        )
+    priority = request_json.get("priority", "default")
+    if priority not in ["low", "default", "high"]:
+        raise Error(
+            description="priority should be low, default or high",
+        )
+    parent_args = {}
+    if "parent" in request_json:
+        if not Storage.exists(request_json.get("parent")):
+            raise Error(error="not_found", description="Parent storage not found")
+        parent = Storage(request_json.get("parent"))
+        if parent.status != "ready":
+            raise Error(
+                error="precondition_required", description="Parent storage not ready"
+            )
+        parent_args = {
+            "parent_path": f"{parent.directory_path}/{parent.id}.{parent.type}",
+            "parent_type": parent.type,
+        }
+    storage_pool = StoragePool.get_best_for_action("create")
+    storage = Storage(
+        status="maintenance",
+        user_id=payload.get("user_id"),
+        type=request_json.get("storage_type"),
+        parent=request_json.get("parent"),
+        directory_path=storage_pool.get_directory_path_by_usage(
+            request_json.get("usage_type")
+        ),
+    )
+    Task(
+        user_id=payload.get("user_id"),
+        queue=f"storage.{storage_pool.id}.{priority}",
+        task="create",
+        job_kwargs={
+            "kwargs": {
+                "storage_path": f"{storage.directory_path}/{storage.id}.{storage.type}",
+                "storage_type": storage.type,
+                "size": request_json.get("size"),
+                **parent_args,
+            },
+        },
+        dependents=[
+            {
+                "queue": "core",
+                "task": "update_status",
+                "job_kwargs": {
+                    "kwargs": {
+                        "statuses": {
+                            "finished": {
+                                "ready": {
+                                    "storage": [storage.id],
+                                },
+                            },
+                        },
+                    },
+                },
+            }
+        ],
+    )
+    return jsonify(storage.id)
+
+
 @app.route("/api/v3/storage/<status>", methods=["GET"])
 @has_token
 def api_v3_storage(payload, status):
