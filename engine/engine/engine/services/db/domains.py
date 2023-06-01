@@ -1682,25 +1682,34 @@ def get_and_update_personal_vlan_id_from_domain_id(
 ):
     r_conn = new_rethink_connection()
     user_id = dict(r.table("domains").get(id_domain).pluck("user").run(r_conn))["user"]
-    vlan_ids = list(
-        r.table("domains")
-        .get_all(user_id, index="user")
-        .filter(r.row["status"].eq("Started") | r.row["status"].eq("Shutting-down"))
-        .filter(r.row["create_dict"].has_fields("personal_vlans"))
-        .filter(~r.row["create_dict"]["personal_vlans"].eq(False))
-        .filter(
-            lambda doc: doc["create_dict"]["personal_vlans"].has_fields(id_interface)
+    vlan_ids = set(
+        list(
+            r.table("domains")
+            .get_all(user_id, index="user")
+            .filter(
+                r.row["status"].eq("Started")
+                | r.row["status"].eq("Shutting-down")
+                | r.row["status"].eq("Starting")
+                | r.row["status"].eq("Stopping")
+            )
+            .filter(r.row["create_dict"].has_fields("personal_vlans"))
+            .filter(~r.row["create_dict"]["personal_vlans"].eq(False))
+            .filter(
+                lambda doc: doc["create_dict"]["personal_vlans"].has_fields(
+                    id_interface
+                )
+            )
+            .pluck([{"create_dict": {"personal_vlans": True}}])["create_dict"][
+                "personal_vlans"
+            ][id_interface]
+            .coerce_to("array")
+            .run(r_conn)
         )
-        .pluck([{"create_dict": {"personal_vlans": True}}])["create_dict"][
-            "personal_vlans"
-        ][id_interface]
-        .coerce_to("array")
-        .run(r_conn)
     )
 
     if len(vlan_ids) > 0:
         # check if all vlan_ids are the same
-        if len(set(vlan_ids)) > 1:
+        if len(vlan_ids) > 1:
             logs.main.error(
                 f"personal vlan_id {vlan_ids} error: vlan_ids are not the same in user {user_id} started domains"
             )
@@ -1718,24 +1727,36 @@ def get_and_update_personal_vlan_id_from_domain_id(
     else:
         # The user is still not using any vlan_id in this interface
         # We have to get the next vlan_id in range not used in other domains
-        all_vlan_ids = list(
-            r.table("domains")
-            .filter(r.row["status"].eq("Started") | r.row["status"].eq("Shutting-down"))
-            .filter(r.row["create_dict"].has_fields("personal_vlans"))
-            .filter(~r.row["create_dict"]["personal_vlans"].eq(False))
-            .filter(
-                lambda doc: doc["create_dict"]["personal_vlans"].has_fields(
-                    id_interface
+        used_personal_vlan_ids = set(
+            list(
+                r.table("domains")
+                .get_all(
+                    r.args(
+                        [
+                            "Started",
+                            "Starting",
+                            "Stopping",
+                            "Shutting-down",
+                        ]
+                    ),
+                    index="status",
                 )
+                .filter(r.row["create_dict"].has_fields("personal_vlans"))
+                .filter(~r.row["create_dict"]["personal_vlans"].eq(False))
+                .filter(
+                    lambda doc: doc["create_dict"]["personal_vlans"].has_fields(
+                        id_interface
+                    )
+                )
+                .pluck([{"create_dict": {"personal_vlans": True}}])["create_dict"][
+                    "personal_vlans"
+                ][id_interface]
+                .coerce_to("array")
+                .run(r_conn)
             )
-            .pluck([{"create_dict": {"personal_vlans": True}}])["create_dict"][
-                "personal_vlans"
-            ][id_interface]
-            .coerce_to("array")
-            .run(r_conn)
         )
         # check if the range is not full
-        if len(all_vlan_ids) >= range_end - range_start:
+        if len(used_personal_vlan_ids) >= range_end - range_start:
             logs.main.error(
                 f"personal vlan_id error: range {range_start}-{range_end} is full in user {user_id} started domains"
             )
@@ -1745,7 +1766,7 @@ def get_and_update_personal_vlan_id_from_domain_id(
         # get the next vlan_id in range not used in other domains
         vlan_id = False
         for i in range(range_start, range_end):
-            if i not in all_vlan_ids:
+            if i not in used_personal_vlan_ids:
                 vlan_id = i
                 break
     if vlan_id is not False:
