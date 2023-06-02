@@ -665,17 +665,22 @@
             "modal": {
                 "title": { 
                     "make-visible": "Hacer que el despliegue '{name}' sea visible",
-                    "make-invisible": "Hacer que el despliegue '{name}' sea invisible"
+                    "make-invisible": "Hacer que el despliegue '{name}' sea invisible",
+                    "download-csv": "Descargar CSV de visores directos de '{name}'"
                 },
                 "option": {
                     "dont-stop-desktops": "Hacer invisible este despliegue para los usuarios y permitir el uso de los escritorios hasta que se paren",
                     "stop-desktops": "Hacer invisible este despliegue para los usuarios y parar todos los escritorios",
-                    "make-visible": "Hacer visible este despliegue para que los usuarios tengan acceso a los escritorios"
+                    "make-visible": "Hacer visible este despliegue para que los usuarios tengan acceso a los escritorios",
+                    "keep-csv": "Mantener los enlaces y descargar el fichero CSV",
+                    "reset-csv": "Reestablecer los enlaces del despliegue (los enlaces generados previamente no estarán disponibles) y descargar el fichero CSV"
                 },
                 "confirmation": {
                     "stop": "Parar escritorios",
                     "dont-stop": "No parar escritorios",
-                    "make-visible": "Hacer visible"
+                    "make-visible": "Hacer visible",
+                    "keep-csv": "Mantener enlaces y descargar CSV",
+                    "reset-csv": "Reestablecer enlaces y descargar CSV"
                 }
             }
             
@@ -880,7 +885,6 @@
             "delete-event": "La reserva '{name}' se borrará, continuar?",
             "disable-template": "'{name}' será invisible para sus usuarios, ¿desea continuar?",
             "enable-template": "'{name}' será visible para sus usuarios, ¿desea continuar?",
-            "direct-viewer-reset": "Se descargará el fichero de visores directos. Reestablecer las direcciones de los visores?",
             "delete-media": "El medio '{name}' se borrará, continuar?",
             "edit-domain": "El hardware de '{name}' se limitará y sus datos se modificarán, continuar?",
             "new-deployment": "Se crearán {quantity} escritorios, uno por cada usuario seleccionado. Continuar?",

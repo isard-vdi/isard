@@ -12,11 +12,16 @@ const getDefaultState = () => {
     deployment_loaded: false,
     selectedDesktop: {},
     deploymentsShowStarted: false,
-    visibilityModal: {
+    deploymentModal: {
       show: false,
+      type: 'visible',
+      color: 'blue',
       item: {
         id: '',
-        visible: false
+        name: '',
+        visible: false,
+        stopStartedDomains: false,
+        reset: false
       }
     }
   }
@@ -39,8 +44,8 @@ export default {
     getDeploymentsShowStarted: state => {
       return state.deploymentsShowStarted
     },
-    getVisibilityModal: state => {
-      return state.visibilityModal
+    getDeploymentModal: state => {
+      return state.deploymentModal
     }
   },
   mutations: {
@@ -80,8 +85,8 @@ export default {
     toggleDeploymentsShowStarted: (state, type) => {
       state.deploymentsShowStarted = !state.deploymentsShowStarted
     },
-    setVisibilityModal: (state, visibilityModal) => {
-      state.visibilityModal = visibilityModal
+    setDeploymentModal: (state, deploymentModal) => {
+      state.deploymentModal = deploymentModal
     }
   },
   actions: {
@@ -181,15 +186,18 @@ export default {
     toggleDeploymentsShowStarted (context) {
       context.commit('toggleDeploymentsShowStarted')
     },
-    updateVisibilityModal (context, data) {
-      context.commit('setVisibilityModal', data)
+    updateDeploymentModal (context, data) {
+      context.commit('setDeploymentModal', data)
     },
-    resetVisibilityModal (context) {
-      context.commit('setVisibilityModal', {
+    resetDeploymentModal (context) {
+      context.commit('setDeploymentModal', {
         show: false,
+        type: 'visible',
         item: {
           id: '',
-          visible: false
+          visible: false,
+          stopStartedDomains: false,
+          reset: false
         }
       })
     }

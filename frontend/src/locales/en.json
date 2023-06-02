@@ -664,17 +664,22 @@
             "modal": {
                 "title": { 
                     "make-visible": "Make deployment '{name}' visible",
-                    "make-invisible": "Make deployment '{name}' invisible"
+                    "make-invisible": "Make deployment '{name}' invisible",
+                    "download-csv": "Download '{name}' direct viewer CSV"
                 },
                 "option": {
                     "dont-stop-desktops": "Make this deployment invisible to the users and allow the use of the desktops until they're stopped",
                     "stop-desktops": "Make this deployment invisible to the users and stop all the desktops",
-                    "make-visible": "Make this deployment visible so the users of the deployment have access to the desktops"
+                    "make-visible": "Make this deployment visible so the users of the deployment have access to the desktops",
+                    "keep-csv": "Keep the current urls and download the csv",
+                    "reset-csv": "Reset the deployment urls (old generated urls will not be available) and download the csv"
                 },
                 "confirmation": {
                     "stop": "Stop desktops",
                     "dont-stop": "Don't stop desktops",
-                    "make-visible": "Make visible"
+                    "make-visible": "Make visible",
+                    "keep-csv": "Keep urls and download csv",
+                    "reset-csv": "Reset urls and download csv"
                 }
             }
         },
@@ -864,7 +869,6 @@
             "enable-template": "'{name}' will be visible for its users, continue?",
             "disable-template": "'{name}' will be invisible for its users, continue?",
             "delete-event": "'{name}' booking will be deleted, continue?",
-            "direct-viewer-reset": "The direct viewers file will be downloaded. Reset the viewers urls?",
             "delete-media": "'{name}' media will be deleted, continue?",
             "edit-domain": "'{name}' hardware will be limited and its data will be changed, continue?",
             "new-deployment": "{quantity} desktops will be created, one for each selected user. Continue?",

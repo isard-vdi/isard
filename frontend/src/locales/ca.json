@@ -501,17 +501,22 @@
             "modal": {
                 "title": { 
                     "make-visible": "Fer visible el desplegament '{name}'",
-                    "make-invisible": "Fer invisible el desplegament '{name}'"
+                    "make-invisible": "Fer invisible el desplegament '{name}'",
+                    "download-csv": "Descarregar el CSV de visors directes de '{name}'"
                 },
                 "option": {
                     "dont-stop-desktops": "Fer invisible aquest desplegament pels usuaris i permetre l'ús dels escriptoris fins que s'aturin",
                     "stop-desktops": "Fer invisible aquest deplegament pels usuaris i aturar tots els escriptoris",
-                    "make-visible": "Fer visible aquest desplegament perquè els usuaris tinguin accés als escriptoris"
+                    "make-visible": "Fer visible aquest desplegament perquè els usuaris tinguin accés als escriptoris",
+                    "keep-csv": "Mantenir els enllaços i descarregar el fitxer CSV",
+                    "reset-csv": "Reestablir els enllaços del desplegament (els enllaços generats prèviament no estaran disponibles) i descarregar el fitxer CSV"
                 },
                 "confirmation": {
                     "stop": "Aturar escriptoris",
                     "dont-stop": "No aturar escriptoris",
-                    "make-visible": "Fer visible"
+                    "make-visible": "Fer visible",
+                    "keep-csv": "Mantenir enllaços i descarregar CSV",
+                    "reset-csv": "Reestablir enllaços i descarregar CSV"
                     }
                 }
             
@@ -951,7 +956,6 @@
             "delete-event": "La reserva '{name}' s'esborrarà, continuar?",
             "enable-template": "'{name}' serà visible pels seus usuaris, continuar?",
             "disable-template": "'{name}' serà invisible pels seus usuaris, continuar?",
-            "direct-viewer-reset": "Es descarregarà el fitxer de visors directes. Reestablir les adreces dels visors?",
             "delete-media": "El mitjà '{name}' s'esborrarà, continuar?",
             "image-uploaded": "Imatge pujada correctament",
             "edit-domain": "El hardware de '{name}' es limitarà i les seves dades es modificaran, continuar?",

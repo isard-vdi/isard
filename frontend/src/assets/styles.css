@@ -8,7 +8,8 @@
   --red-color: #e7898e;
   --green-color: #97c277;
   --orange-color: #eead47;
-  --lightblue-color: #76b7dd;}
+  --lightblue-color: #76b7dd;
+  --purple-color: #b491d1;}
 
 /* Header */
 .header-wrapper {
@@ -53,6 +54,10 @@
 
 .bg-blue {
   background-color: var(--lightblue-color);
+}
+
+.bg-purple {
+  background-color: var(--purple-color);
 }
 
 /* UTILITIES */
@@ -488,7 +493,7 @@
 
 .btn-purple {
   color: #fff;
-  background-color: #b491d1 !important;
+  background-color: var(--purple-color) !important;
   border: none !important;
 }
 
