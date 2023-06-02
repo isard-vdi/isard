@@ -41,7 +41,9 @@ export default {
           '/' +
           this.desktop.viewer.values.vmHost +
           '/' +
-          this.desktop.viewer.values.vmPort,
+          this.desktop.viewer.values.vmPort +
+          '/' +
+          localStorage.token,
         {
           credentials: { password: this.desktop.viewer.values.token }
         }
