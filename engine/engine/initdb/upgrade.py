@@ -17,7 +17,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 88
+release_version = 89
+# release 89: Add html5_ext_port to proxies index
 # release 88: Fix guest_ip and proxies indexes
 # release 87: Add viewer guest_ip and proxies indexes
 # release 86: Fix parents to already duplicated templates
@@ -1504,17 +1505,34 @@ class Upgrade(object):
         if version == 88:
             try:
                 r.table(table).index_drop("guest_ip").run(self.conn)
-                r.table(table).index_drop("proxies").run(self.conn)
+                # r.table(table).index_drop("proxies").run(self.conn)
             except:
                 None
             try:
                 r.table(table).index_create(
                     "guest_ip", r.row["viewer"]["guest_ip"]
                 ).run(self.conn)
+                # r.table(table).index_create(
+                #     "proxies",
+                #     [
+                #         r.row["viewer"]["proxy_video"],
+                #         r.row["viewer"]["proxy_hyper_host"],
+                #     ],
+                # ).run(self.conn)
+            except:
+                print(e)
+
+        if version == 89:
+            try:
+                r.table(table).index_drop("proxies").run(self.conn)
+            except:
+                None
+            try:
                 r.table(table).index_create(
                     "proxies",
                     [
                         r.row["viewer"]["proxy_video"],
+                        r.row["viewer"]["html5_ext_port"],
                         r.row["viewer"]["proxy_hyper_host"],
                     ],
                 ).run(self.conn)

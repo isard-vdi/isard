@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -67,9 +66,8 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	proxyVideo := strings.Split(r.Host, ":")
 	if err := cli.UserOwnsDesktop(r.Context(), &client.UserOwnsDesktopOpts{
-		ProxyVideo:     proxyVideo[0],
+		ProxyVideo:     r.Host,
 		ProxyHyperHost: vars["hyper"],
 		Port:           port,
 	}); err != nil {

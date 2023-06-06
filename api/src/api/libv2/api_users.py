@@ -886,10 +886,19 @@ class ApiUsers:
         self, user_id, category_id, role_id, proxy_video, proxy_hyper_host, port
     ):
         try:
+            proxy_video_parts = proxy_video.split(":")
+            if len(proxy_video_parts) == 2:
+                proxy_video = proxy_video_parts[0]
+                proxy_video_port = proxy_video_parts[1]
+            else:
+                proxy_video_port = "443"
             with app.app_context():
                 domains = list(
                     r.table("domains")
-                    .get_all([proxy_video, proxy_hyper_host], index="proxies")
+                    .get_all(
+                        [proxy_video, proxy_video_port, proxy_hyper_host],
+                        index="proxies",
+                    )
                     .filter(r.row["viewer"]["ports"].contains(port))
                     .pluck("user", "category")
                     .run(db.conn)
