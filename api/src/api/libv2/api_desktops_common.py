@@ -72,7 +72,9 @@ class ApiDesktopsCommon:
 
         booking = _parse_desktop_booking(domain)
         if booking.get("needs_booking"):
-            if not booking.get("next_booking_start"):
+            if not domain["status"] != "started" and not booking.get(
+                "next_booking_start"
+            ):
                 raise Error(
                     "precondition_required",
                     "Bookable desktop can't be started without a booking",
