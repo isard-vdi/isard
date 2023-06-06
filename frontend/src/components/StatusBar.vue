@@ -26,7 +26,7 @@
               href="#"
               @click="goToDeployments"
             >
-              <VisibilityModal />
+              <DeploymentModal />
               <div>
                 <b-icon
                   icon="arrow-left"
@@ -281,14 +281,14 @@
 <script>
 import { desktopStates } from '@/shared/constants'
 import DesktopsFilter from '@/components/desktops/DesktopsFilter.vue'
-import VisibilityModal from '@/components/deployments/VisibilityModal.vue'
+import DeploymentModal from '@/components/deployments/DeploymentModal.vue'
 import { ref, computed, watch } from '@vue/composition-api'
 import i18n from '@/i18n'
 
 export default {
   components: {
     DesktopsFilter,
-    VisibilityModal
+    DeploymentModal
   },
   setup (props, context) {
     const $store = context.root.$store
@@ -390,32 +390,20 @@ export default {
     }
 
     const toggleVisible = () => {
-      $store.dispatch('updateVisibilityModal', {
+      $store.dispatch('updateDeploymentModal', {
         show: true,
-        item: { id: deployment.value.id, visible: deployment.value.visible, stopStartedDomains: false }
+        type: 'visibility',
+        color: 'blue',
+        item: { id: deployment.value.id, name: deployment.value.name, visible: deployment.value.visible, stopStartedDomains: false }
       })
     }
 
     const downloadDirectViewerCSV = () => {
-      context.root.$snotify.clear()
-
-      const resetJumperUrls = () => {
-        context.root.$snotify.clear()
-        $store.dispatch('downloadDirectViewerCSV', { id: deployment.value.id, reset: true })
-      }
-
-      const downloadCsv = () => {
-        context.root.$snotify.clear()
-        $store.dispatch('downloadDirectViewerCSV', { id: deployment.value.id })
-      }
-
-      context.root.$snotify.confirm(`${i18n.t('messages.confirmation.direct-viewer-reset')}`, {
-        position: 'centerTop',
-        buttons: [
-          { text: `${i18n.t('messages.yes')}`, action: resetJumperUrls, bold: true },
-          { text: `${i18n.t('messages.no')}`, action: downloadCsv }
-        ],
-        placeholder: ''
+      $store.dispatch('updateDeploymentModal', {
+        show: true,
+        type: 'downloadCSV',
+        color: 'purple',
+        item: { id: deployment.value.id, name: deployment.value.name }
       })
     }
 
@@ -507,11 +495,6 @@ export default {
       creationMode,
       navigate,
       viewType
-    }
-  },
-  mutations: {
-    setVisibilityModal: (state, visibilityModal) => {
-      state.visibilityModal = visibilityModal
     }
   }
 }
