@@ -1,13 +1,10 @@
 #
 # Build phase
 #
-FROM golang:1.18-alpine as build
+ARG GOLANG_BUILD_IMAGE
+ARG GOLANG_RUN_IMAGE
 
-RUN apk add --no-cache \
-    git \
-    build-base \
-    pkgconfig \
-    libvirt-dev
+FROM ${GOLANG_BUILD_IMAGE} as build
 
 WORKDIR /build
 
@@ -17,6 +14,11 @@ COPY go.sum /build
 RUN go mod download
 
 WORKDIR /
+
+RUN apk add --no-cache \
+    build-base \
+    pkgconfig \
+    libvirt-dev
 
 COPY pkg /build/pkg
 COPY stats /build/stats
@@ -29,7 +31,7 @@ RUN go build -o bin/stats cmd/stats/main.go
 #
 # Stats
 #
-FROM alpine:3.16
+FROM ${GOLANG_RUN_IMAGE}
 
 RUN apk add --no-cache \
     ca-certificates \

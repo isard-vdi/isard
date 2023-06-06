@@ -335,6 +335,14 @@ create_docker_compose_file(){
 	then
 		BACKUP_DISKS_ENABLED="false"
 	fi
+	if [ -z "$GOLANG_BUILD_IMAGE" ]
+	then
+		export GOLANG_BUILD_IMAGE="golang:1.20-alpine"
+	fi
+	if [ -z "$GOLANG_RUN_IMAGE" ]
+	then
+		export GOLANG_RUN_IMAGE="alpine:3.18"
+	fi
 	if [ -z "$FLAVOUR" ]
 	then
 		FLAVOUR="all-in-one"

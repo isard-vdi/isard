@@ -4,3 +4,6 @@ services:
     build:
       context: ${BUILD_ROOT_PATH}
       dockerfile: docker/db/Dockerfile.stats
+      args:
+        - GOLANG_BUILD_IMAGE
+        - GOLANG_RUN_IMAGE

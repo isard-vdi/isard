@@ -1,10 +1,10 @@
 #
 # Build phase
 #
-FROM golang:1.19-alpine as build
+ARG GOLANG_BUILD_IMAGE
+ARG GOLANG_RUN_IMAGE
 
-RUN apk add --no-cache \
-    git
+FROM ${GOLANG_BUILD_IMAGE} as build
 
 WORKDIR /build
 
@@ -26,7 +26,7 @@ RUN CGO_ENABLED=0 go build -o bin/orchestrator cmd/orchestrator/main.go
 #
 # Orchestrator
 #
-FROM alpine:3.16
+FROM ${GOLANG_RUN_IMAGE}
 
 COPY --from=build /build/orchestrator/bin/orchestrator /orchestrator
 
