@@ -846,10 +846,11 @@ class ApiUsers:
                 domains = list(
                     r.table("domains")
                     .get_all(guess_ip, index="guest_ip")
-                    .pluck("user", "category")
+                    .pluck("user", "category", "tag")
                     .run(db.conn)
                 )
         except:
+            app.logger.error(traceback.format_exc())
             raise Error(
                 "forbidden",
                 "Forbidden access to desktop viewer",
@@ -857,11 +858,12 @@ class ApiUsers:
             )
         if not len(domains):
             raise Error(
-                "forbidden",
-                "Forbidden access to desktop viewer",
+                "bad_request",
+                f"No desktop with requested guess_ip {guess_ip} to access viewer",
                 traceback.format_exc(),
             )
         if len(domains) > 1:
+            app.logger.error(traceback.format_exc())
             raise Error(
                 "internal_server",
                 "Two desktops with the same viewer guest_ip",
@@ -874,10 +876,20 @@ class ApiUsers:
             return True
         elif domains[0].get("user") == user_id:
             return True
+        elif domains[0].get("tag"):
+            with app.app_context():
+                deployment_user_owner = (
+                    r.table("deployments")
+                    .get(domains[0].get("tag"))
+                    .pluck("user")
+                    .run(db.conn)
+                ).get("user", None)
+            if deployment_user_owner == user_id:
+                return True
 
         raise Error(
             "forbidden",
-            "Forbidden access to desktop viewer",
+            f"Forbidden access to user {user_id} to desktop {domains[0]} viewer",
             traceback.format_exc(),
         )
 
@@ -900,10 +912,11 @@ class ApiUsers:
                         index="proxies",
                     )
                     .filter(r.row["viewer"]["ports"].contains(port))
-                    .pluck("user", "category")
+                    .pluck("user", "category", "tag")
                     .run(db.conn)
                 )
         except:
+            app.logger.error(traceback.format_exc())
             raise Error(
                 "forbidden",
                 "Forbidden access to desktop viewer",
@@ -911,14 +924,15 @@ class ApiUsers:
             )
         if not len(domains):
             raise Error(
-                "forbidden",
-                "Forbidden access to desktop viewer",
+                "bad_request",
+                f"No desktop with requested guess_ip {guess_ip} to access viewer",
                 traceback.format_exc(),
             )
         if len(domains) > 1:
+            app.logger.error(traceback.format_exc())
             raise Error(
                 "internal_server",
-                "Two desktops with the same viewer hyper and port",
+                "Two desktops with the same viewer guest_ip",
                 traceback.format_exc(),
             )
 
@@ -928,10 +942,20 @@ class ApiUsers:
             return True
         elif domains[0].get("user") == user_id:
             return True
+        elif domains[0].get("tag"):
+            with app.app_context():
+                deployment_user_owner = (
+                    r.table("deployments")
+                    .get(domains[0].get("tag"))
+                    .pluck("user")
+                    .run(db.conn)
+                ).get("user", None)
+            if deployment_user_owner == user_id:
+                return True
 
         raise Error(
             "forbidden",
-            "Forbidden access to desktop viewer",
+            f"Forbidden access to user {user_id} to desktop {domains[0]} viewer",
             traceback.format_exc(),
         )
 
