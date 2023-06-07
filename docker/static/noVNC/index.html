@@ -294,9 +294,11 @@
             return defaultValue;
         }
 
+        const url = new URL(window.location.href)
+
         function getWebViewer() {
-            let urlCookie = window.location.href.slice(window.location.href.indexOf('?') + 1).split("cookie=")
-            if (urlCookie.length > 1) {
+            let urlCookie = url.searchParams.get('cookie')
+            if (urlCookie !== null) {
                 const webViewer = JSON.parse(atob(decodeURIComponent(urlCookie[1])))['web_viewer']
                 // Check expiration
                 if (new Date() > new Date(webViewer.exp * 1000)) {
@@ -314,7 +316,12 @@
         }
 
         let webViewer = getWebViewer()
-        const securityToken = encodeURIComponent(localStorage.getItem("token") || localStorage.getItem("viewerToken"));
+        let securityToken;
+        if (url.searchParams.get('direct') === '1') {
+            securityToken = encodeURIComponent(localStorage.getItem("viewerToken") || localStorage.getItem("token"));
+        } else {
+            securityToken = encodeURIComponent(localStorage.getItem("token") || localStorage.getItem("viewerToken"));
+        }
 
         function getParameter(name) {
             return webViewer[name] ? webViewer[name] : false
@@ -393,7 +400,7 @@
             });
 
             client.addEventListener("close", (event) => {
-                console.log("Connection quality websocket close event from " + url + ", reason :" + event.reason + ", code: " + event.code);
+                console.log("Connection quality websocket close event from " + wsURL + ", reason :" + event.reason + ", code: " + event.code);
                 client = null;
             });
 
@@ -438,10 +445,10 @@
         connQuality(host, port)
 
         // Build the websocket URL used to connect
-        let url = 'wss://' + host + port + '/' + vmHost + '/' + vmPort + '/' + securityToken
+        let wsURL = 'wss://' + host + port + '/' + vmHost + '/' + vmPort + '/' + securityToken
 
         // Creating a new RFB object will start a new connection
-        rfb = new RFB(document.getElementById('screen'), url,
+        rfb = new RFB(document.getElementById('screen'), wsURL,
             { credentials: { password: password } });
 
         // Add listeners to important events from the RFB module

@@ -328,7 +328,11 @@ export default {
         const exp = new Date(JSON.parse(atob(decodeURIComponent(payload.cookie))).web_viewer.exp * 1000)
         cookies.setCookie('token', localStorage.viewerToken)
         cookies.setCookie('browser_viewer', payload.cookie, { expires: exp })
-        el.setAttribute('href', payload.viewer)
+
+        const url = new URL(payload.viewer)
+        url.searchParams.append('direct', '1')
+
+        el.setAttribute('href', url.toString())
       }
 
       el.style.display = 'none'
