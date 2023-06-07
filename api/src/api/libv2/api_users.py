@@ -850,6 +850,7 @@ class ApiUsers:
                     .run(db.conn)
                 )
         except:
+            app.logger.error(traceback.format_exc())
             raise Error(
                 "forbidden",
                 "Forbidden access to desktop viewer",
@@ -857,11 +858,12 @@ class ApiUsers:
             )
         if not len(domains):
             raise Error(
-                "forbidden",
-                "Forbidden access to desktop viewer",
+                "bad_request",
+                f"No desktop with requested guess_ip {guess_ip} to access viewer",
                 traceback.format_exc(),
             )
         if len(domains) > 1:
+            app.logger.error(traceback.format_exc())
             raise Error(
                 "internal_server",
                 "Two desktops with the same viewer guest_ip",
@@ -887,7 +889,7 @@ class ApiUsers:
 
         raise Error(
             "forbidden",
-            "Forbidden access to desktop viewer",
+            f"Forbidden access to user {user_id} to desktop {domains[0]} viewer",
             traceback.format_exc(),
         )
 
@@ -914,6 +916,7 @@ class ApiUsers:
                     .run(db.conn)
                 )
         except:
+            app.logger.error(traceback.format_exc())
             raise Error(
                 "forbidden",
                 "Forbidden access to desktop viewer",
@@ -921,14 +924,15 @@ class ApiUsers:
             )
         if not len(domains):
             raise Error(
-                "forbidden",
-                "Forbidden access to desktop viewer",
+                "bad_request",
+                f"No desktop with requested guess_ip {guess_ip} to access viewer",
                 traceback.format_exc(),
             )
         if len(domains) > 1:
+            app.logger.error(traceback.format_exc())
             raise Error(
                 "internal_server",
-                "Two desktops with the same viewer hyper and port",
+                "Two desktops with the same viewer guest_ip",
                 traceback.format_exc(),
             )
 
@@ -951,7 +955,7 @@ class ApiUsers:
 
         raise Error(
             "forbidden",
-            "Forbidden access to desktop viewer",
+            f"Forbidden access to user {user_id} to desktop {domains[0]} viewer",
             traceback.format_exc(),
         )
 
