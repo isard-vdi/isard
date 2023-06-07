@@ -17,7 +17,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 89
+release_version = 90
+# release 90: Remove viewer key from stopped and failed desktops
 # release 89: Add html5_ext_port to proxies index
 # release 88: Fix guest_ip and proxies indexes
 # release 87: Add viewer guest_ip and proxies indexes
@@ -1536,6 +1537,14 @@ class Upgrade(object):
                         r.row["viewer"]["proxy_hyper_host"],
                     ],
                 ).run(self.conn)
+            except:
+                print(e)
+
+        if version == 90:
+            try:
+                r.table("domains").get_all(
+                    r.args(["Stopped", "Failed"]), index="status"
+                ).has_fields("viewer").replace(r.row.without("viewer")).run(self.conn)
             except:
                 print(e)
 

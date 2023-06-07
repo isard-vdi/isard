@@ -670,8 +670,12 @@ def update_domain_dict_hardware(id, domain_dict, xml=False):
     return results
 
 
-def remove_domain_viewer_values(id):
-    r_conn = new_rethink_connection()
+def remove_domain_viewer_values(id, conn=False):
+    if conn is False:
+        r_conn = new_rethink_connection()
+    else:
+        r_conn = conn
+
     rtable = r.table("domains")
 
     results = rtable.get(id).replace(r.row.without("viewer")).run(r_conn)
@@ -1648,6 +1652,7 @@ def remove_fieds_when_stopped(id_domain, conn=False):
             "hyp_started": False,
         },
     ).run(r_conn)
+    remove_domain_viewer_values(id_domain, conn=r_conn)
 
     if conn is False:
         close_rethink_connection(r_conn)
