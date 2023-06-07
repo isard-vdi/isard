@@ -647,12 +647,25 @@ class DomainXML(object):
                             and int(range[1]) < pow(2, 12)
                             and int(range[1]) > int(range[0])
                         ):
-                            vlan_id = get_and_update_personal_vlan_id_from_domain_id(
-                                id_domain,
-                                id_interface,
-                                range_start=int(range[0]),
-                                range_end=int(range[1]),
-                            )
+                            try:
+                                vlan_id = (
+                                    get_and_update_personal_vlan_id_from_domain_id(
+                                        id_domain,
+                                        id_interface,
+                                        range_start=int(range[0]),
+                                        range_end=int(range[1]),
+                                    )
+                                )
+                            except Exception as e:
+                                log.error(
+                                    f"Exception when update_personal_vlan_id_from_domain_id {id_domain} with id_interface {id_interface}: {e}"
+                                )
+                                log.error(
+                                    "Traceback in Exception: {}".format(
+                                        traceback.format_exc()
+                                    )
+                                )
+                                return -1
                             if vlan_id:
                                 xml_snippet = XML_SNIPPET_OVS.format(
                                     vlan_id=vlan_id, ovs_br_name="ovsbr0"

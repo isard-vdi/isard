@@ -1682,31 +1682,32 @@ def get_and_update_personal_vlan_id_from_domain_id(
 ):
     r_conn = new_rethink_connection()
     user_id = dict(r.table("domains").get(id_domain).pluck("user").run(r_conn))["user"]
-    vlan_ids = set(
-        list(
-            r.table("domains")
-            .get_all(user_id, index="user")
-            .filter(
-                r.row["status"].eq("Started")
-                | r.row["status"].eq("Shutting-down")
-                | r.row["status"].eq("Starting")
-                | r.row["status"].eq("Stopping")
-            )
-            .filter(r.row["create_dict"].has_fields("personal_vlans"))
-            .filter(~r.row["create_dict"]["personal_vlans"].eq(False))
-            .filter(
-                lambda doc: doc["create_dict"]["personal_vlans"].has_fields(
-                    id_interface
+    vlan_ids = list(
+        set(
+            list(
+                r.table("domains")
+                .get_all(user_id, index="user")
+                .filter(
+                    r.row["status"].eq("Started")
+                    | r.row["status"].eq("Shutting-down")
+                    | r.row["status"].eq("Starting")
+                    | r.row["status"].eq("Stopping")
                 )
+                .filter(r.row["create_dict"].has_fields("personal_vlans"))
+                .filter(~r.row["create_dict"]["personal_vlans"].eq(False))
+                .filter(
+                    lambda doc: doc["create_dict"]["personal_vlans"].has_fields(
+                        id_interface
+                    )
+                )
+                .pluck([{"create_dict": {"personal_vlans": True}}])["create_dict"][
+                    "personal_vlans"
+                ][id_interface]
+                .coerce_to("array")
+                .run(r_conn)
             )
-            .pluck([{"create_dict": {"personal_vlans": True}}])["create_dict"][
-                "personal_vlans"
-            ][id_interface]
-            .coerce_to("array")
-            .run(r_conn)
         )
     )
-
     if len(vlan_ids) > 0:
         # check if all vlan_ids are the same
         if len(vlan_ids) > 1:
