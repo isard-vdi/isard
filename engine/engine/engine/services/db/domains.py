@@ -391,7 +391,7 @@ def update_domain_status(
 
     except r.ReqlNonExistenceError:
         logs.main.error(
-            "domain_id {} does not exist in domains table".format(domain_id)
+            "domain_id {} does not exist in domains table".format(id_domain)
         )
         logs.main.debug("function: {}".format(sys._getframe().f_code.co_name))
         return False
