@@ -846,7 +846,7 @@ class ApiUsers:
                 domains = list(
                     r.table("domains")
                     .get_all(guess_ip, index="guest_ip")
-                    .pluck("user", "category")
+                    .pluck("user", "category", "tag")
                     .run(db.conn)
                 )
         except:
@@ -874,6 +874,16 @@ class ApiUsers:
             return True
         elif domains[0].get("user") == user_id:
             return True
+        elif domains[0].get("tag"):
+            with app.app_context():
+                deployment_user_owner = (
+                    r.table("deployments")
+                    .get(domains[0].get("tag"))
+                    .pluck("user")
+                    .run(db.conn)
+                ).get("user", None)
+            if deployment_user_owner == user_id:
+                return True
 
         raise Error(
             "forbidden",
@@ -900,7 +910,7 @@ class ApiUsers:
                         index="proxies",
                     )
                     .filter(r.row["viewer"]["ports"].contains(port))
-                    .pluck("user", "category")
+                    .pluck("user", "category", "tag")
                     .run(db.conn)
                 )
         except:
@@ -928,6 +938,16 @@ class ApiUsers:
             return True
         elif domains[0].get("user") == user_id:
             return True
+        elif domains[0].get("tag"):
+            with app.app_context():
+                deployment_user_owner = (
+                    r.table("deployments")
+                    .get(domains[0].get("tag"))
+                    .pluck("user")
+                    .run(db.conn)
+                ).get("user", None)
+            if deployment_user_owner == user_id:
+                return True
 
         raise Error(
             "forbidden",
