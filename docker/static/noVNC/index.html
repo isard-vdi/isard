@@ -299,7 +299,7 @@
         function getWebViewer() {
             let urlCookie = url.searchParams.get('cookie')
             if (urlCookie !== null) {
-                const webViewer = JSON.parse(atob(decodeURIComponent(urlCookie[1])))['web_viewer']
+                const webViewer = JSON.parse(atob(decodeURIComponent(urlCookie)))['web_viewer']
                 // Check expiration
                 if (new Date() > new Date(webViewer.exp * 1000)) {
                     alert('Token expired, can\'t access the desktop')

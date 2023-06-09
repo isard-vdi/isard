@@ -925,7 +925,7 @@ class ApiUsers:
         if not len(domains):
             raise Error(
                 "bad_request",
-                f"No desktop with requested guess_ip {guess_ip} to access viewer",
+                f"No desktop with requested parameters (proxy_video: {proxy_video}, proxy_hyper_host: {proxy_hyper_host}, port: {port}) to access viewer",
                 traceback.format_exc(),
             )
         if len(domains) > 1:
