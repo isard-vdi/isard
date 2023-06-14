@@ -1,0 +1,45 @@
+stages:
+  - lint
+  - version
+  - release
+
+commit-lint:
+  stage: lint
+  image: node
+  script:
+    - npm i --save @commitlint/config-conventional
+    - git fetch https://gitlab.com/isard/isardvdi-sdk-go.git main
+    - npx commitlint -x "@commitlint/config-conventional" --from=HEAD~1
+
+golang-lint:
+  stage: lint
+  image: golangci/golangci-lint:v1.50.1
+  script:
+    - golangci-lint run -v
+
+version:
+  stage: version
+  image: node
+  rules:
+    # semantic-release checks repository write access and we cannot use
+    # GITLAB_TOKEN in unprotected branches due to security reasons.
+    # https://github.com/semantic-release/semantic-release/issues/2207
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  script:
+    - npm install -g semantic-release @semantic-release/exec conventional-changelog-conventionalcommits
+    - cp releaserc.version.yml .releaserc.yml
+    - semantic-release --dry-run --branches $CI_COMMIT_REF_NAME
+  artifacts:
+    paths:
+      - .VERSION
+
+release:
+  stage: release
+  image: node
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  script:
+    - test ! -e ".VERSION" && exit 0
+    - npm install -g semantic-release @semantic-release/gitlab conventional-changelog-conventionalcommits
+    - cp releaserc.release.yml .releaserc.yml
+    - semantic-release --branches $CI_DEFAULT_BRANCH
