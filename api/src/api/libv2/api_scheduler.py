@@ -6,7 +6,6 @@
 # License: AGPLv3
 
 import logging as log
-import time
 import traceback
 from datetime import datetime, timedelta
 
@@ -15,6 +14,7 @@ from rethinkdb import RethinkDB
 
 from api import app
 
+from .._common.api_exceptions import Error
 from .._common.api_rest import ApiRest
 from .api_notify import notify_desktop, notify_user
 from .flask_rethink import RDB
@@ -99,25 +99,51 @@ class Scheduler:
         start_date = datetime.now(pytz.utc)
 
         if desktop.get("create_dict", {}).get("reservables", {}).get("vgpus"):
-            item_id = desktop_id
+            # First find if deployment has a booking
+            booking = []
             if desktop.get("tag"):
                 item_id = desktop.get("tag")
-            booking = (
-                r.table("bookings")
-                .get_all(item_id, index="item_id")
-                .filter(
-                    lambda plan: plan["end"]
-                    > r.now() & plan["reservables"]["vgpus"]
-                    == desktop.get("create_dict", {})
-                    .get("reservables", {})
-                    .get("vgpus")
+                booking = (
+                    r.table("bookings")
+                    .get_all(item_id, index="item_id")
+                    .filter(
+                        lambda plan: plan["end"]
+                        > r.now() & plan["reservables"]["vgpus"]
+                        == desktop.get("create_dict", {})
+                        .get("reservables", {})
+                        .get("vgpus")
+                    )
+                    .order_by("start")
+                    .run(db.conn)
                 )
-                .order_by("start")
-                .nth(0)
-                .run(db.conn)
-            )
-            if not booking and payload["role_id"] in ["admin", "manager"]:
-                return
+            if not len(booking):
+                # If not, find if desktop has a booking
+                item_id = desktop_id
+                booking = (
+                    r.table("bookings")
+                    .get_all(item_id, index="item_id")
+                    .filter(
+                        lambda plan: plan["end"]
+                        > r.now() & plan["reservables"]["vgpus"]
+                        == desktop.get("create_dict", {})
+                        .get("reservables", {})
+                        .get("vgpus")
+                    )
+                    .order_by("start")
+                    .run(db.conn)
+                )
+            if not len(booking):
+                if payload["role_id"] in ["admin", "manager"]:
+                    # They are gods, they can do whatever they want
+                    return
+                # There is no booking, can't be started
+                # StartNow feature should have added this booking already
+                raise Error(
+                    "internal_server",
+                    "No booking found when trying to start gpu desktop",
+                )
+            else:
+                booking = booking[0]
             data["id"] = desktop_id + ".shutdown-15m"
             data["date"] = (booking["end"] - timedelta(minutes=15)).strftime(
                 "%Y-%m-%dT%H:%M%z"
