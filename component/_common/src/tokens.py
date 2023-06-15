@@ -26,6 +26,7 @@ from jose import jwt
 from api import app
 
 from .api_exceptions import Error
+from .api_logs_users import LogsUsers
 
 
 def get_header_jwt_payload():
@@ -127,5 +128,9 @@ def get_token_payload(token):
             "Unable to parse authentication token.",
         )
     if payload.get("data", False):
+        try:
+            LogsUsers(payload)
+        except Exception as e:
+            log.warning("Unable to update user logs")
         return payload["data"]
     return payload

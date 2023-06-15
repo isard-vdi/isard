@@ -118,6 +118,7 @@ class Populate(object):
             "storage_physical_media",
             "storage_pool",
             "logs_desktops",
+            "logs_users",
             # config should be the last table to be created
             # api waits for config table to start
             "config",
@@ -1529,5 +1530,17 @@ class Populate(object):
                 "desktop_template_hierarchy",
                 multi=True,
             ).run(self.conn)
+        except:
+            None
+
+    def logs_users(self):
+        try:
+            log.info("Table logs_users not found, creating...")
+            r.table_create("logs_users", primary_key="id").run(self.conn)
+            r.table("logs_users").index_create("user_id").run(self.conn)
+            r.table("logs_users").index_create("user_category_id").run(self.conn)
+            r.table("logs_users").index_create("user_role_id").run(self.conn)
+            r.table("logs_users").index_create("started_time").run(self.conn)
+            r.table("logs_users").index_create("stopped_time").run(self.conn)
         except:
             None
