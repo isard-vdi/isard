@@ -73,6 +73,8 @@ func New(name string, setDefaults func(), target interface{}) {
 }
 
 func setCommonDefaults() {
+	viper.BindEnv("log.level", "LOG_LEVEL")
+
 	viper.SetDefault("log", map[string]interface{}{
 		"level": "info",
 	})
