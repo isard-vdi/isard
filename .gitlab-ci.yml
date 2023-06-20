@@ -211,7 +211,9 @@ docker-image:
       - DOCKER_COMPOSE: monitor.build
         IMAGE: monitor-proxy
       - DOCKER_COMPOSE: check.build
-        IMAGE: check
+        IMAGE:
+          - check
+          - check-client
   before_script:
     - until docker info; do sleep 1; done
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
@@ -270,6 +272,7 @@ docker-tag:
       - IMAGE:
           - codegen
           - check
+          - check-client
           - vpn
           - video
           - monitor-proxy

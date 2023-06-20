@@ -1,10 +1,18 @@
 package cfg
 
-import "gitlab.com/isard/isardvdi/pkg/cfg"
+import (
+	"github.com/spf13/viper"
+	"gitlab.com/isard/isardvdi/pkg/cfg"
+)
 
 type Cfg struct {
-	Log  cfg.Log
-	GRPC cfg.GRPC
+	Log   cfg.Log
+	GRPC  cfg.GRPC
+	Check Check
+}
+
+type Check struct {
+	Image string
 }
 
 func New() Cfg {
@@ -17,4 +25,8 @@ func New() Cfg {
 
 func setDefaults() {
 	cfg.SetGRPCDefaults()
+
+	viper.SetDefault("check", map[string]interface{}{
+		"image": "registry.gitlab.com/isard/isardvdi/check-client:main",
+	})
 }

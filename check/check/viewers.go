@@ -15,17 +15,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rs/zerolog"
 	"gitlab.com/isard/isardvdi-cli/pkg/client"
 	"gitlab.com/isard/isardvdi/pkg/ssh"
 	stdSSH "golang.org/x/crypto/ssh"
 )
 
-const (
-	s6Envdir = "/var/run/s6/container_environment"
-)
-
 // TODO: RDP Web, noVNC
-func (c *Check) testViewers(ctx context.Context, cli client.Interface, sshCli *stdSSH.Client, failSelfSigned bool, id string) error {
+func (c *Check) testViewers(ctx context.Context, log *zerolog.Logger, cli client.Interface, sshCli *stdSSH.Client, failSelfSigned bool, id string) error {
 	// const port = 9000
 	// service, err := selenium.NewGeckoDriverService("geckodriver", port)
 	// if err != nil {
@@ -39,17 +36,17 @@ func (c *Check) testViewers(ctx context.Context, cli client.Interface, sshCli *s
 	// }
 	// defer wd.Quit()
 
-	c.log.Debug().Str("viewer", string(client.DesktopViewerSpice)).Msg("testing viewer")
+	log.Debug().Str("viewer", string(client.DesktopViewerSpice)).Msg("testing viewer")
 	if err := c.testSpice(ctx, cli, sshCli, id); err != nil {
 		return err
 	}
 
-	c.log.Debug().Str("viewer", string(client.DesktopViewerRdpGW)).Msg("testing viewer")
+	log.Debug().Str("viewer", string(client.DesktopViewerRdpGW)).Msg("testing viewer")
 	if err := c.testRdpGW(ctx, cli, sshCli, failSelfSigned, id); err != nil {
 		return err
 	}
 
-	c.log.Debug().Str("viewer", string(client.DesktopViewerRdpVPN)).Msg("testing viewer")
+	log.Debug().Str("viewer", string(client.DesktopViewerRdpVPN)).Msg("testing viewer")
 	if err := c.testRdpVPN(ctx, cli, sshCli, failSelfSigned, id); err != nil {
 		return err
 	}
@@ -99,12 +96,12 @@ func (c *Check) testRDP(ctx context.Context, cli client.Interface, sshCli *stdSS
 		return fmt.Errorf("save the %s viewer file: %w", viewer, err)
 	}
 
-	if err := ssh.WriteFile(sshCli, filepath.Join(s6Envdir, "G_MESSAGES_PREFIXED"), []byte("all")); err != nil {
-		return fmt.Errorf("setup environment variables for %s: %w", viewer, err)
+	if b, err := ssh.CombinedOutput(sshCli, `echo "G_MESSAGES_PREFIXED=all" | sudo tee -a /env`); err != nil {
+		return fmt.Errorf("setup environment variables for %s: %w: %s", viewer, err, string(b))
 	}
 
-	if err := ssh.WriteFile(sshCli, filepath.Join(s6Envdir, "G_MESSAGES_DEBUG"), []byte("all")); err != nil {
-		return fmt.Errorf("setup environment variables for %s: %w", viewer, err)
+	if b, err := ssh.CombinedOutput(sshCli, `echo "G_MESSAGES_DEBUG=all" | sudo tee -a /env`); err != nil {
+		return fmt.Errorf("setup environment variables for %s: %w: %s", viewer, err, string(b))
 	}
 
 	if err := testViewerCmd(
@@ -198,7 +195,7 @@ attemptsLoop:
 		sess.Stdout = buf
 		sess.Stderr = buf
 
-		if err := sess.Start(fmt.Sprintf("s6-envdir %s  %s", s6Envdir, command)); err != nil {
+		if err := sess.Start(fmt.Sprintf("set -a && source /env && set +a && export $(dbus-launch) && %s", command)); err != nil {
 			continue
 		}
 

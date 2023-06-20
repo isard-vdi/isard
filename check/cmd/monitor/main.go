@@ -55,17 +55,13 @@ func main() {
 			failed = instance.RspErr
 
 			if errors.Is(instance.RspErr, ErrHypersNum) {
-				fmt.Println(instance.Rsp.HypervisorNum)
-				fmt.Println(instance.HypersNum)
-				fmt.Println(instance.Host)
-				fmt.Println(instance.Rsp.IsardvdiVersion)
 				msg += fmt.Sprintf("WARN (%d/%d) %s - %s\n", instance.Rsp.HypervisorNum, instance.HypersNum, instance.Host, instance.Rsp.IsardvdiVersion)
 			} else {
 				msg += fmt.Sprintf("FAIL (?/?) %s - ???\n", instance.Host)
 				err = instance.RspErr
 			}
 		} else {
-			msg += fmt.Sprintf("OK (%d/%d) %s - %s\n", instance.Rsp.HypervisorNum, instance.HypersNum, instance.Host, instance.Rsp.IsardvdiVersion)
+			msg += fmt.Sprintf("OK   (%d/%d) %s - %s\n", instance.Rsp.HypervisorNum, instance.HypersNum, instance.Host, instance.Rsp.IsardvdiVersion)
 		}
 	}
 

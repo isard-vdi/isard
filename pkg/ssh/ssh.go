@@ -13,6 +13,8 @@ func CombinedOutput(ssh *ssh.Client, cmd string) ([]byte, error) {
 	}
 	defer sess.Close()
 
+	cmd = `PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" ` + cmd
+
 	return sess.CombinedOutput(cmd)
 }
 

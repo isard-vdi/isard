@@ -15,3 +15,4 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       LOG_LEVEL:
+      CHECK_CHECK_IMAGE:

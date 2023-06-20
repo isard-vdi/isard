@@ -50,7 +50,7 @@ func (c *Check) testVPN(ctx context.Context, cli client.Interface, sshCli *stdSS
 }
 
 func (c *Check) stopVPN(ctx context.Context, sshCli *stdSSH.Client) error {
-	b, err := ssh.CombinedOutput(sshCli, `wg | grep interface | awk -F ": " '{ print $2 }'`)
+	b, err := ssh.CombinedOutput(sshCli, `sudo wg | grep interface | awk -F ": " '{ print $2 }'`)
 	if err != nil {
 		return fmt.Errorf("find wireguard interface: %w: %s", err, b)
 	}

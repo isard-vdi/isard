@@ -21,7 +21,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 
-	grpc := grpc.NewCheckServer(log, &wg, cfg.GRPC.Addr(), check.NewCheck(log))
+	grpc := grpc.NewCheckServer(log, &wg, cfg.GRPC.Addr(), check.NewCheck(cfg.Check, log))
 
 	go grpc.Serve(ctx)
 	wg.Add(1)

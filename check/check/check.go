@@ -11,12 +11,17 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/teris-io/shortid"
-	"gitlab.com/isard/isardvdi-cli/pkg/cfg"
+	cliCfg "gitlab.com/isard/isardvdi-cli/pkg/cfg"
 	"gitlab.com/isard/isardvdi-cli/pkg/client"
+	"gitlab.com/isard/isardvdi/check/cfg"
+	sshExec "gitlab.com/isard/isardvdi/pkg/ssh"
 	"golang.org/x/crypto/ssh"
 )
 
-const desktopTimeout = 60
+const (
+	desktopTimeout = 60
+	sshUser        = "executor"
+)
 
 type Interface interface {
 	CheckIsardVDI(ctx context.Context, authMethod AuthMethod, auth Auth, host, templateID string, failSelfSigned, failMaintenance bool) (CheckResult, error)
@@ -38,14 +43,15 @@ type DependenciesVersions struct {
 
 type Check struct {
 	log *zerolog.Logger
+	cfg cfg.Check
 }
 
-func NewCheck(log *zerolog.Logger) *Check {
-	return &Check{log}
+func NewCheck(cfg cfg.Check, log *zerolog.Logger) *Check {
+	return &Check{log, cfg}
 }
 
 func (c *Check) CheckIsardVDI(ctx context.Context, authMethod AuthMethod, auth Auth, host, templateID string, failSelfSigned, failMaintenance bool) (CheckResult, error) {
-	cli, err := client.NewClient(&cfg.Cfg{
+	cli, err := client.NewClient(&cliCfg.Cfg{
 		Host:        host,
 		IgnoreCerts: !failSelfSigned,
 	})
@@ -76,19 +82,16 @@ func (c *Check) CheckIsardVDI(ctx context.Context, authMethod AuthMethod, auth A
 		return CheckResult{}, fmt.Errorf("list hypervisors: %w", err)
 	}
 
+	deps := DependenciesVersions{}
 	for _, hyper := range h {
-		c.log.Debug().Str("host", host).Str("id", *hyper.ID).Msg("checking hypervisor")
+		c.log.Debug().Str("host", cli.URL().Host).Str("id", *hyper.ID).Msg("checking hypervisor")
 
-		if err := c.checkHypervisor(ctx, cli, client.GetString(hyper.ID), templateID, failSelfSigned); err != nil {
-			c.log.Error().Str("host", host).Str("hypervisor", client.GetString(hyper.ID)).Str("template_id", templateID).Err(err).Msg("check hypervisor")
+		deps, err = c.checkHypervisor(ctx, cli, client.GetString(hyper.ID), templateID, failSelfSigned)
+		if err != nil {
+			c.log.Error().Str("host", cli.URL().Host).Str("hypervisor", client.GetString(hyper.ID)).Str("template_id", templateID).Err(err).Msg("check hypervisor")
 
 			return CheckResult{}, fmt.Errorf("check hypervisor: %w", err)
 		}
-	}
-
-	deps, err := c.getDependenciesVersions()
-	if err != nil {
-		return CheckResult{}, fmt.Errorf("get dependencies versions: %w", err)
 	}
 
 	return CheckResult{
@@ -100,7 +103,7 @@ func (c *Check) CheckIsardVDI(ctx context.Context, authMethod AuthMethod, auth A
 }
 
 func (c *Check) CheckHypervisor(ctx context.Context, authMethod AuthMethod, auth Auth, host, hyperID, templateID string, failSelfSigned, failMaintenance bool) (CheckResult, error) {
-	cli, err := client.NewClient(&cfg.Cfg{
+	cli, err := client.NewClient(&cliCfg.Cfg{
 		Host:        host,
 		IgnoreCerts: !failSelfSigned,
 	})
@@ -126,15 +129,11 @@ func (c *Check) CheckHypervisor(ctx context.Context, authMethod AuthMethod, auth
 		return CheckResult{}, errors.New("maintenance mode is activated")
 	}
 
-	if err := c.checkHypervisor(ctx, cli, hyperID, templateID, failSelfSigned); err != nil {
-		c.log.Error().Str("host", host).Str("hypervisor", hyperID).Str("template_id", templateID).Err(err).Msg("check hypervisor")
+	deps, err := c.checkHypervisor(ctx, cli, hyperID, templateID, failSelfSigned)
+	if err != nil {
+		c.log.Error().Str("host", cli.URL().Host).Str("hypervisor", hyperID).Str("template_id", templateID).Err(err).Msg("check hypervisor")
 
 		return CheckResult{}, fmt.Errorf("check hypervisor: %w", err)
-	}
-
-	deps, err := c.getDependenciesVersions()
-	if err != nil {
-		return CheckResult{}, fmt.Errorf("get dependencies versions: %w", err)
 	}
 
 	return CheckResult{
@@ -151,7 +150,7 @@ func (c *Check) prepareDocker(ctx context.Context, checkID string) (*ssh.Client,
 	}
 	netName := strings.TrimSpace(string(out))
 
-	out, err = exec.Command("bash", "-c", fmt.Sprintf(`docker run -d --name "%s" --network "%s" --cap-add=NET_ADMIN "$(docker inspect isard-check | jq -j '.[0].Image' | awk -F ":" '{ print $2 }')" bash -c 'echo "root:%s" | chpasswd && dropbear -RFE'`, checkID, netName, checkID)).CombinedOutput()
+	out, err = exec.Command("bash", "-c", fmt.Sprintf(`docker run -d --name "%s" --network "%s" --cap-add=NET_ADMIN -e "CHECK_MODE=client" -e "SSH_USER=%s" -e "SSH_PASSWORD=%s" %s`, checkID, netName, sshUser, checkID, c.cfg.Image)).CombinedOutput()
 	if err != nil {
 		return nil, "", fmt.Errorf("create check docker container: %w: %s", err, out)
 	}
@@ -183,7 +182,7 @@ waitForSSH:
 	}
 
 	cli, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", ip, 22), &ssh.ClientConfig{
-		User:            "root",
+		User:            sshUser,
 		Auth:            []ssh.AuthMethod{ssh.Password(checkID)},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	})
@@ -201,13 +200,13 @@ func (c *Check) stopDocker(ctx context.Context, id string) {
 	}
 }
 
-func (c *Check) checkHypervisor(ctx context.Context, cli client.Interface, hyperID, templateID string, failSelfSigned bool) error {
+func (c *Check) checkHypervisor(ctx context.Context, cli client.Interface, hyperID, templateID string, failSelfSigned bool) (DependenciesVersions, error) {
 	host := cli.URL().Host
-	log := c.log.With().Str("host", host).Logger()
-
 	checkID := fmt.Sprintf("check-%s", shortid.MustGenerate())
 
-	log.Debug().Str("hyper_id", hyperID).Str("id", checkID).Msg("creating check docker")
+	log := c.log.With().Str("host", host).Str("hyper_id", hyperID).Str("id", checkID).Logger()
+
+	log.Debug().Msg("creating check docker")
 
 	ssh, dockerID, err := c.prepareDocker(ctx, checkID)
 	if err != nil {
@@ -215,17 +214,22 @@ func (c *Check) checkHypervisor(ctx context.Context, cli client.Interface, hyper
 			c.stopDocker(ctx, dockerID)
 		}
 
-		return fmt.Errorf("prepare docker: %w", err)
+		return DependenciesVersions{}, fmt.Errorf("prepare docker: %w", err)
 	}
 
 	defer c.stopDocker(ctx, dockerID)
 	defer ssh.Close()
 
+	deps, err := c.getDependenciesVersions(ssh)
+	if err != nil {
+		return deps, err
+	}
+
 	// Create desktop
-	log.Debug().Str("hyper_id", hyperID).Str("id", checkID).Msg("creating check desktop")
+	log.Debug().Msg("creating check desktop")
 	d, err := cli.DesktopCreate(ctx, checkID, templateID)
 	if err != nil {
-		return fmt.Errorf("create the desktop: %w", err)
+		return deps, fmt.Errorf("create the desktop: %w", err)
 	}
 
 	dktp := client.GetString(d.ID)
@@ -243,61 +247,61 @@ func (c *Check) checkHypervisor(ctx context.Context, cli client.Interface, hyper
 	}()
 
 	if _, err = ensureDesktopState(ctx, cli, dktp, "Stopped"); err != nil {
-		return err
+		return deps, err
 	}
 
 	// Force the hypervisor
 	if err := cli.DesktopUpdate(ctx, dktp, client.DesktopUpdateOptions{
 		ForcedHyp: []string{hyperID},
 	}); err != nil {
-		return fmt.Errorf("force the hypervisor: %w", err)
+		return deps, fmt.Errorf("force the hypervisor: %w", err)
 	}
 
 	// Start the desktop & wait for it
-	log.Debug().Str("hyper_id", hyperID).Str("id", checkID).Msg("starting check desktop")
+	log.Debug().Msg("starting check desktop")
 	if err := cli.DesktopStart(ctx, dktp); err != nil {
-		return fmt.Errorf("start the desktop: %w", err)
+		return deps, fmt.Errorf("start the desktop: %w", err)
 	}
 
 	d, err = ensureDesktopState(ctx, cli, dktp, "Started")
 	if err != nil {
-		return err
+		return deps, err
 	}
 
 	// Test the VPN
-	log.Debug().Str("hyper_id", hyperID).Str("id", checkID).Msg("testing VPN")
+	log.Debug().Msg("testing VPN")
 	if err := c.testVPN(ctx, cli, ssh, client.GetString(d.IP)); err != nil {
-		return fmt.Errorf("test the VPN: %w", err)
+		return deps, fmt.Errorf("test the VPN: %w", err)
 	}
 
 	// Test the viewers
-	log.Debug().Str("hyper_id", hyperID).Str("id", checkID).Msg("testing viewers")
-	if err := c.testViewers(ctx, cli, ssh, failSelfSigned, dktp); err != nil {
-		return err
+	log.Debug().Msg("testing viewers")
+	if err := c.testViewers(ctx, &log, cli, ssh, failSelfSigned, dktp); err != nil {
+		return deps, err
 	}
 
 	// Stop the desktop & wait for it
-	log.Debug().Str("hyper_id", hyperID).Str("id", checkID).Msg("stopping check desktop")
+	log.Debug().Msg("stopping check desktop")
 	if err := cli.DesktopStop(ctx, dktp); err != nil {
-		return fmt.Errorf("stop the desktop: %w", err)
+		return deps, fmt.Errorf("stop the desktop: %w", err)
 	}
 
 	if _, err = ensureDesktopState(ctx, cli, dktp, "Stopped"); err != nil {
-		return err
+		return deps, err
 	}
 
 	// Stop the VPN
 	if err := c.stopVPN(ctx, ssh); err != nil {
-		return fmt.Errorf("stop the VPN: %w", err)
+		return deps, fmt.Errorf("stop the VPN: %w", err)
 	}
 
 	// Remove the desktop
-	log.Debug().Str("hyper_id", hyperID).Str("id", checkID).Msg("deleting check desktop")
+	log.Debug().Msg("deleting check desktop")
 	if err := cli.DesktopDelete(ctx, dktp); err != nil {
-		return fmt.Errorf("delete the desktop: %w", err)
+		return deps, fmt.Errorf("delete the desktop: %w", err)
 	}
 
-	return nil
+	return deps, nil
 }
 
 func ensureDesktopState(ctx context.Context, cli client.Interface, id, state string) (*client.Desktop, error) {
@@ -320,8 +324,8 @@ func ensureDesktopState(ctx context.Context, cli client.Interface, id, state str
 	return d, fmt.Errorf("timeout waiting for desktop state to be '%s'. Current state is '%s'", state, client.GetString(d.State))
 }
 
-func (c *Check) getDependenciesVersions() (DependenciesVersions, error) {
-	b, err := exec.Command("remmina", "--version").CombinedOutput()
+func (c *Check) getDependenciesVersions(cli *ssh.Client) (DependenciesVersions, error) {
+	b, err := sshExec.CombinedOutput(cli, "remmina --version")
 	if err != nil {
 		return DependenciesVersions{}, fmt.Errorf("get remmina version: %w: %s", err, b)
 	}
@@ -329,13 +333,13 @@ func (c *Check) getDependenciesVersions() (DependenciesVersions, error) {
 	lines := strings.Split(strings.TrimSpace(string(b)), "\n")
 	rmm := strings.Split(lines[len(lines)-1], " ")[2]
 
-	b, err = exec.Command("remote-viewer", "--version").CombinedOutput()
+	b, err = sshExec.CombinedOutput(cli, "remote-viewer --version")
 	if err != nil {
 		return DependenciesVersions{}, fmt.Errorf("get remote viewer version: %w: %s", err, b)
 	}
 	rv := strings.Split(strings.TrimSpace(string(b)), " ")[2]
 
-	b, err = exec.Command("wg", "--version").CombinedOutput()
+	b, err = sshExec.CombinedOutput(cli, "wg --version")
 	if err != nil {
 		return DependenciesVersions{}, fmt.Errorf("get wireguard version: %w: %s", err, b)
 	}
