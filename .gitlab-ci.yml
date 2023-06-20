@@ -79,8 +79,7 @@ check-protobuf:
     entrypoint: [""]
   script:
     - buf lint
-    # TODO: Add the breaking check
-    # - buf breaking --against "${CI_PROJECT_URL}.git"
+    - buf breaking --against "${CI_PROJECT_URL}.git"
 
 version:
   stage: version
