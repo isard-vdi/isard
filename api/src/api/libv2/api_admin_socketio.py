@@ -121,6 +121,7 @@ class DomainsThread(threading.Thread):
                                     ].get("status") != c["new_val"].get("status"):
                                         logs_domain_start_engine(
                                             start_logs_id,
+                                            data.get("id"),
                                             data.get("hyp_started"),
                                         )
                                     if c["new_val"].get("status") in [
@@ -134,6 +135,15 @@ class DomainsThread(threading.Thread):
                                         logs_domain_stop_engine(
                                             start_logs_id,
                                             c["new_val"].get("status"),
+                                        )
+                                else:
+                                    if c["new_val"].get("status") == "Started" and c[
+                                        "old_val"
+                                    ].get("status") != c["new_val"].get("status"):
+                                        logs_domain_start_engine(
+                                            start_logs_id,
+                                            data.get("id"),
+                                            data.get("hyp_started"),
                                         )
                                 # if data['status'] == 'Started' and 'viewer' in data.keys() and 'guest_ip' in data['viewer'].keys():
                                 #    if 'viewer' not in c['old_val'] or 'guest_ip' not in c['old_val']:
