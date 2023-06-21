@@ -62,7 +62,7 @@ def action_owner_deploy(action_owner, item_owner, tag=None, direct_viewer=False)
     return "system-admins", action_owner
 
 
-def parse_user_request(user_request):
+def parse_user_request(user_request=None):
     if user_request:
         return {
             "request_ip": user_request.headers.environ["HTTP_X_FORWARDED_FOR"],
@@ -89,7 +89,13 @@ def logs_domain_start_directviewer(dom_id, user_request=None):
     _logs_domain_start(dom_id, parse_user_request(user_request), direct_viewer=True)
 
 
-def _logs_domain_start(dom_id, user_request, action_user=None, direct_viewer=False):
+def _logs_domain_start(
+    dom_id,
+    user_request,
+    action_user=None,
+    direct_viewer=False,
+    server_hyp_started=False,
+):
     # Who can start a desktop:
     # - User: desktop-owner|deployment-owner|system-admins
     # - Desktop direct viewer access: desktop-directviewer
@@ -165,6 +171,9 @@ def _logs_domain_start(dom_id, user_request, action_user=None, direct_viewer=Fal
         if domain.get("tag"):
             data["deployment_id"] = domain.get("tag")
             data["deployment_name"] = deployment_name
+        if server_hyp_started:
+            data["started_time"] = r.epoch_time(time())
+            data["hyp_started"] = server_hyp_started
         data = {**data, **user_request}
     except:
         log.warning("Unable to fetch log data for start logs id")
@@ -195,17 +204,33 @@ def _logs_domain_start(dom_id, user_request, action_user=None, direct_viewer=Fal
         r.table("logs_desktops").insert(data, durability="soft").run(db.conn)
 
 
-def logs_domain_start_engine(start_logs_id, hyp_started=None):
-    # When engine actually started the domain in the hypervisor
-    with app.app_context():
-        try:
-            r.table("logs_desktops").get(start_logs_id).update(
-                {"started_time": r.epoch_time(time()), "hyp_started": hyp_started},
-                durability="soft",
-            ).run(db.conn)
-        except:
-            log.warning("Unable to update engine desktop start event")
-            log.debug(traceback.format_exc())
+def logs_domain_start_engine(start_logs_id, dom_id, hyp_started=None):
+    if not start_logs_id:
+        # It could be a server desktop started by engine
+        _logs_domain_start(dom_id, parse_user_request(), server_hyp_started=hyp_started)
+        return
+    # It has a logs_desktops id, try to update it
+    # When user started, it will have a valid uuid and update should work
+    # When engine started, it could fail because of old id. There is no way to know
+    # if it is and old id or a current id. So we try to update it and if it fails
+    # we add it as a new log
+    try:
+        with app.app_context():
+            result = (
+                r.table("logs_desktops")
+                .get(start_logs_id)
+                .update(
+                    {"started_time": r.epoch_time(time()), "hyp_started": hyp_started},
+                    durability="soft",
+                )
+                .run(db.conn)
+            )
+        if result.get("skipped"):
+            _logs_domain_start(
+                dom_id, parse_user_request(), server_hyp_started=hyp_started
+            )
+    except:
+        pass
 
 
 # STOP DESKTOP
