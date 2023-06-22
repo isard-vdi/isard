@@ -90,13 +90,13 @@ class LogsUsers:
         user = self.get_user(payload["data"]["user_id"])
         logs = {
             "id": gen_id(payload["data"]["user_id"], payload["exp"]),
-            "user_id": payload["data"]["user_id"],
-            "user_name": user["name"],
-            "user_role_id": user["role"],
-            "user_category_id": user["category"],
-            "user_category_name": user["category_name"],
-            "user_group_id": user["group"],
-            "user_group_name": user["group_name"],
+            "owner_user_id": payload["data"]["user_id"],
+            "owner_user_name": user["name"],
+            "owner_role_id": user["role"],
+            "owner_category_id": user["category"],
+            "owner_category_name": user["category_name"],
+            "owner_group_id": user["group"],
+            "owner_group_name": user["group_name"],
             "started_time": r.now(),
             "stopped_time": False,
         }

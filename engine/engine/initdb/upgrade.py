@@ -17,7 +17,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 90
+release_version = 91
+# release 91: Rename logs_users owner fields to accomodate logs_desktops and consumptions
 # release 90: Remove viewer key from stopped and failed desktops
 # release 89: Add html5_ext_port to proxies index
 # release 88: Fix guest_ip and proxies indexes
@@ -122,6 +123,7 @@ tables = [
     "storage_node",
     "gpu_profiles",
     "desktops_priority",
+    "logs_users",
 ]
 
 
@@ -2799,6 +2801,41 @@ class Upgrade(object):
         if version == 81:
             try:
                 r.table(table).index_create("name").run(self.conn)
+            except Exception as e:
+                print(e)
+
+        return True
+
+    """
+    LOGS TABLE UPGRADES
+    """
+
+    def logs_users(self, version):
+        table = "logs_users"
+        log.info("UPGRADING " + table + " TABLE TO VERSION " + str(version))
+        if version == 91:
+            try:
+                r.table(table).replace(
+                    lambda row: row.without(
+                        "user_id",
+                        "user_name",
+                        "user_group_id",
+                        "user_group_name",
+                        "user_category_id",
+                        "user_category_name",
+                        "user_role_id",
+                    ).merge(
+                        {
+                            "owner_user_id": row["user_id"],
+                            "owner_user_name": row["user_name"],
+                            "owner_group_id": row["user_group_id"],
+                            "owner_group_name": row["user_group_name"],
+                            "owner_category_id": row["user_category_id"],
+                            "owner_category_name": row["user_category_name"],
+                            "owner_role_id": row["user_role_id"],
+                        }
+                    )
+                ).run(self.conn)
             except Exception as e:
                 print(e)
 
