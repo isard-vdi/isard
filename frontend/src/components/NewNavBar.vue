@@ -236,11 +236,11 @@ export default {
     },
     goToViewersGuide () {
       if (localStorage.language === 'es') {
-        return 'https://isard.gitlab.io/isardvdi-docs/user/viewers.es/#visor-para-el-protocolo-spice'
+        return 'https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers.es/'
       } else if (localStorage.language === 'ca') {
-        return 'https://isard.gitlab.io/isardvdi-docs/user/viewers.ca/#visor-per-al-protocol-spice'
+        return 'https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers.ca/'
       } else {
-        return 'https://isard.gitlab.io/isardvdi-docs/user/viewers/#viewer-for-the-spice-protocol'
+        return 'https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/'
       }
     }
   }
