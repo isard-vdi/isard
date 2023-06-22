@@ -1,0 +1,134 @@
+
+<!-- extend base layout -->
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="row">
+  <div class="col-md-12 col-sm-12 col-xs-12">
+     <div class="x_panel">
+        <div class="page-title">
+           <div class="title_left">
+              <h3><i class="fa fa-folder-open"></i> User Storage <small>Restrictions for users</small></h3>
+           </div>
+           <div class="clearfix"></div>
+        </div>
+     </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-12 col-sm-12 col-xs-12">
+    <div class="x_panel">
+      <div class="x_title">
+        <h3><i class="fa fa-lock"></i> Providers</h3> 
+        <ul class="nav navbar-right panel_toolbox">
+          <li>
+            <a class="add-new-personalunit"><span style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a>
+          </li>
+          <li>
+            <a class="reset-all-personalunit"><span style="color: #c7545e; "><i class="fa fa-close"></i> Reset all data</span></a>
+          </li>
+          <li>
+            <a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+          </li>
+          <li>
+            <a class="close-link"><i class="fa fa-close"></i></a>
+          </li>
+        </ul>
+        <div class="clearfix"></div>
+      </div>
+      <div class="x_content">
+        <table id="table-personalunits" class="table">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Enabled</th>
+              <th>Name</th>
+              <th>Description</th>
+              <th>Category access</th>
+              <th>Verify SSL</th>
+              <th>Provider</th>
+              <th></th>
+              <th>Id</th>
+            </tr>
+          </thead>
+          <tbody>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="row">
+  <div class="col-md-12 col-sm-12 col-xs-12">
+    <div class="x_panel">
+      <div class="x_title">
+        <h3><i class="fa fa-user"></i> Users</h3>
+        <ul class="nav navbar-right panel_toolbox">
+          <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
+          </li>
+          <li><a class="close-link"><i class="fa fa-close"></i></a>
+          </li>
+        </ul>
+        <div class="clearfix"></div>
+      </div>
+      <div class="x_content">
+        <table id="table-user_storage_users" class="table">
+          <thead>
+            <tr>
+              <th rowspan="2"></th>
+              <th rowspan="2">Name</th>
+              <th rowspan="2">Username</th>
+              <th rowspan="2">Group</th>
+              <th rowspan="2">Category</th>
+              <th rowspan="2">Provider</th>
+
+              <th colspan="5">Provider Quota</th>
+              <th></th>
+            </tr>
+            <tr>
+              <th>Quota</th>
+              <th>Total</th>
+              <th>Used</th>
+              <th>Relative</th>
+              <th>Free</th>
+              <th></th>
+              <th>Id</th>
+            </tr>
+          </thead>
+          <tbody>
+          </tbody>
+          <tfoot>
+            <tr>
+              <th></th>
+              <th>Name</th>
+              <th>Username</th>
+              <th>Group</th>
+              <th>Category</th>
+              <th>Provider</th>
+              <th>Quota</th>
+              <th>Total</th>
+              <th>Used</th>
+              <th>Relative</th>
+              <th>Free</th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+{% include '/admin/pages/user_storage_detail.html' %}
+{% include '/admin/pages/user_storage_modals.html' %}
+{% endblock %}
+
+{% block pagescript %}
+  <!-- Isard restful ajax calls -->
+  <script src="/isard-admin/static/js/restful.js"></script>
+  <script src="/isard-admin/static/admin/js/user_storage.js"></script>
+{% endblock %}

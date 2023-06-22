@@ -124,6 +124,7 @@ class Populate(object):
             "usage_parameter",
             "usage_grouping",
             "usage_limit",
+            "user_storage",
             # config should be the last table to be created
             # api waits for config table to start
             "config",
@@ -1210,6 +1211,9 @@ class Populate(object):
 
     def storage_pool(self):
         self.create_table("storage_pool")
+
+    def user_storage(self):
+        self.create_table("user_storage")
 
     def index_create(self, table, indexes):
         indexes_ontable = r.table(table).index_list().run(self.conn)

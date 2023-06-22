@@ -1,17 +1,31 @@
-#!/usr/bin/env python
-# coding=utf-8
-# Copyright 2017 the Isard-vdi project authors:
-#      Josep Maria Viñolas Auquer
-#      Alberto Larraz Dalmases
-# License: AGPLv3
+#
+#   Copyright © 2023 Josep Maria Viñolas Auquer, Alberto Larraz Dalmases
+#
+#   This file is part of IsardVDI.
+#
+#   IsardVDI is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or (at your
+#   option) any later version.
+#
+#   IsardVDI is distributed in the hope that it will be useful, but WITHOUT ANY
+#   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+#   FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+#   details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
 
-import json
+import os
 import time
+import traceback
 import uuid
 from datetime import datetime, timedelta
 
+import bcrypt
 from cachetools import TTLCache, cached
-from rethinkdb import RethinkDB
 
 from api import app
 
@@ -21,22 +35,26 @@ from .quotas import Quotas
 
 quotas = Quotas()
 
-r = RethinkDB()
-import logging as log
-import traceback
+
 from string import ascii_lowercase, digits
+
+from jose import jwt
+from rethinkdb import RethinkDB
 
 from .flask_rethink import RDB
 
+r = RethinkDB()
 db = RDB(app)
 db.init_app(app)
 
-import os
-import secrets
 
-import bcrypt
-from jose import jwt
-
+from ..libv2.api_user_storage import (
+    isard_user_storage_add_user,
+    isard_user_storage_remove_category,
+    isard_user_storage_remove_group,
+    isard_user_storage_remove_user,
+    isard_user_storage_update_user_quota,
+)
 from .api_admin import (
     change_category_items_owner,
     change_group_items_owner,
@@ -139,6 +157,7 @@ class ApiUsers:
         }
 
     def Get(self, user_id, get_quota=False):
+        isard_user_storage_update_user_quota(user_id)
         with app.app_context():
             user = (
                 r.table("users")
@@ -566,6 +585,8 @@ class ApiUsers:
                     "Unable to insert in database user_id " + user_id,
                     traceback.format_exc(),
                 )
+
+        isard_user_storage_add_user(user_id)
         return user_id
 
     def Update(
@@ -752,6 +773,7 @@ class ApiUsers:
             )
 
     def Delete(self, user_id):
+        isard_user_storage_remove_user(user_id)
         self.Get(user_id)
         desktops_delete(
             [desktop["id"] for desktop in self._delete_checks(user_id, "user")],
@@ -1130,6 +1152,8 @@ class ApiUsers:
         return [i for n, i in enumerate(domains) if i not in domains[n + 1 :]]
 
     def CategoryDelete(self, category_id):
+        isard_user_storage_remove_category(category_id)
+
         desktops_to_delete = []
         with app.app_context():
             for d in self.category_delete_checks(category_id):
@@ -1238,6 +1262,7 @@ class ApiUsers:
 
     def GroupDelete(self, group_id):
         self.GroupGet(group_id)
+        isard_user_storage_remove_group(group_id)
 
         with app.app_context():
             category = (

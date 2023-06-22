@@ -1,0 +1,8 @@
+version: '3.5'
+services:
+  isard-nc-nginx:
+    ports:
+      - 8081:80
+    volumes:
+      - ${BUILD_ROOT_PATH}/docker/nextcloud/nginx.conf:/etc/nginx/nginx.conf:rw
+      - /opt/isard/nextcloud/html:/var/www/html/isard-nc:rw

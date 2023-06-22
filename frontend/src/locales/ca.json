@@ -226,7 +226,8 @@
                 "authentication": "Autenticació",
                 "role": "Rol",
                 "category": "Categoria",
-                "group": "Grup"
+                "group": "Grup",
+                "user-storage": "Emmagatzematge d'usuari"
             },
             "language": "Idioma",
             "quota": {
@@ -244,7 +245,8 @@
                 "vcpus": "Vcpus utilitzades / Total de vcpus",
                 "total-disk-size": "Mida de disc utilitzat / Total de mida de disc (GB)",
                 "total-media-size": "Mida de mitjans utilitzats / Total de mida dels mitjans (GB)",
-                "total-size": "Mida utilitzada / Mida total (GB)"
+                "total-size": "Mida utilitzada / Mida total (GB)",
+                "unit": "Mida unitat personal / Mida total unitat personal (MB)"
             }
         },
         "start-now-modal": {

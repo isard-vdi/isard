@@ -1,0 +1,72 @@
+version: '3.5'
+services:
+  isard-nc-app:
+    container_name: isard-nc-app
+    image: ${DOCKER_IMAGE_PREFIX}nc-app:${DOCKER_IMAGE_TAG:-latest}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    networks:
+      isard-network:
+        ipv4_address: ${DOCKER_NET:-172.31.255}.121
+    volumes:
+      - /opt/isard/nextcloud/html:/var/www/html
+      - /opt/isard/nextcloud/data:/var/www/html/data:rw
+      - ${BUILD_ROOT_PATH}/frontend/src/assets:/ctheming/images:ro
+      - ${BUILD_ROOT_PATH}/docker/nextcloud/background.jpg:/ctheming/background.jpg:ro
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - NEXTCLOUD_ADMIN_USER=admin
+      - NEXTCLOUD_ADMIN_PASSWORD=$WEBAPP_ADMIN_PWD
+      - POSTGRES_DB=isard_nc
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=$WEBAPP_ADMIN_PWD
+      - POSTGRES_HOST=isard-postgres
+      - REDIS_HOST=isard-nc-redis
+      - OVERWRITEPROTOCOL=https
+      - OVERWRITEWEBROOT=/isard-nc
+      - OVERWRITECLIURL=http://localhost/isard-nc
+      - NEXTCLOUD_TRUSTED_DOMAINS=${DOMAIN} isard-nc-nginx
+      - PHP_UPLOAD_LIMIT=${NEXTCLOUD_UPLOAD_LIMIT-512M}
+      - PHP_MEMORY_LIMIT=${NEXTCLOUD_MEMORY_LIMIT-512M}
+      - FPM_MAX_CHILDREN=${NEXTCLOUD_FPM_MAX_CHILDREN-432}
+      - FPM_START_SERVERS=${NEXTCLOUD_FPM_START_SERVERS-108}
+      - FPM_MIN_SPARE_SERVERS=${NEXTCLOUD_FPM_MIN_SPARE_SERVERS-108}
+      - FPM_MAX_SPARE_SERVERS=${NEXTCLOUD_FPM_MAX_SPARE_SERVERS-324}
+      - FPM_MAX_REQUESTS=${NEXTCLOUD_FPM_MAX_REQUESTS-500}
+      - FPM_PROCESS_IDLE_TIMEOUT=${NEXTCLOUD_FPM_PROCESS_IDLE_TIMEOUT-10s}
+
+  isard-nc-nginx:
+    container_name: isard-nc-nginx
+    image: nginx:1.23.3-alpine-slim
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    networks:
+      isard-network:
+        ipv4_address: ${DOCKER_NET:-172.31.255}.122
+    volumes:
+      - ${BUILD_ROOT_PATH}/docker/nextcloud/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /opt/isard/nextcloud/html:/var/www/html/isard-nc:ro
+
+  isard-nc-redis:
+    container_name: isard-nc-redis
+    image: ${REDIS_IMG-redis:6.2.11-alpine3.17}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    networks:
+      isard-network:
+        ipv4_address: ${DOCKER_NET:-172.31.255}.123
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /opt/isard/nextcloud/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli","ping"]
+      start_period: 10s

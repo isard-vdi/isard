@@ -1,0 +1,26 @@
+version: '3.5'
+services:
+  isard-nc-proxy:
+    container_name: isard-nc-proxy
+    image: ${DOCKER_IMAGE_PREFIX}nc-proxy:${DOCKER_IMAGE_TAG-latest}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    networks:
+      isard-network:
+        ipv4_address: ${DOCKER_NET:-172.31.255}.25
+    ports:
+      - published: ${VIEWER_SPICE:-80}
+        target: 80
+      - published: ${VIEWER_BROWSER:-443}
+        target: 443
+    volumes:
+      - /opt/isard/certs/letsencrypt:/etc/letsencrypt:rw
+      - /opt/isard/certs/default:/certs:rw
+      - /opt/isard-local/environment:/usr/local/etc/environment
+    environment:
+      ENV: /usr/local/etc/environment
+    env_file:
+      - .env

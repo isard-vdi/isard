@@ -1,0 +1,5 @@
+version: '3.5'
+services:
+  isard-nc-proxy:
+    depends_on:
+      - isard-nc-nginx

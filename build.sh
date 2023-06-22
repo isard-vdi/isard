@@ -56,6 +56,8 @@ ALLINONE_PARTS="
 	storage
 	backupninja
 	core_worker
+	nc
+	postgres
 "
 HYPERVISOR_KEY="hypervisor"
 HYPERVISOR_PARTS="
@@ -109,6 +111,8 @@ WEB_PARTS="
 	guac
 	redis
 	core_worker
+	nc
+	postgres
 "
 MONITOR_STANDALONE_KEY="monitor"
 MONITOR_STANDALONE_PARTS="
@@ -127,6 +131,14 @@ CHECK_STANDALONE_KEY="check"
 CHECK_STANDALONE_PARTS="
 	network
 	check
+"
+
+NEXTCLOUD_INSTANCE_KEY="nextcloud"
+NEXTCLOUD_INSTANCE_PARTS="
+	network
+	postgres
+	nc
+	nc-proxy
 "
 
 docker_compose_version(){
@@ -353,6 +365,9 @@ create_docker_compose_file(){
 		$CHECK_STANDALONE_KEY)
 			parts=$CHECK_STANDALONE_PARTS
 			;;
+		$NEXTCLOUD_INSTANCE_KEY)
+			parts=$NEXTCLOUD_INSTANCE_PARTS
+			;;
 		*)
 			echo "Error: Flavour $FLAVOUR of $config_file not found"
 			exit 1
@@ -371,6 +386,11 @@ create_docker_compose_file(){
 			exit 1
 		fi
 		parts="$(echo $parts | sed 's/backupninja//')"
+	fi
+
+	if [ "$NEXTCLOUD_INSTANCE" != "true" ] && [ "$FLAVOUR" != "nextcloud" ]
+	then
+		parts="$(echo $parts | sed 's/postgres//' | sed 's/nc//' )"
 	fi
 	flavour "$config_name" $parts
 
