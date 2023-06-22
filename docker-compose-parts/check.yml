@@ -1,0 +1,18 @@
+version: '3.5'
+services:
+  isard-check:
+    container_name: isard-check
+    image: ${DOCKER_IMAGE_PREFIX}check:${DOCKER_IMAGE_TAG:-latest}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    networks:
+      isard-network:
+        ipv4_address: ${DOCKER_NET:-172.31.255}.73
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      LOG_LEVEL:
+      CHECK_CHECK_IMAGE:

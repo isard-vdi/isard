@@ -1,0 +1,107 @@
+syntax = "proto3";
+
+package check.v1;
+
+// CheckService is a service that checks if IsardVDI is running correctly
+service CheckService {
+    // CheckIsardVDI checks a whole IsardVDI installation
+    rpc CheckIsardVDI(CheckIsardVDIRequest) returns (CheckIsardVDIResponse) {}
+    // CheckHypervisor checks a specific hypervisor in a specific IsardVDI installation
+    rpc CheckHypervisor(CheckHypervisorRequest) returns (CheckHypervisorResponse) {}
+}
+
+// AuthForm is an authentication method using category + user + password
+message AuthForm {
+    // category is the category ID of the user
+    string category = 1;
+    // username is the username of the user
+    string username = 2;
+    // password is the password of the user
+    string password = 3;
+}
+
+// AuthToken is an authentication method that uses a token
+message AuthToken {
+    // token is the token used to authenticate the user
+    string token = 1;
+}
+
+// Auth contains all the authentication methods supported
+message Auth {
+    // method is the method used for authentication
+    oneof method {
+        // form is the authentication through user + password
+        AuthForm form = 1;
+        // token is the authentication using user ID + token
+        AuthToken token = 2;
+    }
+}
+
+// CheckIsardVDIRequest contains the parameters requiered to run a check in a IsardVDI installation
+message CheckIsardVDIRequest {
+    // host is the IsardVDI host
+    string host = 1;
+    // auth is the authentication method
+    Auth auth = 2;
+    // tempalte_id is the tempalte ID of the template that is going to be used to check IsardVDI
+    string template_id = 3;
+    // fail_maintenance_mode will fail the check if the maintenance mode is enabled
+    bool fail_maintenance_mode = 4;
+    // fail_self_signed will fail the check if it finds any self signed certificate
+    bool fail_self_signed = 5;
+}
+
+// DependenciesVersions contains the versions of the programs used to check "external" features, such as the VPN, or the desktop viewers
+message DependenciesVersions {
+    // remmina is the version of the Remmina viewer used
+    string remmina = 1;
+    // remote_viewer is the version of the Remote Viewer used
+    string remote_viewer = 2;
+    // wireguard is the version of WireGuard used
+    string wireguard = 3;
+}
+
+// CheckIsardVDIResponse is the response of a IsardVDI check
+message CheckIsardVDIResponse {
+    // isardvdi_version is the version of the IsardVDI installation
+    string isardvdi_version = 1;
+    // maintenance_mode is whether the installation is on maintenance mode or not
+    bool maintenance_mode = 2;
+    // isardvdi_sdk_version is the version of the IsardVDI Go SDK (used to call the API)
+    string isardvdi_sdk_version = 3;
+    // dependencies_versions are the versions of the external programs used for the check
+    DependenciesVersions dependencies_versions = 4;
+    // hypervisor_num
+    int32 hypervisor_num = 5;
+}
+
+
+// CheckHypervisorRequest contains the parameters requiered to run a check in a specific hypervisor
+message CheckHypervisorRequest {
+    // host is the IsardVDI host
+    string host = 1;
+    // auth is the authentication method
+    Auth auth = 2;
+    // hypervisor_id is the ID of the hypervisor that is going to be checked
+    string hypervisor_id = 3;
+    // tempalte_id is the tempalte ID of the template that is going to be used to check IsardVDI
+    string template_id = 4;
+    // fail_maintenance_mode will fail the check if the maintenance mode is enabled
+    bool fail_maintenance_mode = 5;
+    // fail_self_signed will fail the check if it finds any self signed certificate
+    bool fail_self_signed = 6;
+}
+
+// CheckHypervisorResponse is the response of a hypervisor check
+message CheckHypervisorResponse {
+    // isardvdi_version is the version of the IsardVDI installation
+    string isardvdi_version = 1;
+    // maintenance_mode is whether the installation is on maintenance mode or not
+    bool maintenance_mode = 2;
+    // only_forced is whether the hypervisor is in only forced mode
+    bool only_forced = 3;
+    // isardvdi_sdk_version is the version of the IsardVDI Go SDK (used to call the API)
+    string isardvdi_sdk_version = 4;
+    // dependencies_versions are the versions of the external programs used for the check
+    DependenciesVersions dependencies_versions = 5;
+}

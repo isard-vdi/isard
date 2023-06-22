@@ -79,8 +79,7 @@ check-protobuf:
     entrypoint: [""]
   script:
     - buf lint
-    # TODO: Add the breaking check
-    # - buf breaking --against "${CI_PROJECT_URL}.git"
+    - buf breaking --against "${CI_PROJECT_URL}.git"
 
 version:
   stage: version
@@ -149,6 +148,8 @@ docker-compose-build:
     - echo "FLAVOUR=video-standalone" >> isardvdi.video-standalone.build.cfg
     - cp isardvdi.build.cfg isardvdi.monitor.build.cfg
     - echo "FLAVOUR=monitor" >> isardvdi.monitor.build.cfg
+    - cp isardvdi.build.cfg isardvdi.check.build.cfg
+    - echo "FLAVOUR=check" >> isardvdi.check.build.cfg
     - BACKUP_DB_ENABLED=true CODEGEN=false ./build.sh
   artifacts:
     paths:
@@ -164,24 +165,6 @@ docker-image-codegen:
     matrix:
       - DOCKERFILE: docker/codegen/Dockerfile
         IMAGE: codegen
-  before_script:
-    - until docker info; do sleep 1; done
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-  script:
-    - docker build -f $DOCKERFILE -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
-    - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
-    - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
-
-docker-image-autonomous:
-  image: docker:latest
-  stage: docker-images
-  services:
-    - name: "docker:dind"
-      command: ["--registry-mirror", "http://192.168.0.5:5000"]
-  parallel:
-    matrix:
-      - DOCKERFILE: testing/check-isardvdi/Dockerfile
-        IMAGE: check
   before_script:
     - until docker info; do sleep 1; done
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
@@ -226,6 +209,10 @@ docker-image:
         IMAGE: video
       - DOCKER_COMPOSE: monitor.build
         IMAGE: monitor-proxy
+      - DOCKER_COMPOSE: check.build
+        IMAGE:
+          - check
+          - check-client
   before_script:
     - until docker info; do sleep 1; done
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
@@ -284,6 +271,7 @@ docker-tag:
       - IMAGE:
           - codegen
           - check
+          - check-client
           - vpn
           - video
           - monitor-proxy

@@ -1,0 +1,29 @@
+FROM jlesage/baseimage-gui:alpine-3.18-v4
+
+# Install dependencies
+RUN add-pkg \
+    sudo \
+    dbus \
+    dbus-x11 \
+    iputils-ping \
+    dropbear \
+    font-dejavu \
+    wireguard-tools \
+    virt-viewer \
+    freerdp \
+    remmina \
+    firefox
+
+# Install selenium & cia
+# RUN wget https://github.com/mozilla/geckodriver/releases/download/v0.32.2/geckodriver-v0.32.2-linux64.tar.gz && \
+#     tar xzvf geckodriver-*-linux64.tar.gz && \
+#     chmod +x geckodriver && \
+#     mv geckodriver /usr/local/bin
+
+COPY check/build/package/startapp.sh /startapp.sh
+
+# Set the name of the application.
+ENV APP_NAME="isard-check"
+ENV USER_ID=0
+ENV GROUP_ID=0
+ENV CHECK_MODE="server"

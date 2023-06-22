@@ -30,6 +30,10 @@ type GRPC struct {
 	Port int
 }
 
+func (g *GRPC) Addr() string {
+	return fmt.Sprintf("%s:%d", g.Host, g.Port)
+}
+
 type HTTP struct {
 	Host string
 	Port int
@@ -69,6 +73,8 @@ func New(name string, setDefaults func(), target interface{}) {
 }
 
 func setCommonDefaults() {
+	viper.BindEnv("log.level", "LOG_LEVEL")
+
 	viper.SetDefault("log", map[string]interface{}{
 		"level": "info",
 	})

@@ -1,0 +1,13 @@
+version: '3.5'
+services:
+  isard-check:
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: check/build/package/Dockerfile
+
+  isard-check-client:
+    container_name: isard-check-client
+    image: ${DOCKER_IMAGE_PREFIX}check-client:${DOCKER_IMAGE_TAG-latest}
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: check/build/package/Dockerfile.client

@@ -2,11 +2,13 @@ package log
 
 import (
 	"os"
+	"strings"
 
 	"github.com/rs/zerolog"
 )
 
 func New(svc, lvl string) *zerolog.Logger {
+	lvl = strings.ToLower(lvl)
 	logger := zerolog.New(os.Stderr).With().Timestamp().Str("service", svc).Logger()
 
 	switch lvl {
