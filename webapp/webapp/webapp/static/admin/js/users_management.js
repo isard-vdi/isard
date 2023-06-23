@@ -9,6 +9,8 @@ var users_table= ''
 var current_category = ''
 
 $(document).ready(function() {
+    $('.collapsed').find('.x_content').css('display', 'none');
+    $('.collapse-link ').find('i').toggleClass('fa-chevron-up fa-chevron-down');
     $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
 })
 function socketio_on(){
