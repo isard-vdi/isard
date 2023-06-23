@@ -180,7 +180,7 @@
 {% if current_user.role != 'manager' %}
 <div class="row">
   <div class="col-md-12 col-sm-12 col-xs-12">
-    <div class="x_panel">
+    <div class="x_panel collapsed">
       <div class="x_title">
         <h3><i class="fa fa-external-link"></i> External apps <small></small></h3>
         <ul class="nav navbar-right panel_toolbox">
@@ -189,13 +189,11 @@
           </li>
           <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
           </li>
-          <li><a class="close-link"><i class="fa fa-close"></i></a>
-          </li>
         </ul>
         <div class="clearfix"></div>
       </div>
       <div class="x_content">
-        <table id="externalapps" class="table">
+        <table id="externalapps" style="width:100%" class="table">
           <thead>
             <tr>
               <th>key id</th>
