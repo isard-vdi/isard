@@ -190,6 +190,7 @@ class ApiUsers:
             "role",
             "group",
             "secondary_groups",
+            "email",
             "accessed",
             {"vpn": {"wireguard": {"connected": True}}},
         )

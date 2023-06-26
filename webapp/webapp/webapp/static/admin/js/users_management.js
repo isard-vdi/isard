@@ -566,6 +566,7 @@ function socketio_on(){
         ]
     });
 
+    showUserExportButtons(users_table, 'users-buttons-row')
     adminShowIdCol(users_table)
 
     // Hide 'Category' users list column when manager
@@ -983,3 +984,54 @@ function toObject(names, values) {
     return result;
 }
 
+function showUserExportButtons(table, buttonsRowClass) {
+    new $.fn.dataTable.Buttons(table, {
+        buttons: [
+            {
+                extend: 'csv',
+                exportOptions: {
+                },
+                customize: function (csv) {
+                    var split_csv = csv.split("\n");
+                    var csv_data = 'Active,Name,Provider,Category,UID,Username,Role,Group,Secondary groups,VPN,Last access,ID\n';
+
+                    $.each(split_csv.slice(1), function (index, csv_row) {
+                        var csv_cell_array = csv_row.split('","');
+                        csv_cell_array.splice(0, 1);
+                        csv_cell_array.splice(11, 1);
+                        pk = csv_cell_array[csv_cell_array.length - 1].replace(/"/g, '');
+
+                        var rowData = table.row('#' + pk).data();
+                        csv_cell_array[0] = rowData.active;
+                        csv_cell_array[8] = csv_cell_array[8].replace(/,/g, ' | ');
+                        csv_cell_array[9] = rowData.vpn.wireguard.connected;
+
+                        csv_data = csv_data + csv_cell_array + '\n';
+                    });
+                    return csv_data
+                }
+            },
+            'excel',
+            'print',
+            { 
+                extend: 'csv',
+                text: 'CSV with import format',
+                exportOptions: {
+                    columns: [13] // ID column
+                },
+                customize: function (csv) {
+                    var csv_data = ['username,name,email,password,group,category,role\n']
+                    var split_csv = csv.split("\n");
+                    $.each(split_csv.slice(1), function (index, csv_row) {
+                        var csv_cell_array = csv_row.split('","');
+                        csv_cell_array[0] = csv_cell_array[0].replace(/"/g, '');
+                        var rowData = table.row('#' + csv_cell_array[0]).data();
+                        csv_data = csv_data + (`${rowData.username},${rowData.name},${rowData.email},,${rowData.group_name},${rowData.category_name},${rowData.role}\n`);
+                    });
+                    return csv_data
+                }
+            },
+        ]
+    }).container()
+        .appendTo($('.' + buttonsRowClass));
+}
