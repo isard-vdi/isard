@@ -1,13 +1,14 @@
 <!-- extend base layout -->
 {% extends "base.html" %}
 {% block css %}
-    <link href="/isard-admin/static/vendor/fancytree/dist/skin-win8/ui.fancytree.css" rel="stylesheet">
-    <!-- Ion.RangeSlider -->
-    <link href="/isard-admin/vendors/normalize-css/normalize.css" rel="stylesheet">
-    <link href="/isard-admin/vendors/ion.rangeSlider/css/ion.rangeSlider.css" rel="stylesheet">
-    <link href="/isard-admin/vendors/ion.rangeSlider/css/ion.rangeSlider.skinFlat.css" rel="stylesheet">
-        <!-- Switchery -->
-    <link href="/isard-admin/vendors/switchery/dist/switchery.min.css" rel="stylesheet">
+   <!-- FancyTree -->
+   <link href="/isard-admin/static/vendor/fancytree/dist/skin-win8/ui.fancytree.css" rel="stylesheet">
+   <!-- Ion.RangeSlider -->
+   <link href="/isard-admin/vendors/normalize-css/normalize.css" rel="stylesheet">
+   <link href="/isard-admin/vendors/ion.rangeSlider/css/ion.rangeSlider.css" rel="stylesheet">
+   <link href="/isard-admin/vendors/ion.rangeSlider/css/ion.rangeSlider.skinFlat.css" rel="stylesheet">
+   <!-- Switchery -->
+   <link href="/isard-admin/vendors/switchery/dist/switchery.min.css" rel="stylesheet">
 {% endblock %}
 {% block content %}
 
@@ -163,5 +164,8 @@
    <!-- Domains sse & hardware subtables -->  
    <script src="/isard-admin/static/js/snippets/desktop_add.js"></script> 
    <script src="/isard-admin/static/admin/js/desktops.js"></script>
-   <!--<script src="/isard-admin/static/admin/js/domains_subtables.js"></script>-->
+   <!-- FancyTree -->
+   <script src="/isard-admin/static/vendor/fancytree/src/jquery-ui-dependencies/jquery-ui.min.js"></script>
+   <script src="/isard-admin/static/vendor/fancytree/dist/jquery.fancytree.min.js"></script>
+   <script src="/isard-admin/static/vendor/fancytree/src/jquery.fancytree.table.js"></script>
 {% endblock %}

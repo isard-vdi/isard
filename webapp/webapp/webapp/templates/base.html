@@ -12,8 +12,6 @@
     <meta id="user_data" data-userid="{{ current_user.id }}"  data-role="{{ current_user.role }}" data-categoryid="{{ current_user.category }}">
 
     <title>{{ title }} | Isard VDI</title>
-    <!-- Fancytree -->
-    <link href="/isard-admin/static/vendor/fancytree/dist/skin-win8/ui.fancytree.css" rel="stylesheet">
     <!-- Bootstrap -->
     <link href="/isard-admin/vendors/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
@@ -118,10 +116,6 @@
     <script src="/isard-admin/static/isard.js"></script>
     <!-- isard quota sse -->
 	  <script src="/isard-admin/static/js/quota.js"></script>
-    <!-- Requirements for fancy tree -->
-    <script src="/isard-admin/static/vendor/fancytree/src/jquery-ui-dependencies/jquery-ui.min.js"></script>
-    <script src="/isard-admin/static/vendor/fancytree/dist/jquery.fancytree.min.js"></script>
-    <script src="/isard-admin/static/vendor/fancytree/src/jquery.fancytree.table.js"></script>
     <!-- Set user jwt header in ajax requests -->
     <script type="text/javascript">
       user_token = localStorage.getItem("token")
