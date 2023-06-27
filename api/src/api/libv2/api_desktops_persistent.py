@@ -857,3 +857,47 @@ def check_template_status(template_id=None, template=None):
             traceback.format_exc(),
             description_code="template_failed",
         )
+
+
+def domain_template_tree(domain_id):
+    domain_tree = {}
+    with app.app_context():
+        try:
+            parents_ids = (
+                r.table("domains")
+                .get(domain_id)
+                .pluck("parents")["parents"]
+                .run(db.conn)
+            )
+        except:
+            return {}
+        parents = list(
+            r.table("domains")
+            .get_all(r.args(parents_ids))
+            .merge(
+                lambda domain: {
+                    "category_name": r.table("categories").get(domain["category"])[
+                        "name"
+                    ],
+                    "group_name": r.table("groups").get(domain["group"])["name"],
+                    "parents_count": r.expr(domain["parents"]).default([]).count(),
+                }
+            )
+            .order_by(r.desc("parents_count"))
+            .pluck(
+                "id",
+                "name",
+                "user",
+                "username",
+                "category_name",
+                "group_name",
+            )
+            .run(db.conn)
+        )
+    for i in range(len(parents) - 1):
+        parents[i]["expanded"] = True
+        parents[i + 1]["children"] = [parents[i]]
+    parents[-1]["expanded"] = True
+    domain_tree["children"] = [parents[-1]]
+
+    return domain_tree

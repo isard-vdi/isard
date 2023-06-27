@@ -765,6 +765,7 @@ $(document).ready(function() {
                 setDomainHotplug(domain_id);
                 setHardwareDomainDefaultsDetails(domain_id, 'domain');
                 setDomainStorage(domain_id)
+                setDesktopTemplateTree(domain_id)
             }
         }
     } );
@@ -1033,6 +1034,50 @@ function socketio_on(){
                 type: data.type
         });
     });
+}
+
+function setDesktopTemplateTree(domain_id) {
+    var fancyTreeData;
+     $.ajax({
+        url: "/api/v3/admin/domain/template_tree/" + domain_id,
+        type: 'GET',
+        contentType: 'application/json',
+        success: function(srcData) {
+            if ('children' in srcData ) {
+                $(".domain_template_tree").fancytree({
+                    extensions: ["table"],
+                    table: {
+                        indentation: 20,      // indent 20px per node level
+                        nodeColumnIdx: 0
+                    },
+                    source: srcData,
+                    lazyLoad: function (event, data) {
+                        data.result = $.ajax({
+                            url: "/api/v3/admin/domain/template_tree/" + domain_id,
+                            dataType: "json"
+                        });
+                    },
+                    checkbox: false,
+                    selectMode: 3,
+                    renderColumns: function (event, data) {
+                        var node = data.node,
+                            $tdList = $(node.tr).find(">td");
+                        $tdList.eq(0).text(node.getIndexHier());
+                        $tdList.eq(1).text(node.data.name);
+                        $tdList.eq(2).text(node.data.username);
+                        $tdList.eq(3).text(node.data.group_name);
+                        $tdList.eq(4).text(node.data.category_name);
+                }
+                });
+                $('.tree-warning').hide();
+                $('.domain_template_tree').show();
+            } else {
+                $('.tree-warning').show();
+                $('.domain_template_tree').hide();
+            }
+        }
+    })
+    $(":ui-fancytree").fancytree("destroy")
 }
 
 function actionsDomainDetail(){
