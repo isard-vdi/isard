@@ -1,9 +1,22 @@
-#!/usr/bin/env python
-# coding=utf-8
-# Copyright 2017 the Isard-vdi project authors:
-#      Josep Maria Viñolas Auquer
-#      Alberto Larraz Dalmases
-# License: AGPLv3
+#
+#   Copyright © 2023 Josep Maria Viñolas Auquer, Alberto Larraz Dalmases
+#
+#   This file is part of IsardVDI.
+#
+#   IsardVDI is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or (at your
+#   option) any later version.
+#
+#   IsardVDI is distributed in the hope that it will be useful, but WITHOUT ANY
+#   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+#   FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+#   details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
 
 
 from rethinkdb import RethinkDB
@@ -27,6 +40,14 @@ from .._common.api_exceptions import Error
 from .api_desktop_events import desktops_start, desktops_stop
 from .api_desktops_persistent import ApiDesktopsPersistent
 from .api_templates import ApiTemplates
+from .api_user_storage import (
+    isard_user_storage_add_category,
+    isard_user_storage_add_group,
+    isard_user_storage_add_user,
+    isard_user_storage_update_category,
+    isard_user_storage_update_group,
+    isard_user_storage_update_user,
+)
 from .helpers import _check, get_user_data
 from .load_validator_schemas import IsardValidator
 from .validators import _validate_item, _validate_table
@@ -204,6 +225,12 @@ def admin_table_insert(table, data):
             raise Error(
                 "conflict", "Id " + data["id"] + " already exists in table " + table
             )
+    if table == "users":
+        isard_user_storage_add_user(data["id"])
+    if table == "groups":
+        isard_user_storage_add_group(data["id"])
+    if table == "categories":
+        isard_user_storage_add_category(data["id"])
 
 
 def admin_table_update(table, data, payload=False):
@@ -277,11 +304,23 @@ def admin_table_update(table, data, payload=False):
         with app.app_context():
             old_data = r.table("users").get(data["id"]).run(db.conn)
         old_data.update(data)
+
+        isard_user_storage_update_user(
+            user_id=data["id"],
+            email=data.get("email"),
+            displayname=data.get("name"),
+            role=data.get("role"),
+        )
+
         _validate_item("user", old_data)
 
     if table == "desktops_priority":
         if "allowed" not in data:
             IsardValidator()._check_with_validate_time_values(data)
+    if table == "categories":
+        isard_user_storage_update_category(data["id"], data["name"])
+    if table == "groups":
+        isard_user_storage_update_group(data["id"], data["name"])
     with app.app_context():
         if not _check(
             r.table(table).get(data["id"]).update(data).run(db.conn),

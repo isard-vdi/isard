@@ -1,0 +1,229 @@
+<div class="modal fade" id="modalPersonalunits" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <!-- Modal Header -->
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">
+          <span aria-hidden="true">&times;</span>
+          <span class="sr-only">Close</span>
+        </button>
+        <h4 class="modal-title">
+          <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-lock"> </i> Add new Personal unit
+        </h4>
+      </div>
+      <!-- Modal Body -->
+      <div class="modal-body">
+        <form id="modalPersonalunitsForm" class="form-horizontal form-label-left">
+          <div class="x_panel" style="padding: 5px; padding-top: 0px;">
+            <div class="x_content">
+              <div class="x_content">
+                <input id="id" name="id" value="" hidden/>
+                <div class="row">
+                  <div class="col-md-4 col-xs-12">
+                    <label class="control-label" for="name">Name <span class="required">*</span>
+                    </label>
+                    <input id="name" class="roundbox" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New personal unit name" data-parsley-trigger="change" required type="text">
+                  </div>
+                  <div class="col-md-8 col-xs-12">
+                    <label class="control-label" for="description">Description
+                    </label>
+                    <input id="description" class="roundbox" name="description" placeholder="Personal unit description"  type="text" style="width:100%">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="x_panel" style="padding: 5px;">
+            <p style="font-size: 16px;margin-left:10px;">Set parameters</p>
+            <div class="x_content" style="padding-right: 60px;">
+              <div class="x_content">
+                <div class="item form-group">
+                  <label class="control-label col-md-6 col-sm-6 col-xs-12" for="access">Access users categories <span class="required">*</span></label>
+                  <div class="col-md-6 col-sm-6 col-xs-12">
+                    <select id="access" name="access" class="form-control roundbox" required>
+                    </select>
+                  </div>
+                </div>
+                <div class="item form-group">
+                  <label class="control-label col-md-6 col-sm-6 col-xs-12" for="provider">Provider <span class="required">*</span></label>
+                  <div class="col-md-6 col-sm-6 col-xs-12">
+                    <select id="provider" name="provider" class="form-control roundbox" required>
+                      <!-- <option value="">Choose..</option> -->
+                      <option value="nextcloud">Nextcloud</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="item form-group">
+                  <label class="control-label col-md-6 col-sm-6 col-xs-12" for="provider">Verify SSL certificate <span class="required">*</span></label>
+                  <div class="col-md-6 col-sm-6 col-xs-12">
+                    <div class="checkbox pull-left">
+                      <label>
+                        <input id="verify_cert" name="verify_cert" type="checkbox">
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div class="item form-group">
+                  <label class="control-label col-md-6 col-sm-6 col-xs-12" for="url">Service domain <span class="required">*</span>
+                  </label>
+                  <div class="col-md-6 col-sm-6 col-xs-12">
+                    <input id="url" class="form-control col-md-7 col-xs-12" data-validate-length-range="0,40" name="url" placeholder="ex: myserviceprovider.org" required="required" type="text">
+                  </div>
+                </div>
+                <div class="item form-group">
+                  <label class="control-label col-md-6 col-sm-6 col-xs-12" for="urlprefix">Service domain URL prefix <span class="required">*</span>
+                  </label>
+                  <div class="col-md-6 col-sm-6 col-xs-12">
+                    <input id="urlprefix" class="form-control col-md-7 col-xs-12" data-validate-length-range="0,40" name="urlprefix" placeholder="ex: /isard-nc" required="required" type="text" value="/isard-nc">
+                  </div>
+                </div>
+                <div class="item form-group">
+                  <label class="control-label col-md-6 col-sm-6 col-xs-12" for="user">Api user <span class="required">*</span>
+                  </label>
+                  <div class="col-md-6 col-sm-6 col-xs-12">
+                    <input id="user" class="form-control col-md-7 col-xs-12" data-validate-length-range="0,40" name="user" placeholder="Nextcloud admin user" required="required" type="text">
+                  </div>
+                </div>
+                <div class="item form-group">
+                  <label class="control-label col-md-6 col-sm-6 col-xs-12" for="password">Api password <span class="required">*</span>
+                  </label>
+                  <div class="col-md-6 col-sm-6 col-xs-12">
+                    <input id="password" class="form-control col-md-7 col-xs-12" name="password" placeholder="Nextcloud admin pwd" required="required" type="password">
+                  </div>
+                </div>
+                <br>
+                <button type="button" id="btn-check-personal_unit" class="btn btn-info" style="position: relative; left: 190px;">
+                  <span id="spinner_check_conn" aria-hidden="true" style="display: none;">
+                    <i class="fa fa-spinner fa-pulse fa-1x fa-fw"></i><span class="sr-only">Loading...</span>
+                  </span>
+                  Check connection
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="x_panel" style="padding: 5px;">
+            <p style="font-size: 16px;margin-left:10px;">Set defaults for quotas</p>
+            <div class="x_content" style="padding-right: 60px;">
+              <div class="x_content">
+                <div class="item form-group">
+                  <label class="control-label col-md-6 col-sm-6 col-xs-12" for="quota-admin">Admins (MBytes) <span class="required">*</span>
+                  </label>
+                  <div class="col-md-6 col-sm-6 col-xs-12">
+                    <input id="quota-admin" class="form-control col-md-7 col-xs-12" name="quota-admin" value="500" min="1" class="roundbox" data-parsley-trigger="change" required type="number">
+                  </div>
+                </div> 
+                <div class="item form-group">
+                  <label class="control-label col-md-6 col-sm-6 col-xs-12" for="quota-manager">Managers (MBytes) <span class="required">*</span>
+                    </label>
+                    <div class="col-md-6 col-sm-6 col-xs-12">
+                      <input id="quota-manager" class="form-control col-md-7 col-xs-12" name="quota-manager" value="500" min="1" class="roundbox" data-parsley-trigger="change" required type="number">
+                    </div>
+                </div>
+                <div class="item form-group">
+                  <label class="control-label col-md-6 col-sm-6 col-xs-12" for="quota-advanced">Advanceds (MBytes) <span class="required">*</span>
+                  </label>
+                  <div class="col-md-6 col-sm-6 col-xs-12">
+                    <input id="quota-advanced" class="form-control col-md-7 col-xs-12" name="quota-advanced" value="300" min="1" class="roundbox" data-parsley-trigger="change" required type="number">
+                  </div>
+                </div>
+                <div class="item form-group">
+                  <label class="control-label col-md-6 col-sm-6 col-xs-12" for="quota-user">Users (MBytes) <span class="required">*</span>
+                  </label>
+                  <div class="col-md-6 col-sm-6 col-xs-12">
+                    <input id="quota-user" class="form-control col-md-7 col-xs-12" name="quota-user" value="100" min="1" class="roundbox" data-parsley-trigger="change" required type="number">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Modal Footer -->
+          <div class="modal-footer">
+            <ul class="nav navbar-left panel_toolbox">
+              <li>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+              </li>
+            </ul>
+            <ul class="nav navbar-right panel_toolbox">
+              <li>
+                <button id="send" type="button" class="btn btn-success">Add provider</button></li>
+              </li>
+            </ul>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalPersonalunitsProgress" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <!-- Modal Header -->
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">
+          <span aria-hidden="true">&times;</span>
+          <span class="sr-only">Close</span>
+        </button>
+        <h4 class="modal-title">
+          <i class="fa fa-lock"></i> <i class="fa fa-refresh"></i> Sync personal unit
+        </h4>
+      </div>
+      <!-- Modal Body -->
+      <div class="modal-body">
+        <form id="modalPersonalunitsProgressForm" class="form-horizontal form-label-left">
+          <div class="row">
+            <input id="id" name="id" value="" hidden/>
+          </div>
+          <div class="x_panel" style="padding: 5px;">
+            <p style="font-size: 16px;">Actions</p>
+            <div class="x_content d-flex justify-content-center">
+              <div class="col-md-6 col-xs-12">
+                <button id="btn-personalunit-syncusers" class="btn btn-xs" style="position: relative; margin-left: 50px; font-size: 18px;" type="button" data-placement="top">
+                  <span id="spinner_sync_users" aria-hidden="true" style="display: none;">
+                    <i class="fa fa-spinner fa-pulse fa-1x fa-fw"></i><span class="sr-only">Loading...</span>
+                  </span>
+                  <i class="fa fa-refresh" style="color:green"></i> Synchronize Users
+                </button>
+              </div>
+              <div class="col-md-6 col-xs-12">
+                <button id="btn-personalunit-syncgroups" class="btn btn-xs" style="font-size: 18px;" type="button" data-placement="top">
+                  <span id="spinner_sync_groups" aria-hidden="true" style="display: none;">
+                    <i class="fa fa-spinner fa-pulse fa-1x fa-fw"></i><span class="sr-only">Loading...</span>
+                  </span>
+                  <i class="fa fa-refresh" style="color:green"></i> Synchronize Groups
+                </button>
+              </div>
+            </div>
+            <label style="color:red; font-size: 16px; text-align: center; padding: 20px;"><i class="fa fa-warning"></i> WARNING! Synchronization will remove all users/grups non existing in Isard from your Nextcloud (except Nextcloud 'admin' user)
+            </label>
+          </div>
+          <div class="x_panel" style="padding: 5px;">
+            <p style="font-size: 16px;margin-left:10px;">Info</p>
+            <div class="x_content">
+              <div class="x_content">
+                <table id="personalunits-progress-log" class="display" width="100%">
+                  <thead>
+                    <tr>
+                      <th>Status</th>
+                      <th>Type</th>
+                      <th>Action</th>
+                      <th>Info</th>
+                    </tr>
+                  </thead>
+                </table>
+              </div>
+            </div>
+          </div>
+        </form>
+        <!-- Modal Footer -->
+        <div class="modal-footer">
+          <ul class="nav navbar-left panel_toolbox">
+            <li>
+              <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button></li>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

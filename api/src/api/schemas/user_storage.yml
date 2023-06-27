@@ -1,0 +1,52 @@
+access:
+  type: string
+  required: true
+auth_protocol:
+  type: string
+  required: true
+  default: basic
+description:
+  type: string
+  required: false
+id:
+  default_setter: genuuid
+name:
+  type: string
+  required: true
+password:
+  type: string
+  required: true
+provider:
+  type: string
+  required: true
+  allowed:
+    - nextcloud
+quota:
+  type: dict
+  schema:
+    admin:
+      type: number
+      required: true
+    advanced:
+      type: number
+      required: true
+    manager:
+      type: number
+      required: true
+    user:
+      type: number
+      required: true
+url:
+  type: string
+  required: true
+urlprefix:
+  type: string
+  required: true
+  default: /isard-nc
+user:
+  type: string
+  required: true
+verify_cert:
+  type: boolean
+  required: true
+  default: true

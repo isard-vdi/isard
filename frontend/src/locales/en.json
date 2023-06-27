@@ -389,7 +389,8 @@
                 "authentication": "Authentication",
                 "role": "Role",
                 "category": "Category",
-                "group": "Group"
+                "group": "Group",
+                "user-storage": "User storage"
             },
             "language": "Language",
             "quota": {
@@ -407,7 +408,8 @@
                 "vcpus": "Used vcpus / Total vcpus",
                 "total-disk-size": "Used disk size / Total disk size",
                 "total-media-size": "Used media size / Total media size",
-                "total-size": "Used size / Total size (GB)"
+                "total-size": "Used size / Total size (GB)",
+                "unit": "Personal unit size / Total unit size (MB)"
             }
         },
         "start-now-modal": {

@@ -138,6 +138,20 @@
                                   </h6>
                                 </b-col>
                               </b-row>
+                              <b-row
+                                v-if="profile.userStorage.tokenWeb !== false"
+                              >
+                                <b-col>
+                                  <h6 class="font-weight-bold mt-4">
+                                    {{ $t('components.profile.info.user-storage') }}
+                                  </h6>
+                                </b-col>
+                                <b-col>
+                                  <h6 class="mt-4">
+                                    <a :href="profile.userStorage.tokenWeb">{{ profile.userStorage.tokenWeb }}</a>
+                                  </h6>
+                                </b-col>
+                              </b-row>
                             </b-col>
                           </b-row>
                         </b-col>
@@ -228,6 +242,12 @@
                                   </b-progress>
                                 </b-col>
                               </b-row>
+                              <QuotaProgressBar
+                                v-if="profile.userStorage.providerQuota !== false"
+                                :title="$t('components.profile.quota.unit')"
+                                :value="profile.userStorage.providerQuota.used"
+                                :max="profile.userStorage.providerQuota.quota"
+                              />
                             </b-col>
                           </b-row>
                         </b-col>

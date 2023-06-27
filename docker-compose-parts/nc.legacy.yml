@@ -1,0 +1,10 @@
+version: '3.5'
+services:
+  isard-nc-app:
+    restart: unless-stopped
+
+  isard-nc-nginx:
+    restart: unless-stopped
+
+  isard-nc-redis:
+    restart: unless-stopped

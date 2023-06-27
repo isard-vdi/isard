@@ -19,41 +19,50 @@
 
 import base64
 import json
-from time import sleep
+import os
+import pathlib
 
+from engine.services.db.domains import PersonalUnit as DbPersonalUnit
+from engine.services.db.domains import get_personal_unit_from_domain
 from engine.services.log import logs
-from libvirt import libvirtError
+from libvirt import libvirtError, virDomain
 from libvirt_qemu import qemuAgentCommand
 
+NOTIFIER_CMD_LINUX = None
+with open(
+    os.path.join(pathlib.Path(__file__).parent.resolve(), "./qmp/notifier_linux.sh")
+) as f:
+    NOTIFIER_CMD_LINUX = f.read()
 
-def notify_desktop(domain, message):
-    """
-    Notify desktop with a message
+NOTIFIER_CMD_WINDOWS = None
+with open(
+    os.path.join(pathlib.Path(__file__).parent.resolve(), "./qmp/notifier_windows.bat")
+) as f:
+    NOTIFIER_CMD_WINDOWS = f.read()
 
-    Guest should have qemu-guest-agent and libnotify-bin installed
-    and the following libvirt xml.
-
-    <channel type="unix">
-        <source mode="bind"/>
-        <target type="virtio" name="org.qemu.guest_agent.0"/>
-    </channel>
-
-    :param domain: domain to be notified
-    :type domain: libvirt.virDomain
-    :param message: message to notify
-    "type message: bytes
-    """
-    desktop_id = domain.name()
-    message_decoded = base64.b64decode(message).decode()
-    logs.workers.debug(
-        f'Notifying desktop {desktop_id} with message "{message_decoded}"'
+PERSONAL_UNIT_CMD_LINUX = None
+with open(
+    os.path.join(
+        pathlib.Path(__file__).parent.resolve(), "./qmp/personal_unit_linux.sh"
     )
+) as f:
+    PERSONAL_UNIT_CMD_LINUX = f.read()
 
-    cmds = [
-        cmd_guest_notifier_linux(message_decoded),
-        cmd_guest_notifier_windows(message_decoded),
-    ]
+PERSONAL_UNIT_CMD_WINDOWS = None
+with open(
+    os.path.join(
+        pathlib.Path(__file__).parent.resolve(), "./qmp/personal_unit_windows.bat"
+    )
+) as f:
+    PERSONAL_UNIT_CMD_WINDOWS = f.read()
 
+
+def exec_commands(domain: virDomain, desktop_id: str, cmds):
+    """
+    Execute a list of commands in the specified domain
+    :param domain: domain where the commands are going to be executed
+    :param cmds: commands that are going to be executed
+    """
     failed = True
     cmd = 0
     command_status = {}
@@ -78,80 +87,159 @@ def notify_desktop(domain, message):
 
         except libvirtError as error:
             logs.workers.error(
-                f"libvirt error trying to notify desktop {desktop_id} "
-                f'with "{message_decoded}": {error}'
+                f"libvirt error trying to execute command in desktop {desktop_id} "
+                f"with: {error}"
             )
 
         cmd = cmd + 1
 
+    print(command_status)
     if command_status != {} and not command_status.get("exitcode"):
-        logs.workers.info(
-            f"Domain {desktop_id} was successfully notified "
-            f'with message "{message_decoded}"'
+        return None
+
+    return command_status
+
+
+class Notifier:
+    @staticmethod
+    def notify_desktop(domain: virDomain, message: bytes):  # TODO: Bytes? Or String
+        """
+        Notify desktop with a message
+
+        Guest should have qemu-guest-agent and libnotify-bin installed
+        and the following libvirt xml.
+
+        <channel type="unix">
+            <source mode="bind"/>
+            <target type="virtio" name="org.qemu.guest_agent.0"/>
+        </channel>
+
+        :param domain: domain to be notified
+        :type domain: libvirt.virDomain
+        :param message: message to notify
+        "type message: bytes
+        """
+        desktop_id = domain.name()
+        message_decoded = base64.b64decode(message).decode()
+        logs.workers.debug(
+            f'Notifying desktop {desktop_id} with message "{message_decoded}"'
         )
-        return True
 
-    else:
-        logs.workers.error(
-            f"Failed to notify desktop {desktop_id} "
-            f'with message "{message_decoded}" with '
-            f'error "{base64.b64decode(command_status.get("err-data", "")).decode()}"'
-        )
-        return False
+        cmds = [
+            Notifier.cmd_linux(message_decoded),
+            Notifier.cmd_windows(message_decoded),
+        ]
+
+        command_status = exec_commands(domain, desktop_id, cmds)
+        if not command_status:
+            logs.workers.info(
+                f"Domain {desktop_id} was successfully notified "
+                f'with message "{message_decoded}"'
+            )
+
+        else:
+            logs.workers.error(
+                f"Failed to notify desktop {desktop_id} "
+                f'with message "{message_decoded}" with '
+                f'error "{base64.b64decode(command_status.get("err-data", "")).decode()}"'
+            )
+
+    def cmd_windows(message):
+        shellscript = NOTIFIER_CMD_WINDOWS.format(
+            message=message,
+        ).encode()
+
+        return {
+            "execute": "guest-exec",
+            "arguments": {
+                "path": "cmd",
+                "arg": ["/c", shellscript],
+                "capture-output": True,
+            },
+        }
+
+    def cmd_linux(message):
+        shellscript = NOTIFIER_CMD_LINUX.format(
+            title="IsardVDI Notification",
+            message=message,
+        ).encode()
+
+        return {
+            "execute": "guest-exec",
+            "arguments": {
+                "path": "/bin/sh",
+                "input-data": base64.b64encode(shellscript).decode(),
+                "capture-output": True,
+            },
+        }
 
 
-def cmd_guest_notifier_windows(message):
-    return {
-        "execute": "guest-exec",
-        "arguments": {
-            "path": "C:/Windows/System32/msg.exe",
-            "arg": ["*", message],
-            "capture-output": True,
-        },
-    }
+class PersonalUnit:
+    @staticmethod
+    def connect_personal_unit(domain: virDomain):
+        """
+        Attempts to connect the personal unit of the user to the desktop
+        """
+        desktop_id = domain.name()
 
+        logs.workers.debug(f'Attempting to connect {desktop_id} to the personal unit!"')
 
-def cmd_guest_notifier_linux(message):
-    title = "IsardVDI Notification"
-    shellscript = f"""
-        exit_code=0;
+        unit = get_personal_unit_from_domain(desktop_id)
+        if not unit:
+            return
 
-        # Notify the users on the tty
-        echo '{message}' | wall || exit_code=$?;
+        cmds = [
+            PersonalUnit.cmd_linux(unit),
+            PersonalUnit.cmd_windows(unit),
+        ]
 
-        # Notify the users using a graphical interface
-        if which sw-notify-send; then
-            CMD="$(which sw-notify-send) -a IsardVDI -u CRITICAL '{title}' '{message}'"
+        command_status = exec_commands(domain, desktop_id, cmds)
+        if not command_status:
+            logs.workers.error(
+                f"Desktop {desktop_id} was successfully connected to the personal unit"
+            )
 
-        elif which notify-send; then
-            CMD="$(which notify-send) -a IsardVDI -u CRITICAL '{title}' '{message}'"
+        else:
+            logs.workers.error(
+                f"Failed to connect the desktop {desktop_id} "
+                f"to the personal unit with"
+                f'error "{base64.b64decode(command_status.get("err-data", "")).decode()}"'
+            )
 
-        elif which gdbus; then
-            CMD="gdbus call --session \
-                --dest=org.freedesktop.Notifications \
-                --object-path=/org/freedesktop/Notifications \
-                --method=org.freedesktop.Notifications.Notify \
-                'IsardVDI' 0 '' '{title}' '{message}' \
-                '[]' '{{}}' 5000"
+    # TODO: Self signed, mount automatically
+    def cmd_windows(unit: DbPersonalUnit):
+        shellscript = PERSONAL_UNIT_CMD_WINDOWS.format(
+            protocol="s" if unit["tls"] else "",
+            verify_cert=unit["verify_cert"],
+            user=unit["user_id"],
+            password=unit["password"],
+            host=unit["dav"],
+        ).encode()
 
-        else
-            echo "No graphical notification program found!"
-            exit 1
-        fi
+        return {
+            "execute": "guest-exec",
+            "arguments": {
+                "path": "cmd",
+                "arg": ["/U"],
+                "input-data": base64.b64encode(shellscript).decode(),
+                "capture-output": True,
+            },
+        }
 
-        for uid in $(ls /run/user/); do
-            runuser -l $(getent passwd "$uid" | cut -d: -f1) -c "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$uid/bus $CMD || exit_code=$?"
-        done
+    def cmd_linux(unit: DbPersonalUnit):
+        shellscript = PERSONAL_UNIT_CMD_LINUX.format(
+            protocol="s" if unit["tls"] else "",
+            verify_cert=unit["verify_cert"],
+            user=unit["user_id"],
+            password=unit["password"],
+            host=unit["dav"],
+        ).encode()
 
-        exit $exit_code
-    """.encode()
-
-    command_exec = {
-        "execute": "guest-exec",
-        "arguments": {
-            "path": "/bin/sh",
-            "input-data": base64.b64encode(shellscript).decode(),
-            "capture-output": True,
-        },
-    }
-    return command_exec
+        return {
+            "execute": "guest-exec",
+            "arguments": {
+                "path": "/bin/sh",
+                "input-data": base64.b64encode(shellscript).decode(),
+                "capture-output": True,
+            },
+        }

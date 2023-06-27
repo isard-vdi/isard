@@ -211,6 +211,17 @@ def admin_users(nav):
         )
 
 
+@app.route("/isard-admin/admin/users/UserStorage", methods=["POST", "GET"])
+@login_required
+@isAdmin
+def admin_users_user_storage():
+    return render_template(
+        "admin/pages/user_storage.html",
+        nav="UserStorage",
+        title="User Storage",
+    )
+
+
 """
 USAGE
 """

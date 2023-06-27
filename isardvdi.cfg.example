@@ -1,4 +1,4 @@
-# Isard main config v2.7.2
+# Isard main config v2.8.0
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -15,6 +15,7 @@
 ##  - monitor: monitoring only host (grafana/loki/influxdb)
 ##  - backupninja: standalone backups
 ##  - check: standalone check service
+##  - nextcloud: starts an standalone IsardVDI Nextcloud Personal Units [EXPERIMENTAL]
 #FLAVOUR=all-in-one
 
 ## This configuration should generate docker-compose file for the following
@@ -63,6 +64,12 @@ FRONTEND_DOCS_URI=https://isard.gitlab.io/isardvdi-docs/
 ## - browser
 ## - url
 DIRECTVIEWER_MODE=browser
+
+# ------ Nextcloud Personal Units -- [EXPERIMENTAL]---------------------------
+## Will start a docker Nextcloud instance integrated into IsardVDI Personal
+## units. Other Nextcloud providers can be set at admin resources page.
+#NEXTCLOUD_INSTANCE=false
+#NEXTCLOUD_IMG=nextcloud:27.0.0-fpm-alpine
 
 # ------ Secrets -------------------------------------------------------------
 ## Generate your own SECRETS!

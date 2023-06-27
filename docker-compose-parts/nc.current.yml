@@ -1,0 +1,12 @@
+version: '3.5'
+services:
+  isard-nc-app:
+    depends_on:
+      isard-postgres:
+        condition: service_started
+      isard-nc-redis:
+        condition: service_healthy
+
+  isard-nc-nginx:
+    depends_on:
+      - isard-nc-app
