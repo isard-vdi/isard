@@ -126,6 +126,7 @@
               :fields="fields"
               :responsive="true"
               :head-row-variant="v$.selectedTemplateId.$error ? 'danger' : ''"
+              :sort-by.sync="sortBy"
               small
               select-mode="single"
               selected-variant="primary"
@@ -283,7 +284,7 @@ export default {
 
     const domain = computed(() => $store.getters.getDomain)
     // Templates table
-    const perPage = ref(5)
+    const perPage = ref(20)
     const currentPage = ref(1)
     const pageOptions = ref([5, 10, 20, 30, 50, 100])
     const filter = ref('')
@@ -297,6 +298,7 @@ export default {
       totalRows.value = filteredItems.length
       currentPage.value = 1
     }
+    const sortBy = 'name'
 
     const onRowSelected = (item) => {
       if (item[0] && item[0].status.toLowerCase() === desktopStates.failed) {
@@ -446,7 +448,8 @@ export default {
       onFiltered,
       v$,
       templateTable,
-      desktopStates
+      desktopStates,
+      sortBy
     }
   }
 }
