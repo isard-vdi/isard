@@ -102,6 +102,7 @@ from .views import (
     AdminStoragePhysicalView,
     AdminStorageView,
     AdminTablesView,
+    AdminUsageView,
     AdminUsersView,
     AllowedsView,
     CardsView,

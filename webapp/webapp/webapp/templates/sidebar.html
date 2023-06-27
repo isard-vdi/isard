@@ -26,7 +26,13 @@
       <li><a href="/isard-admin/admin/domains/render/Deployments"><i class="fa fa-tv"></i> Deployments</a></li>
       <li><a href="/isard-admin/admin/domains/render/Storage"><i class="fa fa-folder-open"></i> Storage</a></li>
       <li><a href="/isard-admin/admin/isard-admin/media"><i class="fa fa-circle-o"></i> Media</a></li>
-      <li><a href="/monitor/" target="_blank"><i class="fa fa-bar-chart-o"></i> Graphs</a></li>
+      <li>
+        <a><i class="fa fa-line-chart"></i> Metrics <span class="fa fa-chevron-down"></span></a>
+        <ul class="nav child_menu">
+          <li><a href="/monitor/" target="_blank"><i class="fa fa-area-chart"></i> Monitoring</a></li>
+          <li><a href="/isard-admin/admin/usage"><i class="fa fa-bar-chart"></i> Usage</a></li>
+        </ul>
+      </li>
     </ul>
     {% endif %}
 
@@ -118,7 +124,14 @@
             <li><a href="/isard-admin/admin/storage_nodes"><i class="fa fa-hdd-o"></i> Storage Nodes</a></li>
           </ul>
         </li>
-        <li><a href="/monitor/" target="_blank"><i class="fa fa-bar-chart-o"></i> Graphs</a></li>
+        <li>
+          <a><i class="fa fa-line-chart"></i> Metrics <span class="fa fa-chevron-down"></span></a>
+          <ul class="nav child_menu">
+            <li><a href="/monitor/" target="_blank"><i class="fa fa-area-chart"></i> Monitoring</a></li>
+            <li><a href="/isard-admin/admin/usage"><i class="fa fa-bar-chart"></i> Usage</a></li>
+            <li><a href="/isard-admin/admin/usage_config"><i class="fa fa-gears"></i> Config</a></li>
+          </ul>
+        </li>
         <li><a href="/isard-admin/admin/updates"><i class="fa fa-cloud-download"></i> Downloads</a></li>
         <li><a href="/isard-admin/admin/config"><i class="fa fa-gear"></i> Config</span></a></li>
       </ul>

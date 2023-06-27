@@ -61,6 +61,15 @@ def format_lang(message_code, lang, kwargs):
 
 
 class Actions:
+    def consolidate_consumptions_kwargs():
+        return []
+
+    def consolidate_consumptions():
+        api_client.put(
+            "/admin/usage/consolidate",
+            {},
+        )
+
     def desktop_notify(**kwargs):
         # Send to frontend
         api_client.post(

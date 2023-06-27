@@ -1,0 +1,76 @@
+<!-- extend base layout -->
+{% extends "base.html" %} {% block css %}
+
+<!-- bootstrap-daterangepicker -->
+<link href="/isard-admin/vendors/bootstrap-daterangepicker/daterangepicker.css" rel="stylesheet">
+
+{% endblock %} {% block content %}
+<div class="row">
+  <div class="col-md-12 col-sm-12 col-xs-12">
+    <div class="x_panel">
+      <div class="x_title">
+        <h3><i class="fa fa-rocket"></i> Consumptions<small> Until today</small></h3>
+        <div class="clearfix"></div>
+      </div>
+      <div class="x_title">
+        <i class="fa fa-warning" style="font-size:16px;color:red"> EXPERIMENTAL FEATURE. Use it at your own risk</i>
+        <div class="clearfix"></div>
+      </div>
+      <div class="x_content">
+        {% include '/snippets/filters.html' %}
+        <div class="row">
+          <div class="col-md-12 col-sm-12 col-xs-12">
+            <div class="row usage-buttons-row"></div>
+            <table id="usageTable" class="table">
+              <thead>
+                <tr>
+                </tr>
+                <tr>
+                </tr>
+              </thead>
+              <tbody>
+              </tbody>
+              <tfoot>
+                <tr>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-12 col-sm-12 col-xs-12">
+            <button title="Select items from the table in order to generate its graph" type="button" id="btn-view-graph" class="btn btn-primary" disabled="disabled"><i class="fa fa-bar-chart"></i>
+              Generate selected items graph</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="graphsModal" tabindex="-1" role="dialog" aria-labelledby="graphsModal" aria-hidden="true">
+  <div class="modal-dialog modal-lg" style="width:80%">
+    <div class="modal-content">
+      <!-- Modal Header -->
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">
+          <span aria-hidden="true">&times;</span>
+          <span class="sr-only">Close</span>
+        </button>
+        <h4 class="modal-title">
+          <i class="fa fa-bar-chart"> </i> View usage graphs
+        </h4>
+      </div>
+      <!-- Modal Body -->
+      <div class="modal-body text-center">
+        <div id="canvas-holder">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block pagescript %}
+<script src="/isard-admin/static/admin/js/filters.js"></script>
+<script src="/isard-admin/static/admin/js/usage.js"></script>
+<script src="/isard-admin/echarts/dist/echarts.min.js"></script>
+<script src="/isard-admin/vendors/bootstrap-daterangepicker/daterangepicker.js"></script>
+{% endblock %}

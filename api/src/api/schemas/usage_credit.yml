@@ -1,0 +1,29 @@
+id:
+  required: true
+  empty: false
+  default_setter: genuuid
+item_id:
+  type: string
+  required: true
+  empty: false
+  nullable: false
+grouping_id:
+  type: string
+  required: true
+  empty: false
+  nullable: false
+start_date:
+  type: string
+  required: true
+  empty: false
+  nullable: false
+end_date:
+  type: string
+  required: true
+  empty: false
+  nullable: true
+limit_id:
+  type: string
+  required: true
+item_type:
+  type: string

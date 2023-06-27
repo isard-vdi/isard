@@ -1,0 +1,26 @@
+id:
+  required: true
+  type: string
+  empty: false
+  default_setter: genuuid
+name:
+  required: true
+  type: string
+desc:
+  type: string
+limits:
+  required: true
+  type: dict
+  schema:
+    soft:
+      required: true
+      type: integer
+    hard:
+      required: true
+      type: integer
+    exp_min:
+      required: true
+      type: integer
+    exp_max:
+      required: true
+      type: integer

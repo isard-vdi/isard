@@ -73,6 +73,7 @@ $(document).ready(function() {
         ]
     } );
 
+    showExportButtons(groups_table, 'groups-buttons-row')
     adminShowIdCol(groups_table)
 
     // Hide 'Category' group list column when manager

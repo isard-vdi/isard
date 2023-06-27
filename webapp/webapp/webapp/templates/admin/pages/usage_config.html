@@ -1,0 +1,201 @@
+<!-- extend base layout -->
+{% extends "base.html" %} {% block css %}
+
+<!-- bootstrap-daterangepicker -->
+<link href="/isard-admin/vendors/bootstrap-daterangepicker/daterangepicker.css" rel="stylesheet">
+<link href="/isard-admin/vendors/iCheck/skins/flat/green.css" rel="stylesheet">
+
+{% endblock %} {% block content %}
+
+<div class="row">
+  <div class="col-md-12 col-sm-12 col-xs-12">
+     <div class="x_panel">
+        <div class="page-title">
+           <div class="title_left" style="width:100%">
+              <h3><i class="fa fa-gears"></i> Usage config <small></small></h3>
+              <ul class="nav navbar-right panel_toolbox">
+                <li>
+                  <button type="button" id="btn-consolidate-desktops" class="btn btn-pill-right btn-success"><i class="fa fa-desktop"></i>
+                    Consolidate Desktops</button>
+                  <button type="button" id="btn-consolidate-users" class="btn btn-pill-right btn-success"><i class="fa fa-user"></i>
+                    Consolidate Users</button>
+                  <button type="button" id="btn-consolidate-storage" class="btn btn-pill-right btn-success"><i class="fa fa-folder-open"></i>
+                    Consolidate Storage</button>
+                  <button type="button" id="btn-consolidate-media" class="btn btn-pill-right btn-success"><i class="fa fa-circle-o"></i>
+                    Consolidate Media</button>
+                </li>
+              </ul>
+           </div>
+           <div class="clearfix"></div>
+        </div>
+     </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-12 col-sm-12 col-xs-12">
+    <div class="x_panel">
+      <div class="x_title">
+        <h3><i class="fa fa-rocket"></i> Category Credits<small></small></h3>
+        <ul class="nav navbar-right panel_toolbox">
+          <li>
+            <a id="btn-category_credit_add"><span style="color: #5499c7;">
+                <i class="fa fa-plus"></i>
+                Add Category Credit</span></a>
+          </li>
+        </ul>
+        <div class="clearfix"></div>
+      </div>
+      <div class="x_content">
+        <div class="row">
+          <div class="col-md-12 col-sm-12 col-xs-12">
+            <table id="table-category_credit" class="table">
+              <thead>
+                <tr>
+                  <th>item</th>
+                  <th>item_type</th>
+                  <th>grouping</th>
+                  <th>start_date</th>
+                  <th>end_date</th>
+                  <th>limits</th>
+                  <th>action</th>
+                </tr>
+              </thead>
+              <tbody>
+              </tbody>
+           </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-12 col-sm-12 col-xs-12">
+    <div class="x_panel">
+      <div class="x_title">
+        <h3><i class="fa fa-list"></i> Parameter Grouping<small></small></h3>
+        <ul class="nav navbar-right panel_toolbox">
+          <li>
+            <a id="btn-parameter_grouping_add"><span style="color: #5499c7;">
+                <i class="fa fa-plus"></i>
+                Add Grouping</span></a>
+          </li>
+        </ul>
+        <div class="clearfix"></div>
+      </div>
+      <div class="x_content">
+        <div class="row">
+          <div class="col-md-12 col-sm-12 col-xs-12">
+            <table id="table_groupings" class="table">
+              <thead>
+                <tr>
+                  <th>name</th>
+                  <th>item_type</th>
+                  <th>item_sub_type</th>
+                  <th>description</th>
+                  <th>parameters</th>
+                  <th>action</th>
+                </tr>
+              </thead>
+              <tbody>
+              </tbody>
+           </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-12 col-sm-12 col-xs-12">
+    <div class="x_panel">
+      <div class="x_title">
+        <h3><i class="fa fa-minus-circle"></i> Limits<small></small></h3>
+        <ul class="nav navbar-right panel_toolbox">
+          <li>
+            <a id="btn-limit_add"><span style="color: #5499c7;">
+                <i class="fa fa-plus"></i>
+                Add Limit</span></a>
+          </li>
+        </ul>
+        <div class="clearfix"></div>
+      </div>
+      <div class="x_content">
+        <div class="row">
+          <div class="col-md-12 col-sm-12 col-xs-12">
+            <table id="table_limits" class="table">
+              <thead>
+                <tr>
+                  <th rowspan="2">name</th>
+                  <th rowspan="2">description</th>
+                  <th colspan="4">limits</th>
+                </tr>
+                <tr>
+                  <th>soft</th>
+                  <th>hard</th>
+                  <th>exp_min</th>
+                  <th>exp_max</th>
+                  <th>action</th>
+                </tr>
+              </thead>
+              <tbody>
+              </tbody>
+           </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-12 col-sm-12 col-xs-12">
+    <div class="x_panel">
+      <div class="x_title">
+        <h3><i class="fa fa-sliders"></i> Parameters<small></small></h3>
+        <ul class="nav navbar-right panel_toolbox">
+          <li>
+            <a id="btn-parameter_add"><span style="color: #5499c7;">
+                <i class="fa fa-plus"></i>
+                Add Parameter</span></a>
+          </li>
+        </ul>
+        <div class="clearfix"></div>
+      </div>
+      <div class="x_content">
+        <div class="row">
+          <div class="col-md-12 col-sm-12 col-xs-12">
+            <table id="table_parameters" class="table">
+              <thead>
+                <tr>
+                  <th>id</th>
+                  <th>custom</th>
+                  <th>item_type</th>
+                  <th>name</th>
+                  <th>description</th>
+                  <th>formula</th>
+                  <th>units</th>
+                  <th>action</th>
+                </tr>
+              </thead>
+              <tbody>
+              </tbody>
+           </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% include '/admin/pages/usage_modals.html' %}
+{% endblock %}
+
+{% block pagescript %}
+<script src="/isard-admin/static/admin/js/usage_config.js"></script>
+<script src="/isard-admin/vendors/bootstrap-daterangepicker/daterangepicker.js"></script>
+<script src="/isard-admin/vendors/iCheck/icheck.min.js"></script> 
+<script src="/isard-admin/mathjs/math.js"></script>
+{% endblock %}

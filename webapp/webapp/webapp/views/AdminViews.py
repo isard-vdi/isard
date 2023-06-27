@@ -212,6 +212,27 @@ def admin_users(nav):
 
 
 """
+USAGE
+"""
+
+
+@app.route("/isard-admin/admin/usage", methods=["GET"])
+@login_required
+@isAdminManager
+def admin_usage():
+    return render_template("admin/pages/usage.html", nav="Usage", title="Usage")
+
+
+@app.route("/isard-admin/admin/usage_config", methods=["GET"])
+@login_required
+@isAdminManager
+def admin_usage_config():
+    return render_template(
+        "admin/pages/usage_config.html", nav="Usage config", title="Usage config"
+    )
+
+
+"""
 HYPERVISORS
 """
 
