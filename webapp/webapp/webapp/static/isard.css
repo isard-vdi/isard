@@ -193,3 +193,14 @@ table.dataTable tr.shown td.details-control > button > i:before {
   padding: 20px;
   background: #f7f7f790;
 }
+
+.dt-buttons {
+  margin-bottom: 15px;
+}
+
+.dt-button {
+  padding: 5px;
+  margin: 5px;
+  background-color: aliceblue;
+  border-radius: 5px;
+}
