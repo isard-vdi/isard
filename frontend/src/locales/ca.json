@@ -951,7 +951,15 @@
         "unable_to_reset_domain_jumperurl": "No s'ha pogut restablir el jumperurl de l'escriptori ja que el domini no existeix",
         "unable_to_get_deployment_desktops": "No s'han pogut obtenir els escriptoris del desplegament",
         "unable_to_gen_enrollment_code": "No s'ha pogut generar el codi d'inscripció",
-        "template_already_exists": "L'ID de la plantilla ja existeix: "
+        "template_already_exists": "L'ID de la plantilla ja existeix: ",
+        "table_not_allowed": "No es permet canviar el propietari de la taula",
+        "duplicated_name": "Nom duplicat",
+        "viewer_protocol_not_implemented": "Protocol de visor no implementat",
+        "get_vnc_viewer_data_error": "Error intern a l'obtenir les dades del visor VNC",
+        "unable_to_process_vpnfile": "No s'ha pogut processar l'arxiu VPN",
+        "desktop_is_not_visible": "L'escriptori no és visible per a aquest usuari ara mateix.",
+        "invalid_start_date": "Data d'inici no vàlida",
+        "invalid_end_date": "Data de finalització no vàlida"
     },
     "messages": {
         "title": {
