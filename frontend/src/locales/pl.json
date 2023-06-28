@@ -33,7 +33,7 @@
                     "placeholder": "Potwierdź hasło"
                 },
                 "buttons": {
-                    "update": "Zaktualizuj"
+                    "update": "Aktualizacja"
                 }
             }
         },
@@ -128,7 +128,7 @@
             "name": "Nazwa nośnika"
         },
         "registration": {
-            "code": "Kod rejestracyjny"
+            "code": "Dodano sugestię\n\nKod rejestracyjny"
         },
         "edit": {
             "title": "Edytuj '{name}'"
@@ -144,7 +144,7 @@
                 "category": "Kategoria",
                 "user": "Użytkownik"
             },
-            "title": "Tworzenie nowego pulpitu:",
+            "title": "Stwórz nowy desktop:",
             "section-title-template": "Wybierz szablon:",
             "desktop-template": "Szablon",
             "filter": "Filtr",
