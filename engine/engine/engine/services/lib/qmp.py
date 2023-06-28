@@ -153,7 +153,8 @@ class Notifier:
             "execute": "guest-exec",
             "arguments": {
                 "path": "cmd",
-                "arg": ["/c", shellscript],
+                "arg": ["/U"],
+                "input-data": base64.b64encode(shellscript).decode(),
                 "capture-output": True,
             },
         }
