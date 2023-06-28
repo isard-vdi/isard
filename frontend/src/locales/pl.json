@@ -31,6 +31,9 @@
                 "confirmation-password": {
                     "label": "Potwierdzenie hasła",
                     "placeholder": "Potwierdź hasło"
+                },
+                "buttons": {
+                    "update": "Zaktualizuj"
                 }
             }
         }
