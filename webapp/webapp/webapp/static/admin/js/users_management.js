@@ -98,9 +98,16 @@ function socketio_on(){
 
     $('.btn-bulkdelete').on('click', function () {
         let usersToDelete = [];
-            $.each(users_table.rows('.active').data(),function(key, value){
-                usersToDelete.push(value);
+        users_table.rows({ filter: 'applied' }).every(function () {
+            var rowNodes = this.nodes();
+            var rowData = this.data();
+            rowNodes.each(function () {
+                if ($(this).hasClass('active')) {
+                    usersToDelete.push(rowData);
+                    return false;
+                }
             });
+        });
 
         if (!(usersToDelete.length == 0)) {
             $("#modalDeleteUserForm")[0].reset();
@@ -598,6 +605,22 @@ function socketio_on(){
 
     users_table.on( 'click', 'tr[role="row"]', function (e) {
         toggleRow(this, e);
+    });
+
+    $('thead #select-all').on('ifChecked', function (event) {
+        var rows = users_table.rows({ filter: 'applied' }).nodes();
+        $.each(rows, function (index, row) {
+            $(row).find('.select-checkbox input[type="checkbox"]').prop('checked', true)
+            $(row).addClass('active');
+        });
+    });
+
+    $('thead #select-all').on('ifUnchecked', function (event) {
+        var rows = users_table.rows({ filter: 'applied' }).nodes();
+        $.each(rows, function (index, row) {
+            $(row).find('.select-checkbox input[type="checkbox"]').prop('checked', false)
+            $(row).removeClass('active');
+        });
     });
 
     $('#users').find('tbody').on('click', 'td.details-control', function () {
