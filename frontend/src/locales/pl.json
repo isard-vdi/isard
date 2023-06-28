@@ -363,7 +363,7 @@
             "errors": {
                 "forbid": "Aby utworzyć rezerwację musisz działać z większym wyprzedzeniem",
                 "past-booking": "Nie można utworzyć rezerwacji w przeszłości",
-                "end-before-start": "Czas zakończenia rezerwacji nie może być wcześniejszy niż czas rozpoczęcia.",
+                "end-before-start": "Czas zakończenia rezerwacji nie może być wcześniejszy niż czas rozpoczęcia",
                 "minimum-time": "Rezerwacja musi trwać co najmniej 5 minut",
                 "maximum-time": "Nie możesz utworzyć rezerwacji na tak długo"
             },
@@ -422,7 +422,7 @@
         },
         "cant-start-now-modal": {
             "change-desktop-gpu": {
-                "text": "Można go teraz zmienić na dostępny model karty graficznej i uruchomić (może to wpłynąć na wydajność pulpitu).",
+                "text": "Można go teraz zmienić na dostępny model karty graficznej i uruchomić (może to wpłynąć na wydajność pulpitu)",
                 "button": "Zmień i uruchom"
             },
             "title": {
@@ -431,7 +431,7 @@
             },
             "go-to-bookings": {
                 "button": "Zarezerwuj pulpit",
-                "text": "Zarezerwuj pulpit ze sprawdzeniem aktualnego modelu karty graficznej i planowaniem."
+                "text": "Zarezerwuj pulpit ze sprawdzeniem aktualnego modelu karty graficznej i planowaniem"
             }
         }
     },
@@ -537,7 +537,7 @@
         "desktop_not_booked_until": "Pulpit nie może zostać uruchomiony przed kolejną rezerwacją: {start}",
         "only_works_rdp": "Tryb \"Tylko GPU\" działa tylko z przeglądarkami RDP",
         "current_plan_doesnt_match": "Profil pulpitu nie udostępnia procesora graficznego",
-        "template_failed": "Z powodu błędu nie można użyć tego szablonu do utworzenia nowego pulpitu, prosimy o kontakt z administratorem.",
+        "template_failed": "Z powodu błędu nie można użyć tego szablonu do utworzenia nowego pulpitu, prosimy o kontakt z administratorem",
         "user_disabled": "Użytkownik jest wyłączony",
         "invalid_end_date": "Nieprawidłowa data zakończenia"
     },
@@ -596,7 +596,7 @@
                 },
                 "stop-timeout": {
                     "title": "Upłynął limit czasu",
-                    "description": "Pulpit wyłącza się, to może potrwać kilka minut."
+                    "description": "Pulpit wyłącza się, to może potrwać kilka minut"
                 },
                 "delete-error": {
                     "title": "Błąd",
@@ -604,7 +604,7 @@
                 },
                 "create-timeout": {
                     "title": "Upłynięcie limitu czasu",
-                    "description": "Tworzenie pulpitu może potrwać kilka minut."
+                    "description": "Tworzenie pulpitu może potrwać kilka minut"
                 },
                 "open-error": {
                     "title": "Błąd",
@@ -752,8 +752,8 @@
                     "dont-stop-desktops": "Uczyń to wdrożenie niewidocznym dla użytkowników i zezwól na korzystanie z pulpitów, dopóki nie zostaną zatrzymane",
                     "keep-csv": "Zachowaj aktualne adresy URL i pobrane pliki csv",
                     "stop-desktops": "Uczyń to wdrożenie niewidocznym dla użytkowników i zatrzymaj wszystkie pulpity",
-                    "make-visible": "Uczyń to wdrożenie widocznym, aby użytkownicy wdrożenia mieli dostęp do pulpitów.",
-                    "reset-csv": "Zresetuj adres URL wdrożenia (stare adresy URL nie będą dostępne) i pobierz plik csv."
+                    "make-visible": "Uczyń to wdrożenie widocznym, aby użytkownicy wdrożenia mieli dostęp do pulpitów",
+                    "reset-csv": "Zresetuj adres URL wdrożenia (stare adresy URL nie będą dostępne) i pobierz plik csv"
                 },
                 "confirmation": {
                     "dont-stop": "Nie zatrzymuj pulpitów",
@@ -1050,7 +1050,7 @@
             "editing-event": "Edycja wydarzenia",
             "deleting-event": "Usuwanie wydarzenia",
             "deleting-media": "Usuwanie multimediów",
-            "downloading-media": "Pobieranie multimediów",
+            "downloading-media": "Pobieranie nośnika",
             "creating-media": "Tworzenie multimediów"
         },
         "loading": "Ładowanie",
