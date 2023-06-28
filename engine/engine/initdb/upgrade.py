@@ -17,7 +17,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 91
+release_version = 92
+# release 92: Add user_storage name index to check for duplicateds
 # release 91: Rename logs_users owner fields to accomodate logs_desktops and consumptions
 # release 90: Remove viewer key from stopped and failed desktops
 # release 89: Add html5_ext_port to proxies index
@@ -124,6 +125,7 @@ tables = [
     "gpu_profiles",
     "desktops_priority",
     "logs_users",
+    "user_storage",
 ]
 
 
@@ -2836,6 +2838,17 @@ class Upgrade(object):
                         }
                     )
                 ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+        return True
+
+    def user_storage(self, version):
+        table = "user_storage"
+        log.info("UPGRADING " + table + " TABLE TO VERSION " + str(version))
+        if version == 92:
+            try:
+                r.table(table).index_create("name").run(self.conn)
             except Exception as e:
                 print(e)
 
