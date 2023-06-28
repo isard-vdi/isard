@@ -202,7 +202,7 @@
                         "button": "Eliminar"
                     }
                 },
-                "new-planning" : {
+                "new-planning": {
                     "bookable-type": "Tipo de reservable",
                     "bookable-item": "Nombre del reservable"
                 }
@@ -501,7 +501,7 @@
                 "not-visible": "No visibles"
             },
             "modal": {
-                "title": { 
+                "title": {
                     "make-visible": "Fer visible el desplegament '{name}'",
                     "make-invisible": "Fer invisible el desplegament '{name}'",
                     "download-csv": "Descarregar el CSV de visors directes de '{name}'"
@@ -519,9 +519,8 @@
                     "make-visible": "Fer visible",
                     "keep-csv": "Mantenir enllaços i descarregar CSV",
                     "reset-csv": "Reestablir enllaços i descarregar CSV"
-                    }
                 }
-            
+            }
         },
         "direct-viewer": {
             "title": "Accés a visors de l'escriptori:",
@@ -934,7 +933,7 @@
         "deployment_delete_stop": "Per esborrar un desplegament és necessari que els seus escriptoris estiguin aturats",
         "desktop_not_booked": "Per iniciar l'escriptori ha d'estar reservat",
         "desktop_not_booked_until": "No es pot iniciar l'escriptori fins a la propera reserva {start}",
-        "only_works_rdp":  "Mode 'Only GPU' només funciona amb visors RDP",
+        "only_works_rdp": "Mode 'Only GPU' només funciona amb visors RDP",
         "current_plan_doesnt_match": "No hi ha cap GPU disponible amb el perfil de l'escriptori",
         "needs_deployment_booking": "Ara mateix no es pot iniciar l'escriptori, contacta amb el propietari d'aquest desplegament perquè creï una reserva",
         "not_enough_advanced_time": "No hi ha suficient antelació per iniciar l'escriptori",
@@ -949,7 +948,7 @@
         "confirmation": {
             "delete-desktop": "'{name}' s'esborrarà, continuar?",
             "create-nonpersistent": "ATENCIÓ! Aquest escriptori és temporal. A l'aturar-ho totes les dades seràn esborrades. Crear escriptori?",
-            "visible-deployment": "'{name}' serà visible pels seus usuaris, continuar?",
+            "visible-deployment": "Els escriptoris seran visibles",
             "recreate-deployment": "Els escriptoris esborrats de '{name}' es crearan de nou, continuar?",
             "delete-deployment": "'{name}' s'esborrarà, continuar?",
             "delete-deployment-desktop": "L'escriptori de '{name}' s'esborrarà, continuar?",
