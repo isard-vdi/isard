@@ -945,7 +945,7 @@
         "unable_to_parse_media": "No s'han pogut analitzar les dades del mitjà",
         "unable_to_parse_string": "No s'ha pogut analitzar el text",
         "unable_to_change_desktop_status": "No s'ha pogut canviar l'estat de l'escriptori",
-        "unable_to_change_hypervisor_status": "No s'ha pogut canviar l'estat de l'hipervisor",
+        "unable_to_change_hypervisor_status": "No s'ha pogut canviar l'estat de l'hypervisor",
         "unable_to_reset_domain_jumperurl": "No s'ha pogut restablir el jumperurl de l'escriptori ja que el domini no existeix",
         "unable_to_get_deployment_desktops": "No s'han pogut obtenir els escriptoris del desplegament",
         "unable_to_gen_enrollment_code": "No s'ha pogut generar el codi d'inscripció",
