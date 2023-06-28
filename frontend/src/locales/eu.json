@@ -507,7 +507,9 @@
         "required": "{property} derrigorrezkoa da.",
         "minLengthValue": "{property} eremuak {model} hizki ditu, baina gutxienez {min} izan beharko lituzke.",
         "maxLengthValue": "{property} eremuak {model} hizki dauzka, baina gehienez {max} hizki izan ditzake.",
-        "inputFormat": "Onartutako karaktereak dira hizkiak, zenbakiak, koma, puntua, -,_"
+        "inputFormat": "Onartutako karaktereak dira hizkiak, zenbakiak, koma, puntua, -,_",
+        "sameAs": "{property} eremuak {property2} eremuko balio bera izan behar du.",
+        "url": "{property} eremua url bat izan behar da."
     },
     "messages": {
         "confirmation": {
