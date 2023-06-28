@@ -285,7 +285,8 @@
             "desktop-description": "Mahaigainaren deskribapena",
             "desktop-template": "Txantiloia",
             "filter": "Iragazkia",
-            "filter-placeholder": "Idatzi bilaketarako"
+            "filter-placeholder": "Idatzi bilaketarako",
+            "section-title-advanced": "Aukera aurreratuak"
         },
         "domain": {
             "info": {
@@ -299,6 +300,84 @@
         "create": "Sortu",
         "registration": {
             "code": "Erregistro kodea"
+        },
+        "allowed": {
+            "modal": {
+                "title": "Eguneratzea baimenduta",
+                "buttons": {
+                    "update": "Eguneratu"
+                }
+            },
+            "title": "Baimenduta",
+            "users": "Erabiltzaileak:",
+            "placeholder": "Idatzi gutxienez 2 gutun bilatzeko.",
+            "groups": "Taldeak:",
+            "empty": "Egiaztatua eta hutsa denen artean banatuko da."
+        },
+        "new-deployment": {
+            "desktop": {
+                "name": "Mahaigaineko izena",
+                "description": "Mahaigaineko deskribapena",
+                "template": "Txantiloia",
+                "title": "Mahaigaineko datu berriak:"
+            },
+            "filter": "Iragazi",
+            "template-table-column-headers": {
+                "name": "Izena",
+                "selected": "Aukeratu",
+                "category": "Kategoria",
+                "group": "Taldea",
+                "description": "Deskripzio",
+                "user": "Erabiltzailea",
+                "image": "Irudia"
+            },
+            "title": "Hedapen berria sortzea:",
+            "name": "Hedapen izena",
+            "not-visible": "Erabiltzaileek ez dute ikusgai",
+            "visible": "Erabiltzaileek ikusteko moduan.",
+            "filter-placeholder": "Idatzi bilatzeko",
+            "error": {
+                "users": "Gutxienez erabiltzaile bat hautatu behar da",
+                "groups": "Gutxienez talde bat hautatu behar da",
+                "groups-users": "Gutxienez erabiltzaile bat edo talde bat hautatu behar da"
+            },
+            "section-title-template": "Aukeratu txantiloi bat:"
+        },
+        "new-media": {
+            "url": "URL",
+            "type": "Mota",
+            "name": "Media izena",
+            "description": "Deskripzioa",
+            "select-type": "Mesedez, aukeratu aukera bat",
+            "title": "Media berriak sortzea:"
+        },
+        "edit": {
+            "title": "{izena}"
+        },
+        "password": {
+            "modal": {
+                "password": {
+                    "label": "Pasahitza",
+                    "placeholder": "Pasahitza"
+                },
+                "title": "Pasahitza aldatu",
+                "confirmation-password": {
+                    "label": "Baieztatze pasahitza",
+                    "placeholder": "Berretsi pasahitza"
+                },
+                "buttons": {
+                    "update": "Eguneratu"
+                }
+            }
+        },
+        "new-template": {
+            "enabled": "Gaituta",
+            "title": "Sortu txantiloi berria",
+            "name": "Izena",
+            "description": "Deskripzioa"
+        },
+        "duplicate-template": {
+            "title": "Txantiloi bikoiztua"
         }
     },
     "validations": {
