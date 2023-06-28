@@ -251,8 +251,10 @@ def consolidate_consumptions(item_type=None, total_days=29):
 
 ## VIEWS: Usage grouping
 
+cache_usage_grouping = TTLCache(maxsize=10, ttl=60)
 
-@cached(TTLCache(maxsize=10, ttl=60))
+
+@cached(cache_usage_grouping)
 def get_usage_groupings():
     params = get_params()
     groupings = []
@@ -336,6 +338,7 @@ def get_usage_groupings_dropdown():
 def add_usage_grouping(data):
     with app.app_context():
         r.table("usage_grouping").insert(data).run(db.conn)
+        cache_usage_grouping.clear()
         cache_usage_grouping_dropdown.clear()
     return True
 
@@ -343,6 +346,7 @@ def add_usage_grouping(data):
 def update_usage_grouping(data):
     with app.app_context():
         r.table("usage_grouping").get(data["id"]).update(data).run(db.conn)
+        cache_usage_grouping.clear()
         cache_usage_grouping_dropdown.clear()
     return True
 
@@ -351,6 +355,8 @@ def delete_usage_grouping(grouping_id):
     try:
         with app.app_context():
             r.table("usage_grouping").get(grouping_id).delete().run(db.conn)
+            cache_usage_grouping.clear()
+            cache_usage_grouping_dropdown.clear()
     except:
         raise Error(
             "not_found",
@@ -361,7 +367,10 @@ def delete_usage_grouping(grouping_id):
 
 ## VIEWS: Usage limits
 
+cache_usage_limits = TTLCache(maxsize=10, ttl=60)
 
+
+@cached(cache_usage_limits)
 def get_usage_limits():
     with app.app_context():
         return list(r.table("usage_limit").run(db.conn))
@@ -376,6 +385,7 @@ def add_usage_limits(name, desc, limits):
                 "limits": limits,
             }
         ).run(db.conn)
+        cache_usage_limits.clear()
     return True
 
 
@@ -388,6 +398,7 @@ def update_usage_limits(id, name, desc, limits):
                 "limits": limits,
             }
         ).run(db.conn)
+        cache_usage_limits.clear()
     return True
 
 
@@ -395,12 +406,15 @@ def delete_usage_limits(limit_id):
     try:
         with app.app_context():
             r.table("usage_limit").get(limit_id).delete().run(db.conn)
+            cache_usage_limits.clear()
     except:
         raise Error("not_found", "Limit with ID" + limit_id + " not found in database")
     return True
 
 
 ## VIEWS: Usage parameters
+
+cache_usage_parameters = TTLCache(maxsize=10, ttl=60)
 
 
 def get_usage_parameters(ids=None):
@@ -420,11 +434,12 @@ def add_usage_parameters(data):
                 "desc": data["desc"],
                 "formula": data["formula"],
                 "id": data["id"],
-                "item_type": "desktop",
+                "item_type": data["item_type"],
                 "name": data["name"],
                 "units": data["units"],
             }
         ).run(db.conn)
+        cache_usage_parameters.clear()
     return True
 
 
@@ -432,6 +447,7 @@ def update_usage_parameters(data):
     if data["custom"]:
         with app.app_context():
             r.table("usage_parameter").get(data["id"]).update(data).run(db.conn)
+            cache_usage_parameters.clear()
     else:
         raise Error("forbidden", "Only custom parameters can be edited")
     return True
@@ -441,6 +457,7 @@ def delete_usage_parameters(parameter_id):
     try:
         with app.app_context():
             r.table("usage_parameter").get(parameter_id).delete().run(db.conn)
+            cache_usage_parameters.clear()
     except:
         raise Error(
             "not_found",
@@ -452,7 +469,6 @@ def delete_usage_parameters(parameter_id):
 ## VIEWS: Usage credits
 
 
-@cached(TTLCache(maxsize=10, ttl=60))
 def get_usage_credits(item_id, item_type, grouping_id, start_date, end_date):
     start_date = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=pytz.utc)
     end_date = datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=pytz.utc)
@@ -561,7 +577,10 @@ def get_usage_credits_by_id(credits_id):
         raise Error("not_found", "Category credit ID not found in database")
 
 
-@cached(TTLCache(maxsize=10, ttl=60))
+cache_usage_credits = TTLCache(maxsize=10, ttl=60)
+
+
+@cached(cache_usage_credits)
 def get_all_usage_credits():
     with app.app_context():
         return list(
@@ -597,6 +616,7 @@ def add_usage_credit(data):
         r.table("usage_credit").insert(
             {
                 "item_id": data["item_id"],
+                "item_consumer": data["item_consumer"],
                 "item_type": data["item_type"],
                 "grouping_id": data["grouping_id"],
                 "start_date": data["start_date"],
@@ -606,6 +626,7 @@ def add_usage_credit(data):
                 "limits_name": limits.get("desc"),
             }
         ).run(db.conn)
+        cache_usage_credits.clear()
     return True
 
 
@@ -613,6 +634,7 @@ def update_usage_credit(data):
     if (not data["end_date"]) or (data["end_date"].date() >= datetime.now().date()):
         with app.app_context():
             r.table("usage_credit").get(data["id"]).update(data).run(db.conn)
+            cache_usage_credits.clear()
     else:
         raise Error("bad_request", "Past credits can not be edited")
     return True
@@ -622,6 +644,7 @@ def delete_usage_credit(credit_id):
     try:
         with app.app_context():
             r.table("usage_credit").get(credit_id).delete().run(db.conn)
+            cache_usage_credits.clear()
     except:
         raise Error(
             "not_found", "Credit with ID " + credit_id + " not found in database"

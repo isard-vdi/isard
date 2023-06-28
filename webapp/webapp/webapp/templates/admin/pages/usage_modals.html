@@ -108,7 +108,7 @@
 </div>
 
 
-<div class="modal fade" id="modalAddCategoryCredit" tabindex="-1" role="dialog" aria-labelledby="modalAddCategoryCredit"
+<div class="modal fade" id="modalAddCredit" tabindex="-1" role="dialog" aria-labelledby="modalAddCredit"
     aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -120,13 +120,13 @@
                     <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title" id="myModalLabel">
-                    <i class="fa fa-plus fa-1x"></i><i class="fa fa-rocket"> </i> Add Category Credit
+                    <i class="fa fa-plus fa-1x"></i><i class="fa fa-rocket"> </i> Add Credit
                 </h4>
             </div>
 
             <!-- Modal Body -->
             <div class="modal-body">
-                <form id="modalAddCategoryCreditForm" class="form-inline form-label-left">
+                <form id="modalAddCreditForm" class="form-inline form-label-left">
                     <input hidden id="id" name="id" />
                     <div class="row">
                         <div class="x_panel">
@@ -137,24 +137,12 @@
                             </div>
                             <div class="x_panel">
                                 <div class="col-md-6 col-xs-2">
-                                    <label class="control-label" for="item_type">Item type<span
+                                    <label class="control-label" for="limits">Limit<span
                                             class="required">*</span></label>
-                                    <select disabled class="form-control" style="width:100%" id="item_type"></select>
-                                </div>
-                                <div class="col-md-6 col-xs-2">
-                                    <label class="control-label" for="item_id">Item<span
-                                            class="required">*</span></label>
-                                    <select class="form-control" style="width:100%" name="item_id"
-                                        id="item_id"></select>
+                                    <select class="form-control" style="width:100%" name="limit_id" id=limits></select>
                                 </div>
                             </div>
-                            <div class="x_panel">
-                                <div class="col-md-6 col-xs-2">
-                                    <label class="control-label" for="grouping_id">Parameter grouping<span
-                                            class="required">*</span></label>
-                                    <select class="form-control" style="width:100%" name="grouping_id"
-                                        id="grouping_id"></select>
-                                </div>
+                            <div class="x_panel valuesOptions">
                                 <div class="col-md-6 col-xs-2">
                                     <label class="control-label" for="limits">Limit<span
                                             class="required">*</span></label>
@@ -217,8 +205,8 @@
 
 </div>
 
-<div class="modal fade" id="modalEditCategoryCredit" tabindex="-1" role="dialog"
-    aria-labelledby="modalEditCategoryCredit" aria-hidden="true">
+<div class="modal fade" id="modalEditCredit" tabindex="-1" role="dialog"
+    aria-labelledby="modalEditCredit" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
 
@@ -229,13 +217,13 @@
                     <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title" id="myModalLabel">
-                    <i class="fa fa-pencil fa-1x"></i><i class="fa fa-rocket"> </i> Edit Category Credit
+                    <i class="fa fa-pencil fa-1x"></i><i class="fa fa-rocket"> </i> Edit Credit
                 </h4>
             </div>
 
             <!-- Modal Body -->
             <div class="modal-body">
-                <form id="modalEditCategoryCreditForm" class="form-inline form-label-left">
+                <form id="modalEditCreditForm" class="form-inline form-label-left">
                     <input hidden id="id" name="id" />
                     <div class="row">
                         <div class="x_panel">
@@ -248,7 +236,7 @@
                                 <div class="col-md-6 col-xs-2">
                                     <label class="control-label" for="item_type">Item type<span
                                             class="required">*</span></label>
-                                    <select disabled class="form-control" style="width:100%" id="item_type"></select>
+                                    <select class="form-control" style="width:100%" id="item_type"></select>
                                 </div>
                                 <div class="col-md-6 col-xs-2">
                                     <label class="control-label" for="item_id">Item<span
@@ -380,7 +368,6 @@
                                 <select class="form-control" name="item_type" style="width:100%"
                                     id="item_type"></select>
                             </div>
-                            <input hidden id="item_sub_type" name="item_sub_type" value="custom">
                             <div class="col-md-12 col-xs-8" style="margin-top:10px">
                                 <label class="control-label" for="parameters">List of parameters<span
                                         class="required">*</span></label>
@@ -466,7 +453,6 @@
                                 <select class="form-control" name="item_type" style="width:100%"
                                     id="item_type"></select>
                             </div>
-                            <input hidden id="item_sub_type" name="item_sub_type" value="custom">
                             <div class="col-md-12 col-xs-8" style="margin-top:10px">
                                 <label class="control-label" for="parameters">List of parameters<span
                                         class="required">*</span></label>
@@ -759,11 +745,8 @@
                                     <label class="control-label col-md-6 col-sm-3 col-xs-12" for="item_type">Item type
                                         <span class="required">*</span></label>
                                     <div class="col-md-6 col-sm-6 col-xs-12">
-                                        <select disabled id="item_id" name="item_id" class="form-control item_id"
+                                        <select id="item_type" name="item_type" class="form-control item_type"
                                             required>
-                                            <option value="desktop">
-                                                Desktop
-                                            </option>
                                         </select>
                                     </div>
                                 </div>
@@ -881,14 +864,11 @@
 
                             <div style="padding:10px">
                                 <div class="item form-group">
-                                    <label class="control-label col-md-5 col-sm-3 col-xs-12" for="item_id">Item ID <span
-                                            class="required">*</span></label>
+                                    <label class="control-label col-md-6 col-sm-3 col-xs-12" for="item_type">Item type
+                                        <span class="required">*</span></label>
                                     <div class="col-md-6 col-sm-6 col-xs-12">
-                                        <select disabled id="item_id" name="item_id" class="form-control item_id"
+                                        <select id="item_type" name="item_type" class="form-control item_type"
                                             required>
-                                            <option value="desktop">
-                                                Desktop
-                                            </option>
                                         </select>
                                     </div>
                                 </div>

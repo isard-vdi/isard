@@ -11,6 +11,7 @@ desc:
 formula:
   type: string
 item_type:
+  required: true
   type: string
 units:
   required: false
