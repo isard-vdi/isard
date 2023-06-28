@@ -27,3 +27,5 @@ limit_id:
   required: true
 item_type:
   type: string
+item_consumer:
+  type: string

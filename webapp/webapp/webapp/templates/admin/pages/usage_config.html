@@ -36,10 +36,10 @@
   <div class="col-md-12 col-sm-12 col-xs-12">
     <div class="x_panel">
       <div class="x_title">
-        <h3><i class="fa fa-rocket"></i> Category Credits<small></small></h3>
+        <h3><i class="fa fa-rocket"></i> Credits<small></small></h3>
         <ul class="nav navbar-right panel_toolbox">
           <li>
-            <a id="btn-category_credit_add"><span style="color: #5499c7;">
+            <a id="btn-credit_add"><span style="color: #5499c7;">
                 <i class="fa fa-plus"></i>
                 Add Category Credit</span></a>
           </li>
@@ -58,44 +58,6 @@
                   <th>start_date</th>
                   <th>end_date</th>
                   <th>limits</th>
-                  <th>action</th>
-                </tr>
-              </thead>
-              <tbody>
-              </tbody>
-           </table>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="row">
-  <div class="col-md-12 col-sm-12 col-xs-12">
-    <div class="x_panel">
-      <div class="x_title">
-        <h3><i class="fa fa-list"></i> Parameter Grouping<small></small></h3>
-        <ul class="nav navbar-right panel_toolbox">
-          <li>
-            <a id="btn-parameter_grouping_add"><span style="color: #5499c7;">
-                <i class="fa fa-plus"></i>
-                Add Grouping</span></a>
-          </li>
-        </ul>
-        <div class="clearfix"></div>
-      </div>
-      <div class="x_content">
-        <div class="row">
-          <div class="col-md-12 col-sm-12 col-xs-12">
-            <table id="table_groupings" class="table">
-              <thead>
-                <tr>
-                  <th>name</th>
-                  <th>item_type</th>
-                  <th>item_sub_type</th>
-                  <th>description</th>
-                  <th>parameters</th>
                   <th>action</th>
                 </tr>
               </thead>
@@ -190,11 +152,50 @@
     </div>
   </div>
 </div>
+
+<div class="row">
+  <div class="col-md-12 col-sm-12 col-xs-12">
+    <div class="x_panel">
+      <div class="x_title">
+        <h3><i class="fa fa-list"></i> Parameter Grouping<small></small></h3>
+        <ul class="nav navbar-right panel_toolbox">
+          <li>
+            <a id="btn-parameter_grouping_add"><span style="color: #5499c7;">
+                <i class="fa fa-plus"></i>
+                Add Grouping</span></a>
+          </li>
+        </ul>
+        <div class="clearfix"></div>
+      </div>
+      <div class="x_content">
+        <div class="row">
+          <div class="col-md-12 col-sm-12 col-xs-12">
+            <table id="table_groupings" class="table">
+              <thead>
+                <tr>
+                  <th>name</th>
+                  <th>item_type</th>
+                  <th>description</th>
+                  <th>parameters</th>
+                  <th>action</th>
+                </tr>
+              </thead>
+              <tbody>
+              </tbody>
+           </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% include '/admin/pages/usage_modals.html' %}
 {% endblock %}
 
 {% block pagescript %}
 <script src="/isard-admin/static/admin/js/usage_config.js"></script>
+<script src="/isard-admin/static/admin/js/filters.js"></script>
 <script src="/isard-admin/vendors/bootstrap-daterangepicker/daterangepicker.js"></script>
 <script src="/isard-admin/vendors/iCheck/icheck.min.js"></script> 
 <script src="/isard-admin/mathjs/math.js"></script>

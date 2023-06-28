@@ -22,7 +22,6 @@ $(document).ready(function () {
       kind: 'select',
       populate: true,
       alwaysShown: true,
-      enables: ['consumer']
     },
     {
       value: 'consumer',
@@ -30,7 +29,6 @@ $(document).ready(function () {
       kind: 'select',
       populate: true,
       alwaysShown: true,
-      enables: ['category', 'group', 'user']
     },
     {
       value: 'category',
@@ -82,7 +80,7 @@ $(document).ready(function () {
       populate: true
     },
   ]
-  initialize_filters(createUsageTable, filters)
+  initialize_filters(createUsageTable, filters, '#filter-boxes')
 
 
 });
@@ -168,7 +166,7 @@ function createUsageTable(data) {
   // Retrieve the info of the selected parameters in order to show its name on the header
   $.ajax({
     type: "PUT",
-    url: '/admin/usage/parameters',
+    url: '/admin/usage/list_parameters',
     dataType: 'json',
     contentType: "application/json",
     data: JSON.stringify({

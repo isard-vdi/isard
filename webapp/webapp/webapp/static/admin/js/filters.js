@@ -59,12 +59,12 @@ var cb = function (start, end, label) {
  * @param  {Array} filterList filters that will be created
  * @return {undefined}
 */
-function initialize_filters(cbf, filterList) {
+function initialize_filters(cbf, filterList, divId) {
   callbackFunction = cbf
   // Create and populate the filters
   $.each(filterList, function (pos, it) {
     var node = newFilterBox(it)
-    $('#filter-boxes').append(node)
+    $(divId).append(node)
     if (it.kind === 'dateRange') {
       $('#reportrange_right span').html(moment().subtract(29, 'days').format('MMMM D, YYYY') + ' - ' + moment().format('MMMM D, YYYY'));
       $('#reportrange_right').daterangepicker(dateFilterOptions, cb);
@@ -74,7 +74,10 @@ function initialize_filters(cbf, filterList) {
     }
   })
   // Create the filter buttons events
-  generate_events()
+  if (cbf) {
+    generate_events(divId)
+  }
+  generate_change_events(divId)
 }
 
 
@@ -87,9 +90,7 @@ function newFilterBox(item, selected = null) {
   if (item.kind === 'select-multiple') {
     return `
             <div class="filter-item col-md-3 col-sm-8 col-xs-12 select2-container--focus select2-container--resize" id="filter-${item.value}" style="margin-bottom:20px;margin-right:10px" always-shown="${item.alwaysShown}" filterId="${item.value}">
-              <label>
-                  <h4>${item.label}</h4>
-              </label>
+              <label class="control-label" for="${item.label}">${item.label}</label>
               <select class="filter-box form-control" id="${item.value}" name="${item.value}[]"
               multiple="multiple" value="${selected}"></select>
               <div class="select2-resize-handle"></div>
@@ -98,18 +99,14 @@ function newFilterBox(item, selected = null) {
   } else if (item.kind === 'select') {
     return `
               <div class="filter-item col-md-3 col-sm-8 col-xs-12" id="filter-${item.value}" style="margin-bottom:20px;margin-right:10px" always-shown="${item.alwaysShown}" filterId="${item.value}">
-                <label>
-                    <h4>${item.label}</h4>
-                </label>
-                <select class="filter-box form-control" id="${item.value}" name="${item.value}" value="${selected}" enables="${item.enables}"></select>
+                <label class="control-label" for="${item.label}">${item.label}</label>
+                <select class="filter-box form-control" id="${item.value}" name="${item.value}" value="${selected}"></select>
               </div>
             `;
   } else if (item.kind === 'dateRange') {
     return `
             <div class="filter-item col-md-3 col-sm-8 col-xs-12" id="filter-${item.value}" style="margin-bottom:20px;margin-right:10px" always-shown="${item.alwaysShown}" filterId="${item.value}">
-              <label>
-                  <h4>${item.label}</h4>
-              </label>
+              <label class="control-label" for="${item.label}">${item.label}</label>
               <div id="reportrange_right" class="filter-box form-control col-xs-12 col-md-12 col-sm-12"
                 <i class="glyphicon glyphicon-calendar fa fa-calendar"></i>
                 <span></span> <b class="caret"></b>
@@ -164,17 +161,17 @@ function populateSelect(item) {
  * Generates events
  * @return {undefined}
  */
-function generate_events() {
+function generate_events(divId) {
   $("#btn-filter").on("click", function () {
-    for (var i = 0; i < $('#filter-boxes').children(':visible').length; i++) {
+    for (var i = 0; i < $(divId).children(':visible').length; i++) {
       // Get the filters id to get its value
-      let filterId = $('#filter-boxes').children(':visible')[i].getAttribute('filterId')
+      let filterId = $(divId).children(':visible')[i].getAttribute('filterId')
       let key = $('#' + filterId).attr("index");
-      if ($('#filter-boxes').children(':visible')[i].getAttribute('always-shown') !== 'true') {
+      if ($(divId).children(':visible')[i].getAttribute('always-shown') !== 'true') {
         key = 'items_ids'
       }
 
-      if ($('#filter-boxes').children(':visible')[i].getAttribute('filterid') === 'dateRange') {
+      if ($(divId).children(':visible')[i].getAttribute('filterid') === 'dateRange') {
         callbackFunctionParams['startDate'] = startDate
         callbackFunctionParams['endDate'] = endDate
       } else {
@@ -186,13 +183,16 @@ function generate_events() {
     callbackFunction(callbackFunctionParams)
   })
 
-  $("#btn-clear").on("click", function () {
-    $('.filter-box').each(function () {
-      removeFilter($(this).attr('id'))
-    })
+  // TODO
+  // $("#btn-clear").on("click", function () {
+  //   $('.filter-box').each(function () {
+  //     removeFilter($(this).attr('id'))
+  //   })
+  // });
 
-  });
+}
 
+function generate_change_events (divId) {
   $("#filter-grouping").on('change', function () {
     itemType = JSON.parse($("#grouping").val()).itemType
     fetchConsumers()
@@ -203,8 +203,8 @@ function generate_events() {
     // Show hide 
     const item = $('#consumer').val();
     if (item !== "null") {
-      $('#filter-boxes').children('[always-shown!=true][id!=filter-' + item + ']').hide()
-      $('#filter-boxes').children('[always-shown!=true][id=filter-' + item + ']').show()
+      $(divId).children('[always-shown!=true][id!=filter-' + item + ']').hide()
+      $(divId).children('[always-shown!=true][id=filter-' + item + ']').show()
     }
     $("#" + item).find('option').remove();
     fetchConsumerItems()

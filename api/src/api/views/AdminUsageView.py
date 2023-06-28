@@ -173,8 +173,8 @@ def api_v3_admin_consolidate_item(payload, item_type, days=29):
 
 
 @cached(cache=TTLCache(maxsize=10, ttl=5))
-@app.route("/api/v3/admin/usage/parameters", methods=["PUT"])
-@is_admin
+@app.route("/api/v3/admin/usage/list_parameters", methods=["PUT"])
+@is_admin_or_manager
 def api_v3_admin_usage_parameters(payload):
     data = request.get_json(force=True)
     return (
@@ -400,21 +400,19 @@ def api_v3_admin_usage_credits(
 
 @cached(cache=TTLCache(maxsize=10, ttl=5))
 @app.route(
-    "/api/v3/admin/usage/credits/category",
+    "/api/v3/admin/usage/credits/<item_type>",
     methods=["POST"],
 )
 @is_admin
-def api_v3_admin_usage_credits_category(payload):
+def api_v3_admin_usage_credits_category(payload, item_type):
     try:
         data = request.get_json()
     except:
         raise Error("bad_request")
 
     data["end_date"] = data["end_date"] if data["end_date"] != "null" else None
-    data["item_type"] = "category"
-    data["item_id"] = data["category_id"]
+    data["item_id"] = data["item_id"]
 
-    itemExists("categories", data["category_id"])
     itemExists("usage_limit", data["limit_id"])
 
     data = _validate_item("usage_credit", data)

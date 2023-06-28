@@ -15,24 +15,101 @@ $(document).ready(function () {
   render_table_category_credits();
 
   // CREDIT
+  const creditFilters = [
+    {
+      value: 'grouping',
+      label: 'Grouping',
+      kind: 'select',
+      populate: true,
+      alwaysShown: true,
+    },
+    {
+      value: 'consumer',
+      label: 'Consumer',
+      kind: 'select',
+      populate: true,
+      alwaysShown: true,
+    },
+    {
+      value: 'category',
+      label: 'Category',
+      kind: 'select',
+      populate: true
+    },
+    {
+      value: 'group',
+      label: 'Group',
+      kind: 'select',
+      maxSelect: 5,
+      populate: true
+    },
+    {
+      value: 'user',
+      label: 'User',
+      kind: 'select',
+      maxSelect: 5,
+      populate: true
+    },
+    {
+      value: 'desktop',
+      label: 'Desktop',
+      kind: 'select',
+      maxSelect: 5,
+      populate: true
+    },
+    {
+      value: 'deployment',
+      label: 'Deployment',
+      kind: 'select',
+      maxSelect: 5,
+      populate: true
+    },
+    {
+      value: 'template',
+      label: 'Template',
+      kind: 'select',
+      maxSelect: 5,
+      populate: true
+    },
+    {
+      value: 'hypervisor',
+      label: 'Hypervisor',
+      kind: 'select',
+      maxSelect: 5,
+      populate: true
+    },
+  ]
 
-  $('#btn-category_credit_add').on('click', function () {
-    showModal('#modalAddCategoryCredit');
-    populateCategoryCredit('#modalAddCategoryCreditForm');
-    $('#modalAddCategoryCreditForm :checkbox').iCheck('uncheck').iCheck('update');
-    addDateRangePicker('#modalAddCategoryCreditForm');
+  $('#btn-credit_add').on('click', function () {
+    showModal('#modalAddCredit');
+    populateLimits('#modalAddCredit');
+    initialize_filters(null, creditFilters, '.valuesOptions')
+    $('#modalAddCreditForm :checkbox').iCheck('uncheck').iCheck('update');
+    addDateRangePicker('#modalAddCreditForm');
   });
 
-  $('#modalAddCategoryCredit #send').on('click', function () {
-    var form = $('#modalAddCategoryCreditForm');
+  $('#modalAddCredit #send').on('click', function () {
+    var form = $('#modalAddCreditForm');
     data = form.serializeObject();
     form.parsley().validate();
-    delete data['id'];
-    data['item_type'] = 'category';
-    data['category_id'] = data['item_id'];
+    data['item_type'] = JSON.parse(data.grouping).itemType;
+    data['item_consumer'] = data.consumer;
+    data['item_id'] = data[data.consumer];
+    data['limit_id'] = $('#limits').val()
+    data['grouping_id'] = JSON.parse($('#grouping').val()).id;
     data['start_date'] = moment(data['start_date'], "MM/DD/YYYY").format("YYYY-MM-DD");
     data['end_date'] = ('end_date-cb' in data) ? moment(data['end_date'], "MM/DD/YYYY").format("YYYY-MM-DD") : null;
-
+    delete data['id'];
+    delete data['grouping'];
+    delete data['end_date-cb'];
+    delete data['consumer'];
+    delete data['category'];
+    delete data['group'];
+    delete data['user'];
+    delete data['desktop'];
+    delete data['deployment'];
+    delete data['template'];
+    delete data['hypervisor'];
     if (data['end_date'] == null || moment(data['end_date']).isAfter(data['start_date'])) {
       if (form.parsley().isValid()) {
         addItem('credit', data, table_category_credits);
@@ -50,8 +127,8 @@ $(document).ready(function () {
     }
   });
 
-  $('#modalEditCategoryCredit #send').on('click', function () {
-    var form = $('#modalEditCategoryCreditForm');
+  $('#modalEditCredit #send').on('click', function () {
+    var form = $('#modalEditCreditForm');
     data = form.serializeObject();
     form.parsley().validate();
     data['item_type'] = 'category';
@@ -148,8 +225,8 @@ $(document).ready(function () {
 
   $('#btn-parameter_add').on('click', function () {
     showModal('#modalAddParameters');
+    populateItemType('#modalAddParameters');
     fetchAvailableParameters('#modalAddParameters');
-    $('#modalAddParameters #item_id').append("<option value='Desktop'>Desktop</option>");
   });
 
   $('#modalAddParameters #send').on('click', function () {
@@ -321,7 +398,6 @@ function render_table_groupings() {
     "columns": [
       { "data": "name", },
       { "data": "item_type", },
-      { "data": "item_sub_type", },
       { "data": "desc", },
       {
         "data": "parameters",
@@ -382,7 +458,7 @@ function render_table_limits() {
 function render_table_parameters() {
   table_parameters = $('#table_parameters').DataTable({
     "ajax": {
-      "url": "/api/v3/admin/usage/parameters",
+      "url": "/api/v3/admin/usage/list_parameters",
       "contentType": "application/json",
       "type": 'PUT',
       "data": function(d){return JSON.stringify({})}
@@ -467,35 +543,7 @@ function fetchAvailableParameters(modal) {
 
 }
 
-function populateCategoryCredit(modal) {
-  $(modal + ' #item_type').append(`
-    <option selected>Category</option>
-  `)
-
-  $.ajax({
-    type: 'GET',
-    url: '/api/v3/admin/table/categories',
-    contentType: "application/json",
-    success: function (category) {
-      $.each(category, function (key, value) {
-        $(modal + " #item_id").append(`<option title="${value.description ? value.description : ''}" value="${value.id}">${value.name}</option>`);
-      });
-      $(modal + " #item_id").select2({
-        dropdownParent: $(modal)
-      });
-    }
-  });
-
-  $.ajax({
-    type: 'GET',
-    url: '/api/v3/admin/usage/groupings',
-    contentType: "application/json",
-    success: function (grouping) {
-      $.each(grouping, function (key, value) {
-        $(modal + " #grouping_id").append(`<option title="${value.desc ? value.desc : ''}" value="${value.id}">${value.name}</option>`);
-      });
-    }
-  });
+function populateLimits(modal) {
 
   $.ajax({
     type: 'GET',
@@ -704,11 +752,12 @@ $('tbody').on('click', 'button', function () {
   // CREDIT
 
   if ($(this).hasClass('btn-edit-credit')) {
-    var modal = "#modalEditCategoryCredit"
+    var modal = "#modalEditCredit"
 
     showModal(modal);
+    populateItemType(modal);
     addDateRangePicker(modal);
-    populateCategoryCredit(modal);
+    populateCredit(modal);
 
     $.ajax({
       type: 'GET',
@@ -748,7 +797,6 @@ $('tbody').on('click', 'button', function () {
     $(modal + ' #desc').val(row.data().desc);
     $(modal + ' #item_type').val(row.data().item_type);
     $(modal + ' #parameters').val(row.data().parameters);
-    $(modal + ' #item_sub_type').val(row.data().item_sub_type);
     $(modal + ' #id').val(id);
   }
 
@@ -782,11 +830,12 @@ $('tbody').on('click', 'button', function () {
     var modal = '#modalEditParameters';
 
     showModal(modal);
+    populateItemType(modal);
     fetchAvailableParameters(modal);
 
     $(modal + ' #name').val(row.data().name);
     $(modal + ' #desc').val(row.data().desc);
-    $(modal + ' #item_id').append("<option value='Desktop'>Desktop</option>");
+    $(modal + ' #item_type').val(row.data().item_type);
     $(modal + ' #units').val(row.data().units);
     $(modal + ' #formula').val(row.data().formula);
     $(modal + ' #id').val(id);
