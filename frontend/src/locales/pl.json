@@ -5,7 +5,7 @@
         "url": "Pole {property} musi być adresem URL.",
         "minLengthValue": "Pole {property} ma {model} znaków, ale musi mieć minimum {min}.",
         "required": "{property} jest wymagane.",
-        "maxLengthValue": "Pole {property} ma {model} znaków, ale  może mieć maksimum {max}."
+        "maxLengthValue": "Pole {property} ma {model} znaków, ale  musi mieć maksymalną długość {max}."
     },
     "forms": {
         "allowed": {
@@ -561,7 +561,11 @@
             "templates": "Szablony",
             "new_template": "Nowy szablon",
             "profile": "Profil",
-            "error": "Błąd"
+            "error": "Błąd",
+            "new_media": "Nowe multimedia",
+            "register": "Rejestr",
+            "direct_viewer": "Bezpośrednia przeglądarka",
+            "media": "Multimedia"
         }
     },
     "message-modal": {
@@ -793,6 +797,9 @@
                 },
                 "delete": {
                     "title": "Usuń nośnik"
+                },
+                "download": {
+                    "title": "Pobieranie multimediów"
                 }
             },
             "status": {
@@ -806,16 +813,26 @@
                 "warning": "Ten nośnik zostanie usunięty z następujących pulpitów. Wszystkie zostaną zatrzymane, jeśli są uruchomione"
             },
             "no-media": {
-                "subtitle": "Jeśli uważasz, że jest to błąd, skontaktuj się z administratorem"
+                "subtitle": "Jeśli uważasz, że jest to błąd, skontaktuj się z administratorem",
+                "title": "Ten użytkownik nie udostępnił żadnych multimediów"
             },
             "tabs": {
-                "media-compact": "Twój"
+                "media-compact": "Twój",
+                "media": "Twoje multimedia",
+                "shared-media-compact": "Współdzielone",
+                "shared-media": "Multimedia udostępnione tobie"
             }
         },
         "storage": {
             "table-header": {
                 "percentage": "% limitu",
-                "last": "Ostatni dostęp"
+                "last": "Ostatni dostęp",
+                "domains": "Pulpity/szablony",
+                "quantity-domains": "№ desktopy/szablony"
+            },
+            "no-storage": {
+                "title": "Nie ma żadnych dysków tego użytkownika",
+                "subtitle": "Jeśli uważasz, że jest to błąd, skontaktuj się z administratorem"
             }
         },
         "error": {
@@ -858,7 +875,7 @@
             },
             "code": "Kod rejestracji",
             "title": "Zarejestruj się",
-            "register": "Zarejestruj się"
+            "register": "Zapisz się"
         },
         "templates": {
             "table-header": {
@@ -925,7 +942,8 @@
                     },
                     "other-windows-versions": "inne wersje systemu Windows",
                     "once-installed": "Po zainstalowaniu kliknij przycisk \"SPICE\", co spowoduje pobranie pliku wirtualnego pulpitu.",
-                    "spice-client-required": "ale wymagana jest zewnętrzna aplikacja."
+                    "spice-client-required": "ale wymagana jest zewnętrzna aplikacja.",
+                    "close-guide": "Poradnik"
                 },
                 "rdp": {
                     "once-installed": "Po zainstalowaniu kliknij przycisk \"RDP\", który pobierze plik wirtualnego pulpitu.",
@@ -933,7 +951,8 @@
                     "here": "tutaj.",
                     "rdp-help": "Instrukcje instalacji RDP",
                     "included": "System Windows zawiera oprogramowanie wymagane do korzystania z niego,",
-                    "require-update": "ale może być wymagana aktualizacja (szczególnie w wersjach Windows 7 i Windows 8). Zaleca się korzystanie z najnowszej dostępnej wersji "
+                    "require-update": "ale może być wymagana aktualizacja (szczególnie w wersjach Windows 7 i Windows 8). Zaleca się korzystanie z najnowszej dostępnej wersji ",
+                    "close-guide": "Poradnik"
                 }
             },
             "file": {
@@ -1023,7 +1042,10 @@
             "creating-deployment": "Tworzenie wdrożenia",
             "creating-event": "Tworzenie wydarzenia",
             "editing-event": "Edycja wydarzenia",
-            "deleting-event": "Usuwanie wydarzenia"
+            "deleting-event": "Usuwanie wydarzenia",
+            "deleting-media": "Usuwanie multimediów",
+            "downloading-media": "Pobieranie multimediów",
+            "creating-media": "Tworzenie multimediów"
         },
         "loading": "Ładowanie",
         "title": {
