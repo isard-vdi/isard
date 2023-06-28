@@ -941,7 +941,8 @@
         "template_failed": "Degut a un error la plantilla no es pot fer servir per crear un nou escriptori, si us plau contacta amb l'administrador",
         "desktop_storage_not_ready": "L'emmagatzematge de l'escriptori no està apunt",
         "unable_to_get_viewer_inexistent": "No s'ha pogut obtenir el visor d'un escriptori inexistent",
-        "desktop_same_id": "Ja existeix un escriptori amb aquest ID"
+        "desktop_same_id": "Ja existeix un escriptori amb aquest ID",
+        "unable_to_parse_media": "No s'han pogut parsejar les dades del mitjà"
     },
     "messages": {
         "title": {
