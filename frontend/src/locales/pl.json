@@ -537,7 +537,9 @@
         "desktop_not_booked_until": "Pulpit nie może zostać uruchomiony przed kolejną rezerwacją: {start}",
         "only_works_rdp": "Tryb \"Tylko GPU\" działa tylko z przeglądarkami RDP",
         "current_plan_doesnt_match": "Profil pulpitu nie udostępnia procesora graficznego",
-        "template_failed": "Z powodu błędu nie można użyć tego szablonu do utworzenia nowego pulpitu, prosimy o kontakt z administratorem."
+        "template_failed": "Z powodu błędu nie można użyć tego szablonu do utworzenia nowego pulpitu, prosimy o kontakt z administratorem.",
+        "user_disabled": "Użytkownik jest wyłączony",
+        "invalid_end_date": "Nieprawidłowa data zakończenia"
     },
     "router": {
         "titles": {
@@ -553,14 +555,21 @@
             "images": "Obrazy",
             "deployments": "Wdrożenia",
             "deployment": "Wdrożenie",
-            "booking": "Rezerwacja"
+            "booking": "Rezerwacja",
+            "desktops": "Pulpity",
+            "new_desktop": "Nowy pulpit",
+            "templates": "Szablony",
+            "new_template": "Nowy szablon",
+            "profile": "Profil",
+            "error": "Błąd"
         }
     },
     "message-modal": {
         "messages": {
             "desktop-time-limit": "Pulpit '{name}' zostanie zatrzymany dnia {date}.",
             "searching-resources": "Szukamy zasobów dla pulpitu. Zostanie on uruchomiony za kilka minut, prosimy czekać."
-        }
+        },
+        "title": "Ważna informacja"
     },
     "views": {
         "select-template": {
@@ -805,7 +814,8 @@
         },
         "storage": {
             "table-header": {
-                "percentage": "% limitu"
+                "percentage": "% limitu",
+                "last": "Ostatni dostęp"
             }
         },
         "error": {
@@ -1010,11 +1020,17 @@
             "image-uploaded": "Obraz przesłany poprawnie",
             "editing": "Edycja",
             "edit-desktop-stop": "Aby edytować pulpit, należy go zatrzymać",
-            "creating-deployment": "Tworzenie wdrożenia"
+            "creating-deployment": "Tworzenie wdrożenia",
+            "creating-event": "Tworzenie wydarzenia",
+            "editing-event": "Edycja wydarzenia",
+            "deleting-event": "Usuwanie wydarzenia"
         },
         "loading": "Ładowanie",
         "title": {
             "delete": "Usuń"
-        }
+        },
+        "no": "Nie",
+        "yes": "Tak",
+        "ok": "Ok"
     }
 }
