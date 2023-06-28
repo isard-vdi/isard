@@ -27,7 +27,7 @@
                     "label": "Hasło",
                     "placeholder": "Hasło"
                 },
-                "title": "Zmiana hasła",
+                "title": "Zmień hasło",
                 "confirmation-password": {
                     "label": "Potwierdzenie hasła",
                     "placeholder": "Potwierdź hasło"
