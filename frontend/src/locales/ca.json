@@ -942,7 +942,8 @@
         "desktop_storage_not_ready": "L'emmagatzematge de l'escriptori no està apunt",
         "unable_to_get_viewer_inexistent": "No s'ha pogut obtenir el visor d'un escriptori inexistent",
         "desktop_same_id": "Ja existeix un escriptori amb aquest identificador",
-        "unable_to_parse_media": "No s'han pogut parsejar les dades del mitjà"
+        "unable_to_parse_media": "No s'han pogut analitzar les dades del mitjà",
+        "unable_to_parse_string": "No s'ha pogut analitzar el text"
     },
     "messages": {
         "title": {
