@@ -943,7 +943,9 @@
         "unable_to_get_viewer_inexistent": "No s'ha pogut obtenir el visor d'un escriptori inexistent",
         "desktop_same_id": "Ja existeix un escriptori amb aquest identificador",
         "unable_to_parse_media": "No s'han pogut analitzar les dades del mitjà",
-        "unable_to_parse_string": "No s'ha pogut analitzar el text"
+        "unable_to_parse_string": "No s'ha pogut analitzar el text",
+        "unable_to_change_desktop_status": "No s'ha pogut canviar l'estat de l'escriptori",
+        "unable_to_change_hypervisor_status": "No s'ha pogut canviar l'estat de l'hipervisor"
     },
     "messages": {
         "title": {
