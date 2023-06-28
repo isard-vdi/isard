@@ -45,7 +45,9 @@
                 "interfaces": "Sieci",
                 "warning": "OSTRZEŻENIE: Ten sprzęt został zmodyfikowany z powodu uprawnień użytkownika:",
                 "title": "Sprzęt",
-                "vcpus": "vCPUS"
+                "vcpus": "vCPUS",
+                "memory": "Pamięć (GB)",
+                "disk-size": "Rozmiar dysku (GB)"
             },
             "media": {
                 "isos": "Isos",
@@ -55,8 +57,22 @@
             "viewers": {
                 "guest": {
                     "title": "Logowanie RDP",
-                    "warning": "OSTRZEŻENIE: Hasło gościa będzie przechowywane w postaci zwykłego tekstu!!!"
-                }
+                    "warning": "OSTRZEŻENIE: Hasło gościa będzie przechowywane w postaci zwykłego tekstu!!!",
+                    "username": "Nazwa użytkownika",
+                    "password": "Hasło"
+                },
+                "fullscreen-disabled": "Tryb pełnoekranowy wyłączony",
+                "fullscreen-enabled": "Tryb pełnoekranowy włączony"
+            },
+            "info": {
+                "name": "Nazwa",
+                "description": "Opis"
+            },
+            "image": {
+                "title": "Obraz"
+            },
+            "bookables": {
+                "vgpus": "GPU"
             }
         },
         "direct-link": {
@@ -74,39 +90,100 @@
             "desktop": {
                 "description": "Opis pulpitu",
                 "title": "Dane nowego pulpitu:",
-                "name": "Nazwa pulpitu"
+                "name": "Nazwa pulpitu",
+                "template": "Szablon"
             },
             "error": {
                 "users": "Należy wybrać co najmniej jednego użytkownika",
-                "groups-users": "Należy wybrać co najmniej jednego użytkownika lub jedną grupę"
+                "groups-users": "Należy wybrać co najmniej jednego użytkownika lub jedną grupę",
+                "groups": "Należy wybrać co najmniej jedną grupę"
             },
             "title": "Utwórz nowe wdrożenie:",
             "filter-placeholder": "Wpisz, aby wyszukać",
             "template-table-column-headers": {
-                "selected": "Wybrane"
+                "selected": "Wybrane",
+                "category": "Kategoria",
+                "group": "Grupa",
+                "image": "Obraz",
+                "name": "Nazwa",
+                "description": "Opis",
+                "user": "Użytkownik"
             },
-            "not-visible": "Niewidoczne dla użytkowników"
+            "not-visible": "Niewidoczne dla użytkowników",
+            "section-title-template": "Wybierz szablon:",
+            "filter": "Filtr"
         },
         "duplicate-template": {
             "title": "Zduplikuj szablon"
         },
         "new-media": {
-            "select-type": "Wybierz opcję"
+            "select-type": "Wybierz opcję",
+            "url": "URL",
+            "type": "Typ",
+            "description": "Opis"
         },
         "registration": {
             "code": "Kod rejestracyjny"
-        }
+        },
+        "edit": {
+            "title": "Edytuj '{name}'"
+        },
+        "new-desktop": {
+            "section-title-advanced": "Opcje zaawansowane",
+            "template-table-column-headers": {
+                "group": "Grupa",
+                "selected": "Wybrane",
+                "image": "Obraz",
+                "name": "Nazwa",
+                "description": "Opis",
+                "category": "Kategoria",
+                "user": "Użytkownik"
+            },
+            "title": "Tworzenie nowego pulpitu:",
+            "section-title-template": "Wybierz szablon:",
+            "desktop-template": "Szablon",
+            "filter": "Filtr",
+            "filter-placeholder": "Wpisz, aby wyszukać"
+        },
+        "cancel": "Anuluj",
+        "new-template": {
+            "title": "Utwórz nowy szablon",
+            "name": "Nazwa",
+            "description": "Opis",
+            "enabled": "Włączone",
+            "disabled": "Wyłączone"
+        },
+        "show-pages": "Pokaż",
+        "submit": "Prześlij",
+        "create": "Utwórz"
     },
     "components": {
         "navbar": {
             "vpn": {
                 "downloadvpn-error": {
-                    "description": "Nie mogliśmy pobrać pliku konfiguracyjnego VPN z powodu błędu"
+                    "description": "Nie mogliśmy pobrać pliku konfiguracyjnego VPN z powodu błędu",
+                    "title": "Błąd"
+                },
+                "download": "VPN",
+                "downloaded": {
+                    "title": "Pobrane",
+                    "description": "Plik konfiguracyjny VPN został pobrany pomyślnie"
                 }
             },
             "viewers": "Widzowie",
             "media": "Media",
-            "deployments": "Wdrożenia"
+            "deployments": "Wdrożenia",
+            "desktops": "Pulpity",
+            "templates": "Szablony",
+            "bookings": {
+                "text": "Rezerwacje",
+                "planning": "Planowanie",
+                "summary": "Podsumowanie"
+            },
+            "profile": "Profil",
+            "admin": "Administracja",
+            "logout": "Wyloguj",
+            "help": "Pomoc"
         },
         "statusbar": {
             "desktops-started": "Uruchomione pulpity",
@@ -136,7 +213,9 @@
             "checkbox-text": "Tylko uruchomione",
             "videowall": {
                 "back": "Powrót do wdrażania"
-            }
+            },
+            "new-desktop": "Nowy pulpit",
+            "cancel": "Anuluj"
         },
         "desktop-cards": {
             "actions": {
@@ -148,12 +227,17 @@
             },
             "table-header": {
                 "state": "Stan",
-                "viewers": "Widzowie"
+                "viewers": "Widzowie",
+                "action": "Akcja",
+                "name": "Nazwa",
+                "description": "Opis",
+                "desktop-size": "Rozmiar"
             },
             "notification-bar": {
                 "no-next-booking": "Pulpit nie jest zarezerwowany!",
                 "booking-ends": "Rezerwacja kończy się ",
-                "shutdown": "Automatyczne wyłączenie w dniu"
+                "shutdown": "Automatyczne wyłączenie w dniu",
+                "next-booking": "Następna rezerwacja"
             },
             "open-with": "Otwórz za pomocą",
             "filter-label": "Filtr",
@@ -162,7 +246,10 @@
         "deployment-desktop-list": {
             "table-header": {
                 "viewers": "Widzowie",
-                "state": "Stan"
+                "state": "Stan",
+                "user": "Użytkownik",
+                "group": "Grupa",
+                "action": "Akcja"
             },
             "filter-label": "Filtr",
             "actions": {
@@ -186,49 +273,81 @@
             },
             "use-browser": "Skorzystaj z przeglądarki",
             "best-performance": "To jest opcja z najwyższą wydajnością",
-            "no-install": "Nie ma potrzeby instalowania żadnego zewnętrznego programu, {worse-performance}. Wystarczy kliknąć przycisk, a wirtualny pulpit otworzy się w nowej karcie"
+            "no-install": "Nie ma potrzeby instalowania żadnego zewnętrznego programu, {worse-performance}. Wystarczy kliknąć przycisk, a wirtualny pulpit otworzy się w nowej karcie",
+            "spice-client-required": "Wymagana jest zewnętrzna aplikacja."
         },
         "rdp-modal": {
             "message": {
                 "unstable": "Serwer połączenia sieciowego wydaje się niestabilny",
                 "cookie-error": "Plik cookie wymagany do nawiązania połączenia nie został ustawiony",
-                "cookie-expired": "Plik cookie wymagany do nawiązania połączenia wygasł"
+                "cookie-expired": "Plik cookie wymagany do nawiązania połączenia wygasł",
+                "disconnected": "Zostałeś rozłączony",
+                "error": "Błąd połączenia",
+                "connecting": "Łączenie z serwerem…"
             },
             "title": {
                 "unstable": "Niestabilny",
-                "disconnected": "Odłączony"
-            }
+                "disconnected": "Odłączony",
+                "error": "Błąd klienta",
+                "connecting": "Łączenie"
+            },
+            "button-refresh": "Odśwież"
         },
         "bookings": {
             "item": {
                 "event-titles": {
-                    "overridable": "Zastępowalne"
+                    "overridable": "Zastępowalne",
+                    "available": "Dostępny",
+                    "unavailable": "Niedostępny"
                 },
                 "status-bar": {
                     "forbid-time": "Potrzeba czasu z wyprzedzeniem",
-                    "max-items": "Maksymalna liczba rezerwacji"
+                    "max-items": "Maksymalna liczba rezerwacji",
+                    "max-time": "Maksymalny czas rezerwacji",
+                    "buttons": {
+                        "add-booking": "Dodaj rezerwację"
+                    }
                 },
                 "modal": {
                     "create": {
-                        "modal-title": "Dodaj rezerwację"
+                        "modal-title": "Dodaj rezerwację",
+                        "button": "Dodaj rezerwację"
                     },
                     "view": {
                         "modal-title": "Wyświetl rezerwację"
                     },
-                    "select-profile": "Wybierz profil"
+                    "select-profile": "Wybierz profil",
+                    "title": "Tytuł",
+                    "end-date": "Data zakończenia",
+                    "end-time": "Godzina zakończenia",
+                    "edit": {
+                        "modal-title": "Edytuj rezerwację",
+                        "button": "Zapisz zmiany"
+                    },
+                    "start-date": "Data rozpoczęcia",
+                    "profile": "Profil",
+                    "start-time": "Godzina rozpoczęcia",
+                    "delete": {
+                        "button": "Usuń"
+                    }
                 },
                 "new-planning": {
                     "bookable-type": "Typ rezerwacji",
                     "bookable-item": "Nazwa przedmiotu"
                 },
                 "units": "jednostki",
-                "enough-units": "Wystarczająca liczba jednostek"
+                "enough-units": "Wystarczająca liczba jednostek",
+                "split-labels": {
+                    "availability": "Dostępność",
+                    "bookings": "Rezerwacje"
+                }
             },
             "errors": {
                 "forbid": "Aby utworzyć rezerwację musisz działać z większym wyprzedzeniem",
                 "past-booking": "Nie można utworzyć rezerwacji w przeszłości",
                 "end-before-start": "Czas zakończenia rezerwacji nie może być wcześniejszy niż czas rozpoczęcia.",
-                "minimum-time": "Rezerwacja musi trwać co najmniej 5 minut"
+                "minimum-time": "Rezerwacja musi trwać co najmniej 5 minut",
+                "maximum-time": "Nie możesz utworzyć rezerwacji na tak długo"
             },
             "summary": {
                 "title": "Wszystkie twoje rezerwacje"
@@ -265,6 +384,12 @@
         "not-found": {
             "title": "Żądany adres nie został znaleziony",
             "home": "Wróć"
+        },
+        "select-search": {
+            "empty": "Brak dostępnych opcji"
+        },
+        "title": {
+            "logo-alt": "Logo"
         }
     }
 }
