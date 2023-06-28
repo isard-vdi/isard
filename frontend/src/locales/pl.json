@@ -36,6 +36,235 @@
                     "update": "Zaktualizuj"
                 }
             }
+        },
+        "domain": {
+            "hardware": {
+                "videos": "Filmy",
+                "boot": "Boot",
+                "disk-bus": "Magistrala dyskowa",
+                "interfaces": "Sieci",
+                "warning": "OSTRZEŻENIE: Ten sprzęt został zmodyfikowany z powodu uprawnień użytkownika:",
+                "title": "Sprzęt",
+                "vcpus": "vCPUS"
+            },
+            "media": {
+                "isos": "Isos",
+                "floppies": "Dyskietki",
+                "title": "Media"
+            },
+            "viewers": {
+                "guest": {
+                    "title": "Logowanie RDP",
+                    "warning": "OSTRZEŻENIE: Hasło gościa będzie przechowywane w postaci zwykłego tekstu!!!"
+                }
+            }
+        },
+        "direct-link": {
+            "modal": {
+                "enable": "Włącz bezpośredni dostęp do podglądu",
+                "title": "Bezpośredni link do podglądu"
+            }
+        },
+        "filter-placeholder": "Wpisz, aby wyszukać",
+        "clear": "Wyczyść",
+        "duplicate": "Duplikat",
+        "new-deployment": {
+            "name": "Nazwa wdrożenia",
+            "visible": "Widoczny dla użytkowników",
+            "desktop": {
+                "description": "Opis pulpitu",
+                "title": "Dane nowego pulpitu:",
+                "name": "Nazwa pulpitu"
+            },
+            "error": {
+                "users": "Należy wybrać co najmniej jednego użytkownika",
+                "groups-users": "Należy wybrać co najmniej jednego użytkownika lub jedną grupę"
+            },
+            "title": "Utwórz nowe wdrożenie:",
+            "filter-placeholder": "Wpisz, aby wyszukać",
+            "template-table-column-headers": {
+                "selected": "Wybrane"
+            },
+            "not-visible": "Niewidoczne dla użytkowników"
+        },
+        "duplicate-template": {
+            "title": "Zduplikuj szablon"
+        },
+        "new-media": {
+            "select-type": "Wybierz opcję"
+        },
+        "registration": {
+            "code": "Kod rejestracyjny"
+        }
+    },
+    "components": {
+        "navbar": {
+            "vpn": {
+                "downloadvpn-error": {
+                    "description": "Nie mogliśmy pobrać pliku konfiguracyjnego VPN z powodu błędu"
+                }
+            },
+            "viewers": "Widzowie",
+            "media": "Media",
+            "deployments": "Wdrożenia"
+        },
+        "statusbar": {
+            "desktops-started": "Uruchomione pulpity",
+            "new-deployment": "Nowe wdrożenie",
+            "upload-file": "Prześlij plik",
+            "select": "Wybierz",
+            "deployment": {
+                "buttons": {
+                    "recreate": {
+                        "title": "Odtwórz wdrożenie"
+                    },
+                    "download-direct-viewer": {
+                        "title": "Pobierz plik bezpośredniego podglądu"
+                    },
+                    "delete": {
+                        "title": "Usuń wdrożenie"
+                    },
+                    "make-not-visible": {
+                        "title": "Uczyń niewidocznym"
+                    },
+                    "make-visible": {
+                        "title": "Uczyń widocznym"
+                    }
+                },
+                "back": "Powrót do wdrożeń"
+            },
+            "checkbox-text": "Tylko uruchomione",
+            "videowall": {
+                "back": "Powrót do wdrażania"
+            }
+        },
+        "desktop-cards": {
+            "actions": {
+                "template": "Zrób z tego szablon",
+                "booking": "Harmonogram",
+                "direct-link": "Bezpośrednie łącze",
+                "delete": "Usuń",
+                "edit": "Edytuj"
+            },
+            "table-header": {
+                "state": "Stan",
+                "viewers": "Widzowie"
+            },
+            "notification-bar": {
+                "no-next-booking": "Pulpit nie jest zarezerwowany!",
+                "booking-ends": "Rezerwacja kończy się ",
+                "shutdown": "Automatyczne wyłączenie w dniu"
+            },
+            "open-with": "Otwórz za pomocą",
+            "filter-label": "Filtr",
+            "no-info-default": "Brak dostępnego opisu"
+        },
+        "deployment-desktop-list": {
+            "table-header": {
+                "viewers": "Widzowie",
+                "state": "Stan"
+            },
+            "filter-label": "Filtr",
+            "actions": {
+                "delete": "Usuń"
+            },
+            "open-with": "Otwórz za pomocą"
+        },
+        "help": {
+            "close-guide": "Zamknij przewodnik",
+            "local-client": "Użyj klienta lokalnego (zalecane)",
+            "install": "Zainstaluj",
+            "other-windows-versions": "inne wersje systemu Windows",
+            "once-installed": "Po zainstalowaniu kliknij przycisk \"klient lokalny\", co spowoduje pobranie pliku wirtualnego pulpitu",
+            "worse-performance": "ale wydajność jest gorsza",
+            "text": {
+                "macos": "macOS jest nieobsługiwaną platformą. Należy użyć opcji przeglądarki",
+                "windows": "W systemie operacyjnym Windows należy pobrać i zainstalować jeden z poniższych plików wykonywalnych:",
+                "android": "W systemie operacyjnym Android należy zainstalować następującą aplikację:",
+                "ios": "W systemie operacyjnym iOS należy zainstalować następującą aplikację:",
+                "linux": "W systemie operacyjnym Linux należy uruchomić następujące polecenia:"
+            },
+            "use-browser": "Skorzystaj z przeglądarki",
+            "best-performance": "To jest opcja z najwyższą wydajnością",
+            "no-install": "Nie ma potrzeby instalowania żadnego zewnętrznego programu, {worse-performance}. Wystarczy kliknąć przycisk, a wirtualny pulpit otworzy się w nowej karcie"
+        },
+        "rdp-modal": {
+            "message": {
+                "unstable": "Serwer połączenia sieciowego wydaje się niestabilny",
+                "cookie-error": "Plik cookie wymagany do nawiązania połączenia nie został ustawiony",
+                "cookie-expired": "Plik cookie wymagany do nawiązania połączenia wygasł"
+            },
+            "title": {
+                "unstable": "Niestabilny",
+                "disconnected": "Odłączony"
+            }
+        },
+        "bookings": {
+            "item": {
+                "event-titles": {
+                    "overridable": "Zastępowalne"
+                },
+                "status-bar": {
+                    "forbid-time": "Potrzeba czasu z wyprzedzeniem",
+                    "max-items": "Maksymalna liczba rezerwacji"
+                },
+                "modal": {
+                    "create": {
+                        "modal-title": "Dodaj rezerwację"
+                    },
+                    "view": {
+                        "modal-title": "Wyświetl rezerwację"
+                    },
+                    "select-profile": "Wybierz profil"
+                },
+                "new-planning": {
+                    "bookable-type": "Typ rezerwacji",
+                    "bookable-item": "Nazwa przedmiotu"
+                },
+                "units": "jednostki",
+                "enough-units": "Wystarczająca liczba jednostek"
+            },
+            "errors": {
+                "forbid": "Aby utworzyć rezerwację musisz działać z większym wyprzedzeniem",
+                "past-booking": "Nie można utworzyć rezerwacji w przeszłości",
+                "end-before-start": "Czas zakończenia rezerwacji nie może być wcześniejszy niż czas rozpoczęcia.",
+                "minimum-time": "Rezerwacja musi trwać co najmniej 5 minut"
+            },
+            "summary": {
+                "title": "Wszystkie twoje rezerwacje"
+            }
+        },
+        "profile": {
+            "info": {
+                "role": "Rola",
+                "category": "Kategoria",
+                "user-storage": "Przestrzeń dyskowa użytkownika",
+                "name": "Imię",
+                "email": "E-mail",
+                "authentication": "Uwierzytelnienie",
+                "group": "Grupa"
+            },
+            "quota": {
+                "running": "Działające pulpity / Wszystkie działające pulpity",
+                "vcpus": "Użyte vCPU / Całkowita liczba vCPU",
+                "templates": "Utworzone szablony / Całkowita liczba szablonów",
+                "title": "Zastosowane ograniczenia: {restriction}",
+                "restrictions": {
+                    "user_quota": "Limit użytkowników",
+                    "category_quota": "Limit kategorii",
+                    "group_quota": "Limit grupy"
+                },
+                "memory": "Używana pamięć / Pamięć całkowita (GB)",
+                "desktops": "Utworzone pulpity / Wszystkie pulpity",
+                "media": "Utworzone nośniki / Wszystkie nośniki",
+                "total-disk-size": "Używany rozmiar dysku / Całkowity rozmiar dysku"
+            },
+            "language": "Język",
+            "change-password": "Zmień hasło"
+        },
+        "not-found": {
+            "title": "Żądany adres nie został znaleziony",
+            "home": "Wróć"
         }
     }
 }
