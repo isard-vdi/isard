@@ -489,7 +489,8 @@
             "enabled": "Gaituta",
             "title": "Sortu txantiloi berria",
             "name": "Izena",
-            "description": "Deskripzioa"
+            "description": "Deskripzioa",
+            "disabled": "Desgaitua"
         },
         "duplicate-template": {
             "title": "Txantiloi bikoiztua"
