@@ -810,7 +810,12 @@
             },
             "delete-media": {
                 "title": "Usuń nośnik",
-                "warning": "Ten nośnik zostanie usunięty z następujących pulpitów. Wszystkie zostaną zatrzymane, jeśli są uruchomione"
+                "warning": "Ten nośnik zostanie usunięty z następujących pulpitów. Wszystkie zostaną zatrzymane, jeśli są uruchomione",
+                "table-header": {
+                    "user": "Użytkownik",
+                    "kind": "Rodzaj",
+                    "name": "Nazwa"
+                }
             },
             "no-media": {
                 "subtitle": "Jeśli uważasz, że jest to błąd, skontaktuj się z administratorem",
@@ -828,7 +833,8 @@
                 "percentage": "% limitu",
                 "last": "Ostatni dostęp",
                 "domains": "Pulpity/szablony",
-                "quantity-domains": "№ desktopy/szablony"
+                "quantity-domains": "№ desktopy/szablony",
+                "actual-size": "Rozmiar"
             },
             "no-storage": {
                 "title": "Nie ma żadnych dysków tego użytkownika",
