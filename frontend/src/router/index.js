@@ -35,13 +35,11 @@ Vue.use(VueRouter)
 const router = new VueRouter({
   routes: [
     {
-      path: '/',
-      name: 'Home',
-      redirect: '/desktops',
+      path: '/desktops',
       component: MainLayout,
       children: [
         {
-          path: 'desktops',
+          path: '',
           name: 'desktops',
           component: Desktops,
           meta: {
@@ -50,48 +48,12 @@ const router = new VueRouter({
           }
         },
         {
-          path: 'desktops/new',
+          path: 'new',
           name: 'desktopsnew',
           component: DesktopNew,
           meta: {
             title: i18n.t('router.titles.new_desktop'),
             allowedRoles: ['admin', 'manager', 'advanced', 'user']
-          }
-        },
-        {
-          path: 'domain/edit',
-          name: 'domainedit',
-          component: DomainEdit,
-          meta: {
-            title: i18n.t('router.titles.edit-domain'),
-            allowedRoles: ['admin', 'manager', 'advanced', 'user']
-          }
-        },
-        {
-          path: 'booking/:type/:id',
-          name: 'booking',
-          component: Booking,
-          meta: {
-            title: i18n.t('router.titles.booking'),
-            allowedRoles: ['admin', 'manager', 'advanced', 'user']
-          }
-        },
-        {
-          path: 'booking/summary',
-          name: 'bookingsummary',
-          component: BookingsSummary,
-          meta: {
-            title: i18n.t('router.titles.booking'),
-            allowedRoles: ['admin', 'manager', 'advanced', 'user']
-          }
-        },
-        {
-          path: 'planning',
-          name: 'Planning',
-          component: Planning,
-          meta: {
-            title: i18n.t('router.titles.planning'),
-            allowedRoles: ['admin']
           }
         }
       ],
@@ -100,13 +62,65 @@ const router = new VueRouter({
       }
     },
     {
-      path: '/',
-      name: 'Templates',
-      redirect: '/templates',
+      path: '/domain',
       component: MainLayout,
       children: [
         {
-          path: 'templates',
+          path: 'edit',
+          name: 'domainedit',
+          component: DomainEdit,
+          meta: {
+            title: i18n.t('router.titles.edit-domain'),
+            allowedRoles: ['admin', 'manager', 'advanced', 'user']
+          }
+        }
+      ]
+    },
+    {
+      path: '/booking',
+      component: MainLayout,
+      children: [
+        {
+          path: ':type/:id',
+          name: 'booking',
+          component: Booking,
+          meta: {
+            title: i18n.t('router.titles.booking'),
+            allowedRoles: ['admin', 'manager', 'advanced', 'user']
+          }
+        },
+        {
+          path: 'summary',
+          name: 'bookingsummary',
+          component: BookingsSummary,
+          meta: {
+            title: i18n.t('router.titles.booking'),
+            allowedRoles: ['admin', 'manager', 'advanced', 'user']
+          }
+        }
+      ]
+    },
+    {
+      path: '/planning',
+      component: MainLayout,
+      children: [
+        {
+          path: '',
+          name: 'Planning',
+          component: Planning,
+          meta: {
+            title: i18n.t('router.titles.planning'),
+            allowedRoles: ['admin']
+          }
+        }
+      ]
+    },
+    {
+      path: '/templates',
+      component: MainLayout,
+      children: [
+        {
+          path: '',
           name: 'templates',
           component: Templates,
           meta: {
@@ -115,7 +129,7 @@ const router = new VueRouter({
           }
         },
         {
-          path: 'template/new',
+          path: 'new',
           name: 'templatenew',
           component: TemplateNew,
           meta: {
@@ -124,7 +138,7 @@ const router = new VueRouter({
           }
         },
         {
-          path: 'template/duplicate',
+          path: 'duplicate',
           name: 'templateduplicate',
           component: TemplateNew,
           meta: {
@@ -143,12 +157,11 @@ const router = new VueRouter({
       component: Rdp
     },
     {
-      path: '/',
-      name: 'Deployments',
+      path: '/deployments',
       component: MainLayout,
       children: [
         {
-          path: 'deployments',
+          path: '',
           name: 'deployments',
           component: Deployments,
           meta: {
@@ -157,29 +170,11 @@ const router = new VueRouter({
           }
         },
         {
-          path: 'deployments/new',
+          path: 'new',
           name: 'deploymentsnew',
           component: DeploymentNew,
           meta: {
             title: i18n.t('router.titles.new_deployment'),
-            allowedRoles: ['admin', 'manager', 'advanced']
-          }
-        },
-        {
-          path: '/deployment/videowall/:id',
-          name: 'deployment_videowall',
-          component: DeploymentVideowall,
-          meta: {
-            title: i18n.t('router.titles.deployment_videowall'),
-            allowedRoles: ['admin', 'manager', 'advanced']
-          }
-        },
-        {
-          path: '/deployment/:id',
-          name: 'deployment_desktops',
-          component: Deployment,
-          meta: {
-            title: i18n.t('router.titles.deployment'),
             allowedRoles: ['admin', 'manager', 'advanced']
           }
         }
@@ -189,13 +184,38 @@ const router = new VueRouter({
       }
     },
     {
-      path: '/',
-      name: 'Profile',
-      redirect: '/profile',
+      path: '/deployment/:id',
       component: MainLayout,
       children: [
         {
-          path: 'profile',
+          path: '',
+          name: 'deployment_desktops',
+          component: Deployment,
+          meta: {
+            title: i18n.t('router.titles.deployment'),
+            allowedRoles: ['admin', 'manager', 'advanced']
+          }
+        },
+        {
+          path: 'videowall',
+          name: 'deployment_videowall',
+          component: DeploymentVideowall,
+          meta: {
+            title: i18n.t('router.titles.deployment_videowall'),
+            allowedRoles: ['admin', 'manager', 'advanced']
+          }
+        }
+      ],
+      meta: {
+        requiresAuth: true
+      }
+    },
+    {
+      path: '/profile',
+      component: MainLayout,
+      children: [
+        {
+          path: '',
           name: 'profile',
           component: Profile,
           meta: {
@@ -209,13 +229,11 @@ const router = new VueRouter({
       }
     },
     {
-      path: '/',
-      name: 'Media',
-      redirect: '/media',
+      path: '/media',
       component: MainLayout,
       children: [
         {
-          path: 'media',
+          path: '',
           name: 'media',
           component: Media,
           meta: {
@@ -224,7 +242,7 @@ const router = new VueRouter({
           }
         },
         {
-          path: 'media/new',
+          path: 'new',
           name: 'medianew',
           component: MediaNew,
           meta: {
@@ -233,7 +251,7 @@ const router = new VueRouter({
           }
         },
         {
-          path: 'media/desktop/new',
+          path: 'desktop/new',
           name: 'newfrommedia',
           component: NewFromMedia,
           meta: {
@@ -247,13 +265,11 @@ const router = new VueRouter({
       }
     },
     {
-      path: '/',
-      name: 'Storage',
-      redirect: '/userstorage',
+      path: '/userstorage',
       component: MainLayout,
       children: [
         {
-          path: 'userstorage',
+          path: '',
           name: 'userstorage',
           component: Storage,
           meta: {
