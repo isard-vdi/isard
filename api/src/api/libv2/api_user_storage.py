@@ -1843,7 +1843,7 @@ def user_storage_add_provider_categories_th(provider_id):
     if provider["cfg"]["access"] != "*":
         gevent.spawn(user_storage_add_category, provider["cfg"]["access"], provider_id)
     else:
-        for category_id in _get_isard_categories_array():
+        for category_id in _get_isard_categories_array(provider_id=provider_id):
             gevent.spawn(user_storage_add_category, category_id, provider_id)
 
 
