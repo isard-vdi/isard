@@ -1,4 +1,4 @@
-# Isard main config v2.8.0
+# Isard main config v2.8.1
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -459,7 +459,14 @@ WG_GUESTS_RESERVED_HOSTS=20
 ##################################################################
 
 # ------ Grafana ------------------------------------------------------
+## Use GRAFANA_HOST to connect to an internal infrastructure grafana
+## server at port :3000 through portal proxy https://[DOMAIN]/monitor
 #GRAFANA_HOST=isard-grafana
+
+## Use GRAFANA_WEBAPP_URL to set custom full url to your publicy accessible
+## Grafana login from the webapp menu
+#GRAFANA_WEBAPP_URL=https://[DOMAIN]:[PORT]/[PATH]
+
 # This variable is used for provisioning alerts in Grafana
 #GRAFANA_TELEGRAM_TOKEN=
 #GRAFANA_TELEGRAM_TOKEN_ORCHESTRATOR=
