@@ -19,6 +19,10 @@ from .decorators import isAdmin, isAdminManager, maintenance
 
 u = Updates()
 
+monitor_host = os.getenv("GRAFANA_WEBAPP_URL")
+if not monitor_host:
+    monitor_host = f'https://{os.getenv("DOMAIN", "localhost")}/monitor'
+
 
 @app.route("/isard-admin/admin/landing", methods=["GET"])
 @login_required
@@ -30,6 +34,7 @@ def admin_landing():
             title="Hypervisors",
             header="Hypervisors",
             nav="Hypervisors",
+            monitor_host=monitor_host,
         )
     if current_user.role == "manager":
         return redirect("/isard-admin/admin/domains/render/Desktops")
@@ -43,6 +48,7 @@ def about():
         title="About",
         header="About",
         nav="About",
+        monitor_host=monitor_host,
     )
 
 
@@ -68,6 +74,7 @@ def login(category="default"):
             title="Desktops",
             nav="Desktops",
             icon="desktops",
+            monitor_host=monitor_host,
         )
     return redirect("/login")
 
@@ -118,6 +125,7 @@ def admin():
         title="Hypervisors",
         header="Hypervisors",
         nav="Hypervisors",
+        monitor_host=monitor_host,
     )
 
 
@@ -134,46 +142,84 @@ def admin_domains(nav="Domains"):
     if nav == "Desktops":
         icon = "desktop"
         return render_template(
-            "admin/pages/desktops.html", title=nav, nav=nav, icon=icon
+            "admin/pages/desktops.html",
+            title=nav,
+            nav=nav,
+            icon=icon,
+            monitor_host=monitor_host,
         )
     if nav == "Templates":
         icon = "cubes"
         return render_template(
-            "admin/pages/templates.html", title=nav, nav=nav, icon=icon
+            "admin/pages/templates.html",
+            title=nav,
+            nav=nav,
+            icon=icon,
+            monitor_host=monitor_host,
         )
     if nav == "Deployments":
         icon = "tv"
         return render_template(
-            "admin/pages/deployments.html", title=nav, nav=nav, icon=icon
+            "admin/pages/deployments.html",
+            title=nav,
+            nav=nav,
+            icon=icon,
+            monitor_host=monitor_host,
         )
     if nav == "Storage":
         icon = "folder-open"
         return render_template(
-            "admin/pages/storage.html", title=nav, nav=nav, icon=icon
+            "admin/pages/storage.html",
+            title=nav,
+            nav=nav,
+            icon=icon,
+            monitor_host=monitor_host,
         )
     if nav == "Bases":
         icon = "cubes"
     if nav == "Resources":
         icon = "arrows-alt"
         return render_template(
-            "admin/pages/domains_resources.html", title=nav, nav=nav, icon=icon
+            "admin/pages/domains_resources.html",
+            title=nav,
+            nav=nav,
+            icon=icon,
+            monitor_host=monitor_host,
         )
     if nav == "Bookables":
         icon = "briefcase"
         return render_template(
-            "admin/pages/bookables.html", title=nav, nav=nav, icon=icon
+            "admin/pages/bookables.html",
+            title=nav,
+            nav=nav,
+            icon=icon,
+            monitor_host=monitor_host,
         )
     if nav == "BookablesEvents":
         icon = "history"
         return render_template(
-            "admin/pages/bookables_events.html", title=nav, nav=nav, icon=icon
+            "admin/pages/bookables_events.html",
+            title=nav,
+            nav=nav,
+            icon=icon,
+            monitor_host=monitor_host,
         )
     if nav == "Priority":
         icon = "briefcase"
         return render_template(
-            "admin/pages/bookables_priority.html", title=nav, nav=nav, icon=icon
+            "admin/pages/bookables_priority.html",
+            title=nav,
+            nav=nav,
+            icon=icon,
+            monitor_host=monitor_host,
         )
-    return render_template("admin/pages/desktops.html", title=nav, nav=nav, icon=icon)
+    return render_template(
+        "admin/pages/desktops.html",
+        title=nav,
+        nav=nav,
+        icon=icon,
+        monitor_host=monitor_host,
+    )
 
 
 """
@@ -185,7 +231,12 @@ MEDIA
 @login_required
 @isAdminManager
 def admin_media():
-    return render_template("admin/pages/media.html", nav="Media", title="Media")
+    return render_template(
+        "admin/pages/media.html",
+        nav="Media",
+        title="Media",
+        monitor_host=monitor_host,
+    )
 
 
 """
@@ -202,12 +253,14 @@ def admin_users(nav):
             "admin/pages/users_management.html",
             nav=nav,
             title="Management",
+            monitor_host=monitor_host,
         )
     elif nav == "QuotasLimits":
         return render_template(
             "admin/pages/users_quotas_limits.html",
             nav=nav,
             title="Quotas / Limits",
+            monitor_host=monitor_host,
         )
 
 
@@ -219,6 +272,7 @@ def admin_users_user_storage():
         "admin/pages/user_storage.html",
         nav="UserStorage",
         title="User Storage",
+        monitor_host=monitor_host,
     )
 
 
@@ -231,7 +285,12 @@ USAGE
 @login_required
 @isAdminManager
 def admin_usage():
-    return render_template("admin/pages/usage.html", nav="Usage", title="Usage")
+    return render_template(
+        "admin/pages/usage.html",
+        nav="Usage",
+        title="Usage",
+        monitor_host=monitor_host,
+    )
 
 
 @app.route("/isard-admin/admin/usage_config", methods=["GET"])
@@ -239,7 +298,10 @@ def admin_usage():
 @isAdminManager
 def admin_usage_config():
     return render_template(
-        "admin/pages/usage_config.html", nav="Usage config", title="Usage config"
+        "admin/pages/usage_config.html",
+        nav="Usage config",
+        title="Usage config",
+        monitor_host=monitor_host,
     )
 
 
@@ -257,6 +319,7 @@ def admin_hypervisors():
         title="Hypervisors",
         header="Hypervisors",
         nav="Hypervisors",
+        monitor_host=monitor_host,
     )
 
 
@@ -271,6 +334,7 @@ def storage_nodes():
         "admin/pages/storage_nodes.html",
         title="Storage Nodes",
         nav="Storage Nodes",
+        monitor_host=monitor_host,
     )
 
 
@@ -294,6 +358,7 @@ def admin_updates():
             nav="Downloads",
             registered=False,
             connected=False,
+            monitor_host=monitor_host,
         )
     registered = u.is_registered()
     if not registered:
@@ -304,6 +369,7 @@ def admin_updates():
         nav="Downloads",
         registered=registered,
         connected=True,
+        monitor_host=monitor_host,
     )
 
 
@@ -328,6 +394,7 @@ def admin_updates_register():
             nav="Downloads",
             registered=False,
             connected=False,
+            monitor_host=monitor_host,
         )
     registered = u.is_registered()
     if not registered:
@@ -338,6 +405,7 @@ def admin_updates_register():
         nav="Downloads",
         registered=registered,
         connected=True,
+        monitor_host=monitor_host,
     )
 
 
@@ -358,6 +426,7 @@ def admin_updates_reload():
             nav="Downloads",
             registered=False,
             connected=False,
+            monitor_host=monitor_host,
         )
     registered = u.is_registered()
     if not registered:
@@ -368,6 +437,7 @@ def admin_updates_reload():
         nav="Downloads",
         registered=registered,
         connected=True,
+        monitor_host=monitor_host,
     )
 
 
@@ -380,7 +450,12 @@ CONFIG
 @login_required
 @isAdminManager
 def admin_config():
-    return render_template("admin/pages/config.html", nav="Config", title="Config")
+    return render_template(
+        "admin/pages/config.html",
+        nav="Config",
+        title="Config",
+        monitor_host=monitor_host,
+    )
 
 
 """
