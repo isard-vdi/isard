@@ -61,6 +61,16 @@ run_occ 'app:enable bruteforcesettings'
 # HEADER: NC-Token: <TOKEN>
 # TOKEN: occ config:app:get serverinfo token
 
+# Self register
+# NOTE: Will recreate a new app token at each restart and will invalidate the previous ones
+# Needs to be in background as api will check that Nextcloud is up and running
+if [ ! $NEXTCLOUD_AUTO_REGISTER || $NEXTCLOUD_AUTO_REGISTER == "true" ];
+then
+	python3 /src/authenticate.py &
+else
+	echo "NEXTCLOUD_AUTO_REGISTER not set, skipping self register"
+fi
+
 # Start nextcloud
 /usr/bin/supervisord -c /supervisord.conf
 

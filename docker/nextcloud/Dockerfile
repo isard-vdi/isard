@@ -40,17 +40,26 @@ RUN set -ex; \
     apk add --virtual .nextcloud-phpext-rundeps $runDeps; \
     apk del .build-deps
 
-
+RUN set -ex; \
+    \
+    apk add --no-cache \
+        py3-pip; \
+    pip3 install --no-cache-dir \
+        python-jose~=3.3 \
+        requests==2.27.1
 
 RUN mkdir -p \
     /var/log/supervisord \
     /var/run/supervisord \
 ;
 
-COPY init.sh /
+COPY docker/nextcloud/init.sh /
 RUN chmod +x /init.sh
 
-COPY supervisord.conf /
+COPY docker/nextcloud/src /src
+COPY component/_common/src /src/_common
+
+COPY docker/nextcloud/supervisord.conf /
 
 ENV NEXTCLOUD_UPDATE=1
 

@@ -13,9 +13,6 @@ id:
 name:
   type: string
   required: true
-password:
-  type: string
-  required: true
 provider:
   type: string
   required: true
@@ -43,9 +40,6 @@ urlprefix:
   type: string
   required: true
   default: /isard-nc
-user:
-  type: string
-  required: true
 verify_cert:
   type: boolean
   required: true
