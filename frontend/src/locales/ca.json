@@ -355,7 +355,7 @@
             "viewer": "Visor {name}",
             "viewer-name": {
                 "file-spice": "SPICE",
-                "browser-vnc": "al navegador",
+                "browser-vnc": "VNC al navegador",
                 "file-rdpvpn": "RDP VPN",
                 "browser-rdp": "RDP al navegador",
                 "file-rdpgw": "RDP"

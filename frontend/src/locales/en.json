@@ -518,9 +518,9 @@
             "viewer": "{name} viewer",
             "viewer-name": {
                 "file-spice": "SPICE",
-                "browser-vnc": "Browser",
+                "browser-vnc": "VNC browser",
                 "file-rdpvpn": "RDP VPN",
-                "browser-rdp": "RDP Browser",
+                "browser-rdp": "RDP browser",
                 "file-rdpgw": "RDP"
             },
             "remove": "Remove",
