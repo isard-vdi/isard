@@ -14,7 +14,19 @@
                     "description": "Ezin izan genuen VPN konfigurazio fitxategia deskargatu akats baten ondorioz"
                 }
             },
-            "deployments": "Hedapenak"
+            "deployments": "Hedapenak",
+            "templates": "Txantiloiak",
+            "bookings": {
+                "text": "Erreserbak",
+                "summary": "Laburpen",
+                "planning": "Plangintza"
+            },
+            "storage": "Biltegiratze",
+            "profile": "Perfil",
+            "logout": "Logout",
+            "viewers": "Ikusleak",
+            "desktops": "Mahaigainak",
+            "media": "Media"
         },
         "help": {
             "close-guide": "Gida itxi",
@@ -52,17 +64,26 @@
             },
             "open-with": "Irekia",
             "actions": {
-                "delete": "Ezabatu"
+                "delete": "Ezabatu",
+                "direct-link": "Lotura zuzena"
             },
             "no-info-default": "Ez dago deskribapen erabilgarririk",
-            "filter-label": "Iragazi"
+            "filter-label": "Iragazi",
+            "notification-bar": {
+                "shutdown": "Itzalketa automatikoa {data} -n",
+                "next-booking": "Hurrengo erreserba",
+                "no-next-booking": "Idazmahaia ez dago erreserbatuta!",
+                "booking-ends": "Erreserba hemen amaitzen da. "
+            }
         },
         "rdp-modal": {
             "message": {
                 "disconnected": "Deskonektatu egin zaituzte",
                 "connecting": "Zerbitzarira konektatutzen…",
                 "error": "Konexio-errorea",
-                "unstable": "Sareko konexio-zerbitzariak ezegonkorra dirudi"
+                "unstable": "Sareko konexio-zerbitzariak ezegonkorra dirudi",
+                "cookie-error": "Lotura bat ezartzeko behar den cookie ez dago finkatuta",
+                "cookie-expired": "Konexioa egiteko behar den cookie iraungi egin da"
             },
             "title": {
                 "disconnected": "lineaz kanpo",
@@ -79,7 +100,67 @@
             "checkbox-text-short": "Abiarazita",
             "cancel": "Ezeztatu",
             "select": "Aukeratu",
-            "upload-file": "Fitxategia igo"
+            "upload-file": "Fitxategia igo",
+            "new-media": "Media berria",
+            "deployment": {
+                "buttons": {
+                    "videowall": {
+                        "title": "Bideokonferentziara zoaz"
+                    },
+                    "stop": {
+                        "title": "Mahaigain guztiak gelditu"
+                    },
+                    "start": {
+                        "title": "Hasi hedapen-mahaigai guztiak"
+                    },
+                    "make-visible": {
+                        "title": "Ikusarazi"
+                    },
+                    "recreate": {
+                        "title": "Birsortu hedapena"
+                    },
+                    "download-direct-viewer": {
+                        "title": "Zuzeneko ikuslearen fitxategia deskargatu"
+                    },
+                    "delete": {
+                        "title": "Ezabatu hedapena"
+                    }
+                }
+            },
+            "new-deployment": "Hedapen berria",
+            "videowall": {
+                "back": "Hedapenera itzuli"
+            }
+        },
+        "deployment-desktop-list": {
+            "table-header": {
+                "last": "Azken sarbidea",
+                "user": "Erabiltzaile",
+                "state": "Egoera",
+                "group": "Taldea",
+                "viewers": "Ikusleak"
+            },
+            "filter-label": "Iragazi",
+            "actions": {
+                "delete": "Ezabatu"
+            },
+            "open-with": "Ireki ezazu"
+        },
+        "bookings": {
+            "item": {
+                "enough-units": "Nahiko unitate",
+                "split-labels": {
+                    "availability": "Erabilgarritasun"
+                },
+                "event-titles": {
+                    "available": "Eskuragarri",
+                    "overridable": "Gaindiezina"
+                },
+                "units": "Unitateak"
+            }
+        },
+        "select-search": {
+            "empty": "Ez dago aukerarik"
         }
     },
     "views": {
@@ -285,12 +366,47 @@
             "desktop-description": "Mahaigainaren deskribapena",
             "desktop-template": "Txantiloia",
             "filter": "Iragazkia",
-            "filter-placeholder": "Idatzi bilaketarako"
+            "filter-placeholder": "Idatzi bilaketarako",
+            "section-title-advanced": "Aukera aurreratuak"
         },
         "domain": {
             "info": {
                 "name": "Izena",
-                "description": "Deskribapena"
+                "description": "Deskribapena",
+                "title": "Informazioa"
+            },
+            "image": {
+                "title": "Irudia"
+            },
+            "viewers": {
+                "fullscreen-disabled": "Pantaila osoa desaktibatuta",
+                "fullscreen-enabled": "Pantaila osoa aktibatuta",
+                "guest": {
+                    "title": "RDP Login",
+                    "password": "Pasahitza",
+                    "warning": "OHARRA: Gonbidatuen pasahitza testu hutsean gordeko da!",
+                    "username": "Erabiltzaile izena"
+                },
+                "title": "Ikusleak"
+            },
+            "hardware": {
+                "title": "Hardware",
+                "vcpus": "vCPUS",
+                "memory": "Memoria (GB)",
+                "boot": "Boot",
+                "warning": "OHARRA: Hardware hau aldatu egin zen erabiltzaile-baimenen ondorioz:",
+                "disk-size": "Diskoaren tamaina (GB)",
+                "videos": "Bideoak",
+                "interfaces": "Sareak",
+                "disk-bus": "Disk Bus"
+            },
+            "bookables": {
+                "vgpus": "GPU"
+            },
+            "media": {
+                "title": "Media",
+                "floppies": "Floppiak",
+                "isos": "Isoak"
             }
         },
         "clear": "Garbitu",
@@ -299,13 +415,102 @@
         "create": "Sortu",
         "registration": {
             "code": "Erregistro kodea"
+        },
+        "allowed": {
+            "modal": {
+                "title": "Eguneratzea baimenduta",
+                "buttons": {
+                    "update": "Eguneratu"
+                }
+            },
+            "title": "Baimenduta",
+            "users": "Erabiltzaileak:",
+            "placeholder": "Idatzi gutxienez 2 gutun bilatzeko.",
+            "groups": "Taldeak:",
+            "empty": "Egiaztatua eta hutsa denen artean banatuko da."
+        },
+        "new-deployment": {
+            "desktop": {
+                "name": "Mahaigaineko izena",
+                "description": "Mahaigaineko deskribapena",
+                "template": "Txantiloia",
+                "title": "Mahaigaineko datu berriak:"
+            },
+            "filter": "Iragazi",
+            "template-table-column-headers": {
+                "name": "Izena",
+                "selected": "Aukeratu",
+                "category": "Kategoria",
+                "group": "Taldea",
+                "description": "Deskripzio",
+                "user": "Erabiltzailea",
+                "image": "Irudia"
+            },
+            "title": "Hedapen berria sortzea:",
+            "name": "Hedapen izena",
+            "not-visible": "Erabiltzaileek ez dute ikusgai",
+            "visible": "Erabiltzaileek ikusteko moduan.",
+            "filter-placeholder": "Idatzi bilatzeko",
+            "error": {
+                "users": "Gutxienez erabiltzaile bat hautatu behar da",
+                "groups": "Gutxienez talde bat hautatu behar da",
+                "groups-users": "Gutxienez erabiltzaile bat edo talde bat hautatu behar da"
+            },
+            "section-title-template": "Aukeratu txantiloi bat:"
+        },
+        "new-media": {
+            "url": "URL",
+            "type": "Mota",
+            "name": "Media izena",
+            "description": "Deskripzioa",
+            "select-type": "Mesedez, aukeratu aukera bat",
+            "title": "Media berriak sortzea:"
+        },
+        "edit": {
+            "title": "{izena}"
+        },
+        "password": {
+            "modal": {
+                "password": {
+                    "label": "Pasahitza",
+                    "placeholder": "Pasahitza"
+                },
+                "title": "Pasahitza aldatu",
+                "confirmation-password": {
+                    "label": "Baieztatze pasahitza",
+                    "placeholder": "Berretsi pasahitza"
+                },
+                "buttons": {
+                    "update": "Eguneratu"
+                }
+            }
+        },
+        "new-template": {
+            "enabled": "Gaituta",
+            "title": "Sortu txantiloi berria",
+            "name": "Izena",
+            "description": "Deskripzioa",
+            "disabled": "Desgaitua"
+        },
+        "duplicate-template": {
+            "title": "Txantiloi bikoiztua"
+        },
+        "filter-placeholder": "Bilaketa-mota",
+        "duplicate": "Bikoiztu",
+        "direct-link": {
+            "modal": {
+                "enable": "Ikuslearen zuzeneko sarbidea ahalbidetzea",
+                "title": "Zuzeneko ikuslearen esteka"
+            }
         }
     },
     "validations": {
         "required": "{property} derrigorrezkoa da.",
         "minLengthValue": "{property} eremuak {model} hizki ditu, baina gutxienez {min} izan beharko lituzke.",
         "maxLengthValue": "{property} eremuak {model} hizki dauzka, baina gehienez {max} hizki izan ditzake.",
-        "inputFormat": "Onartutako karaktereak dira hizkiak, zenbakiak, koma, puntua, -,_"
+        "inputFormat": "Onartutako karaktereak dira hizkiak, zenbakiak, koma, puntua, -,_",
+        "sameAs": "{property} eremuak {property2} eremuko balio bera izan behar du.",
+        "url": "{property} eremua url bat izan behar da."
     },
     "messages": {
         "confirmation": {

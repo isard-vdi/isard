@@ -202,7 +202,7 @@
                         "button": "Eliminar"
                     }
                 },
-                "new-planning" : {
+                "new-planning": {
                     "bookable-type": "Tipo de reservable",
                     "bookable-item": "Nombre del reservable"
                 }
@@ -501,7 +501,7 @@
                 "not-visible": "No visibles"
             },
             "modal": {
-                "title": { 
+                "title": {
                     "make-visible": "Fer visible el desplegament '{name}'",
                     "make-invisible": "Fer invisible el desplegament '{name}'",
                     "download-csv": "Descarregar el CSV de visors directes de '{name}'"
@@ -519,9 +519,8 @@
                     "make-visible": "Fer visible",
                     "keep-csv": "Mantenir enllaços i descarregar CSV",
                     "reset-csv": "Reestablir enllaços i descarregar CSV"
-                    }
                 }
-            
+            }
         },
         "direct-viewer": {
             "title": "Accés a visors de l'escriptori:",
@@ -934,13 +933,23 @@
         "deployment_delete_stop": "Per esborrar un desplegament és necessari que els seus escriptoris estiguin aturats",
         "desktop_not_booked": "Per iniciar l'escriptori ha d'estar reservat",
         "desktop_not_booked_until": "No es pot iniciar l'escriptori fins a la propera reserva {start}",
-        "only_works_rdp":  "Mode 'Only GPU' només funciona amb visors RDP",
+        "only_works_rdp": "Mode 'Only GPU' només funciona amb visors RDP",
         "current_plan_doesnt_match": "No hi ha cap GPU disponible amb el perfil de l'escriptori",
         "needs_deployment_booking": "Ara mateix no es pot iniciar l'escriptori, contacta amb el propietari d'aquest desplegament perquè creï una reserva",
         "not_enough_advanced_time": "No hi ha suficient antelació per iniciar l'escriptori",
         "one_viewer_minimum": "S'ha de seleccionar un visor com a mínim",
         "template_failed": "Degut a un error la plantilla no es pot fer servir per crear un nou escriptori, si us plau contacta amb l'administrador",
-        "desktop_storage_not_ready": "L'emmagatzematge de l'escriptori no està apunt"
+        "desktop_storage_not_ready": "L'emmagatzematge de l'escriptori no està apunt",
+        "unable_to_get_viewer_inexistent": "No s'ha pogut obtenir el visor d'un escriptori inexistent",
+        "desktop_same_id": "Ja existeix un escriptori amb aquest identificador",
+        "unable_to_parse_media": "No s'han pogut analitzar les dades del mitjà",
+        "unable_to_parse_string": "No s'ha pogut analitzar el text",
+        "unable_to_change_desktop_status": "No s'ha pogut canviar l'estat de l'escriptori",
+        "unable_to_change_hypervisor_status": "No s'ha pogut canviar l'estat de l'hypervisor",
+        "unable_to_reset_domain_jumperurl": "No s'ha pogut restablir el jumperurl de l'escriptori ja que el domini no existeix",
+        "unable_to_get_deployment_desktops": "No s'han pogut obtenir els escriptoris del desplegament",
+        "unable_to_gen_enrollment_code": "No s'ha pogut generar el codi d'inscripció",
+        "template_already_exists": "L'ID de la plantilla ja existeix: "
     },
     "messages": {
         "title": {
@@ -949,7 +958,7 @@
         "confirmation": {
             "delete-desktop": "'{name}' s'esborrarà, continuar?",
             "create-nonpersistent": "ATENCIÓ! Aquest escriptori és temporal. A l'aturar-ho totes les dades seràn esborrades. Crear escriptori?",
-            "visible-deployment": "'{name}' serà visible pels seus usuaris, continuar?",
+            "visible-deployment": "Els escriptoris seran visibles",
             "recreate-deployment": "Els escriptoris esborrats de '{name}' es crearan de nou, continuar?",
             "delete-deployment": "'{name}' s'esborrarà, continuar?",
             "delete-deployment-desktop": "L'escriptori de '{name}' s'esborrarà, continuar?",
@@ -1004,7 +1013,8 @@
             "delete-desktop-stop": "Per esborrar un escriptori és necessari que estigui aturat",
             "wireguard-network-added": "S'ha afegit la xarxa Wireguard, atès que és requerida per tal de fer servir els visors RDP",
             "wireguard-viewers-removed": "Els visors RDP s'han eliminat, atès que requereixen la xarxa wireguard",
-            "wireguard-network-required": "No es poden seleccionar els visors RDP, atès que la xarxa Wireguard és requerida. Contacta amb l'administrador per poder fer servir la xarxa Wireguard"
+            "wireguard-network-required": "No es poden seleccionar els visors RDP, atès que la xarxa Wireguard és requerida. Contacta amb l'administrador per poder fer servir la xarxa Wireguard",
+            "image-uploaded": "Imatge penjada correctament"
         },
         "loading": "Carregant"
     },
