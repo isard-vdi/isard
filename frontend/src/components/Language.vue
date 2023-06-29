@@ -23,12 +23,13 @@ export default {
   data () {
     return {
       langs: {
-        es: 'Castellano',
         ca: 'Català',
         de: 'Deutsch',
         en: 'English',
+        es: 'Castellano',
         eu: 'Euskara',
         fr: 'Français',
+        pl: 'Polski',
         ru: 'Русский'
       }
     }
