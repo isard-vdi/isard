@@ -189,12 +189,11 @@ def api_v3_user_templates(payload):
             "status": t["status"],
             "desktop_size": (
                 r.table("storage")
-                .get(t["create_dict"]["hardware"]["disks"][0]["storage_id"])
-                .pluck({"qemu-img-info": {"actual-size"}})
-                .run(db.conn)
-            )["qemu-img-info"]["actual-size"]
-            if t["create_dict"]["hardware"].get("disks", [{}])[0].get("storage_id")
-            else 0,
+                .get(t["create_dict"]["hardware"]["disks"][0]["storage_id"])[
+                    "qemu-img-info"
+                ]["actual-size"]
+                .default(0)
+            ),
         }
         for t in users.Templates(payload)
     ]
