@@ -224,7 +224,7 @@ class ApiDesktopsCommon:
             hardware = (
                 r.table("domains")
                 .get(domain_id)
-                .pluck({"create_dict": {"hardware", "reservables"}})
+                .pluck({"create_dict": {"hardware", "reservables", "macs"}})
                 .run(db.conn)["create_dict"]
             )
         if "isos" in hardware["hardware"]:
