@@ -519,9 +519,9 @@
             "viewer": "Visor {name}",
             "viewer-name": {
                 "file-spice": "SPICE",
-                "browser-vnc": "en el navegador",
+                "browser-vnc": "VNC en navegador",
                 "file-rdpvpn": "RDP VPN",
-                "browser-rdp": "RDP en el navegador",
+                "browser-rdp": "RDP en navegador",
                 "file-rdpgw": "RDP"
             },
             "remove": "Eliminar",
