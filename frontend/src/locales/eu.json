@@ -639,7 +639,7 @@
             "title": "Media berriak sortzea:"
         },
         "edit": {
-            "title": "{izena}"
+            "title": "zuzendu'{name}'"
         },
         "password": {
             "modal": {
@@ -674,7 +674,8 @@
                 "enable": "Ikuslearen zuzeneko sarbidea ahalbidetzea",
                 "title": "Zuzeneko ikuslearen esteka"
             }
-        }
+        },
+        "show-pages": "Erakutsi"
     },
     "validations": {
         "required": "{property} derrigorrezkoa da.",
