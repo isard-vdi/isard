@@ -11,8 +11,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/teris-io/shortid"
-	cliCfg "gitlab.com/isard/isardvdi-cli/pkg/cfg"
-	"gitlab.com/isard/isardvdi-cli/pkg/client"
+	"gitlab.com/isard/isardvdi-sdk-go"
 	"gitlab.com/isard/isardvdi/check/cfg"
 	sshExec "gitlab.com/isard/isardvdi/pkg/ssh"
 	"golang.org/x/crypto/ssh"
@@ -51,7 +50,7 @@ func NewCheck(cfg cfg.Check, log *zerolog.Logger) *Check {
 }
 
 func (c *Check) CheckIsardVDI(ctx context.Context, authMethod AuthMethod, auth Auth, host, templateID string, failSelfSigned, failMaintenance bool) (CheckResult, error) {
-	cli, err := client.NewClient(&cliCfg.Cfg{
+	cli, err := isardvdi.NewClient(&isardvdi.Cfg{
 		Host:        host,
 		IgnoreCerts: !failSelfSigned,
 	})
@@ -86,9 +85,9 @@ func (c *Check) CheckIsardVDI(ctx context.Context, authMethod AuthMethod, auth A
 	for _, hyper := range h {
 		c.log.Debug().Str("host", cli.URL().Host).Str("id", *hyper.ID).Msg("checking hypervisor")
 
-		deps, err = c.checkHypervisor(ctx, cli, client.GetString(hyper.ID), templateID, failSelfSigned)
+		deps, err = c.checkHypervisor(ctx, cli, isardvdi.GetString(hyper.ID), templateID, failSelfSigned)
 		if err != nil {
-			c.log.Error().Str("host", cli.URL().Host).Str("hypervisor", client.GetString(hyper.ID)).Str("template_id", templateID).Err(err).Msg("check hypervisor")
+			c.log.Error().Str("host", cli.URL().Host).Str("hypervisor", isardvdi.GetString(hyper.ID)).Str("template_id", templateID).Err(err).Msg("check hypervisor")
 
 			return CheckResult{}, fmt.Errorf("check hypervisor: %w", err)
 		}
@@ -103,7 +102,7 @@ func (c *Check) CheckIsardVDI(ctx context.Context, authMethod AuthMethod, auth A
 }
 
 func (c *Check) CheckHypervisor(ctx context.Context, authMethod AuthMethod, auth Auth, host, hyperID, templateID string, failSelfSigned, failMaintenance bool) (CheckResult, error) {
-	cli, err := client.NewClient(&cliCfg.Cfg{
+	cli, err := isardvdi.NewClient(&isardvdi.Cfg{
 		Host:        host,
 		IgnoreCerts: !failSelfSigned,
 	})
@@ -200,7 +199,7 @@ func (c *Check) stopDocker(ctx context.Context, id string) {
 	}
 }
 
-func (c *Check) checkHypervisor(ctx context.Context, cli client.Interface, hyperID, templateID string, failSelfSigned bool) (DependenciesVersions, error) {
+func (c *Check) checkHypervisor(ctx context.Context, cli isardvdi.Interface, hyperID, templateID string, failSelfSigned bool) (DependenciesVersions, error) {
 	host := cli.URL().Host
 	checkID := fmt.Sprintf("check-%s", shortid.MustGenerate())
 
@@ -232,13 +231,13 @@ func (c *Check) checkHypervisor(ctx context.Context, cli client.Interface, hyper
 		return deps, fmt.Errorf("create the desktop: %w", err)
 	}
 
-	dktp := client.GetString(d.ID)
+	dktp := isardvdi.GetString(d.ID)
 
 	// This function is to ensure that no desktop is left in the system
 	defer func() {
 		if err := cli.DesktopStop(ctx, dktp); err != nil {
 			// If there's a not found error, the desktop has already been deleted :)
-			if errors.Is(err, client.ErrNotFound) {
+			if errors.Is(err, isardvdi.ErrNotFound) {
 				return
 			}
 		}
@@ -251,7 +250,7 @@ func (c *Check) checkHypervisor(ctx context.Context, cli client.Interface, hyper
 	}
 
 	// Force the hypervisor
-	if err := cli.DesktopUpdate(ctx, dktp, client.DesktopUpdateOptions{
+	if err := cli.DesktopUpdate(ctx, dktp, isardvdi.DesktopUpdateOptions{
 		ForcedHyp: []string{hyperID},
 	}); err != nil {
 		return deps, fmt.Errorf("force the hypervisor: %w", err)
@@ -270,7 +269,7 @@ func (c *Check) checkHypervisor(ctx context.Context, cli client.Interface, hyper
 
 	// Test the VPN
 	log.Debug().Msg("testing VPN")
-	if err := c.testVPN(ctx, cli, ssh, client.GetString(d.IP)); err != nil {
+	if err := c.testVPN(ctx, cli, ssh, isardvdi.GetString(d.IP)); err != nil {
 		return deps, fmt.Errorf("test the VPN: %w", err)
 	}
 
@@ -304,8 +303,8 @@ func (c *Check) checkHypervisor(ctx context.Context, cli client.Interface, hyper
 	return deps, nil
 }
 
-func ensureDesktopState(ctx context.Context, cli client.Interface, id, state string) (*client.Desktop, error) {
-	var d *client.Desktop
+func ensureDesktopState(ctx context.Context, cli isardvdi.Interface, id, state string) (*isardvdi.Desktop, error) {
+	var d *isardvdi.Desktop
 	var err error
 
 	for i := 0; i < desktopTimeout; i++ {
@@ -314,14 +313,14 @@ func ensureDesktopState(ctx context.Context, cli client.Interface, id, state str
 			return d, fmt.Errorf("ensure desktop state: %v", err)
 		}
 
-		if client.GetString(d.State) == state {
+		if isardvdi.GetString(d.State) == state {
 			return d, nil
 		}
 
 		time.Sleep(time.Second)
 	}
 
-	return d, fmt.Errorf("timeout waiting for desktop state to be '%s'. Current state is '%s'", state, client.GetString(d.State))
+	return d, fmt.Errorf("timeout waiting for desktop state to be '%s'. Current state is '%s'", state, isardvdi.GetString(d.State))
 }
 
 func (c *Check) getDependenciesVersions(cli *ssh.Client) (DependenciesVersions, error) {

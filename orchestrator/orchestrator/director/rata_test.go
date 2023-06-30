@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.com/isard/isardvdi-cli/pkg/client"
-	apiMock "gitlab.com/isard/isardvdi-cli/pkg/client/mock"
+	"gitlab.com/isard/isardvdi-sdk-go"
+	apiMock "gitlab.com/isard/isardvdi-sdk-go/mock"
 	"gitlab.com/isard/isardvdi/orchestrator/cfg"
 	"gitlab.com/isard/isardvdi/orchestrator/orchestrator/director"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
@@ -22,7 +22,7 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 
 	cases := map[string]struct {
 		AvailHypers               []*operationsv1.ListHypervisorsResponseHypervisor
-		Hypers                    []*client.OrchestratorHypervisor
+		Hypers                    []*isardvdi.OrchestratorHypervisor
 		RataMinCPU                int
 		RataMinRAM                int
 		RataMaxCPU                int
@@ -35,10 +35,10 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 	}{
 		"if there's enough RAM, it should return 0": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
-			Hypers: []*client.OrchestratorHypervisor{{
-				Status:     client.HypervisorStatusOnline,
+			Hypers: []*isardvdi.OrchestratorHypervisor{{
+				Status:     isardvdi.HypervisorStatusOnline,
 				OnlyForced: false,
-				RAM: client.OrchestratorResourceLoad{
+				RAM: isardvdi.OrchestratorResourceLoad{
 					Total: 300,
 					Used:  150,
 					Free:  150,
@@ -60,11 +60,11 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_CREATE,
 				Ram:   300,
 			}},
-			Hypers: []*client.OrchestratorHypervisor{{
+			Hypers: []*isardvdi.OrchestratorHypervisor{{
 				ID:         "already",
-				Status:     client.HypervisorStatusOnline,
+				Status:     isardvdi.HypervisorStatusOnline,
 				OnlyForced: false,
-				RAM: client.OrchestratorResourceLoad{
+				RAM: isardvdi.OrchestratorResourceLoad{
 					Total: 300,
 					Used:  200,
 					Free:  100,
@@ -77,32 +77,32 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 		},
 		"if there's too much free RAM, it should add the biggest hypervisor that it can to the dead row": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
-			Hypers: []*client.OrchestratorHypervisor{{
+			Hypers: []*isardvdi.OrchestratorHypervisor{{
 				ID:                  "1",
-				Status:              client.HypervisorStatusOnline,
+				Status:              isardvdi.HypervisorStatusOnline,
 				OnlyForced:          false,
 				OrchestratorManaged: true,
-				RAM: client.OrchestratorResourceLoad{
+				RAM: isardvdi.OrchestratorResourceLoad{
 					Total: 500,
 					Used:  100,
 					Free:  400,
 				},
 			}, {
 				ID:                  "2",
-				Status:              client.HypervisorStatusOnline,
+				Status:              isardvdi.HypervisorStatusOnline,
 				OnlyForced:          true,
 				OrchestratorManaged: true,
-				RAM: client.OrchestratorResourceLoad{
+				RAM: isardvdi.OrchestratorResourceLoad{
 					Total: 700,
 					Used:  100,
 					Free:  600,
 				},
 			}, {
 				ID:                  "3",
-				Status:              client.HypervisorStatusOnline,
+				Status:              isardvdi.HypervisorStatusOnline,
 				OnlyForced:          false,
 				OrchestratorManaged: true,
-				RAM: client.OrchestratorResourceLoad{
+				RAM: isardvdi.OrchestratorResourceLoad{
 					Total: 300,
 					Used:  100,
 					Free:  200,
@@ -119,23 +119,23 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				Id:  "HUGE HYPERVISOR",
 				Ram: 99999999,
 			}},
-			Hypers: []*client.OrchestratorHypervisor{{
+			Hypers: []*isardvdi.OrchestratorHypervisor{{
 				ID:         "existing-1",
-				Status:     client.HypervisorStatusOnline,
+				Status:     isardvdi.HypervisorStatusOnline,
 				OnlyForced: false,
-				RAM: client.OrchestratorResourceLoad{
+				RAM: isardvdi.OrchestratorResourceLoad{
 					Total: 300,
 					Used:  200,
 					Free:  100,
 				},
 			}, {
 				ID:                  "existing-2",
-				Status:              client.HypervisorStatusOnline,
+				Status:              isardvdi.HypervisorStatusOnline,
 				OnlyForced:          false,
 				DesktopsStarted:     20,
 				OrchestratorManaged: true,
 				DestroyTime:         time.Now().Add(time.Hour),
-				RAM: client.OrchestratorResourceLoad{
+				RAM: isardvdi.OrchestratorResourceLoad{
 					Total: 3000,
 					Used:  2000,
 					Free:  1000,
@@ -152,36 +152,36 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				Id:  "HUGE HYPERVISOR",
 				Ram: 99999999,
 			}},
-			Hypers: []*client.OrchestratorHypervisor{{
+			Hypers: []*isardvdi.OrchestratorHypervisor{{
 				ID:                  "existing-1",
-				Status:              client.HypervisorStatusOnline,
+				Status:              isardvdi.HypervisorStatusOnline,
 				OnlyForced:          false,
 				OrchestratorManaged: true,
-				RAM: client.OrchestratorResourceLoad{
+				RAM: isardvdi.OrchestratorResourceLoad{
 					Total: 300,
 					Used:  200,
 					Free:  100,
 				},
 			}, {
 				ID:                  "existing-2",
-				Status:              client.HypervisorStatusOnline,
+				Status:              isardvdi.HypervisorStatusOnline,
 				OnlyForced:          false,
 				OrchestratorManaged: true,
 				DesktopsStarted:     20,
 				DestroyTime:         time.Now().Add(time.Hour),
-				RAM: client.OrchestratorResourceLoad{
+				RAM: isardvdi.OrchestratorResourceLoad{
 					Total: 3000,
 					Used:  2000,
 					Free:  1000,
 				},
 			}, {
 				ID:                  "existing-3",
-				Status:              client.HypervisorStatusOnline,
+				Status:              isardvdi.HypervisorStatusOnline,
 				OnlyForced:          false,
 				OrchestratorManaged: true,
 				DesktopsStarted:     20,
 				DestroyTime:         time.Now().Add(time.Hour),
-				RAM: client.OrchestratorResourceLoad{
+				RAM: isardvdi.OrchestratorResourceLoad{
 					Total: 1000,
 					Used:  300,
 					Free:  700,
@@ -192,32 +192,32 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 		},
 		"if there's an hypervisor that's been too much time on the dead row, KILL THEM!! >:(": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
-			Hypers: []*client.OrchestratorHypervisor{{
+			Hypers: []*isardvdi.OrchestratorHypervisor{{
 				ID:         "1",
-				Status:     client.HypervisorStatusOnline,
+				Status:     isardvdi.HypervisorStatusOnline,
 				OnlyForced: false,
-				RAM: client.OrchestratorResourceLoad{
+				RAM: isardvdi.OrchestratorResourceLoad{
 					Total: 500,
 					Used:  400,
 					Free:  100,
 				},
 			}, {
 				ID:                  "2",
-				Status:              client.HypervisorStatusOnline,
+				Status:              isardvdi.HypervisorStatusOnline,
 				DestroyTime:         time.Now().Add(-2 * director.DeadRowDuration),
 				DesktopsStarted:     254,
 				OnlyForced:          true,
 				OrchestratorManaged: true,
-				RAM: client.OrchestratorResourceLoad{
+				RAM: isardvdi.OrchestratorResourceLoad{
 					Total: 700,
 					Used:  100,
 					Free:  600,
 				},
 			}, {
 				ID:         "3",
-				Status:     client.HypervisorStatusOnline,
+				Status:     isardvdi.HypervisorStatusOnline,
 				OnlyForced: false,
-				RAM: client.OrchestratorResourceLoad{
+				RAM: isardvdi.OrchestratorResourceLoad{
 					Total: 500,
 					Used:  250,
 					Free:  250,
@@ -230,32 +230,32 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 		},
 		"if there's an hypervisor that's in the dead row and has 0 desktops started, KILL THEM!! >:(": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
-			Hypers: []*client.OrchestratorHypervisor{{
+			Hypers: []*isardvdi.OrchestratorHypervisor{{
 				ID:         "1",
-				Status:     client.HypervisorStatusOnline,
+				Status:     isardvdi.HypervisorStatusOnline,
 				OnlyForced: false,
-				RAM: client.OrchestratorResourceLoad{
+				RAM: isardvdi.OrchestratorResourceLoad{
 					Total: 500,
 					Used:  400,
 					Free:  100,
 				},
 			}, {
 				ID:                  "2",
-				Status:              client.HypervisorStatusOnline,
+				Status:              isardvdi.HypervisorStatusOnline,
 				DestroyTime:         time.Now().Add(2 * director.DeadRowDuration),
 				DesktopsStarted:     0,
 				OnlyForced:          true,
 				OrchestratorManaged: true,
-				RAM: client.OrchestratorResourceLoad{
+				RAM: isardvdi.OrchestratorResourceLoad{
 					Total: 700,
 					Used:  100,
 					Free:  600,
 				},
 			}, {
 				ID:         "3",
-				Status:     client.HypervisorStatusOnline,
+				Status:     isardvdi.HypervisorStatusOnline,
 				OnlyForced: false,
-				RAM: client.OrchestratorResourceLoad{
+				RAM: isardvdi.OrchestratorResourceLoad{
 					Total: 500,
 					Used:  250,
 					Free:  250,
@@ -268,24 +268,24 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 		},
 		"if there aren't enough ram, but there's a small hyper in the dead row and with it the system can work, remove it from the dead row": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
-			Hypers: []*client.OrchestratorHypervisor{{
+			Hypers: []*isardvdi.OrchestratorHypervisor{{
 				ID:                  "1",
-				Status:              client.HypervisorStatusOnline,
+				Status:              isardvdi.HypervisorStatusOnline,
 				OnlyForced:          true,
 				DestroyTime:         time.Now().Add(2 * director.DeadRowDuration),
 				OrchestratorManaged: true,
-				RAM: client.OrchestratorResourceLoad{
+				RAM: isardvdi.OrchestratorResourceLoad{
 					Total: 600,
 					Used:  400,
 					Free:  200,
 				},
 			}, {
 				ID:                  "2",
-				Status:              client.HypervisorStatusOnline,
+				Status:              isardvdi.HypervisorStatusOnline,
 				DesktopsStarted:     0,
 				OnlyForced:          false,
 				OrchestratorManaged: true,
-				RAM: client.OrchestratorResourceLoad{
+				RAM: isardvdi.OrchestratorResourceLoad{
 					Total: 700,
 					Used:  100,
 					Free:  600,
@@ -328,7 +328,7 @@ func TestRataExtraOperations(t *testing.T) {
 
 	cases := map[string]struct {
 		PrepareAPI  func(*apiMock.Client)
-		Hypers      []*client.OrchestratorHypervisor
+		Hypers      []*isardvdi.OrchestratorHypervisor
 		HyperMinCPU int
 		HyperMinRAM int
 		HyperMaxRAM int
@@ -336,16 +336,16 @@ func TestRataExtraOperations(t *testing.T) {
 	}{
 		"if there are enough resources, it shouldn't do anything": {
 			PrepareAPI: func(c *apiMock.Client) {},
-			Hypers: []*client.OrchestratorHypervisor{{
+			Hypers: []*isardvdi.OrchestratorHypervisor{{
 				ID:     "first",
-				Status: client.HypervisorStatusOffline,
-				RAM: client.OrchestratorResourceLoad{
+				Status: isardvdi.HypervisorStatusOffline,
+				RAM: isardvdi.OrchestratorResourceLoad{
 					Free: 10,
 				},
 			}, {
 				ID:     "second",
-				Status: client.HypervisorStatusOnline,
-				RAM: client.OrchestratorResourceLoad{
+				Status: isardvdi.HypervisorStatusOnline,
+				RAM: isardvdi.OrchestratorResourceLoad{
 					Free: 60,
 				},
 			}},
@@ -355,18 +355,18 @@ func TestRataExtraOperations(t *testing.T) {
 			PrepareAPI: func(c *apiMock.Client) {
 				c.Mock.On("AdminHypervisorOnlyForced", mock.AnythingOfType("*context.emptyCtx"), "second", true).Return(nil)
 			},
-			Hypers: []*client.OrchestratorHypervisor{{
+			Hypers: []*isardvdi.OrchestratorHypervisor{{
 				ID:                  "first",
-				Status:              client.HypervisorStatusOffline,
+				Status:              isardvdi.HypervisorStatusOffline,
 				OrchestratorManaged: true,
-				RAM: client.OrchestratorResourceLoad{
+				RAM: isardvdi.OrchestratorResourceLoad{
 					Free: 10,
 				},
 			}, {
 				ID:                  "second",
-				Status:              client.HypervisorStatusOnline,
+				Status:              isardvdi.HypervisorStatusOnline,
 				OrchestratorManaged: true,
-				RAM: client.OrchestratorResourceLoad{
+				RAM: isardvdi.OrchestratorResourceLoad{
 					Free: 30,
 				},
 			}},
@@ -376,19 +376,19 @@ func TestRataExtraOperations(t *testing.T) {
 			PrepareAPI: func(c *apiMock.Client) {
 				c.Mock.On("AdminHypervisorOnlyForced", mock.AnythingOfType("*context.emptyCtx"), "second", false).Return(nil)
 			},
-			Hypers: []*client.OrchestratorHypervisor{{
+			Hypers: []*isardvdi.OrchestratorHypervisor{{
 				ID:                  "first",
-				Status:              client.HypervisorStatusOffline,
+				Status:              isardvdi.HypervisorStatusOffline,
 				OrchestratorManaged: true,
-				RAM: client.OrchestratorResourceLoad{
+				RAM: isardvdi.OrchestratorResourceLoad{
 					Free: 10,
 				},
 			}, {
 				ID:                  "second",
 				OnlyForced:          true,
-				Status:              client.HypervisorStatusOnline,
+				Status:              isardvdi.HypervisorStatusOnline,
 				OrchestratorManaged: true,
-				RAM: client.OrchestratorResourceLoad{
+				RAM: isardvdi.OrchestratorResourceLoad{
 					Free: 200,
 				},
 			}},

@@ -2,14 +2,14 @@ package log
 
 import (
 	"github.com/rs/zerolog"
-	"gitlab.com/isard/isardvdi-cli/pkg/client"
+	"gitlab.com/isard/isardvdi-sdk-go"
 )
 
 type ModelHypervisor struct {
-	h *client.OrchestratorHypervisor
+	h *isardvdi.OrchestratorHypervisor
 }
 
-func NewModelHypervisor(h *client.OrchestratorHypervisor) ModelHypervisor {
+func NewModelHypervisor(h *isardvdi.OrchestratorHypervisor) ModelHypervisor {
 	return ModelHypervisor{h}
 }
 
@@ -26,10 +26,10 @@ func (m ModelHypervisor) MarshalZerologObject(e *zerolog.Event) {
 }
 
 type ModelResourceLoad struct {
-	r client.OrchestratorResourceLoad
+	r isardvdi.OrchestratorResourceLoad
 }
 
-func NewModelResourceLoad(r client.OrchestratorResourceLoad) ModelResourceLoad {
+func NewModelResourceLoad(r isardvdi.OrchestratorResourceLoad) ModelResourceLoad {
 	return ModelResourceLoad{r}
 }
 
@@ -38,10 +38,10 @@ func (r ModelResourceLoad) MarshalZerologObject(e *zerolog.Event) {
 }
 
 type ModelHypervisors struct {
-	hyps []*client.OrchestratorHypervisor
+	hyps []*isardvdi.OrchestratorHypervisor
 }
 
-func NewModelHypervisors(hyps []*client.OrchestratorHypervisor) ModelHypervisors {
+func NewModelHypervisors(hyps []*isardvdi.OrchestratorHypervisor) ModelHypervisors {
 	return ModelHypervisors{hyps}
 }
 

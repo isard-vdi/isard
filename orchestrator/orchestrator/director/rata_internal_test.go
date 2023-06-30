@@ -7,7 +7,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
-	"gitlab.com/isard/isardvdi-cli/pkg/client"
+	"gitlab.com/isard/isardvdi-sdk-go"
 	"gitlab.com/isard/isardvdi/orchestrator/cfg"
 )
 
@@ -132,7 +132,7 @@ func TestMinRAM(t *testing.T) {
 	assert := assert.New(t)
 
 	cases := map[string]struct {
-		Hypers                  []*client.OrchestratorHypervisor
+		Hypers                  []*isardvdi.OrchestratorHypervisor
 		MinRAM                  int
 		MinRAMHourly            map[time.Weekday]map[time.Time]int
 		MinRAMLimitPercent      int
@@ -158,7 +158,7 @@ func TestMinRAM(t *testing.T) {
 		"should apply the percentage correctly using a fixed margin": {
 			MinRAMLimitPercent: 200,
 			MinRAMLimitMargin:  300,
-			Hypers: []*client.OrchestratorHypervisor{
+			Hypers: []*isardvdi.OrchestratorHypervisor{
 				{
 					ID:           "1",
 					MinFreeMemGB: 2,
@@ -177,7 +177,7 @@ func TestMinRAM(t *testing.T) {
 					time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC): 1312,
 				},
 			},
-			Hypers: []*client.OrchestratorHypervisor{
+			Hypers: []*isardvdi.OrchestratorHypervisor{
 				{
 					ID:           "1",
 					MinFreeMemGB: 3,

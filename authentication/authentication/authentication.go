@@ -15,8 +15,7 @@ import (
 
 	"github.com/crewjam/saml/samlsp"
 	"github.com/rs/zerolog"
-	cliCfg "gitlab.com/isard/isardvdi-cli/pkg/cfg"
-	"gitlab.com/isard/isardvdi-cli/pkg/client"
+	"gitlab.com/isard/isardvdi-sdk-go"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
@@ -103,6 +102,7 @@ type apiRegisterUserRsp struct {
 	ID string `json:"id"`
 }
 
+// TODO: Make this use the isardvdi-go-sdk and the pkg/jwt package
 func (a *Authentication) registerUser(u *model.User) error {
 	tkn, err := a.signRegisterToken(u)
 	if err != nil {
@@ -142,8 +142,9 @@ func (a *Authentication) registerUser(u *model.User) error {
 	return nil
 }
 
+// TODO: Make this use the pkg/jwt package
 func (a *Authentication) registerGroup(g *model.Group) error {
-	cli, err := client.NewClient(&cliCfg.Cfg{
+	cli, err := isardvdi.NewClient(&isardvdi.Cfg{
 		Host: "http://isard-api:5000",
 	})
 	if err != nil {
@@ -175,8 +176,8 @@ func (a *Authentication) registerGroup(g *model.Group) error {
 		return fmt.Errorf("register the group: %w", err)
 	}
 
-	g.ID = client.GetString(grp.ID)
-	g.UID = client.GetString(grp.UID)
+	g.ID = isardvdi.GetString(grp.ID)
+	g.UID = isardvdi.GetString(grp.UID)
 
 	return nil
 }
