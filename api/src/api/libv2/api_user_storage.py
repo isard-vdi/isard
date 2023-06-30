@@ -1060,6 +1060,43 @@ def user_storage_provider_groups_sync(provider_id):
     user_storage_add_provider_categories_th(provider_id)
 
 
+### BATCH Add Categories in batches with greenlets threads
+
+
+def process_user_storage_add_category_batch(data_batch, provider_id):
+    for item_id in data_batch:
+        user_storage_add_category(
+            category_id=item_id,
+            provider_id=provider_id,
+        )
+
+
+def process_user_storage_add_category_batches(data_batch, provider_id):
+    if not len(data_batch):
+        app.logger.debug("USER_STORAGE - No categories to add to provider")
+        return
+    # Number of simultaneous categories that can be created
+    max_batch_threads = 10
+    batch_size = ceil(len(data_batch) / max_batch_threads)
+
+    batches = [
+        data_batch[i : i + batch_size] for i in range(0, len(data_batch), batch_size)
+    ]
+
+    app.logger.info(
+        "USER_STORAGE ==> ADD %s CATEGORIES TO PROVIDER IN %s BATCHES OF %s CATEGORIES EACH"
+        % (len(data_batch), len(batches), batch_size)
+    )
+
+    # Process each batch in a separate thread
+    jobs = []
+    for batch in batches:
+        jobs.append(
+            gevent.spawn(process_user_storage_add_category_batch, batch, provider_id)
+        )
+    gevent.joinall(jobs)
+
+
 ########################
 #   USERS MANAGEMENT   #
 ########################
@@ -1843,8 +1880,10 @@ def user_storage_add_provider_categories_th(provider_id):
     if provider["cfg"]["access"] != "*":
         gevent.spawn(user_storage_add_category, provider["cfg"]["access"], provider_id)
     else:
-        for category_id in _get_isard_categories_array():
-            gevent.spawn(user_storage_add_category, category_id, provider_id)
+        process_user_storage_add_category_batches(
+            _get_isard_categories_array(provider_id=provider_id),
+            provider_id=provider_id,
+        )
 
 
 def user_storage_remove_category_th(category_id, cascade=False):
