@@ -9,17 +9,19 @@ import (
 )
 
 type OrchestratorHypervisor struct {
-	ID                  string                      `json:"id,omitempty"`
-	Status              HypervisorStatus            `json:"status,omitempty"`
-	OnlyForced          bool                        `json:"only_forced,omitempty"`
-	Buffering           bool                        `json:"buffering_hyper,omitempty"`
-	DestroyTime         time.Time                   `json:"destroy_time,omitempty"`
-	Stats               OrchestratorHypervisorStats `json:"stats,omitempty"`
-	MinFreeMemGB        int                         `json:"min_free_mem_gb,omitempty"`
-	OrchestratorManaged bool                        `json:"orchestrator_managed,omitempty"`
-	DesktopsStarted     int                         `json:"desktops_started,omitempty"`
-	CPU                 OrchestratorResourceLoad    `json:"-"`
-	RAM                 OrchestratorResourceLoad    `json:"-"`
+	ID                  string                       `json:"id,omitempty"`
+	Status              HypervisorStatus             `json:"status,omitempty"`
+	OnlyForced          bool                         `json:"only_forced,omitempty"`
+	Buffering           bool                         `json:"buffering_hyper,omitempty"`
+	DestroyTime         time.Time                    `json:"destroy_time,omitempty"`
+	Stats               OrchestratorHypervisorStats  `json:"stats,omitempty"`
+	MinFreeMemGB        int                          `json:"min_free_mem_gb,omitempty"`
+	OrchestratorManaged bool                         `json:"orchestrator_managed,omitempty"`
+	DesktopsStarted     int                          `json:"desktops_started,omitempty"`
+	CPU                 OrchestratorResourceLoad     `json:"-"`
+	RAM                 OrchestratorResourceLoad     `json:"-"`
+	GPUs                []*OrchestratorHypervisorGPU `json:"gpus,omitempty"`
+	BookingsEndTime     time.Time                    `json:"bookings_end_time,omitempty"`
 }
 
 func (o *OrchestratorHypervisor) calcLoad() {
@@ -62,6 +64,15 @@ type OrchestratorResourceLoad struct {
 	Total int
 	Used  int
 	Free  int
+}
+
+type OrchestratorHypervisorGPU struct {
+	ID         string `json:"id,omitempty"`
+	Brand      string `json:"brand,omitempty"`
+	Model      string `json:"model,omitempty"`
+	Profile    string `json:"profile,omitempty"`
+	TotalUnits int    `json:"total_units,omitempty"`
+	UsedUnits  int    `json:"used_units,omitempty"`
 }
 
 func (c *Client) OrchestratorHypervisorList(ctx context.Context) ([]*OrchestratorHypervisor, error) {
