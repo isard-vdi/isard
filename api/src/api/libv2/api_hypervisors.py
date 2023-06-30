@@ -104,6 +104,7 @@ class ApiHypervisors:
                     "orchestrator_managed": False,
                     "min_free_mem_gb": 0,
                 },
+                **self._get_hypervisors_gpus(hyp_id, data["status"]),
                 **data,
             }
         else:
@@ -119,10 +120,127 @@ class ApiHypervisors:
                         "orchestrator_managed": False,
                         "min_free_mem_gb": 0,
                     },
+                    **self._get_hypervisors_gpus(d["id"], d["status"]),
                     **d,
                 }
                 for d in data
             ]
+
+    def _gpu_card_data_integrity(self, desktops_started, hyper_id, card_id=None):
+        if desktops_started:
+            # Check if desktop is started in more than one mdev
+            if len(list(set(desktops_started))) != len(desktops_started):
+                app.logger.error(
+                    "GPU CHECKS: " + "card " + card_id
+                    if card_id
+                    else "hypervisor "
+                    + hyper_id
+                    + " has the same started desktop in more than one GPU mdev!",
+                )
+                desktops_started = list(
+                    set(desktops_started)
+                )  # FIXME: This should not happen! But it does... so we remove duplicates
+
+            # Check if desktops in vgpus table in the correct status
+            with app.app_context():
+                if r.table("domains").get_all(
+                    r.args(desktops_started), index="id"
+                ).filter(
+                    lambda dom: dom["status"] in ["Started", "Shutting-down"]
+                ).count().run(
+                    db.conn
+                ) != len(
+                    desktops_started
+                ):
+                    app.logger.error(
+                        "GPU CHECKS: " + "card " + card_id
+                        if card_id
+                        else "hypervisor "
+                        + hyper_id
+                        + " has started mdev desktops not in Started or Shutting-down status!",
+                    )
+
+            # Should we check if domains table gpu desktops are set in hyper?
+
+        return desktops_started
+
+    def _get_hypervisors_gpus(self, hyp_id, hyp_status):
+        data = {"bookings_end_time": None, "gpus": []}
+        if hyp_status != "Online":
+            return data
+        with app.app_context():
+            cards = list(
+                r.table("vgpus")
+                .filter({"hyp_id": hyp_id})
+                .pluck("id", "vgpu_profile", "brand", "model", "mdevs")
+                .run(db.conn)
+            )
+        if not len(cards):
+            return data
+
+        hypervisor_gpu_desktops_started = []
+        for card in cards:
+            active_profile = card.get("vgpu_profile")
+            if not active_profile:
+                continue
+            card_desktops_started = [
+                mdev["domain_started"]
+                for mdev in [
+                    card["mdevs"][active_profile][k]
+                    for k in card["mdevs"][active_profile].keys()
+                    if card["mdevs"][active_profile][k]["domain_started"]
+                ]
+            ]
+            card_desktops_started = self._gpu_card_data_integrity(
+                card_desktops_started, hyp_id, card["id"]
+            )
+            data["gpus"].append(
+                {
+                    "id": card["id"],
+                    "total_units": len(card["mdevs"][active_profile].keys()),
+                    "used_units": len(card_desktops_started),
+                    "free_units": len(card["mdevs"][active_profile].keys())
+                    - len(card_desktops_started),
+                    "brand": card["brand"],
+                    "model": card["model"],
+                    "profile": active_profile,
+                }
+            )
+            hypervisor_gpu_desktops_started += card_desktops_started
+
+        # Get max end time of bookings in hypervisor
+        with app.app_context():
+            bookings_ids = (
+                r.table("domains")
+                .get_all(r.args(hypervisor_gpu_desktops_started), index="id")
+                .filter(lambda dom: dom["booking_id"] != False)
+                .pluck("booking_id")["booking_id"]
+                .coerce_to("array")
+                .run(db.conn)
+            )
+        if not bookings_ids:
+            data["bookings_end_time"] = None
+        else:
+            with app.app_context():
+                try:
+                    data["bookings_end_time"] = (
+                        r.table("bookings")
+                        .get_all(r.args(bookings_ids))
+                        .pluck("end")
+                        .order_by(r.desc("end"))
+                        .limit(1)["end"]
+                        .nth(0)
+                        .run(db.conn)
+                    ).isoformat()
+                except:
+                    app.logger.error(
+                        "GPU CHECKS: Traceback in getting bookings end time for hypervisor "
+                        + hyp_id
+                        + ": "
+                        + traceback.format_exc(),
+                    )
+                    data["bookings_end_time"] = None
+        return data
 
     def get_orchestrator_managed_hypervisors(self):
         hypervisors = (
