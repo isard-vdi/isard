@@ -193,6 +193,7 @@ def api_v3_user_templates(payload):
                     "qemu-img-info"
                 ]["actual-size"]
                 .default(0)
+                .run(db.conn)
             ),
         }
         for t in users.Templates(payload)
