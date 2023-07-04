@@ -189,7 +189,7 @@ def api_v3_user_templates(payload):
             "status": t["status"],
             "desktop_size": (
                 r.table("storage")
-                .get(t["create_dict"]["hardware"]["disks"][0]["storage_id"])[
+                .get(t["create_dict"]["hardware"]["disks"][0].get("storage_id", ""))[
                     "qemu-img-info"
                 ]["actual-size"]
                 .default(0)
