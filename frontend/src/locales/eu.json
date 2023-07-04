@@ -225,7 +225,8 @@
                 "email": "Posta elektronikoa",
                 "authentication": "Egiaztatze",
                 "group": "Taldea",
-                "user-storage": "Erabiltzaileen biltegia"
+                "user-storage": "Erabiltzaileen biltegia",
+                "role": "Rola"
             },
             "quota": {
                 "total-disk-size": "Erabilitako diskoaren tamaina/Diskoaren tamaina guztira",
@@ -278,7 +279,8 @@
                 "401": "Zure taldeak ez du baimenik orrialde honetan sartzeko",
                 "403": {
                     "subtitle": "Ez duzu nahiko baimenik edukira sartzeko.",
-                    "home": "Aukera gehiago lortzeko joan "
+                    "home": "Aukera gehiago lortzeko joan ",
+                    "title": "Debekatuta"
                 },
                 "500": {
                     "subtitle": "Ezin zen edukira sartu.",
