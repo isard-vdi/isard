@@ -74,7 +74,7 @@
             "no-info-default": "Ez dago deskribapen erabilgarririk",
             "filter-label": "Iragazi",
             "notification-bar": {
-                "shutdown": "Automatikoki itzaliko da {data} -n",
+                "shutdown": "Automatikoki itzaliko da {date} -n",
                 "next-booking": "Hurrengo erreserba",
                 "no-next-booking": "Idazmahaia ez dago erreserbatuta!",
                 "booking-ends": "Erreserba hemen amaitzen da. "
@@ -133,7 +133,7 @@
                         "title": "Ikustezin bihurtu"
                     }
                 },
-                "back": "Hedapeenetara  itzuli"
+                "back": "Hedapeenetara itzuli"
             },
             "new-deployment": "Hedapen berria",
             "videowall": {
@@ -280,7 +280,7 @@
                 "403": {
                     "subtitle": "Ez duzu nahiko baimenik edukira sartzeko.",
                     "home": "Aukera gehiago lortzeko joan ",
-                    "title": "Debekatuta"
+                    "title": "Debekatuta."
                 },
                 "500": {
                     "subtitle": "Ezin zen edukira sartu.",
@@ -365,7 +365,7 @@
                     "action": "Sortu"
                 },
                 "shutting-down": {
-                    "action": "Gelditu",
+                    "action": "Gelditzera behartu",
                     "text": "Gelditzen"
                 },
                 "waitingip": {
@@ -401,6 +401,10 @@
                 "reset": {
                     "action": "Berrezarrazten",
                     "text": "Berrezarri"
+                },
+                "starting": {
+                    "text": "Abiarazten",
+                    "action": "Abiarazten"
                 }
             },
             "error": {
@@ -425,7 +429,7 @@
                     "title": "Errorea"
                 },
                 "create-error": {
-                    "description": "Akats baten ondorioz, ezin izan dugu mahaigain birtuala sortu",
+                    "description": "Akats baten ondorioz ezin izan dugu mahaigain birtuala sortu",
                     "title": "Errorea"
                 },
                 "delete-error": {
@@ -450,7 +454,7 @@
                 "browser-vnc": "VNC nabigatzailea",
                 "file-spice": "SPICE",
                 "file-rdpvpn": "RDP VPN",
-                "browser-rdp": "RDP nabigatzaile",
+                "browser-rdp": "RDP nabigatzailea",
                 "file-rdpgw": "RDP"
             },
             "viewer": "{name} bisorea",
@@ -495,7 +499,8 @@
                     "dont-stop-desktops": "Hedapen hori ikusezina izan dadila erabiltzaileentzat, eta mahaigaineko gailuen erabilera ahalbidetu dadila, geldiarazten diren arte",
                     "stop-desktops": "Hedapen hau ikusezin bihurtu erabiltzaileentzat eta mahaigain guztiak gelditu",
                     "make-visible": "Hedapen hori ikusarazi, hedapenaren erabiltzaileek idazmahaietara sartzeko aukera izan dezaten",
-                    "reset-csv": "Berrezarri hedapen-url-ak (ez dira erabilgarri egongo sortutako url zaharrak) eta deskargatu csv"
+                    "reset-csv": "Berrezarri hedapen-url-ak (ez dira erabilgarri egongo sortutako url zaharrak) eta deskargatu csv",
+                    "keep-csv": "Uneko url-ak mantendu eta deskargatu csv-a"
                 },
                 "confirmation": {
                     "stop": "Mahaigainak gelditu",
@@ -517,7 +522,8 @@
                 "actions": "Ekintzak",
                 "desktop-name": "Mahaigai izena",
                 "description": "Deskripzio",
-                "template": "Txantiloi"
+                "template": "Txantiloi",
+                "started-desktops": "Abiarazitako mahaigainak / Guztira"
             }
         },
         "direct-viewer": {
@@ -534,7 +540,96 @@
                 "subtitle": "Ez du instalaziorik behar"
             },
             "waitingip": "Mahaiagain noiz hasiko zain",
-            "title": "Mahaigaineko ikusleen sarbidea:"
+            "title": "Mahaigaineko ikusleen sarbidea:",
+            "help": {
+                "rdp": {
+                    "included": "Windowsek hura erabiltzeko behar den aplikazioa du,",
+                    "rdp-help": "RDP instalatzeko argibideak",
+                    "close-guide": "Gida itxi",
+                    "require-update": "baina baliteke eguneraketa bat behar izatea (bereziki Windows 7 eta Windows 8 bertsioetan). Eskuragarri dagoen azken bertsioa erabiltzea gomendatzen da ",
+                    "here": "hemen.",
+                    "local-client": "RDP bezeroa erabili (gomendatua)",
+                    "once-installed": "Instalatu ondoren, egin klik 'RDP' botoian, zeinak mahaigain birtualaren fitxategia deskargatuko duen."
+                },
+                "spice": {
+                    "local-client": "Tokiko bezeroa erabili (gomendatua)",
+                    "close-guide": "Gida itxi",
+                    "text": {
+                        "linux": "Linux sistema eragilean, komando hauek exekutatu behar dituzu:",
+                        "windows": "Windows sistema eragilean, exekutagarri hauetako bat deskargatu eta instalatu behar duzu:",
+                        "macos": "macOS onartzen ez den plataforma bat da. Nabigatzaile aukera erabili behar duzu",
+                        "ios": "iOS sistema eragilean, aplikazio hau instalatu behar duzu:",
+                        "android": "Android sistema eragilean, aplikazio hau instalatu behar duzu:"
+                    },
+                    "install": "Instalatu",
+                    "other-windows-versions": "beste Windows bertsio batzuk",
+                    "spice-help": "SPICE instalatzeko jarraibideak",
+                    "best-performance": "Errendimendu oneneko aukera da",
+                    "once-installed": "Instalatu ondoren, egin klik \"SPICE\" botoian, zeinak mahaigain birtualeko fitxategia deskargatuko baitu.",
+                    "spice-client-required": "baina kanpoko aplikazioren bat behar da."
+                }
+            },
+            "description": {
+                "spice": "remote-viewer programarekin zabaldu behar den fitxategi batekin mahaigainera sartu",
+                "rdpgw": "Bere erabilpenerako behar den aplikazioa Windowsek dauka",
+                "rdp": "Nabigatzaile honetatik mahaigainera sartu (Windows mahaigaineko erabiltzailea eta pasahitza beharrezkoak izango dituzu)",
+                "vnc": "Nabigatzaile honetatik mahaigainera sartu"
+            },
+            "reset-modal": {
+                "title": "Mahaigaina berrabiarazi",
+                "option": {
+                    "reset-desktop": "Mahaigaina berrabiaraztera behartzea ekintza arriskutsua da. Martxan dagoen bitartean deskonektatzearen baliokidea da. Ahal baduzu, ikusle baten barrutik gelditu."
+                },
+                "confirmation": {
+                    "reset-desktop": "Mahaigaina berrabiaraztera behartu"
+                }
+            }
+        },
+        "templates": {
+            "table-header": {
+                "description": "Deskribapena",
+                "name": "Izena",
+                "actions": "Ekintzak",
+                "template-size": "Tamaina"
+            },
+            "no-templates": {
+                "subtitle": "Hau errore bat dela uste baduzu, jarri administratzailearekin harremanetan",
+                "title": "Ez dago erabiltzaile honen txantiloirik"
+            },
+            "no-shared-templates": {
+                "title": "Ez dago partekatutako txantiloirik erabiltzaile honentzako",
+                "subtitle": "Hau errore bat dela uste baduzu, jarri administratzailearekin harremanetan"
+            },
+            "tabs": {
+                "shared-templates-compact": "Partekatua",
+                "templates": "Zure txantiloiak",
+                "templates-compact": "Zureak",
+                "shared-templates": "Zurekin partekatutako txantiloiak"
+            },
+            "buttons": {
+                "allowed": {
+                    "title": "Baimenak aldatu"
+                },
+                "enable": {
+                    "title": "Gaitu"
+                },
+                "disable": {
+                    "title": "Desgaitu"
+                },
+                "edit": {
+                    "title": "Editatu"
+                },
+                "duplicate": {
+                    "title": "Txantiloia bikoiztu"
+                }
+            }
+        },
+        "media": {
+            "tabs": {
+                "media-compact": "Zureak",
+                "shared-media": "Zurekin partekatutako baliabideak",
+                "shared-media-compact": "Partekatua"
+            }
         }
     },
     "forms": {
