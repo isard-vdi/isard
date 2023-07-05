@@ -628,7 +628,71 @@
             "tabs": {
                 "media-compact": "Zureak",
                 "shared-media": "Zurekin partekatutako baliabideak",
-                "shared-media-compact": "Partekatua"
+                "shared-media-compact": "Partekatua",
+                "media": "Zure multimedia"
+            },
+            "table-header": {
+                "group": "Taldea",
+                "actions": "Ekintzak",
+                "user": "Erabiltzailea",
+                "category": "Kategoria",
+                "name": "Izena",
+                "description": "Deskribapena",
+                "status": "Egoera",
+                "progress-size": "Aurrerapena / Tamaina"
+            },
+            "delete-media": {
+                "table-header": {
+                    "name": "Izena",
+                    "user": "Erabiltzailea",
+                    "kind": "Mota"
+                },
+                "warning": "Multimedia hau mahaigain hauetatik kenduko da. Hauke guztiak geldituko dira martxan badaude",
+                "title": "Multimedia ezabatu"
+            },
+            "status": {
+                "download-failed": "Deskargak huts egin du",
+                "downloaded": "Deskargatuta",
+                "downloading": "Deskargatzen",
+                "deleting": "Ezabatzen"
+            },
+            "no-media": {
+                "subtitle": "Errore bat dela uste baduzu, jarri harremanetan administratzailearekin",
+                "title": "Ez dago erabiltzaile honen multimediarik"
+            },
+            "no-shared-media": {
+                "title": "Ez dago erabiltzaile honekin partekatutako multimedia-edukirik",
+                "subtitle": "Errore bat dela uste baduzu, jarri harremanetan administratzailearekin"
+            },
+            "buttons": {
+                "allowed": {
+                    "title": "Baimenak aldatu"
+                },
+                "delete": {
+                    "title": "Multimedia ezabatu"
+                },
+                "new-desktop": {
+                    "title": "Mahaigain berria sortu"
+                },
+                "download": {
+                    "title": "Multimedia deskargatu"
+                },
+                "stop-download": {
+                    "title": "Deskargatzea gelditu"
+                }
+            }
+        },
+        "storage": {
+            "table-header": {
+                "last": "Azken sarbidea",
+                "percentage": "% Kuota",
+                "domains": "Mahaigainak/txantiloiak",
+                "quantity-domains": "Mahaigain kopurua/txantiloiak",
+                "actual-size": "Tamaina"
+            },
+            "no-storage": {
+                "subtitle": "Errore bat dela uste baduzu, jarri harremanetan administratzailearekin",
+                "title": "Ez dago erabiltzaile honen diskorik"
             }
         }
     },
@@ -751,7 +815,7 @@
             "title": "Media berriak sortzea:"
         },
         "edit": {
-            "title": "'{name}' editatu"
+            "title": "{name} editatu"
         },
         "password": {
             "modal": {
@@ -799,7 +863,17 @@
     },
     "messages": {
         "confirmation": {
-            "delete-desktop": "'{name}' ezabatu egingo da, jarraituko duzu?"
+            "delete-desktop": "'{name}' ezabatu egingo da, jarraituko duzu?",
+            "recreate-deployment": "\"{name}\"ren ezabatutako mahaigainak birsortuko dira, jarraitu?",
+            "visible-deployment": "Mahaigainak ikusgai egongo dira",
+            "delete-event": "\"{name}\"ren erreserba ezabatuko da, jarraitu?",
+            "start-deployment-desktops": "'{name}'ren mahaigainak abiaraziko dira, jarraitu?",
+            "delete-deployment": "\"{name}\" ezabatuko da, jarraitu?",
+            "stop-deployment-desktops": "'{name}'ren mahaigainak geldituko dira, jarraitu?",
+            "enable-template": "'{name}' erabiltzaileentzat ikusgai egongo da, jarraitu?",
+            "disable-template": "'{name}' ikusezina izango da bere erabiltzaileentzat, jarraitu?",
+            "delete-deployment-desktop": "'{name}' mahaigaina ezabatuko da, jarraitu?",
+            "create-nonpersistent": "OHARRA! Mahaigain hau aldi baterako da. Geldiaraztean, datu guztiak ezabatuko dira. Mahaigaina sortu?"
         },
         "title": {
             "delete": "Ezabatu"
