@@ -128,7 +128,6 @@ class Bookings:
         title=None,
         now=False,
     ):
-
         # CHECK: There is still empty room for this desktop resources.
 
         reservables, units, item_name = _get_reservables(item_type, item_id)
@@ -308,7 +307,6 @@ class Bookings:
         returnType="all",
         returnUnavailable=None,
     ):
-
         with app.app_context():
             bookings = list(
                 r.table("bookings")
@@ -448,3 +446,58 @@ class Bookings:
                 .count()
                 .run(db.conn)
             )
+
+    def get_booking_profile_count_within_one_hour(self):
+        profiles = []
+
+        with app.app_context():
+            profiles = (
+                r.table("bookings")
+                .filter(r.row["start"] <= r.now().add(60 * 60))
+                .filter(r.row["end"] >= r.now())
+                .map(
+                    lambda booking: (
+                        {
+                            "now": r.now().during(booking["start"], booking["end"]),
+                            "to_create": r.now()
+                            .add(30 * 60)
+                            .during(booking["start"], booking["end"]),
+                            "to_destroy": r.now()
+                            .add(60 * 60)
+                            .during(booking["start"], booking["end"]),
+                            "profile": booking["reservables"]["vgpus"][0],
+                            "units": booking["units"],
+                        }
+                    )
+                )
+                .group("profile")
+                .ungroup()
+                .map(
+                    lambda group: {
+                        "profile": group["group"].split("-")[2],
+                        "now": {
+                            "units": group["reduction"]
+                            .filter(lambda booking: booking["now"])
+                            .sum("units"),
+                            "date": r.now().to_iso8601(),
+                        },
+                        "to_create": {
+                            "units": group["reduction"]
+                            .filter(lambda booking: booking["to_create"])
+                            .sum("units"),
+                            "date": r.now().add(30 * 60).to_iso8601(),
+                        },
+                        "to_destroy": {
+                            "units": group["reduction"]
+                            .filter(lambda booking: booking["to_destroy"])
+                            .sum("units"),
+                            "date": r.now().add(60 * 60).to_iso8601(),
+                        },
+                        "model": group["group"].split("-")[1],
+                        "brand": group["group"].split("-")[0],
+                    }
+                )
+                .run(db.conn, time_format="raw")
+            )
+
+        return profiles

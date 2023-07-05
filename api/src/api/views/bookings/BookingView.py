@@ -171,6 +171,7 @@ def api_v3_booking_event(payload):
 
 ########## ADMIN ENDPOINTS
 
+
 ## List categories/groups/users with reservations available
 ## Filtering calendar
 @app.route("/api/v3/booking/admin/categories", methods=["GET"])
@@ -297,3 +298,9 @@ def api_v3_admin_booking_reservables_available(payload):
             "There's no gpu profile available to start the desktop now",
             description_code="no_available_profile",
         )
+
+
+@app.route("/api/v3/orchestrator/gpu/bookings", methods=["GET"])
+@is_admin
+def api_v3_profile_units(payload):
+    return json.dumps(apib.get_booking_profile_count_within_one_hour())

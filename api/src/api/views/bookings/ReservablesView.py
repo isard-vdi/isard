@@ -16,6 +16,7 @@ api_rp = ReservablesPlanner()
 
 #### Endpoints for resources that are reservable
 
+
 # Gets list of reservables ["gpus","usbs"]
 @app.route("/api/v3/admin/reservables", methods=["GET"])
 @is_admin
@@ -113,6 +114,7 @@ def api_v3_reservable_check_last(payload, reservable_type, subitem_id, item_id):
 #### Endpoints for planning resources
 ##########################################################################
 
+
 # Gets actual plan for item (card) /subitem (profile) reservable resources
 @app.route("/api/v3/admin/reservables_planner/actual_plan/<item_id>", methods=["GET"])
 @is_admin
@@ -205,6 +207,7 @@ def api_v3_reservables_planner_event_update(payload, plan_id, start, end):
 
 ### Booking views
 ################
+
 
 ## Where can we put a new booking
 ##
