@@ -927,5 +927,10 @@
         "forbidden": "Baliabideen baimenen inguruan errore bat gertatu da",
         "register_generic_exception": "Erregistro-prozesuan errore bat gertatu da",
         "desktop_start_timeout": "Mahaigaina abiarazterakoan denbora-muga igaro da"
+    },
+    "message-modal": {
+        "messages": {
+            "searching-resources": "Mahaigainerako baliabideak bilatzen ari gara. Minutu gutxi barru hasiko da."
+        }
     }
 }
