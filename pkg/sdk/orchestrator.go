@@ -73,6 +73,21 @@ type OrchestratorHypervisorGPU struct {
 	Profile    string `json:"profile,omitempty"`
 	TotalUnits int    `json:"total_units,omitempty"`
 	UsedUnits  int    `json:"used_units,omitempty"`
+	FreeUnits  int    `json:"free_units,omitempty"`
+}
+
+type OrchestratorGPUBooking struct {
+	Brand   string                     `json:"brand,omitempty"`
+	Model   string                     `json:"model,omitempty"`
+	Profile string                     `json:"profile,omitempty"`
+	Now     OrchestratorGPUBookingTime `json:"now,omitempty"`
+	Create  OrchestratorGPUBookingTime `json:"to_create,omitempty"`
+	Destroy OrchestratorGPUBookingTime `json:"to_destroy,omitempty"`
+}
+
+type OrchestratorGPUBookingTime struct {
+	Time  time.Time `json:"date,omitempty"`
+	Units int       `json:"units,omitempty"`
 }
 
 func (c *Client) OrchestratorHypervisorList(ctx context.Context) ([]*OrchestratorHypervisor, error) {
@@ -175,4 +190,18 @@ func (c *Client) OrchestratorHypervisorStopDesktops(ctx context.Context, id stri
 	}
 
 	return nil
+}
+
+func (c *Client) OrchestratorGPUBookingList(ctx context.Context) ([]*OrchestratorGPUBooking, error) {
+	req, err := c.newRequest(http.MethodGet, "orchestrator/gpu/bookings", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	bookings := []*OrchestratorGPUBooking{}
+	if _, err := c.do(ctx, req, &bookings); err != nil {
+		return nil, fmt.Errorf("orchestrator gpu booking list: %w", err)
+	}
+
+	return bookings, nil
 }

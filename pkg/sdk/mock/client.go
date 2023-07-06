@@ -215,3 +215,8 @@ func (c *Client) OrchestratorHypervisorStopDesktops(ctx context.Context, id stri
 	args := c.Called(ctx, id)
 	return args.Error(0)
 }
+
+func (c *Client) OrchestratorGPUBookingList(ctx context.Context) ([]*isardvdi.OrchestratorGPUBooking, error) {
+	args := c.Called(ctx)
+	return args.Get(0).([]*isardvdi.OrchestratorGPUBooking), args.Error(1)
+}

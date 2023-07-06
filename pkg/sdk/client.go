@@ -81,6 +81,7 @@ type Interface interface {
 	OrchestratorHypervisorAddToDeadRow(ctx context.Context, id string) (time.Time, error)
 	OrchestratorHypervisorRemoveFromDeadRow(ctx context.Context, id string) error
 	OrchestratorHypervisorStopDesktops(ctx context.Context, id string) error
+	OrchestratorGPUBookingList(ctx context.Context) ([]*OrchestratorGPUBooking, error)
 }
 
 func NewClient(cfg *Cfg) (*Client, error) {
