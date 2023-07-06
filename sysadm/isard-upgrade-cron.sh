@@ -197,7 +197,7 @@ if ${error-false}
 then
   exit 1
 fi
-./build.sh
+UPGRADE_EXCLUDE_HYPER="$EXCLUDE_HYPER" ./build.sh
 if [ $EXCLUDE_HYPER = 1 ]
 then
 	services="$($DOCKER_COMPOSE -f docker-compose$CONFIG_NAME.yml config --services | sed '/^isard-hypervisor$/d' | sed '/^isard-pipework$/d')"
