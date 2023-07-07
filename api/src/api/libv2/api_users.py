@@ -869,6 +869,9 @@ class ApiUsers:
                 domains = list(
                     r.table("domains")
                     .get_all(guess_ip, index="guest_ip")
+                    .filter(
+                        lambda domain: domain["status"] in ["Started", "Shutting-down"]
+                    )
                     .pluck("user", "category", "tag")
                     .run(db.conn)
                 )
@@ -933,6 +936,9 @@ class ApiUsers:
                     .get_all(
                         [proxy_video, proxy_video_port, proxy_hyper_host],
                         index="proxies",
+                    )
+                    .filter(
+                        lambda domain: domain["status"] in ["Started", "Shutting-down"]
                     )
                     .filter(r.row["viewer"]["ports"].contains(port))
                     .pluck("user", "category", "tag")
