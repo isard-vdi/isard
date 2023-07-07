@@ -237,7 +237,7 @@ def api_v3_admin_media_delete(payload, media_id):
     return jsonify(
         Task(
             user_id=payload.get("user_id"),
-            queue=f"storage.{StoragePool.get_best_for_action_by_path('delete', media.path_downloaded.rsplit('/', 1)[0]).id}.default",
+            queue=f"storage.{StoragePool.get_best_for_action('delete', path=media.path_downloaded.rsplit('/', 1)[0]).id}.default",
             task="delete",
             job_kwargs={
                 "kwargs": {
