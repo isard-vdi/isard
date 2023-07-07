@@ -47,7 +47,7 @@ def convert(convert_request):
     if convert_request.format == DiskFormat.DISK_FORMAT_UNSPECIFIED:
         raise ValueError("Please specify a disk format")
     if convert_request.format > 2:
-        raise ValueError(f"Format convert_request.format not supported")
+        raise ValueError("Format convert_request.format not supported")
     with Popen(
         [
             "qemu-img",
