@@ -109,3 +109,19 @@ class RethinkBase(ABC):
             return bool(
                 r.table(cls._rdb_table).get(document_id).run(cls._rdb_connection)
             )
+
+    @classmethod
+    def get_all(cls):
+        """
+        Get all documents.
+
+        :return: List of objects.
+        :rtype: list
+        """
+        with cls._rdb_context():
+            return [
+                cls(document["id"])
+                for document in r.table(cls._rdb_table)
+                .pluck("id")
+                .run(cls._rdb_connection)
+            ]
