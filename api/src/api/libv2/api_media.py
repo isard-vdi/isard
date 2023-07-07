@@ -143,10 +143,6 @@ class ApiMedia:
             desktop["accessed"] = int(time.time())
 
             admin_table_update("domains", desktop)
-        admin_table_update(
-            "media",
-            {"id": media_id, "status": "Deleting", "accessed": int(time.time())},
-        )
 
     def count(self, user_id):
         return r.table("media").get_all(user_id, index="user").count().run(db.conn)

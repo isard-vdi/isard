@@ -845,7 +845,8 @@
                 "downloading": "Descargando",
                 "download-failed": "Descarga fallida",
                 "downloaded": "Descargado",
-                "deleting": "Borrando"
+                "deleting": "Borrando",
+                "maintenance": "Mantenimiento"
             },
             "delete-media": {
                 "title": "Borrar medio",
@@ -962,6 +963,7 @@
         "group_total_size_limit_exceeded": "Se ha excedido el límite de tamaño de disco del grupo",
         "category_total_size_limit_exceeded": "Se ha excedido el límite de tamaño de disco de la categoría",
         "media_new_category_limit_exceeded": "Se ha excedido el límite de creación de medios de la categoría",
+        "media_not_downloaded": "Medio no Descargado",
         "media_url_not_found": "No se ha encontrado la dirección proporcionada",
         "media_url_not_valid": "La dirección proporcionada no es válida",
         "total_size_quota_exceeded": "Has excedido tu cuota de tamaño de disco. Es necesario que elimines un escritorio, una plantilla o un medio para liberar espacio.",

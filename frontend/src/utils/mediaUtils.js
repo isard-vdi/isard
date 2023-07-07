@@ -2,7 +2,9 @@ import { mediaStatus } from '../shared/constants'
 
 export class MediaUtils {
   static parseMediaList (items) {
-    return items.map((item) => {
+    return items.filter((item) => {
+      return item.status !== 'deleted'
+    }).map((item) => {
       return MediaUtils.parseMedia(item)
     }) || []
   }

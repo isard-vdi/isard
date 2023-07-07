@@ -151,7 +151,7 @@
                 #cell(actions)="data"
               >
                 <div
-                  v-if="data.item.status !== 'Downloading'"
+                  v-if="!['Downloading', 'maintenance'].includes(data.item.status)"
                   class="d-flex align-items-center"
                 >
                   <b-button
@@ -200,7 +200,7 @@
                   </b-button>
                 </div>
                 <b-button
-                  v-else
+                  v-else-if="data.item.status !== 'maintenance'"
                   class="rounded-circle px-2 mr-2 btn-red"
                   :title="$t('views.media.buttons.stop-download.title')"
                   @click="onClickStopDownload(data.item.id)"
