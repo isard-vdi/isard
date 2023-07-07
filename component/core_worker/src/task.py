@@ -138,7 +138,13 @@ def storage_update(**storage_dict):
     :param storage_dict: Storage data
     :type storage_dict: dict
     """
-    if Task(get_current_job().id).depending_status == "finished":
-        storage_object = Storage(**storage_dict)
-        for domain in Domain.get_with_storage(storage_object):
-            domain.force_update = True
+    task = Task(get_current_job().id)
+    if task.depending_status == "finished":
+        if storage_dict:
+            storage_object = Storage(**storage_dict)
+            for domain in Domain.get_with_storage(storage_object):
+                domain.force_update = True
+        else:
+            for dependency in task.dependencies:
+                if dependency.task == "qemu_img_info":
+                    storage_update(**dependency.result)
