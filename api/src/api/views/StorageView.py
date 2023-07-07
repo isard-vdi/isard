@@ -12,6 +12,7 @@ from isardvdi_protobuf.queue.storage.v1 import ConvertRequest, DiskFormat
 from api import app
 
 from .._common.api_exceptions import Error
+from .._common.domain import Domain
 from .._common.storage import Storage
 from .._common.storage_pool import StoragePool
 from .._common.task import Task
@@ -95,6 +96,100 @@ def storage_delete(payload, storage_id):
                         },
                     },
                 }
+            ],
+        ).id
+    )
+
+
+@app.route("/api/v3/storage/<storage_id>/path/<path:path>", methods=["PUT"])
+@has_token
+def storage_move(payload, storage_id, path):
+    """
+    Endpoint to move a storage to another path
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :param storage_id: Storage ID
+    :type storage_id: str
+    :param path: Absolute path without leading slash to move the storage
+    :type path: str
+    :return: Task ID
+    :rtype: Set with Flask response values and data in JSON
+    """
+    if not Storage.exists(storage_id):
+        raise Error(error="not_found", description="Storage not found")
+    ownsStorageId(payload, storage_id)
+    path = f"/{path}"
+    storage_pool_destination = StoragePool.get_best_for_action_by_path("move", path)
+    if not storage_pool_destination:
+        raise Error(error="not_found", description="Path not found")
+    storage = Storage(storage_id)
+    if storage.status != "ready":
+        raise Error(error="precondition_required", description="Storage not ready")
+    if storage.directory_path == path:
+        raise Error(error="bad_request", description="Storage already in path")
+    for domain in Domain.get_with_storage(storage):
+        if domain.status != "Stopped":
+            raise Error(
+                error="precondition_required",
+                description=f"Storage in use by domain {domain.id}",
+            )
+    if storage.children:
+        raise Error(
+            error="conflict",
+            description=f"Used as backing file for {', '.join([storage.id for storage in storage.children])}",
+        )
+    storage.status = "maintenance"
+    storage_pool_origin = StoragePool.get_best_for_action_by_path(
+        "move", storage.directory_path
+    )
+    if storage_pool_origin == storage_pool_destination:
+        queue = storage_pool_origin.id
+    else:
+        storage_pool_ids = [storage_pool_origin.id, storage_pool_destination.id]
+        storage_pool_ids.sort()
+        queue = ":".join(storage_pool_ids)
+    return jsonify(
+        Task(
+            user_id=payload.get("user_id"),
+            queue=f"storage.{queue}.default",
+            task="move",
+            job_kwargs={
+                "kwargs": {
+                    "origin_path": f"{storage.directory_path}/{storage.id}.{storage.type}",
+                    "destination_path": f"{path}/{storage.id}.{storage.type}",
+                },
+            },
+            dependents=[
+                {
+                    "queue": "core",
+                    "task": "storage_update",
+                    "job_kwargs": {
+                        "kwargs": {"id": storage.id, "directory_path": path}
+                    },
+                    "dependents": [
+                        {
+                            "queue": "core",
+                            "task": "update_status",
+                            "job_kwargs": {
+                                "kwargs": {
+                                    "statuses": {
+                                        "finished": {
+                                            "ready": {
+                                                "storage": [storage.id],
+                                            },
+                                        },
+                                        "canceled": {
+                                            "ready": {
+                                                "storage": [storage.id],
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    ],
+                },
             ],
         ).id
     )

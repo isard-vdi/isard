@@ -17,12 +17,24 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from os import remove
+from os import remove, rename
 from subprocess import PIPE, Popen
 from time import sleep
 
 from isardvdi_protobuf.queue.storage.v1 import ConvertRequest, DiskFormat
 from rq import Queue, get_current_job
+
+
+def move(origin_path, destination_path):
+    """
+    Move disk.
+
+    :param origin_path: Path of the original file
+    :type origin_path: str
+    :param destination_path: Path of the destination file
+    :type destination_path: str
+    """
+    rename(origin_path, destination_path)
 
 
 def convert(convert_request):

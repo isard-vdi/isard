@@ -30,3 +30,10 @@ class Storage(RethinkCustomBase):
     """
 
     _rdb_table = "storage"
+
+    @property
+    def children(self):
+        """
+        Returns the storages that have this storage as parent.
+        """
+        return [storage for storage in self.get_all() if storage.parent == self.id]
