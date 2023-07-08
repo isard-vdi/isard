@@ -394,10 +394,6 @@ create_docker_compose_file(){
 	then
 		parts="$(echo $parts | sed 's/postgres//' | sed 's/nc//' )"
 	fi
-	if [ "$UPGRADE_EXCLUDE_HYPER" = 1 ]
-	then
-		parts="$(echo $parts | sed 's/squid-hypervisor//' )"
-	fi
 
 	flavour "$config_name" $parts
 

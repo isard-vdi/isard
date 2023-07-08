@@ -39,7 +39,7 @@ cfgs_path="${script_path%/*/*}"
 ls $cfgs_path/isardvdi*.cfg | sed -n "s|^$cfgs_path/isardvdi\.\?\([^\.]*\)\.cfg$|\1|p" | while read config_name
 do
     # Download newer images for each flavour but do not bring it up
-    EXCLUDE_HYPER="$EXCLUDE_HYPER" "${script_path%/*}"/isard-upgrade-cron.sh -c "$config_name" -n
+    "${script_path%/*}"/isard-upgrade-cron.sh -c "$config_name" -n
     # Check which service is running in this host and restart only this one.
     if pcs status --full | grep -q "^\s*$config_name\s\+(ocf::heartbeat:compose):\s\+Started\s\+$(hostname)$"
     then
