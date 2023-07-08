@@ -4,6 +4,7 @@ from datetime import datetime
 import pytz
 from engine.services.db import (
     MAX_LEN_PREV_STATUS_HYP,
+    cleanup_hypervisor_gpus,
     close_rethink_connection,
     new_rethink_connection,
 )
@@ -96,6 +97,7 @@ def update_hyp_thread_status(thread_type, hyp_id, status):
                     ko_worker = True
 
                 if ko_worker is True and ko_disk_operations is True:
+                    cleanup_hypervisor_gpus(hyp_id)
                     result = rtable.get(hyp_id).delete().run(r_conn)
                     close_rethink_connection(r_conn)
                     return result
@@ -1120,6 +1122,30 @@ def update_db_hyp_nvidia_info(hyp_id, d_info_nvidia):
         d["model"] = d_vgpu["model"]
         d["brand"] = "NVIDIA"
         result = rtable.insert(d).run(r_conn)
+
+        gpus = list(
+            r.table("gpus")
+            .filter(
+                {
+                    "brand": d["brand"],
+                    "model": d["model"],
+                    "physical_device": None,
+                }
+            )
+            .pluck("id")
+            .run(r_conn)
+        )
+        if len(gpus) == 0:
+            logs.workers.error(
+                "A new GPU has been added to Isard, but there are no GPUs defined to accomodate it! Manual PCI assignation required for "
+                + vgpu_id
+            )
+
+        else:
+            r.table("gpus").get(gpus[0]["id"]).update({"physical_device": vgpu_id}).run(
+                r_conn
+            )
+
     close_rethink_connection(r_conn)
     return True
 

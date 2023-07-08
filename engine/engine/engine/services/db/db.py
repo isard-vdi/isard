@@ -536,3 +536,18 @@ def get_isardvdi_secret():
     )
     close_rethink_connection(r_conn)
     return d
+
+
+def cleanup_hypervisor_gpus(hyp_id: str):
+    r_conn = new_rethink_connection()
+
+    physical_devs = list(
+        r.table("vgpus").filter({"hyp_id": hyp_id})["id"].coerce_to("array").run(r_conn)
+    )
+    if len(physical_devs) != 0:
+        r.table("gpus").filter(
+            lambda gpu: r.expr(physical_devs).contains(gpu["physical_device"])
+        ).update({"physical_device": None}).run(r_conn)
+        r.table("vgpus").filter({"hyp_id": hyp_id}).delete().run(r_conn)
+
+    close_rethink_connection(r_conn)
