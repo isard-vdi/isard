@@ -108,7 +108,6 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 					Free:  200,
 				},
 			}},
-			// RataMinRAM:         300,
 			RataMaxRAM:         300,
 			ExpectedAddDeadRow: "2",
 		},
