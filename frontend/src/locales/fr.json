@@ -561,7 +561,11 @@
             "deleting-desktop": "Suppression du bureau",
             "opening-desktop": "Ouverture du bureau",
             "creating-desktop": "Création du bureau",
-            "file-downloaded": "Fichier téléchargé"
+            "file-downloaded": "Fichier téléchargé",
+            "deleting-event": "Suppression de l'événement",
+            "editing-event": "Modification de l'événement",
+            "creating-event": "Création de l'événement",
+            "missing-data": "Données manquantes"
         },
         "loading": "Chargement"
     }
