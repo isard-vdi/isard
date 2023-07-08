@@ -458,7 +458,8 @@
         "inputFormat": "Les caractères valides sont les lettres, les chiffres, la virgule, le point, -, _",
         "required": "{property} est requis.",
         "minLengthValue": "Le champ {property} a {model} caractères, mais sa longueur minimale doit être de {min}.",
-        "url": "Le champ {property} doit être une URL."
+        "url": "Le champ {property} doit être une URL.",
+        "sameAs": "Le champ {property} doit avoir la même valeur que le champ {property2}."
     },
     "forms": {
         "new-desktop": {
