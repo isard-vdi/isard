@@ -176,7 +176,7 @@ func (r *Rata) maxRAM() int {
 }
 
 // TODO: Start a smaller available hypervisor in order to scale down afterwards
-func (r *Rata) NeedToScaleHypervisors(ctx context.Context, operationsHypers []*operationsv1.ListHypervisorsResponseHypervisor, hypers []*isardvdi.OrchestratorHypervisor) (*operationsv1.CreateHypervisorRequest, *operationsv1.DestroyHypervisorRequest, string, string, error) {
+func (r *Rata) NeedToScaleHypervisors(ctx context.Context, operationsHypers []*operationsv1.ListHypervisorsResponseHypervisor, hypers []*isardvdi.OrchestratorHypervisor) (*operationsv1.CreateHypervisorsRequest, *operationsv1.DestroyHypervisorsRequest, []string, []string, error) {
 	var (
 		cpuAvail = 0
 		ramAvail = 0
@@ -262,19 +262,19 @@ availHypersLoop:
 
 		if hyperToPardon != nil {
 			r.log.Info().Str("id", hyperToPardon.ID).Int("avail_cpu", cpuAvail).Int("avail_ram", ramAvail).Int("req_cpu", reqHypersCPU).Int("req_ram", reqHypersRAM).Str("scaling", "up").Msg("cancel hypervisor destruction")
-			return nil, nil, hyperToPardon.ID, "", nil
+			return nil, nil, []string{hyperToPardon.ID}, nil, nil
 
 		} else {
 			// If not, create a new hypervisor
-			id, err := bestHyperToCreate(operationsHypersAvail, reqHypersCPU, reqHypersRAM)
+			id, err := rataBestHyperToCreate(operationsHypersAvail, reqHypersCPU, reqHypersRAM)
 			if err != nil {
-				return nil, nil, "", "", err
+				return nil, nil, nil, nil, err
 			}
 
 			r.log.Info().Str("id", id).Int("avail_cpu", cpuAvail).Int("avail_ram", ramAvail).Int("req_cpu", reqHypersCPU).Int("req_ram", reqHypersRAM).Str("scaling", "up").Msg("create hypervisor to scale up")
-			return &operationsv1.CreateHypervisorRequest{
-				Id: id,
-			}, nil, "", "", nil
+			return &operationsv1.CreateHypervisorsRequest{
+				Ids: []string{id},
+			}, nil, nil, nil, nil
 		}
 	}
 
@@ -289,7 +289,7 @@ availHypersLoop:
 				// Check if we need to kill the hypervisor (because it's time to kill it or it has 0 desktops started)
 				if !h.DestroyTime.IsZero() && (h.DestroyTime.Before(time.Now()) || h.DesktopsStarted == 0) {
 					r.log.Info().Str("id", h.ID).Str("scaling", "down").Msg("destroy hypervisor")
-					return nil, &operationsv1.DestroyHypervisorRequest{Id: h.ID}, "", "", nil
+					return nil, &operationsv1.DestroyHypervisorsRequest{Ids: []string{h.ID}}, nil, nil, nil
 
 				} else {
 					// Check if we need to move the hypervisor to the dead row
@@ -318,15 +318,15 @@ availHypersLoop:
 
 	if deadRow != nil {
 		r.log.Info().Str("id", deadRow.ID).Int("avail_cpu", cpuAvail).Int("avail_ram", ramAvail).Int("req_cpu", reqHypersCPU).Int("req_ram", reqHypersRAM).Str("scaling", "down").Msg("set hypervisor to destroy")
-		return nil, nil, "", deadRow.ID, nil
+		return nil, nil, nil, []string{deadRow.ID}, nil
 	}
 
-	return nil, nil, "", "", nil
+	return nil, nil, nil, nil, nil
 }
 
 // TODO: CPU
 // TODO: Capabilities
-func bestHyperToCreate(avail []*operationsv1.ListHypervisorsResponseHypervisor, minCPU, minRAM int) (string, error) {
+func rataBestHyperToCreate(avail []*operationsv1.ListHypervisorsResponseHypervisor, minCPU, minRAM int) (string, error) {
 	var bestHyper *operationsv1.ListHypervisorsResponseHypervisor
 	for _, h := range avail {
 		if h.State == operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_CREATE {

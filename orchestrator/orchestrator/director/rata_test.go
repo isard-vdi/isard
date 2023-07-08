@@ -28,10 +28,10 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 		RataMaxCPU                int
 		RataMaxRAM                int
 		ExpectedErr               string
-		ExpectedRemoveDeadRow     string
-		ExpectedCreateHypervisor  *operationsv1.CreateHypervisorRequest
-		ExpectedAddDeadRow        string
-		ExpectedDestroyHypervisor *operationsv1.DestroyHypervisorRequest
+		ExpectedRemoveDeadRow     []string
+		ExpectedCreateHypervisor  *operationsv1.CreateHypervisorsRequest
+		ExpectedAddDeadRow        []string
+		ExpectedDestroyHypervisor *operationsv1.DestroyHypervisorsRequest
 	}{
 		"if there's enough RAM, it should return 0": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
@@ -71,8 +71,8 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				},
 			}},
 			RataMinRAM: 500,
-			ExpectedCreateHypervisor: &operationsv1.CreateHypervisorRequest{
-				Id: "testing",
+			ExpectedCreateHypervisor: &operationsv1.CreateHypervisorsRequest{
+				Ids: []string{"testing"},
 			},
 		},
 		"if some hyperviosrs are offline, buffer, GPU only, or only forced don't cound them": {
@@ -138,8 +138,8 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				},
 			}},
 			RataMinRAM: 500,
-			ExpectedCreateHypervisor: &operationsv1.CreateHypervisorRequest{
-				Id: "testing",
+			ExpectedCreateHypervisor: &operationsv1.CreateHypervisorsRequest{
+				Ids: []string{"testing"},
 			},
 		},
 		"if there's too much free RAM, it should add the biggest hypervisor that it can to the dead row": {
@@ -176,7 +176,7 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				},
 			}},
 			RataMaxRAM:         300,
-			ExpectedAddDeadRow: "2",
+			ExpectedAddDeadRow: []string{"2"},
 		},
 		"if there's not enough RAM but there are hypervisors on the dead row, it should remove those from it": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{{
@@ -209,7 +209,7 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				},
 			}},
 			RataMinRAM:            500,
-			ExpectedRemoveDeadRow: "existing-2",
+			ExpectedRemoveDeadRow: []string{"existing-2"},
 		},
 		"if there's not enough RAM and there are multiple hypervisors on the dead row, it should remove the smallest hypervisor from it": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{{
@@ -255,7 +255,7 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				},
 			}},
 			RataMinRAM:            500,
-			ExpectedRemoveDeadRow: "existing-3",
+			ExpectedRemoveDeadRow: []string{"existing-3"},
 		},
 		"if there's an hypervisor that's been too much time on the dead row, KILL THEM!! >:(": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
@@ -291,8 +291,8 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				},
 			}},
 			RataMinRAM: 300,
-			ExpectedDestroyHypervisor: &operationsv1.DestroyHypervisorRequest{
-				Id: "2",
+			ExpectedDestroyHypervisor: &operationsv1.DestroyHypervisorsRequest{
+				Ids: []string{"2"},
 			},
 		},
 		"if there's an hypervisor that's in the dead row and has 0 desktops started, KILL THEM!! >:(": {
@@ -329,8 +329,8 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				},
 			}},
 			RataMinRAM: 300,
-			ExpectedDestroyHypervisor: &operationsv1.DestroyHypervisorRequest{
-				Id: "2",
+			ExpectedDestroyHypervisor: &operationsv1.DestroyHypervisorsRequest{
+				Ids: []string{"2"},
 			},
 		},
 		"if there aren't enough ram, but there's a small hyper in the dead row and with it the system can work, remove it from the dead row": {
@@ -359,7 +359,7 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				},
 			}},
 			RataMinRAM:            700,
-			ExpectedRemoveDeadRow: "1",
+			ExpectedRemoveDeadRow: []string{"1"},
 		},
 	}
 

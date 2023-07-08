@@ -539,8 +539,10 @@ WG_GUESTS_RESERVED_HOSTS=20
 #ORCHESTRATOR_ORCHESTRATOR_API_SECRET=
 # The director is the decision taker of the orchestrator.
 # Available directors:
-# - rata: It has minimum resources thresholds for the whole hypervisor pools and the hypervisors themselves.
-#         It doesnt take action unless those thresholds are not met
+# - rata:      It has minimum resources thresholds for the whole hypervisor pools and the hypervisors themselves.
+#              It doesnt take action unless those thresholds are not met
+#
+# - chamaleon: It works with the bookings systems to ensure there are always enough hypervisors for the bookings prepared
 #ORCHESTRATOR_ORCHESTRATOR_DIRECTOR=
 # This value is the minimum number of CPUs free in the whole hypervisor pool. If it's set to 0, there's no minimum
 #ORCHESTRATOR_ORCHESTRATOR_DIRECTOR_RATA_MIN_CPU=0

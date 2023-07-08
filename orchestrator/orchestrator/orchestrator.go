@@ -115,39 +115,39 @@ func (o *Orchestrator) Start(ctx context.Context) {
 				timeout, cancel := context.WithTimeout(ctx, o.operationsTimeout)
 				defer cancel()
 
-				if removeDeadRow != "" {
+				if len(removeDeadRow) != 0 {
 					if o.dryRun {
-						o.log.Info().Bool("DRY_RUN", true).Str("id", removeDeadRow).Msg("cancel hypervisor destruction")
+						o.log.Info().Bool("DRY_RUN", true).Array("ids", log.NewModelStrArray(removeDeadRow)).Msg("cancel hypervisors destruction")
 
 					} else {
-						go o.removeHypervisorFromDeadRow(timeout, removeDeadRow)
+						go o.removeHypervisorsFromDeadRow(timeout, removeDeadRow)
 					}
 				}
 
 				if create != nil {
 					if o.dryRun {
-						o.log.Info().Bool("DRY_RUN", true).Str("id", create.Id).Msg("create hypervisor")
+						o.log.Info().Bool("DRY_RUN", true).Array("ids", log.NewModelStrArray(create.Ids)).Msg("create hypervisor")
 
 					} else {
-						go o.createHypervisor(timeout, create)
+						go o.createHypervisors(timeout, create)
 					}
 				}
 
-				if addDeadRow != "" {
+				if len(addDeadRow) != 0 {
 					if o.dryRun {
-						o.log.Info().Bool("DRY_RUN", true).Str("id", addDeadRow).Msg("set hypervisor to destroy")
+						o.log.Info().Bool("DRY_RUN", true).Array("ids", log.NewModelStrArray(addDeadRow)).Msg("set hypervisors to destroy")
 
 					} else {
-						go o.addHypervisorToDeadRow(timeout, addDeadRow)
+						go o.addHypervisorsToDeadRow(timeout, addDeadRow)
 					}
 				}
 
 				if destroy != nil {
 					if o.dryRun {
-						o.log.Info().Bool("DRY_RUN", true).Str("id", destroy.Id).Msg("destroy hypervisor")
+						o.log.Info().Bool("DRY_RUN", true).Array("ids", log.NewModelStrArray(destroy.Ids)).Msg("destroy hypervisors")
 
 					} else {
-						go o.destroyHypervisor(timeout, destroy)
+						go o.destroyHypervisors(timeout, destroy)
 					}
 				}
 			}
