@@ -47,8 +47,8 @@ do
          then
             services="$($DOCKER_COMPOSE -f "$cfgs_path"/docker-compose.$config_name.yml config --services | sed '/^isard-\(hypervisor\|pipework\)$/d')"
             # We need to remove de squid depends on hypervisor or will be restarted without pcs environment vars
-            sed -e '/isard-squid:$/,/service_started$/ { r /dev/stdin' -e';d};' "$cfgs_path"/docker-compose.$config_name.yml <<EOF  > "$cfgs_path"/docker-compose.$config_name.yml
-isard-squid:
+            sed -i -e '/isard-squid:$/,/service_started$/ { r /dev/stdin' -e';d};' "$cfgs_path"/docker-compose.$config_name.yml <<EOF
+  isard-squid:
     container_name: isard-squid
 EOF
          else
