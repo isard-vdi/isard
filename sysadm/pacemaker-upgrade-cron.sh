@@ -39,13 +39,18 @@ cfgs_path="${script_path%/*/*}"
 ls $cfgs_path/isardvdi*.cfg | sed -n "s|^$cfgs_path/isardvdi\.\?\([^\.]*\)\.cfg$|\1|p" | while read config_name
 do
     # Download newer images for each flavour but do not bring it up
-    EXCLUDE_HYPER="$EXCLUDE_HYPER" "${script_path%/*}"/isard-upgrade-cron.sh -c "$config_name" -n
+    "${script_path%/*}"/isard-upgrade-cron.sh -c "$config_name" -n
     # Check which service is running in this host and restart only this one.
     if pcs status --full | grep -q "^\s*$config_name\s\+(ocf::heartbeat:compose):\s\+Started\s\+$(hostname)$"
     then
          if [ $EXCLUDE_HYPER = 1 ]
          then
             services="$($DOCKER_COMPOSE -f "$cfgs_path"/docker-compose.$config_name.yml config --services | sed '/^isard-\(hypervisor\|pipework\)$/d')"
+            # We need to remove de squid depends on hypervisor or will be restarted without pcs environment vars
+            sed -e '/isard-squid:$/,/service_started$/ { r /dev/stdin' -e';d};' "$cfgs_path"/docker-compose.$config_name.yml <<EOF  > "$cfgs_path"/docker-compose.$config_name.yml
+isard-squid:
+    container_name: isard-squid
+EOF
          else
             services="$($DOCKER_COMPOSE -f "$cfgs_path"/docker-compose.$config_name.yml config --services)"
          fi
