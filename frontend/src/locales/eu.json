@@ -23,7 +23,7 @@
             },
             "storage": "Biltegiratze",
             "profile": "Perfil",
-            "logout": "Logout",
+            "logout": "Saioa itxi",
             "viewers": "Ikusleak",
             "desktops": "Mahaigainak",
             "media": "Media"
@@ -60,17 +60,21 @@
                 "action": "Ekintza",
                 "description": "Deskribapena",
                 "state": "Egoera",
-                "name": "Izena"
+                "name": "Izena",
+                "desktop-size": "Tamaina"
             },
             "open-with": "Irekia",
             "actions": {
                 "delete": "Ezabatu",
-                "direct-link": "Lotura zuzena"
+                "direct-link": "Lotura zuzena",
+                "template": "Txantiloi bihurtu",
+                "edit": "zuzendu",
+                "booking": "Planifikatu"
             },
             "no-info-default": "Ez dago deskribapen erabilgarririk",
             "filter-label": "Iragazi",
             "notification-bar": {
-                "shutdown": "Itzalketa automatikoa {data} -n",
+                "shutdown": "Automatikoki itzaliko da {date} -n",
                 "next-booking": "Hurrengo erreserba",
                 "no-next-booking": "Idazmahaia ez dago erreserbatuta!",
                 "booking-ends": "Erreserba hemen amaitzen da. "
@@ -91,7 +95,7 @@
                 "error": "Bezeroaren errorea",
                 "unstable": "ezegonkor"
             },
-            "button-refresh": "Eguneratu"
+            "button-refresh": "Freskatu"
         },
         "statusbar": {
             "desktops-started": "Abiarazitako idazmahaiak",
@@ -124,8 +128,12 @@
                     },
                     "delete": {
                         "title": "Ezabatu hedapena"
+                    },
+                    "make-not-visible": {
+                        "title": "Ikustezin bihurtu"
                     }
-                }
+                },
+                "back": "Hedapeenetara itzuli"
             },
             "new-deployment": "Hedapen berria",
             "videowall": {
@@ -138,7 +146,8 @@
                 "user": "Erabiltzaile",
                 "state": "Egoera",
                 "group": "Taldea",
-                "viewers": "Ikusleak"
+                "viewers": "Ikusleak",
+                "action": "Ekintza"
             },
             "filter-label": "Iragazi",
             "actions": {
@@ -150,17 +159,117 @@
             "item": {
                 "enough-units": "Nahiko unitate",
                 "split-labels": {
-                    "availability": "Erabilgarritasun"
+                    "availability": "Erabilgarritasun",
+                    "bookings": "Erreserbak"
                 },
                 "event-titles": {
                     "available": "Eskuragarri",
-                    "overridable": "Gaindiezina"
+                    "overridable": "Gaindiezina",
+                    "unavailable": "Eskuraezin"
                 },
-                "units": "Unitateak"
+                "units": "Unitateak",
+                "modal": {
+                    "profile": "Profila",
+                    "select-profile": "Mesedez, aukeratu profil bat",
+                    "create": {
+                        "modal-title": "Gehitu erreserba",
+                        "button": "Gehitu erreserba"
+                    },
+                    "edit": {
+                        "modal-title": "Editatu erreserba",
+                        "button": "Gorde aldaketak"
+                    },
+                    "title": "Izenburu",
+                    "start-date": "Hasiera-data",
+                    "start-time": "Hasteko ordua",
+                    "end-date": "Amaiera-data",
+                    "end-time": "Azken ordua",
+                    "view": {
+                        "modal-title": "Erreserbak ikusi"
+                    },
+                    "delete": {
+                        "button": "Ezabatu"
+                    }
+                },
+                "new-planning": {
+                    "bookable-item": "Item izena",
+                    "bookable-type": "Erreserbatu daitezkeenen mota"
+                },
+                "status-bar": {
+                    "buttons": {
+                        "add-booking": "Gehitu erreserba"
+                    },
+                    "forbid-time": "Aurreratzeko denbora behar da",
+                    "max-time": "Erreserbak egiteko gehienezko denbora",
+                    "max-items": "Erreserbak gehienez"
+                }
+            },
+            "summary": {
+                "title": "Zure erreserba guztiak"
+            },
+            "errors": {
+                "end-before-start": "Erreserbaren amaiera-ordua ezin da izan hasiera-ordua baino lehenagokoa",
+                "minimum-time": "Erreserbak 5 minutu iraun behar du gutxienez",
+                "past-booking": "Ezin da erreserbarik sortu iraganean",
+                "forbid": "Denbora gehiago behar duzu erreserba sortzeko",
+                "maximum-time": "Ezin duzu erreserba bat sortu hainbeste denborarako"
             }
         },
         "select-search": {
             "empty": "Ez dago aukerarik"
+        },
+        "profile": {
+            "info": {
+                "category": "Kategoria",
+                "name": "Izena",
+                "email": "Posta elektronikoa",
+                "authentication": "Egiaztatze",
+                "group": "Taldea",
+                "user-storage": "Erabiltzaileen biltegia",
+                "role": "Rola"
+            },
+            "quota": {
+                "total-disk-size": "Erabilitako diskoaren tamaina/Diskoaren tamaina guztira",
+                "restrictions": {
+                    "user_quota": "Erabiltzaile-kuota",
+                    "group_quota": "Taldeko kuota",
+                    "category_quota": "Kategoria kuota"
+                },
+                "total-media-size": "Erabilitako media tamaina/Media tamaina guztira",
+                "title": "Aplikatutako murrizketa: {restriction}",
+                "desktops": "Mahaigain sortuak/Mahaigainak guztira",
+                "media": "Sortutako media / Media guztira",
+                "memory": "Erabilitako memoria/Memoria osoa (GB)",
+                "templates": "Sortutako txantiloiak/Txantiloiak guztira",
+                "vcpus": "Vcpus erabilia/Vcpus guztira",
+                "total-size": "Erabilitako tamaina/Guztizko tamaina (GB)",
+                "unit": "Unitate pertsonalaren tamaina/unitate osoaren tamaina (MB)",
+                "running": "Abian dauden mahaigainak / Guztira abian dauden mahaigainak"
+            },
+            "language": "Hizkuntza",
+            "change-password": "Aldatu pasahitza"
+        },
+        "start-now-modal": {
+            "title": "Hasi orain",
+            "profile": "Profila",
+            "select-profile": "Aukeratu erabiliko den profila",
+            "end-date": "Amaiera-data",
+            "select-end-date": "Aukeratu noiz arte erabiliko den",
+            "button": "Hasi mahaigaina"
+        },
+        "cant-start-now-modal": {
+            "change-desktop-gpu": {
+                "text": "Orain txartel grafikoen eredu batera alda daiteke eta martxan jarri (mahaigaineko errendimenduan eragina izan dezake)",
+                "button": "Aldatu eta hasi"
+            },
+            "title": {
+                "no-available-profile": "Gaur egun ez dago beste txartel-eredurik",
+                "available-profile": "Gaur egun ez dago mahai honen karta-eredu grafikorik ({profile})"
+            },
+            "go-to-bookings": {
+                "button": "Mahaigain erreserbatu",
+                "text": "Gorde mahaigaina karta-eredu grafikoarekin, planifikatuta egiaztatzeko"
+            }
         }
     },
     "views": {
@@ -168,10 +277,19 @@
             "title": "Akatsa",
             "codes": {
                 "401": "Zure taldeak ez du baimenik orrialde honetan sartzeko",
-                "403": "Ez duzu baimenik orri honetan sartzeko",
-                "500": "Ustekabeko errorea"
+                "403": {
+                    "subtitle": "Ez duzu nahiko baimenik edukira sartzeko.",
+                    "home": "Aukera gehiago lortzeko joan ",
+                    "title": "Debekatuta."
+                },
+                "500": {
+                    "subtitle": "Ezin zen edukira sartu.",
+                    "title": "Ustekabeko akatsa.",
+                    "home": "Aukera gehiago lortzeko joan "
+                }
             },
-            "go-home": "Hasiera"
+            "go-home": "Hasiera",
+            "here": "hemen."
         },
         "login": {
             "title": "Saioa hasi",
@@ -197,8 +315,11 @@
             "go-login": "Joan saioa hastera"
         },
         "not-found": {
-            "title": "Eskatutako helbidea ez dugu aurkitu",
-            "back": "Hasierara itzuli"
+            "title": "Zerbait gaizki atera da.",
+            "back": "Hasierara itzuli",
+            "here": "hemen.",
+            "subtitle": "Bilatzen zenuen edukia ez dago hemen.",
+            "home": "Aukera gehiago lortzeko joan "
         },
         "register": {
             "title": "Erregistroa",
@@ -244,8 +365,8 @@
                     "action": "Sortu"
                 },
                 "shutting-down": {
-                    "action": "Gelditu",
-                    "text": "Gelditu"
+                    "action": "Gelditzera behartu",
+                    "text": "Gelditzen"
                 },
                 "waitingip": {
                     "action": "Gelditu",
@@ -260,12 +381,36 @@
                 },
                 "downloading": {
                     "text": "Deskargatzen"
+                },
+                "paused": {
+                    "text": "Geldituta",
+                    "action": "Gelditu"
+                },
+                "creating": {
+                    "text": "Sortzen",
+                    "action": "Sortzen"
+                },
+                "forcedeleting": {
+                    "text": "Ezabatzen",
+                    "action": "Ezabatzen"
+                },
+                "stopping": {
+                    "text": "Gelditzen",
+                    "action": "Gelditzen"
+                },
+                "reset": {
+                    "action": "Berrezarrazten",
+                    "text": "Berrezarri"
+                },
+                "starting": {
+                    "text": "Abiarazten",
+                    "action": "Abiarazten"
                 }
             },
             "error": {
                 "open-error": {
                     "title": "Errorea",
-                    "description": "Ezin izan genuen mahai birtuala ireki akats baten ondorioz"
+                    "description": "Ezin izan dugu mahai birtuala ireki akats baten ondorioz"
                 },
                 "start-timeout": {
                     "description": "Mahaigaina abiatzen, minutuak behar izan ditzake",
@@ -277,14 +422,14 @@
                 },
                 "start-error": {
                     "title": "Errorea",
-                    "description": "Akats baten ondorioz, ezin izan dugu mahaigain birtuala sortu"
+                    "description": "Akats baten ondorioz, ezin izan dugu mahaigain birtuala abiarazi"
                 },
                 "create-quota": {
                     "description": "Mahaigain gehiegi dituzu",
                     "title": "Errorea"
                 },
                 "create-error": {
-                    "description": "Akats baten ondorioz, ezin izan dugu mahaigain birtuala sortu",
+                    "description": "Akats baten ondorioz ezin izan dugu mahaigain birtuala sortu",
                     "title": "Errorea"
                 },
                 "delete-error": {
@@ -297,7 +442,7 @@
                 },
                 "stop-error": {
                     "title": "Akats",
-                    "description": "Ezin izan genuen mahai birtuala ireki akats baten ondorioz"
+                    "description": "Ezin izan dugu mahai birtuala gelditu akats baten ondorioz"
                 },
                 "create-timeout": {
                     "title": "Denbora-mugaz kanpo",
@@ -306,10 +451,10 @@
             },
             "remove": "Ezabatu",
             "viewer-name": {
-                "browser-vnc": "Nabigatzailea",
+                "browser-vnc": "VNC nabigatzailea",
                 "file-spice": "SPICE",
                 "file-rdpvpn": "RDP VPN",
-                "browser-rdp": "RDP nabigatzaile",
+                "browser-rdp": "RDP nabigatzailea",
                 "file-rdpgw": "RDP"
             },
             "viewer": "{name} bisorea",
@@ -324,8 +469,11 @@
                 "title": "Ez dago erakusteko mahaigainik oraingo iragazkiekin"
             },
             "no-desktops": {
-                "subtitle": "Mahaigain berri bat sor dezakezu goiko eskuineko botoiarekin",
+                "subtitle": "Hau errore bat dela uste baduzu, mesedez jar zaitez administrariarekin kontaktuan",
                 "title": "Erakusteko mahaigainik ez dago oraingo iragazkiekin"
+            },
+            "no-templates-filtered": {
+                "title": "Ez dago egungo iragazkiekin erakusteko txantiloirik"
             }
         },
         "cancel": "itxi",
@@ -335,17 +483,216 @@
             },
             "desktop": {
                 "not-available": "Mahaigaina ez dago eskuragarri"
+            },
+            "visibility-warning": "Hedapen honetako mahaigainak {visibility} dira.",
+            "visibility": {
+                "visible": "Ikusgai",
+                "not-visible": "Ikus ezina"
+            },
+            "modal": {
+                "title": {
+                    "make-invisible": "'{name}' hedapena ikusezina",
+                    "download-csv": "Deskargatu {name} CSV ikusle zuzena",
+                    "make-visible": "'{name}' hedapena ikusgai"
+                },
+                "option": {
+                    "dont-stop-desktops": "Hedapen hori ikusezina izan dadila erabiltzaileentzat, eta mahaigaineko gailuen erabilera ahalbidetu dadila, geldiarazten diren arte",
+                    "stop-desktops": "Hedapen hau ikusezin bihurtu erabiltzaileentzat eta mahaigain guztiak gelditu",
+                    "make-visible": "Hedapen hori ikusarazi, hedapenaren erabiltzaileek idazmahaietara sartzeko aukera izan dezaten",
+                    "reset-csv": "Berrezarri hedapen-url-ak (ez dira erabilgarri egongo sortutako url zaharrak) eta deskargatu csv",
+                    "keep-csv": "Uneko url-ak mantendu eta deskargatu csv-a"
+                },
+                "confirmation": {
+                    "stop": "Mahaigainak gelditu",
+                    "dont-stop": "Ez gelditu mahaigainak",
+                    "make-visible": "Ikusarazi",
+                    "keep-csv": "Gorde url-ak eta deskargatu csv",
+                    "reset-csv": "berrezarri eta deskargatu csv"
+                }
             }
         },
         "deployments": {
             "no-deployments": {
                 "subtitle": "Akats bat dela uste baduzu, jar zaitez administratzailearekin harremanetan",
                 "title": "Erabiltzaile honentzat ez dago hedapenik"
+            },
+            "table-header": {
+                "name": "Izena",
+                "visible": "Ikusgai",
+                "actions": "Ekintzak",
+                "desktop-name": "Mahaigai izena",
+                "description": "Deskripzio",
+                "template": "Txantiloi",
+                "started-desktops": "Abiarazitako mahaigainak / Guztira"
             }
         },
         "direct-viewer": {
             "button": {
-                "browser": "Nabigatzailea"
+                "browser": "Nabigatzailea",
+                "browser-rdp": "RDP nabigatzailea"
+            },
+            "file": {
+                "title": "Aplikazio bidezko sarbidea",
+                "subtitle": "Beharrezkoa da software espezifikoa instalatuta izatea (errendimendu hobea)"
+            },
+            "browser": {
+                "title": "Nabigatzaile honen bidez sartu",
+                "subtitle": "Ez du instalaziorik behar"
+            },
+            "waitingip": "Mahaiagain noiz hasiko zain",
+            "title": "Mahaigaineko ikusleen sarbidea:",
+            "help": {
+                "rdp": {
+                    "included": "Windowsek hura erabiltzeko behar den aplikazioa du,",
+                    "rdp-help": "RDP instalatzeko argibideak",
+                    "close-guide": "Gida itxi",
+                    "require-update": "baina baliteke eguneraketa bat behar izatea (bereziki Windows 7 eta Windows 8 bertsioetan). Eskuragarri dagoen azken bertsioa erabiltzea gomendatzen da ",
+                    "here": "hemen.",
+                    "local-client": "RDP bezeroa erabili (gomendatua)",
+                    "once-installed": "Instalatu ondoren, egin klik 'RDP' botoian, zeinak mahaigain birtualaren fitxategia deskargatuko duen."
+                },
+                "spice": {
+                    "local-client": "Tokiko bezeroa erabili (gomendatua)",
+                    "close-guide": "Gida itxi",
+                    "text": {
+                        "linux": "Linux sistema eragilean, komando hauek exekutatu behar dituzu:",
+                        "windows": "Windows sistema eragilean, exekutagarri hauetako bat deskargatu eta instalatu behar duzu:",
+                        "macos": "macOS onartzen ez den plataforma bat da. Nabigatzaile aukera erabili behar duzu",
+                        "ios": "iOS sistema eragilean, aplikazio hau instalatu behar duzu:",
+                        "android": "Android sistema eragilean, aplikazio hau instalatu behar duzu:"
+                    },
+                    "install": "Instalatu",
+                    "other-windows-versions": "beste Windows bertsio batzuk",
+                    "spice-help": "SPICE instalatzeko jarraibideak",
+                    "best-performance": "Errendimendu oneneko aukera da",
+                    "once-installed": "Instalatu ondoren, egin klik \"SPICE\" botoian, zeinak mahaigain birtualeko fitxategia deskargatuko baitu.",
+                    "spice-client-required": "baina kanpoko aplikazioren bat behar da."
+                }
+            },
+            "description": {
+                "spice": "remote-viewer programarekin zabaldu behar den fitxategi batekin mahaigainera sartu",
+                "rdpgw": "Bere erabilpenerako behar den aplikazioa Windowsek dauka",
+                "rdp": "Nabigatzaile honetatik mahaigainera sartu (Windows mahaigaineko erabiltzailea eta pasahitza beharrezkoak izango dituzu)",
+                "vnc": "Nabigatzaile honetatik mahaigainera sartu"
+            },
+            "reset-modal": {
+                "title": "Mahaigaina berrabiarazi",
+                "option": {
+                    "reset-desktop": "Mahaigaina berrabiaraztera behartzea ekintza arriskutsua da. Martxan dagoen bitartean deskonektatzearen baliokidea da. Ahal baduzu, ikusle baten barrutik gelditu."
+                },
+                "confirmation": {
+                    "reset-desktop": "Mahaigaina berrabiaraztera behartu"
+                }
+            }
+        },
+        "templates": {
+            "table-header": {
+                "description": "Deskribapena",
+                "name": "Izena",
+                "actions": "Ekintzak",
+                "template-size": "Tamaina"
+            },
+            "no-templates": {
+                "subtitle": "Hau errore bat dela uste baduzu, jarri administratzailearekin harremanetan",
+                "title": "Ez dago erabiltzaile honen txantiloirik"
+            },
+            "no-shared-templates": {
+                "title": "Ez dago partekatutako txantiloirik erabiltzaile honentzako",
+                "subtitle": "Hau errore bat dela uste baduzu, jarri administratzailearekin harremanetan"
+            },
+            "tabs": {
+                "shared-templates-compact": "Partekatua",
+                "templates": "Zure txantiloiak",
+                "templates-compact": "Zureak",
+                "shared-templates": "Zurekin partekatutako txantiloiak"
+            },
+            "buttons": {
+                "allowed": {
+                    "title": "Baimenak aldatu"
+                },
+                "enable": {
+                    "title": "Gaitu"
+                },
+                "disable": {
+                    "title": "Desgaitu"
+                },
+                "edit": {
+                    "title": "Editatu"
+                },
+                "duplicate": {
+                    "title": "Txantiloia bikoiztu"
+                }
+            }
+        },
+        "media": {
+            "tabs": {
+                "media-compact": "Zureak",
+                "shared-media": "Zurekin partekatutako baliabideak",
+                "shared-media-compact": "Partekatua",
+                "media": "Zure multimedia"
+            },
+            "table-header": {
+                "group": "Taldea",
+                "actions": "Ekintzak",
+                "user": "Erabiltzailea",
+                "category": "Kategoria",
+                "name": "Izena",
+                "description": "Deskribapena",
+                "status": "Egoera",
+                "progress-size": "Aurrerapena / Tamaina"
+            },
+            "delete-media": {
+                "table-header": {
+                    "name": "Izena",
+                    "user": "Erabiltzailea",
+                    "kind": "Mota"
+                },
+                "warning": "Multimedia hau mahaigain hauetatik kenduko da. Hauke guztiak geldituko dira martxan badaude",
+                "title": "Multimedia ezabatu"
+            },
+            "status": {
+                "download-failed": "Deskargak huts egin du",
+                "downloaded": "Deskargatuta",
+                "downloading": "Deskargatzen",
+                "deleting": "Ezabatzen"
+            },
+            "no-media": {
+                "subtitle": "Errore bat dela uste baduzu, jarri harremanetan administratzailearekin",
+                "title": "Ez dago erabiltzaile honen multimediarik"
+            },
+            "no-shared-media": {
+                "title": "Ez dago erabiltzaile honekin partekatutako multimedia-edukirik",
+                "subtitle": "Errore bat dela uste baduzu, jarri harremanetan administratzailearekin"
+            },
+            "buttons": {
+                "allowed": {
+                    "title": "Baimenak aldatu"
+                },
+                "delete": {
+                    "title": "Multimedia ezabatu"
+                },
+                "new-desktop": {
+                    "title": "Mahaigain berria sortu"
+                },
+                "download": {
+                    "title": "Multimedia deskargatu"
+                },
+                "stop-download": {
+                    "title": "Deskargatzea gelditu"
+                }
+            }
+        },
+        "storage": {
+            "table-header": {
+                "last": "Azken sarbidea",
+                "percentage": "% Kuota",
+                "domains": "Mahaigainak/txantiloiak",
+                "quantity-domains": "Mahaigain kopurua/txantiloiak",
+                "actual-size": "Tamaina"
+            },
+            "no-storage": {
+                "subtitle": "Errore bat dela uste baduzu, jarri harremanetan administratzailearekin",
+                "title": "Ez dago erabiltzaile honen diskorik"
             }
         }
     },
@@ -382,26 +729,27 @@
                 "fullscreen-disabled": "Pantaila osoa desaktibatuta",
                 "fullscreen-enabled": "Pantaila osoa aktibatuta",
                 "guest": {
-                    "title": "RDP Login",
+                    "title": "RDP saio-hasiera",
                     "password": "Pasahitza",
-                    "warning": "OHARRA: Gonbidatuen pasahitza testu hutsean gordeko da!",
+                    "warning": "OHARRA: Gonbidatuen pasahitzak testu lauan gordeko dira!",
                     "username": "Erabiltzaile izena"
                 },
                 "title": "Ikusleak"
             },
             "hardware": {
                 "title": "Hardware",
-                "vcpus": "vCPUS",
+                "vcpus": "vCPUak",
                 "memory": "Memoria (GB)",
                 "boot": "Boot",
                 "warning": "OHARRA: Hardware hau aldatu egin zen erabiltzaile-baimenen ondorioz:",
                 "disk-size": "Diskoaren tamaina (GB)",
                 "videos": "Bideoak",
                 "interfaces": "Sareak",
-                "disk-bus": "Disk Bus"
+                "disk-bus": "Disko Bus"
             },
             "bookables": {
-                "vgpus": "GPU"
+                "vgpus": "GPU",
+                "title": "Erreserba daitezkeenak"
             },
             "media": {
                 "title": "Media",
@@ -432,14 +780,14 @@
         "new-deployment": {
             "desktop": {
                 "name": "Mahaigaineko izena",
-                "description": "Mahaigaineko deskribapena",
+                "description": "Mahaigainaren deskribapena",
                 "template": "Txantiloia",
                 "title": "Mahaigaineko datu berriak:"
             },
             "filter": "Iragazi",
             "template-table-column-headers": {
                 "name": "Izena",
-                "selected": "Aukeratu",
+                "selected": "Aukeratuak",
                 "category": "Kategoria",
                 "group": "Taldea",
                 "description": "Deskripzio",
@@ -449,7 +797,7 @@
             "title": "Hedapen berria sortzea:",
             "name": "Hedapen izena",
             "not-visible": "Erabiltzaileek ez dute ikusgai",
-            "visible": "Erabiltzaileek ikusteko moduan.",
+            "visible": "Erabiltzaileek ikusteko moduan",
             "filter-placeholder": "Idatzi bilatzeko",
             "error": {
                 "users": "Gutxienez erabiltzaile bat hautatu behar da",
@@ -467,7 +815,7 @@
             "title": "Media berriak sortzea:"
         },
         "edit": {
-            "title": "{izena}"
+            "title": "{name} editatu"
         },
         "password": {
             "modal": {
@@ -502,7 +850,8 @@
                 "enable": "Ikuslearen zuzeneko sarbidea ahalbidetzea",
                 "title": "Zuzeneko ikuslearen esteka"
             }
-        }
+        },
+        "show-pages": "Erakutsi"
     },
     "validations": {
         "required": "{property} derrigorrezkoa da.",
@@ -514,7 +863,17 @@
     },
     "messages": {
         "confirmation": {
-            "delete-desktop": "'{name}' ezabatu egingo da, jarraituko duzu?"
+            "delete-desktop": "'{name}' ezabatu egingo da, jarraituko duzu?",
+            "recreate-deployment": "\"{name}\"ren ezabatutako mahaigainak birsortuko dira, jarraitu?",
+            "visible-deployment": "Mahaigainak ikusgai egongo dira",
+            "delete-event": "\"{name}\"ren erreserba ezabatuko da, jarraitu?",
+            "start-deployment-desktops": "'{name}'ren mahaigainak abiaraziko dira, jarraitu?",
+            "delete-deployment": "\"{name}\" ezabatuko da, jarraitu?",
+            "stop-deployment-desktops": "'{name}'ren mahaigainak geldituko dira, jarraitu?",
+            "enable-template": "'{name}' erabiltzaileentzat ikusgai egongo da, jarraitu?",
+            "disable-template": "'{name}' ikusezina izango da bere erabiltzaileentzat, jarraitu?",
+            "delete-deployment-desktop": "'{name}' mahaigaina ezabatuko da, jarraitu?",
+            "create-nonpersistent": "OHARRA! Mahaigain hau aldi baterako da. Geldiaraztean, datu guztiak ezabatuko dira. Mahaigaina sortu?"
         },
         "title": {
             "delete": "Ezabatu"
@@ -535,14 +894,14 @@
         "desktop_start_category_memory_quota_exceeded": "Kategoria honentzako memoria muga gainditua",
         "user_new_group_cuota_exceeded": "Talde honentzako erabiltzaile sorrera muga gainditua",
         "template_new_group_quota_exceeded": "Taldearen txantiloi sorrera muga gainditua",
-        "template_new_user_quota_exceeded": "Erabiltzailearen txantilioi sorrera muga gainditua",
-        "desktop_start_memory_quota_exceeded": "Erabiltzaile honentzako memoria muga gainditua",
-        "desktop_start_vcpu_quota_exceeded": "Erabiltzaile honentzako vCPU muga gainditua",
+        "template_new_user_quota_exceeded": "Zure txantiloi muga gainditu duzu. Txantiloi berri bat sortu aurretik duzunetako bat desgaitu edo ezabatu behar duzu.",
+        "desktop_start_memory_quota_exceeded": "Zure memoria erabilera muga gainditu duzu. Mahaingain bat gelditu behar duzu beste bat abiarazi aurretik edo editatu mahaigain hau eta gutxitu bere memoria.",
+        "desktop_start_vcpu_quota_exceeded": "Zure vCPU muga gainditu duzu. Mahaigain bat gelditu berri bat abiarazi aurretik edo editatu mahaigain hau eta gutxitu bere vCPU kopurua.",
         "desktop_start_group_memory_quota_exceeded": "Talde honentzako memoria muga gainditua",
         "desktop_start_category_quota_exceeded": "Kategoria honentzako hasieratutako mahaigain kopurua gainditua",
         "user_new_category_cuota_exceeded": "Kategoria honentzako erabiltzaile sorrera muga gainditua",
-        "desktop_start_user_quota_exceeded": "Erabiltzaile honentzako hasieratutako mahaigain muga gainditua",
-        "desktop_new_user_quota_exceeded": "Mahaigaina sortzerakoan erabiltzaile-kuota gainditu da",
+        "desktop_start_user_quota_exceeded": "Abiarazita izan ditzakezun mahaigain muga gainditu duzu. Geldi ezazu mahaigain bat berri bat abiarazi aurretik.",
+        "desktop_new_user_quota_exceeded": "Zure mahaigain sortze muga gainditu duzu. Berri bat sortu aurretik, mahaigain bat sortu behar duzu.",
         "desktop_new_group_quota_exceeded": "Mahaigaina sortzerakoan talde-kuota gaindituta",
         "desktop_new_category_quota_exceeded": "Mahaigaina sortzerakoan kategoria-kuota gaindituta",
         "user_disabled": "Erabiltzailea desgaituta dago",
@@ -568,5 +927,10 @@
         "forbidden": "Baliabideen baimenen inguruan errore bat gertatu da",
         "register_generic_exception": "Erregistro-prozesuan errore bat gertatu da",
         "desktop_start_timeout": "Mahaigaina abiarazterakoan denbora-muga igaro da"
+    },
+    "message-modal": {
+        "messages": {
+            "searching-resources": "Mahaigainarentzako baliabideak bilatzen ari gara. Minutu gutxi barru hasiko da."
+        }
     }
 }
