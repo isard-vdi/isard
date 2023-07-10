@@ -8,6 +8,7 @@
 import traceback
 from datetime import datetime, timedelta, timezone
 
+import portion as P
 import pytz
 from rethinkdb import RethinkDB
 
@@ -447,57 +448,125 @@ class Bookings:
                 .run(db.conn)
             )
 
-    def get_booking_profile_count_within_one_hour(self):
-        profiles = []
+    """
+      Orchestrator provisioning
+    """
 
+    def get_booking_profile_count_within_one_hour(self):
         with app.app_context():
-            profiles = (
+            forecast_0 = list(
                 r.table("bookings")
-                .filter(r.row["start"] <= r.now().add(60 * 60))
+                .filter(r.row["start"] <= r.now())
                 .filter(r.row["end"] >= r.now())
-                .map(
-                    lambda booking: (
-                        {
-                            "now": r.now().during(booking["start"], booking["end"]),
-                            "to_create": r.now()
-                            .add(30 * 60)
-                            .during(booking["start"], booking["end"]),
-                            "to_destroy": r.now()
-                            .add(60 * 60)
-                            .during(booking["start"], booking["end"]),
-                            "profile": booking["reservables"]["vgpus"][0],
-                            "units": booking["units"],
-                        }
-                    )
+                .merge({"profile": r.row["reservables"]["vgpus"][0]})
+                .pluck(
+                    "id",
+                    "units",
+                    "profile",
+                    "start",
+                    "end",
                 )
                 .group("profile")
                 .ungroup()
-                .map(
-                    lambda group: {
-                        "profile": group["group"].split("-")[2],
-                        "now": {
-                            "units": group["reduction"]
-                            .filter(lambda booking: booking["now"])
-                            .sum("units"),
-                            "date": r.now().to_iso8601(),
-                        },
-                        "to_create": {
-                            "units": group["reduction"]
-                            .filter(lambda booking: booking["to_create"])
-                            .sum("units"),
-                            "date": r.now().add(30 * 60).to_iso8601(),
-                        },
-                        "to_destroy": {
-                            "units": group["reduction"]
-                            .filter(lambda booking: booking["to_destroy"])
-                            .sum("units"),
-                            "date": r.now().add(60 * 60).to_iso8601(),
-                        },
-                        "model": group["group"].split("-")[1],
-                        "brand": group["group"].split("-")[0],
-                    }
-                )
-                .run(db.conn, time_format="raw")
+                .run(db.conn)
             )
 
-        return profiles
+            forecast_30 = list(
+                r.table("bookings")
+                .filter(r.row["start"] <= r.now().add(60 * 30))
+                .filter(r.row["end"] >= r.now())
+                .merge({"profile": r.row["reservables"]["vgpus"][0]})
+                .pluck(
+                    "id",
+                    "units",
+                    "profile",
+                    "start",
+                    "end",
+                )
+                .group("profile")
+                .ungroup()
+                .run(db.conn)
+            )
+
+            forecast_60 = list(
+                r.table("bookings")
+                .filter(r.row["start"] <= r.now().add(60 * 60))
+                .filter(r.row["end"] >= r.now())
+                .merge({"profile": r.row["reservables"]["vgpus"][0]})
+                .pluck(
+                    "id",
+                    "units",
+                    "profile",
+                    "start",
+                    "end",
+                )
+                .group("profile")
+                .ungroup()
+                .run(db.conn)
+            )
+
+        # We get the full list of profiles from the largest forecast
+        profiles = [p["group"] for p in forecast_60]
+
+        profiles_forecast = []
+        for profile in profiles:
+            # TODO: Check if [0] does not fail if the profile is not in a forecast interval
+            forecast_0_plans = [
+                fp["reduction"] for fp in forecast_0 if fp["group"] == profile
+            ][0]
+            forecast_30_plans = [
+                fp["reduction"] for fp in forecast_30 if fp["group"] == profile
+            ][0]
+            forecast_60_plans = [
+                fp["reduction"] for fp in forecast_60 if fp["group"] == profile
+            ][0]
+            profile = {
+                "brand": profile.split("-")[-3],
+                "model": profile.split("-")[-2],
+                "profile": profile.split("-")[-1],
+                "now": {
+                    "units": bookings_max_units(forecast_0_plans),
+                    "date": datetime.now().astimezone().isoformat(),
+                },
+                "to_create": {
+                    "units": bookings_max_units(forecast_30_plans),
+                    "date": (
+                        datetime.now().astimezone() + timedelta(minutes=30)
+                    ).isoformat(),
+                },
+                "to_destroy": {
+                    "units": bookings_max_units(forecast_60_plans),
+                    "date": (
+                        datetime.now().astimezone() + timedelta(minutes=60)
+                    ).isoformat(),
+                },
+            }
+            profiles_forecast.append(profile)
+        return profiles_forecast
+
+
+def bookings_max_units(bookings):
+    # We need to use portions library to get bookings intersections max units
+    portions = P.IntervalDict()
+    for interval in bookings:
+        portions[P.closed(interval["start"], interval["end"])] = interval
+
+    join_plan_op = lambda x, y: {
+        "units": x["units"] + y["units"],
+        "id": x["id"] + "/" + y["id"],
+    }
+
+    output = P.IntervalDict()
+    for interval in bookings:
+        i = P.closed(interval["start"], interval["end"])
+        d = P.IntervalDict({i: {"units": interval["units"], "id": interval["id"]}})
+        output = output.combine(d, how=join_plan_op)
+
+    # We could maybe just get the max from value["units"]??
+    items = []
+    for interval, value in output.items():
+        for atomic in interval:
+            items.append((atomic, value))
+
+    # get max units for all items:
+    return max([item[1]["units"] for item in items])
