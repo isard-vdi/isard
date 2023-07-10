@@ -261,21 +261,16 @@ def _parse_desktop(desktop):
     ]
 
     if desktop["status"] == "Started":
-        if (
-            "file-rdpgw" in desktop["viewers"]
-            or "file-rdpvpn" in desktop["viewers"]
-            or "browser-rdp" in desktop["viewers"]
-        ):
-            if "wireguard" in desktop["create_dict"]["hardware"]["interfaces"]:
-                desktop["ip"] = desktop.get("viewer", {}).get("guest_ip")
-                if not desktop["ip"]:
-                    desktop["status"] = "WaitingIP"
-            else:
-                desktop["viewers"] = [
-                    v
-                    for v in desktop["viewers"]
-                    if v not in ["file-rdpgw", "file-rdpvpn", "browser-rdp"]
-                ]
+        if "wireguard" in desktop["create_dict"]["hardware"]["interfaces"]:
+            desktop["ip"] = desktop.get("viewer", {}).get("guest_ip")
+            if not desktop["ip"]:
+                desktop["status"] = "WaitingIP"
+        else:
+            desktop["viewers"] = [
+                v
+                for v in desktop["viewers"]
+                if v not in ["file-rdpgw", "file-rdpvpn", "browser-rdp"]
+            ]
 
     if desktop["status"] == "Downloading":
         progress = {
@@ -341,6 +336,7 @@ def _parse_desktop(desktop):
             "category": desktop.get("category"),
             "category_name": desktop.get("category_name"),
             "reservables": desktop["create_dict"].get("reservables"),
+            "interfaces": desktop["create_dict"].get("hardware", {}).get("interfaces"),
         },
         **_parse_desktop_booking(desktop),
     }

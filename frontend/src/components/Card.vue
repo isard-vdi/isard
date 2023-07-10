@@ -228,7 +228,7 @@
             <DesktopButton
               v-if="!hideViewers && desktop.viewers && desktop.viewers.length === 1"
               :active="desktopState === desktopStates.started || (desktopState === desktopStates.waitingip && !singleViewerNeedsIp)"
-              :button-class="buttViewerCssColor"
+              :button-class="!singleViewerNeedsIp ? 'btn-green' : buttViewerCssColor"
               :butt-text="getViewerText"
               variant="primary"
               :spinner-active="waitingIp"
@@ -238,7 +238,7 @@
               v-if="!hideViewers && desktop.viewers && desktop.viewers.length > 1"
               :dd-disabled="!showDropDown"
               css-class="viewers-dropdown m-0"
-              :class="{ 'dropdown-inactive': !showDropDown, 'dropdown-wait': isWaiting(getDefaultViewer), 'dropdown-active': !isWaiting(getDefaultViewer) }"
+              :class="{ 'dropdown-inactive': !showDropDown, 'dropdown-wait': viewerNeedsIp(getDefaultViewer) && isWaiting(desktop.interfaces), 'dropdown-active': !viewerNeedsIp(getDefaultViewer) || !isWaiting(desktop.interfaces) }"
               variant="light"
               :viewers="filterViewerFromList"
               :desktop="desktop"
@@ -478,8 +478,11 @@ export default {
         placeholder: ''
       })
     },
-    isWaiting (viewer) {
-      return this.getDefaultViewer && (this.waitingIp && DesktopUtils.viewerNeedsIp(viewer))
+    isWaiting (interfaces) {
+      return (this.waitingIp || this.desktopState === 'shutting-down') && DesktopUtils.networkNeedsIp(interfaces)
+    },
+    viewerNeedsIp (viewer) {
+      return DesktopUtils.viewerNeedsIp(viewer)
     },
     onClickGoToNewTemplate (desktopId) {
       if (this.desktop.server) {
