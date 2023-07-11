@@ -1,4 +1,4 @@
-FROM alpine:3.16.0 as production
+FROM alpine:3.18 as production
 MAINTAINER isard <info@isard.com>
 
 RUN apk add --no-cache python3 py3-pip curl openssh-client py3-gevent py3-greenlet py3-pillow  ttf-liberation
