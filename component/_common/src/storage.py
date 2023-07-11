@@ -20,6 +20,18 @@
 from .rethink_custom_base_factory import RethinkCustomBase
 
 
+def get_storage_id_from_path(path):
+    """
+    Get Storage ID from path.
+
+    :param path: Path of storage
+    :type path: str
+    :return: Storage ID
+    :rtype: str
+    """
+    return path.rsplit("/", 1)[-1].rsplit(".", 1)[0]
+
+
 class Storage(RethinkCustomBase):
     """
     Manage Storage Objects
@@ -48,6 +60,6 @@ class Storage(RethinkCustomBase):
         :return: Storage object
         :rtype: isardvdi_common.storage.Storage
         """
-        storage_id = path.rsplit("/", 1)[-1].rsplit(".", 1)[0]
+        storage_id = get_storage_id_from_path(path)
         if cls.exists(storage_id):
             return cls(storage_id)
