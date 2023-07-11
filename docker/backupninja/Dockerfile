@@ -1,4 +1,4 @@
-FROM alpine:3.15.0 as build
+FROM alpine:3.18 as build
 MAINTAINER isard <info@isard.com>
 RUN apk add --no-cache \
     automake \
@@ -12,7 +12,7 @@ RUN git clone https://gitlab.com/isard/backupninja.git && \
     bash ./autogen.sh && bash configure && \
     make && make install
 
-FROM alpine:3.14.0 as production
+FROM alpine:3.18 as production
 MAINTAINER isard <info@isard.com>
 RUN apk add --no-cache nfs-utils
 COPY --from=build /usr/local/sbin/backupninja /usr/local/sbin/backupninja
