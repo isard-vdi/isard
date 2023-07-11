@@ -1,4 +1,4 @@
-FROM alpine:3.17
+FROM alpine:3.18
 
 RUN apk add --no-cache go python3 npm
 RUN go install github.com/bufbuild/buf/cmd/buf@v1.15.0 && \
