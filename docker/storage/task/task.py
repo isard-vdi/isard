@@ -23,6 +23,7 @@ from os.path import isfile
 from subprocess import PIPE, Popen, check_output, run
 from time import sleep
 
+from isardvdi_common.task import Task
 from isardvdi_protobuf.queue.storage.v1 import ConvertRequest, DiskFormat
 from rq import Queue, get_current_job
 
@@ -113,6 +114,27 @@ def check_existence(storage_id, storage_path):
     else:
         storage["status"] = "deleted"
     return storage
+
+
+def check_backing_filename():
+    """
+    Check backing filename
+
+    :return: List of Storage data to update
+    :rtype: list
+    """
+    result = []
+    task = Task(get_current_job().id)
+    if task.depending_status == "finished":
+        for dependency in task.dependencies:
+            if dependency.task == "qemu_img_info":
+                backing_filename = dependency.result.get("qemu-img-info", {}).get(
+                    "full-backing-filename"
+                )
+                if backing_filename and not isfile(backing_filename):
+                    dependency.result["status"] = "orphan"
+                result.append(dependency.result)
+    return result
 
 
 def move(origin_path, destination_path):
