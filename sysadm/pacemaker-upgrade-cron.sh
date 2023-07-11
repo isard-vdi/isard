@@ -45,7 +45,7 @@ do
     then
          if [ $EXCLUDE_HYPER = 1 ]
          then
-            services="$($DOCKER_COMPOSE -f "$cfgs_path"/docker-compose.$config_name.yml config --services | sed '/^isard-\(hypervisor\|pipework\)$/d')"
+            services="$($DOCKER_COMPOSE -f "$cfgs_path"/docker-compose.$config_name.yml config --services | sed '/^isard-\(hypervisor\|pipework\|backupninja\)$/d')"
             # We need to remove de squid depends on hypervisor or will be restarted without pcs environment vars
             sed -i -e '/isard-squid:$/,/service_started$/ { r /dev/stdin' -e';d};' "$cfgs_path"/docker-compose.$config_name.yml <<EOF
   isard-squid:
