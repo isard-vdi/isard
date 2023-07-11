@@ -17,7 +17,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 93
+release_version = 94
+# release 94: Remove isardvdi and isardvdi-hypervisor secrets from database and use env variables
 # release 93: admins priority update with new identification
 # release 92: Add user_storage name index to check for duplicateds
 # release 91: Rename logs_users owner fields to accomodate logs_desktops and consumptions
@@ -127,6 +128,7 @@ tables = [
     "desktops_priority",
     "logs_users",
     "user_storage",
+    "secrets",
 ]
 
 
@@ -2892,6 +2894,20 @@ class Upgrade(object):
             except Exception as e:
                 print(e)
 
+        return True
+
+    def secrets(self, version):
+        table = "secrets"
+        log.info("UPGRADING " + table + " TABLE TO VERSION " + str(version))
+        if version == 94:
+            try:
+                r.table(table).get("isardvdi").delete().run(self.conn)
+            except Exception as e:
+                print(e)
+            try:
+                r.table(table).get("isardvdi-hypervisors").delete().run(self.conn)
+            except Exception as e:
+                print(e)
         return True
 
     """
