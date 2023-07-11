@@ -101,12 +101,25 @@ function socketio_on(){
         users_table.rows({ filter: 'applied' }).every(function () {
             var rowNodes = this.nodes();
             var rowData = this.data();
-            rowNodes.each(function () {
-                if ($(this).hasClass('active')) {
-                    usersToDelete.push(rowData);
-                    return false;
-                }
-            });
+            if ($('thead #select-all').prop('checked')) { // case select all is checked
+                usersToDelete.push(rowData); // get all the users filtered in the table
+                rowNodes.each(function () {
+                    if (!$(this).hasClass('active')) {
+                        var index = usersToDelete.indexOf(rowData);
+                        if (index !== -1) {
+                            usersToDelete.splice(index, 1);
+                        } // delete the unchecked rows
+                        return false;
+                    }
+                })
+            } else {
+                rowNodes.each(function () {
+                    if ($(this).hasClass('active')) {
+                        usersToDelete.push(rowData);
+                        return false;
+                    }
+                });
+            }
         });
 
         if (!(usersToDelete.length == 0)) {
@@ -116,13 +129,24 @@ function socketio_on(){
                 backdrop: 'static',
                 keyboard: false
             }).modal('show');
+            $('#table_modal_delete tbody').empty();
+            $('#table_modal_delete tbody').append(`
+                <tr class="active" id="loading-warn">
+                    <td colspan="3" style="text-align:center;">
+                        <i class="fa fa-spinner fa-pulse fa-fw">
+                        </i> Loading data...
+                    </td>
+                </tr>
+            `);
+            $('#modalDeleteUser #send').prop('disabled', true);
             $.ajax({
                 type: "POST",
                 url: "/api/v3/admin/users/delete/check",
                 data: JSON.stringify(usersToDelete),
                 contentType: "application/json"
             }).done(function (domains) {
-                $('#table_modal_delete tbody').empty()
+                $('#table_modal_delete tbody #loading-warn').remove();
+                $('#modalDeleteUser #send').prop('disabled', false)
                 $.each(domains, function (key, value) {
                     infoDomains(value, $('#table_modal_delete tbody'));
                 });
@@ -493,6 +517,12 @@ function socketio_on(){
         },
         "rowId": "id",
         "deferRender": true,
+        "createdRow": (row, data, index) => {
+            if ($('thead #select-all').prop('checked')) {
+                $(row).find('.select-checkbox input[type="checkbox"]').prop('checked', true)
+                $(row).addClass('active');
+            }
+        },
         "columns": [
             {
                 "className": 'details-control',
