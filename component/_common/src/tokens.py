@@ -19,11 +19,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import logging as log
+import os
 
 from flask import request
 from jose import jwt
-
-from api import app
+from rethinkdb import r
 
 from .api_exceptions import Error
 from .api_logs_users import LogsUsers
@@ -76,47 +76,44 @@ def get_token_auth_header():
 def get_token_payload(token):
     try:
         claims = jwt.get_unverified_claims(token)
-        if claims["kid"] == "isardvdi-viewer":
-            secret_data = {"secret": app.ram["secrets"]["isardvdi"]}
-            if not claims["data"].get("desktop_id"):
+    except:
+        raise Error(
+            "unauthorized",
+            "Bad token format",
+        )
+    try:
+        if claims.get("kid") == "isardvdi":
+            secret = os.environ.get("API_ISARDVDI_SECRET")
+        elif claims.get("kid") == "isardvdi-viewer":
+            secret = os.environ.get("API_ISARDVDI_SECRET")
+            if not claims.get("data").get("desktop_id"):
                 raise Error(
                     "unauthorized",
                     "Not authorized viewer token",
                 )
+        elif claims.get("kid") == "isardvdi-hypervisors":
+            secret = os.environ.get("API_HYPERVISORS_SECRET")
         else:
-            secret_data = app.ram["secrets"][claims["kid"]]
-            # Check if the token has the correct category
-            if secret_data.get("role_id") == "manager" and secret_data.get(
-                "category_id"
-            ) != claims["data"].get("category_id"):
-                raise Error(
-                    "unauthorized",
-                    "Not authorized category token.",
-                )
-
-    except KeyError:
-        log.warning(
-            "Claim kid "
-            + claims["kid"]
-            + " does not match any of the current secret ids in database"
-        )
+            # Not a system secret
+            raise Error(
+                "unauthorized",
+                "Bad token Key ID",
+            )
     except:
-        log.warning("JWT token with invalid parameters. Can not parse it.")
         raise Error(
             "unauthorized",
-            "Unable to parse authentication parameters token.",
+            "Unable to parse authentication token",
         )
 
     try:
         payload = jwt.decode(
             token,
-            secret_data["secret"],
+            secret,
             algorithms=["HS256"],
             options=dict(verify_aud=False, verify_sub=False, verify_exp=True),
         )
     except jwt.ExpiredSignatureError:
-        log.debug("Token expired")
-        raise Error("unauthorized", "Token is expired")
+        raise Error("unauthorized", "Token expired")
     except jwt.JWTClaimsError:
         raise Error(
             "unauthorized",
@@ -125,7 +122,7 @@ def get_token_payload(token):
     except Exception:
         raise Error(
             "unauthorized",
-            "Unable to parse authentication token.",
+            "Unable to parse authentication token",
         )
     if payload.get("data", False):
         try:

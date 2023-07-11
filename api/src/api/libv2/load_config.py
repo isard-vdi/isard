@@ -56,33 +56,6 @@ class loadConfig:
                 print("   " + str(len(tables)) + " populated")
                 time.sleep(2)
 
-        secret = app.ram["secrets"]["isardvdi"] = os.environ["API_ISARDVDI_SECRET"]
-        r.db("isard").table("secrets").insert(
-            {
-                "id": "isardvdi",
-                "secret": secret,
-                "description": "isardvdi",
-                "domain": "localhost",
-                "category_id": "default",
-                "role_id": "admin",
-            },
-            conflict="replace",
-        ).run(conn)
-        secret = app.ram["secrets"]["isardvdi-hypervisors"] = os.environ[
-            "API_HYPERVISORS_SECRET"
-        ]
-        r.db("isard").table("secrets").insert(
-            {
-                "id": "isardvdi-hypervisors",
-                "secret": secret,
-                "description": "isardvdi hypervisors access",
-                "domain": "*",
-                "category_id": "default",
-                "role_id": "hypervisor",
-            },
-            conflict="replace",
-        ).run(conn)
-
     def init_app(self, app):
         """
         Read RethinkDB configuration from environ

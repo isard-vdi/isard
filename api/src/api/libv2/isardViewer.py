@@ -60,7 +60,7 @@ def viewer_jwt(desktop_id, minutes=240, admin_role=False):
             if not admin_role
             else {"desktop_id": desktop_id, "role_id": "admin"},
         },
-        app.ram["secrets"]["isardvdi"]["secret"],
+        os.environ.get("API_ISARDVDI_SECRET"),
         algorithm="HS256",
     )
 
