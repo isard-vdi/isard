@@ -37,6 +37,7 @@ from ..helpers import (
     _parse_deployment_desktop,
     _parse_string,
     parse_domain_insert,
+    set_current_booking,
 )
 from ..validators import _validate_item
 
@@ -314,7 +315,7 @@ def create_deployment_desktops(deployment_tag, desktop_data, users):
     for user in users:
         desktop = _validate_item("desktop_from_template", desktop_data)
 
-        ApiDesktopsPersistent().NewFromTemplate(
+        domain_id = ApiDesktopsPersistent().NewFromTemplate(
             desktop["name"],
             desktop["description"],
             desktop["template_id"],
@@ -324,6 +325,13 @@ def create_deployment_desktops(deployment_tag, desktop_data, users):
             new_data=desktop,
             image=desktop.get("image"),
         )
+        domain = (
+            r.table("domains")
+            .get(domain_id)
+            .pluck("id", "create_dict", "tag")
+            .run(db.conn)
+        )
+        set_current_booking(domain)
 
 
 def checkDesktopsStarted(deployment_id):
