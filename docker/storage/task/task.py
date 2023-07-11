@@ -17,8 +17,9 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+from json import loads
 from os import environ, remove, rename
-from subprocess import PIPE, Popen, run
+from subprocess import PIPE, Popen, check_output, run
 from time import sleep
 
 from isardvdi_protobuf.queue.storage.v1 import ConvertRequest, DiskFormat
@@ -67,6 +68,32 @@ def create(storage_path, storage_type, size=None, parent_path=None, parent_type=
         ],
         check=True,
     ).returncode
+
+
+def qemu_img_info(storage_id, storage_path):
+    """
+    Get storage data with `qemu-img info` data updated.
+
+    :param storage_path: Storage path
+    :type storage_id: str
+    :return: Storage data to update
+    :rtype: dict
+    """
+    return {
+        "id": storage_id,
+        "qemu-img-info": loads(
+            check_output(
+                [
+                    "qemu-img",
+                    "info",
+                    "-U",
+                    "--output",
+                    "json",
+                    storage_path,
+                ],
+            )
+        ),
+    }
 
 
 def move(origin_path, destination_path):
