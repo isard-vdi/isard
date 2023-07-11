@@ -257,6 +257,44 @@ def storage_update_qemu_img_info(payload, storage_id):
     )
 
 
+@app.route(
+    "/api/v3/storage/<storage_id>/check_existence",
+    methods=["PUT"],
+)
+@has_token
+def storage_check_existence(payload, storage_id):
+    """
+    Endpoint that creates a Task to check storage existence.
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :param storage_id: Storage ID
+    :type storage_id: str
+    :return: Task ID
+    :rtype: Set with Flask response values and data in JSON
+    """
+    storage = set_storage_maintenance(payload, storage_id)
+    return jsonify(
+        Task(
+            user_id=payload.get("user_id"),
+            queue=f"storage.{StoragePool.get_best_for_action('check_existence', path=storage.directory_path).id}.default",
+            task="check_existence",
+            job_kwargs={
+                "kwargs": {
+                    "storage_id": storage.id,
+                    "storage_path": f"{storage.directory_path}/{storage.id}.{storage.type}",
+                }
+            },
+            dependents=[
+                {
+                    "queue": "core",
+                    "task": "storage_update",
+                }
+            ],
+        ).id
+    )
+
+
 @app.route("/api/v3/storage/<storage_id>/path/<path:path>", methods=["PUT"])
 @has_token
 def storage_move(payload, storage_id, path):
