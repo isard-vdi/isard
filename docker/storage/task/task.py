@@ -19,6 +19,7 @@
 
 from json import loads
 from os import environ, remove, rename
+from os.path import isfile
 from subprocess import PIPE, Popen, check_output, run
 from time import sleep
 
@@ -94,6 +95,23 @@ def qemu_img_info(storage_id, storage_path):
             )
         ),
     }
+
+
+def check_existence(storage_id, storage_path):
+    """
+    Returns Storage data with `ready` status if file exists otherwise with `deleted` status.
+
+    :param storage_path: Storage path
+    :type storage_id: str
+    :return: Storage data to update
+    :rtype: dict
+    """
+    storage = {"id": storage_id}
+    if isfile(storage_path):
+        storage["status"] = "ready"
+    else:
+        storage["status"] = "deleted"
+    return storage
 
 
 def move(origin_path, destination_path):
