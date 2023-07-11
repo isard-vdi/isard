@@ -35,11 +35,13 @@ Vue.use(VueRouter)
 const router = new VueRouter({
   routes: [
     {
-      path: '/desktops',
+      path: '/',
+      name: 'Home',
+      redirect: '/desktops',
       component: MainLayout,
       children: [
         {
-          path: '',
+          path: 'desktops',
           name: 'desktops',
           component: Desktops,
           meta: {
@@ -48,7 +50,7 @@ const router = new VueRouter({
           }
         },
         {
-          path: 'new',
+          path: 'desktops/new',
           name: 'desktopsnew',
           component: DesktopNew,
           meta: {
