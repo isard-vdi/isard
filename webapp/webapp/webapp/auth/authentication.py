@@ -7,20 +7,21 @@ import json
 import time
 
 import requests
-
-#!/usr/bin/env python
-# coding=utf-8
-import rethinkdb as r
 from flask import request
 from flask_login import LoginManager, UserMixin
+from rethinkdb import RethinkDB
 
 from webapp import app
 
-from ..lib.flask_rethink import RethinkDB
+#!/usr/bin/env python
+# coding=utf-8
 
-db = RethinkDB(app)
+
+r = RethinkDB()
+from ..lib.flask_rethink import RDB
+
+db = RDB(app)
 db.init_app(app)
-import traceback
 
 from ..lib.log import *
 

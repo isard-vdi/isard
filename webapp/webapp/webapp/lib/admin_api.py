@@ -7,15 +7,17 @@ import os
 import pickle
 import tarfile
 
-import rethinkdb as r
+from rethinkdb import RethinkDB
 from werkzeug.utils import secure_filename
 
 from webapp import app
 
 from ..lib.log import *
-from .flask_rethink import RethinkDB
 
-db = RethinkDB(app)
+r = RethinkDB()
+from .flask_rethink import RDB
+
+db = RDB(app)
 db.init_app(app)
 
 from flask_login import current_user

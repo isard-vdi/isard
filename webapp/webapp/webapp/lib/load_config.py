@@ -3,17 +3,12 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
-#!/usr/bin/env python
-# coding=utf-8
-
-# ~ from ..lib.log import *
-# ~ import logging as cfglog
-
 import os
 import time
-import traceback
 
-import rethinkdb as r
+from rethinkdb import RethinkDB
+
+r = RethinkDB()
 
 
 class loadConfig:
@@ -78,7 +73,6 @@ class loadConfig:
                 print("Database server OK")
                 ready = True
             except Exception as e:
-                print(traceback.format_exc())
                 print("Database server not present. Waiting to be ready")
                 time.sleep(2)
         ready = False
