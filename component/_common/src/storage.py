@@ -37,3 +37,17 @@ class Storage(RethinkCustomBase):
         Returns the storages that have this storage as parent.
         """
         return [storage for storage in self.get_all() if storage.parent == self.id]
+
+    @classmethod
+    def get_by_path(cls, path):
+        """
+        Get storage by path.
+
+        :param path: Path of storage
+        :type path: str
+        :return: Storage object
+        :rtype: isardvdi_common.storage.Storage
+        """
+        storage_id = path.rsplit("/", 1)[-1].rsplit(".", 1)[0]
+        if cls.exists(storage_id):
+            return cls(storage_id)
