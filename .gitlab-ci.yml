@@ -40,6 +40,7 @@ default:
 
 stages:
  - lint
+ - unit-test
  - version
  - docker-compose
  - docker-image-codegen
@@ -80,6 +81,28 @@ check-protobuf:
   script:
     - buf lint
     - buf breaking --against "${CI_PROJECT_URL}.git"
+
+unit-test-go:
+  stage: unit-test
+  image: go:1.19-alpine
+  before_script:
+    - echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
+    - apk add --no-cache go@edge
+    - go install github.com/boumenot/gocover-cobertura@latest
+    - cp isardvdi.cfg.example isardvdi.cfg
+    - echo "USAGE=build" >> isardvdi.cfg
+    - ./build.sh # Generate the code
+  script:
+    - export PATH=$PATH:~/go/bin
+    - go test -v -race ./... -coverprofile coverage.out -covermode atomic
+    - go tool cover -func coverage.out
+    - gocover-cobertura < coverage.out > coverage.xml
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+  coverage: /total:\s+\(statements\)\s+\d+.\d+%/
 
 version:
   stage: version
@@ -144,6 +167,8 @@ docker-compose-build:
     - echo "DOCKER_IMAGE_PREFIX=${CI_REGISTRY_IMAGE}/" >> isardvdi.build.cfg
     - echo "DOCKER_IMAGE_TAG=$CI_COMMIT_REF_SLUG" >> isardvdi.build.cfg
     - echo "USAGE=build" >> isardvdi.build.cfg
+    - cp isardvdi.build.cfg isardvdi.infrastructure.build.cfg
+    - echo "INFRASTRUCTURE_MANAGEMENT=true" >> isardvdi.infrastructure.build.cfg
     - cp isardvdi.build.cfg isardvdi.video-standalone.build.cfg
     - echo "FLAVOUR=video-standalone" >> isardvdi.video-standalone.build.cfg
     - cp isardvdi.build.cfg isardvdi.monitor.build.cfg
@@ -207,6 +232,8 @@ docker-image:
       - DOCKER_COMPOSE: build
         IMAGE_DEPENDENCY: isard-rdpgw
         IMAGE: vpn
+      - DOCKER_COMPOSE: infrastructure.build
+        IMAGE: orchestrator
       - DOCKER_COMPOSE: video-standalone.build
         IMAGE: video
       - DOCKER_COMPOSE: monitor.build
@@ -279,6 +306,7 @@ docker-tag:
           - check
           - check-client
           - vpn
+          - orchestrator
           - video
           - monitor-proxy
           - nc-proxy

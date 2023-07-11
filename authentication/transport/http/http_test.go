@@ -15,17 +15,21 @@ import (
 func TestLogin(t *testing.T) {
 	assert := assert.New(t)
 
+	httptest.NewRecorder().Result().Cookies()
+
 	cases := map[string]struct {
 		PrepareTest        func(m *authentication.AuthenticationMock)
 		Request            *http.Request
 		ExpectedStatusCode int
-		ExpectedHeader     http.Header
+		ExpectedCookies    []*http.Cookie
 		ExpectedBody       []byte
 	}{
 		"should login correctly": {
 			PrepareTest: func(m *authentication.AuthenticationMock) {
+				m.On("Provider", "local")
 				m.On("Login", context.Background(), "local", "default", map[string]string{
 					"request_body": "",
+					"token":        "",
 					"provider":     "local",
 					"category_id":  "default",
 					"username":     "nefix",
@@ -34,9 +38,10 @@ func TestLogin(t *testing.T) {
 			},
 			Request:            httptest.NewRequest(http.MethodGet, "/?provider=local&category_id=default&username=nefix&password=f0cKt3Rf$", nil),
 			ExpectedStatusCode: http.StatusOK,
-			ExpectedHeader: http.Header{
-				"Authorization": []string{"Bearer imaginethisisatoken"},
-			},
+			ExpectedCookies: []*http.Cookie{{
+				Name:  "Authorization",
+				Value: "imaginethisisatoken",
+			}},
 			ExpectedBody: []byte("imaginethisisatoken"),
 		},
 		"should return an error if the provider isn't sent": {
@@ -46,8 +51,10 @@ func TestLogin(t *testing.T) {
 		},
 		"should return an error if there's an error logging in": {
 			PrepareTest: func(m *authentication.AuthenticationMock) {
+				m.On("Provider", "local")
 				m.On("Login", context.Background(), "local", "default", map[string]string{
 					"request_body": "",
+					"token":        "",
 					"provider":     "local",
 					"category_id":  "default",
 					"username":     "nefix",
@@ -60,8 +67,10 @@ func TestLogin(t *testing.T) {
 		},
 		"should redirect if the login function says so": {
 			PrepareTest: func(m *authentication.AuthenticationMock) {
+				m.On("Provider", "local")
 				m.On("Login", context.Background(), "local", "default", map[string]string{
 					"request_body": "",
+					"token":        "",
 					"provider":     "local",
 					"category_id":  "default",
 					"username":     "nefix",
@@ -70,18 +79,17 @@ func TestLogin(t *testing.T) {
 			},
 			Request:            httptest.NewRequest(http.MethodGet, "/?provider=local&category_id=default&username=nefix&password=f0cKt3Rf$", nil),
 			ExpectedStatusCode: http.StatusFound,
-			ExpectedHeader: http.Header{
-				"Authorization": []string{"Bearer imaginethisisatoken"},
-				"Content-Type":  []string{"text/html; charset=utf-8"},
-				"Location":      []string{"/"},
-			},
+			ExpectedCookies: []*http.Cookie{{
+				Name:  "Authorization",
+				Value: "imaginethisisatoken",
+			}},
 			ExpectedBody: []byte("<a href=\"/\">Found</a>.\n\n"),
 		},
 	}
 
 	for name, tt := range cases {
 		t.Run(name, func(t *testing.T) {
-			mock := &authentication.AuthenticationMock{}
+			mock := authentication.NewAuthenticationMock()
 
 			a := &AuthenticationServer{Authentication: mock}
 
@@ -94,11 +102,10 @@ func TestLogin(t *testing.T) {
 			handler.ServeHTTP(rr, tt.Request)
 
 			assert.Equal(tt.ExpectedStatusCode, rr.Code)
-
-			if tt.ExpectedHeader == nil {
-				tt.ExpectedHeader = http.Header{}
+			assert.Len(rr.Result().Cookies(), len(tt.ExpectedCookies))
+			for i, c := range rr.Result().Cookies() {
+				assert.Equal(tt.ExpectedCookies[i].Value, c.Value)
 			}
-			assert.Equal(tt.ExpectedHeader, rr.Header())
 			assert.Equal(tt.ExpectedBody, rr.Body.Bytes())
 
 			mock.AssertExpectations(t)

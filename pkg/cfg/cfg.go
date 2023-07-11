@@ -1,10 +1,14 @@
 package cfg
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
+	"time"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 )
@@ -66,7 +70,11 @@ func New(name string, setDefaults func(), target interface{}) {
 		log.Warn().Str("service", name).Msg("Configuration file not found, using environment variables and defaults")
 	}
 
-	if err := viper.Unmarshal(target); err != nil {
+	if err := viper.Unmarshal(target, viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
+		TimeMapHook(),
+		mapstructure.StringToTimeDurationHookFunc(),
+		mapstructure.StringToSliceHookFunc(","),
+	))); err != nil {
 		log.Fatal().Str("service", name).Err(err).Msg("unmarshal configuration")
 	}
 
@@ -102,4 +110,40 @@ func SetHTTPDefaults() {
 		"host": "",
 		"port": 1313,
 	})
+}
+
+func TimeMapHook() mapstructure.DecodeHookFuncType {
+	return func(
+		f reflect.Type,
+		t reflect.Type,
+		data interface{},
+	) (interface{}, error) {
+		if f.Kind() != reflect.String {
+			return data, nil
+		}
+
+		if t != reflect.TypeOf(map[time.Weekday]map[time.Time]int{}) {
+			return data, nil
+		}
+
+		weekMap := map[time.Weekday]map[string]int{}
+		if err := json.Unmarshal([]byte(data.(string)), &weekMap); err != nil {
+			return nil, fmt.Errorf("invalid time map: %w", err)
+		}
+
+		timeMap := map[time.Weekday]map[time.Time]int{}
+		for i, strMap := range weekMap {
+			timeMap[i] = map[time.Time]int{}
+			for k, v := range strMap {
+				t, err := time.Parse("15:04", k)
+				if err != nil {
+					return nil, fmt.Errorf("invalid time '%s': %w", k, err)
+				}
+
+				timeMap[i][t] = v
+			}
+		}
+
+		return timeMap, nil
+	}
 }

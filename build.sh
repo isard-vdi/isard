@@ -59,6 +59,8 @@ ALLINONE_PARTS="
 	core_worker
 	nc
 	postgres
+	infrastructure
+	check
 "
 HYPERVISOR_KEY="hypervisor"
 HYPERVISOR_PARTS="
@@ -115,6 +117,7 @@ WEB_PARTS="
 	core_worker
 	nc
 	postgres
+	infrastructure
 "
 MONITOR_STANDALONE_KEY="monitor"
 MONITOR_STANDALONE_PARTS="
@@ -395,6 +398,18 @@ create_docker_compose_file(){
 		parts="$(echo $parts | sed 's/postgres//' | sed 's/nc//' )"
 	fi
 
+	if [ -z "$INFRASTRUCTURE_MANAGEMENT" ] || [ "$INFRASTRUCTURE_MANAGEMENT" != "true" ]
+	then
+		parts="$(echo $parts | sed 's/infrastructure//')"
+
+		# If the flavour is check, it doesn't require INFRASTRUCTURE_MANAGEMENT to be set
+		if [ "$FLAVOUR" != "check" ]
+		then
+			parts="$(echo $parts | sed 's/check//')"
+		fi
+	fi
+
+	# Build the docker-compose.yml
 	flavour "$config_name" $parts
 
 	if [ "$BACKUP_NFS_ENABLED" = "true" ]

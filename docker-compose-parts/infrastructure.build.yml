@@ -1,0 +1,6 @@
+version: '3.5'
+services:
+  isard-orchestrator:
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: orchestrator/build/package/Dockerfile

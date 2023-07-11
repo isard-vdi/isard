@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"gitlab.com/isard/isardvdi/pkg/jwt"
 	"gitlab.com/isard/isardvdi/pkg/log"
 	"gitlab.com/isard/isardvdi/stats/cfg"
 	"gitlab.com/isard/isardvdi/stats/collector"
@@ -175,7 +176,19 @@ func startCollectors(cfg cfg.Cfg, log *zerolog.Logger) ([]collector.Collector, *
 		if err != nil {
 			log.Fatal().Err(err).Str("domain", cfg.Domain).Msg("create API client")
 		}
-		a := collector.NewIsardVDIAPI(log, cli, cfg.Collectors.IsardVDIAPI.Secret)
+
+		cli.SetBeforeRequestHook(func(c *client.Client) error {
+			tkn, err := jwt.SignAPIJWT(cfg.Collectors.IsardVDIAPI.Secret)
+			if err != nil {
+				return fmt.Errorf("sign JWT token for calling the API: %w", err)
+			}
+
+			c.SetToken(tkn)
+
+			return nil
+		})
+
+		a := collector.NewIsardVDIAPI(log, cli)
 		collectors = append(collectors, a)
 	}
 

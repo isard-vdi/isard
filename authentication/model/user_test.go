@@ -2,6 +2,7 @@ package model_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"gitlab.com/isard/isardvdi/authentication/model"
@@ -24,6 +25,7 @@ func TestUserLoad(t *testing.T) {
 			PrepareTest: func(m *r.Mock) {
 				m.On(r.Table("users").Get("local-default-admin-admin")).Return([]interface{}{
 					map[string]interface{}{
+						"id":       "local-default-admin-admin",
 						"uid":      "admin",
 						"username": "admin",
 						"password": "f0ckt3Rf$",
@@ -38,12 +40,10 @@ func TestUserLoad(t *testing.T) {
 				}, nil)
 			},
 			User: &model.User{
-				Provider: "local",
-				Category: "default",
-				UID:      "admin",
-				Username: "admin",
+				ID: "local-default-admin-admin",
 			},
 			ExpectedUser: &model.User{
+				ID:       "local-default-admin-admin",
 				UID:      "admin",
 				Username: "admin",
 				Password: "f0ckt3Rf$",
@@ -58,7 +58,7 @@ func TestUserLoad(t *testing.T) {
 		},
 		"should return an error if there's an error querying the DB": {
 			PrepareTest: func(m *r.Mock) {
-				m = nil
+				m.On(r.Table("users").Get("")).Return(nil, errors.New(":)"))
 			},
 			User: &model.User{
 				Provider: "local",
@@ -73,10 +73,7 @@ func TestUserLoad(t *testing.T) {
 				m.On(r.Table("users").Get("local-default-fakeuser-fakeuser")).Return([]interface{}{}, nil)
 			},
 			User: &model.User{
-				Provider: "local",
-				Category: "default",
-				UID:      "fakeuser",
-				Username: "fakeuser",
+				ID: "local-default-fakeuser-fakeuser",
 			},
 			ExpectedUser: &model.User{},
 			ExpectedErr:  db.ErrNotFound.Error(),

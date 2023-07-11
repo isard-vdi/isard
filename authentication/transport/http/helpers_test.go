@@ -26,6 +26,7 @@ func TestParseArgs(t *testing.T) {
 				"argument_test":          "value",
 				"argument_with_no_value": "",
 				"request_body":           "",
+				"token":                  "",
 			},
 		},
 		"should parse the POST arguments correctly": {
@@ -41,6 +42,7 @@ func TestParseArgs(t *testing.T) {
 			ExpectedArgs: map[string]string{
 				"argument_test": "value",
 				"request_body":  "",
+				"token":         "",
 			},
 		},
 		"should parse the JSON arguments correctly": {
@@ -53,6 +55,7 @@ func TestParseArgs(t *testing.T) {
 				"provider":     "local",
 				"category_id":  "default",
 				"request_body": `{"provider": "local","category_id":"default","argument_test": "value","another_value": "testing"}`,
+				"token":        "",
 			},
 		},
 		"should parse GET parameters with a POST request": {
@@ -63,6 +66,7 @@ func TestParseArgs(t *testing.T) {
 				"argument_test":          "value",
 				"argument_with_no_value": "",
 				"request_body":           "",
+				"token":                  "",
 			},
 		},
 	}
