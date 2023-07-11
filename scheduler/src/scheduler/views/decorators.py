@@ -21,7 +21,7 @@
 import traceback
 from functools import wraps
 
-from ..auth.tokens import Error, get_header_jwt_payload
+from .._common.tokens import Error, get_header_jwt_payload
 from ..lib.exceptions import Error
 
 
