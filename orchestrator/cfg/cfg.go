@@ -67,7 +67,7 @@ func setDefaults() {
 
 	viper.SetDefault("orchestrator", map[string]interface{}{
 		"polling_interval":   "30s",
-		"operations_timeout": "5m",
+		"operations_timeout": "15m",
 		"operations_address": "isard-operations:1312",
 		"check_address":      "isard-check:1312",
 		"api_address":        "http://isard-api:5000",

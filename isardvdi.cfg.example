@@ -515,7 +515,7 @@ WG_GUESTS_RESERVED_HOSTS=20
 #ORCHESTRATOR_ORCHESTRATOR_POLLING_INTERVAL=30s
 # The timeout of the operations. If the timeout is reached, the operation fails and throws an error
 # The format is the Go time duration: https://pkg.go.dev/time#ParseDuration
-#ORCHESTRATOR_ORCHESTRATOR_OPERATIONS_TIMEOUT=5m
+#ORCHESTRATOR_ORCHESTRATOR_OPERATIONS_TIMEOUT=15m
 # The address of the operations gRPC service
 #ORCHESTRATOR_ORCHESTRATOR_OPERATIONS_ADDRESS=isard-operations:1312
 # The address of the check gRPC service
