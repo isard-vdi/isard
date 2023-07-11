@@ -51,6 +51,23 @@ class Storage(RethinkCustomBase):
         return [storage for storage in self.get_all() if storage.parent == self.id]
 
     @classmethod
+    def create_from_path(cls, path):
+        """
+        Create Storage from path.
+
+        :param path: Path of storage
+        :type path: str
+        :return: Storage object
+        :rtype: isardvdi_common.storage.Storage
+        """
+        return Storage(
+            id=get_storage_id_from_path(path),
+            type=path.rsplit(".", 1)[-1],
+            directory_path=path.rsplit("/", 1)[0],
+            status="ready",
+        )
+
+    @classmethod
     def get_by_path(cls, path):
         """
         Get storage by path.
