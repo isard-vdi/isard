@@ -75,6 +75,7 @@ class DomainsThread(threading.Thread):
                             "user",
                             "category",
                             {"viewer": {"guest_ip": True}},
+                            "image",
                         )
                         .changes(include_initial=False, squash=0.5)
                         .run(db.conn)
