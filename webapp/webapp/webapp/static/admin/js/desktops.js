@@ -28,6 +28,7 @@ columns= [
     { "data": "ram"},
     { "data": "create_dict.hardware.vcpus", "width": "10px"},
     { "data": "username"},
+    { "data": "role"},
     { "data": "category_name"},
     { "data": "group_name"},
     { "data": "server", "width": "10px", "defaultContent":"-"},
@@ -74,7 +75,7 @@ columnDefs = [
             return (full.create_dict.hardware.memory / 1024 / 1024).toFixed(2) + "GB"
         }
     },{
-        "targets": 10,
+        "targets": 11,
         "render": function (data, type, full, meta) {
             if('server' in full){
                 if(full["server"] == true){
@@ -87,7 +88,7 @@ columnDefs = [
             }
         }
     },{
-        "targets": 11,
+        "targets": 12,
         "render": function (data, type, full, meta) {
             if('hyp_started' in full && full.hyp_started != ''){
                 return full.hyp_started;
@@ -96,7 +97,7 @@ columnDefs = [
             }
         }
     },{
-        "targets": 12,
+        "targets": 13,
         "render": function (data, type, full, meta) {
             if('favourite_hyp' in full && full.favourite_hyp != ''){ 
                 return full.favourite_hyp.join(",");
@@ -105,7 +106,7 @@ columnDefs = [
             }
         }
     },{
-        "targets": 13,
+        "targets": 14,
         "render": function (data, type, full, meta) {
             if('forced_hyp' in full && full.forced_hyp != ''){
                 return full.forced_hyp.join(",");
@@ -114,7 +115,7 @@ columnDefs = [
             }
         }
     },{
-        "targets": 14,
+        "targets": 15,
         "render": function (data, type, full, meta) {
             if ( type === 'display' || type === 'filter' ) {
                 return moment.unix(full.accessed).fromNow()

@@ -497,7 +497,6 @@ class ApiAdmin:
                 if categories:
                     query = query.get_all(r.args(categories))
                 query = query.eq_join("id", r.table("groups"), index="parent_category")
-
                 query = query.map(
                     lambda doc: {
                         "group_id": doc["right"]["id"],
@@ -509,6 +508,13 @@ class ApiAdmin:
                 query = query.eq_join(
                     "group_id", r.table("domains"), index="group"
                 ).filter({"right": {"kind": "desktop"}})
+                query = query.merge(
+                    lambda doc: {
+                        "right": r.table("users")
+                        .get(doc["right"]["user"])
+                        .pluck("role")
+                    }
+                )
                 if categories:
                     query.filter(r.row["right"]["category"] in categories)
 
@@ -534,6 +540,7 @@ class ApiAdmin:
                                 "forced_hyp",
                                 "favourite_hyp",
                                 "booking_id",
+                                "role",
                             ],
                             "left": ["group_name", "category_name"],
                         }
