@@ -84,7 +84,7 @@ check-protobuf:
 
 unit-test-go:
   stage: unit-test
-  image: go:1.20-alpine
+  image: golang:1.20-alpine
   before_script:
     - echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
     - apk add --no-cache go@edge
