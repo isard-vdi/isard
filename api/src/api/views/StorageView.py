@@ -20,6 +20,26 @@ from ..libv2.api_storage import get_disks, parse_disks
 from .decorators import has_token, ownsStorageId
 
 
+def set_storage_maintenance(payload, storage_id):
+    """
+    Set storage to maintenance status.
+
+    :param storage_id: Storage ID
+    :type storage_id: str
+    :return: Storage object
+    :rtype: isardvdi_common.storage.Storage
+    """
+
+    if not Storage.exists(storage_id):
+        raise Error(error="not_found", description="Storage not found")
+    ownsStorageId(payload, storage_id)
+    storage = Storage(storage_id)
+    if storage.status != "ready":
+        raise Error(error="precondition_required", description="Storage not ready")
+    storage.status = "maintenance"
+    return storage
+
+
 @app.route("/api/v3/storage", methods=["POST"])
 @has_token
 def create_storage(payload):
@@ -153,13 +173,7 @@ def storage_delete(payload, storage_id):
     :return: Task ID
     :rtype: Set with Flask response values and data in JSON
     """
-    if not Storage.exists(storage_id):
-        raise Error(error="not_found", description="Storage not found")
-    ownsStorageId(payload, storage_id)
-    storage = Storage(storage_id)
-    if storage.status != "ready":
-        raise Error(error="precondition_required", description="Storage not ready")
-    storage.status = "maintenance"
+    storage = set_storage_maintenance(payload, storage_id)
     return jsonify(
         Task(
             user_id=payload.get("user_id"),
@@ -212,13 +226,7 @@ def storage_update_qemu_img_info(payload, storage_id):
     :return: Task ID
     :rtype: Set with Flask response values and data in JSON
     """
-    if not Storage.exists(storage_id):
-        raise Error(error="not_found", description="Storage not found")
-    ownsStorageId(payload, storage_id)
-    storage = Storage(storage_id)
-    if storage.status != "ready":
-        raise Error(error="precondition_required", description="Storage not ready")
-    storage.status = "maintenance"
+    storage = set_storage_maintenance(payload, storage_id)
     return jsonify(
         Task(
             user_id=payload.get("user_id"),
@@ -382,14 +390,8 @@ def storage_convert(payload, storage_id, new_storage_type, compress=None):
             error="bad_request",
             description=f"Storage type {new_storage_type} not supported",
         )
-    if not Storage.exists(storage_id):
-        raise Error(error="not_found", description="Storage not found")
-    ownsStorageId(payload, storage_id)
+    origin_storage = set_storage_maintenance(payload, storage_id)
     compress = request.url_rule.rule.endswith("/compress")
-    origin_storage = Storage(storage_id)
-    if origin_storage.status != "ready":
-        raise Error(error="precondition_required", description="Storage not ready")
-    origin_storage.status = "maintenance"
     new_storage = Storage(
         user_id=origin_storage.user_id,
         status="creating",
