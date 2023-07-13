@@ -21,7 +21,9 @@ variables:
   # creates them automatically on boot, and creates
   # `/certs/client` to share between the service and job
   # container, thanks to volume mount from config.toml
+  DOCKER_HOST: tcp://docker:2376
   DOCKER_TLS_CERTDIR: "/certs"
+  FF_NETWORK_PER_BUILD: 1
 
 default:
   cache: &global_cache
@@ -40,10 +42,11 @@ default:
 
 stages:
  - lint
+ - docker-image-codegen
+ - gen
  - unit-test
  - version
  - docker-compose
- - docker-image-codegen
  - docker-images
  - test
  - docker-registry
@@ -52,8 +55,9 @@ stages:
 commit-lint:
   stage: lint
   image: node
+  before_script:
+    - npm install -g @commitlint/config-conventional
   script:
-    - npm i --save @commitlint/config-conventional
     - git fetch https://gitlab.com/isard/isardvdi.git main
     - npx commitlint -x "@commitlint/config-conventional" --from=$(git merge-base HEAD FETCH_HEAD)
 
@@ -82,16 +86,42 @@ check-protobuf:
     - buf lint
     - buf breaking --against "${CI_PROJECT_URL}.git"
 
+docker-image-codegen:
+  image: docker:latest
+  stage: docker-image-codegen
+  services:
+  - name: "docker:dind-rootless"
+  parallel:
+    matrix:
+      - DOCKERFILE: docker/codegen/Dockerfile
+        IMAGE: codegen
+  before_script:
+    - until docker info; do sleep 1; done
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  script:
+    - docker build -f $DOCKERFILE --cache-from registry.gitlab.com/isard/isardvdi/$IMAGE:main -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
+    - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
+    - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
+
+gen-protobuf:
+  stage: gen
+  image: docker:latest
+  services:
+    - name: "docker:dind-rootless"
+  before_script:
+    - until docker info; do sleep 1; done
+  script:
+    - docker run -u $(id -u) -v "$(pwd):/build" "$CI_REGISTRY_IMAGE/codegen:git-$CI_COMMIT_SHORT_SHA"
+  artifacts:
+    paths:
+      - pkg/gen
+
 unit-test-go:
   stage: unit-test
-  image: golang:1.20-alpine
+  image: golang:1.20
   before_script:
-    - echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
-    - apk add --no-cache go@edge
+    - apt-get update && apt-get install -y libvirt-dev
     - go install github.com/boumenot/gocover-cobertura@latest
-    - cp isardvdi.cfg.example isardvdi.cfg
-    - echo "USAGE=build" >> isardvdi.cfg
-    - ./build.sh # Generate the code
   script:
     - export PATH=$PATH:~/go/bin
     - go test -v -race ./... -coverprofile coverage.out -covermode atomic
@@ -112,9 +142,10 @@ version:
     # GITLAB_TOKEN in unprotected branches due to security reasons.
     # https://github.com/semantic-release/semantic-release/issues/2207
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-  script:
+  before_script:
     - npm install -g semantic-release @semantic-release/exec conventional-changelog-conventionalcommits
     - cp releaserc.version.yml .releaserc.yml
+  script:
     - semantic-release --dry-run --branches $CI_COMMIT_REF_NAME
   artifacts:
     paths:
@@ -125,8 +156,9 @@ changelog-preview:
   # see comment in job "version".
   stage: version
   image: node
-  script:
+  before_script:
     - npm install -g conventional-changelog-cli conventional-changelog-conventionalcommits
+  script:
     - conventional-changelog -p conventionalcommits -o CHANGELOG.md
     - cat CHANGELOG.md
   artifacts:
@@ -137,16 +169,16 @@ docker-compose-demo:
   stage: docker-compose
   image: docker:latest
   services:
-    - name: "docker:dind"
-      command: ["--registry-mirror", "http://192.168.0.5:5000"]
-  script:
-    - test "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" -a ! -e ".VERSION" && exit 0
+    - name: "docker:dind-rootless"
+  before_script:
     - apk add bash git
     # Use docker compose < 1.27 to avoid depends_on issue
     # https://github.com/isard-vdi/isard/issues/390
     - apk info -q --depends docker-compose | xargs apk add
     - apk add py3-pip
     - pip install docker-compose~=1.26.0
+  script:
+    - test "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" -a ! -e ".VERSION" && exit 0
     - cp isardvdi.cfg.example isardvdi.cfg
     - echo "DOCKER_IMAGE_PREFIX=${CI_REGISTRY_IMAGE}/" >> isardvdi.cfg
     - echo "DOCKER_IMAGE_TAG=$CI_COMMIT_REF_SLUG" >> isardvdi.cfg
@@ -159,10 +191,10 @@ docker-compose-build:
   stage: docker-compose
   image: docker:latest
   services:
-    - name: "docker:dind"
-      command: ["--registry-mirror", "http://192.168.0.5:5000"]
+    - name: "docker:dind-rootless"
+  before_script:
+    - apk add bash git docker-compose yq
   script:
-    - apk add bash git docker-compose
     - cp isardvdi.cfg.example isardvdi.build.cfg
     - echo "DOCKER_IMAGE_PREFIX=${CI_REGISTRY_IMAGE}/" >> isardvdi.build.cfg
     - echo "DOCKER_IMAGE_TAG=$CI_COMMIT_REF_SLUG" >> isardvdi.build.cfg
@@ -178,34 +210,17 @@ docker-compose-build:
     - cp isardvdi.build.cfg isardvdi.nextcloud.build.cfg
     - echo "FLAVOUR=nextcloud" >> isardvdi.nextcloud.build.cfg
     - BACKUP_DB_ENABLED=true CODEGEN=false ./build.sh
+    - |-
+      for file in docker-compose*.yml; do yq -i '.services |= map_values(.build.cache_from = [ "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":main" ])' $file; done
   artifacts:
     paths:
       - docker-compose*.yml
-
-docker-image-codegen:
-  image: docker:latest
-  stage: docker-image-codegen
-  services:
-  - name: "docker:dind"
-    command: ["--registry-mirror", "http://192.168.0.5:5000"]
-  parallel:
-    matrix:
-      - DOCKERFILE: docker/codegen/Dockerfile
-        IMAGE: codegen
-  before_script:
-    - until docker info; do sleep 1; done
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-  script:
-    - docker build -f $DOCKERFILE -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
-    - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
-    - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
 
 docker-image:
   image: docker:latest
   stage: docker-images
   services:
-    - name: "docker:dind"
-      command: ["--registry-mirror", "http://192.168.0.5:5000"]
+    - name: "docker:dind-rootless"
   parallel:
     matrix:
       - DOCKER_COMPOSE: build
@@ -247,12 +262,11 @@ docker-image:
           - nc-proxy
           - nc-app
   before_script:
+    - apk add git docker-compose
     - until docker info; do sleep 1; done
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
-    - apk add git docker-compose
     - git submodule update --init --recursive --remote
-    - docker run -u $(id -u) -v "$(pwd):/build" "$CI_REGISTRY_IMAGE/codegen:git-$CI_COMMIT_SHORT_SHA"
     - echo $IMAGE_DEPENDENCY isard-$IMAGE | xargs -n1 docker-compose -f docker-compose.$DOCKER_COMPOSE.yml build
     - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
     - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
