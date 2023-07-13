@@ -124,14 +124,16 @@ class ResourceItemsGpus:
         }
         _validate_item("gpus", new_gpu)
 
-        if not _check(
-            r.table("gpus").insert(new_gpu, conflict="update").run(db.conn), "inserted"
-        ):
-            raise Error(
-                "internal_server",
-                "Unable to insert bookable in database.",
-                description_code="unable_to_insert",
-            )
+        with app.app_context():
+            if not _check(
+                r.table("gpus").insert(new_gpu, conflict="update").run(db.conn),
+                "inserted",
+            ):
+                raise Error(
+                    "internal_server",
+                    "Unable to insert bookable in database.",
+                    description_code="unable_to_insert",
+                )
 
         return new_gpu
 
@@ -153,23 +155,25 @@ class ResourceItemsGpus:
             enabled_profiles.append(subitem_id)
         else:
             enabled_profiles.remove(subitem_id)
-        if not _check(
-            r.table("gpus")
-            .get(item_id)
-            .update({"profiles_enabled": enabled_profiles})
-            .run(db.conn),
-            "replaced",
-        ):
-            raise Error(
-                "internal_server",
-                "Unable to update bookable in database.",
-                description_code="unable_to_update_bookable",
+        with app.app_context():
+            if not _check(
+                r.table("gpus")
+                .get(item_id)
+                .update({"profiles_enabled": enabled_profiles})
+                .run(db.conn),
+                "replaced",
+            ):
+                raise Error(
+                    "internal_server",
+                    "Unable to update bookable in database.",
+                    description_code="unable_to_update_bookable",
+                )
+        with app.app_context():
+            gpus_enabled_subitem = list(
+                r.table("gpus")
+                .filter(lambda gpu: gpu["profiles_enabled"].contains(subitem_id))
+                .run(db.conn)
             )
-        gpus_enabled_subitem = list(
-            r.table("gpus")
-            .filter(lambda gpu: gpu["profiles_enabled"].contains(subitem_id))
-            .run(db.conn)
-        )
         if enabled:
             self.add_reservable_vgpu(item_id, subitem_id)
         elif len(gpus_enabled_subitem) == 0:
@@ -344,8 +348,8 @@ class ResourceItemsGpus:
 
     def check_last_subitem(self, subitem_id):
         last = 0
-        query = r.table("gpus")["profiles_enabled"]
-        all_profiles_enabled = query.run(db.conn)
+        with app.app_context():
+            all_profiles_enabled = r.table("gpus")["profiles_enabled"].run(db.conn)
         for profiles in all_profiles_enabled:
             for pf in profiles:
                 if subitem_id == pf:

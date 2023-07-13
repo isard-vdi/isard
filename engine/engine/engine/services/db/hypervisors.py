@@ -1209,6 +1209,7 @@ def get_vgpu_actual_profile(vgpu_id):
         logs.workers.error(
             "The gpu " + vgpu_id + " has no entry in gpus table right now!"
         )
+        close_rethink_connection(r_conn)
         return None
 
     try:
