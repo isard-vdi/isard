@@ -42,3 +42,4 @@ services:
       REDIS_PASSWORD:
       WEBAPP_ADMIN_PWD:
       NEXTCLOUD_INSTANCE:
+      HTTPS_PORT:

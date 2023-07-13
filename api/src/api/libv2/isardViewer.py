@@ -167,7 +167,7 @@ class isardViewer:
                 "mime": "application/x-rdp",
                 "content": self.get_rdp_gw_file(
                     domain["viewer"]["guest_ip"],
-                    domain["viewer"]["static"],
+                    domain["viewer"]["static"].split(":")[0],
                     self.rdpgw_port,
                     viewer_jwt(
                         domain["id"],
