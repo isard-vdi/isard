@@ -10,7 +10,7 @@ export class DesktopUtils {
   }
 
   static parseDesktop (item) {
-    const { description, icon, id, name, state, type, viewers, ip, template, progress, image, needs_booking: needsBooking, next_booking_start: nextBookingStart, next_booking_end: nextBookingEnd, booking_id: bookingId, editable, scheduled, server, desktop_size: desktopSize, tag, reservables } = item
+    const { description, icon, id, name, state, type, viewers, ip, template, progress, image, needs_booking: needsBooking, next_booking_start: nextBookingStart, next_booking_end: nextBookingEnd, booking_id: bookingId, editable, scheduled, server, desktop_size: desktopSize, tag, reservables, interfaces } = item
     return {
       description,
       icon: !icon || !(icon in cardIcons) ? ['fas', 'desktop'] : this.getIcon(icon),
@@ -33,7 +33,8 @@ export class DesktopUtils {
       server,
       desktopSize,
       tag,
-      reservables
+      reservables,
+      interfaces
     }
   }
 
@@ -103,5 +104,9 @@ export class DesktopUtils {
 
   static viewerNeedsIp (viewer) {
     return ['file-rdpgw', 'file-rdpvpn', 'browser-rdp'].includes(viewer)
+  }
+
+  static networkNeedsIp (interfaces) {
+    return (interfaces.includes('wireguard'))
   }
 }
