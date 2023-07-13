@@ -144,7 +144,10 @@ def storage_update(**storage_dict):
             storage_object = Storage(**storage_dict)
             for domain in Domain.get_with_storage(storage_object):
                 domain.force_update = True
+            if storage_dict.get("status") == "deleted":
+                for child in storage_object.children:
+                    child.status = "orphan"
         else:
             for dependency in task.dependencies:
-                if dependency.task == "qemu_img_info":
+                if dependency.task in ("qemu_img_info", "check_existence"):
                     storage_update(**dependency.result)
