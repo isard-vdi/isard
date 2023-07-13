@@ -274,6 +274,13 @@
         >
           {{ $t(`validations.${v$.interfaces.$errors[0].$validator}`, { property: `${$t("forms.domain.hardware.interfaces")}` }) }}
         </div>
+        <span v-if="domain.kind === 'desktop'">
+          <template
+            v-for="(mac, network, index) in interfacesMac"
+          >
+            <template v-if="index > 0">, </template>{{ `${availableHardware.interfaces.find(e => e.id === network).name} - ${mac}` }}
+          </template>
+        </span>
       </b-col>
     </b-row>
   </div>
@@ -357,6 +364,8 @@ export default {
       }
     })
 
+    const interfacesMac = computed(() => $store.getters.getDomain.macs)
+
     // When creating a desktop from a media if the user has the iso boot option it will be selected by default
     watch(availableHardware, (availableHardware, prevVal) => {
       if (props.showDiskSize && availableHardware.bootOrder.filter(boot =>
@@ -375,6 +384,7 @@ export default {
       bootOrder,
       diskBus,
       interfaces,
+      interfacesMac,
       availableHardware,
       domain,
       hardwareWarningTitle,

@@ -17,6 +17,7 @@ const getDefaultState = () => {
     },
     domain: {
       id: '',
+      kind: '',
       name: '',
       description: '',
       guestProperties: {
@@ -44,7 +45,6 @@ const getDefaultState = () => {
         floppies: [],
         graphics: ['default'],
         interfaces: ['default'],
-        interfacesMac: [],
         isos: [],
         memory: 1,
         vcpus: 1,
@@ -55,7 +55,8 @@ const getDefaultState = () => {
       },
       image: {
       },
-      OSTemplateId: ''
+      OSTemplateId: '',
+      macs: {}
     },
     hardware: [], // Available hardware
     bookables: [], // Available bookables
