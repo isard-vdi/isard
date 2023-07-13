@@ -413,6 +413,37 @@ def _parse_desktop_booking(desktop):
         }
 
 
+def set_current_booking(desktop):
+    if not desktop["create_dict"].get("reservables") or not any(
+        list(desktop["create_dict"]["reservables"].values())
+    ):
+        return
+    item_id = desktop["id"]
+    item_type = "desktop"
+    with app.app_context():
+        booking = (
+            r.table("bookings")
+            .get_all([item_type, item_id], index="item_type-id")
+            .filter(lambda b: b["start"] < r.now() & b["end"] > r.now())
+            .order_by("start")
+            .run(db.conn)
+        )
+        if not booking and desktop.get("tag"):
+            booking = (
+                r.table("bookings")
+                .get_all(["deployment", desktop.get("tag")], index="item_type-id")
+                .filter(lambda b: b["start"] < r.now() & b["end"] > r.now())
+                .order_by("start")
+                .run(db.conn)
+            )
+
+    if booking:
+        r.table("domains").get(desktop["id"]).update(
+            {"booking_id": booking[0]["id"]}
+        ).run(db.conn)
+    return
+
+
 def _parse_deployment_booking(deployment):
     with app.app_context():
         deployment_domains = list(
