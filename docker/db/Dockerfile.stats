@@ -1,11 +1,13 @@
 #
 # Build phase
 #
-FROM golang:1.19-alpine as build
+ARG GOLANG_BUILD_IMAGE
+ARG GOLANG_RUN_IMAGE
+
+FROM ${GOLANG_BUILD_IMAGE} as build
 
 RUN apk add --no-cache \
     git
-
 
 RUN git clone https://github.com/rethinkdb/prometheus-exporter /build
 
@@ -19,7 +21,7 @@ RUN CGO_ENABLED=0 go build -o rethinkdb-prometheus-exporter
 #
 # RethinkDB stats
 #
-FROM alpine:3.16
+FROM ${GOLANG_RUN_IMAGE}
 
 COPY --from=build /build/rethinkdb-prometheus-exporter /rethinkdb-prometheus-exporter
 

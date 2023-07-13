@@ -1,10 +1,10 @@
 #
 # Build phase
 #
-FROM golang:1.16-alpine as build
+ARG GOLANG_BUILD_IMAGE
+ARG GOLANG_RUN_IMAGE
 
-RUN apk add --no-cache \
-    git
+FROM ${GOLANG_BUILD_IMAGE} as build
 
 WORKDIR /build
 
@@ -26,7 +26,7 @@ RUN CGO_ENABLED=0 go build -o bin/authentication cmd/authentication/main.go
 #
 # Authentication
 #
-FROM alpine
+FROM ${GOLANG_RUN_IMAGE}
 
 RUN apk add --no-cache \
     ca-certificates \

@@ -1,4 +1,8 @@
 version: '3.5'
 services:
   isard-websockify:
-    build: ${BUILD_ROOT_PATH}/websockify
+    build: 
+      context: ${BUILD_ROOT_PATH}/websockify
+      args:
+        - GOLANG_BUILD_IMAGE
+        - GOLANG_RUN_IMAGE

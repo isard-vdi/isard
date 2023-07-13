@@ -11,5 +11,8 @@ services:
     build:
       context: ${BUILD_ROOT_PATH}
       dockerfile: rdpgw/build/package/Dockerfile
+      args:
+        - GOLANG_BUILD_IMAGE
+        - GOLANG_RUN_IMAGE
     networks:
       - isard-network
