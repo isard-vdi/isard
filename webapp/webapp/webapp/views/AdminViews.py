@@ -37,7 +37,13 @@ def admin_landing():
             monitor_host=monitor_host,
         )
     if current_user.role == "manager":
-        return redirect("/isard-admin/admin/domains/render/Desktops")
+        return render_template(
+            "admin/pages/desktops.html",
+            title="Desktops",
+            nav="Desktops",
+            icon="desktops",
+            monitor_host=monitor_host,
+        )
 
 
 @app.route("/isard-admin/about", methods=["GET"])
