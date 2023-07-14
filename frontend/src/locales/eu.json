@@ -654,7 +654,8 @@
                 "download-failed": "Deskargak huts egin du",
                 "downloaded": "Deskargatuta",
                 "downloading": "Deskargatzen",
-                "deleting": "Ezabatzen"
+                "deleting": "Ezabatzen",
+                "maintenance": "Mantentze-lanak"
             },
             "no-media": {
                 "subtitle": "Errore bat dela uste baduzu, jarri harremanetan administratzailearekin",
@@ -873,7 +874,12 @@
             "enable-template": "'{name}' erabiltzaileentzat ikusgai egongo da, jarraitu?",
             "disable-template": "'{name}' ikusezina izango da bere erabiltzaileentzat, jarraitu?",
             "delete-deployment-desktop": "'{name}' mahaigaina ezabatuko da, jarraitu?",
-            "create-nonpersistent": "OHARRA! Mahaigain hau aldi baterako da. Geldiaraztean, datu guztiak ezabatuko dira. Mahaigaina sortu?"
+            "create-nonpersistent": "OHARRA! Mahaigain hau aldi baterako da. Geldiaraztean, datu guztiak ezabatuko dira. Mahaigaina sortu?",
+            "edit-domain": "{name}ren hardwarea mugatuko da eta bere datuak aldatuko dira, jarraitu?",
+            "go-to-profile": "Kuota ikusi",
+            "new-deployment": "{quantity} mahaigain sortuko dira, hautatutako erabiltzaile bakoitzeko bat. Jarraitu nahi duzu?",
+            "change-desktop-gpu": "Maihaigainaren profila aldatu",
+            "go-to-bookings": "Mahaigaina erreserbatu"
         },
         "title": {
             "delete": "Ezabatu"
@@ -884,9 +890,39 @@
             "creating-desktop": "Mahaigaina sortzen",
             "file-downloaded": "Fitxategia deskargatzen",
             "deleting-desktop": "Mahaigaina ezabatzen",
-            "opening-desktop": "Mahaigaina zabaltzen"
+            "opening-desktop": "Mahaigaina zabaltzen",
+            "making-invisible-deployment": "Hedapena ikusezin bihurtzen",
+            "creating-template": "Txantiloia sortzen",
+            "disable-template": "Txantiloia ikusezin bihurtzen",
+            "creating-event": "Gertaera sortzen",
+            "image-uploaded": "Irudia behar bezala igo da",
+            "deleting-event": "Gertaera ezabatzen",
+            "stopping-desktops": "Hedapeneko mahaigainak gelditzen",
+            "deleting-deployment": "Hedapena ezabatzen",
+            "editing": "Editatzen",
+            "no-availability-event": "Ez dago ezer erabilgarri hautatutako eremuan",
+            "edit-desktop-stop": "Mahaigain bat editatzeko, gelditu egin behar da",
+            "new-template-server": "Zerbitzari batetik ezin da txantiloirik sortu",
+            "new-template-stop": "Txantiloi bat sortzeko mahaigaina gelditu behar da",
+            "editing-event": "Gertaera editatzen",
+            "not-created-event": "Ezin izan da gertaera sortu",
+            "missing-data": "Datuak falta dira",
+            "edit-desktop-server": "Ezin da zerbitzari bat editatu",
+            "wireguard-viewers-removed": "RDP ikuslea kendu da wireguard sarea beharrezkoa duelako",
+            "enable-template": "Txantiloia ikusgai jartzen",
+            "starting-desktops": "Hedapeneko mahaigainak abiarazten",
+            "stopping-download": "Deskarga gelditzen",
+            "counting-desktops": "Sortuko diren mahaigain kopurua zenbatzen",
+            "delete-desktop-stop": "Mahaigain bat ezabatzeko, gelditu egin behar da",
+            "wireguard-network-added": "Wireguard sarea gehitu da RDP ikusleak erabiltzeko beharrezkoa duelako",
+            "wireguard-network-required": "Ezin dira RDP ikustaileak hautatu wireguard sarea beharrezkoa dutelako. Jarri harremanetan administratzailearekin wireguard sarea erabiltzeko",
+            "creating-deployment": "Hedapena sortzen",
+            "recreating-deployment": "Hedapena Birsortzen",
+            "making-visible-deployment": "Hedapena ikusgai jartzen"
         },
-        "loading": "Kargatzen"
+        "loading": "Kargatzen",
+        "ok": "Ados",
+        "cancel": "Utzi"
     },
     "errors": {
         "generic_error": "Errore bat gertatu da",
@@ -926,7 +962,19 @@
         "viewer_not_started": "Ikuslea ez dago abiarazita",
         "forbidden": "Baliabideen baimenen inguruan errore bat gertatu da",
         "register_generic_exception": "Erregistro-prozesuan errore bat gertatu da",
-        "desktop_start_timeout": "Mahaigaina abiarazterakoan denbora-muga igaro da"
+        "desktop_start_timeout": "Mahaigaina abiarazterakoan denbora-muga igaro da",
+        "desktop_start_group_memory_limit_exceeded": "Taldearen memoria-muga gainditu da",
+        "desktop_new_category_limit_exceeded": "Mahaigaina sortzeko Kategoriak duen muga gainditu da",
+        "desktop_new_group_limit_exceeded": "Mahaigainak sortzeko talde duen muga gainditu da",
+        "desktop_start_group_limit_exceeded": "Mahaigainak abiarazita izateko Talde muga gainditu da",
+        "desktop_start_category_limit_exceeded": "Kategoria mailain, abiarazitako mahaigainen muga gainditu da",
+        "desktop_start_category_vcpu_limit_exceeded": "Kategoriako vCPU muga gainditu da",
+        "desktop_start_category_memory_limit_exceeded": "Kategoriaren memoria-muga gainditu da",
+        "template_new_group_limit_exceeded": "Txantiloiak sortzeko talde-muga gainditu da",
+        "template_new_category_limit_exceeded": "Txantiloiak sortzeko kategoria-muga gainditu da",
+        "media_url_not_found": "Ezin izan da emandako URLa aurkitu",
+        "media_url_not_valid": "Emandako URLak ez du balio",
+        "desktop_start_group_vcpu_limit_exceeded": "Taldeko vCPU muga gainditu da"
     },
     "message-modal": {
         "messages": {
