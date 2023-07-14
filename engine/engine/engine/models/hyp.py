@@ -880,6 +880,9 @@ class hyp(object):
         else:
             self.info["virtualization_capabilities"] = False
 
+        # read cpu model names
+        self.info["cpu_models"] = self.conn.getCPUModelNames("x86_64")
+
         # read_gpu
         if nvidia_enabled:
             self.get_nvidia_capabilities()
