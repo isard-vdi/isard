@@ -2649,7 +2649,7 @@ class Upgrade(object):
 
             default_admins = (
                 r.table(table)
-                .get("default_admins")
+                .get("default admins")
                 .pluck("allowed")["allowed"]
                 .run(self.conn)
             )
@@ -2669,7 +2669,7 @@ class Upgrade(object):
                 else default_admins["users"],
             }
 
-            r.table(table).get("default_admins").update({"allowed": new_allowed}).run(
+            r.table(table).get("default admins").update({"allowed": new_allowed}).run(
                 self.conn
             )
         if version == 71:
