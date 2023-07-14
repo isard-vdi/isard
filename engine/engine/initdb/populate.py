@@ -1319,7 +1319,7 @@ class Populate(object):
                     "max_items": 1,
                 },
                 {
-                    "id": "default admins",
+                    "id": str(uuid.uuid4()),
                     "rule_id": "default",
                     "name": "default admins",
                     "description": "Applied to all admin users",
