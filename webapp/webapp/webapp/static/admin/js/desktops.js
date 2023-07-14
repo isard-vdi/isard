@@ -928,21 +928,15 @@ function socketio_on(){
     startClientVpnSocket(socket)
     socket.on('desktop_data', function(data){
         var data = JSON.parse(data);
-        if(typeof(domains_table.row('#'+data.id).id())=='undefined'){
-            loading_events.push(data)
-        }else{
-            if(data.status =='Started' && 'viewer' in data && 'guest_ip' in data['viewer']){
-                if(!('viewer' in domains_table.row('#'+data.id).data()) || !('guest_ip' in domains_table.row('#'+data.id).data())){
-                    viewerButtonsIP(data.id,data['viewer']['guest_ip'])
-                }
+        if(data.status =='Started' && 'viewer' in data && 'guest_ip' in data['viewer']){
+            if(!('viewer' in domains_table.row('#'+data.id).data()) || !('guest_ip' in domains_table.row('#'+data.id).data())){
+                viewerButtonsIP(data.id,data['viewer']['guest_ip'])
             }
-            if(opened_row != null && opened_row.data().id == data.id && opened_row.data().status != data.status){
-                setDomainDetailButtonsStatus(data.id, data, opened_row);
-            }
-            data = {...domains_table.row("#"+data.id).data(),...data}
-            dtUpdateInsert(domains_table,data,false);
-            $('#domains tr.active .form-check-input').prop("checked", true);
         }
+        data = {...domains_table.row("#"+data.id).data(),...data}
+        dtUpdateInsert(domains_table,data,false);
+        setDomainDetailButtonsStatus(data.id, data.status, data.server);
+        $('#domains tr.active .form-check-input').prop("checked", true);
     });
 
     socket.on('desktop_delete', function(data){
