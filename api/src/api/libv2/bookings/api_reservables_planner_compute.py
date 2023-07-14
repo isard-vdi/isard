@@ -173,7 +173,6 @@ def remove_existing_item_bookings(plans, item_type, item_id, start=None, end=Non
 
 
 def intersect_same_subitem_plan(plan, plan_name, keep_non_overlapped=True):
-
     join_plan_op = lambda x, y: {
         "units": x["units"] + y["units"],
         "id": x["id"] + "/" + y["id"],
@@ -525,7 +524,6 @@ def join_consecutive_plans(plan):
 
 
 def intersect_different_subitem_plan(plan, keep_non_overlapped=False):
-
     join_plan_op = lambda x, y: {
         "units": min(x["units"], y["units"]),
         "id": x["id"] + "/" + y["id"],
@@ -614,7 +612,14 @@ def min_profile_priority(reservables):
                 priority = (
                     r.table("bookings_priority")
                     .get_all(priority_id, index="rule_id")
-                    .filter(lambda row: row["id"] != "default admins")
+                    .filter(  ## exclude "default admins" priority
+                        lambda row: (
+                            ~row["allowed"]["roles"] == ["admin"]
+                            and row["allowed"]["categories"] == False
+                            and row["allowed"]["groups"] == False
+                            and row["allowed"]["users"] == False
+                        )
+                    )
                     .min("forbid_time")
                     .run(db.conn)
                 )

@@ -17,7 +17,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 92
+release_version = 93
+# release 93: admins priority update with new identification
 # release 92: Add user_storage name index to check for duplicateds
 # release 91: Rename logs_users owner fields to accomodate logs_desktops and consumptions
 # release 90: Remove viewer key from stopped and failed desktops
@@ -2648,7 +2649,7 @@ class Upgrade(object):
 
             default_admins = (
                 r.table(table)
-                .get("default admins")
+                .get("default_admins")
                 .pluck("allowed")["allowed"]
                 .run(self.conn)
             )
@@ -2668,7 +2669,7 @@ class Upgrade(object):
                 else default_admins["users"],
             }
 
-            r.table(table).get("default admins").update({"allowed": new_allowed}).run(
+            r.table(table).get("default_admins").update({"allowed": new_allowed}).run(
                 self.conn
             )
         if version == 71:
@@ -2682,6 +2683,44 @@ class Upgrade(object):
                 r.table("bookings").index_create(
                     "item_type_user", [r.row["item_type"], r.row["user_id"]]
                 ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 93:
+            try:
+                default_admins = (
+                    r.table(table)
+                    .filter(  ## "default admins" priority
+                        lambda row: row["allowed"]["roles"] == ["admin"]
+                        and row["allowed"]["categories"] == False
+                        and row["allowed"]["groups"] == False
+                        and row["allowed"]["users"] == False
+                    )
+                    .pluck("allowed")["allowed"]
+                    .run(self.conn)
+                )
+
+                new_allowed = {
+                    "categories": False
+                    if default_admins["categories"] == None
+                    else default_admins["categories"],
+                    "groups": False
+                    if default_admins["groups"] == None
+                    else default_admins["groups"],
+                    "roles": False
+                    if default_admins["roles"] == None
+                    else default_admins["roles"],
+                    "users": False
+                    if default_admins["users"] == None
+                    else default_admins["users"],
+                }
+
+                r.table(table).filter(  ## "default admins" priority
+                    lambda row: row["allowed"]["roles"] == ["admin"]
+                    and row["allowed"]["categories"] == False
+                    and row["allowed"]["groups"] == False
+                    and row["allowed"]["users"] == False
+                ).update({"allowed": new_allowed}).run(self.conn)
             except Exception as e:
                 print(e)
 
