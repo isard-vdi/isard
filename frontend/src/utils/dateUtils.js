@@ -72,7 +72,7 @@ export class DateUtils {
 
   static breakTimeInChunks (startDate, endDate, chunkSize, chunkType) {
     const chunks = []
-    while (startDate.add(chunkSize, chunkType) < endDate) {
+    while (startDate.add(chunkSize, chunkType) <= endDate) {
       chunks.push(this.localTimeToUtc(startDate))
     }
     return chunks
