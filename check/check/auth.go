@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"gitlab.com/isard/isardvdi-cli/pkg/client"
+	"gitlab.com/isard/isardvdi-sdk-go"
 )
 
 type AuthMethod int
@@ -31,7 +31,7 @@ type AuthToken struct {
 	Token string
 }
 
-func (c *Check) auth(ctx context.Context, cli client.Interface, method AuthMethod, auth Auth) error {
+func (c *Check) auth(ctx context.Context, cli isardvdi.Interface, method AuthMethod, auth Auth) error {
 	switch method {
 	case AuthMethodForm:
 		tkn, err := cli.AuthForm(ctx, auth.Form.Category, auth.Form.Username, auth.Form.Password)

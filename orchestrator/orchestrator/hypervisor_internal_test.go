@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"gitlab.com/isard/isardvdi-cli/pkg/client"
-	apiMock "gitlab.com/isard/isardvdi-cli/pkg/client/mock"
+	"gitlab.com/isard/isardvdi-sdk-go"
+	apiMock "gitlab.com/isard/isardvdi-sdk-go/mock"
 )
 
 func TestOrchestratorOpenBufferingHypervisor(t *testing.T) {
@@ -28,7 +28,7 @@ func TestOrchestratorOpenBufferingHypervisor(t *testing.T) {
 		// 		t := true
 		// 		id := "theHyper"
 
-		// 		c.On("HypervisorList", mock.AnythingOfType("*context.emptyCtx")).Return([]*client.Hypervisor{{
+		// 		c.On("HypervisorList", mock.AnythingOfType("*context.emptyCtx")).Return([]*isardvdi.Hypervisor{{
 		// 			Buffering: &f,
 		// 		}, {
 		// 			ID:         &id,
@@ -44,7 +44,7 @@ func TestOrchestratorOpenBufferingHypervisor(t *testing.T) {
 				f := false
 				t := true
 
-				c.On("HypervisorList", mock.AnythingOfType("*context.emptyCtx")).Return([]*client.Hypervisor{{
+				c.On("HypervisorList", mock.AnythingOfType("*context.emptyCtx")).Return([]*isardvdi.Hypervisor{{
 					Buffering: &f,
 				}, {
 					Buffering:  &t,
@@ -90,7 +90,7 @@ func TestOrchestratorCloseBufferingHypervisor(t *testing.T) {
 		// 		t := true
 		// 		id := "theHyper"
 
-		// 		c.On("HypervisorList", mock.AnythingOfType("*context.emptyCtx")).Return([]*client.Hypervisor{{
+		// 		c.On("HypervisorList", mock.AnythingOfType("*context.emptyCtx")).Return([]*isardvdi.Hypervisor{{
 		// 			Buffering: &f,
 		// 		}, {
 		// 			ID:         &id,
@@ -106,7 +106,7 @@ func TestOrchestratorCloseBufferingHypervisor(t *testing.T) {
 				f := false
 				t := true
 
-				c.On("HypervisorList", mock.AnythingOfType("*context.emptyCtx")).Return([]*client.Hypervisor{{
+				c.On("HypervisorList", mock.AnythingOfType("*context.emptyCtx")).Return([]*isardvdi.Hypervisor{{
 					Buffering: &f,
 				}, {
 					Buffering:  &t,

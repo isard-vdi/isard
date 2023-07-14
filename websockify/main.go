@@ -13,8 +13,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-	"gitlab.com/isard/isardvdi-cli/pkg/cfg"
-	"gitlab.com/isard/isardvdi-cli/pkg/client"
+	"gitlab.com/isard/isardvdi-sdk-go"
 )
 
 var (
@@ -49,7 +48,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cli, err := client.NewClient(&cfg.Cfg{
+	cli, err := isardvdi.NewClient(&isardvdi.Cfg{
 		Host:        fmt.Sprintf("%s://%s", apiProtocol, apiAddr),
 		IgnoreCerts: apiIgnoreCerts,
 		Token:       tkn,
@@ -66,12 +65,12 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := cli.UserOwnsDesktop(r.Context(), &client.UserOwnsDesktopOpts{
+	if err := cli.UserOwnsDesktop(r.Context(), &isardvdi.UserOwnsDesktopOpts{
 		ProxyVideo:     r.Host,
 		ProxyHyperHost: vars["hyper"],
 		Port:           port,
 	}); err != nil {
-		if errors.Is(err, client.ErrForbidden) {
+		if errors.Is(err, isardvdi.ErrForbidden) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}

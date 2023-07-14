@@ -18,8 +18,7 @@ import (
 	"github.com/oracle/oci-go-sdk/v65/common"
 	"github.com/oracle/oci-go-sdk/v65/usageapi"
 	"github.com/rs/zerolog"
-	cliCfg "gitlab.com/isard/isardvdi-cli/pkg/cfg"
-	"gitlab.com/isard/isardvdi-cli/pkg/client"
+	"gitlab.com/isard/isardvdi-sdk-go"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
 	"libvirt.org/go/libvirt"
@@ -169,7 +168,7 @@ func startCollectors(cfg cfg.Cfg, log *zerolog.Logger) ([]collector.Collector, *
 	}
 
 	if isardvdiAPI {
-		cli, err := client.NewClient(&cliCfg.Cfg{
+		cli, err := isardvdi.NewClient(&isardvdi.Cfg{
 			Host:        cfg.Collectors.IsardVDIAPI.Addr,
 			IgnoreCerts: true,
 		})
@@ -177,7 +176,7 @@ func startCollectors(cfg cfg.Cfg, log *zerolog.Logger) ([]collector.Collector, *
 			log.Fatal().Err(err).Str("domain", cfg.Domain).Msg("create API client")
 		}
 
-		cli.SetBeforeRequestHook(func(c *client.Client) error {
+		cli.SetBeforeRequestHook(func(c *isardvdi.Client) error {
 			tkn, err := jwt.SignAPIJWT(cfg.Collectors.IsardVDIAPI.Secret)
 			if err != nil {
 				return fmt.Errorf("sign JWT token for calling the API: %w", err)

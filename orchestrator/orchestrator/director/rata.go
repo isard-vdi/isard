@@ -7,7 +7,7 @@ import (
 	"sort"
 	"time"
 
-	"gitlab.com/isard/isardvdi-cli/pkg/client"
+	"gitlab.com/isard/isardvdi-sdk-go"
 	"gitlab.com/isard/isardvdi/orchestrator/cfg"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
 
@@ -38,12 +38,12 @@ type Rata struct {
 	// If it reaches the limit, the hypervisor is removed from OnlyForced
 	hyperMaxRAM int
 
-	apiCli client.Interface
+	apiCli isardvdi.Interface
 
 	log *zerolog.Logger
 }
 
-func NewRata(cfg cfg.DirectorRata, dryRun bool, log *zerolog.Logger, apiCli client.Interface) *Rata {
+func NewRata(cfg cfg.DirectorRata, dryRun bool, log *zerolog.Logger, apiCli isardvdi.Interface) *Rata {
 	return &Rata{
 		cfg:         cfg,
 		dryRun:      dryRun,
@@ -134,7 +134,7 @@ func (r *Rata) minCPU() int {
 }
 
 // minRAM is the minimum MB of RAM that need to be free in the pool. If it's zero, it's not going to use it
-func (r *Rata) minRAM(hypers []*client.OrchestratorHypervisor) int {
+func (r *Rata) minRAM(hypers []*isardvdi.OrchestratorHypervisor) int {
 	if r.cfg.MinRAMHourly != nil {
 		return getCurrentHourlyLimit(r.cfg.MinRAMHourly, time.Now())
 	}
@@ -177,7 +177,7 @@ func (r *Rata) maxRAM() int {
 
 // TODO: GPUs
 // TODO: Start a smaller available hypervisor in order to scale down afterwards
-func (r *Rata) NeedToScaleHypervisors(ctx context.Context, operationsHypers []*operationsv1.ListHypervisorsResponseHypervisor, hypers []*client.OrchestratorHypervisor) (*operationsv1.CreateHypervisorRequest, *operationsv1.DestroyHypervisorRequest, string, string, error) {
+func (r *Rata) NeedToScaleHypervisors(ctx context.Context, operationsHypers []*operationsv1.ListHypervisorsResponseHypervisor, hypers []*isardvdi.OrchestratorHypervisor) (*operationsv1.CreateHypervisorRequest, *operationsv1.DestroyHypervisorRequest, string, string, error) {
 	var (
 		cpuAvail = 0
 		ramAvail = 0
@@ -196,11 +196,11 @@ availHypersLoop:
 		operationsHypersAvail = append(operationsHypersAvail, h)
 	}
 
-	hypersAvail := []*client.OrchestratorHypervisor{}
-	hypersOnDeadRow := []*client.OrchestratorHypervisor{}
+	hypersAvail := []*isardvdi.OrchestratorHypervisor{}
+	hypersOnDeadRow := []*isardvdi.OrchestratorHypervisor{}
 	for _, h := range hypers {
 		switch h.Status {
-		case client.HypervisorStatusOnline:
+		case isardvdi.HypervisorStatusOnline:
 			if h.DestroyTime.IsZero() {
 				// Ensure we don't play with buffering hypervisors! :)
 				if !h.Buffering {
@@ -244,7 +244,7 @@ availHypersLoop:
 	// Check for scale up
 	if reqHypersCPU != 0 || reqHypersRAM != 0 {
 		// Check if we have hypervisors on the dead row, if it's the case, remove those from it
-		var hyperToPardon *client.OrchestratorHypervisor
+		var hyperToPardon *isardvdi.OrchestratorHypervisor
 		if len(hypersOnDeadRow) != 0 {
 			// TODO: CPU
 			for _, h := range hypersOnDeadRow {
@@ -280,10 +280,10 @@ availHypersLoop:
 	}
 
 	// Check for scale down
-	hypersToMoveInTheDeadRow := []*client.OrchestratorHypervisor{}
+	hypersToMoveInTheDeadRow := []*isardvdi.OrchestratorHypervisor{}
 	for _, h := range hypers {
 		switch h.Status {
-		case client.HypervisorStatusOnline:
+		case isardvdi.HypervisorStatusOnline:
 			// Ensure we don't play with buffering hypervisors or non orchestrator managed ones! :)
 			if !h.Buffering && h.OrchestratorManaged {
 
@@ -304,7 +304,7 @@ availHypersLoop:
 	}
 
 	// Only move a hypervisor to the dead row
-	var deadRow *client.OrchestratorHypervisor
+	var deadRow *isardvdi.OrchestratorHypervisor
 	for _, h := range hypersToMoveInTheDeadRow {
 		if deadRow != nil {
 			// Pick the biggest hypervisor to kill
@@ -353,10 +353,10 @@ func bestHyperToCreate(avail []*operationsv1.ListHypervisorsResponseHypervisor, 
 	return bestHyper.Id, nil
 }
 
-func (r *Rata) ExtraOperations(ctx context.Context, hypers []*client.OrchestratorHypervisor) error {
+func (r *Rata) ExtraOperations(ctx context.Context, hypers []*isardvdi.OrchestratorHypervisor) error {
 	for _, h := range hypers {
 		switch h.Status {
-		case client.HypervisorStatusOnline:
+		case isardvdi.HypervisorStatusOnline:
 			// Ensure we don't play with buffering hypervisors or hypers on the dead row or non orchestrator managed! :)
 			if !h.Buffering && h.OrchestratorManaged && h.DestroyTime.IsZero() {
 

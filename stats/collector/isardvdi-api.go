@@ -7,12 +7,12 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog"
-	"gitlab.com/isard/isardvdi-cli/pkg/client"
+	"gitlab.com/isard/isardvdi-sdk-go"
 )
 
 type IsardVDIAPI struct {
 	Log *zerolog.Logger
-	cli client.Interface
+	cli isardvdi.Interface
 
 	descScrapeDuration               *prometheus.Desc
 	descScrapeSuccess                *prometheus.Desc
@@ -28,7 +28,7 @@ type IsardVDIAPI struct {
 	descDeploymentNumberCategory     *prometheus.Desc
 }
 
-func NewIsardVDIAPI(log *zerolog.Logger, cli *client.Client) *IsardVDIAPI {
+func NewIsardVDIAPI(log *zerolog.Logger, cli *isardvdi.Client) *IsardVDIAPI {
 	a := &IsardVDIAPI{
 		Log: log,
 		cli: cli,
@@ -140,7 +140,7 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	for _, u := range usr {
-		ch <- prometheus.MustNewConstMetric(a.descUserInfo, prometheus.GaugeValue, 1, client.GetString(u.ID), client.GetString(u.Role), client.GetString(u.Category), client.GetString(u.Group))
+		ch <- prometheus.MustNewConstMetric(a.descUserInfo, prometheus.GaugeValue, 1, isardvdi.GetString(u.ID), isardvdi.GetString(u.Role), isardvdi.GetString(u.Category), isardvdi.GetString(u.Group))
 	}
 
 	dsk, err := a.cli.StatsDesktops(context.Background())
@@ -151,7 +151,7 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 
 	ch <- prometheus.MustNewConstMetric(a.descDesktopNumber, prometheus.GaugeValue, float64(len(dsk)))
 	for _, d := range dsk {
-		ch <- prometheus.MustNewConstMetric(a.descDesktopInfo, prometheus.GaugeValue, 1, client.GetString(d.ID), client.GetString(d.User))
+		ch <- prometheus.MustNewConstMetric(a.descDesktopInfo, prometheus.GaugeValue, 1, isardvdi.GetString(d.ID), isardvdi.GetString(d.User))
 	}
 
 	cat, err := a.cli.StatsCategoryList(context.Background())
@@ -161,8 +161,8 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	for _, c := range cat {
-		ch <- prometheus.MustNewConstMetric(a.descDesktopNumberCategory, prometheus.GaugeValue, float64(client.GetInt(c.DesktopNum)), client.GetString(c.ID))
-		ch <- prometheus.MustNewConstMetric(a.descTemplateNumberCategory, prometheus.GaugeValue, float64(client.GetInt(c.TemplateNum)), client.GetString(c.ID))
+		ch <- prometheus.MustNewConstMetric(a.descDesktopNumberCategory, prometheus.GaugeValue, float64(isardvdi.GetInt(c.DesktopNum)), isardvdi.GetString(c.ID))
+		ch <- prometheus.MustNewConstMetric(a.descTemplateNumberCategory, prometheus.GaugeValue, float64(isardvdi.GetInt(c.TemplateNum)), isardvdi.GetString(c.ID))
 	}
 
 	tmpl, err := a.cli.StatsTemplates(context.Background())
@@ -179,7 +179,7 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	for _, h := range hyp {
-		ch <- prometheus.MustNewConstMetric(a.descHypervisorInfo, prometheus.GaugeValue, 1, client.GetString(h.ID), string(*h.Status), strconv.FormatBool(client.GetBool(h.OnlyForced)))
+		ch <- prometheus.MustNewConstMetric(a.descHypervisorInfo, prometheus.GaugeValue, 1, isardvdi.GetString(h.ID), string(*h.Status), strconv.FormatBool(isardvdi.GetBool(h.OnlyForced)))
 	}
 
 	dply, err := a.cli.StatsDeploymentByCategory(context.Background())
@@ -189,7 +189,7 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	for _, d := range dply {
-		ch <- prometheus.MustNewConstMetric(a.descDeploymentNumberCategory, prometheus.GaugeValue, float64(client.GetInt(d.DeploymentNum)), client.GetString(d.CategoryID))
+		ch <- prometheus.MustNewConstMetric(a.descDeploymentNumberCategory, prometheus.GaugeValue, float64(isardvdi.GetInt(d.DeploymentNum)), isardvdi.GetString(d.CategoryID))
 	}
 
 	duration := time.Since(start)

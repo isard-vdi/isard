@@ -7,7 +7,7 @@ import (
 	"io"
 	"time"
 
-	"gitlab.com/isard/isardvdi-cli/pkg/client"
+	"gitlab.com/isard/isardvdi-sdk-go"
 	checkv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/check/v1"
 	operationsv1 "gitlab.com/isard/isardvdi/pkg/gen/proto/go/operations/v1"
 	"gitlab.com/isard/isardvdi/pkg/jwt"
@@ -65,7 +65,7 @@ hyperCreate:
 	o.log.Debug().Str("id", req.Id).Msg("hypervisor created")
 
 	// Wait for the hypervisor to be online
-	h := &client.OrchestratorHypervisor{ID: req.Id}
+	h := &isardvdi.OrchestratorHypervisor{ID: req.Id}
 hyperOnline:
 	for {
 		select {
@@ -76,13 +76,13 @@ hyperOnline:
 		default:
 			h, err = o.apiCli.OrchestratorHypervisorGet(ctx, req.Id)
 			if err != nil {
-				if !errors.Is(err, client.ErrNotFound) {
+				if !errors.Is(err, isardvdi.ErrNotFound) {
 					o.log.Error().Str("id", req.Id).Err(err).Msg("load hypervisor from DB")
 					return
 				}
 
 			} else {
-				if h.Status == client.HypervisorStatusOnline {
+				if h.Status == isardvdi.HypervisorStatusOnline {
 					break hyperOnline
 				}
 			}
@@ -218,8 +218,8 @@ func (o *Orchestrator) bufferingHypervisorOperation(ctx context.Context, onlyFor
 	}
 
 	for _, h := range hypers {
-		if client.GetBool(h.Buffering) && client.GetBool(h.OnlyForced) != onlyForced {
-			if err := o.apiCli.AdminHypervisorOnlyForced(ctx, client.GetString(h.ID), onlyForced); err != nil {
+		if isardvdi.GetBool(h.Buffering) && isardvdi.GetBool(h.OnlyForced) != onlyForced {
+			if err := o.apiCli.AdminHypervisorOnlyForced(ctx, isardvdi.GetString(h.ID), onlyForced); err != nil {
 				return fmt.Errorf("set hypervisor only forced state '%t': %w", onlyForced, err)
 			}
 		}
