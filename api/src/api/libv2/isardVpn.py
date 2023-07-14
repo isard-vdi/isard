@@ -40,7 +40,7 @@ class isardVpn:
                 )
             with app.app_context():
                 wgdata = r.table("users").get(itemid).pluck("id", "vpn").run(db.conn)
-            port = "443"
+            port = os.environ.get("WG_USERS_PORT", "443")
             mtu = "1420"
             # Wireguard Windows client doesn't support PostUp empty value
             # colon command does nothing on Windows and GNU/Linux
