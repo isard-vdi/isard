@@ -1,4 +1,4 @@
-# Isard main config v2.10.0
+# Isard main config v2.10.1
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -478,11 +478,10 @@ WG_GUESTS_RESERVED_HOSTS=20
 ## Grafana login from the webapp menu
 #GRAFANA_WEBAPP_URL=https://[DOMAIN]:[PORT]/[PATH]
 
+# Documentation: https://isard.gitlab.io/isardvdi-formacion/monitoring/alerts/#grafana-customizations
 # This variable is used for provisioning alerts in Grafana
 #GRAFANA_TELEGRAM_TOKEN=
 #GRAFANA_TELEGRAM_TOKEN_ORCHESTRATOR=
-
-# This variable is used for provisioning alerts in Grafana
 #GRAFANA_TELEGRAM_CHAT_ID=
 #GRAFANA_TELEGRAM_CHAT_ID_ORCHESTRATOR=
 
