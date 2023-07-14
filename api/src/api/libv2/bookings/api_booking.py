@@ -510,16 +510,18 @@ class Bookings:
 
         profiles_forecast = []
         for profile in profiles:
-            # TODO: Check if [0] does not fail if the profile is not in a forecast interval
             forecast_0_plans = [
                 fp["reduction"] for fp in forecast_0 if fp["group"] == profile
-            ][0]
+            ]
+            forecast_0_plans = forecast_0_plans[0] if forecast_0_plans else []
             forecast_30_plans = [
                 fp["reduction"] for fp in forecast_30 if fp["group"] == profile
-            ][0]
+            ]
+            forecast_30_plans = forecast_30_plans[0] if forecast_30_plans else []
             forecast_60_plans = [
                 fp["reduction"] for fp in forecast_60 if fp["group"] == profile
-            ][0]
+            ]
+            forecast_60_plans = forecast_60_plans[0] if forecast_60_plans else []
             profile = {
                 "brand": profile.split("-")[-3],
                 "model": profile.split("-")[-2],
@@ -546,6 +548,8 @@ class Bookings:
 
 
 def bookings_max_units(bookings):
+    if not len(bookings):
+        return 0
     # We need to use portions library to get bookings intersections max units
     portions = P.IntervalDict()
     for interval in bookings:
