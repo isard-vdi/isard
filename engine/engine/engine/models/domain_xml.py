@@ -809,6 +809,27 @@ class DomainXML(object):
         xpath_next = "/domain/clock"
         self.add_to_domain(xpath_same, cpu, xpath_next, xpath_previous)
 
+    def add_shared_folder(self):
+        webdav_xml = """  <channel type='spiceport'>
+                 <source channel='org.spice-space.webdav.0'/>
+                 <target type='virtio' name='org.spice-space.webdav.0'/>
+            </channel>"""
+        element = etree.parse(StringIO(webdav_xml)).getroot()
+
+        # remove webdav if exists
+        source_elements = self.tree.xpath(
+            "/domain/devices/channel[@type='spiceport']/source[@channel='org.spice-space.webdav.0']"
+        )
+        if len(source_elements):
+            for s in source_elements:
+                parent = s.getparent()
+                parent.getparent().remove(parent)
+
+        xpath_same = "/domain/devices/channel[@type='spiceport']"
+        xpath_previous = "/domain/devices/redirdev"
+        xpath_next = "/domain/devices/memballoon"
+        self.add_device(xpath_same, element, xpath_next, xpath_previous)
+
     def set_video_type(self, type_video):
         if type_video == "none":
             # remove all attributes like vram that have no sense if type_video is none
@@ -1434,6 +1455,15 @@ def update_xml_from_dict_domain(id_domain, xml=None):
     v.set_video_type(hw["video"]["type"])
     # INFO TO DEVELOPER, falta hacer un v.set_network_id (para ver contra que red hace bridge o se conecta
     # INFO TO DEVELOPER, falta hacer un v.set_netowk_type (para seleccionar si quiere virtio o realtek por ejemplo)
+
+    if (
+        d.get("guest_properties", {})
+        .get("viewers", {})
+        .get("file_spice", {})
+        .get("options", {})
+        .get("shared_folder")
+    ):
+        v.add_shared_folder()
 
     v.randomize_vm()
     v.remove_selinux_options()
