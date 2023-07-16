@@ -1456,14 +1456,15 @@ def update_xml_from_dict_domain(id_domain, xml=None):
     # INFO TO DEVELOPER, falta hacer un v.set_network_id (para ver contra que red hace bridge o se conecta
     # INFO TO DEVELOPER, falta hacer un v.set_netowk_type (para seleccionar si quiere virtio o realtek por ejemplo)
 
-    if (
+    file_spice_options = (
         d.get("guest_properties", {})
         .get("viewers", {})
         .get("file_spice", {})
         .get("options", {})
-        .get("shared_folder")
-    ):
-        v.add_shared_folder()
+    )
+    if type(file_spice_options) is dict:
+        if file_spice_options.get("shared_folder") is True:
+            v.add_shared_folder()
 
     v.randomize_vm()
     v.remove_selinux_options()
