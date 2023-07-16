@@ -2200,7 +2200,7 @@ class Upgrade(object):
                     [r.row["uid"], r.row["category"], r.row["provider"]],
                 ).run(self.conn)
             except Exception as e:
-                print(e)
+                None
 
         return True
 
