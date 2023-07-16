@@ -609,17 +609,11 @@ def min_profile_priority(reservables):
                     priority_id = "default"
                 else:
                     priority_id = reservable.get("priority_id")
+                # Exclude default admins priority
                 priority = (
                     r.table("bookings_priority")
                     .get_all(priority_id, index="rule_id")
-                    .filter(  ## exclude "default admins" priority
-                        lambda row: (
-                            ~row["allowed"]["roles"] == ["admin"]
-                            and row["allowed"]["categories"] == False
-                            and row["allowed"]["groups"] == False
-                            and row["allowed"]["users"] == False
-                        )
-                    )
+                    .filter(lambda row: row["id"] != "default admins")
                     .min("forbid_time")
                     .run(db.conn)
                 )
