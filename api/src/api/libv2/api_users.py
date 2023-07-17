@@ -1073,6 +1073,19 @@ class ApiUsers:
         else:
             return category[0]
 
+    def category_get_custom_login_url(self, category_id):
+        try:
+            with app.app_context():
+                category = (
+                    r.table("categories")
+                    .get(category_id)
+                    .pluck("frontend", "custom_url_name")
+                    .run(db.conn)
+                )
+            return "/login/" + category.get("custom_url_name")
+        except:
+            return "/login"
+
     ### USER Schema
 
     def CategoriesGet(self):

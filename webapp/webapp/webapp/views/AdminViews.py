@@ -3,8 +3,6 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
-import json
-import logging as log
 
 from flask import flash, jsonify, make_response, redirect, render_template, request
 from flask_login import current_user, login_required, login_user, logout_user
@@ -12,7 +10,6 @@ from flask_login import current_user, login_required, login_user, logout_user
 from webapp import app
 
 from ..auth.authentication import *
-from ..lib.admin_api import get_login_path, upload_backup
 from ..lib.log import *
 from .decorators import isAdmin, isAdminManager, maintenance
 
@@ -96,7 +93,13 @@ def remote_logout():
 @app.route("/isard-admin/logout")
 @login_required
 def logout():
-    login_path = get_login_path()
+    response = requests.get(
+        f"http://isard-api:5000/api/v3/category/{current_user.category}/custom_url"
+    )
+    if response.status_code == 200:
+        login_path = response.text
+    else:
+        login_path = "/login"
     response = make_response(
         f"""
             <!DOCTYPE html>

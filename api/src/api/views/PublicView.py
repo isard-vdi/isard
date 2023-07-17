@@ -50,3 +50,12 @@ def api_v3_category(custom_url):
         200,
         {"Content-Type": "application/json"},
     )
+
+
+@app.route("/api/v3/category/<category_id>/custom_url", methods=["GET"])
+def api_v3_category_custom_url(category_id):
+    return (
+        users.category_get_custom_login_url(category_id),
+        200,
+        {"Content-Type": "application/json"},
+    )
