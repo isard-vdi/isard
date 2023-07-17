@@ -25,19 +25,9 @@ from cachetools import TTLCache, cached
 from flask import render_template
 from flask_login import current_user, logout_user
 
-from webapp import app
-
 from .._common.api_rest import ApiRest
 
 _MAINTENANCE_API_ENDPOINT = "/maintenance"
-
-from rethinkdb import RethinkDB
-
-r = RethinkDB()
-from ..lib.flask_rethink import RDB
-
-db = RDB(app)
-db.init_app(app)
 
 
 def checkRole(fn):

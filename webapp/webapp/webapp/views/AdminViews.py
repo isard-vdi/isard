@@ -97,11 +97,6 @@ def login(category="default"):
 
 @app.route("/isard-admin/logout/remote")
 def remote_logout():
-    try:
-        logout_ram_user(current_user.id)
-    except:
-        # The user does not exist already
-        None
     logout_user()
     return jsonify(success=True)
 
