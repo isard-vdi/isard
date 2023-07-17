@@ -25,14 +25,8 @@ from eventlet import monkey_patch
 monkey_patch()
 
 from flask_socketio import SocketIO
-from rethinkdb import RethinkDB
-from webapp.lib.flask_rethink import RDB
 
 from webapp import app
-
-r = RethinkDB()
-db = RDB(app)
-db.init_app(app)
 
 socketio = SocketIO(app)
 

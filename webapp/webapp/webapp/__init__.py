@@ -27,12 +27,6 @@ app.url_map.strict_slashes = False
 
 app.secret_key = os.environ["WEBAPP_SESSION_SECRET"]
 
-from webapp.lib.load_config import loadConfig
-
-cfg = loadConfig(app)
-if not cfg.init_app(app):
-    exit(0)
-
 from .lib.log import *
 
 print("Starting isard webapp...")
@@ -46,14 +40,6 @@ if app.debug:
     log.warning("Debug mode: {}".format(app.debug))
 else:
     log.info("Debug mode: {}".format(app.debug))
-
-"""
-Authentication types
-"""
-from .auth import authentication
-
-app.localuser = authentication.LocalUsers()
-
 
 """
 Serve static files
