@@ -2686,43 +2686,44 @@ class Upgrade(object):
             except Exception as e:
                 print(e)
 
-        if version == 93:
-            try:
-                default_admins = (
-                    r.table(table)
-                    .filter(  ## "default admins" priority
-                        lambda row: row["allowed"]["roles"] == ["admin"]
-                        and row["allowed"]["categories"] == False
-                        and row["allowed"]["groups"] == False
-                        and row["allowed"]["users"] == False
-                    )
-                    .pluck("allowed")["allowed"]
-                    .run(self.conn)
-                )
+        # Version 93 Skipped as introduced a bug in reservables priority changes
+        # if version == 93:
+        #     try:
+        #         default_admins = (
+        #             r.table(table)
+        #             .filter(  ## "default admins" priority
+        #                 lambda row: row["allowed"]["roles"] == ["admin"]
+        #                 and row["allowed"]["categories"] == False
+        #                 and row["allowed"]["groups"] == False
+        #                 and row["allowed"]["users"] == False
+        #             )
+        #             .pluck("allowed")["allowed"]
+        #             .run(self.conn)
+        #         )
 
-                new_allowed = {
-                    "categories": False
-                    if default_admins["categories"] == None
-                    else default_admins["categories"],
-                    "groups": False
-                    if default_admins["groups"] == None
-                    else default_admins["groups"],
-                    "roles": False
-                    if default_admins["roles"] == None
-                    else default_admins["roles"],
-                    "users": False
-                    if default_admins["users"] == None
-                    else default_admins["users"],
-                }
+        #         new_allowed = {
+        #             "categories": False
+        #             if default_admins["categories"] == None
+        #             else default_admins["categories"],
+        #             "groups": False
+        #             if default_admins["groups"] == None
+        #             else default_admins["groups"],
+        #             "roles": False
+        #             if default_admins["roles"] == None
+        #             else default_admins["roles"],
+        #             "users": False
+        #             if default_admins["users"] == None
+        #             else default_admins["users"],
+        #         }
 
-                r.table(table).filter(  ## "default admins" priority
-                    lambda row: row["allowed"]["roles"] == ["admin"]
-                    and row["allowed"]["categories"] == False
-                    and row["allowed"]["groups"] == False
-                    and row["allowed"]["users"] == False
-                ).update({"allowed": new_allowed}).run(self.conn)
-            except Exception as e:
-                print(e)
+        #         r.table(table).filter(  ## "default admins" priority
+        #             lambda row: row["allowed"]["roles"] == ["admin"]
+        #             and row["allowed"]["categories"] == False
+        #             and row["allowed"]["groups"] == False
+        #             and row["allowed"]["users"] == False
+        #         ).update({"allowed": new_allowed}).run(self.conn)
+        #     except Exception as e:
+        #         print(e)
 
     """
     CATEGORIES TABLE UPGRADES
