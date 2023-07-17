@@ -1705,17 +1705,17 @@ class Upgrade(object):
             try:
                 r.table(table).index_create("user").run(self.conn)
             except Exception as e:
-                print(e)
+                pass
 
             try:
                 r.table(table).index_create("category").run(self.conn)
             except Exception as e:
-                print(e)
+                pass
 
             try:
                 r.table(table).index_create("group").run(self.conn)
             except Exception as e:
-                print(e)
+                pass
 
             try:
                 r.table(table).index_create(
@@ -2200,7 +2200,7 @@ class Upgrade(object):
                     [r.row["uid"], r.row["category"], r.row["provider"]],
                 ).run(self.conn)
             except Exception as e:
-                print(e)
+                None
 
         return True
 
