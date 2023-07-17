@@ -13,11 +13,8 @@ from webapp import app
 
 from ..auth.authentication import *
 from ..lib.admin_api import get_login_path, upload_backup
-from ..lib.isardUpdates import Updates
 from ..lib.log import *
 from .decorators import isAdmin, isAdminManager, maintenance
-
-u = Updates()
 
 monitor_host = os.getenv("GRAFANA_WEBAPP_URL")
 if not monitor_host:
@@ -353,96 +350,10 @@ UPDATES
 @login_required
 @isAdmin
 def admin_updates():
-    if not u.is_conected():
-        flash(
-            "There is a network or update server error at the moment. Try again later.",
-            "error",
-        )
-        return render_template(
-            "admin/pages/updates.html",
-            title="Downloads",
-            nav="Downloads",
-            registered=False,
-            connected=False,
-            monitor_host=monitor_host,
-        )
-    registered = u.is_registered()
-    if not registered:
-        flash("IsardVDI hasn't been registered yet.", "error")
     return render_template(
         "admin/pages/updates.html",
         title="Downloads",
         nav="Downloads",
-        registered=registered,
-        connected=True,
-        monitor_host=monitor_host,
-    )
-
-
-@app.route("/isard-admin/admin/updates_register", methods=["POST"])
-@login_required
-@isAdmin
-def admin_updates_register():
-    if request.method == "POST":
-        try:
-            if not u.is_registered():
-                u.register()
-        except Exception as e:
-            log.error("Error registering client: " + str(e))
-    if not u.is_conected():
-        flash(
-            "There is a network or update server error at the moment. Try again later.",
-            "error",
-        )
-        return render_template(
-            "admin/pages/updates.html",
-            title="Downloads",
-            nav="Downloads",
-            registered=False,
-            connected=False,
-            monitor_host=monitor_host,
-        )
-    registered = u.is_registered()
-    if not registered:
-        flash("IsardVDI hasn't been registered yet.", "error")
-    return render_template(
-        "admin/pages/updates.html",
-        title="Downloads",
-        nav="Downloads",
-        registered=registered,
-        connected=True,
-        monitor_host=monitor_host,
-    )
-
-
-@app.route("/isard-admin/admin/updates_reload", methods=["POST"])
-@login_required
-@isAdmin
-def admin_updates_reload():
-    if request.method == "POST":
-        u.reload_updates()
-    if not u.is_conected():
-        flash(
-            "There is a network or update server error at the moment. Try again later.",
-            "error",
-        )
-        return render_template(
-            "admin/pages/updates.html",
-            title="Downloads",
-            nav="Downloads",
-            registered=False,
-            connected=False,
-            monitor_host=monitor_host,
-        )
-    registered = u.is_registered()
-    if not registered:
-        flash("IsardVDI hasn't been registered yet.", "error")
-    return render_template(
-        "admin/pages/updates.html",
-        title="Downloads",
-        nav="Downloads",
-        registered=registered,
-        connected=True,
         monitor_host=monitor_host,
     )
 
