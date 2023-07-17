@@ -373,17 +373,3 @@ def admin_config():
         title="Config",
         monitor_host=monitor_host,
     )
-
-
-"""
-BACKUP & RESTORE
-"""
-
-
-@app.route("/isard-admin/admin/backup/upload", methods=["POST"])
-@login_required
-@isAdmin
-def admin_backup_upload():
-    for f in request.files:
-        upload_backup(request.files[f])
-    return json.dumps("Updated"), 200, {"Content-Type": "application/json"}
