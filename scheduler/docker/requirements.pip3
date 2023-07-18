@@ -9,3 +9,4 @@ python-jose==3.3.0
 APScheduler==3.9.1
 Werkzeug==2.2.2
 pytz==2022.7
+cachetools~=5.3
