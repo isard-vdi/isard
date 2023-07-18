@@ -74,16 +74,6 @@ class loadConfig:
                 print("   " + str(len(tables)) + " populated")
                 time.sleep(2)
 
-        app.ram["secrets"]["isardvdi"] = {
-            "id": "isardvdi",
-            "secret": os.environ["API_ISARDVDI_SECRET"],
-            "description": "isardvdi",
-            "domain": "localhost",
-            "category_id": "default",
-            "role_id": "admin",
-        }
-        app.secret = os.environ["API_ISARDVDI_SECRET"]
-
         # Load locales for QMP
         files = Path("./scheduler/locales").glob("*.json")
         app.langs = {}

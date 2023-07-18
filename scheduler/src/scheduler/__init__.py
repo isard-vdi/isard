@@ -28,9 +28,6 @@ print("Starting isard scheduler...")
 app = Flask(__name__, static_url_path="")
 app.url_map.strict_slashes = False
 
-# Stores data for external apps poolling in ram
-app.ram = {"secrets": {}}
-
 from scheduler.lib.load_config import loadConfig
 
 cfg = loadConfig(app)

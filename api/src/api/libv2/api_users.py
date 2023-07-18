@@ -90,7 +90,7 @@ class ApiUsers:
                     "kid": "isardvdi",
                     "data": gen_payload_from_user(user_id),
                 },
-                app.ram["secrets"]["isardvdi"]["secret"],
+                os.environ.get("API_ISARDVDI_SECRET"),
                 algorithm="HS256",
             )
         }
@@ -124,7 +124,7 @@ class ApiUsers:
                     "kid": "isardvdi",
                     "data": user,
                 },
-                app.ram["secrets"]["isardvdi"]["secret"],
+                os.environ.get("API_ISARDVDI_SECRET"),
                 algorithm="HS256",
             )
         raise Error(

@@ -12,6 +12,7 @@ RUN pip3 install --no-cache-dir -r requirements.pip3
 RUN apk del .build_deps
 
 COPY scheduler/src /src
+COPY component/_common/src /src/scheduler/_common
 WORKDIR /src
 
 CMD ["python3", "start.py"]

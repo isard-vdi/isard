@@ -6,3 +6,4 @@ services:
       - "5001:5000"
     volumes:
     - ${BUILD_ROOT_PATH}/scheduler/src:/src
+    - ${BUILD_ROOT_PATH}/component/_common/src:/src/scheduler/_common

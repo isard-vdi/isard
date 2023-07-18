@@ -70,9 +70,6 @@ app.config["MAX_CONTENT_LENGTH"] = 1 * 1000 * 1000  # 1 MB
 # '''
 # app.secret_key = "Change this key!//\xf7\x83\xbe\x17\xfa\xa3zT\n\\]m\xa6\x8bF\xdd\r\xf7\x9e\x1d\x1f\x14'"
 
-# Stores data for external apps poolling in ram
-app.ram = {"secrets": {}}
-
 from api.libv2.helpers import InternalUsers
 
 app.internal_users = InternalUsers()

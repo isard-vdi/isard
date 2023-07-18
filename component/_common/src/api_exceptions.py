@@ -28,7 +28,10 @@ from flask import jsonify, request
 try:
     from api import app
 except:
-    from webapp import app
+    try:
+        from webapp import app
+    except:
+        from scheduler import app
 
 content_type = {"Content-Type": "application/json"}
 ex = {

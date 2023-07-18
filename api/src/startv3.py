@@ -11,7 +11,6 @@ from api.libv2 import (
     api_socketio_deployments,
     api_socketio_domains,
     api_socketio_media,
-    api_socketio_secrets,
 )
 from api.libv2.bookings import api_socketio_bookings, api_socketio_plannings
 from api.libv2.maintenance import Maintenance
@@ -24,7 +23,6 @@ if __name__ == "__main__":
     Maintenance.initialization()
     # Frontend users websockets
     api_socketio_domains.start_domains_thread()
-    api_socketio_secrets.start_secrets_thread()
     api_socketio_deployments.start_deployments_thread()
     api_socketio_bookings.start_bookings_thread()
     api_socketio_plannings.start_plannings_thread()
