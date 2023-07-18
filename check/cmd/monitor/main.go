@@ -90,14 +90,16 @@ type MonitorConfig struct {
 }
 
 type MonitorInstance struct {
-	Host       string                         `json:"host"`
-	Category   string                         `json:"category"`
-	Username   string                         `json:"username"`
-	Password   string                         `json:"password"`
-	TemplateID string                         `json:"template_id"`
-	HypersNum  int                            `json:"hypers_num"`
-	Rsp        *checkv1.CheckIsardVDIResponse `json:"-"`
-	RspErr     error                          `json:"-"`
+	Host            string                         `json:"host"`
+	Category        string                         `json:"category"`
+	Username        string                         `json:"username"`
+	Password        string                         `json:"password"`
+	TemplateID      string                         `json:"template_id"`
+	HypersNum       int                            `json:"hypers_num"`
+	FailMaintenance bool                           `json:"fail_maintenance"`
+	FailSelfSigned  bool                           `json:"fail_self_signed"`
+	Rsp             *checkv1.CheckIsardVDIResponse `json:"-"`
+	RspErr          error                          `json:"-"`
 }
 
 func check(ctx context.Context, wg *sync.WaitGroup, checkAddr string, instance *MonitorInstance) {
@@ -124,8 +126,8 @@ func check(ctx context.Context, wg *sync.WaitGroup, checkAddr string, instance *
 			},
 		},
 		TemplateId:          instance.TemplateID,
-		FailMaintenanceMode: true,
-		FailSelfSigned:      true,
+		FailMaintenanceMode: instance.FailMaintenance,
+		FailSelfSigned:      instance.FailSelfSigned,
 	})
 	if err != nil {
 		instance.RspErr = err
