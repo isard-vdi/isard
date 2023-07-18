@@ -22,7 +22,7 @@ import logging
 from functools import wraps
 
 from cachetools import TTLCache, cached
-from flask import render_template
+from flask import redirect, render_template
 from flask_login import current_user, logout_user
 
 from .._common.api_rest import ApiRest
@@ -48,7 +48,7 @@ def isAdmin(fn):
         if current_user.is_admin:
             return fn(*args, **kwargs)
         logout_user()
-        return render_template("login_category.html")
+        return redirect("/login")
 
     return decorated_view
 
@@ -59,7 +59,7 @@ def isAdminManager(fn):
         if current_user.is_admin or current_user.role == "manager":
             return fn(*args, **kwargs)
         logout_user()
-        return render_template("login_category.html", category=False)
+        return redirect("/login")
 
     return decorated_view
 

@@ -77,13 +77,6 @@ def send_bower(path):
     return send_from_directory(os.path.join(app.root_path, "bower_components"), path)
 
 
-@app.route("/isard-admin/font-linux/<path:path>")
-def send_font_linux(path):
-    return send_from_directory(
-        os.path.join(app.root_path, "node_modules/font-linux/assets"), path
-    )
-
-
 @app.route("/isard-admin/isard_dist/<path:path>")
 def send_isardist(path):
     return send_from_directory(os.path.join(app.root_path, "isard_dist"), path)
