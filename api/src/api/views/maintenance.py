@@ -20,6 +20,7 @@
 
 import json
 
+from cachetools import TTLCache, cached
 from flask import request
 
 from api import app
@@ -28,6 +29,7 @@ from ..libv2.maintenance import Maintenance
 from .decorators import is_admin
 
 
+@cached(cache=TTLCache(maxsize=1, ttl=5))
 @app.route("/api/v3/maintenance", methods=["GET"])
 def _api_maintenance_get():
     return (
