@@ -1069,10 +1069,7 @@ class ApiAdmin:
                 return data
 
             if action == "delete":
-                with app.app_context():
-                    r.table(table).get_all(r.args(ids)).update(
-                        {"status": "ForceDeleting"}
-                    ).run(db.conn)
+                ApiDesktopsPersistent().DeleteMultiple(ids)
                 return True
 
             if action == "force_failed":

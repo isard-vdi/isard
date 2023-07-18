@@ -243,7 +243,7 @@ class ApiTemplates:
         template_delete(template_id)
 
     def DeleteMultiple(self, templates_ids):
-        templates_delete(templates_ids)
+        templates_delete(templates_ids, True)
 
     def UpdateTemplate(self, template_id, data):
         with app.app_context():

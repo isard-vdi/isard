@@ -271,6 +271,11 @@ def desktop_delete(desktop_id, from_started=False, wait_seconds=0):
 
 
 def desktops_delete(desktops_ids, force=False):
+    for desktop_id in desktops_ids:
+        with app.app_context():
+            r.table("bookings").get_all(
+                ["desktop", desktop_id], index="item_type-id"
+            ).delete().run(db.conn)
     if force:
         with app.app_context():
             r.table("domains").get_all(r.args(desktops_ids)).update(
@@ -278,9 +283,6 @@ def desktops_delete(desktops_ids, force=False):
             ).run(db.conn)
     else:
         with app.app_context():
-            r.table("bookings").get_all(
-                ["desktop", r.args(desktops_ids)], index="item_type-id"
-            ).delete().run(db.conn)
             r.table("domains").get_all(r.args(desktops_ids), index="id").filter(
                 {"status": "Stopped"}
             ).update({"status": "Deleting", "accessed": int(time.time())}).run(db.conn)
