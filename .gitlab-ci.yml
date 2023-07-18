@@ -176,7 +176,7 @@ docker-compose-demo:
     # https://github.com/isard-vdi/isard/issues/390
     - apk info -q --depends docker-compose | xargs apk add
     - apk add py3-pip
-    - pip install docker-compose~=1.26.0
+    - pip install "Cython<3.0.0" pyyaml==5.3.1  docker-compose~=1.26.0
   script:
     - test "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" -a ! -e ".VERSION" && exit 0
     - cp isardvdi.cfg.example isardvdi.cfg
