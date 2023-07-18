@@ -55,12 +55,15 @@ func main() {
 			failed = instance.RspErr
 
 			if errors.Is(instance.RspErr, ErrHypersNum) {
+				log.Warn().Str("host", instance.Host).Int("expected_hypers", instance.HypersNum).Int32("actual_hypers", instance.Rsp.HypervisorNum).Str("isardvdi_version", instance.Rsp.IsardvdiVersion).Msg("check finished")
 				msg += fmt.Sprintf("WARN (%d/%d) %s - %s\n", instance.Rsp.HypervisorNum, instance.HypersNum, instance.Host, instance.Rsp.IsardvdiVersion)
 			} else {
+				log.Error().Str("host", instance.Host).Err(instance.RspErr).Msg("check failed")
 				msg += fmt.Sprintf("FAIL (?/?) %s - ???\n", instance.Host)
 				err = instance.RspErr
 			}
 		} else {
+			log.Info().Str("host", instance.Host).Str("isardvdi_version", instance.Rsp.IsardvdiVersion).Msg("check finished")
 			msg += fmt.Sprintf("OK   (%d/%d) %s - %s\n", instance.Rsp.HypervisorNum, instance.HypersNum, instance.Host, instance.Rsp.IsardvdiVersion)
 		}
 	}
