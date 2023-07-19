@@ -1,4 +1,4 @@
-FROM alpine:3.17.0 as production
+FROM alpine:3.18 as production
 
 RUN apk add --no-cache squid
 COPY docker/squid/run.sh /run.sh

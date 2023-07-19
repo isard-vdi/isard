@@ -4,7 +4,8 @@ eventlet==0.33.0
 Flask-SocketIO==5.1.0
 bcrypt==3.2.0
 pem==21.2.0
-rethinkdb==2.3.0.post6
+rethinkdb==2.4.9
 python-jose==3.3.0
 Werkzeug~=2.0.0
 dnspython==2.2.1
+requests==2.31.0

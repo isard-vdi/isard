@@ -3,17 +3,18 @@ import os
 import time
 
 import requests
-import rethinkdb as r
+from rethinkdb import RethinkDB
 
 from webapp import app
 
-from .flask_rethink import RethinkDB
-from .log import *
+r = RethinkDB()
+from .flask_rethink import RDB
 
-db = RethinkDB(app)
+db = RDB(app)
 db.init_app(app)
 
 from .load_config import load_config
+from .log import *
 
 cfg = load_config()
 
@@ -61,7 +62,6 @@ class Updates(object):
         self.updateFromWeb()
 
     def updateFromWeb(self):
-
         self.web = {}
         self.kinds = [
             "media",

@@ -4,7 +4,7 @@ ARG DOCKER_IMAGE_PREFIX=registry.gitlab.com/isard/isardvdi/
 ARG DOCKER_IMAGE_TAG
 FROM ${DOCKER_IMAGE_PREFIX}rdpgw:$DOCKER_IMAGE_TAG as rdpgw
 
-FROM alpine:3.16 as production
+FROM alpine:3.18 as production
 MAINTAINER isard <info@isardvdi.com>
 
 RUN apk add --no-cache --update wireguard-tools openssh python3

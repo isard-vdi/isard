@@ -13,11 +13,15 @@ from flask_login import current_user, logout_user
 from webapp import app
 
 from .._common.api_rest import ApiRest
-from ..lib.flask_rethink import RethinkDB
 
 _MAINTENANCE_API_ENDPOINT = "/maintenance"
 
-db = RethinkDB(app)
+from rethinkdb import RethinkDB
+
+r = RethinkDB()
+from ..lib.flask_rethink import RDB
+
+db = RDB(app)
 db.init_app(app)
 
 

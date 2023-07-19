@@ -21,3 +21,4 @@ cachetools~=5.3
 rq~=1.14
 betterproto~=1.2
 python-json-logger
+requests~=2.31
