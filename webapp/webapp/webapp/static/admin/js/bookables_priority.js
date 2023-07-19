@@ -45,12 +45,8 @@ $(document).ready(function () {
       {
         className: "actions-control",
         orderable: false,
-        data: null,
-        defaultContent:
-          '<button id="btn-alloweds" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button> \
-            <button id="btn-edit" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-pencil" style="color:darkblue"></i></button> \
-            <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>',
-      },
+        data: null
+      }
     ],
     order: [[1, "asc"]],
     columnDefs: [
@@ -86,6 +82,17 @@ $(document).ready(function () {
           return res
         },
       },
+      {
+        targets: 12,
+        render: function (data, type, full, meta) {
+          return ['default', 'default admins'].includes(full.id) ?
+            '<button id="btn-edit" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-pencil" style="color:darkblue"></i></button>'
+            :
+            '<button id="btn-edit" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-pencil" style="color:darkblue"></i></button> \
+            <button id="btn-alloweds" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button> \
+            <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
+          }
+      }
     ],
   });
 
@@ -117,7 +124,7 @@ $(document).ready(function () {
               data["table"] = "remotevpn";
               $.ajax({
                 type: "DELETE",
-                url: "/admin/table/bookings_priority/"+data["id"],
+                url: "/api/v3/bookings/priorities/" + data['id'],
                 contentType: "application/json",
                 success: function (data) {
                   $("form").each(function () {

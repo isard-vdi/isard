@@ -111,6 +111,10 @@ class Bookings:
                         )
                     return compute_user_priority(users, rule_id)
 
+    def delete_users_priority(self, priority_id):
+        with app.app_context():
+            r.table("bookings_priority").get(priority_id).delete().run(db.conn)
+
     def list_priority_rules(self):
         return list(
             r.table("bookings_priority").pluck("rule_id").distinct().run(db.conn)

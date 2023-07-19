@@ -54,6 +54,15 @@ def api_v3_user_priorities(payload):
     return json.dumps(apib.get_users_priorities(data["rule_id"]))
 
 
+@app.route("/api/v3/bookings/priorities/<priority_id>", methods=["DELETE"])
+@is_admin
+def api_v3_user_priorities_delete(payload, priority_id):
+    if priority_id in ["default", "default admins"]:
+        raise Error("forbidden", "Default priorities cannot be deleted")
+    apib.delete_users_priority(priority_id)
+    return (json.dumps({}), 200, {"Content-Type": "application/json"})
+
+
 # Gets list of priorities rules
 @app.route("/api/v3/admin/priority/rules", methods=["GET"])
 @is_admin
