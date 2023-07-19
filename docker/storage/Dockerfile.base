@@ -34,5 +34,6 @@ RUN useradd -ms /bin/bash v2v
 #WORKDIR /home/v2v
 
 COPY docker/storage/init.sh /init.sh
+COPY docker/storage/scripts /scripts
 
 CMD ["/bin/sh","/init.sh"]
