@@ -63,6 +63,12 @@ from .api_admin import (
 from .helpers import _check, _parse_desktop, _random_password, gen_payload_from_user
 
 
+@cached(cache=TTLCache(maxsize=100, ttl=60))
+def get_user(user_id):
+    with app.app_context():
+        return r.table("users").get(user_id).run(db.conn)
+
+
 def check_category_domain(category_id, domain):
     with app.app_context():
         allowed_domain = (
@@ -1072,6 +1078,19 @@ class ApiUsers:
             )
         else:
             return category[0]
+
+    def category_get_custom_login_url(self, category_id):
+        try:
+            with app.app_context():
+                category = (
+                    r.table("categories")
+                    .get(category_id)
+                    .pluck("frontend", "custom_url_name")
+                    .run(db.conn)
+                )
+            return "/login/" + category.get("custom_url_name")
+        except:
+            return "/login"
 
     ### USER Schema
 

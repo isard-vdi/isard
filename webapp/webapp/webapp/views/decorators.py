@@ -1,28 +1,33 @@
-# Copyright 2017 the Isard-vdi project authors:
-#      Josep Maria Viñolas Auquer
-#      Alberto Larraz Dalmases
-# License: AGPLv3
+#
+#   Copyright © 2023 Josep Maria Viñolas Auquer, Alberto Larraz Dalmases
+#
+#   This file is part of IsardVDI.
+#
+#   IsardVDI is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or (at your
+#   option) any later version.
+#
+#   IsardVDI is distributed in the hope that it will be useful, but WITHOUT ANY
+#   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+#   FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+#   details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
 
 import logging
 from functools import wraps
 
 from cachetools import TTLCache, cached
-from flask import render_template
+from flask import redirect, render_template
 from flask_login import current_user, logout_user
-
-from webapp import app
 
 from .._common.api_rest import ApiRest
 
 _MAINTENANCE_API_ENDPOINT = "/maintenance"
-
-from rethinkdb import RethinkDB
-
-r = RethinkDB()
-from ..lib.flask_rethink import RDB
-
-db = RDB(app)
-db.init_app(app)
 
 
 def checkRole(fn):
@@ -43,7 +48,7 @@ def isAdmin(fn):
         if current_user.is_admin:
             return fn(*args, **kwargs)
         logout_user()
-        return render_template("login_category.html")
+        return redirect("/login")
 
     return decorated_view
 
@@ -54,7 +59,7 @@ def isAdminManager(fn):
         if current_user.is_admin or current_user.role == "manager":
             return fn(*args, **kwargs)
         logout_user()
-        return render_template("login_category.html", category=False)
+        return redirect("/login")
 
     return decorated_view
 

@@ -1,23 +1,33 @@
-# Copyright 2017 the Isard-vdi project authors:
-#      Josep Maria Viñolas Auquer
-#      Alberto Larraz Dalmases
-# License: AGPLv3
+#
+#   Copyright © 2023 Josep Maria Viñolas Auquer, Alberto Larraz Dalmases
+#
+#   This file is part of IsardVDI.
+#
+#   IsardVDI is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or (at your
+#   option) any later version.
+#
+#   IsardVDI is distributed in the hope that it will be useful, but WITHOUT ANY
+#   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+#   FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+#   details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
 
-import json
-import logging as log
+import os
 
-from flask import flash, jsonify, make_response, redirect, render_template, request
+from flask import flash, jsonify, make_response, redirect, render_template
 from flask_login import current_user, login_required, login_user, logout_user
 
 from webapp import app
 
 from ..auth.authentication import *
-from ..lib.admin_api import get_login_path, upload_backup
-from ..lib.isardUpdates import Updates
 from ..lib.log import *
 from .decorators import isAdmin, isAdminManager, maintenance
-
-u = Updates()
 
 monitor_host = os.getenv("GRAFANA_WEBAPP_URL")
 if not monitor_host:
@@ -87,11 +97,6 @@ def login(category="default"):
 
 @app.route("/isard-admin/logout/remote")
 def remote_logout():
-    try:
-        logout_ram_user(current_user.id)
-    except:
-        # The user does not exist already
-        None
     logout_user()
     return jsonify(success=True)
 
@@ -99,7 +104,13 @@ def remote_logout():
 @app.route("/isard-admin/logout")
 @login_required
 def logout():
-    login_path = get_login_path()
+    response = requests.get(
+        f"http://isard-api:5000/api/v3/category/{current_user.category}/custom_url"
+    )
+    if response.status_code == 200:
+        login_path = response.text
+    else:
+        login_path = "/login"
     response = make_response(
         f"""
             <!DOCTYPE html>
@@ -353,96 +364,10 @@ UPDATES
 @login_required
 @isAdmin
 def admin_updates():
-    if not u.is_conected():
-        flash(
-            "There is a network or update server error at the moment. Try again later.",
-            "error",
-        )
-        return render_template(
-            "admin/pages/updates.html",
-            title="Downloads",
-            nav="Downloads",
-            registered=False,
-            connected=False,
-            monitor_host=monitor_host,
-        )
-    registered = u.is_registered()
-    if not registered:
-        flash("IsardVDI hasn't been registered yet.", "error")
     return render_template(
         "admin/pages/updates.html",
         title="Downloads",
         nav="Downloads",
-        registered=registered,
-        connected=True,
-        monitor_host=monitor_host,
-    )
-
-
-@app.route("/isard-admin/admin/updates_register", methods=["POST"])
-@login_required
-@isAdmin
-def admin_updates_register():
-    if request.method == "POST":
-        try:
-            if not u.is_registered():
-                u.register()
-        except Exception as e:
-            log.error("Error registering client: " + str(e))
-    if not u.is_conected():
-        flash(
-            "There is a network or update server error at the moment. Try again later.",
-            "error",
-        )
-        return render_template(
-            "admin/pages/updates.html",
-            title="Downloads",
-            nav="Downloads",
-            registered=False,
-            connected=False,
-            monitor_host=monitor_host,
-        )
-    registered = u.is_registered()
-    if not registered:
-        flash("IsardVDI hasn't been registered yet.", "error")
-    return render_template(
-        "admin/pages/updates.html",
-        title="Downloads",
-        nav="Downloads",
-        registered=registered,
-        connected=True,
-        monitor_host=monitor_host,
-    )
-
-
-@app.route("/isard-admin/admin/updates_reload", methods=["POST"])
-@login_required
-@isAdmin
-def admin_updates_reload():
-    if request.method == "POST":
-        u.reload_updates()
-    if not u.is_conected():
-        flash(
-            "There is a network or update server error at the moment. Try again later.",
-            "error",
-        )
-        return render_template(
-            "admin/pages/updates.html",
-            title="Downloads",
-            nav="Downloads",
-            registered=False,
-            connected=False,
-            monitor_host=monitor_host,
-        )
-    registered = u.is_registered()
-    if not registered:
-        flash("IsardVDI hasn't been registered yet.", "error")
-    return render_template(
-        "admin/pages/updates.html",
-        title="Downloads",
-        nav="Downloads",
-        registered=registered,
-        connected=True,
         monitor_host=monitor_host,
     )
 
@@ -462,17 +387,3 @@ def admin_config():
         title="Config",
         monitor_host=monitor_host,
     )
-
-
-"""
-BACKUP & RESTORE
-"""
-
-
-@app.route("/isard-admin/admin/backup/upload", methods=["POST"])
-@login_required
-@isAdmin
-def admin_backup_upload():
-    for f in request.files:
-        upload_backup(request.files[f])
-    return json.dumps("Updated"), 200, {"Content-Type": "application/json"}

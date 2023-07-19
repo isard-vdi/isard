@@ -1,10 +1,22 @@
-# Copyright 2017 the Isard-vdi project authors:
-#      Josep Maria Viñolas Auquer
-#      Alberto Larraz Dalmases
-# License: AGPLv3
-
-#!flask/bin/python
-# coding=utf-8
+#
+#   Copyright © 2023 Josep Maria Viñolas Auquer, Alberto Larraz Dalmases
+#
+#   This file is part of IsardVDI.
+#
+#   IsardVDI is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU Affero General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or (at your
+#   option) any later version.
+#
+#   IsardVDI is distributed in the hope that it will be useful, but WITHOUT ANY
+#   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+#   FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+#   details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
 
 import os
 
@@ -14,12 +26,6 @@ app = Flask(__name__, static_url_path="")
 app.url_map.strict_slashes = False
 
 app.secret_key = os.environ["WEBAPP_SESSION_SECRET"]
-
-from webapp.lib.load_config import loadConfig
-
-cfg = loadConfig(app)
-if not cfg.init_app(app):
-    exit(0)
 
 from .lib.log import *
 
@@ -34,14 +40,6 @@ if app.debug:
     log.warning("Debug mode: {}".format(app.debug))
 else:
     log.info("Debug mode: {}".format(app.debug))
-
-"""
-Authentication types
-"""
-from .auth import authentication
-
-app.localuser = authentication.LocalUsers()
-
 
 """
 Serve static files
@@ -77,13 +75,6 @@ def send_templates(path):
 @app.route("/isard-admin/bower_components/<path:path>")
 def send_bower(path):
     return send_from_directory(os.path.join(app.root_path, "bower_components"), path)
-
-
-@app.route("/isard-admin/font-linux/<path:path>")
-def send_font_linux(path):
-    return send_from_directory(
-        os.path.join(app.root_path, "node_modules/font-linux/assets"), path
-    )
 
 
 @app.route("/isard-admin/isard_dist/<path:path>")

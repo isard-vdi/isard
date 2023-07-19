@@ -1,10 +1,8 @@
 <!-- extend base layout -->
-{% extends "base.html" %} {% block css %}
-
-<!-- bootstrap-daterangepicker -->
-<link href="/isard-admin/vendors/bootstrap-daterangepicker/daterangepicker.css" rel="stylesheet">
-
-{% endblock %} {% block content %}
+{% extends "base.html" %}
+{% block css %}
+{% endblock %}
+{% block content %}
 <div class="row">
   <div class="col-md-12 col-sm-12 col-xs-12">
     <div class="x_panel">
@@ -72,5 +70,4 @@
 <script src="/isard-admin/static/admin/js/filters.js"></script>
 <script src="/isard-admin/static/admin/js/usage.js"></script>
 <script src="/isard-admin/echarts/dist/echarts.min.js"></script>
-<script src="/isard-admin/vendors/bootstrap-daterangepicker/daterangepicker.js"></script>
 {% endblock %}

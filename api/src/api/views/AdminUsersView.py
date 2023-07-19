@@ -36,7 +36,7 @@ from ..libv2.api_admin import (
     admin_table_list,
     admin_table_update,
 )
-from ..libv2.api_users import ApiUsers, Password
+from ..libv2.api_users import ApiUsers, Password, get_user
 from ..libv2.quotas import Quotas
 from ..libv2.quotas_process import QuotasProcess
 from ..libv2.users import *
@@ -78,6 +78,13 @@ def api_v3_admin_jwt(payload, user_id):
 def api_v3_admin_user_exists(payload, user_id):
     ownsUserId(payload, user_id)
     return json.dumps(users.Get(user_id)), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/admin/user/<user_id>/raw", methods=["GET"])
+@has_token
+def api_v3_admin_user_raw(payload, user_id):
+    ownsUserId(payload, user_id)
+    return json.dumps(get_user(user_id)), 200, {"Content-Type": "application/json"}
 
 
 # Users table list admin panel Management and QuotasLimits
