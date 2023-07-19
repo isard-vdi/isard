@@ -20,9 +20,9 @@
 
 import traceback
 
-from api import app
+from isardvdi_common.api_exceptions import Error
 
-from .._common.api_exceptions import Error
+from api import app
 
 
 def _validate_item(item, data, normalize=True):

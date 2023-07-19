@@ -25,8 +25,7 @@ from subprocess import check_output
 
 import guestfs
 import pyqcow
-
-from ..._common.api_exceptions import Error
+from isardvdi_common.api_exceptions import Error
 
 
 class QcowFileLockedError(Exception):
