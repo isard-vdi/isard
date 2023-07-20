@@ -289,7 +289,8 @@
             },
             "desktop-template": "Шаблон",
             "filter": "Фильтр",
-            "filter-placeholder": "Введите для поиска"
+            "filter-placeholder": "Введите для поиска",
+            "section-title-advanced": "Дополнительные параметры"
         },
         "domain": {
             "info": {
@@ -338,7 +339,11 @@
                 "selected": "Избранное",
                 "image": "Изображение"
             },
-            "filter-placeholder": "Введите для поиска"
+            "filter-placeholder": "Введите для поиска",
+            "error": {
+                "groups-users": "Должен быть выбран хотя бы один пользователь или одна группа",
+                "groups": "Должна быть выбрана хотя бы одна группа"
+            }
         },
         "new-template": {
             "description": "Описание",
@@ -362,6 +367,9 @@
                     "update": "Обновить"
                 }
             }
+        },
+        "duplicate-template": {
+            "title": "Дубликат шаблона"
         }
     },
     "messages": {
