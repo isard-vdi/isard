@@ -77,6 +77,7 @@ class DomainsThread(threading.Thread):
                             {"viewer": {"guest_ip": True}},
                             "image",
                             "description",
+                            "progress",
                         )
                         .changes(include_initial=False, squash=0.5)
                         .run(db.conn)
@@ -113,6 +114,13 @@ class DomainsThread(threading.Thread):
                             category = data.pop("category")
                             data = {"id": data["id"], "name": data["name"]}
                         else:
+                            if (
+                                c["old_val"]
+                                and c["old_val"].get("progress")
+                                and c["new_val"].get("progress")
+                            ):
+                                if c["old_val"]["progress"] == c["new_val"]["progress"]:
+                                    data.pop("progress")
                             data = c["new_val"]
                             if c["old_val"] == None:
                                 user = (

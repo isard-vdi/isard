@@ -129,16 +129,12 @@ function load_data(){
             "initComplete": function(settings, json){
                 socket.on('desktop_data', function(data){
                     var data = JSON.parse(data);
-                    if(data['id'].includes('_downloaded_')){
-                        dtUpdateInsert(table['domains'],data,false);
-                    }
+                    dtUpdateInsert(table['domains'],data,false);
                 });
 
                 socket.on('desktop_delete', function(data){
                     var data = JSON.parse(data);
-                    if(data['id'].includes('_downloaded_')){
-                        var row = table['domains'].row('#'+data.id).remove().draw();
-                    }
+                    table['domains'].row('#'+data.id).remove().draw();
                 });
             }
     } );
@@ -150,6 +146,7 @@ function load_data(){
                 $.ajax({
                     type: "POST",
                     url:"/api/v3/admin/downloads/download/domains/" + id,
+                    data: JSON.stringify(table['domains'].row( $(this).parents('tr') ).data()),
                     success: function(data){table['domains'].ajax.reload();}
                 })
                 break;
@@ -157,6 +154,7 @@ function load_data(){
                 $.ajax({
                     type: "POST",
                     url:"/api/v3/admin/downloads/abort/domains/" + id,
+                    data: JSON.stringify({}),
                     success: function(data){table['domains'].ajax.reload();}
                 })
                 break;
@@ -164,6 +162,7 @@ function load_data(){
                 $.ajax({
                     type: "POST",
                     url:"/api/v3/admin/downloads/delete/domains/" + id,
+                    data: JSON.stringify({}),
                     success: function(data){table['domains'].ajax.reload();}
                 })
                 break;

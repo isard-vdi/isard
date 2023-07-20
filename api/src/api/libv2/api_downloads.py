@@ -20,6 +20,7 @@
 
 import time
 from functools import wraps
+from uuid import uuid4
 
 import requests
 from cachetools import TTLCache, cached
@@ -108,8 +109,7 @@ def get_web_kinds():
     for k in kinds:
         web[k] = download_web_kind(kind=k)
         if web[k] == 500:
-            # The id is no longer in updates server.
-            # We better reset it
+            # The id is no longer in updates server. We better reset it.
             with app.app_context():
                 r.table("config").get(1).update({"resources": {"code": False}}).run(
                     db.conn
@@ -132,7 +132,16 @@ def download_web_kind(kind):
             timeout=10,
         )
         if req.status_code == 200:
-            return req.json()
+            if kind in ["domains", "media"]:
+                downloads = []
+                for d in req.json():
+                    # we base in db everything to it's disk filename in case of domains and media
+                    if kind == "domains" or kind == "media":
+                        d["id"] = d.get("url-isard")
+                    downloads.append(d)
+                return downloads
+            else:
+                return req.json()
         elif req.status_code == 500:
             return 500
         else:
@@ -169,53 +178,95 @@ def download_web_private_kind(kind="private_domains"):
             )
             return False
     except Exception as e:
-        print("Error repository getkind priv.\n" + str(e))
+        print("Error repository getkind private.\n" + str(e))
     return False
 
 
 def get_new_kind(kind, username):
     web = get_web_kinds()
     if kind == "viewers":
+        # viewers are only links to open in _blank new page to download
         return web[kind]
-    web = web[kind]
-    with app.app_context():
-        dbb = list(r.table(kind).run(db.conn))
-    result = []
-    for w in web:
-        dict = {}
-        found = False
-        for d in dbb:
-            if kind == "domains" or kind == "media":
-                if d["id"] == "_" + username + "_" + w["id"]:
-                    dict = w.copy()
-                    found = True
-                    dict["id"] = "_" + username + "_" + dict["id"]
-                    dict["new"] = False
-                    dict["status"] = d["status"]
-                    dict["progress"] = d.get("progress", False)
-                    break
-            else:
-                if d["id"] == w["id"]:
-                    dict = w.copy()
-                    found = True
-                    dict["new"] = False
-                    dict["status"] = "Downloaded"
-                    break
 
-        if not found:
-            dict = w.copy()
-            if kind == "domains" or kind == "media":
-                dict["id"] = "_" + username + "_" + dict["id"]
-            dict["new"] = True
-            dict["status"] = "Available"
-        result.append(dict)
+    web = web[kind]
+    result = []
+    if kind in ["domains", "media"]:
+        # We have downloaded_id index in domains and media
+        with app.app_context():
+            dbb = list(
+                r.table(kind)
+                .get_all(username, index="user")
+                .has_fields("url-isard")
+                .filter(~r.row["url-isard"].eq(False))
+                .run(db.conn)
+            )
+            dbb_dict = {d["url-isard"]: d for d in dbb}
+        if kind == "media":
+            with app.app_context():
+                mbb = list(
+                    r.table(kind)
+                    .get_all(username, index="user")
+                    .has_fields("url-web")
+                    .filter(~r.row["url-web"].eq(False))
+                    .run(db.conn)
+                )
+            dbb_dict = {**dbb_dict, **{d["url-web"]: d for d in mbb if d["url-web"]}}
+        for w in web:
+            if w["url-isard"] in dbb_dict.keys() or w["url-web"] in dbb_dict.keys():
+                result.append(
+                    {
+                        **w,
+                        **{
+                            "id": dbb_dict[w["url-isard"]]["id"]
+                            if w["url-isard"]
+                            else dbb_dict[w["url-web"]]["id"],
+                            "new": False,
+                            "status": dbb_dict[w["url-isard"]]["status"]
+                            if w["url-isard"]
+                            else dbb_dict[w["url-web"]]["status"],
+                            "progress": dbb_dict[w["url-isard"]].get("progress")
+                            if w["url-isard"]
+                            else dbb_dict[w["url-web"]].get("progress"),
+                        },
+                    }
+                )
+            else:
+                result.append(
+                    {
+                        **w,
+                        **{
+                            "id": str(uuid4()),
+                            "new": True,
+                            "status": "Available",
+                        },
+                    }
+                )
+
+    else:
+        # We still use old named ids
+        with app.app_context():
+            dbb = list(r.table(kind).run(db.conn))
+        for w in web:
+            if w["id"] in [d["id"] for d in dbb]:
+                result.append(
+                    {
+                        **w,
+                        **{
+                            "new": False,
+                            "status": "Downloaded",
+                        },
+                    }
+                )
+            else:
+                result.append({**w, **{"new": True, "status": "Available"}})
+
     return result
 
 
 def get_new_kind_id(kind, username, id):
     web = get_web_kinds()
     if kind == "domains" or kind == "media":
-        web = [d.copy() for d in web[kind] if "_" + username + "_" + d["id"] == id]
+        web = [d.copy() for d in web[kind] if d["id"] == id]
     else:
         web = [d.copy() for d in web[kind] if d["id"] == id]
 
@@ -225,12 +276,25 @@ def get_new_kind_id(kind, username, id):
 
     if kind == "domains" or kind == "media":
         with app.app_context():
-            dbb = r.table(kind).get("_" + username + "_" + w["id"]).run(db.conn)
-        if dbb is None:
-            w["id"] = "_" + username + "_" + w["id"]
+            dbb = list(
+                r.table(kind)
+                .get_all(w["id"], index="url-isard")
+                .filter({"user": username})
+                .run(db.conn)
+            )
+        if not len(dbb):
+            with app.app_context():
+                dbb = list(
+                    r.table(kind)
+                    .get_all(w["id"], index="url-web")
+                    .filter({"user": username})
+                    .run(db.conn)
+                )
+        if not len(dbb):
+            w["id"] = str(uuid4())
             return w
-        elif dbb.get("status") == "DownloadFailed":
-            return dbb
+        elif dbb[0].get("status") == "DownloadFailed":
+            return dbb[0]
     else:
         with app.app_context():
             dbb = r.table(kind).get(w["id"]).run(db.conn)
@@ -256,8 +320,9 @@ def get_missing_resources(domain, username):
 
 
 def formatDomains(data, user_id):
-    new_data = data.copy()
-    for d in new_data:
+    new_data = []
+    for d in data:
+        d = get_domain_if_already_downloaded(d, user_id)
         d["progress"] = {}
         d["status"] = "DownloadStarting"
         d["detail"] = ""
@@ -268,40 +333,51 @@ def formatDomains(data, user_id):
         if d.get("options"):
             d.pop("options")
         d.update(get_user_data(user_id))
-        path = get_user_path(user_id)
-        for disk in d["create_dict"]["hardware"]["disks"]:
-            if not disk["file"].startswith(path):
-                disk["file"] = path + disk["file"]
+        new_data.append(d)
     return new_data
 
 
+def get_domain_if_already_downloaded(data, user_id):
+    with app.app_context():
+        dbb = list(
+            r.table("domains")
+            .get_all(data.get("url-isard"), index="url-isard")
+            .filter({"user": user_id})
+            .run(db.conn)
+        )
+    if not len(dbb):
+        return data
+    return dbb[0]
+
+
 def formatMedias(data, user_id):
-    new_data = data.copy()
-    for d in new_data:
+    new_data = []
+    for d in data:
+        d = get_media_if_already_downloaded(d, user_id)
         d.update(get_user_data(user_id))
         d["progress"] = {}
         d["status"] = "DownloadStarting"
         d["accessed"] = int(time.time())
-        path = get_user_path(user_id)
-        if d["url-isard"] == False:
-            d["path"] = path + d["url-web"].split("/")[-1]
-        else:
-            d["path"] = path + d["url-isard"]
+        new_data.append(d)
     return new_data
 
 
-def get_user_path(user_id):
+def get_media_if_already_downloaded(data, user_id):
     with app.app_context():
-        user = r.table("users").get(user_id).run(db.conn)
-    return (
-        user["category"]
-        + "/"
-        + user["group"]
-        + "/"
-        + user["provider"]
-        + "/"
-        + user["uid"]
-        + "-"
-        + user["username"]
-        + "/"
-    )
+        dbb = list(
+            r.table("media")
+            .get_all(data.get("url-isard"), index="url-isard")
+            .filter({"user": user_id})
+            .run(db.conn)
+        )
+    if not len(dbb):
+        with app.app_context():
+            dbb = list(
+                r.table("media")
+                .get_all(data.get("url-web"), index="url-web")
+                .filter({"user": user_id})
+                .run(db.conn)
+            )
+    if not len(dbb):
+        return data
+    return dbb[0]

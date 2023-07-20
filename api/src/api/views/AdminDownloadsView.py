@@ -59,7 +59,7 @@ def admin_downloads_actions(payload, action, kind, id=False):
         if action == "download":
             if id:
                 # Only one id
-                d = get_new_kind_id(kind, payload["user_id"], id)
+                d = request.get_json(force=True)
                 if kind == "domains":
                     missing_resources = get_missing_resources(d, payload["user_id"])
                     for k, v in missing_resources.items():
