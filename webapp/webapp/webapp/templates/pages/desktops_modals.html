@@ -37,16 +37,16 @@
                     <div class="row">
                         <div class="x_panel">
                             <div class="x_title">
-                                <h4><i class="fa fa-info-circle" aria-hidden="true"></i> Desktop name and description</h4>
+                                <h4><i class="fa fa-info-circle" aria-hidden="true"></i> Domain name and description</h4>
                                 <div class="clearfix"></div>
                             </div>
                             <div class="col-md-3 col-sm-3 col-xs-12">
                                 <label class="control-label" for="name">Name <span class="required">*</span></label>
-                                <input id="desktop-name"  maxlength="40" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text">
+                                <input id="desktop-name"  maxlength="40" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New domain name" data-parsley-trigger="change" required type="text">
                             </div>
                             <div class="col-md-9 col-sm-9 col-xs-12">
                                 <label class="control-label" for="description">Description </label>
-                                <input id="description" name="description" placeholder="Desktop description"  type="text" style="width:100%">
+                                <input id="description" name="description" placeholder="Domain description"  type="text" style="width:100%">
                             </div>
                         </div>
                     </div>
@@ -113,7 +113,7 @@
                     <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title" id="myModalLabel">
-                    <i class="fa fa-edit fa-1x"> </i> <i class="fa fa-desktop"> </i> Edit domain
+                    <i class="fa fa-pencil"></i> <i class="fa fa-desktop"></i> Edit domain
                 </h4>
             </div>
             
@@ -123,7 +123,7 @@
                 <form id="modalEdit" class="form-inline form-label-left"> 
                     <div class="x_panel">
                         <div class="x_title">
-                            <h4><i class="fa fa-info-circle" aria-hidden="true"></i> Desktop name and description</h4>
+                            <h4><i class="fa fa-info-circle" aria-hidden="true"></i> Domain name and description</h4>
                             <div class="clearfix"></div>
                         </div>
                         <div class="x_content">
@@ -133,12 +133,12 @@
                                 <div class="col-md-4 col-xs-12">
                                     <label class="control-label" for="name">Name <span class="required">*</span>
                                     </label>
-                                    <input id="name_hidden" maxlength="40" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text" style="width:100%">
+                                    <input id="name_hidden" maxlength="40" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New domain name" data-parsley-trigger="change" required type="text" style="width:100%">
                                 </div>
                                 <div class="col-md-8 col-xs-12">
                                     <label class="control-label" for="description">Description 
                                     </label>
-                                    <input id="description" name="description" placeholder="Desktop description"  type="text" style="width:100%">
+                                    <input id="description" name="description" placeholder="Domain description"  type="text" style="width:100%">
                                 </div>
                             </div>
                         </div>
@@ -147,7 +147,7 @@
   
                 <div class="x_panel">
                     <div class="x_title">
-                        <h4><i class="fa fa-eye" aria-hidden="true"></i> Desktop viewers</h4>
+                        <h4><i class="fa fa-eye" aria-hidden="true"></i> Domain viewers</h4>
                         <div class="clearfix"></div>
                     </div>
                     <div class="item form-group">
@@ -261,10 +261,10 @@
                 <div class="x_panel" id="reservables-block">
                     <div class="x_content">
                         <div class="x_title">
-                            <h4><i class="fa fa-case" aria-hidden="true"></i> Reservable resources</h4>
+                            <h4><i class="fa fa-briefcase" aria-hidden="true"></i> Reservable resources</h4>
                             <div class="clearfix"></div>
                         </div>
-                        <p>WARNING: Selecting any of this resources implies desktop reservation. Modifying reservable resources removes desktops existing bookings</p>
+                        <label class="col-md-12 col-sm-12 col-xs-12 my-error">WARNING: selecting any of these resources implies desktop booking. Modifying reservable resources removes desktop existing bookings</label>
                         {% include '/snippets/domain_reservables_edit.html' %}
                     </div>
                 </div>
@@ -281,7 +281,7 @@
                     <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
                 </ul>
                 <ul class="nav navbar-right panel_toolbox">
-                    <li><button id="send" type="button" class="btn btn-success">Modify desktop</button></li>
+                    <li><button id="send" type="button" class="btn btn-success">Update domain</button></li>
                 </ul>
             </div>
         </div>
@@ -367,7 +367,7 @@
                 <form id="modalTemplateDesktopForm" class="form-horizontal form-label-left" novalidate>
                     <div class="x_panel">
                         <div class="x_title">
-                            <h4><i class="fa fa-cubes"></i> Template Properties</h4>
+                            <h4><i class="fa fa-cubes"></i> Template properties</h4>
                             <div class="clearfix"></div>
                         </div>
                         <div class="x_content">
@@ -421,7 +421,7 @@
                     <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
                 </ul>
                 <ul class="nav navbar-right panel_toolbox">
-                    <li><button id="send" type="button" class="btn btn-success">Convert current desktop to template and create a new desktop</button></li>
+                    <li><button id="send" type="button" class="btn btn-success">Create template</button></li>
                 </ul>
             </div>
         </div>
