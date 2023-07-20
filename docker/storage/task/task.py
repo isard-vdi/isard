@@ -80,21 +80,22 @@ def qemu_img_info(storage_id, storage_path):
     :return: Storage data to update
     :rtype: dict
     """
-    return {
-        "id": storage_id,
-        "qemu-img-info": loads(
-            check_output(
-                [
-                    "qemu-img",
-                    "info",
-                    "-U",
-                    "--output",
-                    "json",
-                    storage_path,
-                ],
-            )
-        ),
-    }
+    qemu_img_info_data = loads(
+        check_output(
+            [
+                "qemu-img",
+                "info",
+                "-U",
+                "--output",
+                "json",
+                storage_path,
+            ],
+        )
+    )
+    qemu_img_info_data.setdefault("backing-filename")
+    qemu_img_info_data.setdefault("backing-filename-format")
+    qemu_img_info_data.setdefault("full-backing-filename")
+    return {"id": storage_id, "qemu-img-info": qemu_img_info_data}
 
 
 def check_existence(storage_id, storage_path):
