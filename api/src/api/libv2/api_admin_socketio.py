@@ -76,6 +76,7 @@ class DomainsThread(threading.Thread):
                             "category",
                             {"viewer": {"guest_ip": True}},
                             "image",
+                            "description",
                         )
                         .changes(include_initial=False, squash=0.5)
                         .run(db.conn)
@@ -113,6 +114,28 @@ class DomainsThread(threading.Thread):
                             data = {"id": data["id"], "name": data["name"]}
                         else:
                             data = c["new_val"]
+                            if c["old_val"] == None:
+                                user = (
+                                    r.table("users")
+                                    .get(data["user"])
+                                    .pluck("role", "group", "category")
+                                    .merge(
+                                        lambda usr: {
+                                            "group_name": r.table("groups").get(
+                                                usr["group"]
+                                            )["name"]
+                                        }
+                                    )
+                                    .merge(
+                                        lambda usr: {
+                                            "category_name": r.table("categories").get(
+                                                usr["category"]
+                                            )["name"]
+                                        }
+                                    )
+                                    .run(db.conn)
+                                )
+                                data.update(user)
                             if data["kind"] == "desktop":
                                 event = "desktop_data"
                                 start_logs_id = data.pop("start_logs_id", None)
@@ -152,7 +175,7 @@ class DomainsThread(threading.Thread):
                             else:
                                 event = "template_data"
                             user = data.pop("user")
-                            category = data.pop("category")
+                            category = data["category"]
                         socketio.emit(
                             event,
                             json.dumps(data),
