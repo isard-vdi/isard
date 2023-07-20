@@ -922,8 +922,10 @@ $(document).ready(function() {
                 break;
         }
     });
+
     $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
 })
+
 function socketio_on(){
     startClientVpnSocket(socket)
     socket.on('desktop_data', function(data){
@@ -1615,6 +1617,10 @@ function renderAction(data){
     if(status=='Disabled'){
             return '<i class="fa fa-times fa-2x"></i>';
     }
+    if(status=='DownloadFailed'){
+        return '<i class="fa fa-thumbs-down fa-2x"></i>';
+    }
+
     return '<i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i>';
 }
 

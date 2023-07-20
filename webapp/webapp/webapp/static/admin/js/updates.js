@@ -114,16 +114,20 @@ function load_data(){
                         {
                         "targets": 4,
                         "render": function ( data, type, full, meta ) {
-                            if(full.status == 'Available' || full.status == "DownloadFailed"){
+                            if(full.status == 'Available'){
                                 return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
                             }
-                            if(full.status == 'Downloading'){
+                            if(full.status == 'Downloading' || full.status == 'Unknown'){
                                 return '<button id="btn-abort" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-stop" style="color:darkred"></i></button>'
                             }
-                            if(full.status == 'Downloaded' || full.status == 'Stopped'){
+                            if(full.status == 'Downloaded' || full.status == 'Failed' || full.status == 'FailedDeleted' || full.status == 'Stopped' || full.status == 'DownloadAborting'){
                                 return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
                             }
-                            return full.status;
+                            if(full.status == 'DownloadFailed'){
+                                return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button> \
+                                    <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
+                            }
+                            return '<i class="fa fa-spinner fa-pulse fa-fw"></i>'
                         }}],
 
             "initComplete": function(settings, json){
@@ -143,6 +147,7 @@ function load_data(){
         var id = table['domains'].row( $(this).parents('tr') ).data()['id'];
         switch($(this).attr('id')){
             case 'btn-download':
+                $(this).html('<i class="fa fa-spinner fa-pulse fa-fw"></i>')
                 $.ajax({
                     type: "POST",
                     url:"/api/v3/admin/downloads/download/domains/" + id,
@@ -151,6 +156,7 @@ function load_data(){
                 })
                 break;
             case 'btn-abort':
+                $(this).html('<i class="fa fa-spinner fa-pulse fa-fw"></i>')
                 $.ajax({
                     type: "POST",
                     url:"/api/v3/admin/downloads/abort/domains/" + id,
@@ -159,6 +165,7 @@ function load_data(){
                 })
                 break;
             case 'btn-delete':
+                $(this).html('<i class="fa fa-spinner fa-pulse fa-fw"></i>')
                 $.ajax({
                     type: "POST",
                     url:"/api/v3/admin/downloads/delete/domains/" + id,
@@ -229,16 +236,21 @@ function load_data(){
                             {
                             "targets": 4,
                             "render": function ( data, type, full, meta ) {
-                                if(full.status == 'Available' || full.status == "DownloadFailed"){
+                                if(full.status == 'Available'){
                                     return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
                                 }
-                                if(full.status == 'Downloading'){
+                                if(full.status == 'Downloading' || full.status == 'Unknown'){
                                     return '<button id="btn-abort" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-stop" style="color:darkred"></i></button>'
                                 }
-                                if(full.status == 'Downloaded' || full.status == 'Stopped'){
+                                if(full.status == 'Downloaded' || full.status == 'Failed' || full.status == 'FailedDeleted' || full.status == 'Stopped' || full.status == 'DownloadAborting'){
                                     return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
                                 }
-                                return full.status;
+                                if(full.status == 'DownloadFailed'){
+                                    console.log(full.status)
+                                    return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button> \
+                                        <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
+                                }
+                                return '<i class="fa fa-spinner fa-pulse fa-fw"></i>'
                             }}],
                 "initComplete": function(settings, json){
                     socket.on('media_data', function(data){
@@ -258,23 +270,29 @@ function load_data(){
         var id = table['media'].row( $(this).parents('tr') ).data()['id'];
         switch($(this).attr('id')){
             case 'btn-download':
+                $(this).html('<i class="fa fa-spinner fa-pulse fa-fw"></i>')
                 $.ajax({
                     type: "POST",
                     url:"/api/v3/admin/downloads/download/media/" + id,
+                    data: JSON.stringify(table['media'].row( $(this).parents('tr') ).data()),
                     success: function(data){table['media'].ajax.reload();}
                 })
                 break;
             case 'btn-abort':
+                $(this).html('<i class="fa fa-spinner fa-pulse fa-fw"></i>')
                 $.ajax({
                     type: "POST",
                     url:"/api/v3/admin/downloads/abort/media/" + id,
+                    data: JSON.stringify({}),
                     success: function(data){table['media'].ajax.reload();}
                 })
                 break;
             case 'btn-delete':
+                $(this).html('<i class="fa fa-spinner fa-pulse fa-fw"></i>')
                 $.ajax({
                     type: "POST",
                     url:"/api/v3/admin/downloads/delete/media/" + id,
+                    data: JSON.stringify({}),
                     success: function(data){table['media'].ajax.reload();}
                 })
                 break;
@@ -337,16 +355,20 @@ function load_data(){
         var id = table['virt_install'].row( $(this).parents('tr') ).data()['id'];
         switch($(this).attr('id')){
             case 'btn-download':
+                $(this).html('<i class="fa fa-spinner fa-pulse fa-fw"></i>')
                 $.ajax({
                     type: "POST",
                     url:"/api/v3/admin/downloads/download/virt_install/" + id,
+                    data: JSON.stringify(table['virt_install'].row( $(this).parents('tr') ).data()),
                     success: function(data){table['virt_install'].ajax.reload();}
                 })
                 break;
             case 'btn-delete':
+                $(this).html('<i class="fa fa-spinner fa-pulse fa-fw"></i>')
                 $.ajax({
                     type: "POST",
                     url:"/api/v3/admin/downloads/delete/virt_install/" + id,
+                    data: JSON.stringify({}),
                     success: function(data){table['virt_install'].ajax.reload();}
                 })
                 break;
@@ -409,16 +431,20 @@ function load_data(){
         var id = table['videos'].row( $(this).parents('tr') ).data()['id'];
         switch($(this).attr('id')){
             case 'btn-download':
+                $(this).html('<i class="fa fa-spinner fa-pulse fa-fw"></i>')
                 $.ajax({
                     type: "POST",
                     url:"/api/v3/admin/downloads/download/videos/" + id,
+                    data: JSON.stringify(table['videos'].row( $(this).parents('tr') ).data()),
                     success: function(data){table['videos'].ajax.reload();}
                 })
                 break;
             case 'btn-delete':
+                $(this).html('<i class="fa fa-spinner fa-pulse fa-fw"></i>')
                 $.ajax({
                     type: "POST",
                     url:"/api/v3/admin/downloads/delete/videos/" + id,
+                    data: JSON.stringify({}),
                     success: function(data){table['videos'].ajax.reload();}
                 })
                 break;
@@ -502,6 +528,9 @@ function renderName(data){
 
 function renderProgress(data){
             perc = data.progress.received_percent
+            if(!('progress' in data) || !('received_percent' in data['progress'])){
+                return ""
+            }
             return data.progress.total+' - '+data.progress.speed_download_average+'/s - '+data.progress.time_left+'<div class="progress"> \
                   <div id="pbid_'+data.id+'" class="progress-bar" role="progressbar" aria-valuenow="'+perc+'" \
                   aria-valuemin="0" aria-valuemax="100" style="width:'+perc+'%"> \
