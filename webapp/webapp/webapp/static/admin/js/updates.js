@@ -77,7 +77,7 @@ function load_data(){
             {"data": null,
              'defaultContent': ''},
             ],
-         "order": [[0, 'desc'],[1,'desc'],[2,'asc']],
+         "order": [[3, 'desc'],[2,'asc']],
          "columnDefs": [{
                         "targets": 0,
                         "render": function ( data, type, full, meta ) {
@@ -193,7 +193,7 @@ function load_data(){
                 {"data": null,
                 'defaultContent': ''},
                 ],
-            "order": [[0, 'desc'],[1,'desc'],[2,'asc']],
+            "order": [[3, 'desc'],[2,'asc']],
             "columnDefs": [{
                             "targets": 0,
                             "render": function ( data, type, full, meta ) {
