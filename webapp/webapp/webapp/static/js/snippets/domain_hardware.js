@@ -274,6 +274,8 @@ function setDomainStorage(domain_id) {
         },
         "rowId": "id",
         "deferRender": true,
+        'searching': false,
+        'paging': false,
         "columns": [
             { "data": "id" },
             { 'data': 'actual_size' },

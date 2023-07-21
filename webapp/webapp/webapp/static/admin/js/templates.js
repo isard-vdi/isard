@@ -609,16 +609,16 @@ $(document).ready(function() {
     } );
 
     $('.btn-disabled').on('click', function(e) {
-    if ($('.btn-disabled').attr('view')=='false') {
-        $('.btn-disabled #view-disabled').show();
-        $('.btn-disabled #hide-disabled').hide();
-        $('.btn-disabled').attr('view', 'true')
-    }
-    else {
-        $('.btn-disabled #view-disabled').hide();
-        $('.btn-disabled #hide-disabled').show();
-        $('.btn-disabled').attr('view', 'false')
-    }
+        if ($('.btn-disabled').attr('view')=='false') {
+            $('.btn-disabled #view-disabled').show();
+            $('.btn-disabled #hide-disabled').hide();
+            $('.btn-disabled').attr('view', 'true')
+        }
+        else {
+            $('.btn-disabled #view-disabled').hide();
+            $('.btn-disabled #hide-disabled').show();
+            $('.btn-disabled').attr('view', 'false')
+        }
     })
     $('.panel_toolbox .btn-disabled').click(function () {
         domains_table.draw();
@@ -739,36 +739,21 @@ $(document).ready(function() {
             tr.removeClass('shown');
         }
         else {
-            // Close other rows
-             if ( domains_table.row( '.shown' ).length ) {
-                      $('.details-control', domains_table.row( '.shown' ).node()).click();
-              }
-             if (row.data().status=='Creating'){
-                 //In this case better not to open detail as ajax snippets will fail
-                 //Maybe needs to be blocked also on other -ing's
-                        new PNotify({
-                        title: "Domain is being created",
-                            text: "Wait till domain ["+row.data().name+"] creation completes to view details",
-                            hide: true,
-                            delay: 3000,
-                            icon: 'fa fa-alert-sign',
-                            opacity: 1,
-                            type: 'error'
-                        });
-             }else{
                 // Open this row
                 row.child( addDomainDetailPannel(row.data()) ).show();
-                tr.addClass('shown');
                 $('#status-detail-'+domain_id).html(row.data().detail);
                 actionsDomainDetail();
                 setDomainDetailButtonsStatus(domain_id,row.data().status,row.data().server)
                 setDomainHotplug(domain_id);
                 setHardwareDomainDefaultsDetails(domain_id, 'domain');
                 setDomainStorage(domain_id)
-                if(kind!="desktop"){
-                    setAlloweds_viewer('#alloweds-'+domain_id,domain_id);
+                setAlloweds_viewer('#alloweds-'+domain_id,domain_id);
+            
+                // Close other rows
+                if (domains_table.row('.shown').length) {
+                    $('.details-control', domains_table.row('.shown').node()).click();
                 }
-            }
+                tr.addClass('shown');
         }
     } );
 
