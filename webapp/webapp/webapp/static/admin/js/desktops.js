@@ -732,10 +732,6 @@ $(document).ready(function() {
             tr.removeClass('shown');
         }
         else {
-            // Close other rows
-             if ( domains_table.row( '.shown' ).length ) {
-                      $('.details-control', domains_table.row( '.shown' ).node()).click();
-              }
              if (row.data().status=='Creating'){
                  //In this case better not to open detail as ajax snippets will fail
                  //Maybe needs to be blocked also on other -ing's
@@ -752,7 +748,6 @@ $(document).ready(function() {
                 // Open this row
                 opened_row=row
                 row.child( addDomainDetailPannel(row.data()) ).show();
-                tr.addClass('shown');
                 $.ajax({
                     type: "GET",
                     url:"/api/v3/admin/domain/" + domain_id+ "/details",
@@ -767,6 +762,11 @@ $(document).ready(function() {
                 setHardwareDomainDefaultsDetails(domain_id, 'domain');
                 setDomainStorage(domain_id)
                 setDesktopTemplateTree(domain_id)
+                 // Close other rows
+                 if (domains_table.row('.shown').length) {
+                     $('.details-control', domains_table.row('.shown').node()).click();
+                 }
+                 tr.addClass('shown');
             }
         }
     } );
