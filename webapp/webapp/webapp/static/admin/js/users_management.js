@@ -54,6 +54,7 @@ function socketio_on(){
 	});
 
 	$('.btn-new-bulkusers').on('click', function () {
+        $("#csv_error").hide()
         $('#bulk-allow-update').iCheck('uncheck').iCheck('update');
         setQuotaMax('#bulkusers-quota',kind='category',id=false,disabled=false);
         $('#modalAddBulkUsers .apply').html('group quota');

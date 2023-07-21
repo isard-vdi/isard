@@ -767,10 +767,20 @@ def admin_users_validate(payload):
         user_id = users.GetByProviderCategoryUID(
             "local", category_id, user["username"].replace(" ", "")
         )
+        user_old_group = user_list[i]["group_id"]
 
         if len(user_id) > 0:
             if request.path.split("?")[0].endswith("/allow_update"):
                 user_list[i]["exists"] = True
+
+                if not (user_old_group == user_id[0]["group"]):
+                    raise Error(
+                        "bad_request",
+                        "Cannot change user "
+                        + user["username"]
+                        + "'s group from "
+                        + user_list[i]["group"],
+                    )
             else:
                 raise
         else:
