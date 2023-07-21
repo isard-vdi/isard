@@ -322,7 +322,7 @@ def admin_table_update(table, data, payload=False):
     if table == "groups":
         isard_user_storage_update_group(data["id"], data["name"])
     if table == "bookings_priority":
-        if data["id"] in ["default", "default admins"]:
+        if data["id"] in ["default", "default admins"] and "allowed" in data:
             raise Error(
                 "forbidden", "Default priorities' allowed users cannot be modified"
             )
