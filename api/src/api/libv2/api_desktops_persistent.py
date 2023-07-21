@@ -105,7 +105,7 @@ class ApiDesktopsPersistent:
         desktop_delete(desktop_id)
 
     def DeleteMultiple(self, desktop_ids):
-        desktops_delete(desktop_ids)
+        desktops_delete(desktop_ids, True)
 
     def Get(self, desktop_id):
         with app.app_context():
