@@ -40,7 +40,7 @@ class Domain(RethinkCustomBase):
         return [
             Storage(disk["storage_id"])
             for disk in self.create_dict.get("hardware", {}).get("disks", [])
-            if "storage_id" in disk
+            if "storage_id" in disk and Storage.exists(disk["storage_id"])
         ]
 
     @property

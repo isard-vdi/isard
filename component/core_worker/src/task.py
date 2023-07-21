@@ -131,6 +131,33 @@ def update_status(statuses={}):
                     globals()[item_class.capitalize()](item_id, status=item_status)
 
 
+def storage_update_parent(storage_id):
+    """
+    Update storage parent.
+
+    :param storage_id: Storage ID
+    :type storage_id: str
+    """
+    task = Task(get_current_job().id)
+    if task.depending_status == "finished":
+        storage = Storage(storage_id)
+        backing_file = getattr(storage, "qemu-img-info").get("full-backing-filename")
+        if backing_file:
+            backing_storage = Storage.get_by_path(backing_file)
+            if backing_storage:
+                storage.parent = backing_storage.id
+                if storage.status == "orphan":
+                    backing_storage.status = "deleted"
+                    return
+            elif storage.status == "orphan":
+                return
+            else:
+                storage.parent = Storage.create_from_path(backing_file).id
+        else:
+            storage.parent = None
+        storage.status = "ready"
+
+
 def storage_update(**storage_dict):
     """
     Update storage if task success.
@@ -151,3 +178,6 @@ def storage_update(**storage_dict):
             for dependency in task.dependencies:
                 if dependency.task in ("qemu_img_info", "check_existence"):
                     storage_update(**dependency.result)
+                if dependency.task == "check_backing_filename":
+                    for result in dependency.result:
+                        storage_update(**result)

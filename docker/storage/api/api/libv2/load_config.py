@@ -22,9 +22,9 @@ import os
 import time
 import traceback
 
-from api import app
+from isardvdi_common.api_rest import ApiRest
 
-from .._common.api_rest import ApiRest
+from api import app
 
 
 def wait_for_api(app):

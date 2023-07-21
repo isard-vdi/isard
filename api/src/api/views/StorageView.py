@@ -303,6 +303,61 @@ def storage_check_existence(payload, storage_id):
     )
 
 
+@app.route(
+    "/api/v3/storage/<storage_id>/update_parent",
+    methods=["PUT"],
+)
+@has_token
+def storage_update_parent(payload, storage_id):
+    """
+    Endpoint that creates a Task to update storage parent.
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :param storage_id: Storage ID
+    :type storage_id: str
+    :return: Task ID
+    :rtype: Set with Flask response values and data in JSON
+    """
+    storage = set_storage_maintenance(payload, storage_id)
+    return jsonify(
+        Task(
+            user_id=payload.get("user_id"),
+            queue="core",
+            task="storage_update_parent",
+            job_kwargs={
+                "kwargs": {
+                    "storage_id": storage.id,
+                }
+            },
+            dependencies=[
+                {
+                    "queue": "core",
+                    "task": "storage_update",
+                    "dependencies": [
+                        {
+                            "queue": f"storage.{StoragePool.get_best_for_action('check_backing_filename', path=storage.directory_path).id}.default",
+                            "task": "check_backing_filename",
+                            "dependencies": [
+                                {
+                                    "queue": f"storage.{StoragePool.get_best_for_action('qemu_img_info', path=storage.directory_path).id}.default",
+                                    "task": "qemu_img_info",
+                                    "job_kwargs": {
+                                        "kwargs": {
+                                            "storage_id": storage.id,
+                                            "storage_path": f"{storage.directory_path}/{storage.id}.{storage.type}",
+                                        }
+                                    },
+                                }
+                            ],
+                        }
+                    ],
+                }
+            ],
+        ).id
+    )
+
+
 @app.route("/api/v3/storage/<storage_id>/path/<path:path>", methods=["PUT"])
 @has_token
 def storage_move(payload, storage_id, path):

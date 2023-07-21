@@ -25,10 +25,9 @@ from urllib.parse import quote
 
 import watchdog.events
 import watchdog.observers
+from isardvdi_common.api_rest import ApiRest
 
 from api import app
-
-from .._common.api_rest import ApiRest
 
 
 def _get_path_kind(directory):

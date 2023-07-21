@@ -54,8 +54,8 @@ app.config["MAX_CONTENT_LENGTH"] = 1 * 1000 * 1000  # 1 MB
 
 print("Starting toolbox api...")
 
-from api._common.api_rest import ApiRest
 from api.libv2.load_config import setup_app
+from isardvdi_common.api_rest import ApiRest
 
 ApiRest().wait_for()
 
