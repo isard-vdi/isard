@@ -182,6 +182,79 @@ $(document).ready(function() {
       populateDiskTree();
     });
 
+    var storage_other=$('#storage_other').DataTable( {
+      "ajax": {
+        "url": "/api/v3/admin/storage/other",
+        "contentType": "application/json",
+        "type": 'GET',
+      },
+      "sAjaxDataProp": "",
+      "language": {
+        "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+      },
+      "rowId": "id",
+      "deferRender": true,
+        "columns": [
+          { "data": "id",},
+          { "data": "status",},
+          { "data": "type",},
+          { "data": null},
+          { "data": null},
+          { "data": "user_id"},
+          { "data": "status_logs"}
+        ],
+      "columnDefs": [
+        {
+          "targets": 3,
+          "render": function ( data, type, full, meta ) {
+            if( 'qemu-img-info' in full){
+              return Math.round(full["qemu-img-info"]["virtual-size"]/1024/1024/1024)+" GB"
+            }else{
+              return '-'
+            }
+          }
+        },
+        {
+          "targets": 4,
+          "render": function ( data, type, full, meta ) {
+            if( 'qemu-img-info' in full){
+              return Math.round(full["qemu-img-info"]["actual-size"]/1024/1024/1024)+' GB ('+Math.round(full["qemu-img-info"]["actual-size"]*100/full["qemu-img-info"]["virtual-size"])+'%)'
+            }else{
+              return '-'
+            }
+          }
+        },
+        {
+          "targets": 6,
+          "render": function ( data, type, full, meta ) {
+            return moment.unix(full["status_logs"][full["status_logs"].length -1]["time"]).fromNow()
+          }
+        }
+      ],
+      footerCallback: function () {
+        var api = this.api();
+        // Current page
+        pageTotal = api.column(3, {search: 'applied'}).data().reduce(function (a, b) {
+          if( 'qemu-img-info' in b){
+            return a + b["qemu-img-info"]["actual-size"]/1024/1024/1024
+          } else {
+            return a + 0
+          }
+        }, 0);
+        // All pages
+        total = api.column(3).data().reduce(function(a, b) {
+          if( 'qemu-img-info' in b){
+            return a + b["qemu-img-info"]["actual-size"]/1024/1024/1024
+          } else {
+            return a + 0
+          }
+        }, 0);
+
+        $('.storage_other-total-size').html('Applied  filter storage size: ' + pageTotal.toFixed(1) + ' GB ( Total storage size: ' + total.toFixed(1) + ' GB )');
+      }
+    });
+
+
     var storage_deleted=$('#storage_deleted').DataTable( {
       "ajax": {
         "url": "/api/v3/admin/storage/deleted",

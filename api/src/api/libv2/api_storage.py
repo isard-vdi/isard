@@ -34,7 +34,15 @@ def get_disks(user_id=None, status=None, pluck=None):
         if status:
             query = query.filter({"status": status})
     elif status:
-        query = query.get_all(status, index="status")
+        if status == "other":
+            # get status not in ready or deleted
+            query = query.filter(
+                lambda disk: r.expr(["ready", "deleted"])
+                .contains(disk["status"])
+                .not_()
+            )
+        else:
+            query = query.get_all(status, index="status")
     if pluck:
         query = query.pluck(pluck)
     else:
