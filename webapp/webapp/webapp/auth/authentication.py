@@ -21,13 +21,14 @@
 import json
 
 import requests
-from flask import request
+from flask import render_template, request
 from flask_login import LoginManager, UserMixin
 from rethinkdb import RethinkDB
 
 from webapp import app
 
 from .._common.api_rest import ApiRest
+from ..views.decorators import maintenance
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -68,16 +69,24 @@ def get_authenticated_user():
     return None
 
 
+@maintenance
 @login_manager.user_loader
 def user_loader(user_id):
-    user = ApiRest().get(f"/admin/user/{user_id}/raw")
-    if user is None:
-        return
-    return User(user)
+    try:
+        user = ApiRest().get(f"/admin/user/{user_id}/raw")
+        if user is None:
+            return
+        return User(user)
+    except:
+        return render_template("maintenance.html"), 503
 
 
+@maintenance
 def user_reloader(user_id):
-    user = ApiRest().get(f"/admin/user/{user_id}/raw")
-    if user is None:
-        return
-    return User(user)
+    try:
+        user = ApiRest().get(f"/admin/user/{user_id}/raw")
+        if user is None:
+            return
+        return User(user)
+    except:
+        return render_template("maintenance.html"), 503
