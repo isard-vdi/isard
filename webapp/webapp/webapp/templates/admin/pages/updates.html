@@ -14,15 +14,15 @@
                 Downloads
                 <small>Get resources from IsardVDI Downloads Service</small>
               </h3>
-            </div> -->
+            </div>
           </div>
         </div> 
         <div class="clearfix"></div>
      </div>
   </div>
 </div>
-{% if connected == false %}
-<div class="row">
+
+<div class="row not_connected" style="display: none;">
   <div class="row">
     <div class="col-md-12 col-sm-12 col-xs-12">
       <div class="x_panel">
@@ -41,8 +41,8 @@
     </div>
   </div>
 </div>   
-{% elif registered == false %}
-<div class="row">
+
+<div class="row not_registered" style="display: none;">
   <div class="row">
     <div class="col-md-12 col-sm-12 col-xs-12">
       <div class="x_panel">
@@ -58,22 +58,17 @@
           <br>
           No personal data is collected.
           <br>
-          <form
-            action="{{ url_for('admin_updates_register') }}"
-            method="post"
-          >
             <button id="register" type="submit" class="btn btn-success">
               Register with only a click!
             </button>
-          </form>
-          <div class="clearfix"></div>                        
+          <div class="clearfix"></div>
         </div>
       </div>
     </div>
   </div>
 </div>
-{% else %}
-<div class="row">
+
+<div class="row registered" style="display: none;">
   <div class="col-md-12 col-sm-12 col-xs-12">
     <div class="x_panel">
       <div class="x_title">
@@ -106,8 +101,8 @@
     </div>
   </div>
 </div>
-            
-<div class="row">
+
+<div class="row registered" style="display: none;">
   <div class="col-md-6 col-sm-6 col-xs-12">
     <div class="x_panel">
       <div class="x_title">
@@ -171,7 +166,7 @@
   </div>
 </div>
 
-<div class="row">
+<div class="row registered" style="display: none;">
   <div class="col-md-6 col-sm-6 col-xs-12">
     <div class="x_panel">
       <div class="x_title">
@@ -231,7 +226,6 @@
     </div>
   </div>
 </div>
-{% endif %}
 
 {% endblock %}
 {% block pagescript %}

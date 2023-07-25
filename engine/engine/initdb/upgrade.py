@@ -17,7 +17,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 94
+release_version = 95
+# release 95: Add download_id and it's index to domains and media already downloaded and
 # release 94: Remove isardvdi and isardvdi-hypervisor secrets from database and use env variables
 # release 93: admins priority update with new identification
 # release 92: Add user_storage name index to check for duplicateds
@@ -1555,6 +1556,18 @@ class Upgrade(object):
             except:
                 print(e)
 
+        if version == 95:
+            try:
+                for d in r.table(table).has_fields("url-isard").run(self.conn):
+                    if d.get("url-isard"):
+                        download_id = d.pop("id")
+                        r.table(table).get(download_id).delete().run(self.conn)
+                        r.table(table).insert(d).run(self.conn)
+                r.table(table).index_create("url-isard").run(self.conn)
+                r.table(table).index_create("url-web").run(self.conn)
+            except Exception as e:
+                print(e)
+
         return True
 
     """
@@ -1765,6 +1778,18 @@ class Upgrade(object):
         if version == 66:
             try:
                 r.table(table).index_create("name").run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 95:
+            try:
+                for d in r.table(table).has_fields("url-isard").run(self.conn):
+                    if d.get("url-isard"):
+                        download_id = d.pop("id")
+                        r.table(table).get(download_id).delete().run(self.conn)
+                        r.table(table).insert(d).run(self.conn)
+                r.table(table).index_create("url-isard").run(self.conn)
+                r.table(table).index_create("url-web").run(self.conn)
             except Exception as e:
                 print(e)
 
