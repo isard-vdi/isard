@@ -133,7 +133,11 @@
           if (settings.url.split("/")[1] == 'admin') {
             settings.url = "/api/v3" + settings.url
           }
-        }
+          $("body").css("cursor", "wait");
+        },
+        complete: function () {
+          $("body").css("cursor", "");
+        },
       });
 
       // Ajax calls error handler for expired token error
