@@ -17,6 +17,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+from . import domain
 from .rethink_custom_base_factory import RethinkCustomBase
 
 
@@ -49,6 +50,22 @@ class Storage(RethinkCustomBase):
         Returns the storages that have this storage as parent.
         """
         return self.get_index([self.id], index="parent")
+
+    @property
+    def parents(self):
+        """
+        Returns the storage parents hierarchy.
+        """
+        if self.parent is None:
+            return []
+        return [Storage(self.parent)] + Storage(self.parent).parents
+
+    @property
+    def domains(self):
+        """
+        Returns the domains using this storage.
+        """
+        return domain.Domain.get_with_storage(self)
 
     @classmethod
     def create_from_path(cls, path):
