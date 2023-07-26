@@ -48,7 +48,7 @@ class Storage(RethinkCustomBase):
         """
         Returns the storages that have this storage as parent.
         """
-        return [storage for storage in self.get_all() if storage.parent == self.id]
+        return self.get_index([self.id], index="parent")
 
     @classmethod
     def create_from_path(cls, path):
