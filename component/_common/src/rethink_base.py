@@ -133,3 +133,84 @@ class RethinkBase(ABC):
                     cls._rdb_connection
                 )
             ]
+
+    @classmethod
+    @cached(TTLCache(maxsize=100, ttl=5))
+    def get_index(cls, values, index, filter=None, pluck=None):
+        """
+        Get documents with specific index.
+
+        :param values: Array of values
+        :type values: list
+        :param index: Index name
+        :type index: str
+        :param filter: Filter
+        :type filter: dict
+        :param pluck: Pluck
+        :type pluck: list
+        :return: List of objects.
+        :rtype: list
+        """
+        query = r.table(cls._rdb_table).get_all(r.args(values), index=index)
+        query = query.filter(filter) if filter else query
+        query = query.pluck(pluck) if pluck else query
+        with cls._rdb_context():
+            return [cls(document) for document in query.run(cls._rdb_connection)]
+
+    @cached(TTLCache(maxsize=100, ttl=5))
+    def get_compound_index(cls, values, index, filter=None, pluck=None):
+        """
+        Get documents with compound index
+
+        :param values: Array of values
+        :type values: list
+        :param index: Index name
+        :type index: str
+        :param filter: Filter
+        :type filter: dict
+        :param pluck: Pluck
+        :type pluck: list
+        :return: List of objects.
+        :rtype: list
+        """
+        query = r.table(cls._rdb_table).get_all(r.args(values), index=index)
+        query = query.filter(filter) if filter else query
+        query = query.pluck(pluck) if pluck else query
+        with cls._rdb_context():
+            return [cls(document) for document in query.run(cls._rdb_connection)]
+
+    @classmethod
+    def insert(cls, documents, conflict="error"):
+        """
+        Insert array of documents.
+
+        :param documents: List of documents
+        :type documents: list
+        :param conflict: Conflict strategy
+        :type conflict: str
+        :values conflict: "error", "replace"
+        :return: True if inserted or replaced, False otherwise.
+        :rtype: bool
+        """
+        document_dicts = [document.__dict__["id"] for document in documents]
+        with cls._rdb_context():
+            result = (
+                r.table(cls._rdb_table)
+                .insert(document_dicts, conflict=conflict)
+                .run(cls._rdb_connection)
+            )
+        return (
+            True if result["inserted"] + result["replaced"] == len(documents) else False
+        )
+
+    @classmethod
+    def insert_or_update(cls, documents):
+        """
+        Insert or update array of documents.
+
+        :param documents: List of documents
+        :type documents: list
+        :return: True if inserted or updated, False otherwise.
+        :rtype: bool
+        """
+        return cls.insert(documents, conflict="update")
