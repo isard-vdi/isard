@@ -133,3 +133,48 @@ class RethinkBase(ABC):
                 .pluck("id")
                 .run(cls._rdb_connection)
             ]
+
+    @classmethod
+    @cached(TTLCache(maxsize=100, ttl=5))
+    def get_index(cls, values, index, filter=None, pluck=None):
+        """
+        Get documents with specific index.
+
+        :param values: Array of values
+        :type values: list
+        :param index: Index name
+        :type index: str
+        :param filter: Filter
+        :type filter: dict
+        :param pluck: Pluck
+        :type pluck: list
+        :return: List of objects.
+        :rtype: list
+        """
+        query = r.table(cls._rdb_table).get_all(r.args(values), index=index)
+        query = query.filter(filter) if filter else query
+        query = query.pluck(pluck) if pluck else query
+        with cls._rdb_context():
+            return [cls(document) for document in query.run(cls._rdb_connection)]
+
+    @cached(TTLCache(maxsize=100, ttl=5))
+    def get_compound_index(cls, values, index, filter=None, pluck=None):
+        """
+        Get documents with compound index
+
+        :param values: Array of values
+        :type values: list
+        :param index: Index name
+        :type index: str
+        :param filter: Filter
+        :type filter: dict
+        :param pluck: Pluck
+        :type pluck: list
+        :return: List of objects.
+        :rtype: list
+        """
+        query = r.table(cls._rdb_table).get_all(r.args(values), index=index)
+        query = query.filter(filter) if filter else query
+        query = query.pluck(pluck) if pluck else query
+        with cls._rdb_context():
+            return [cls(document) for document in query.run(cls._rdb_connection)]
