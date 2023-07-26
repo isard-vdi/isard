@@ -128,8 +128,8 @@ class RethinkBase(ABC):
         """
         with cls._rdb_context():
             return [
-                cls(document["id"])
-                for document in r.table(cls._rdb_table)
-                .pluck("id")
-                .run(cls._rdb_connection)
+                cls(document_id)
+                for document_id in r.table(cls._rdb_table)["id"].run(
+                    cls._rdb_connection
+                )
             ]
