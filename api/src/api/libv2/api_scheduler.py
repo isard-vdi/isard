@@ -149,7 +149,7 @@ class Scheduler:
                 "%Y-%m-%dT%H:%M%z"
             )
             data["kwargs"]["msg"]["params"] = {
-                "date": data["date"],
+                "date": booking["end"].strftime("%Y-%m-%dT%H:%M%z"),
                 "minutes": 15,
                 "name": desktop.get("name"),
             }
