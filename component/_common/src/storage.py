@@ -61,6 +61,15 @@ class Storage(RethinkCustomBase):
         return [Storage(self.parent)] + Storage(self.parent).parents
 
     @property
+    def operational(self):
+        """
+        Returns True if the storage chain statuses are ready, otherwise False.
+        """
+        if self.parent is None:
+            return True
+        return all([storage.status == "ready" for storage in self.parents])
+
+    @property
     def domains(self):
         """
         Returns the domains using this storage.
