@@ -114,6 +114,7 @@ class DomainsThread(threading.Thread):
                             category = data.pop("category")
                             data = {"id": data["id"], "name": data["name"]}
                         else:
+                            data = c["new_val"]
                             if (
                                 c["old_val"]
                                 and c["old_val"].get("progress")
@@ -121,7 +122,6 @@ class DomainsThread(threading.Thread):
                             ):
                                 if c["old_val"]["progress"] == c["new_val"]["progress"]:
                                     data.pop("progress")
-                            data = c["new_val"]
                             if c["old_val"] == None:
                                 user = (
                                     r.table("users")
