@@ -87,7 +87,7 @@ def booking_provisioning(
     # Remove existing bookings for this item from resource_planner
     if item_id and item_type:
         resource_planner = remove_existing_item_bookings(
-            resource_planner, item_type, item_id
+            resource_planner, item_type, item_id, fromDate, toDate
         )
     # This will join consecutive plans
     # When debugging it is better to show them splitted (do not join)
@@ -134,6 +134,10 @@ def remove_existing_item_bookings(plans, item_type, item_id, start=None, end=Non
         start = datetime.now(pytz.utc)
 
     query = r.table("bookings").get_all(item_id, index="item_id")
+    if start and end:
+        query = query.filter(
+            lambda booking: booking["start"] < end & booking["end"] > start
+        )
 
     with app.app_context():
         bookings = list(query.run(db.conn))
