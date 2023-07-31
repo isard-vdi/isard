@@ -39,7 +39,9 @@ db = RDB(app)
 db.init_app(app)
 
 
-def get_usage_consumption_between_dates(start_date, end_date, items_ids, grouping=None):
+def get_usage_consumption_between_dates(
+    start_date, end_date, items_ids, item_type, grouping=None
+):
     start_date = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=pytz.utc)
     end_date = datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=pytz.utc)
     if items_ids is None:
@@ -65,6 +67,7 @@ def get_usage_consumption_between_dates(start_date, end_date, items_ids, groupin
             item_data = get_item_date_consumption(
                 current_day,
                 item["item_id"],
+                item_type,
                 item["item_name"],
                 grouping_params=grouping,
             )
@@ -84,6 +87,7 @@ def get_start_end_consumption(
     start_date,
     end_date,
     items_ids=None,
+    item_type=None,
     item_consumer=None,
     grouping_params=None,
     category_id=None,
@@ -114,12 +118,14 @@ def get_start_end_consumption(
         start_data = get_item_date_consumption(
             start_date,
             item["item_id"],
+            item_type,
             item["item_name"],
             grouping_params=grouping_params,
         )
         end_data = get_item_date_consumption(
             end_date,
             item["item_id"],
+            item_type,
             item["item_name"],
             grouping_params=grouping_params,
         )
@@ -135,7 +141,9 @@ def get_start_end_consumption(
     return data
 
 
-def get_item_date_consumption(date, item_id, item_name, grouping_params=None):
+def get_item_date_consumption(
+    date, item_id, item_type, item_name, grouping_params=None
+):
     if type(date) is str:
         date = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=pytz.utc)
     if grouping_params:
@@ -144,17 +152,26 @@ def get_item_date_consumption(date, item_id, item_name, grouping_params=None):
             "date",
             "item_name",
             "item_id",
+            "item_type",
             "item_consumer",
         )
     else:
-        pluck = "date", "inc", "abs", "item_name", "item_id", "item_consumer"
+        pluck = (
+            "date",
+            "inc",
+            "abs",
+            "item_name",
+            "item_id",
+            "item_type",
+            "item_consumer",
+        )
 
     with app.app_context():
         data = (
             r.table("usage_consumption")
             .get_all(item_id, index="item_id")
             .pluck(pluck)
-            .filter(r.row["date"] <= date)
+            .filter((r.row["date"] <= date) & (r.row["item_type"] == item_type))
             .order_by("date")
             .nth(-1)
             .default(
@@ -164,6 +181,7 @@ def get_item_date_consumption(date, item_id, item_name, grouping_params=None):
                     "inc": get_default_consumption(),
                     "abs": get_default_consumption(),
                     "item_id": item_id,
+                    "item_type": item_type,
                 }
             )
             .run(db.conn)
