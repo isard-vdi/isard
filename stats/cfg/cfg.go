@@ -81,6 +81,12 @@ func New() Cfg {
 		config.Domain = vDom
 	}
 
+	// If $HYPER_ID is set, use it instead of $DOMAIN
+	hypID := os.Getenv("HYPER_ID")
+	if hypID != "" {
+		config.Domain = hypID
+	}
+
 	return *config
 }
 
