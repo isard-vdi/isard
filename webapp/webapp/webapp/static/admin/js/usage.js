@@ -100,6 +100,7 @@ $('#btn-view-graph').on('click', function (e) {
       contentType: "application/json",
       data: JSON.stringify({
         items_ids: [it.id],
+        item_type: data.itemType,
         start_date: data.startDate,
         end_date: data.endDate,
         grouping: data.grouping.parameters

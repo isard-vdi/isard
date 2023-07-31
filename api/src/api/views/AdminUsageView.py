@@ -70,6 +70,7 @@ def api_v3_admin_usage(payload):
         filters.get("start_date", None),
         filters.get("end_date", None),
         filters.get("items_ids", None),
+        filters.get("item_type", None),
         filters.get("grouping", None),
     )
     return (
@@ -94,6 +95,7 @@ def api_v3_admin_usage_start_end(payload):
         filters.get("start_date", None),
         filters.get("end_date", None),
         filters.get("items_ids", None),
+        filters.get("item_type", None),
         filters.get("item_consumer", None),
         filters.get("grouping", None),
         payload["category_id"] if payload["role_id"] == "manager" else None,
