@@ -711,10 +711,6 @@
                 "title": "Acceder desde este navegador",
                 "subtitle": "No requiere instalar nada en el ordenador"
             },
-            "button": {
-                "browser": "Navegador",
-                "browser-rdp": "RDP en el navegador"
-            },
             "waitingip": "Esperando a que el escritorio esté arrancado",
             "description": {
                 "vnc": "Acceder al escritorio directamente desde este navegador",

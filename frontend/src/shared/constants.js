@@ -82,51 +82,38 @@ export const eventsTitles = {
   overridable: i18n.t('components.bookings.item.event-titles.overridable')
 }
 
-export const mediaStatus = {
-  DownloadFailed: i18n.t('views.media.status.download-failed'),
-  Downloaded: i18n.t('views.media.status.downloaded'),
-  Downloading: i18n.t('views.media.status.downloading'),
-  Deleting: i18n.t('views.media.status.deleting'),
-  maintenance: i18n.t('views.media.status.maintenance')
-}
-
 export const availableViewers = [
   {
     id: 'rdp',
-    key: 'browser_rdp',
-    name: i18n.t('views.select-template.viewer-name.browser-rdp'),
+    key: 'browser-rdp',
     type: 'browser',
     order: 3,
     needsWireguard: true
   },
   {
     id: 'vnc',
-    key: 'browser_vnc',
-    name: i18n.t('views.select-template.viewer-name.browser-vnc'),
+    key: 'browser-vnc',
     type: 'browser',
     order: 1,
     needsWireguard: false
   },
   {
     id: 'rdpgw',
-    key: 'file_rdpgw',
-    name: i18n.t('views.select-template.viewer-name.file-rdpgw'),
+    key: 'file-rdpgw',
     type: 'file',
     order: 4,
     needsWireguard: true
   },
   {
     id: 'rdpvpn',
-    key: 'file_rdpvpn',
-    name: i18n.t('views.select-template.viewer-name.file-rdpvpn'),
+    key: 'file-rdpvpn',
     type: 'file',
     order: 5,
     needsWireguard: true
   },
   {
     id: 'spice',
-    key: 'file_spice',
-    name: i18n.t('views.select-template.viewer-name.file-spice'),
+    key: 'file-spice',
     type: 'file',
     order: 2,
     needsWireguard: false

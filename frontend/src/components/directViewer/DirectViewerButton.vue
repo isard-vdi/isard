@@ -110,21 +110,21 @@ export default {
         browser: {
           vnc: {
             icon: 'browser',
-            buttonText: i18n.t('views.direct-viewer.button.browser')
+            buttonText: i18n.t('views.select-template.viewer-name.browser-vnc')
           },
           rdp: {
             icon: 'browser',
-            buttonText: i18n.t('views.direct-viewer.button.browser-rdp')
+            buttonText: i18n.t('views.select-template.viewer-name.browser-rdp')
           }
         },
         file: {
           spice: {
             icon: 'file',
-            buttonText: 'SPICE'
+            buttonText: i18n.t('views.select-template.viewer-name.file-spice')
           },
           rdpgw: {
             icon: 'file',
-            buttonText: 'RDP'
+            buttonText: i18n.t('views.select-template.viewer-name.file-rdpvpn')
           }
         }
       }

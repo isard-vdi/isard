@@ -230,10 +230,6 @@
         },
         "cancel": "Annuler",
         "direct-viewer": {
-            "button": {
-                "browser": "Navigateur",
-                "browser-rdp": "Navigateur RDP"
-            },
             "local-client-help": "Instructions d'installation pour le client local",
             "title": "Visionneur direct",
             "help": {

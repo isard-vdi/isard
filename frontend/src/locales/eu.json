@@ -527,10 +527,6 @@
             }
         },
         "direct-viewer": {
-            "button": {
-                "browser": "Nabigatzailea",
-                "browser-rdp": "RDP nabigatzailea"
-            },
             "file": {
                 "title": "Aplikazio bidezko sarbidea",
                 "subtitle": "Beharrezkoa da software espezifikoa instalatuta izatea (errendimendu hobea)"

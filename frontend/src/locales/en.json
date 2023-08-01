@@ -695,10 +695,6 @@
                 "title": "Access through this browser",
                 "subtitle": "Does not require any installation"
             },
-            "button": {
-                "browser": "Browser",
-                "browser-rdp": "RDP Browser"
-            },
             "waitingip": "Waiting for the desktop to be started",
             "description": {
                 "vnc": "Access to the desktop in this browser",
@@ -827,7 +823,7 @@
             },
             "status": {
                 "downloading": "Downloading",
-                "download-failed": "Download failed",
+                "faileddeleted": "Download failed",
                 "downloaded": "Downloaded",
                 "deleting": "Deleting",
                 "maintenance": "Maintenance"
