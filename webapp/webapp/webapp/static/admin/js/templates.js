@@ -185,6 +185,10 @@ if(url!="Desktops"){
     });
 }
 
+function getGroupParam() {
+    return window.location.href.slice(window.location.href.indexOf('?') + 1).split('searchDomainId=')[1];
+}
+
 $(document).ready(function() {
     $template_domain = $(".template-detail-domain");
     $admin_template_domain = $(".admin-template-detail-domain");
@@ -607,6 +611,11 @@ $(document).ready(function() {
             }
         } );
     } );
+
+    let searchDomainId = getGroupParam()
+    if (searchDomainId) {
+        domains_table.search(searchDomainId).draw()
+    }
 
     $('.btn-disabled').on('click', function(e) {
         if ($('.btn-disabled').attr('view')=='false') {

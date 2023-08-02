@@ -15,7 +15,8 @@ $(document).ready(function() {
       "initComplete": function (settings, json) {
         let searchStorageId = getGroupParam()
         if (searchStorageId) {
-          this.api().search(searchStorageId).draw()
+          this.api().column(2).search(searchStorageId).draw();
+          storage_ready.column(2).footer(2).firstChild.value = searchStorageId;
         }
       },
       "ajax": {
@@ -136,15 +137,18 @@ $(document).ready(function() {
         //   storage_ready.ajax.reload();
 
           // Destroy the Child Datatable
-          $("#cl" + rowData.clientID)
+          $(`#storage_domains_panel #${id}`)
             .DataTable()
             .destroy();
         } else {
+          // Close other rows
+          if (storage_ready.row('.shown').length) {
+            $('.details-control', storage_ready.row('.shown').node()).click();
+          }
             // Open this row
-            row.child(format(rowData)).show();
+            row.child(addStorageDesktopsPanel(rowData)).show();
             var id = rowData.id;
-
-            childTable = $("#cl" + id).DataTable({
+            childTable = $(`#storage_domains_panel #${id}`).DataTable({
               dom: "t",
               ajax: {
                 url: "/admin/storage/domains/" + id,
@@ -158,7 +162,14 @@ $(document).ready(function() {
               },
               columns: [
                 { data: "kind" },
-                { data: "name" },
+                {
+                  data: "name",
+                  render: function (data, type, full, meta) {
+                    let kind = full.kind.charAt(0).toUpperCase() + full.kind.slice(1).replace(/_/g, ' ')
+                    return `<a href="/isard-admin/admin/domains/render/${kind}s?searchDomainId=${full.id}">${full.name}</a>`
+                  }
+                },
+                {data: "id"},
               ],
               columnDefs: [
               ],
@@ -713,4 +724,13 @@ function populateDiskTree(){
       $tdList.eq(4).text(node.data.category_name);
     }
   });
+}
+
+function addStorageDesktopsPanel(s) {
+  $newPanel = $('#storage_domains_panel').clone();
+  $newPanel.html(function (i, oldHtml) {
+    return oldHtml.replace(/s.id/g, s.id);
+  });
+  $newPanel.show()
+  return $newPanel
 }

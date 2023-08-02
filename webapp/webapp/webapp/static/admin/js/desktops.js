@@ -125,6 +125,9 @@ columnDefs = [
     }
 ]
 
+function getGroupParam() {
+    return window.location.href.slice(window.location.href.indexOf('?') + 1).split('searchDomainId=')[1];
+}
 
 $(document).ready(function() {
     $template_domain = $(".template-detail-domain");
@@ -456,8 +459,6 @@ $(document).ready(function() {
     $('#filter-select').append(options.join(''));
     var selectedCategories = [$('meta[id=user_data]').attr('data-categoryid')]
 
-    // set the filter box category on loading the document
-    initial_filters();
 
     domains_table = $("#domains").DataTable({
       scrollY: false,
@@ -533,6 +534,15 @@ $(document).ready(function() {
             }
         });
     });
+
+    let searchDomainId = getGroupParam()
+    if (searchDomainId) {
+        domains_table.search(searchDomainId).draw()
+    }
+    else {
+        // set the filter box category on loading the document
+        initial_filters();
+    }
 
     var selectedCategories = ''
 
