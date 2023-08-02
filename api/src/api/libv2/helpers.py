@@ -460,6 +460,10 @@ def parse_domain_insert(new_data):
     if new_data.get("hardware", {}).get("reservables", {}).get("vgpus") == ["None"]:
         new_data["hardware"]["reservables"]["vgpus"] = None
 
+    if new_data.get("hardware", {}).get("interfaces"):
+        new_data["hardware"]["interfaces_macs"] = {}
+        for interface in new_data["hardware"]["interfaces"]:
+            new_data["hardware"]["interfaces_macs"][interface] = gen_new_mac()
     return new_data
 
 
@@ -538,6 +542,24 @@ def parse_domain_update(domain_id, new_data, admin_or_manager=False):
                     ]
                 },
             }
+
+        if new_data["hardware"].get("interfaces"):
+            old_interfaces = domain["create_dict"]["hardware"].get("interfaces")
+            new_interfaces = new_data["hardware"].get("interfaces")
+            if old_interfaces != new_interfaces:
+                interfaces_macs = {}
+                for new_interface in new_interfaces:
+                    if new_interface not in old_interfaces:
+                        interfaces_macs[new_interface] = gen_new_mac()
+                    else:
+                        interfaces_macs[new_interface] = domain["create_dict"][
+                            "hardware"
+                        ]["interfaces_macs"].get(new_interface, gen_new_mac())
+                new_data["hardware"] = {
+                    **new_data["hardware"],
+                    **{"interfaces_macs": r.literal(interfaces_macs)},
+                }
+
         if new_data["hardware"].get("reservables"):
             if new_data["hardware"]["reservables"].get("vgpus") == ["None"]:
                 new_data["hardware"]["reservables"]["vgpus"] = None
@@ -687,3 +709,34 @@ def gen_payload_from_user(user_id):
         "group_id": user["group"],
         "group_name": user["group_name"],
     }
+
+
+def gen_random_mac():
+    mac = [
+        0x52,
+        0x54,
+        0x00,
+        random.randint(0x00, 0x7F),
+        random.randint(0x00, 0xFF),
+        random.randint(0x00, 0xFF),
+    ]
+    return ":".join(map(lambda x: "%02x" % x, mac))
+
+
+def gen_new_mac():
+    with app.app_context():
+        all_macs = list(
+            r.table("domains")
+            .get_all("desktop", index="kind")
+            .pluck({"create_dict": {"hardware": {"interfaces_macs": True}}})[
+                "create_dict"
+            ]["hardware"]["interfaces_macs"]
+            .concat_map(lambda x: x.values())
+            .run(db.conn)
+        )
+    new_mac = gen_random_mac()
+    # 24 bit combinations = 16777216 ~= 16.7 million. Is this enough macs for your system?
+    # Take into account that each desktop could have múltime interfaces... still milions of unique macs
+    while all_macs.count(new_mac) > 0:
+        new_mac = gen_random_mac()
+    return new_mac
