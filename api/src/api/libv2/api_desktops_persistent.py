@@ -816,8 +816,8 @@ class ApiDesktopsPersistent:
             check_user_duplicated_domain_name(
                 data["name"], desktop["user"], desktop.get("kind"), data["id"]
             )
-        new_data = copy.deepcopy(data)
-        self.check_viewers(new_data, desktop)
+        if data.get("hardware") or data.get("guest_properties"):
+            self.check_viewers(data, desktop)
         if not "server" in data and desktop.get("status") not in ["Failed", "Stopped"]:
             raise Error(
                 "precondition_required",

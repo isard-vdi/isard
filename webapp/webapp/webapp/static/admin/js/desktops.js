@@ -1344,7 +1344,7 @@ function actionsDomainDetail(){
         data=$('#modalForcedhypForm').serializeObject();
         $.ajax({
             type: 'PUT',
-            url: '/api/v3/domain/'+data["id"]+"/without_updating",
+            url: `/api/v3/domain/${data["id"]}`,
             data: JSON.stringify({
                 ...( ! ("forced_hyp"  in data) && {"forced_hyp": false} ),
                 ...( "forced_hyp" in data && {"forced_hyp": [data.forced_hyp]} ),
@@ -1427,7 +1427,7 @@ function actionsDomainDetail(){
         data=$('#modalFavouriteHypForm').serializeObject();
         $.ajax({
             type: 'PUT',
-            url: '/api/v3/domain/'+data["id"]+"/without_updating",
+            url: `/api/v3/domain/${data["id"]}`,
             data: JSON.stringify({
                 ...( ! ("favourite_hyp"  in data) && {"favourite_hyp": false} ),
                 ...( "favourite_hyp" in data && {"favourite_hyp": [data.favourite_hyp]} ),
@@ -1466,7 +1466,7 @@ function actionsDomainDetail(){
         let server=$('#modalServerForm #server').prop('checked')
         $.ajax({
             type: "PUT",
-            url: "/api/v3/domain/" + pk+"/without_updating",
+            url: `/api/v3/domain/${data["id"]}`,
             data: JSON.stringify({
                 'server': server
             }),
@@ -1484,6 +1484,7 @@ function actionsDomainDetail(){
                     opacity: 1,
                     type: "success"
                 });
+                $("#modalServer").modal('hide');
             },
             error: function(data){
                 new PNotify({
@@ -1497,7 +1498,6 @@ function actionsDomainDetail(){
                 });
             }
         });
-        $("#modalServer").modal('hide');
     });
 
 }
