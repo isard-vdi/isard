@@ -136,7 +136,7 @@ class RethinkBase(ABC):
 
     @classmethod
     @cached(TTLCache(maxsize=100, ttl=5))
-    def get_index(cls, values, index, filter=None, pluck=None):
+    def get_index(cls, values, index, filter=None):
         """
         Get documents with specific index.
 
@@ -153,12 +153,13 @@ class RethinkBase(ABC):
         """
         query = r.table(cls._rdb_table).get_all(r.args(values), index=index)
         query = query.filter(filter) if filter else query
-        query = query.pluck(pluck) if pluck else query
         with cls._rdb_context():
-            return [cls(document) for document in query.run(cls._rdb_connection)]
+            return [
+                cls(document_id) for document_id in query["id"].run(cls._rdb_connection)
+            ]
 
     @cached(TTLCache(maxsize=100, ttl=5))
-    def get_compound_index(cls, values, index, filter=None, pluck=None):
+    def get_compound_index(cls, values, index, filter=None):
         """
         Get documents with compound index
 
@@ -175,9 +176,10 @@ class RethinkBase(ABC):
         """
         query = r.table(cls._rdb_table).get_all(r.args(values), index=index)
         query = query.filter(filter) if filter else query
-        query = query.pluck(pluck) if pluck else query
         with cls._rdb_context():
-            return [cls(document) for document in query.run(cls._rdb_connection)]
+            return [
+                cls(document_id) for document_id in query["id"].run(cls._rdb_connection)
+            ]
 
     @classmethod
     def insert(cls, documents, conflict="error"):
