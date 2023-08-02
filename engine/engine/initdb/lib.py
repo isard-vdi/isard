@@ -251,7 +251,7 @@ def gen_new_mac():
     domains_hardware = list(
         r.table("domains")
         .get_all("desktop", index="kind")
-        .pluck("id", "parents", {"create_dict": {"hardware": {"interfaces_mac": True}}})
+        .pluck("id", {"create_dict": {"hardware": {"interfaces_mac": True}}})
         .run()
     )
 
