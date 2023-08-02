@@ -58,7 +58,7 @@
                 </div>
                 <div>
                   <p>
-                    {{ $t(`views.select-template.viewer-name.${viewer.key}`) }}
+                    {{ $t(`views.select-template.viewer-name.${viewer.type}-${viewer.id}`) }}
                   </p>
                 </div>
               </div>

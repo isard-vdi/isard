@@ -85,35 +85,35 @@ export const eventsTitles = {
 export const availableViewers = [
   {
     id: 'rdp',
-    key: 'browser-rdp',
+    key: 'browser_rdp',
     type: 'browser',
     order: 3,
     needsWireguard: true
   },
   {
     id: 'vnc',
-    key: 'browser-vnc',
+    key: 'browser_vnc',
     type: 'browser',
     order: 1,
     needsWireguard: false
   },
   {
     id: 'rdpgw',
-    key: 'file-rdpgw',
+    key: 'file_rdpgw',
     type: 'file',
     order: 4,
     needsWireguard: true
   },
   {
     id: 'rdpvpn',
-    key: 'file-rdpvpn',
+    key: 'file_rdpvpn',
     type: 'file',
     order: 5,
     needsWireguard: true
   },
   {
     id: 'spice',
-    key: 'file-spice',
+    key: 'file_spice',
     type: 'file',
     order: 2,
     needsWireguard: false
