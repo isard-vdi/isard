@@ -59,6 +59,7 @@ function setViewerButtonData(desktop_id,data){
     offer=[]
     if ("file_spice" in data["guest_properties"]["viewers"]){
         offer.push({
+            'text': 'SPICE',
             'type': 'spice',
             'client': 'app',
             'secure': true,
@@ -67,6 +68,7 @@ function setViewerButtonData(desktop_id,data){
     }
     if ("browser_vnc" in data["guest_properties"]["viewers"]){
         offer.push({
+            'text': 'VNC browser',
             'type': 'vnc',
             'client': 'websocket',
             'secure': true,
@@ -75,6 +77,7 @@ function setViewerButtonData(desktop_id,data){
     }
     if ("file_rdpgw" in data["guest_properties"]["viewers"]){
         offer.push({
+            'text': 'RDP',
             'type': 'rdpgw',
             'client': 'app',
             'secure': true,
@@ -83,6 +86,7 @@ function setViewerButtonData(desktop_id,data){
     }
     if ("file_rdpvpn" in data["guest_properties"]["viewers"]){
         offer.push({
+            'text': 'RDP VPN',
             'type': 'rdpvpn',
             'client': 'app',
             'secure': true,
@@ -91,6 +95,7 @@ function setViewerButtonData(desktop_id,data){
     }
     if ("browser_rdp" in data["guest_properties"]["viewers"]){
         offer.push({
+            'text': 'RDP browser',
             'type': 'rdp',
             'client': 'websocket',
             'secure': true,
@@ -118,16 +123,9 @@ function setViewerButtonData(desktop_id,data){
             if(disp['secure']){
                 lock='<i class="fa fa-lock"></i>'
             }
-            if(disp['client']=='app'){
-                type='<i class="fa fa-download"></i>'
-                btntext=disp['type'].toUpperCase()+' Application'
-                client='file'
-            }
-            else if(disp['client']=='websocket'){
-                type='<i class="fa fa-html5"></i>'
-                btntext=disp['type'].toUpperCase()+' Browser'
-                client='browser'
-            }
+            type=['rdp', 'vnc'].includes(disp['type'])? '<i class="fa fa-html5"></i>' : '<i class="fa fa-download"></i>'
+            btntext=disp['text']
+            client=['rdp', 'vnc'].includes(disp['type'])? 'browser' : 'file'
             html=br+html+prehtml+'<button data-pk="'+desktop_id+'" data-type="'+disp['type']+'" data-client="'+client+'" data-os="'+getOS()+'" type="button" class="btn '+success+' '+preferred+' btn-viewers" style="width:'+w+'%">'+lock+' '+type+' '+btntext+'</button>'+posthtml+br
     })
     if (data.create_dict.hardware.interfaces.includes("wireguard")) {

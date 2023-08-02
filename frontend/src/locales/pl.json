@@ -929,10 +929,6 @@
             "here": "tutaj."
         },
         "direct-viewer": {
-            "button": {
-                "browser": "Przeglądarka",
-                "browser-rdp": "Przeglądarka RDP"
-            },
             "help": {
                 "spice": {
                     "spice-help": "Instrukcje instalacji SPICE",

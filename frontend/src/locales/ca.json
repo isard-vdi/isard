@@ -532,10 +532,6 @@
                 "title": "Accedir des d'aquest navegador",
                 "subtitle": "No requereix cap instal·lació a l'ordinador"
             },
-            "button": {
-                "browser": "Navegador",
-                "browser-rdp": "RDP al navegador"
-            },
             "waitingIP": "Esperant a que s'iniciï l'escriptori",
             "description": {
                 "vnc": "Accedir a l'escriptori directament des d'aquest navegador",

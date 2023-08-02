@@ -1,4 +1,3 @@
-import { mediaStatus } from '../shared/constants'
 
 export class MediaUtils {
   static parseMediaList (items) {
@@ -42,10 +41,6 @@ export class MediaUtils {
       kind,
       editable
     }
-  }
-
-  static getMediaStatus (status) {
-    return mediaStatus[status]
   }
 
   static parseMediaDesktops (items) {
