@@ -247,6 +247,7 @@ def gen_random_mac():
     return ":".join(map(lambda x: "%02x" % x, mac))
 
 
+# Being used in an old upgrade, so keeping with old interfaces_mac key
 def gen_new_mac():
     domains_hardware = list(
         r.table("domains")
