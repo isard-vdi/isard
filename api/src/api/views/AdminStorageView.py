@@ -26,9 +26,10 @@ from .decorators import is_admin_or_manager, ownsMediaId, ownsStorageId
 @app.route("/api/v3/admin/storage/<status>", methods=["GET"])
 @is_admin_or_manager
 def api_v3_admin_storage(payload, status=None):
-    disks = get_disks(status=status)
     if payload["role_id"] == "manager":
-        disks = [d for d in disks if d["category"] == payload["category_id"]]
+        disks = get_disks(status=status, category_id=payload["category_id"])
+    else:
+        disks = get_disks(status=status)
     return (
         json.dumps(disks),
         200,

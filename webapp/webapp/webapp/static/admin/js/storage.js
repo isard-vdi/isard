@@ -200,7 +200,7 @@ $(document).ready(function() {
           { "data": "type",},
           { "data": null},
           { "data": null},
-          { "data": "user_id"},
+          { "data": "user_name"},
           { "data": "status_logs"}
         ],
       "columnDefs": [
@@ -272,7 +272,7 @@ $(document).ready(function() {
           { "data": "type",},
           { "data": null},
           { "data": null},
-          { "data": "user_id"},
+          { "data": "user_name"},
           { "data": "status_logs"}
         ],
       "columnDefs": [
