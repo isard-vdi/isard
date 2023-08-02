@@ -824,6 +824,7 @@
             "status": {
                 "downloading": "Downloading",
                 "faileddeleted": "Download failed",
+                "downloadfailed": "Download failed",
                 "downloaded": "Downloaded",
                 "deleting": "Deleting",
                 "maintenance": "Maintenance"

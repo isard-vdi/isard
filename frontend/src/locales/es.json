@@ -839,7 +839,8 @@
             },
             "status": {
                 "downloading": "Descargando",
-                "download-failed": "Descarga fallida",
+                "faileddeleted": "Descarga fallida",
+                "downloadfailed": "Descarga fallida",
                 "downloaded": "Descargado",
                 "deleting": "Borrando",
                 "maintenance": "Mantenimiento"

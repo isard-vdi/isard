@@ -661,7 +661,8 @@
             },
             "status": {
                 "downloading": "Descarregant",
-                "download-failed": "Descàrrega fallida",
+                "faileddeleted": "Descàrrega fallida",
+                "downloadfailed": "Descàrrega fallida",
                 "downloaded": "Descarregat",
                 "deleting": "Esborrant",
                 "maintenance": "Manteniment"
