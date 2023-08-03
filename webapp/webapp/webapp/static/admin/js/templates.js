@@ -1326,7 +1326,7 @@ function actionsDomainDetail(){
         data=$('#modalForcedhypForm').serializeObject();
         $.ajax({
             type: 'PUT',
-            url: '/api/v3/domain/'+data["id"]+"/without_updating",
+            url: `/api/v3/domain/${data["id"]}`,
             data: JSON.stringify({
                 ...( ! ("forced_hyp"  in data) && {"forced_hyp": false} ),
                 ...( "forced_hyp" in data && {"forced_hyp": [data.forced_hyp]} ),
@@ -1409,7 +1409,7 @@ function actionsDomainDetail(){
         data=$('#modalFavouriteHypForm').serializeObject();
         $.ajax({
             type: 'PUT',
-            url: '/api/v3/domain/'+data["id"]+"/without_updating",
+            url: `/api/v3/domain/${data["id"]}`,
             data: JSON.stringify({
                 ...( ! ("favourite_hyp"  in data) && {"favourite_hyp": false} ),
                 ...( "favourite_hyp" in data && {"favourite_hyp": [data.favourite_hyp]} ),
@@ -1441,47 +1441,6 @@ function actionsDomainDetail(){
             }
         })
     });
-
-    $("#modalServer #send").off('click').on('click', function(e){
-        data=$('#modalServerForm').serializeObject();
-        let pk=$('#modalServerForm #id').val()
-        let server=$('#modalServerForm #server').prop('checked')
-        $.ajax({
-            type: "PUT",
-            url: "/api/v3/domain/" + pk+"/without_updating",
-            data: JSON.stringify({
-                'server': server
-            }),
-            contentType: "application/json",
-            success: function(data)
-            {
-                $('form').each(function() { this.reset() });
-                $('.modal').modal('hide');
-                new PNotify({
-                    title: "Updated",
-                    text: "Server updated successfully",
-                    hide: true,
-                    delay: 4000,
-                    icon: 'fa fa-success',
-                    opacity: 1,
-                    type: "success"
-                });
-            },
-            error: function(data){
-                new PNotify({
-                    title: "ERROR updating server",
-                    text: data.responseJSON.description,
-                    type: 'error',
-                    hide: true,
-                    icon: 'fa fa-warning',
-                    delay: 15000,
-                    opacity: 1
-                });
-            }
-        });
-        $("#modalServer").modal('hide');
-    });
-
 }
 
 function HypervisorsDropdown(selected) {

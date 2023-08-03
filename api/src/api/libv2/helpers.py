@@ -557,7 +557,6 @@ def parse_domain_update(domain_id, new_data, admin_or_manager=False):
             new_domain = {
                 **new_domain,
                 **{
-                    "status": "Updating",
                     "create_dict": {"hardware": new_data["hardware"]},
                 },
             }
