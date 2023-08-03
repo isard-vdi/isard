@@ -135,7 +135,6 @@ class RethinkBase(ABC):
             ]
 
     @classmethod
-    @cached(TTLCache(maxsize=100, ttl=5))
     def get_index(cls, values, index, filter=None):
         """
         Get documents with specific index.
@@ -146,8 +145,6 @@ class RethinkBase(ABC):
         :type index: str
         :param filter: Filter
         :type filter: dict
-        :param pluck: Pluck
-        :type pluck: list
         :return: List of objects.
         :rtype: list
         """
@@ -158,7 +155,7 @@ class RethinkBase(ABC):
                 cls(document_id) for document_id in query["id"].run(cls._rdb_connection)
             ]
 
-    @cached(TTLCache(maxsize=100, ttl=5))
+    @classmethod
     def get_compound_index(cls, values, index, filter=None):
         """
         Get documents with compound index
@@ -169,8 +166,6 @@ class RethinkBase(ABC):
         :type index: str
         :param filter: Filter
         :type filter: dict
-        :param pluck: Pluck
-        :type pluck: list
         :return: List of objects.
         :rtype: list
         """

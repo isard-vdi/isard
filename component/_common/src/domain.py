@@ -58,9 +58,4 @@ class Domain(RethinkCustomBase):
         """
         Get domains with specific Storage
         """
-        return [
-            domain
-            for domain in cls.get_all()
-            for domain_storage in domain.storages
-            if storage == domain_storage
-        ]
+        return cls.get_index([storage.id], index="storage_ids")
