@@ -17,8 +17,8 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+from . import storage
 from .rethink_custom_base_factory import RethinkCustomBase
-from .storage import Storage
 
 
 class Domain(RethinkCustomBase):
@@ -38,9 +38,9 @@ class Domain(RethinkCustomBase):
         Returns domain Storages.
         """
         return [
-            Storage(disk["storage_id"])
+            storage.Storage(disk["storage_id"])
             for disk in self.create_dict.get("hardware", {}).get("disks", [])
-            if "storage_id" in disk and Storage.exists(disk["storage_id"])
+            if "storage_id" in disk and storage.Storage.exists(disk["storage_id"])
         ]
 
     @property

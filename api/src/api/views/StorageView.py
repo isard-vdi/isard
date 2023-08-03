@@ -135,10 +135,28 @@ def create_storage(payload):
     return jsonify(storage.id)
 
 
+@app.route("/api/v3/storage/<storage_id>/parents", methods=["GET"])
+@has_token
+def storage_parents(payload, storage_id):
+    return jsonify(
+        [
+            {
+                "id": storage.id,
+                "status": storage.status,
+                "parent_id": storage.parent,
+                "domains": [
+                    {"id": domain.id, "name": domain.name, "kind": domain.kind}
+                    for domain in storage.domains
+                ],
+            }
+            for storage in [Storage(storage_id)] + Storage(storage_id).parents
+        ]
+    )
+
+
 @app.route("/api/v3/storage/<status>", methods=["GET"])
 @has_token
 def api_v3_storage(payload, status):
-
     disks = get_disks(
         payload["user_id"],
         pluck=[

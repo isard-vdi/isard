@@ -134,24 +134,26 @@ $(document).ready(function() {
           // This row is already open - close it
           row.child.hide();
           tr.removeClass("shown");
-        //   storage_ready.ajax.reload();
 
           // Destroy the Child Datatable
-          $(`#storage_domains_panel #${id}`)
+          $("#cl" + rowData.clientID)
             .DataTable()
             .destroy();
         } else {
+
           // Close other rows
           if (storage_ready.row('.shown').length) {
             $('.details-control', storage_ready.row('.shown').node()).click();
           }
+
             // Open this row
-            row.child(addStorageDesktopsPanel(rowData)).show();
+            row.child(format(rowData)).show();
             var id = rowData.id;
-            childTable = $(`#storage_domains_panel #${id}`).DataTable({
+
+            childTable = $("#cl" + id).DataTable({
               dom: "t",
               ajax: {
-                url: "/admin/storage/domains/" + id,
+                url: "/api/v3/storage/" + id+"/parents",
                 contentType: "application/json",
                 type: "GET",
               },
@@ -161,18 +163,24 @@ $(document).ready(function() {
                   '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
               },
               columns: [
-                { data: "kind" },
-                {
-                  data: "name",
+                { data: null, title: "#", render: function (data, type, full, meta) { return meta.row + 1; } },
+                { data: "id", title: "storage id", render: function (data, type, full, meta) { if (meta.row == 0) { return '<b>'+data+'</b>' } else { return data } } },
+                { data: "status", title: "storage status" },
+                { data: "parent_id", title: "parent storage id" },
+                { data: "domains", title: "domains",
                   render: function (data, type, full, meta) {
-                    let kind = full.kind.charAt(0).toUpperCase() + full.kind.slice(1).replace(/_/g, ' ')
-                    return `<a href="/isard-admin/admin/domains/render/${kind}s?searchDomainId=${full.id}">${full.name}</a>`
+                    links = []
+                    $(data).each(function (index, value) {
+                      let kind = value.kind.charAt(0).toUpperCase() + value.kind.slice(1).replace(/_/g, ' ')
+                      links[index] = '<a href="/isard-admin/admin/domains/render/'+kind+'s?searchDomainId='+value.id+'"><b>'+kind[0]+': </b>'+value.name+'</a>'
+                    });
+                    return links.join(', ')
                   }
                 },
-                {data: "id"},
               ],
               columnDefs: [
               ],
+              order: [],
               select: false,
             });
 
@@ -211,7 +219,7 @@ $(document).ready(function() {
           { "data": "type",},
           { "data": null},
           { "data": null},
-          { "data": "user_name"},
+          { "data": "user_id"},
           { "data": "status_logs"}
         ],
       "columnDefs": [
@@ -283,7 +291,7 @@ $(document).ready(function() {
           { "data": "type",},
           { "data": null},
           { "data": null},
-          { "data": "user_name"},
+          { "data": "user_id"},
           { "data": "status_logs"}
         ],
       "columnDefs": [
@@ -724,13 +732,4 @@ function populateDiskTree(){
       $tdList.eq(4).text(node.data.category_name);
     }
   });
-}
-
-function addStorageDesktopsPanel(s) {
-  $newPanel = $('#storage_domains_panel').clone();
-  $newPanel.html(function (i, oldHtml) {
-    return oldHtml.replace(/s.id/g, s.id);
-  });
-  $newPanel.show()
-  return $newPanel
 }
