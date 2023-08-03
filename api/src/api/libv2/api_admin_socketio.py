@@ -36,8 +36,10 @@ from flask import request
 from .._common.tokens import get_token_payload
 from .api_admin import ApiAdmin
 from .api_logging import logs_domain_start_engine, logs_domain_stop_engine
+from .api_scheduler import Scheduler
 
 admins = ApiAdmin()
+api_scheduler = Scheduler()
 
 
 ## Domains Threading
@@ -167,6 +169,9 @@ class DomainsThread(threading.Thread):
                                         logs_domain_stop_engine(
                                             start_logs_id,
                                             c["new_val"].get("status"),
+                                        )
+                                        api_scheduler.remove_desktop_timeouts(
+                                            data.get("id")
                                         )
                                 else:
                                     if c["new_val"].get("status") == "Started" and c[
