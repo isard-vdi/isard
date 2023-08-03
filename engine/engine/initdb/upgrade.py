@@ -1589,6 +1589,7 @@ class Upgrade(object):
                         .pluck({"create_dict": {"hardware": {"interfaces_mac": True}}})[
                             "create_dict"
                         ]["hardware"]["interfaces_mac"]
+                        .default([])
                         .reduce(lambda left, right: left.add(right))
                         .distinct()
                         .run(self.conn)
@@ -1596,11 +1597,17 @@ class Upgrade(object):
 
                     updated_domains = []
                     for domain in domains_to_update:
+                        if not domain["create_dict"]["hardware"].get("interfaces"):
+                            continue
+                        if not domain["create_dict"]["hardware"].get("interfaces_mac"):
+                            domain["create_dict"]["hardware"]["interfaces_mac"] = []
                         if not (
                             len(domain["create_dict"]["hardware"]["interfaces"])
-                            and len(domain["create_dict"]["hardware"]["interfaces"])
-                        ) == len(
-                            domain["create_dict"]["hardware"].get("interfaces_mac", [])
+                            == len(
+                                domain["create_dict"]["hardware"].get(
+                                    "interfaces_mac", []
+                                )
+                            )
                         ):
                             for i in range(
                                 0,
@@ -1615,28 +1622,19 @@ class Upgrade(object):
                                 while all_macs.count(new_mac) > 0:
                                     new_mac = gen_random_mac()
                                 all_macs.append(new_mac)
-                                if domain["create_dict"]["hardware"].get(
+                                domain["create_dict"]["hardware"][
                                     "interfaces_mac"
-                                ):
-                                    domain["create_dict"]["hardware"][
-                                        "interfaces_mac"
-                                    ].append(new_mac)
-                                else:
-                                    domain["create_dict"]["hardware"][
-                                        "interfaces_mac"
-                                    ] = [new_mac]
-
-                        domain["create_dict"]["hardware"]["interfaces_macs"] = {}
-                        for index, interface in enumerate(
-                            domain["create_dict"]["hardware"]["interfaces"]
-                        ):
-                            domain["create_dict"]["hardware"]["interfaces_macs"][
-                                interface
-                            ] = domain["create_dict"]["hardware"]["interfaces_mac"][
-                                index
-                            ]
+                                ].append(new_mac)
+                        interfaces = {
+                            interface: mac
+                            for interface, mac in zip(
+                                domain["create_dict"]["hardware"]["interfaces"],
+                                domain["create_dict"]["hardware"]["interfaces_mac"],
+                            )
+                        }
                         domain["create_dict"]["hardware"].pop("interfaces_mac")
                         domain["create_dict"]["hardware"].pop("macs", None)
+                        domain["create_dict"]["hardware"]["interfaces"] = interfaces
                         updated_domains.append(domain)
                     r.table("domains").insert(updated_domains, conflict="update").run(
                         self.conn

@@ -1825,9 +1825,9 @@ def gen_new_mac():
     all_macs = list(
         r.table("domains")
         .get_all("desktop", index="kind")
-        .pluck({"create_dict": {"hardware": {"interfaces_macs": True}}})["create_dict"][
+        .pluck({"create_dict": {"hardware": {"interfaces": True}}})["create_dict"][
             "hardware"
-        ]["interfaces_macs"]
+        ]["interfaces"]
         .concat_map(lambda x: x.values())
         .run(r_conn)
     )

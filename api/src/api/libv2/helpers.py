@@ -260,6 +260,9 @@ def _parse_desktop(desktop):
         v.replace("_", "-") for v in list(desktop["guest_properties"]["viewers"].keys())
     ]
 
+    desktop["create_dict"]["hardware"]["interfaces"] = list(
+        desktop["create_dict"]["hardware"].get("interfaces", [])
+    )
     if desktop["status"] == "Started":
         if "wireguard" in desktop["create_dict"]["hardware"]["interfaces"]:
             desktop["ip"] = desktop.get("viewer", {}).get("guest_ip")
@@ -336,7 +339,9 @@ def _parse_desktop(desktop):
             "category": desktop.get("category"),
             "category_name": desktop.get("category_name"),
             "reservables": desktop["create_dict"].get("reservables"),
-            "interfaces": desktop["create_dict"].get("hardware", {}).get("interfaces"),
+            "interfaces": list(
+                desktop["create_dict"].get("hardware", {}).get("interfaces", [])
+            ),
         },
         **_parse_desktop_booking(desktop),
     }
@@ -460,10 +465,10 @@ def parse_domain_insert(new_data):
     if new_data.get("hardware", {}).get("reservables", {}).get("vgpus") == ["None"]:
         new_data["hardware"]["reservables"]["vgpus"] = None
 
-    if new_data.get("hardware", {}).get("interfaces"):
-        new_data["hardware"]["interfaces_macs"] = {}
-        for interface in new_data["hardware"]["interfaces"]:
-            new_data["hardware"]["interfaces_macs"][interface] = gen_new_mac()
+    interfaces = new_data.get("hardware", {}).get("interfaces", [])
+    new_data["hardware"]["interfaces"] = {}
+    for interface in interfaces:
+        new_data["hardware"]["interfaces"][interface] = gen_new_mac()
     return new_data
 
 
@@ -544,21 +549,25 @@ def parse_domain_update(domain_id, new_data, admin_or_manager=False):
             }
 
         if new_data["hardware"].get("interfaces"):
-            old_interfaces = domain["create_dict"]["hardware"].get("interfaces")
+            old_interfaces = list(
+                domain["create_dict"]["hardware"].get("interfaces", [])
+            )
             new_interfaces = new_data["hardware"].get("interfaces")
             if old_interfaces != new_interfaces:
-                interfaces_macs = {}
+                interfaces = {}
                 for new_interface in new_interfaces:
                     if new_interface not in old_interfaces:
-                        interfaces_macs[new_interface] = gen_new_mac()
+                        interfaces[new_interface] = gen_new_mac()
                     else:
-                        interfaces_macs[new_interface] = domain["create_dict"][
-                            "hardware"
-                        ]["interfaces_macs"].get(new_interface, gen_new_mac())
+                        interfaces[new_interface] = domain["create_dict"]["hardware"][
+                            "interfaces"
+                        ].get(new_interface, gen_new_mac())
                 new_data["hardware"] = {
                     **new_data["hardware"],
-                    **{"interfaces_macs": r.literal(interfaces_macs)},
+                    **{"interfaces": r.literal(interfaces)},
                 }
+            else:
+                new_data["hardware"].pop("interfaces", None)
 
         if new_data["hardware"].get("reservables"):
             if new_data["hardware"]["reservables"].get("vgpus") == ["None"]:
@@ -728,9 +737,9 @@ def gen_new_mac():
         all_macs = list(
             r.table("domains")
             .get_all("desktop", index="kind")
-            .pluck({"create_dict": {"hardware": {"interfaces_macs": True}}})[
-                "create_dict"
-            ]["hardware"]["interfaces_macs"]
+            .pluck({"create_dict": {"hardware": {"interfaces": True}}})["create_dict"][
+                "hardware"
+            ]["interfaces"]
             .concat_map(lambda x: x.values())
             .run(db.conn)
         )

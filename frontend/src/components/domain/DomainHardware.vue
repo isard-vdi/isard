@@ -364,7 +364,7 @@ export default {
       }
     })
 
-    const interfacesMac = computed(() => $store.getters.getDomain.macs)
+    const interfacesMac = computed(() => $store.getters.getDomain.hardware.interfacesMac)
 
     // When creating a desktop from a media if the user has the iso boot option it will be selected by default
     watch(availableHardware, (availableHardware, prevVal) => {

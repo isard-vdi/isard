@@ -54,7 +54,9 @@ class ApiDomains:
                 .pluck("create_dict")["create_dict"]
                 .merge(
                     lambda domain: {
-                        "interfaces_names": domain["hardware"]["interfaces"].map(
+                        "interfaces_names": domain["hardware"]["interfaces"]
+                        .keys()
+                        .map(
                             lambda interface: r.table("interfaces").get(interface)[
                                 "name"
                             ]

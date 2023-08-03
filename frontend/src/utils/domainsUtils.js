@@ -3,7 +3,7 @@ import { AllowedUtils } from './allowedUtils'
 
 export class DomainsUtils {
   static parseDomain (item) {
-    const { id, kind, name, description, guest_properties: guestProperties, hardware, reservables, image, limited_hardware: limitedHardware, macs } = item
+    const { id, kind, name, description, guest_properties: guestProperties, hardware, reservables, image, limited_hardware: limitedHardware } = item
     return {
       id,
       kind,
@@ -36,7 +36,6 @@ export class DomainsUtils {
       reservables: {
         vgpus: reservables && reservables.vgpus && reservables.vgpus.length > 0 ? [reservables.vgpus[0]] : ['None']
       },
-      macs,
       image
     }
   }

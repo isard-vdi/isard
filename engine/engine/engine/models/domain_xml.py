@@ -1546,11 +1546,10 @@ def populate_dict_hardware_from_create_dict(id_domain):
     # INTERFACES
     list_interfaces_id = []
     list_interfaces_mac = []
-    for interface_id in create_dict["hardware"]["interfaces"]:
-        list_interfaces_id.append(interface_id)
-        list_interfaces_mac.append(
-            create_dict["hardware"]["interfaces_macs"][interface_id]
-        )
+    interfaces = create_dict["hardware"].get("interfaces", None)
+    if interfaces:
+        list_interfaces_id = list(interfaces)
+        list_interfaces_mac = list(interfaces.values())
     new_hardware_dict["interfaces"] = create_list_interfaces_from_list_ids(
         list_interfaces_id, list_interfaces_mac
     )
@@ -1734,21 +1733,19 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
 def recreate_xml_interfaces(dict_domain, x):
     id_domain = dict_domain["id"]
     # redo network
+    list_interfaces = []
+    list_interfaces_mac = []
     try:
-        list_interfaces = dict_domain["create_dict"]["hardware"].get("interfaces", [])
-        list_interfaces_mac = []
-        for interface_id in list_interfaces:
-            list_interfaces_mac.append(
-                dict_domain["create_dict"]["hardware"]["interfaces_macs"][interface_id]
-            )
-    except KeyError:
+        interfaces = dict_domain["create_dict"]["hardware"].get("interfaces", None)
+        if interfaces:
+            list_interfaces = list(interfaces)
+            list_interfaces_mac = list(interfaces.values())
+    except:
         log.error(
-            "domain {} interfaces/interfaces_macs incongruency in create_dict. Starting without any interface!".format(
+            "domain {} interfaces error in create_dict. Starting without any interface!".format(
                 id_domain
             )
         )
-        list_interfaces = []
-        list_interfaces_mac = []
 
     # clean interfaces saving the mac...
     mac_address = []
