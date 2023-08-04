@@ -480,7 +480,6 @@ class Quotas:
         category_quantity,
         limits_error,
     ):
-
         # We get the user applied quota and currently used info to check the quota
         user_quota_data = self.Get(user_id=user["id"], started_info=False)
         if user_quota_data["quota"]:
@@ -713,7 +712,6 @@ class Quotas:
             raise Error("not_found", "Group not found")
 
         if group["limits"]:
-
             started_desktops = self.get_started_desktops(user["group"], "kind_group")
             desktops = {
                 "running": started_desktops["count"] + 1,  # Add the current desktop
@@ -906,7 +904,6 @@ class Quotas:
                 raise Error("not_found", "Group not found")
 
             if group["limits"]:
-
                 with app.app_context():
                     group_domains = (
                         r.table("domains")
@@ -940,7 +937,6 @@ class Quotas:
                 raise Error("not_found", "Category not found")
 
             if category["limits"]:
-
                 with app.app_context():
                     category_domains = (
                         r.table("domains")
@@ -1225,6 +1221,7 @@ class Quotas:
                     traceback.format_exc(),
                     description_code="not_found",
                 )
+            domain["hardware"]["interfaces"] = list(domain["hardware"]["interfaces"])
         else:
             domain = {}
 

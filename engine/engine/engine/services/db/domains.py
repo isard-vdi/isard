@@ -1822,19 +1822,16 @@ def gen_random_mac():
 
 def gen_new_mac():
     r_conn = new_rethink_connection()
-    domains_hardware = list(
+    all_macs = list(
         r.table("domains")
         .get_all("desktop", index="kind")
-        .pluck("id", "parents", {"create_dict": {"hardware": {"interfaces_mac": True}}})
+        .pluck({"create_dict": {"hardware": {"interfaces": True}}})["create_dict"][
+            "hardware"
+        ]["interfaces"]
+        .concat_map(lambda x: x.values())
         .run(r_conn)
     )
     close_rethink_connection(r_conn)
-    hardware_macs = [
-        dom["create_dict"]["hardware"]["interfaces_mac"]
-        for dom in domains_hardware
-        if dom.get("create_dict", {}).get("hardware", {}).get("interfaces_mac")
-    ]
-    all_macs = [item for sublist in hardware_macs for item in sublist]
     new_mac = gen_random_mac()
     # 24 bit combinations = 16777216 ~= 16.7 million. Is this enough macs for your system?
     # Take into account that each desktop could have múltime interfaces... still milions of unique macs

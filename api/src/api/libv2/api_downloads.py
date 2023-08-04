@@ -38,7 +38,7 @@ db = RDB(app)
 db.init_app(app)
 
 from .api_cards import get_domain_stock_card
-from .helpers import get_user_data
+from .helpers import gen_new_mac, get_user_data
 
 
 def is_registered(f):
@@ -330,6 +330,10 @@ def formatDomains(data, user_id):
         d["accessed"] = int(time.time())
         d["hypervisors_pools"] = d["create_dict"]["hypervisors_pools"]
         d["guest_properties"] = default_guest_properties()
+        interfaces = d["create_dict"]["hardware"]["interfaces"]
+        d["create_dict"]["hardware"]["interfaces"] = {
+            interface: gen_new_mac() for interface in interfaces
+        }
         if d.get("options"):
             d.pop("options")
         d.update(get_user_data(user_id))

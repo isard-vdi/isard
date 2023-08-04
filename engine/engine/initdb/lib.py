@@ -247,11 +247,12 @@ def gen_random_mac():
     return ":".join(map(lambda x: "%02x" % x, mac))
 
 
+# Being used in an old upgrade, so keeping with old interfaces_mac key
 def gen_new_mac():
     domains_hardware = list(
         r.table("domains")
         .get_all("desktop", index="kind")
-        .pluck("id", "parents", {"create_dict": {"hardware": {"interfaces_mac": True}}})
+        .pluck("id", {"create_dict": {"hardware": {"interfaces_mac": True}}})
         .run()
     )
 

@@ -61,6 +61,7 @@ from .helpers import (
     _parse_media_info,
     _parse_string,
     default_guest_properties,
+    gen_new_mac,
     gen_payload_from_user,
     parse_domain_insert,
     parse_domain_update,
@@ -150,6 +151,8 @@ class ApiDesktopsPersistent:
                 )
 
         if new_data:
+            if not new_data.get("hardware", {}).get("interfaces"):
+                new_data["hardware"]["interfaces"] = template["hardware"]["interfaces"]
             template["create_dict"]["hardware"] = {
                 **template["create_dict"]["hardware"],
                 **parse_domain_insert(new_data)["hardware"],
@@ -173,9 +176,6 @@ class ApiDesktopsPersistent:
                 "NewFromTemplate: unable to parse media info.",
                 description_code="unable_to_parse_media",
             )
-
-        if "interfaces_mac" in create_dict["hardware"].keys():
-            create_dict["hardware"].pop("interfaces_mac")
 
         if not deployment_tag_dict:
             payload = gen_payload_from_user(user_id)
@@ -452,13 +452,16 @@ class ApiDesktopsPersistent:
                 .get_all(r.args(data["hardware"]["interfaces"]))
                 .run(db.conn)
             ]
-            if not len(interfaces):
+            if len(data["hardware"]["interfaces"]) != len(interfaces):
                 raise Error(
                     "not_found",
                     "Not found interface id",
                     traceback.format_exc(),
                     description_code="not_found",
                 )
+            data["hardware"]["interfaces"] = {
+                interface: gen_new_mac() for interface in interfaces
+            }
 
         if data["hardware"].get("disk_size"):
             disks = [
@@ -681,11 +684,11 @@ class ApiDesktopsPersistent:
 
             if data.get("hardware", {}).get("interfaces") == None:
                 data["hardware"] = {
-                    "interfaces": domain["create_dict"]["hardware"]["interfaces"]
+                    "interfaces": list(domain["create_dict"]["hardware"]["interfaces"])
                 }
-                viewers_hardware["interfaces"] = domain["create_dict"]["hardware"][
-                    "interfaces"
-                ]
+                viewers_hardware["interfaces"] = list(
+                    domain["create_dict"]["hardware"]["interfaces"]
+                )
             elif data.get("hardware", {}).get("interfaces") == []:
                 data["hardware"] = {"interfaces": []}
                 viewers_hardware["interfaces"] = []

@@ -1544,29 +1544,15 @@ def populate_dict_hardware_from_create_dict(id_domain):
     # ~ new_hardware_dict['graphics'] = create_dict_graphics_from_id(id_graphics, id_pool)
 
     # INTERFACES
-    list_interfaces_id = create_dict["hardware"]["interfaces"]
-    if "interfaces_mac" not in create_dict["hardware"].keys():
-        create_dict["hardware"]["interfaces_mac"] = []
-    list_interfaces_mac = create_dict["hardware"]["interfaces_mac"]
-    if len(list_interfaces_mac) < len(list_interfaces_id):
-        for i in range(len(list_interfaces_mac), len(list_interfaces_id)):
-            create_dict["hardware"]["interfaces_mac"].append(randomMAC())
-        update_domain_dict_create_dict(id_domain, create_dict)
-    elif len(list_interfaces_mac) > len(list_interfaces_id):
-        create_dict["hardware"]["interfaces_mac"] = list_interfaces_mac[
-            : len(list_interfaces_id)
-        ]
-        update_domain_dict_create_dict(id_domain, create_dict)
-
+    list_interfaces_id = []
+    list_interfaces_mac = []
+    interfaces = create_dict["hardware"].get("interfaces", None)
+    if interfaces:
+        list_interfaces_id = list(interfaces)
+        list_interfaces_mac = list(interfaces.values())
     new_hardware_dict["interfaces"] = create_list_interfaces_from_list_ids(
         list_interfaces_id, list_interfaces_mac
     )
-    d_netnames_mac = {
-        "macs": {d["id"]: d["mac"] for d in new_hardware_dict["interfaces"]}
-    }
-    d_netnames_mac_reset = {"macs": False}
-    update_table_field("domains", id_domain, "create_dict", d_netnames_mac_reset)
-    update_table_field("domains", id_domain, "create_dict", d_netnames_mac)
 
     # BOOT MENU
     if "hardware" in create_dict.keys():
@@ -1747,13 +1733,19 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
 def recreate_xml_interfaces(dict_domain, x):
     id_domain = dict_domain["id"]
     # redo network
+    list_interfaces = []
+    list_interfaces_mac = []
     try:
-        list_interfaces = dict_domain["create_dict"]["hardware"]["interfaces"]
-        list_interfaces_mac = dict_domain["create_dict"]["hardware"]["interfaces_mac"]
-    except KeyError:
-        list_interfaces = []
-        list_interfaces_mac = []
-        log.info("domain {} withouth key interfaces in create_dict".format(id_domain))
+        interfaces = dict_domain["create_dict"]["hardware"].get("interfaces", None)
+        if interfaces:
+            list_interfaces = list(interfaces)
+            list_interfaces_mac = list(interfaces.values())
+    except:
+        log.error(
+            "domain {} interfaces error in create_dict. Starting without any interface!".format(
+                id_domain
+            )
+        )
 
     # clean interfaces saving the mac...
     mac_address = []
