@@ -1,4 +1,5 @@
 import axios from 'axios'
+import router from '@/router'
 import i18n from '@/i18n'
 import { orderBy } from 'lodash'
 import { apiV3Segment, availableViewers } from '../../shared/constants'
@@ -238,7 +239,10 @@ export default {
     },
     editDomain (context, data) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.editing'))
-      return axios.put(`${apiV3Segment}/domain/${data.id}`, data).catch(e => {
+
+      axios.put(`${apiV3Segment}/domain/${data.id}`, data).then(response => {
+        router.push({ name: 'desktops' })
+      }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
