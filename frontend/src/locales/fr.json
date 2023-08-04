@@ -519,7 +519,10 @@
             "title": "Créer un nouveau déploiement :",
             "name": "Nom de déploiement",
             "visible": "Visible aux utilisateurs",
-            "section-title-template": "Sélectionner un modèle :"
+            "section-title-template": "Sélectionner un modèle :",
+            "error": {
+                "groups": "Au moins un groupe doit être sélectionné"
+            }
         },
         "password": {
             "modal": {
