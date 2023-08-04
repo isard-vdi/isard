@@ -100,6 +100,8 @@ ex = {
     },
 }
 
+ex_codes = [ex[x]["status_code"] for x in ex]
+
 
 class Error(Exception):
     def __init__(
@@ -161,18 +163,24 @@ class Error(Exception):
         self.status_code = ex[error]["status_code"]
         self.content_type = content_type
         self.error["params"] = params
-        app.logger.debug(
-            "%s - %s - [%s -> %s]\r\n%s\r\n%s\r\n%s"
-            % (
+        if self.status_code in ex_codes:
+            app.logger.error(
                 error,
-                str(description),
-                self.error["function_call"],
-                self.error["function"],
-                self.error["debug"],
-                self.error["request"],
-                self.error["data"],
+                extra={
+                    "error": self.error.get("description"),
+                    "error_type": error,
+                    "function_call": "[%s -> %s]"
+                    % (self.error.get("function_call"), self.error.get("function")),
+                    "request": {
+                        "method": request.method,
+                        "url": request.url,
+                        "headers": request.headers,
+                        "body": request.body if hasattr(request, "body") else "",
+                    },
+                    "data": data if data else "",
+                    "debug": debug,
+                },
             )
-        )
 
 
 @app.errorhandler(Error)

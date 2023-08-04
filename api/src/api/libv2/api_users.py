@@ -951,7 +951,6 @@ class ApiUsers:
                     .run(db.conn)
                 )
         except:
-            app.logger.error(traceback.format_exc())
             raise Error(
                 "forbidden",
                 "Forbidden access to desktop viewer",
@@ -964,7 +963,6 @@ class ApiUsers:
                 traceback.format_exc(),
             )
         if len(domains) > 1:
-            app.logger.error(traceback.format_exc())
             raise Error(
                 "internal_server",
                 "Two desktops with the same viewer guest_ip",
