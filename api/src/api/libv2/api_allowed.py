@@ -7,6 +7,8 @@
 
 import traceback
 
+from cachetools import TTLCache, cached
+from cachetools.keys import hashkey
 from rethinkdb import RethinkDB
 
 from api import app
@@ -19,6 +21,25 @@ db = RDB(app)
 db.init_app(app)
 
 
+@cached(
+    cache=TTLCache(maxsize=50, ttl=5),
+    key=lambda user_id, user_group_id, item_allowed_groups: hashkey(
+        user_id + user_group_id + str(item_allowed_groups)
+    ),
+)
+def check_secondary_groups(user_id, user_group_id, item_allowed_groups):
+    secondary_groups = (
+        r.table("users").get(user_id).pluck("secondary_groups").run(db.conn)
+    )
+    for group in get_all_linked_groups(
+        [user_group_id] + secondary_groups.get("secondary_groups", [])
+    ):
+        if group in item_allowed_groups:
+            return True
+    return False
+
+
+@cached(cache=TTLCache(maxsize=50, ttl=5), key=lambda groups: hashkey(str(groups)))
 def get_all_linked_groups(groups):
     with app.app_context():
         linked_groups = list(
@@ -203,17 +224,10 @@ class ApiAllowed:
                 else:
                     return True
             else:
-                secondary_groups = (
-                    r.table("users")
-                    .get(payload["user_id"])
-                    .pluck("secondary_groups")
-                    .run(db.conn)
-                )
-                for group in get_all_linked_groups(
-                    [payload["group_id"]] + secondary_groups.get("secondary_groups", [])
+                if check_secondary_groups(
+                    payload["user_id"], payload["group_id"], item["allowed"]["groups"]
                 ):
-                    if group in item["allowed"]["groups"]:
-                        return True
+                    return True
         if item["allowed"]["users"] is not False:
             if len(item["allowed"]["users"]) == 0:
                 if table in ["domains", "media"]:
