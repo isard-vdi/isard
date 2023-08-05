@@ -17,7 +17,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 96
+release_version = 97
+# release 97: Update wg_mac index to new interfaces field format
 # release 96: Interfaces managed with only interfaces and interfaces_macs fields
 # release 95: Add download_id and it's index to domains and media already downloaded and
 # release 94: Remove isardvdi and isardvdi-hypervisor secrets from database and use env variables
@@ -1651,6 +1652,19 @@ class Upgrade(object):
                     ).run(self.conn)
             except Exception as e:
                 print(e)
+
+        if version == 97:
+            try:
+                r.table(table).index_drop("wg_mac").run(self.conn)
+                r.table(table).index_create(
+                    "wg_mac",
+                    [
+                        r.row["kind"],
+                        r.row["create_dict"]["hardware"]["interfaces"]["wireguard"],
+                    ],
+                ).run(self.conn)
+            except:
+                None
 
         return True
 
