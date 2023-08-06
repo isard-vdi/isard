@@ -42,10 +42,10 @@ class Populate(object):
         self.passwd = self.p.encrypt(self.cfg["WEBAPP_ADMIN_PWD"])
         if self.is_database_created() is True:
             log.info("Database engine already present...")
+            Certificates().get_viewer(update_db=True)
         else:
             log.error("Something went wrong when initially populating db")
             exit
-            # ~ self.defaults()
 
     """
     DATABASE
