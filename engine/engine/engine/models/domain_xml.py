@@ -219,7 +219,7 @@ index_to_char_suffix_disks = "a,b,c,d,e,f,g,h,i,j,k,l,m,n".split(",")
 
 
 class DomainXML(object):
-    def __init__(self, xml):
+    def __init__(self, xml, id_domain=None):
         # self.tree = etree.parse(StringIO(xml))
 
         parser = etree.XMLParser(remove_blank_text=True)
@@ -234,7 +234,9 @@ class DomainXML(object):
             self.parser = False
             return None
 
-        self.vm_dict = self.dict_from_xml(self.tree)
+        if id_domain:
+            self.set_name(id_domain)
+        self.vm_dict = self.dict_from_xml(xml_tree=self.tree, domain_id=id_domain)
 
         self.index_disks = {}
         self.index_disks["virtio"] = 0
@@ -271,7 +273,7 @@ class DomainXML(object):
             dev_index
         ].set("address", mac)
 
-    def dict_from_xml(self, xml_tree=False):
+    def dict_from_xml(self, xml_tree=False, domain_id=None):
         ## TODO INFO TO DEVELOPER: hay que montar excepciones porque si no el xml peta
         ## cuando no existe un atributo
         vm_dict = {}
@@ -303,7 +305,9 @@ class DomainXML(object):
         #     vm_dict['viewer']['passwd'] = self.tree.xpath('/domain/devices/graphics')[0].get('passwd')
 
         if xml_tree.xpath("/domain/name"):
-            vm_dict["name"] = xml_tree.xpath("/domain/name")[0].text
+            vm_dict["name"] = (
+                xml_tree.xpath("/domain/name")[0].text if not domain_id else domain_id
+            )
 
         if xml_tree.xpath("/domain/uuid"):
             vm_dict["uuid"] = xml_tree.xpath("/domain/uuid")[0].text
@@ -1344,9 +1348,9 @@ def update_xml_from_dict_domain(id_domain, xml=None):
     d = get_domain(id_domain)
     hw = d["hardware"]
     if xml is None:
-        v = DomainXML(d["xml"])
+        v = DomainXML(d["xml"], id_domain=id_domain)
     else:
-        v = DomainXML(xml)
+        v = DomainXML(xml, id_domain=id_domain)
     if v.parser is False:
         return False
     # v.set_memory(memory=hw['currentMemory'],unit=hw['currentMemory_unit'])
@@ -1655,7 +1659,7 @@ def recreate_xml_to_start(id_domain, ssl=True, cpu_host_model=False):
     dict_domain = get_domain(id_domain)
 
     xml = dict_domain["xml"]
-    x = DomainXML(xml)
+    x = DomainXML(xml, id_domain=id_domain)
     if x.parser is False:
         # error when parsing xml
         return False
