@@ -637,9 +637,9 @@ class ApiAdmin:
                             "group_name": r.table("groups")
                             .get(domain["group"])["name"]
                             .default(False),
-                            "interfaces": list(
-                                domain["create_dict"]["hardware"]["interfaces"]
-                            ),
+                            "interfaces": domain["create_dict"]["hardware"][
+                                "interfaces"
+                            ].keys(),
                         }
                     )
                     .run(db.conn)
@@ -716,9 +716,9 @@ class ApiAdmin:
                             "group_name": r.table("groups").get(domain["group"])[
                                 "name"
                             ],
-                            "interfaces": list(
-                                domain["create_dict"]["hardware"]["interfaces"]
-                            ),
+                            "interfaces": domain["create_dict"]["hardware"][
+                                "interfaces"
+                            ].keys(),
                         }
                     )
                     .order_by("name")
