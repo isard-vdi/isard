@@ -652,16 +652,18 @@ def update_domain_dict_create_dict(id, create_dict):
     return results
 
 
-def update_domain_dict_hardware(id, domain_dict, xml=False):
+def update_domain_dict_hardware(domain_id, domain_dict, xml=False):
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
-
+    domain_dict["name"] = domain_id
     if xml is False:
-        results = rtable.get(id).update({"hardware": domain_dict}).run(r_conn)
+        results = rtable.get(domain_id).update({"hardware": domain_dict}).run(r_conn)
 
     else:
         results = (
-            rtable.get(id).update({"hardware": domain_dict, "xml": xml}).run(r_conn)
+            rtable.get(domain_id)
+            .update({"hardware": domain_dict, "xml": xml})
+            .run(r_conn)
         )
 
     # if results_zero(results):

@@ -414,7 +414,9 @@ class HypWorkerThread(threading.Thread):
                             )
                         else:
                             try:
-                                vm = DomainXML(xml_started)
+                                vm = DomainXML(
+                                    xml_started, id_domain=action["id_domain"]
+                                )
                                 (
                                     spice,
                                     spice_tls,
