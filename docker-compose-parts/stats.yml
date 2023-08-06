@@ -18,7 +18,8 @@ services:
     env_file:
       - .env
     environment:
-      - FLAVOUR=${FLAVOUR:-all-in-one}
+      FLAVOUR: "${FLAVOUR:-all-in-one}"
+      HYPER_ID:
 
   isard-stats-node-exporter:
     image: prom/node-exporter
