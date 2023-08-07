@@ -152,7 +152,9 @@ class ApiDesktopsPersistent:
 
         if new_data:
             if not new_data.get("hardware", {}).get("interfaces"):
-                new_data["hardware"]["interfaces"] = template["hardware"]["interfaces"]
+                new_data["hardware"]["interfaces"] = template["create_dict"][
+                    "hardware"
+                ]["interfaces"]
             template["create_dict"]["hardware"] = {
                 **template["create_dict"]["hardware"],
                 **parse_domain_insert(new_data)["hardware"],
@@ -519,7 +521,7 @@ class ApiDesktopsPersistent:
                     "boot_order": data["hardware"]["boot_order"],
                     "graphics": graphics,
                     "videos": videos,
-                    "interfaces": interfaces,
+                    "interfaces": data["hardware"]["interfaces"],
                     "memory": int(data["hardware"]["memory"]),
                     "vcpus": int(data["hardware"]["vcpus"]),
                 },

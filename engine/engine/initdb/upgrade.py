@@ -17,7 +17,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 97
+release_version = 98
+# release 98: Update desktops created with wrong interfaces
 # release 97: Update wg_mac index to new interfaces field format
 # release 96: Interfaces managed with only interfaces and interfaces_macs fields
 # release 95: Add download_id and it's index to domains and media already downloaded and
@@ -1665,6 +1666,92 @@ class Upgrade(object):
                 ).run(self.conn)
             except:
                 None
+
+        if version == 98:
+            try:
+                domains_to_update = list(
+                    r.db("isard")
+                    .table("domains")
+                    .get_all("desktop", index="kind")
+                    .pluck(
+                        {"id": True, "create_dict": {"hardware": {"interfaces": True}}}
+                    )
+                    .filter(
+                        lambda d: d["create_dict"]["hardware"]["interfaces"]
+                        .type_of()
+                        .eq("ARRAY")
+                    )
+                    .run(self.conn)
+                )
+                if len(domains_to_update):
+                    all_macs = (
+                        r.table("domains")
+                        .pluck({"create_dict": {"hardware": {"interfaces": True}}})[
+                            "create_dict"
+                        ]["hardware"]["interfaces"]
+                        .filter(lambda d: d.type_of().ne("ARRAY"))
+                        .concat_map(lambda x: x.values())
+                        .default([])
+                        .distinct()
+                        .run(self.conn)
+                    )
+
+                    updated_domains = []
+                    for domain in domains_to_update:
+                        if not domain["create_dict"]["hardware"].get("interfaces"):
+                            continue
+                        if not domain["create_dict"]["hardware"].get("interfaces_mac"):
+                            domain["create_dict"]["hardware"]["interfaces_mac"] = []
+                        if not (
+                            len(domain["create_dict"]["hardware"]["interfaces"])
+                            == len(
+                                domain["create_dict"]["hardware"].get(
+                                    "interfaces_mac", []
+                                )
+                            )
+                        ):
+                            for i in range(
+                                0,
+                                len(domain["create_dict"]["hardware"]["interfaces"])
+                                - len(
+                                    domain["create_dict"]["hardware"].get(
+                                        "interfaces_mac", []
+                                    )
+                                ),
+                            ):
+                                new_mac = gen_random_mac()
+                                while all_macs.count(new_mac) > 0:
+                                    new_mac = gen_random_mac()
+                                all_macs.append(new_mac)
+                                domain["create_dict"]["hardware"][
+                                    "interfaces_mac"
+                                ].append(new_mac)
+                        interfaces = {
+                            interface: mac
+                            for interface, mac in zip(
+                                domain["create_dict"]["hardware"]["interfaces"],
+                                domain["create_dict"]["hardware"]["interfaces_mac"],
+                            )
+                        }
+                        domain["create_dict"]["hardware"].pop("interfaces_mac")
+                        domain["create_dict"]["hardware"].pop("macs", None)
+                        domain["create_dict"]["hardware"]["interfaces"] = interfaces
+                        updated_domains.append(domain)
+                    r.table("domains").insert(updated_domains, conflict="update").run(
+                        self.conn
+                    )
+                    r.table("domains").replace(
+                        r.row.without(
+                            {
+                                "create_dict": {
+                                    "macs": True,
+                                    "hardware": {"interfaces_mac": True},
+                                }
+                            }
+                        )
+                    ).run(self.conn)
+            except Exception as e:
+                print(e)
 
         return True
 
