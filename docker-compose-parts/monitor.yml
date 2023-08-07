@@ -40,8 +40,7 @@ services:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.67
     restart: unless-stopped
-    env_file:
-      - .env
+    command: --config.file=/etc/loki/local-config.yaml --store.retention=${LOKI_RETENTION_TIME:-40d}
 
   # TODO: Since we're using Grafana Agent and remote_write, should we use Prometheus? Or maybe Mimir?
   isard-prometheus:
