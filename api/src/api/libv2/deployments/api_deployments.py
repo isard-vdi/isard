@@ -176,6 +176,9 @@ def new(
 ):
     # CREATE_DEPLOYMENT
     new_data["hardware"] = parse_domain_insert(new_data)["hardware"]
+    new_data["hardware"]["interfaces"] = list(
+        new_data["hardware"].get("interfaces", {}).keys()
+    )
     new_data["hardware"]["memory"] = new_data["hardware"]["memory"] * 1048576
     new_data["reservables"] = new_data["hardware"].pop("reservables")
     deployment = {
