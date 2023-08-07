@@ -2,7 +2,7 @@ Flask==2.2.5
 Flask-Login==0.6.3
 Flask-Cors==3.0.10
 gevent-websocket==0.10.1
-Flask-SocketIO==5.1.0
+Flask-SocketIO==5.3.6
 python-jose==3.3.0
 rethinkdb==2.4.9
 bcrypt==3.2.0
