@@ -23,6 +23,7 @@ services:
       PYTHONUNBUFFERED: 1
       DOMAIN:
       LOG_LEVEL:
+      DEBUG_STATS: false
       RETHINKDB_HOST:
       RETHINKDB_PORT:
       RETHINKDB_DB:

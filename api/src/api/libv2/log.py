@@ -74,6 +74,10 @@ def start_timer():
 
 @app.after_request
 def log_request(response):
+    if LOG_LEVEL == "DEBUG" and os.environ.get("DEBUG_STATS", "") != "true":
+        if request.path.startswith("/api/v3/stats") or request.path == "/api/v3":
+            return response
+
     now = time.time()
     duration = round(now - g.start, 4)
 
