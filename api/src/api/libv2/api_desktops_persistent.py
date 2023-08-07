@@ -357,6 +357,9 @@ class ApiDesktopsPersistent:
             check_user_duplicated_domain_name(data["name"], user_id)
             quotas.desktop_create(user_id)
 
+        template["create_dict"]["hardware"]["interfaces"] = list(
+            template["create_dict"]["hardware"].get("interfaces", {}).keys()
+        )
         for user_id in users:
             desktop_data = {
                 "name": data["name"],
