@@ -494,6 +494,7 @@ WG_GUESTS_RESERVED_HOSTS=20
 
 # ------ Loki -----------------------------------------------------
 #LOKI_ADDRESS=http://isard-loki:3100
+#LOKI_RETENTION_TIME=40d
 
 
 # ------ OCI Collector -----------------------------------------------------

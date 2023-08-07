@@ -48,8 +48,3 @@ storage_config:
     shared_store: filesystem
   filesystem:
     directory: /data/saved
-
-limits_config:
-  retention_period: 61d # default 0s
-  ingestion_rate_strategy: local # Default: global
-  max_query_length: 60d1h # Default: 30d1h
