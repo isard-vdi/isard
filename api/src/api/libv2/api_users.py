@@ -876,7 +876,9 @@ class ApiUsers:
                     r.table("domains")
                     .get_all(guess_ip, index="guest_ip")
                     .filter(
-                        lambda domain: domain["status"] in ["Started", "Shutting-down"]
+                        lambda domain: r.expr(["Started", "Shutting-down"]).contains(
+                            domain["status"]
+                        )
                     )
                     .pluck("user", "category", "tag")
                     .run(db.conn)
@@ -944,7 +946,9 @@ class ApiUsers:
                         index="proxies",
                     )
                     .filter(
-                        lambda domain: domain["status"] in ["Started", "Shutting-down"]
+                        lambda domain: r.expr(["Started", "Shutting-down"]).contains(
+                            domain["status"]
+                        )
                     )
                     .filter(r.row["viewer"]["ports"].contains(port))
                     .pluck("user", "category", "tag")

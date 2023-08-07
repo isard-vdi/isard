@@ -146,7 +146,9 @@ class ApiHypervisors:
                 if r.table("domains").get_all(
                     r.args(desktops_started), index="id"
                 ).filter(
-                    lambda dom: dom["status"] in ["Started", "Shutting-down"]
+                    lambda domain: r.expr(["Started", "Shutting-down"]).contains(
+                        domain["status"]
+                    )
                 ).count().run(
                     db.conn
                 ) != len(
