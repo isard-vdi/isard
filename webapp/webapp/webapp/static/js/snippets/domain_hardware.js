@@ -20,11 +20,23 @@ function setHardwareOptions(id,default_boot,domain_id){
             } else {
                 $(id+"hardware-virtualization_nested").iCheck('uncheck').iCheck('update');
             }
+            $(id+" #hardware-interfaces").select2()
+
+            $(id+" #hardware-interfaces").on('select2:select', function(e){
+                var id = e.params.data.id;
+                var option = $(e.target).children('[value='+id+']');
+                option.detach();
+                $(e.target).append(option).change();
+              });
             $.each(hardware.interfaces,function(key, value)
             {
-                console.log(value.id)
                 $(id+" #hardware-interfaces").append('<option value="' + value.id + '">' + value.name + ' - ' + value.description + '</option>');
             });
+
+            $(id+" #hardware-interfaces").html($(id+" #hardware-interfaces").children('option').sort(function(a, b){
+                return a.text.localeCompare(b.text);
+            }));
+
             $.each(hardware.videos,function(key, value)
             {
                 $(id+" #hardware-videos").append('<option value="' + value.id + '">' + value.name + '</option>');
@@ -107,14 +119,17 @@ function setHardwareDomainDefaults(div_id,domain){
     } else {
         $(div_id+' #hardware-virtualization_nested').prop('checked',false).iCheck('update');
     }
-    $(div_id+' #hardware-interfaces option:selected').prop("selected", false);
     $(div_id+' #hardware-videos option:selected').prop("selected", false);
     $(div_id+' #hardware-boot_order option:selected').prop("selected", false);
     $(div_id+' #hardware-disk_bus option:selected').prop("selected", false);
 
-    $.each(domain.hardware.interfaces, function(k,value){
-        $(div_id+' #hardware-interfaces option[value="'+value+'"]').prop("selected",true);
-    })
+    $.each(domain.hardware.interfaces, function (key, value) {
+        var optionText = $(div_id+' #hardware-interfaces').find("option[value='" + value.id + "']").eq(0).text();
+        var newOption = new Option(optionText, value.id, true, true);
+        $(div_id+' #hardware-interfaces').find("option[value='" + value.id + "']").remove()
+        $(div_id+' #hardware-interfaces').append(newOption)
+    });
+
     $(div_id+' #hardware-videos option[value="'+domain.hardware.videos[0]+'"]').prop("selected",true);
     $(div_id+' #hardware-disk_bus option[value="'+domain.hardware.disk_bus+'"]').prop("selected",true);
 
@@ -236,7 +251,7 @@ function setHardwareDomainDefaultsDetails(domain_id,item){
             if(data.reservables){
                 $(div_id+" #gpu").html(data.reservable_name);
                 $(div_id+" #gpu").closest("tr").show();
-            }else{
+           }else{
                 $(div_id+" #gpu").closest("tr").hide();
             }
             $(div_id+" #net").html(data.interfaces_names.join(', '));
