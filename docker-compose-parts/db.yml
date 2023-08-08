@@ -12,6 +12,10 @@ services:
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.13
+    healthcheck:
+      test: echo "r.db('rethinkdb').table('current_issues').count().eq(0).run() and exit(0) or exit(1)" | rethinkdb repl
+      start_period: 30s
+      interval: 5s
     volumes:
       - /opt/isard/database:/data:rw
       - /etc/timezone:/etc/timezone:ro

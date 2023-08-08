@@ -18,7 +18,6 @@ COPY pkg/gen/proto/python /opt/isardvdi/isardvdi_protobuf
 
 ENV PYTHONWARNINGS "ignore:Unverified HTTPS request"
 CMD ["python3", "-u", "/api/startv3.py"]
-HEALTHCHECK --interval=10s CMD curl -f http://localhost:5000/api/v3
 
 ARG SRC_VERSION_ID
 RUN echo -n "$SRC_VERSION_ID" > /version

@@ -11,6 +11,10 @@ services:
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.14
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:5000/info" ]
+      start_period: 5m
+      interval: 5s
     volumes:
       - /opt/isard/certs/viewers:/certs:rw
       - /opt/isard/sshkeys:/root/.ssh:rw

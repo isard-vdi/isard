@@ -31,5 +31,4 @@ COPY component/_common/src /isard/webapp/_common
 EXPOSE 5000
 WORKDIR /isard
 CMD [ "python3", "-u", "start.py" ]
-HEALTHCHECK --interval=10s CMD wget -qO /dev/null http://localhost:5000/isard-admin/healthcheck
 STOPSIGNAL SIGINT
