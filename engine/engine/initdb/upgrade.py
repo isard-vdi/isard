@@ -17,7 +17,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 99
+release_version = 100
+# release 100: Fix interfaces starting with blank space
 # release 99: Fix empty interface array to dict
 # release 98: Update desktops created with wrong interfaces
 # release 97: Update wg_mac index to new interfaces field format
@@ -1779,6 +1780,75 @@ class Upgrade(object):
                     r.table("domains").get_all(*domains_to_update).update(
                         {"create_dict": {"hardware": {"interfaces": {}}}}
                     ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 100:
+            try:
+                blank_space_interfaces = list(
+                    r.table("interfaces")
+                    .filter(lambda interface: interface["id"].match("^ "))
+                    .run(self.conn)
+                )
+                for interface in blank_space_interfaces:
+                    trim_interface = interface.pop("id").strip()
+                    interface["name"] = interface.get("name").strip()
+                    new_interface_id = (
+                        r.table("interfaces")
+                        .insert(interface, return_changes=True)["changes"]["new_val"][
+                            "id"
+                        ]
+                        .run(self.conn)
+                    )[0]
+
+                    domains_with_blank_space_interface = list(
+                        r.table("domains")
+                        .has_fields(
+                            {
+                                "create_dict": {
+                                    "hardware": {"interfaces": {trim_interface: True}}
+                                }
+                            }
+                        )
+                        .pluck("id")["id"]
+                        .run(self.conn)
+                    )
+
+                    r.table("domains").get_all(
+                        *domains_with_blank_space_interface
+                    ).update(
+                        {
+                            "create_dict": {
+                                "hardware": {
+                                    "interfaces": {
+                                        new_interface_id: r.row["create_dict"][
+                                            "hardware"
+                                        ]["interfaces"][trim_interface]
+                                    }
+                                }
+                            }
+                        }
+                    ).run(
+                        self.conn
+                    )
+                    r.table("domains").get_all(
+                        *domains_with_blank_space_interface
+                    ).replace(
+                        r.row.without(
+                            {
+                                "create_dict": {
+                                    "hardware": {"interfaces": {trim_interface: True}}
+                                }
+                            }
+                        )
+                    ).run(
+                        self.conn
+                    )
+
+                r.table("interfaces").filter(
+                    lambda interface: interface["id"].match("^ ")
+                ).delete().run(self.conn)
+
             except Exception as e:
                 print(e)
 
