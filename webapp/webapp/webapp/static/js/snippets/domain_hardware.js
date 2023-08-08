@@ -22,15 +22,16 @@ function setHardwareOptions(id,default_boot,domain_id){
             }
             $.each(hardware.interfaces,function(key, value)
             {
-                $(id+" #hardware-interfaces").append('<option value=' + value.id + '>' + value.name + ' - ' + value.description + '</option>');
+                console.log(value.id)
+                $(id+" #hardware-interfaces").append('<option value="' + value.id + '">' + value.name + ' - ' + value.description + '</option>');
             });
             $.each(hardware.videos,function(key, value)
             {
-                $(id+" #hardware-videos").append('<option value=' + value.id + '>' + value.name + '</option>');
+                $(id+" #hardware-videos").append('<option value="' + value.id + '">' + value.name + '</option>');
             });
             $.each(hardware.boot_order,function(key, value)
             {
-                $(id+" #hardware-boot_order").append('<option value=' + value.id + '>' + value.name + '</option>');
+                $(id+" #hardware-boot_order").append('<option value="' + value.id + '">' + value.name + '</option>');
             });
             $(id+' #hardware-boot_order option[value="'+default_boot+'"]').prop("selected",true);
             if(hardware.qos_id.length == 0){
@@ -38,12 +39,12 @@ function setHardwareOptions(id,default_boot,domain_id){
             }else{
                 $.each(hardware.qos_disk,function(key, value)
                 {
-                    $(id+" #hardware-qos_id").append('<option value=' + value.id + '>' + value.name + '</option>');
+                    $(id+" #hardware-qos_id").append('<option value="' + value.id + '">' + value.name + '</option>');
                 });
             }
             $.each(hardware.disk_bus,function(key, value)
             {
-                $(id+" #hardware-disk_bus").append('<option value=' + value.id + '>' + value.name + '</option>');
+                $(id+" #hardware-disk_bus").append('<option value="' + value.id + '">' + value.name + '</option>');
             });
 
             if(hardware.quota == false){
@@ -51,24 +52,24 @@ function setHardwareOptions(id,default_boot,domain_id){
             }
 
             for (var i = 0.5; i <= hardware.quota.memory; i += 0.5) {
-                $(id+" #hardware-memory").append('<option value='+i+'>' + i +'</option>');
+                $(id+" #hardware-memory").append('<option value="'+i+'">' + i +'</option>');
             }
 
             for (var i = 1; i <= hardware.quota.vcpus; i += 1) {
-                $(id+" #hardware-vcpus").append('<option value='+i+'>' + i +' vCPU</option>');
+                $(id+" #hardware-vcpus").append('<option value="'+i+'">' + i +' vCPU</option>');
             }
 
             if($(id+" #disk_size").length != 0) {
                 $(id+" #disk_size").find('option').remove();
                 if(hardware.quota.desktops_disk_size <= 10){
                     for (var i = 1; i <= hardware.quota.desktops_disk_size; i += 1) {
-                        $(id+" #disk_size").append('<option value='+i+'>' + i +' GB</option>');
+                        $(id+" #disk_size").append('<option value="'+i+'">' + i +' GB</option>');
                     }
                 }else{
                     $(id+" #disk_size").append('<option value=1>1 GB</option>');
                     $(id+" #disk_size").append('<option value=5>5 GB</option>');
                     for (var i = 10; i <= hardware.quota.desktops_disk_size; i += 5) {
-                        $(id+" #disk_size").append('<option value='+i+'>' + i +' GB</option>');
+                        $(id+" #disk_size").append('<option value="'+i+'">' + i +' GB</option>');
                     }
                 }
             }
@@ -77,7 +78,7 @@ function setHardwareOptions(id,default_boot,domain_id){
             if("reservables" in hardware && "vgpus" in hardware.reservables){
                 $.each(hardware.reservables.vgpus,function(key, value)
                 {
-                    $(id+" #reservables-vgpus").append('<option value=' + value.id + '>' + value.name + ' - ' + value.description + '</option>');
+                    $(id+" #reservables-vgpus").append('<option value="' + value.id + '">' + value.name + ' - ' + value.description + '</option>');
                 });
             }
         });
