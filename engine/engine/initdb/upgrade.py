@@ -17,7 +17,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 98
+release_version = 99
+# release 99: Fix empty interface array to dict
 # release 98: Update desktops created with wrong interfaces
 # release 97: Update wg_mac index to new interfaces field format
 # release 96: Interfaces managed with only interfaces and interfaces_macs fields
@@ -1749,6 +1750,34 @@ class Upgrade(object):
                                 }
                             }
                         )
+                    ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 99:
+            try:
+                domains_to_update = list(
+                    r.db("isard")
+                    .table("domains")
+                    .get_all("desktop", index="kind")
+                    .pluck(
+                        {"id": True, "create_dict": {"hardware": {"interfaces": True}}}
+                    )
+                    .filter(
+                        lambda d: d["create_dict"]["hardware"]["interfaces"]
+                        .type_of()
+                        .eq("ARRAY")
+                    )["id"]
+                    .run(self.conn)
+                )
+                if len(domains_to_update):
+                    r.table("domains").get_all(*domains_to_update).replace(
+                        r.row.without(
+                            {"create_dict": {"hardware": {"interfaces": True}}}
+                        )
+                    ).run(self.conn)
+                    r.table("domains").get_all(*domains_to_update).update(
+                        {"create_dict": {"hardware": {"interfaces": {}}}}
                     ).run(self.conn)
             except Exception as e:
                 print(e)
