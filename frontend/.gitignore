@@ -3,6 +3,8 @@ node_modules
 /dist
 
 /tests/e2e/reports/
+test-results/
+playwright-report/
 selenium-debug.log
 chromedriver.log
 geckodriver.log
