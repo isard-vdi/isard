@@ -1,3 +1,3 @@
 #!/bin/sh
 
-docker-compose run -e DISPLAY -e DBUS_SESSION_BUS_ADDRESS -v /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket -v $XDG_RUNTIME_DIR:$XDG_RUNTIME_DIR -u $(id -u):$(id -g) isard-cypress yarn test:e2e
+docker run -it --rm --ipc=host -p "9323:9323" -w "/frontend" -v "$PWD:/frontend" -e "DOCKER=true" --add-host=host.docker.internal:host-gateway mcr.microsoft.com/playwright:v1.36.0-jammy yarn playwright test

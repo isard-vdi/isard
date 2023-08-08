@@ -39,6 +39,12 @@ default:
           - frontend/yarn.lock
       paths:
         - frontend/node_modules
+    - key:
+        files:
+          - e2e/package.json
+          - e2e/yarn.lock
+      paths:
+        - e2e/node_modules
 
 stages:
  - lint
@@ -270,6 +276,40 @@ docker-image:
     - echo $IMAGE_DEPENDENCY isard-$IMAGE | xargs -n1 docker-compose -f docker-compose.$DOCKER_COMPOSE.yml build
     - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
     - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
+
+test-e2e:
+  stage: test
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs-root"
+  services:
+    - name: "docker:dind"
+      variables:
+        DOCKER_TLS_CERTDIR: "/certs-root"
+      alias: docker
+  image: "docker:latest"
+  before_script:
+    - apk add git docker-compose
+    - until docker info; do sleep 1; done
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - cp isardvdi.cfg.example isardvdi.e2e.cfg
+    - echo "USAGE=test" >> isardvdi.e2e.cfg
+    - echo "DOMAIN=host.docker.internal" >> isardvdi.e2e.cfg
+    - echo "DOCKER_IMAGE_PREFIX=${CI_REGISTRY_IMAGE}/" >> isardvdi.e2e.cfg
+    - echo "DOCKER_IMAGE_TAG=git-$CI_COMMIT_SHORT_SHA" >> isardvdi.e2e.cfg
+    - CODEGEN=false ./build.sh
+    - docker compose -f docker-compose.e2e.yml pull
+    - docker compose -f docker-compose.e2e.yml up -d
+  script:
+    - cd frontend
+    - docker run --rm -w "/frontend" -v "$PWD:/frontend" node:18 yarn
+    - export PORTAL="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' isard-portal | tr -d '\n')"
+    - export NETWORK="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.NetworkID}}{{end}}' isard-portal | tr -d '\n')"
+    - docker run --rm --ipc=host -w "/frontend" -v "$PWD:/frontend" -e "DOCKER=true" -e "CI=true" --add-host="host.docker.internal:$PORTAL" --network="$NETWORK" mcr.microsoft.com/playwright:v1.36.0-jammy yarn playwright test
+  artifacts:
+    when: always
+    paths:
+      - frontend/test-results
+      - frontend/playwright-report
 
 # test-selenium:
 #   stage: test
