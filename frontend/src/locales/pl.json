@@ -256,7 +256,6 @@
                 "shutdown": "Automatyczne wyłączenie w dniu {date}",
                 "next-booking": "Następna rezerwacja"
             },
-            "open-with": "Otwórz za pomocą",
             "filter-label": "Filtr",
             "no-info-default": "Brak dostępnego opisu"
         },
@@ -272,8 +271,7 @@
             "filter-label": "Filtr",
             "actions": {
                 "delete": "Usuń"
-            },
-            "open-with": "Otwórz za pomocą"
+            }
         },
         "help": {
             "close-guide": "Zamknij przewodnik",
@@ -709,7 +707,6 @@
             },
             "volatile-compact": "Tymczasowy",
             "viewers": "Widzowie",
-            "viewer": "{name} widza",
             "notification": {
                 "loading": {
                     "title": "Ładowanie",

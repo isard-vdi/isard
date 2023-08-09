@@ -140,7 +140,6 @@
                 "browser-rdp": "Navigateur RDP",
                 "file-rdpgw": "RDP"
             },
-            "viewer": "Visionneuse {name}",
             "viewers": "Visionneuses",
             "volatile": "Bureaux temporaires",
             "volatile-compact": "Temporaires",
@@ -312,7 +311,6 @@
                 "name": "Nom"
             },
             "no-info-default": "Aucune description disponible",
-            "open-with": "Ouvrir avec",
             "actions": {
                 "delete": "Supprimer"
             },
@@ -365,7 +363,6 @@
                 "group": "Groupe",
                 "action": "Action"
             },
-            "open-with": "Ouvrir avec",
             "filter-label": "Filtre"
         },
         "profile": {

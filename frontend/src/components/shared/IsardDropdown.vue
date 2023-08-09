@@ -61,8 +61,7 @@ export default {
   },
   methods: {
     getViewerText (viewer) {
-      const name = i18n.t(`views.select-template.viewer-name.${viewer}`)
-      return i18n.t('views.select-template.viewer', i18n.locale, { name: name })
+      return i18n.t(`views.select-template.viewer-name.${viewer}`)
     },
     needsIp (viewer) {
       return DesktopUtils.viewerNeedsIp(viewer)

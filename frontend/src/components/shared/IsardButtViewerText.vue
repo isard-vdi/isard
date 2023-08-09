@@ -1,9 +1,5 @@
 <template>
-  <i18n path="views.select-template.viewer">
-    <template #name>
-      {{ $t(`views.select-template.viewer-name.${viewerName}`) }}
-    </template>
-  </i18n>
+  <i18n :path="`views.select-template.viewer-name.${viewerName}`" />
 </template>
 
 <script>

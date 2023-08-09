@@ -397,8 +397,7 @@ export default {
       return [desktopStates.started, desktopStates.waitingip, desktopStates['shutting-down']].includes(this.desktopState)
     },
     getViewerText () {
-      const name = this.getDefaultViewer !== '' ? i18n.t(`views.select-template.viewer-name.${this.getDefaultViewer}`) : i18n.t('views.select-template.viewers')
-      return this.getDefaultViewer !== '' ? i18n.t('views.select-template.viewer', i18n.locale, { name: name }) : name
+      return this.getDefaultViewer !== '' ? i18n.t(`views.select-template.viewer-name.${this.getDefaultViewer}`) : i18n.t('views.select-template.viewers')
     },
     hideViewers () {
       return this.desktop.state && this.desktop.type === 'nonpersistent' && this.desktopState === desktopStates.stopped

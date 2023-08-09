@@ -112,7 +112,6 @@
                 "file-rdpvpn": "RDP VPN",
                 "browser-rdp": "RDP-Browser"
             },
-            "viewer": "{name}-Bildbetrachter",
             "viewers": "Bildbetrachter",
             "no-desktops-filtered": {
                 "subtitle": "Sie können eine neue Arbeitoberfläche mit der Schaltfläche oben rechts erstellen",
@@ -242,7 +241,6 @@
                 "name": "Name"
             },
             "no-info-default": "Keine Beschreibung vorhanden",
-            "open-with": "Öffnen mit",
             "actions": {
                 "delete": "Löschen"
             },

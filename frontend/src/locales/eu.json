@@ -63,7 +63,6 @@
                 "name": "Izena",
                 "desktop-size": "Tamaina"
             },
-            "open-with": "Irekia",
             "actions": {
                 "delete": "Ezabatu",
                 "direct-link": "Lotura zuzena",
@@ -152,8 +151,7 @@
             "filter-label": "Iragazi",
             "actions": {
                 "delete": "Ezabatu"
-            },
-            "open-with": "Ireki ezazu"
+            }
         },
         "bookings": {
             "item": {
@@ -457,7 +455,6 @@
                 "browser-rdp": "RDP nabigatzailea",
                 "file-rdpgw": "RDP"
             },
-            "viewer": "{name} bisorea",
             "viewers": "Bisoreak",
             "volatile": "Aldi baterako mahaigainak",
             "persistent": "Mahaigain iraunkorrak",
