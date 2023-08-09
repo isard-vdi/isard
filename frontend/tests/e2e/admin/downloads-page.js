@@ -1,6 +1,6 @@
 // @ts-check
-const { test } = require('../navbar')
-const { expect } = require('@playwright/test')
+import { fixture as baseFixture } from '../navbar'
+import { test, expect } from '@playwright/test'
 
 export class PageAdminDownloads {
   /**
@@ -8,7 +8,7 @@ export class PageAdminDownloads {
      */
   constructor (page) {
     this.page = page
-    this.title = page.getByRole('heading', { name: 'Not registered Your IsardVDI is not registered for IsardVDI Downloads Service.' }).or(page.getByRole('heading', { name: 'Domains' }))
+    this.title = page.getByRole('heading', { name: 'Not registered' }).or(page.getByRole('heading', { name: 'Domains' }))
   }
 
   async goto () {
@@ -44,14 +44,17 @@ export class PageAdminDownloads {
   }
 }
 
-exports.test = test.extend({
-  adminDownloads: [async ({ page, navbar }, use) => {
-    await navbar.administration()
+export const fixture = {
+  adminDownloads: async ({ page, administration }, use) => {
+    const name = 'TetrOS'
 
     const adminDownloads = new PageAdminDownloads(page)
     await adminDownloads.goto()
-    await adminDownloads.download('Slax 9.3.0')
+    await adminDownloads.download(name)
 
-    await use(adminDownloads)
-  }, { auto: true }]
-})
+    await use({ pageAdminDownloads: adminDownloads, name: name })
+  },
+  ...baseFixture
+}
+
+exports.test = test.extend(fixture)

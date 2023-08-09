@@ -1,5 +1,6 @@
 // @ts-check
-const { test, expect } = require('@playwright/test')
+import { fixture as baseFixture } from './base'
+import { test, expect } from '@playwright/test'
 
 export class PageLogin {
   /**
@@ -34,13 +35,16 @@ export class PageLogin {
   }
 }
 
-exports.test = test.extend({
-  login: [async ({ page }, use) => {
+export const fixture = {
+  login: async ({ page }, use) => {
     const login = new PageLogin(page)
     await login.goto()
     await login.form('admin', 'IsardVDI')
     await login.finished()
 
     await use(login)
-  }, { auto: true }]
-})
+  },
+  ...baseFixture
+}
+
+exports.test = test.extend(fixture)
