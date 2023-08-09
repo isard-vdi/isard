@@ -823,6 +823,9 @@
                 "downloading": "Downloading",
                 "faileddeleted": "Download failed",
                 "downloadfailed": "Download failed",
+                "downloadaborting": "Download aborting",
+                "downloadstarting": "Download starting",
+                "resetdownloading": "Reseting download",
                 "downloaded": "Downloaded",
                 "deleting": "Deleting",
                 "maintenance": "Maintenance"
