@@ -459,6 +459,11 @@ $(document).ready(function() {
     $('#filter-select').append(options.join(''));
     var selectedCategories = [$('meta[id=user_data]').attr('data-categoryid')]
 
+    let searchDomainId = getGroupParam()
+    if (!searchDomainId) {
+        // set the filter box category on loading the document
+        initial_filters();
+    }
 
     domains_table = $("#domains").DataTable({
       scrollY: false,
@@ -535,13 +540,8 @@ $(document).ready(function() {
         });
     });
 
-    let searchDomainId = getGroupParam()
     if (searchDomainId) {
         domains_table.search(searchDomainId).draw()
-    }
-    else {
-        // set the filter box category on loading the document
-        initial_filters();
     }
 
     var selectedCategories = ''
