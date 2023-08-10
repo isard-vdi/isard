@@ -1,5 +1,6 @@
 // @ts-check
-const { test } = require('@playwright/test')
+import { test } from './base'
+
 const { PageLogin } = require('./login-page')
 
 test.describe('Login', () => {

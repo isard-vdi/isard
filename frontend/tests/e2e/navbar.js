@@ -1,6 +1,6 @@
 // @ts-check
-const { test } = require('./login-page')
-const { expect } = require('@playwright/test')
+import { fixture as baseFixture } from './login-page'
+import { test, expect } from '@playwright/test'
 
 export class Navbar {
   /**
@@ -38,11 +38,19 @@ export class Navbar {
   }
 }
 
-exports.test = test.extend({
-  navbar: async ({ page }, use) => {
+export const fixture = {
+  navbar: async ({ page, login }, use) => {
     const navbar = new Navbar(page)
     await navbar.goto()
 
     await use(navbar)
-  }
-})
+  },
+  administration: async ({ page, navbar }, use) => {
+    await navbar.administration()
+
+    await use(navbar)
+  },
+  ...baseFixture
+}
+
+exports.test = test.extend(fixture)
