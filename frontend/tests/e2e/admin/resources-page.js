@@ -55,7 +55,7 @@ export const fixture = {
     const name = randomString.generate()
     const description = randomString.generateLong()
     const interfaceType = 'network'
-    const typeOptions = randomString.generate()
+    const typeOptions = 'default'
     const model = 'virtio'
 
     const adminResources = new PageAdminResources(page)

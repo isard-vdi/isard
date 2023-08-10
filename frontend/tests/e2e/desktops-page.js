@@ -26,9 +26,8 @@ export class PageDesktops {
 
   static async waitForState (page, name, state) {
     await PageDesktops.getSearch(page).fill(name)
-    const card = PageDesktops.getCard(page, name)
 
-    await card.getByText(state)
+    await page.waitForSelector(`.text-state:has-text('${state}')`)
   }
 
   async template (desktop, name, description) {
@@ -65,6 +64,10 @@ export class PageDesktops {
     }
 
     await this.page.getByRole('button', { name: 'Create' }).click()
+
+    await this.page.waitForURL('/desktops')
+
+    await PageDesktops.waitForState(this.page, name, 'Stopped')
   }
 
   async start (desktop) {

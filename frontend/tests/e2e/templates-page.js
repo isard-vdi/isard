@@ -31,14 +31,6 @@ export class PageTemplates {
 
     await this.goto()
 
-    // TODO: THIS IS REALLY UGLY AND HACKY. WHY DOES THIS HAPPEN????
-    await this.page.reload()
-    await this.goto()
-    await this.page.reload()
-    await this.goto()
-    await this.page.reload()
-    await this.goto()
-
     await expect(await this.get(name)).toEqual({
       name,
       description
