@@ -90,7 +90,7 @@
                 "booking-ends": "La reserva s'acaba a les "
             },
             "no-info-default": "No hi ha cap descripció disponible",
-            "open-with": "Accedeix amb",
+            "open-with": "Accedir amb visor",
             "actions": {
                 "delete": "Esborrar",
                 "template": "Convertir en plantilla",
@@ -112,7 +112,6 @@
                 "viewers": "Visors",
                 "last": "Últim accés"
             },
-            "open-with": "Obrir amb",
             "filter-label": "Filtre"
         },
         "help": {
@@ -352,7 +351,6 @@
             "volatile": "Escriptoris temporals",
             "volatile-compact": "Temporals",
             "viewers": "Visors",
-            "viewer": "Visor {name}",
             "viewer-name": {
                 "file-spice": "SPICE",
                 "browser-vnc": "VNC al navegador",

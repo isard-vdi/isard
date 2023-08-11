@@ -104,7 +104,6 @@
                 }
             },
             "remove": "Удалить",
-            "viewer": "Зритель {name}",
             "viewers": "Зрители",
             "volatile-compact": "Временный",
             "persistent-compact": "Постоянный",
@@ -234,7 +233,6 @@
                 "viewers": "Зрители",
                 "name": "Название"
             },
-            "open-with": "Открыть с помощью",
             "no-info-default": "Описание не доступно",
             "actions": {
                 "delete": "Удалить"

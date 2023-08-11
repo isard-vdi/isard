@@ -433,8 +433,7 @@ export default {
       return stateColors[state]
     },
     getViewerText (desktop) {
-      const name = this.getDefaultViewer(desktop) !== '' ? i18n.t(`views.select-template.viewer-name.${this.getDefaultViewer(desktop)}`) : i18n.t('views.select-template.viewers')
-      return this.getDefaultViewer(desktop) !== '' ? i18n.t('views.select-template.viewer', i18n.locale, { name: name }) : name
+      return this.getDefaultViewer(desktop) !== '' ? i18n.t(`views.select-template.viewer-name.${this.getDefaultViewer(desktop)}`) : i18n.t('views.select-template.viewers')
     },
     getDefaultViewer (desktop) {
       if (desktop.viewers !== undefined) {

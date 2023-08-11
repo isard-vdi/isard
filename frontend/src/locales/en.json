@@ -260,7 +260,7 @@
                 "booking-ends": "Booking ends at "
             },
             "no-info-default": "No description available",
-            "open-with": "Open with",
+            "open-with": "Open with viewer",
             "filter-label": "Filter"
         },
         "deployment-desktop-list": {
@@ -275,7 +275,6 @@
                 "viewers": "Viewers",
                 "last": "Last access"
             },
-            "open-with": "Open with",
             "filter-label": "Filter"
         },
         "help": {
@@ -515,7 +514,6 @@
             "volatile": "Temporal desktops",
             "volatile-compact": "Temporal",
             "viewers": "Viewers",
-            "viewer": "{name} viewer",
             "viewer-name": {
                 "file-spice": "SPICE",
                 "browser-vnc": "VNC browser",
