@@ -995,7 +995,7 @@
         "unable_to_stop_desktop_from": "Desktop can't be stopped from its status",
         "unable_to_change_desktop_status": "Unable to change desktop status",
         "unable_to_change_hypervisor_status": "Unable to change hypervisor status",
-        "unable_to_get_domain_jumperurl": "  not get domain jumperurl as domain not exists",
+        "unable_to_get_domain_jumperurl": "Could not get direct viewer link since the domain does not exist",
         "unable_to_reset_domain_jumperurl": "Could not reset domain jumperurl as domain not exists",
         "unable_to_get_deployment_desktops": "Unable to get deployment desktops",
         "unable_to_gen_enrollment_code": "Unable to generate enrollment code",
