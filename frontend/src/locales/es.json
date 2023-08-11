@@ -663,7 +663,7 @@
                 "not-visible": "No visibles"
             },
             "modal": {
-                "title": { 
+                "title": {
                     "make-visible": "Hacer que el despliegue '{name}' sea visible",
                     "make-invisible": "Hacer que el despliegue '{name}' sea invisible",
                     "download-csv": "Descargar CSV de visores directos de '{name}'"
@@ -683,7 +683,6 @@
                     "reset-csv": "Reestablecer enlaces y descargar CSV"
                 }
             }
-            
         },
         "deployment-desktop-list": {
             "actions": {
@@ -712,7 +711,7 @@
             "description": {
                 "vnc": "Acceder al escritorio directamente desde este navegador",
                 "rdp": "Acceder al escritorio directamente desde este navegador (requiere el usuario y la contraseña de windows del escritorio)",
-                "spice": "Acceder al escritorio mediante un fichero que debe abrirse con el programa remote-viewer ",
+                "spice": "Acceder al escritorio mediante un fichero que debe abrirse con el programa remote-viewer",
                 "rdpgw": "Windows incorpora la aplicación necesaria para su uso"
             },
             "help": {
@@ -911,10 +910,10 @@
             "not-created-event": "No se ha creado el evento",
             "missing-data": "Faltan datos",
             "deleting-event": "Borrando el evento",
-            "disable-template": "Invisibilizando la plantilla",
+            "disable-template": "Haciendo la plantilla invisible",
             "creating-event": "Creando el evento",
             "editing-event": "Editando el evento",
-            "enable-template": "Visibilizando la plantilla",
+            "enable-template": "Haciendo la plantilla visible",
             "creating-media": "Creando medio",
             "image-uploaded": "Imagen subida correctamente",
             "editing": "Editando",
@@ -987,8 +986,8 @@
         "booking_new_event_start_error": "La hora de inicio no es válida",
         "booking_new_event_end_error": "La hora de finalización no es válida",
         "booking_new_event_overlap_error": "El evento se solapa",
-        "unable_to_update": "No se ha podido actualizar la base de datos",
-        "unable_to_insert": "No se ha podido introducir en la base de datos",
+        "unable_to_update": "No se ha podido actualizar la base de datos.",
+        "unable_to_insert": "No se ha podido introducir en la base de datos.",
         "conflict": "Conflicto",
         "conflict_title": "Conflicto",
         "missing_required_data": "Faltan campos requerido",
@@ -999,7 +998,7 @@
         "user_disabled": "El usuario está deshabilitado",
         "deployment_desktop_new_group_limit_exceeded": "Se ha excedido el límite de creación de escritorios del grupo '{group}'",
         "deployment_desktop_new_category_limit_exceeded": "Se ha excedido el límite de creación de escritorios de la categoria '{category}'",
-        "unable_to_stop_desktop_from": "No se puede parar un escritorio desde su estado",
+        "unable_to_stop_desktop_from": "No se puede parar el escritorio desde su estado",
         "unable_to_start_desktop_from": "No se puede arrancar un escritorio desde su estado",
         "deployment_delete_stop": "Para eliminar un despliegue es necesario que sus escritorios estén parados",
         "desktop_not_booked": "Para arrancar el escritorio debe estar reservado",
@@ -1017,7 +1016,7 @@
         "unknown_extension": "Se omite el archivo cargado por tener una extensión desconocida",
         "unable_to_process_vpnfile": "No se puede procesar el archivo de la VPN",
         "desktop_is_not_visible": "Actualmente el escritorio no es visible para este usuario.",
-        "invalid_end_date": "Fecha de finalización inválida",
+        "invalid_end_date": "Fecha de finalización no válida",
         "invalid_start_date": "Fecha de inicio no válida",
         "table_not_allowed": "No se puede cambiar el propietario de la tabla",
         "unable_to_get_domain_jumperurl": "  no es possible obternet el dominio jumperurl ya que el dominio no existe",
@@ -1027,11 +1026,11 @@
         "hypervisor_transition_initial_status_incorrect": "Estado inicial de transición del hipervisor incorrecto",
         "viewer_protocol_not_implemented": "Protocolo de visualización no implementado",
         "template_already_exists": "El identificador de la plantilla ya existe: ",
-        "unable_to_parse_media": "No se puede analizar la información multimedia",
+        "unable_to_parse_media": "No se puede analizar la información del medio",
         "unable_to_change_desktop_status": "No se puede cambiar el estado del escritorio",
         "duplicated_name": "Nombre duplicado",
-        "unable_to_get_deployment_desktops": "No se pueden obtener escritorios de implementación",
-        "new_template_bad_body_data": "La plantilla nueva tiene datos de cuerpo incorrectos",
+        "unable_to_get_deployment_desktops": "No se pueden obtener los escritorios del despliegue",
+        "new_template_bad_body_data": "Datos de nueva plantilla incorrectos",
         "get_vnc_viewer_data_error": "Error interno al obtener datos del visor VNC",
         "only_works_rdp": "Modo 'Only GPU' solamente funciona con visores RDP",
         "current_plan_doesnt_match": "No hay ninguna GPU disponible con el perfil del escritorio",
@@ -1040,7 +1039,10 @@
         "no_wireguard_keys": "Todavía no hay claves de wireguard en la configuración de la aplicación web. Inténtelo de nuevo pasados unos segundos...",
         "one_viewer_minimum": "Se ha de seleccionar mínimo un visor",
         "template_failed": "Debido a un error la plantilla no se puede utilizar para crear un nuevo escritorio, por favor contacta con el administrador",
-        "desktop_storage_not_ready": "El almacenamiento del escritorio no está listo"
+        "desktop_storage_not_ready": "El almacenamiento del escritorio no está listo",
+        "vpn_missing_itemid": "Falta el identificador del elemento en la VPN",
+        "no_reservables": "El ítem no tiene reservables",
+        "incorrect_new_plan_body_data": "Datos de nuevo plan incorrectos"
     },
     "router": {
         "titles": {
