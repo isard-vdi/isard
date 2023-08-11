@@ -714,7 +714,7 @@
                         "macos": "macOS is an unsupported platform. You need to use the browser option",
                         "ios": "On the operative system iOS, you need to install the following application:",
                         "windows": "On the operative system Windows, you need to download and install one of the following executable:",
-                        "android": "On the operative system Android, you need to instal the following application:",
+                        "android": "On the operative system Android, you need to install the following application:",
                         "linux": "On the operative system Linux, you need to run the following commands:"
                     }
                 },
