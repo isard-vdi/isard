@@ -247,7 +247,7 @@
             },
             "table-header": {
                 "name": "Name",
-                "state": "State",
+                "state": "Status",
                 "description": "Description",
                 "desktop-size": "Size",
                 "action": "Action",
@@ -269,7 +269,7 @@
             },
             "table-header": {
                 "user": "User",
-                "state": "State",
+                "state": "Status",
                 "group": "Group",
                 "action": "Action",
                 "viewers": "Viewers",
@@ -364,7 +364,7 @@
                         "button": "Delete"
                     }
                 },
-                "new-planning" : {
+                "new-planning": {
                     "bookable-type": "Bookable type",
                     "bookable-item": "Item name"
                 }
@@ -662,7 +662,7 @@
                 "not-visible": "Not visible"
             },
             "modal": {
-                "title": { 
+                "title": {
                     "make-visible": "Make deployment '{name}' visible",
                     "make-invisible": "Make deployment '{name}' invisible",
                     "download-csv": "Download '{name}' direct viewer CSV"
@@ -1019,10 +1019,10 @@
         "deployment_delete_stop": "To delete a deployment its desktops must be stopped",
         "desktop_not_booked": "The desktop needs a booking to be started",
         "desktop_not_booked_until": "The desktop can't be started until its next booking: {start}",
-        "incorrect_new_plan_body_data": " Incorrect new plan body data",
+        "incorrect_new_plan_body_data": "Incorrect new plan body data",
         "duplicated_name": "Duplicated name",
         "user_disabled": "The user is disabled",
-        "only_works_rdp":  "'Only GPU' mode only works with RDP viewers",
+        "only_works_rdp": "'Only GPU' mode only works with RDP viewers",
         "current_plan_doesnt_match": "There's no GPU available with the desktop profile",
         "needs_deployment_booking": "The desktop can't be started now, contact with the deployment owner in order to book it",
         "not_enough_advanced_time": "There's not enough advanced time to start the desktop",
