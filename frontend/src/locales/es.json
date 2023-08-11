@@ -652,7 +652,7 @@
         },
         "deployment": {
             "no-started-desktops": {
-                "title": "Este deployment no tiene ningún escritorio iniciado"
+                "title": "Este despliegue no tiene ningún escritorio iniciado"
             },
             "desktop": {
                 "not-available": "Escritorio no disponible"
