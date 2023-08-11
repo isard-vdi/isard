@@ -1019,7 +1019,7 @@
         "invalid_end_date": "Fecha de finalización no válida",
         "invalid_start_date": "Fecha de inicio no válida",
         "table_not_allowed": "No se puede cambiar el propietario de la tabla",
-        "unable_to_get_domain_jumperurl": "  no es possible obternet el dominio jumperurl ya que el dominio no existe",
+        "unable_to_get_domain_jumperurl": "No es posible obtener el enlace al visor directo ya que el dominio no existe",
         "desktop_transition_initial_status_incorrect": "El estado inicial de la transición del escritorio es incorrecto",
         "unable_to_gen_enrollment_code": "No se puede generar el código de inscripción",
         "unable_to_reset_domain_jumperurl": "No se puede restablecer el dominio jumperurl ya que el dominio no existe",
