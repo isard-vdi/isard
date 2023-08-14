@@ -20,6 +20,7 @@ services:
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     environment:
+      PYTHONUNBUFFERED: 1
       DOMAIN:
       LOG_LEVEL:
       RETHINKDB_HOST:
