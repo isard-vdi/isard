@@ -387,3 +387,20 @@ def admin_config():
         title="Config",
         monitor_host=monitor_host,
     )
+
+
+"""
+LOGS
+"""
+
+
+@app.route("/isard-admin/admin/logs_desktops", methods=["GET"])
+@login_required
+@isAdmin
+def admin_logs_desktops():
+    return render_template(
+        "admin/pages/logs_desktops.html",
+        title="Logs desktops",
+        nav="Logs desktops",
+        monitor_host=monitor_host,
+    )
