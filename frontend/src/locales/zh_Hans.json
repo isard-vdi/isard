@@ -1,5 +1,6 @@
 {
     "validations": {
-        "required": "{property} 必填"
+        "required": "{property} 必填",
+        "sameAs": "{property}字段的值必须与{property2}相同。"
     }
 }
