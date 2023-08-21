@@ -21,6 +21,36 @@
 // Pipelining function for DataTables. To be used to the `ajax` option of DataTables
 //
 
+// // Define your pipeline options for the first DataTable
+// var pipelineOpts1 = {
+//     pages: 5,     // number of pages to cache
+//     url: '/api/v1/data1',      // script url for the first DataTable
+//     method: 'GET' // Ajax HTTP method
+// };
+
+// // Define your pipeline options for the second DataTable
+// var pipelineOpts2 = {
+//     pages: 5,     // number of pages to cache
+//     url: '/api/v1/data2',      // script url for the second DataTable
+//     method: 'GET' // Ajax HTTP method
+// };
+
+// // Initialize your first DataTable with its own pipeline
+// $('#datatable1').DataTable({
+//     ajax: $.fn.dataTable.pipeline(pipelineOpts1),
+//     // other DataTable options...
+// });
+
+// // Initialize your second DataTable with its own pipeline
+// $('#datatable2').DataTable({
+//     ajax: $.fn.dataTable.pipeline(pipelineOpts2),
+//     // other DataTable options...
+// });
+
+// // Now, each DataTable will have its own separate pipeline, allowing them to fetch and cache data independently.
+
+// daily_items_chart = null
+
 $.fn.dataTable.pipeline = function ( opts ) {
     // Configuration options
     var conf = $.extend( {
@@ -80,6 +110,17 @@ $.fn.dataTable.pipeline = function ( opts ) {
             request.start = requestStart;
             request.length = requestLength*conf.pages;
 
+            // Custom filters
+            const chartInstance = $('#echart-daily-items').data('echartInstance');
+            if (chartInstance) {
+                range = chartInstance.getXaxisDataRange();
+            }else{
+                range = null
+            }
+            if (range != null){
+                request.range={"field":"starting_time","start":range.start,"end":range.end}
+            }
+
             // Provide the same `data` options as DataTables.
             if ( typeof conf.data === 'function' ) {
                 // As a function it is executed with the data object as an arg
@@ -138,6 +179,19 @@ logs_desktops_raw_table = null;
 logs_desktops_desktop_table = null;
 
 $(document).ready(function () {
+    $('#echart-daily-items').echartDailyItems("logs_desktops", "starting_time");
+    var debounceZoom = debounce(function (params) {
+        if ($("#btn-raw-view-tab").hasClass("active")){
+            logs_desktops_raw_table.clearPipeline().draw();
+        }
+        if ($("#btn-desktop-view-tab").hasClass("active")){
+            logs_desktops_desktop_table.clearPipeline().draw();
+        }
+    }, 2000);
+    $('#echart-daily-items').data('echartInstance').on('datazoom', debounceZoom);
+
+    $("#myTab a:first").tab('show');
+    raw_table();
     $(".nav-link").click(function(e){
         if ($(this).attr('id') == 'btn-raw-view-tab'){
             if (logs_desktops_raw_table == null){
@@ -153,6 +207,13 @@ $(document).ready(function () {
                 logs_desktops_desktop_table.clearPipeline().draw();
             }
         }
+        if ($(this).attr('id') == 'btn-echarts-view-tab'){
+            // check if div #echart_request_agent_browser is already initialized
+            if ($("#echart_request_agent_browser").data('echartInstance') == null){
+                $("#echart_request_agent_browser").echartGroupedItems("logs_desktops", "request_agent_browser");
+                $("#echart_preferred_viewer").echartGroupedItems("logs_desktops", "viewer_type", "events");
+            }
+        }
     });
 });
 
@@ -161,6 +222,7 @@ function raw_table(){
         serverSide: true,
 		responsive: true,
         autoWidth: false,
+        searching: false,
         ajax: $.fn.dataTable.pipeline({
             url: "/api/v3/admin/logs_desktops",
             pages: 5, // number of pages to cache
@@ -223,6 +285,73 @@ function raw_table(){
 				});
         }
     });
+
+    $('#table-logs-desktops').on( 'length.dt', function ( e, settings, len ) {
+        logs_desktops_raw_table.clearPipeline().draw();
+    } );
+
+    $('#table-logs-desktops tbody').on('click', 'td.details-control', function () {
+        var tr = $(this).closest("tr");
+        var row = storage_ready.row(tr);
+        var rowData = row.data();
+
+        if (row.child.isShown()) {
+          // This row is already open - close it
+          row.child.hide();
+          tr.removeClass("shown");
+
+          // Destroy the Child Datatable
+          $("#cl" + rowData.clientID)
+            .DataTable()
+            .destroy();
+        } else {
+
+          // Close other rows
+          if (storage_ready.row('.shown').length) {
+            $('.details-control', storage_ready.row('.shown').node()).click();
+          }
+
+            // Open this row
+            row.child(format(rowData)).show();
+            var id = rowData.id;
+
+            childTable = $("#cl" + id).DataTable({
+              dom: "t",
+              ajax: {
+                url: "/api/v3/storage/" + id+"/parents",
+                contentType: "application/json",
+                type: "GET",
+              },
+              sAjaxDataProp: "",
+              language: {
+                loadingRecords:
+                  '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
+              },
+              columns: [
+                { data: null, title: "#", render: function (data, type, full, meta) { return meta.row + 1; } },
+                { data: "id", title: "storage id", render: function (data, type, full, meta) { if (meta.row == 0) { return '<b>'+data+'</b>' } else { return data } } },
+                { data: "status", title: "storage status" },
+                { data: "parent_id", title: "parent storage id" },
+                { data: "domains", title: "domains",
+                  render: function (data, type, full, meta) {
+                    links = []
+                    $(data).each(function (index, value) {
+                      let kind = value.kind.charAt(0).toUpperCase() + value.kind.slice(1).replace(/_/g, ' ')
+                      links[index] = '<a href="/isard-admin/admin/domains/render/'+kind+'s?searchDomainId='+value.id+'"><b>'+kind[0]+': </b>'+value.name+'</a>'
+                    });
+                    return links.join(', ')
+                  }
+                },
+              ],
+              columnDefs: [
+              ],
+              order: [],
+              select: false,
+            });
+
+            tr.addClass("shown");
+          }
+    } );
 }
 
 function desktop_table(){
@@ -231,6 +360,7 @@ function desktop_table(){
 		responsive: true,
         autoWidth: false,
         processing: true,
+        searching: false,
         ajax: $.fn.dataTable.pipeline({
             url: "/api/v3/admin/logs_desktops/desktops_view",
             pages: 5, // number of pages to cache
@@ -293,6 +423,23 @@ function desktop_table(){
 				});
         }
     });
+    $('#table-logs-desktops-desktop-view').on( 'length.dt', function ( e, settings, len ) {
+        logs_desktops_desktop_table.clearPipeline().draw();
+    } );
+}
+
+var monthNames = ["January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+];
+
+function getMonthName(monthNumber) {
+    return monthNames[monthNumber - 1] || '';
+}
+
+function formatXAxis(value) {
+    var date = new Date(value);
+    var monthName = getMonthName(date.getMonth());
+    return monthName + ' ' + date.getFullYear();
 }
 
 
@@ -305,3 +452,4 @@ function debounce(fn, delay) {
         }, delay);
     };
 }
+

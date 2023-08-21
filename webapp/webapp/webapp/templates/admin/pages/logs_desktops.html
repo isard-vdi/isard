@@ -30,8 +30,9 @@
      <div class="x_panel">
         <div class="page-title">
            <div class="title_left">
-              <h3><i class="fa fa-folder-open"></i> Logs Desktops <small>Logs for desktops</small></h3>
+              <h3><i class="fa fa-folder-open"></i> Logs <small>Select a range to show logs table details</small></h3>
            </div>
+           <div id="echart-daily-items"></div>
            <div class="clearfix"></div>
         </div>
      </div>
@@ -42,7 +43,7 @@
   <div class="col-md-12 col-sm-12 col-xs-12">
     <div class="x_panel">
       <div class="x_title">
-        <h3><i class="fa fa-lock"></i> Desktops</h3> 
+        <h3><i class="fa fa-lock"></i> Desktops <small>Desktops start/stop logs</small></h3>
         <div class="clearfix"></div>
       </div>
       <div class="x_content">
@@ -53,6 +54,9 @@
           <li class="nav-item">
           <a class="nav-link" id="btn-desktop-view-tab" data-toggle="tab" href="#btn-desktop-view" role="tab" aria-controls="btn-desktop-view" aria-selected="false">Desktop name grouping</a>
           </li>
+          <li class="nav-item">
+            <a class="nav-link" id="btn-echarts-view-tab" data-toggle="tab" href="#btn-echarts-view" role="tab" aria-controls="btn-echarts-view" aria-selected="false">Analytics</a>
+            </li>
         </ul>
         <div class="tab-content" id="myTabContent">
           <div class="tab-pane fade" id="btn-raw-view" role="tabpanel" aria-labelledby="btn-raw-view-tab">
@@ -107,6 +111,33 @@
               </tfoot>
             </table>
           </div>
+
+          <div class="tab-pane fade" id="btn-echarts-view" role="tabpanel" aria-labelledby="btn-echarts-view-tab">
+
+            <div class="col-md-4 col-sm-4">
+              <div class="x_panel">
+                <div class="x_title">
+                  <h2>Browsers</h2>
+                  <div class="clearfix"></div>
+                </div>
+                <div class="x_content" style="height: 5000px;">
+                  <div id="echart_request_agent_browser"></div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4 col-sm-4">
+              <div class="x_panel">
+                <div class="x_title">
+                  <h2>Preferred viewer</h2>
+                  <div class="clearfix"></div>
+                </div>
+                <div class="x_content" style="height: 5000px;">
+                  <div id="echart_preferred_viewer"></div>
+                </div>
+              </div>
+            </div>
+
+          </div>
         </div>
       </div>
     </div>
@@ -119,5 +150,8 @@
 {% block pagescript %}
   <!-- Isard restful ajax calls -->
   <script src="/isard-admin/static/js/restful.js"></script>
+  <!-- <script src="/isard-admin/static/admin/js/filters.js"></script> -->
+  <script src="/isard-admin/echarts/dist/echarts.min.js"></script>
+  <script src="/isard-admin/static/admin/js/echarts.js"></script>
   <script src="/isard-admin/static/admin/js/logs_desktops.js"></script>
 {% endblock %}

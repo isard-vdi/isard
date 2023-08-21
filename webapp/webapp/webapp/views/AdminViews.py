@@ -389,9 +389,9 @@ def admin_config():
     )
 
 
-"""
-LOGS
-"""
+# """
+# LOGS
+# """
 
 
 @app.route("/isard-admin/admin/logs_desktops", methods=["GET"])
