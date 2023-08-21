@@ -53,11 +53,13 @@ class DatatablesQuery(ABC):
     def __init__(self, form_data):
         self.form_data = self.parse_multi_form(form_data)
         self.q = None
+        self.skip_indexs = False
 
     def default_query(self):
         if not self.q:
             self.q = r.table(self._table)
             self.q = self.add_order()
+            self.q = self.add_range_filters()
             self.q = self.add_search_filters()
             self.q = self.add_pluck()
 
@@ -112,30 +114,20 @@ class DatatablesQuery(ABC):
             custom_query = self.q
         if not len(self.form_data["order"]):
             return custom_query
+        order_field = self.form_data["columns"][
+            int(self.form_data["order"][0]["column"])
+        ]["data"]
         if not skip_indexs:
             if (
                 len(self.form_data["order"]) == 1
-                and self.form_data["columns"][
-                    int(self.form_data["order"][0]["column"])
-                ]["data"]
-                in TABLE_INDEXS[self._table]
+                and order_field in TABLE_INDEXS[self._table]
             ):
                 if self.form_data["order"][0]["dir"] == "desc":
-                    custom_query = custom_query.order_by(
-                        index=r.desc(
-                            self.form_data["columns"][
-                                int(self.form_data["order"][0]["column"])
-                            ]["data"]
-                        )
-                    )
+                    custom_query = custom_query.order_by(index=r.desc(order_field))
                 else:
-                    custom_query = custom_query.order_by(
-                        index=r.asc(
-                            self.form_data["columns"][
-                                int(self.form_data["order"][0]["column"])
-                            ]["data"]
-                        )
-                    )
+                    custom_query = custom_query.order_by(index=r.asc(order_field))
+                if order_field != self.form_data["range"]["field"]:
+                    self.skip_indexs = True
                 return custom_query
         for key, order in self.form_data["order"].items():
             if order["dir"] == "desc":
@@ -158,6 +150,58 @@ class DatatablesQuery(ABC):
                 custom_query = custom_query.filter(
                     lambda doc: doc[column["data"]].match(column["search"]["value"])
                 )
+        return custom_query
+
+    def add_range_filters(self, custom_query=None, skip_indexs=False):
+        if not custom_query:
+            custom_query = self.q
+        if self.form_data.get("range"):
+            if skip_indexs or self.skip_indexs:
+                custom_query = custom_query.filter(
+                    lambda doc: doc[self.form_data["range"]["field"]].during(
+                        r.time(
+                            r.iso8601(self.form_data["range"]["start"] + "Z").year(),
+                            r.iso8601(self.form_data["range"]["start"] + "Z").month(),
+                            r.iso8601(self.form_data["range"]["start"] + "Z").day(),
+                            r.iso8601(self.form_data["range"]["start"] + "Z").hours(),
+                            r.iso8601(self.form_data["range"]["start"] + "Z").minutes(),
+                            r.iso8601(self.form_data["range"]["start"] + "Z").seconds(),
+                            "Z",
+                        ),
+                        r.time(
+                            r.iso8601(self.form_data["range"]["end"] + "Z").year(),
+                            r.iso8601(self.form_data["range"]["end"] + "Z").month(),
+                            r.iso8601(self.form_data["range"]["end"] + "Z").day(),
+                            r.iso8601(self.form_data["range"]["end"] + "Z").hours(),
+                            r.iso8601(self.form_data["range"]["end"] + "Z").minutes(),
+                            r.iso8601(self.form_data["range"]["end"] + "Z").seconds(),
+                            "Z",
+                        ),
+                    )
+                )
+            else:
+                custom_query = custom_query.between(
+                    r.time(
+                        r.iso8601(self.form_data["range"]["start"] + "Z").year(),
+                        r.iso8601(self.form_data["range"]["start"] + "Z").month(),
+                        r.iso8601(self.form_data["range"]["start"] + "Z").day(),
+                        r.iso8601(self.form_data["range"]["start"] + "Z").hours(),
+                        r.iso8601(self.form_data["range"]["start"] + "Z").minutes(),
+                        r.iso8601(self.form_data["range"]["start"] + "Z").seconds(),
+                        "Z",
+                    ),
+                    r.time(
+                        r.iso8601(self.form_data["range"]["end"] + "Z").year(),
+                        r.iso8601(self.form_data["range"]["end"] + "Z").month(),
+                        r.iso8601(self.form_data["range"]["end"] + "Z").day(),
+                        r.iso8601(self.form_data["range"]["end"] + "Z").hours(),
+                        r.iso8601(self.form_data["range"]["end"] + "Z").minutes(),
+                        r.iso8601(self.form_data["range"]["end"] + "Z").seconds(),
+                        "Z",
+                    ),
+                    index=self.form_data["range"]["field"],
+                )
+
         return custom_query
 
     def add_pagination(self, custom_query=None):
@@ -219,11 +263,10 @@ class LogsDesktopsQuery(DatatablesQuery):
         self.group_by_desktop_name()
 
     def group_by_desktop_name(self):
-        end_time = datetime.now(timezone.utc)
-        start_time = end_time - timedelta(days=self.form_data.get("days_back", 30))
+        query = r.table(self._table)
+        # query = self.add_range_filters(query)
         query = (
-            r.table("logs_desktops")
-            .group(index="desktop_id")
+            query.group(index="desktop_id")
             .map(
                 lambda log: {
                     "count": 1,
@@ -253,9 +296,14 @@ class LogsDesktopsQuery(DatatablesQuery):
                 }
             )
             .ungroup()["reduction"]
-            # .filter(lambda log: log["starting_time"].during(start_time, end_time))
         )
+
         query = self.add_order(query, skip_indexs=True)
+        query = self.add_range_filters(query, skip_indexs=True)
         query = self.add_search_filters(query)
         query = self.add_pluck(query)
         self.query = query
+
+
+class LogsUsersQuery(DatatablesQuery):
+    _table = "logs_users"

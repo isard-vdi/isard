@@ -208,6 +208,7 @@ def api_v3_domain_hardware(payload, domain_id):
     )
 
 
+@cached(TTLCache(maxsize=10, ttl=60))
 @app.route("/api/v3/admin/logs_desktops", methods=["POST"])
 @app.route("/api/v3/admin/logs_desktops/<view>", methods=["POST"])
 @is_admin
