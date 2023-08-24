@@ -21,7 +21,10 @@ from abc import ABC, abstractmethod
 from time import time
 
 from cachetools import TTLCache, cached
+from cachetools.keys import hashkey
 from rethinkdb import r
+
+_cache = TTLCache(maxsize=10, ttl=5)
 
 
 class Context:
@@ -67,10 +70,11 @@ class RethinkBase(ABC):
                 .run(self._rdb_connection)
                 .get("generated_keys", [kwargs.get("id")])[0]
             )
+        self._update_cache(**kwargs)
         if "id" not in kwargs:
             kwargs["id"] = self.id
 
-    @cached(TTLCache(maxsize=10, ttl=5))
+    @cached(_cache)
     def __getattr__(self, name):
         if name in self.__dict__:
             return self.__dict__[name]
@@ -93,6 +97,7 @@ class RethinkBase(ABC):
             r.table(self._rdb_table).get(self.id).update(updated_data).run(
                 self._rdb_connection
             )
+        self._update_cache(**updated_data)
         updated_data["id"] = self.id
 
     def __eq__(self, other):
@@ -102,6 +107,11 @@ class RethinkBase(ABC):
 
     def __hash__(self):
         return hash(self.id)
+
+    def _update_cache(self, **kwargs):
+        for name, value in kwargs.items():
+            if name is not "id":
+                _cache[hashkey(self, name)] = value
 
     @classmethod
     def exists(cls, document_id):
