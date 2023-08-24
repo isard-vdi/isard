@@ -170,6 +170,27 @@ def storage_parents(payload, storage_id):
     )
 
 
+@app.route("/api/v3/storage/<storage_id>/task", methods=["GET"])
+@has_token
+def storage_task(payload, storage_id):
+    """
+    Endpoint that get Task as dict of a Storage.
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :param storage_id: Storage ID
+    :type storage_id: str
+    :return: Task as dict
+    :rtype: Set with Flask response values and data in JSON
+    """
+    check_storage_existence_and_permissions(payload, storage_id)
+    storage = Storage(storage_id)
+    task_dict = None
+    if storage.task:
+        task_dict = Task(storage.task).to_dict()
+    return jsonify(task_dict)
+
+
 @app.route("/api/v3/storage/<status>", methods=["GET"])
 @has_token
 def api_v3_storage(payload, status):
