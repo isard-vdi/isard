@@ -18,3 +18,4 @@ humanfriendly==10.0
 pytz==2022.7
 cachetools~=5.3
 requests~=2.31
+rq~=1.15
