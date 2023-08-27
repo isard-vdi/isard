@@ -3,6 +3,7 @@
 
 import json
 
+from cachetools import TTLCache, cached
 from flask import request
 
 from api import app
@@ -21,6 +22,7 @@ from ..libv2.api_downloads import (
 from .decorators import is_admin
 
 
+@cached(cache=TTLCache(maxsize=1, ttl=240))
 @app.route("/api/v3/admin/downloads", methods=["GET"])
 @is_admin
 @is_registered
@@ -32,6 +34,7 @@ def api_v3_admin_downloads(payload):
     )
 
 
+@cached(cache=TTLCache(maxsize=10, ttl=240))
 @app.route("/api/v3/admin/downloads/<kind>", methods=["GET"])
 @is_admin
 @is_registered
@@ -43,6 +46,7 @@ def api_v3_admin_downloads_kind(payload, kind):
     )
 
 
+@cached(cache=TTLCache(maxsize=1, ttl=240))
 @app.route("/api/v3/admin/downloads/register", methods=["POST"])
 @is_admin
 def admin_downloads_register(payload):
@@ -50,6 +54,7 @@ def admin_downloads_register(payload):
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
+@cached(cache=TTLCache(maxsize=10, ttl=240))
 @app.route("/api/v3/admin/downloads/<action>/<kind>", methods=["POST"])
 @app.route("/api/v3/admin/downloads/<action>/<kind>/<id>", methods=["POST"])
 @is_admin
