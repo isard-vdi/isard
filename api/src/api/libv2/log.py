@@ -118,10 +118,7 @@ def log_request(response):
         "method": request.method,
         "remote_addr": remote_addr,
     }
-    app.logger.info(
-        "response served",
-        extra=log_data,
-    )
+
     if LOG_LEVEL == "DEBUG":
         print(
             sc.green(response._status_code, "reverse")
@@ -151,6 +148,11 @@ def log_request(response):
         )
         if extra.get("data"):
             print(sc.cyan(pformat(extra["data"]), "reverse"))
+
+    app.logger.info(
+        "response served",
+        extra=log_data,
+    )
 
     return response
 

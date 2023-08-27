@@ -24,6 +24,7 @@ services:
       DOMAIN:
       LOG_LEVEL:
       DEBUG_STATS: false
+      DEBUG_WEBSOCKETS: false
       RETHINKDB_HOST:
       RETHINKDB_PORT:
       RETHINKDB_DB:

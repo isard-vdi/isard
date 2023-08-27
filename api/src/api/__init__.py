@@ -86,7 +86,7 @@ from api.libv2.load_validator_schemas import load_validators
 
 app.validators = load_validators()
 
-debug = True if os.environ["LOG_LEVEL"] == "DEBUG" else False
+ws_debug = True if os.environ.get("DEBUG_WEBSOCKETS", "") == "true" else False
 
 from flask_socketio import SocketIO
 
@@ -97,8 +97,9 @@ socketio = SocketIO(
     app,
     path="/api/v3/socket.io/",
     cors_allowed_origins="*",
-    logger=app.logger if debug else False,
-    engineio_logger=app.logger if debug else False,
+    debug=ws_debug,
+    logger=ws_debug,
+    engineio_logger=ws_debug,
 )
 
 import logging as log

@@ -13,8 +13,11 @@ from api import app
 
 r = RethinkDB()
 import json
+import os
 import traceback
+from pprint import pformat
 
+import simple_colors as sc
 from rethinkdb.errors import ReqlDriverError
 
 from .flask_rethink import RDB
@@ -754,44 +757,111 @@ def start_config_thread():
 @socketio.on("connect", namespace="/administrators")
 def socketio_admins_connect(nothing_should_be_here=None):
     if nothing_should_be_here != None:
-        app.logger.debug(
+        app.logger.error(
             "Call to socketio_admins_connect with args, wtf? args="
             + str(nothing_should_be_here)
         )
         return
     try:
-        app.logger.debug(request.args)
         payload = get_token_payload(request.args.get("jwt"))
-    except Exception as e:
-        app.logger.debug("Invalid socketio_admins_connect ws token")
+    except:
+        app.logger.error(
+            {
+                "websocket": "join_room_jwt_error",
+                **payload,
+                **request.args,
+                "error": str(traceback.format_exc()),
+            },
+        )
         return
     try:
-        join_room(payload["user_id"])
         if payload["role_id"] == "admin":
+            join_room(payload["user_id"])
             join_room("admins")
-            app.logger.debug("USER: " + payload["user_id"] + " JOINED ADMIN ROOM")
-        if payload["role_id"] == "manager":
+            if os.environ.get("DEBUG_WEBSOCKETS", "") == "true":
+                app.logger.debug(
+                    {
+                        "websocket": "join_room_admins",
+                        **payload,
+                    },
+                )
+                print(sc.green("join_room_admins", "reverse"))
+                print(sc.magenta(pformat(payload), "reverse"))
+        elif payload["role_id"] == "manager":
+            join_room(payload["user_id"])
             join_room(payload["category_id"])
-            app.logger.debug(
-                "USER: "
-                + payload["user_id"]
-                + " JOINED MANAGER "
-                + payload["category_id"]
-                + "ROOM"
-            )
-    except Exception as e:
-        app.logger.debug(
-            "Token expired or invalid in socketio_admins_connect for user: "
-            + str(payload.get("user_id"))
+            if os.environ.get("DEBUG_WEBSOCKETS", "") == "true":
+                app.logger.debug(
+                    {
+                        "websocket": "join_room_manager",
+                        **payload,
+                    },
+                )
+                print(sc.green("join_room_manager", "reverse"))
+                print(sc.magenta(pformat(payload), "reverse"))
+        else:
+            if os.environ.get("DEBUG_WEBSOCKETS", "") == "true":
+                app.logger.error(
+                    {
+                        "websocket": "join_room_admins_not_allowed",
+                        **payload,
+                    },
+                )
+                print(sc.red("join_room_admins_not_allowed", "reverse"))
+                print(sc.magenta(pformat(payload), "reverse"))
+    except:
+        app.logger.error(
+            {
+                "websocket": "join_room_admins_internal_server",
+                **payload,
+                **request.args,
+                "error": str(traceback.format_exc()),
+            },
         )
 
 
 @socketio.on("disconnect", namespace="/administrators")
-def socketio_admins_disconnect():
-    leave_room("admins")
+def socketio_admins_disconnect(data=None):
     try:
-        app.logger.debug("Here we should leave rooms...")
-        # leave_room("user_" + current_user.id)
-    except Exception as e:
-        app.logger.debug(e)
-        app.logger.debug("USER leaved without disconnect")
+        payload = get_token_payload(request.args.get("jwt"))
+        leave_room(payload["user_id"])
+        if payload["role_id"] == "admin":
+            leave_room("admins")
+            if os.environ.get("DEBUG_WEBSOCKETS", "") == "true":
+                app.logger.debug(
+                    {
+                        "websocket": "leave_room_admins",
+                        **payload,
+                    },
+                )
+                print(sc.yellow("leave_room_admins", "reverse"))
+                print(sc.magenta(pformat(payload), "reverse"))
+        elif payload["role_id"] == "manager":
+            leave_room(payload["category_id"])
+            if os.environ.get("DEBUG_WEBSOCKETS", "") == "true":
+                app.logger.debug(
+                    {
+                        "websocket": "leave_room_manager",
+                        **payload,
+                    },
+                )
+                print(sc.yellow("leave_room_manager", "reverse"))
+                print(sc.magenta(pformat(payload), "reverse"))
+        else:
+            app.logger.error(
+                {
+                    "websocket": "leave_room_admins_not_allowed",
+                    **payload,
+                },
+            )
+            print(sc.red("leave_room_admins_not_allowed", "reverse"))
+            print(sc.magenta(pformat(payload), "reverse"))
+    except:
+        app.logger.error(
+            {
+                "websocket": "leave_room_admins_internal_server",
+                **payload,
+                **request.args,
+                "error": str(traceback.format_exc()),
+            },
+        )
