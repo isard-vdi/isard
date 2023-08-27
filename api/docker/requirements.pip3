@@ -22,3 +22,4 @@ rq~=1.14
 betterproto~=1.2
 python-json-logger
 requests~=2.31
+simple-colors~=0.1

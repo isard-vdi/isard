@@ -8,7 +8,9 @@ import datetime
 import logging
 import os
 import time
+from pprint import pformat
 
+import simple_colors as sc
 from flask import g, request
 from flask.logging import default_handler
 from jose import jwt
@@ -104,17 +106,47 @@ def log_request(response):
     if data != {}:
         extra = {**extra, "data": data}
 
+    log_data = {
+        **extra,
+        "duration": duration,
+        "status": response._status_code,
+        "path": request.path,
+        "method": request.method,
+        "remote_addr": remote_addr,
+    }
     app.logger.info(
         "response served",
-        extra={
-            **extra,
-            "duration": duration,
-            "status": response._status_code,
-            "path": request.path,
-            "method": request.method,
-            "remote_addr": remote_addr,
-        },
+        extra=log_data,
     )
+    if LOG_LEVEL == "DEBUG":
+        print(
+            sc.green(response._status_code, "reverse")
+            if response._status_code == 200
+            else sc.red(response._status_code, "reverse"),
+            sc.green(request.method, "reverse")
+            if request.method == "GET"
+            else sc.blue(request.method, "reverse")
+            if request.method == "POST"
+            else sc.yellow(request.method, "reverse")
+            if request.method == "PUT"
+            else sc.red(request.method, "reverse")
+            if request.method == "DELETE"
+            else sc.magenta(request.method, "reverse"),
+            sc.green(request.path, "reverse")
+            if response._status_code == 200
+            else sc.red(request.path, "reverse"),
+            sc.green(f"{duration}s", "reverse")
+            if duration < 0.05
+            else sc.yellow(f"{duration}s", "reverse")
+            if duration < 0.1
+            else sc.blue(f"{duration}s", "reverse")
+            if duration < 0.25
+            else sc.magenta(f"{duration}s", "reverse")
+            if duration < 0.5
+            else sc.red(f"{duration}s", "reverse"),
+        )
+        if extra.get("data"):
+            print(sc.cyan(pformat(extra["data"]), "reverse"))
 
     return response
 
