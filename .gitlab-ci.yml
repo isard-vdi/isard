@@ -90,7 +90,7 @@ check-protobuf:
     entrypoint: [""]
   script:
     - buf lint
-    - buf breaking --against "${CI_PROJECT_URL}.git"
+    - buf breaking --against https://gitlab.com/isard/isardvdi.git
 
 docker-image-codegen:
   image: docker:latest
