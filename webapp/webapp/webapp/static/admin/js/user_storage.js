@@ -441,14 +441,13 @@ $(document).ready(function () {
         "rowId": "id",
         "deferRender": true,
         "columns": [
-            {
-                "className": 'details-control',
-                "orderable": false,
-                "data": null,
-                "defaultContent": '<button id="btn-details" class="btn btn-xs btn-info" type="button" data-placement="top"><i class="fa fa-plus"></i></button>'
-            },
+            // {
+            //     "className": 'details-control',
+            //     "orderable": false,
+            //     "data": null,
+            //     "defaultContent": '<button id="btn-details" class="btn btn-xs btn-info" type="button" data-placement="top"><i class="fa fa-plus"></i></button>'
+            // },
             { "data": "name" },
-            { "data": "username" },
             { "data": "group_name" },
             { "data": "category_name" },
             { "data": "user_storage.provider_id" },
@@ -457,12 +456,12 @@ $(document).ready(function () {
             { "data": "user_storage.provider_quota.used" },
             { "data": "user_storage.provider_quota.relative" },
             { "data": "user_storage.provider_quota.free" },
-            {
-                "className": 'actions-control',
-                "orderable": false,
-                "data": null,
-                "defaultContent": '<button id="btn-edit" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-pencil" style="color:darkblue"></i></button>'
-            },
+            // {
+            //     "className": 'actions-control',
+            //     "orderable": false,
+            //     "data": null,
+            //     "defaultContent": '<button id="btn-edit" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-pencil" style="color:darkblue"></i></button>'
+            // },
             { "data": "id", "visible": false },
         ],
         "order": [[1, 'asc']],
@@ -491,7 +490,7 @@ $(document).ready(function () {
 
     $('#table-user_storage_users tbody').on( 'click', 'button', function () {
         tr = $(this).closest("tr");
-        row = user_storage_users.row(tr)    
+        row = user_storage_users.row(tr)
         data = row.data();
         switch($(this).attr('id')){
             case 'btn-edit':
@@ -508,46 +507,48 @@ $(document).ready(function () {
     }); 
 
     $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
+
+    function socketio_on(){
+        socket.on('personal_unit', function(data){
+            var data = JSON.parse(data);
+            dtUpdateInsert(personalunits_progress,data,false);
+        });
+    
+        socket.on('result', function (data) {
+            var data = JSON.parse(data);
+            new PNotify({
+                title: data.title,
+                text: data.text,
+                hide: true,
+                delay: 4000,
+                icon: 'fa fa-' + data.icon,
+                opacity: 1,
+                type: data.type
+            });
+        });
+
+        socket.on('delete', function (data) {
+            var dict = JSON.parse(data);
+            data = dict['data']
+            switch (dict['table']) {
+                case 'personalunits':
+                    var row = personalunits_table.row('#'+data.id).remove().draw();
+                    break;
+            }
+            new PNotify({
+                title: "Deleted",
+                text: data.name + " has been deleted",
+                hide: true,
+                delay: 4000,
+                icon: 'fa fa-success',
+                opacity: 1,
+                type: 'success'
+            });
+        });
+    }
 })
 
-function socketio_on(){
-    socket.on('personal_unit', function(data){
-        var data = JSON.parse(data);
-        dtUpdateInsert(personalunits_progress,data,false);
-    });
 
-    socket.on('result', function (data) {
-        var data = JSON.parse(data);
-        new PNotify({
-            title: data.title,
-            text: data.text,
-            hide: true,
-            delay: 4000,
-            icon: 'fa fa-' + data.icon,
-            opacity: 1,
-            type: data.type
-        });
-    });
-
-    socket.on('delete', function (data) {
-        var dict = JSON.parse(data);
-        data = dict['data']
-        switch (dict['table']) {
-            case 'personalunits':
-                var row = personalunits_table.row('#'+data.id).remove().draw();
-                break;
-        }
-        new PNotify({
-            title: "Deleted",
-            text: data.name + " has been deleted",
-            hide: true,
-            delay: 4000,
-            icon: 'fa fa-success',
-            opacity: 1,
-            type: 'success'
-        });
-    });
-}
 
 function renderPersonalUnitsDetails(data) {
     $newPanel = $(".template-user_storage-detail").clone();
