@@ -480,7 +480,7 @@ class ApiAdmin:
                             "hardware": {
                                 "interfaces": r.row["create_dict"]["hardware"][
                                     "interfaces"
-                                ].keys()
+                                ].concat_map(lambda interface: [interface["id"]])
                             }
                         }
                     }

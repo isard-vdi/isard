@@ -740,7 +740,7 @@ def gen_new_mac():
             .pluck({"create_dict": {"hardware": {"interfaces": True}}})["create_dict"][
                 "hardware"
             ]["interfaces"]
-            .concat_map(lambda x: x.values())
+            .concat_map(lambda x: x["mac"])
             .run(db.conn)
         )
     new_mac = gen_random_mac()
