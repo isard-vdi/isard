@@ -1872,10 +1872,13 @@ class Upgrade(object):
                     new_interfaces = []
                     if not domain["create_dict"]["hardware"].get("interfaces"):
                         continue
-                    en_ifs = [
-                        interface["mac"]
-                        for interface in domain["hardware"]["interfaces"]
-                    ]
+                    if not domain["hardware"].get("interfaces"):
+                        en_ifs = []
+                    else:
+                        en_ifs = [
+                            interface["mac"]
+                            for interface in domain["hardware"]["interfaces"]
+                        ]
                     ui_ifs = [
                         mac
                         for mac in domain["create_dict"]["hardware"][
@@ -1928,28 +1931,25 @@ class Upgrade(object):
                     else:
                         # user en_ifs to construct the new_interfaces
                         for mac in en_ifs:
-                            for interface in domain["hardware"]["interfaces"]:
-                                if interface["mac"] == mac:
-                                    new_interfaces.append(
-                                        {"id": interface["name"], "mac": mac}
-                                    )
+                            for interface in domain["create_dict"]["hardware"][
+                                "interfaces"
+                            ]:
+                                if (
+                                    domain["create_dict"]["hardware"]["interfaces"][
+                                        interface
+                                    ]
+                                    == mac
+                                ):
+                                    new_interfaces.append({"id": interface, "mac": mac})
 
                     domain["create_dict"]["hardware"]["interfaces"] = new_interfaces
-                    domain["hardware"].pop("interfaces")
+                    domain["hardware"].pop("interfaces", None)
                     updated_domains.append(domain)
                 r.table("domains").insert(updated_domains, conflict="update").run(
                     self.conn
                 )
 
                 r.table(table).index_drop("wg_mac").run(self.conn)
-                # r.table(table).index_create(
-                #     "wg_mac",
-                #     [
-                #         r.row["kind"],
-                #         r.row["create_dict"]["hardware"]["interfaces"]["wireguard"],
-                #     ],
-                # ).run(self.conn)
-
                 r.table(table).index_create(
                     "wg_mac",
                     lambda domain: domain["create_dict"]["hardware"][
