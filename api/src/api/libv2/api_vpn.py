@@ -106,18 +106,20 @@ def reset_connections_list_status(
     data,
 ):
     connection_data = {"connected": False, "remote_ip": None, "remote_port": None}
-    for client_vpn in data:
-        if client_vpn["kind"] == "users":
-            with app.app_context():
-                r.table("users").get_all(
-                    client_vpn["client_ip"], index="wg_client_ip"
-                ).update({"vpn": {"wireguard": connection_data}}).run(db.conn)
-                r.table("remotevpn").get_all(
-                    client_vpn["client_ip"], index="wg_client_ip"
-                ).update({"vpn": {"wireguard": connection_data}}).run(db.conn)
-        if client_vpn["kind"] == "hypers":
-            with app.app_context():
-                r.table("hypervisors").get_all(
-                    client_vpn["client_ip"], index="wg_client_ip"
-                ).update({"vpn": {"wireguard": connection_data}}).run(db.conn)
+    users_vpn_ips = [d["client_ip"] for d in data if d["kind"] == "users"]
+    if len(users_vpn_ips):
+        with app.app_context():
+            r.table("users").get_all(
+                r.args(users_vpn_ips), index="wg_client_ip"
+            ).update({"vpn": {"wireguard": connection_data}}).run(db.conn)
+            r.table("remotevpn").get_all(
+                r.args(users_vpn_ips), index="wg_client_ip"
+            ).update({"vpn": {"wireguard": connection_data}}).run(db.conn)
+
+    hypers_vpn_ips = [d["client_ip"] for d in data if d["kind"] == "hypers"]
+    if len(hypers_vpn_ips):
+        with app.app_context():
+            r.table("hypervisors").get_all(
+                r.args(hypers_vpn_ips), index="wg_client_ip"
+            ).update({"vpn": {"wireguard": connection_data}}).run(db.conn)
     return True
