@@ -981,31 +981,26 @@ class Quotas:
                 }
                 create_dict["hardware"]["memory"] = user_hardware["quota"]["memory"]
 
-        if len(create_dict["hardware"].get("interfaces", [])):
-            interfaces_allowed = [uh["id"] for uh in user_hardware["interfaces"]]
-            interfaces_requested = create_dict["hardware"]["interfaces"]
-            for interface_requested_index, id_interface_requested in enumerate(
-                interfaces_requested
-            ):
-                if id_interface_requested not in interfaces_allowed:
-                    if "interfaces" not in limited:
-                        limited["interfaces"] = {
-                            "old_value": [
-                                {
-                                    "id": id_interface_requested,
-                                    "name": r.table("interfaces")
-                                    .get(id_interface_requested)
-                                    .pluck("name")
-                                    .run(db.conn)["name"],
-                                }
-                            ],
-                            "new_value": [],
-                        }
-                    else:
-                        limited["interfaces"]["old_value"].append(
-                            id_interface_requested
-                        )
-                    create_dict["hardware"]["interfaces"].pop(interface_requested_index)
+            if len(create_dict["hardware"].get("interfaces", [])):
+                interfaces = [uh["id"] for uh in user_hardware["interfaces"]]
+                for interface in create_dict["hardware"]["interfaces"]:
+                    if interface not in interfaces:
+                        if "interfaces" not in limited:
+                            limited["interfaces"] = {
+                                "old_value": [
+                                    {
+                                        "id": interface,
+                                        "name": r.table("interfaces")
+                                        .get(interface)
+                                        .pluck("name")
+                                        .run(db.conn)["name"],
+                                    }
+                                ],
+                                "new_value": [],
+                            }
+                        else:
+                            limited["interfaces"]["old_value"].append(interface)
+                        create_dict["hardware"]["interfaces"].remove(interface)
             if not len(create_dict["hardware"]["interfaces"]):
                 limited["interfaces"]["new_value"] = [
                     r.table("interfaces")

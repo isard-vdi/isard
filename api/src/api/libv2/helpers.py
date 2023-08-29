@@ -260,9 +260,10 @@ def _parse_desktop(desktop):
         v.replace("_", "-") for v in list(desktop["guest_properties"]["viewers"].keys())
     ]
 
-    desktop["create_dict"]["hardware"]["interfaces"] = list(
-        desktop["create_dict"]["hardware"].get("interfaces", [])
-    )
+    desktop["create_dict"]["hardware"]["interfaces"] = [
+        interface["id"]
+        for interface in desktop["create_dict"]["hardware"]["interfaces"]
+    ]
     if desktop["status"] == "Started":
         if "wireguard" in desktop["create_dict"]["hardware"]["interfaces"]:
             desktop["ip"] = desktop.get("viewer", {}).get("guest_ip")
@@ -339,9 +340,7 @@ def _parse_desktop(desktop):
             "category": desktop.get("category"),
             "category_name": desktop.get("category_name"),
             "reservables": desktop["create_dict"].get("reservables"),
-            "interfaces": list(
-                desktop["create_dict"].get("hardware", {}).get("interfaces", [])
-            ),
+            "interfaces": desktop["create_dict"]["hardware"]["interfaces"],
         },
         **_parse_desktop_booking(desktop),
     }
@@ -466,9 +465,11 @@ def parse_domain_insert(new_data):
         new_data["hardware"]["reservables"]["vgpus"] = None
 
     interfaces = new_data.get("hardware", {}).get("interfaces", [])
-    new_data["hardware"]["interfaces"] = {}
+    new_data["hardware"]["interfaces"] = []
     for interface in interfaces:
-        new_data["hardware"]["interfaces"][interface] = gen_new_mac()
+        new_data["hardware"]["interfaces"].append(
+            {"id": interface, "mac": gen_new_mac()}
+        )
     return new_data
 
 
@@ -549,19 +550,29 @@ def parse_domain_update(domain_id, new_data, admin_or_manager=False):
             }
 
         if new_data["hardware"].get("interfaces"):
-            old_interfaces = list(
-                domain["create_dict"]["hardware"].get("interfaces", [])
-            )
+            old_interfaces = [
+                interface["id"]
+                for interface in domain["create_dict"]["hardware"]["interfaces"]
+            ]
             new_interfaces = new_data["hardware"].get("interfaces")
             if old_interfaces != new_interfaces:
-                interfaces = {}
+                interfaces = []
                 for new_interface in new_interfaces:
-                    if new_interface not in old_interfaces:
-                        interfaces[new_interface] = gen_new_mac()
-                    else:
-                        interfaces[new_interface] = domain["create_dict"]["hardware"][
-                            "interfaces"
-                        ].get(new_interface, gen_new_mac())
+                    interfaces.append(
+                        {
+                            "id": new_interface,
+                            "mac": next(
+                                (
+                                    item["mac"]
+                                    for item in domain["create_dict"]["hardware"][
+                                        "interfaces"
+                                    ]
+                                    if item["id"] == new_interface
+                                ),
+                                gen_new_mac(),
+                            ),
+                        }
+                    )
                 new_data["hardware"] = {
                     **new_data["hardware"],
                     **{"interfaces": r.literal(interfaces)},

@@ -381,11 +381,15 @@ def admin_table_delete(table, item_id):
         query = r.table("domains")
         desktops = query.pluck("id", "create_dict").run(db.conn)
         for desktop in desktops:
-            if item_id in desktop["create_dict"]["hardware"]["interfaces"]:
-                desktop["create_dict"]["hardware"]["interfaces"].pop(item_id, None)
-                desktop["create_dict"]["hardware"]["interfaces"] = r.literal(
-                    desktop["create_dict"]["hardware"]["interfaces"]
-                )
+            if any(
+                interface["id"] == item_id
+                for interface in desktop["create_dict"]["hardware"]["interfaces"]
+            ):
+                desktop["create_dict"]["hardware"]["interfaces"] = [
+                    interface
+                    for interface in desktop["create_dict"]["hardware"]["interfaces"]
+                    if interface["id"] != item_id
+                ]
                 admin_table_update("domains", desktop)
     with app.app_context():
         if r.table(table).get(item_id).run(db.conn):
@@ -501,7 +505,7 @@ class ApiAdmin:
                             "hardware": {
                                 "interfaces": r.row["create_dict"]["hardware"][
                                     "interfaces"
-                                ].keys()
+                                ].concat_map(lambda interface: [interface["id"]])
                             }
                         }
                     }
@@ -718,7 +722,7 @@ class ApiAdmin:
                             ],
                             "interfaces": domain["create_dict"]["hardware"][
                                 "interfaces"
-                            ].keys(),
+                            ].map(lambda interface: interface["id"]),
                         }
                     )
                     .order_by("name")

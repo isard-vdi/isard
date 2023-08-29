@@ -464,9 +464,10 @@ class ApiDesktopsPersistent:
                     traceback.format_exc(),
                     description_code="not_found",
                 )
-            data["hardware"]["interfaces"] = {
-                interface: gen_new_mac() for interface in interfaces
-            }
+            data["hardware"]["interfaces"] = [
+                {"id": interface, "mac": gen_new_mac()}
+                for interface in data["hardware"]["interfaces"]
+            ]
 
         if data["hardware"].get("disk_size"):
             disks = [
@@ -689,11 +690,15 @@ class ApiDesktopsPersistent:
 
             if data.get("hardware", {}).get("interfaces") == None:
                 data["hardware"] = {
-                    "interfaces": list(domain["create_dict"]["hardware"]["interfaces"])
+                    "interfaces": [
+                        interface["id"]
+                        for interface in domain["create_dict"]["hardware"]["interfaces"]
+                    ]
                 }
-                viewers_hardware["interfaces"] = list(
-                    domain["create_dict"]["hardware"]["interfaces"]
-                )
+                viewers_hardware["interfaces"] = [
+                    interface["id"]
+                    for interface in domain["create_dict"]["hardware"]["interfaces"]
+                ]
             elif data.get("hardware", {}).get("interfaces") == []:
                 data["hardware"] = {"interfaces": []}
                 viewers_hardware["interfaces"] = []

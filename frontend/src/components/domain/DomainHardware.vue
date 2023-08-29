@@ -276,9 +276,9 @@
         </div>
         <span v-if="domain.kind === 'desktop'">
           <template
-            v-for="(mac, network, index) in interfacesMac"
+            v-for="(network, index) in interfaces"
           >
-            <template v-if="index > 0">, </template>{{ `${availableHardware.interfaces.find(e => e.id === network).name} - ${mac}` }}
+            <template v-if="index > 0">, </template>{{ `${availableHardware.interfaces.find(e => e.id === interfaces[index]).name} - ${interfacesMac[index] ? interfacesMac[index] : 'Not defined yet' }` }}
           </template>
         </span>
       </b-col>
