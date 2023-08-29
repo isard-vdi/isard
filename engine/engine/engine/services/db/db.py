@@ -204,7 +204,7 @@ def get_interface(id):
     try:
         dict_domain = rtable.get(id).run(r_conn)
     except:
-        log.error("interface with id {} not defined in database table interfaces")
+        log.error(f"interface with id {id} not defined in database table interfaces")
         dict_domain = None
 
     close_rethink_connection(r_conn)

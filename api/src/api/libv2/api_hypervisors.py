@@ -570,13 +570,15 @@ class ApiHypervisors:
             try:
                 domain_id = list(
                     r.table("domains")
-                    .get_all(["desktop", mac], index="wg_mac")
+                    .get_all(mac, index="wg_mac")
+                    .filter({"kind": "desktop"})
                     .run(db.conn)
                 )[0]["id"]
+                app.logger.info("Updating wg_address for domain " + domain_id)
                 r.table("domains").get(domain_id).update(data).run(db.conn)
                 return domain_id
             except:
-                # print(traceback.format_exc())
+                app.logger.error("Error updating wg_address: " + traceback.format_exc())
                 return False
 
     def get_hypervisor_vpn(self, hyper_id):
