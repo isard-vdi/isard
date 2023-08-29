@@ -402,28 +402,26 @@ isard_users_info_cache = TTLCache(maxsize=10, ttl=240)
 
 @cached(isard_users_info_cache)
 def _get_isard_users_info(provider_id=None):
-    if not provider_id:
-        with app.app_context():
-            return (
-                r.table("users")
-                .pluck(
-                    "id", "name", "role", "group", "category", "user_storage", "email"
-                )
-                .group("id")
-                .run(db.conn)
-            )
     provider = _get_provider(provider_id)
-    if provider["cfg"]["access"] != "*":
+    if not provider or provider.get("cfg", {}).get("access") == "*":
         with app.app_context():
             return (
                 r.table("users")
-                .get_all(provider["cfg"]["access"], index="category")
                 .pluck(
                     "id", "name", "role", "group", "category", "user_storage", "email"
                 )
                 .group("id")
                 .run(db.conn)
             )
+
+    with app.app_context():
+        return (
+            r.table("users")
+            .get_all(provider["cfg"]["access"], index="category")
+            .pluck("id", "name", "role", "group", "category", "user_storage", "email")
+            .group("id")
+            .run(db.conn)
+        )
 
 
 def _get_isard_user_info(user_id):
@@ -525,7 +523,7 @@ def _get_isard_groups_info(provider_id=None):
             )
     with app.app_context():
         return (
-            r.table("users")
+            r.table("groups")
             .pluck("id", "name", "parent_category")
             .merge(
                 lambda group: {
