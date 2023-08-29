@@ -97,7 +97,6 @@ def get_desktop_status(desktop_id):
             raise Error(
                 "not_found",
                 "Desktop not found",
-                traceback.format_exc(),
                 description_code="not_found",
             )
     return status
