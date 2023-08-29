@@ -215,14 +215,13 @@ class ThreadBroom(threading.Thread):
                                         {"mountpoints": h.get_storage_used()},
                                     )
                             else:
+                                hyps_domain_started[hyp_id] = {}
                                 logs.broom.error(
                                     "HYPERVISOR {} libvirt connection failed"
                                 )
-                                hyps_domain_started[hyp_id] = False
                                 logs.broom.error(
                                     "Traceback: {}".format(traceback.format_exc())
                                 )
-                                hyps_domain_started[hyp_id] = False
                                 continue
 
                             h.disconnect()

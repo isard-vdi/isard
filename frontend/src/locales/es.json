@@ -838,6 +838,9 @@
                 "downloading": "Descargando",
                 "faileddeleted": "Descarga fallida",
                 "downloadfailed": "Descarga fallida",
+                "downloadaaborting": "Abortando descarga",
+                "downloadstarting": "Iniciando descarga",
+                "resetdownloading": "Reiniciando descarga",
                 "downloaded": "Descargado",
                 "deleting": "Borrando",
                 "maintenance": "Mantenimiento"

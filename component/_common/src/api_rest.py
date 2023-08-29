@@ -98,7 +98,9 @@ class ApiRest:
                 )
                 self.verify_cert = False
         self.service = service
-        logging.info("Api base url for service " + service + " set to " + self.base_url)
+        logging.debug(
+            "Api base url for service " + service + " set to " + self.base_url
+        )
 
     def wait_for(self, max_retries=-1, timeout=1):
         while max_retries:

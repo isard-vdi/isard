@@ -42,32 +42,11 @@ login_manager.login_view = "login"
 class User(UserMixin):
     def __init__(self, dict):
         self.id = dict["id"]
-        self.provider = dict["provider"]
-        self.category = dict["category"]
-        self.uid = dict["uid"]
-        self.username = dict["username"]
-        self.name = dict["name"]
         self.role = dict["role"]
-        self.group = dict["group"]
-        self.path = (
-            dict["category"]
-            + "/"
-            + dict["group_uid"]
-            + "/"
-            + dict["provider"]
-            + "/"
-            + dict["uid"]
-            + "-"
-            + dict["username"]
-            + "/"
-        )
-        self.email = dict["email"]
-        self.quota = dict["quota"]
-        self.auto = dict["auto"] if "auto" in dict.keys() else False
         self.is_admin = True if self.role == "admin" else False
-        self.active = dict["active"]
-        self.tags = dict.get("tags", [])
-        self.photo = dict["photo"]
+        self.category = dict["category"]
+        self.name = dict["name"]
+        self.username = dict["username"]
 
 
 @cached(TTLCache(maxsize=10, ttl=5))

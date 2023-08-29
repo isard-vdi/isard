@@ -661,6 +661,9 @@
                 "downloading": "Descarregant",
                 "faileddeleted": "Descàrrega fallida",
                 "downloadfailed": "Descàrrega fallida",
+                "downloadaaborting": "Abortant descàrrega",
+                "downloadstarting": "Iniciant descàrrega",
+                "resetdownloading": "Reiniciant descàrrega",
                 "downloaded": "Descarregat",
                 "deleting": "Esborrant",
                 "maintenance": "Manteniment"

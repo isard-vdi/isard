@@ -5,17 +5,21 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
+import os
 import time
+from pprint import pformat
 
 from rethinkdb import RethinkDB
 
 from api import app
 
 r = RethinkDB()
+
 import json
 import logging as log
 import traceback
 
+import simple_colors as sc
 from rethinkdb.errors import ReqlDriverError
 
 from ..libv2.api_desktops_common import ApiDesktopsCommon
@@ -294,50 +298,93 @@ def start_domains_thread():
 def socketio_users_connect():
     try:
         payload = get_token_payload(request.args.get("jwt"))
-
-    except Error as e:
-        if e.error["error"] == "unauthorized":
-            return json.dumps({"status": "unauthorized"}), 401
-
-        else:
-            raise e
+    except:
+        app.logger.error(
+            {
+                "websocket": "join_room_jwt_error",
+                **payload,
+                **request.args,
+                "error": str(traceback.format_exc()),
+            },
+        )
+        return
 
     if payload.get("desktop_id"):
-        try:
-            with app.app_context():
-                list(r.table("domains").get(payload.get("desktop_id")).run(db.conn))[0]
-        except:
-            raise Error(
-                "not_found",
-                "Websocket direct viewer desktop_id "
-                + str(payload.get("desktop_id"))
-                + " not found",
-                traceback.format_exc(),
-            )
+        with app.app_context():
+            if not r.table("domains").get(payload.get("desktop_id")).run(db.conn):
+                raise Error(
+                    "not_found",
+                    "Websocket viewer desktop_id "
+                    + str(payload.get("desktop_id"))
+                    + " not found",
+                    traceback.format_exc(),
+                )
+
         join_room(payload.get("desktop_id"))
-        log.debug(
-            "Websocket direct viewer for desktop_id "
-            + str(payload.get("desktop_id"))
-            + " joined"
-        )
+        if os.environ.get("DEBUG_WEBSOCKETS", "") == "true":
+            app.logger.debug(
+                {
+                    "websocket": "join_room_desktop_id_direct_viewer",
+                    **payload,
+                },
+            )
+            print(sc.green("join_room_desktop_id_direct_viewer", "reverse"))
+            print(sc.magenta(pformat(payload), "reverse"))
     elif payload.get("user_id"):
         join_room(payload["user_id"])
-        log.debug("Websocket user_id " + payload["user_id"] + " joined")
+        if os.environ.get("DEBUG_WEBSOCKETS", "") == "true":
+            app.logger.debug(
+                {
+                    "websocket": "join_room_user_id",
+                    **payload,
+                },
+            )
+            print(sc.green("join_room_user_id", "reverse"))
+            print(sc.magenta(pformat(payload), "reverse"))
     else:
-        raise Error(
-            "not_found",
-            "Websocket connection incorrect data",
-            traceback.format_exc(),
-        )
+        if os.environ.get("DEBUG_WEBSOCKETS", "") == "true":
+            app.logger.error(
+                {
+                    "websocket": "join_room_users_not_allowed",
+                    **payload,
+                },
+            )
+            print(sc.red("join_room_users_not_allowed", "reverse"))
+            print(sc.magenta(pformat(payload), "reverse"))
 
 
 @socketio.on("disconnect", namespace="/userspace")
-def socketio_domains_disconnect(data=False):
+def socketio_domains_disconnect(data=None):
     try:
         payload = get_token_payload(request.args.get("jwt"))
         if payload.get("desktop_id"):
             leave_room(payload.get("desktop_id"))
+            if os.environ.get("DEBUG_WEBSOCKETS", "") == "true":
+                app.logger.debug(
+                    {
+                        "websocket": "leave_room_desktop_id_direct_viewer",
+                        **payload,
+                    },
+                )
+            print(sc.yellow("leave_room_desktop_id_direct_viewer", "reverse"))
+            print(sc.magenta(pformat(payload), "reverse"))
         else:
             leave_room(payload["user_id"])
+            if os.environ.get("DEBUG_WEBSOCKETS", "") == "true":
+                app.logger.debug(
+                    {
+                        "websocket": "leave_room_user_id",
+                        **payload,
+                    },
+                )
+                print(sc.yellow("leave_room_user_id", "reverse"))
+                print(sc.magenta(pformat(payload), "reverse"))
     except:
-        log.debug(traceback.format_exc())
+        app.logger.error(
+            {
+                "websocket": "leave_room_users_internal_server",
+                **payload,
+                **request.args,
+                "error": str(traceback.format_exc()),
+            },
+        )
