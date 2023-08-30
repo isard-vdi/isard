@@ -112,7 +112,12 @@ class Error(Exception):
         description_code=None,
         data=None,
         params=None,
+        custom_request=None,
     ):
+        if custom_request:
+            self.request = custom_request
+        else:
+            self.request = request
         # NOTE: Description codes are defined at https://gitlab.com/isard/isardvdi/-/blob/main/frontend/src/locales/en.json#L340
         self.error = ex[error]["error"].copy()
         self.error["description_code"] = description_code if description_code else error
@@ -143,12 +148,14 @@ class Error(Exception):
         self.error["request"] = (
             "{}\n{}\r\n{}\r\n\r\n{}{}".format(
                 "----------- REQUEST START -----------",
-                request.method + " " + request.url,
-                "\r\n".join("{}: {}".format(k, v) for k, v in request.headers.items()),
-                request.body if hasattr(request, "body") else "",
+                self.request.method + " " + self.request.url,
+                "\r\n".join(
+                    "{}: {}".format(k, v) for k, v in self.request.headers.items()
+                ),
+                self.request.body if hasattr(self.request, "body") else "",
                 "----------- REQUEST STOP  -----------",
             )
-            if request
+            if self.request
             else ""
         )
         self.error["data"] = (
@@ -172,10 +179,12 @@ class Error(Exception):
                     "function_call": "[%s -> %s]"
                     % (self.error.get("function_call"), self.error.get("function")),
                     "request": {
-                        "method": request.method,
-                        "url": request.url,
-                        "headers": request.headers,
-                        "body": request.body if hasattr(request, "body") else "",
+                        "method": self.request.method,
+                        "url": self.request.url,
+                        "headers": self.request.headers,
+                        "body": self.request.body
+                        if hasattr(self.request, "body")
+                        else "",
                     },
                     "data": data if data else "",
                     "debug": debug,
