@@ -180,6 +180,7 @@ class Error(Exception):
                 app.logger.error(
                     error,
                     extra={
+                        "status": self.status_code,
                         "error": self.error.get("description"),
                         "error_type": error,
                         "request": {
@@ -193,6 +194,7 @@ class Error(Exception):
                 app.logger.error(
                     error,
                     extra={
+                        "status": self.status_code,
                         "error": self.error.get("description"),
                         "error_type": error,
                         "function_call": "[%s -> %s]"
