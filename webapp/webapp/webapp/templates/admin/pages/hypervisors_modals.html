@@ -27,7 +27,7 @@
                      <span class="sr-only">Close</span>
                </button>
                <h4 class="modal-title" id="myModalLabel">
-                  <i class="fa fa-plus fa-1x"> </i><i class="fa fa-rocket"> </i> Add new hypervisor
+                  <i class="fa fa-plus fa-1x"></i> <i class="fa fa-rocket"> </i> Add new Hypervisor
                </h4>
             </div>
             <!-- Modal Body -->
@@ -217,7 +217,7 @@
                   <span class="sr-only">Close</span>
             </button>
             <h4 class="modal-title" id="myModalLabel">
-               <i class="fa fa-plus fa-1x"></i><i class="fa fa-rocket"> </i> Edit hypervisor
+               <i class="fa fa-pencil"></i> <i class="fa fa-rocket"></i> Edit hypervisor
             </h4>
          </div>
             
@@ -409,31 +409,31 @@
                   <span class="sr-only">Close</span>
             </button>
             <h4 class="modal-title" id="myModalLabel">
-               <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-briefcase"> </i> Add new gpu
+               <i class="fa fa-plus fa-1x"> </i> <i class="fa fa-briefcase"> </i> Add new GPU
             </h4>
          </div>
          <!-- Modal Body -->
          <div class="modal-body">
             <form id="modalAdd" class="form-inline form-label-left">
                <div class="x_panel">
-                  <h4><i class="fa fa-info-circle" aria-hidden="true"></i> Gpu name and description</h4>
+                  <h4><i class="fa fa-info-circle" aria-hidden="true"></i> GPU name and description</h4>
                   <div class="x_content" style="padding: 0px;">
                      <div class="row">
                         <div class="col-md-4 col-xs-12">
                            <label class="control-label" for="name">Name <span class="required">*</span>
                            </label>
-                           <input id="name" class="roundbox" maxlength="40" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New gpu name" data-parsley-trigger="change" required type="text" style="width:100%">
+                           <input id="name" class="roundbox" maxlength="40" pattern="^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New GPU name" data-parsley-trigger="change" required type="text" style="width:100%">
                         </div>
                         <div class="col-md-8 col-xs-12">
                            <label class="control-label" for="description">Description <span class="required">*</span>
                            </label>
-                           <input id="description" class="roundbox" name="description" placeholder="Gpu description"  type="text" style="width:100%">
+                           <input id="description" class="roundbox" name="description" placeholder="GPU description"  type="text" style="width:100%">
                         </div>
                      </div>
                   </div>
                </div>
                <div class="x_panel">
-                  <h4><i class="fa fa-briefcase" aria-hidden="true"></i> Select a profile</h4>
+                  <h4><i class="fa fa-briefcase" aria-hidden="true"></i> Select a vGPU Profile</h4>
                   <input  id="reservable_type" name="reservable_type" type="hidden" required>
                   <input  id="bookable" name="bookable" type="hidden" required>
                   <table id="modal_add_gpu" class="table" cellspacing="0" width="100%"  style="margin-top: 0px;">
@@ -458,7 +458,7 @@
                   </li>
                </ul>
                <ul class="nav navbar-right panel_toolbox">
-                  <li><button id="send" type="button" class="btn btn-success">Create bookable</button></li>
+                  <li><button id="send" type="button" class="btn btn-success">Create GPU</button></li>
                   </li>
                </ul>
             </div>
@@ -531,7 +531,7 @@
                <span class="sr-only">Close</span>
             </button>
             <h4 class="modal-title" id="myModalLabel">
-               <i class="fa fa-flash"> </i> Force GPU Active Profile
+               <i class="fa fa-flash"></i> Force GPU Active Profile
             </h4>
          </div>
 
@@ -566,7 +566,7 @@
                 <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
             </ul>
             <ul class="nav navbar-right panel_toolbox">
-               <li><button id="send" type="button" class="btn btn-success">Send</button></li>
+               <li><button id="send" type="button" class="btn btn-success">Update active profile</button></li>
             </ul>
         </div>
       </div>

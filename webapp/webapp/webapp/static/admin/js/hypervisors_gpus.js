@@ -458,7 +458,7 @@ function initalize_bookables_modal_events() {
       $("#modalAddGpu #datatables-error-status")
         .empty()
         .html(
-          '<b style="color:DarkSeaGreen">Bookable selected: ' +
+          '<b style="color:DarkSeaGreen">vGPU Profile selected: ' +
             rdata["name"] +
             "</b>"
         )
