@@ -73,6 +73,26 @@ def get_token_auth_header():
     return get_token_header("Authorization")
 
 
+def get_expired_user_data(token):
+    try:
+        claims = jwt.get_unverified_claims(token)
+    except:
+        return None
+    try:
+        if claims.get("kid") == "isardvdi":
+            return claims.get("data")
+        elif claims.get("kid") == "isardvdi-viewer" and claims.get("data").get(
+            "desktop_id"
+        ):
+            return claims.get("data")
+        else:
+            # Not a system secret
+            return None
+    except Exception as e:
+        log.debug(e)
+    return None
+
+
 def get_token_payload(token):
     try:
         claims = jwt.get_unverified_claims(token)
@@ -113,7 +133,12 @@ def get_token_payload(token):
             options=dict(verify_aud=False, verify_sub=False, verify_exp=True),
         )
     except jwt.ExpiredSignatureError:
-        raise Error("unauthorized", "Token expired")
+        raise Error(
+            "unauthorized",
+            "Token expired",
+            description_code="token_expired",
+            data=get_expired_user_data(token),
+        )
     except jwt.JWTClaimsError:
         raise Error(
             "unauthorized",

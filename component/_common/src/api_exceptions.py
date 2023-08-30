@@ -171,25 +171,44 @@ class Error(Exception):
         self.content_type = content_type
         self.error["params"] = params
         if self.status_code in ex_codes:
-            app.logger.error(
-                error,
-                extra={
-                    "error": self.error.get("description"),
-                    "error_type": error,
-                    "function_call": "[%s -> %s]"
-                    % (self.error.get("function_call"), self.error.get("function")),
-                    "request": {
-                        "method": self.request.method,
-                        "url": self.request.url,
-                        "headers": self.request.headers,
-                        "body": self.request.body
-                        if hasattr(self.request, "body")
-                        else "",
+            if error == "unauthorized":
+                url = self.request.url.split("/?jwt=")
+                if len(url) > 1:
+                    # It's a websocket connection
+                    if not os.environ.get("DEBUG_WEBSOCKETS", "") == "true":
+                        return
+                app.logger.error(
+                    error,
+                    extra={
+                        "error": self.error.get("description"),
+                        "error_type": error,
+                        "request": {
+                            "method": self.request.method,
+                            "url": url[0],
+                        },
+                        "data": data if data else "",
                     },
-                    "data": data if data else "",
-                    "debug": debug,
-                },
-            )
+                )
+            else:
+                app.logger.error(
+                    error,
+                    extra={
+                        "error": self.error.get("description"),
+                        "error_type": error,
+                        "function_call": "[%s -> %s]"
+                        % (self.error.get("function_call"), self.error.get("function")),
+                        "request": {
+                            "method": self.request.method,
+                            "url": self.request.url,
+                            "headers": self.request.headers,
+                            "body": self.request.body
+                            if hasattr(self.request, "body")
+                            else "",
+                        },
+                        "data": data if data else "",
+                        "debug": debug,
+                    },
+                )
 
 
 @app.errorhandler(Error)
