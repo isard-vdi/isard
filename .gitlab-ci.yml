@@ -25,27 +25,6 @@ variables:
   DOCKER_TLS_CERTDIR: "/certs"
   FF_NETWORK_PER_BUILD: 1
 
-.containers: &containers
-  - api
-  - scheduler
-  - authentication
-  - backupninja
-  - core_worker
-  - db
-  - engine
-  - grafana
-  - guac
-  - rdpgw
-  - hypervisor
-  - portal
-  - squid
-  - static
-  - stats-go
-  - stats-rethinkdb
-  - storage
-  - webapp
-  - websockify
-
 default:
   cache: &global_cache
     - key:
@@ -126,10 +105,9 @@ docker-image-codegen:
     - until docker info; do sleep 1; done
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
-    - docker build -f $DOCKERFILE --cache-from registry.gitlab.com/isard/isardvdi/$IMAGE:main --cache-from registry.gitlab.com/isard/isardvdi/$IMAGE:$CI_COMMIT_REF_SLUG --cache-to type=inline -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
+    - docker build -f $DOCKERFILE --cache-from registry.gitlab.com/isard/isardvdi/$IMAGE:main --cache-to type=inline -t $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG .
     - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
     - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
-    - docker push $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG
 
 gen-protobuf:
   stage: gen
@@ -227,19 +205,19 @@ docker-compose-build:
     - echo "DOCKER_IMAGE_PREFIX=${CI_REGISTRY_IMAGE}/" >> isardvdi.build.cfg
     - echo "DOCKER_IMAGE_TAG=$CI_COMMIT_REF_SLUG" >> isardvdi.build.cfg
     - echo "USAGE=build" >> isardvdi.build.cfg
-    - cp isardvdi.build.cfg isardvdi.infrastructure_build.cfg
-    - echo "INFRASTRUCTURE_MANAGEMENT=true" >> isardvdi.infrastructure_build.cfg
-    - cp isardvdi.build.cfg isardvdi.video_standalone_build.cfg
-    - echo "FLAVOUR=video-standalone" >> isardvdi.video_standalone_build.cfg
-    - cp isardvdi.build.cfg isardvdi.monitor_build.cfg
-    - echo "FLAVOUR=monitor" >> isardvdi.monitor_build.cfg
-    - cp isardvdi.build.cfg isardvdi.check_build.cfg
-    - echo "FLAVOUR=check" >> isardvdi.check_build.cfg
-    - cp isardvdi.build.cfg isardvdi.nextcloud_build.cfg
-    - echo "FLAVOUR=nextcloud" >> isardvdi.nextcloud_build.cfg
+    - cp isardvdi.build.cfg isardvdi.infrastructure.build.cfg
+    - echo "INFRASTRUCTURE_MANAGEMENT=true" >> isardvdi.infrastructure.build.cfg
+    - cp isardvdi.build.cfg isardvdi.video-standalone.build.cfg
+    - echo "FLAVOUR=video-standalone" >> isardvdi.video-standalone.build.cfg
+    - cp isardvdi.build.cfg isardvdi.monitor.build.cfg
+    - echo "FLAVOUR=monitor" >> isardvdi.monitor.build.cfg
+    - cp isardvdi.build.cfg isardvdi.check.build.cfg
+    - echo "FLAVOUR=check" >> isardvdi.check.build.cfg
+    - cp isardvdi.build.cfg isardvdi.nextcloud.build.cfg
+    - echo "FLAVOUR=nextcloud" >> isardvdi.nextcloud.build.cfg
     - BACKUP_DB_ENABLED=true CODEGEN=false ./build.sh
     - |-
-      for file in docker-compose*.yml; do yq -i '.services |= map_values(.build.cache_from = [ "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":main", "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":" + env(CI_COMMIT_REF_SLUG) ]) |= map_values(.build.cache_to = [ "type=inline" ])' $file; done
+      for file in docker-compose*.yml; do yq -i '.services |= map_values(.build.cache_from = [ "registry.gitlab.com/isard/isardvdi/" + (.container_name | sub("isard-", "")) + ":main" ]) |= map_values(.build.cache_to = [ "type=inline" ])' $file; done
   artifacts:
     paths:
       - docker-compose*.yml
@@ -249,66 +227,55 @@ docker-image:
   stage: docker-images
   services:
     - name: "docker:dind-rootless"
-  variables:
-    DOCKER_COMPOSE: >-
-      build
-      infrastructure_build
-      video_standalone_build
-      monitor_build
-      check_build
-      nextcloud_build
-    build: >-
-      api
-      scheduler
-      authentication
-      backupninja
-      core_worker
-      db
-      engine
-      grafana
-      guac
-      rdpgw
-      hypervisor
-      portal
-      squid
-      static
-      stats-go
-      stats-rethinkdb
-      storage
-      vpn
-      webapp
-      websockify
-    infrastructure_build: >-
-      orchestrator
-    video_standalone_build: >-
-      video
-    monitor_build: >-
-      monitor-proxy
-    check_build: >-
-      check
-      check-client
-    nextcloud_build: >-
-      nc-proxy
-      nc-app
+  parallel:
+    matrix:
+      - DOCKER_COMPOSE: build
+        IMAGE: &containers
+          - api
+          - scheduler
+          - authentication
+          - backupninja
+          - core_worker
+          - db
+          - engine
+          - grafana
+          - guac
+          - rdpgw
+          - hypervisor
+          - portal
+          - squid
+          - static
+          - stats-go
+          - stats-rethinkdb
+          - storage
+          - webapp
+          - websockify
+      - DOCKER_COMPOSE: build
+        IMAGE_DEPENDENCY: isard-rdpgw
+        IMAGE: vpn
+      - DOCKER_COMPOSE: infrastructure.build
+        IMAGE: orchestrator
+      - DOCKER_COMPOSE: video-standalone.build
+        IMAGE: video
+      - DOCKER_COMPOSE: monitor.build
+        IMAGE: monitor-proxy
+      - DOCKER_COMPOSE: check.build
+        IMAGE:
+          - check
+          - check-client
+      - DOCKER_COMPOSE: nextcloud.build
+        IMAGE:
+          - nc-proxy
+          - nc-app
   before_script:
-    - apk add git docker-compose bash
+    - apk add git docker-compose
     - until docker info; do sleep 1; done
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
     - git submodule update --init --recursive --remote
-    - docker-compose -f docker-compose.build.yml build isard-rdpgw
-    - docker tag $CI_REGISTRY_IMAGE/rdpgw:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/rdpgw:git-$CI_COMMIT_SHORT_SHA
-    - docker push $CI_REGISTRY_IMAGE/rdpgw:$CI_COMMIT_REF_SLUG
-    - docker push $CI_REGISTRY_IMAGE/rdpgw:git-$CI_COMMIT_SHORT_SHA
-    - |
-      bash -c 'for FILE in $DOCKER_COMPOSE; do
-        for IMAGE in ${!FILE}; do
-          docker-compose -f docker-compose.$FILE.yml build isard-$IMAGE
-          docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
-          docker push $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG
-          docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
-        done
-      done'
+    - echo $IMAGE_DEPENDENCY isard-$IMAGE | xargs -n1 docker-compose -f docker-compose.$DOCKER_COMPOSE.yml build
+    - docker tag $CI_REGISTRY_IMAGE/$IMAGE:$CI_COMMIT_REF_SLUG $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
+    - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
 
 # test-e2e:
 #   stage: test
