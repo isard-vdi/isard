@@ -499,17 +499,6 @@ class ApiAdmin:
                 r.table("deployments")
                 .get(deployment_id)
                 .pluck("create_dict")
-                .merge(
-                    {
-                        "create_dict": {
-                            "hardware": {
-                                "interfaces": r.row["create_dict"]["hardware"][
-                                    "interfaces"
-                                ].concat_map(lambda interface: [interface["id"]])
-                            }
-                        }
-                    }
-                )
                 .run(db.conn)
             )
         return desktop_viewer
