@@ -151,6 +151,7 @@ class ApiDesktopsPersistent:
                 )
 
         if new_data:
+            # In new data interfaces are a list of ids
             if not new_data.get("hardware", {}).get("interfaces"):
                 new_data["hardware"]["interfaces"] = template["create_dict"][
                     "hardware"
@@ -164,7 +165,17 @@ class ApiDesktopsPersistent:
                     "reservables"
                 ]
                 template["create_dict"]["hardware"].pop("reservables")
-
+        else:
+            # In template interfaces are a list of dicts (as we inherited from existing template)
+            # so we need to convert them to a list of ids
+            template["create_dict"]["hardware"]["interfaces"] = [
+                i["id"] for i in template["create_dict"]["hardware"]["interfaces"]
+            ]
+            # Generate new macs always for new desktops
+            template["create_dict"]["hardware"] = {
+                **template["create_dict"]["hardware"],
+                **parse_domain_insert(template["create_dict"])["hardware"],
+            }
         parent_disk = template["hardware"]["disks"][0]["file"]
         create_dict = template["create_dict"]
         create_dict["hardware"]["disks"] = [
