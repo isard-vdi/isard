@@ -461,12 +461,6 @@ fi
 git submodule init
 git submodule update --recursive --remote
 
-# Update custom dashboards/alerts if exist
-if [ -d "/opt/isard/monitor/grafana/custom/.git" ]
-then
-	sh -c "cd /opt/isard/monitor/grafana/custom && git pull"
-fi
-
 get_config_files | while read config_file
 do
 	(create_docker_compose_file "$config_file")
