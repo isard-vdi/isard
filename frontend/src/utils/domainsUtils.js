@@ -24,8 +24,8 @@ export class DomainsUtils {
         diskSize: hardware.disk_size,
         floppies: AllowedUtils.parseItems(hardware.floppies),
         graphics: hardware.graphics,
-        interfaces: hardware.interfaces,
-        interfacesMac: hardware.interfaces_mac,
+        interfaces: hardware.interfaces.map(i => i.id),
+        interfacesMac: hardware.interfaces.map(i => i.mac),
         isos: AllowedUtils.parseItems(hardware.isos),
         memory: parseFloat(hardware.memory),
         vcpus: parseInt(hardware.vcpus),
@@ -41,7 +41,7 @@ export class DomainsUtils {
   }
 
   static parseAvailableHardware (hardware) {
-    const { boot_order: bootOrder, disks, floppies, graphics, interfaces, interfaces_mac: interfacesMac, isos, videos } = hardware
+    const { boot_order: bootOrder, disks, floppies, graphics, interfaces, isos, videos } = hardware
     // Unlimited default quota
     let quota = { memory: 128, vcpus: 128, desktopDiskSizes: 500 }
     if (hardware.quota !== false) {
@@ -69,7 +69,6 @@ export class DomainsUtils {
       floppies,
       graphics,
       interfaces,
-      interfacesMac,
       isos,
       memory,
       vcpus,

@@ -227,12 +227,6 @@ class ApiDesktopsCommon:
                 .pluck({"create_dict": {"hardware", "reservables"}})
                 .run(db.conn)["create_dict"]
             )
-        hardware["hardware"]["interfaces_mac"] = [
-            i["mac"] for i in hardware["hardware"].get("interfaces", [])
-        ]
-        hardware["hardware"]["interfaces"] = [
-            i["id"] for i in hardware["hardware"]["interfaces"]
-        ]
         if "isos" in hardware["hardware"]:
             with app.app_context():
                 isos = hardware["hardware"]["isos"]
