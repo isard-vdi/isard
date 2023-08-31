@@ -254,7 +254,11 @@ function setHardwareDomainDefaultsDetails(domain_id,item){
            }else{
                 $(div_id+" #gpu").closest("tr").hide();
             }
-            $(div_id+" #net").html(data.interfaces_names.join(', '));
+            let interfaces = []
+            $.each(data.hardware.interfaces, function (key, value) {
+                interfaces.push(`${value.name} (${value.mac})`)
+            })
+            $(div_id+" #net").html(interfaces.join(', '));
             $(div_id+" #video").html(data.video_name);
             $(div_id+" #boot").html(data.boot_name);
             $(div_id+" #disk_bus").html(data.hardware.disk_bus);

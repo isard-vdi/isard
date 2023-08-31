@@ -54,11 +54,6 @@ class ApiDomains:
                 .pluck("create_dict")["create_dict"]
                 .merge(
                     lambda domain: {
-                        "interfaces_names": domain["hardware"]["interfaces"].map(
-                            lambda interface: r.table("interfaces").get(
-                                interface["id"]
-                            )["name"]
-                        ),
                         "video_name": domain["hardware"]["videos"].map(
                             lambda video: r.table("videos").get(video)["name"]
                         ),
@@ -76,6 +71,14 @@ class ApiDomains:
                         ),
                     }
                 )
+                .run(db.conn)
+            )
+
+        for index, interface in enumerate(hardware["hardware"]["interfaces"]):
+            hardware["hardware"]["interfaces"][index]["name"] = (
+                r.table("interfaces")
+                .get(interface["id"])
+                .pluck("name")["name"]
                 .run(db.conn)
             )
 
