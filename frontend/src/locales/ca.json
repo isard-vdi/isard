@@ -812,7 +812,7 @@
                 "fullscreen-enabled": "Pantalla completa activada",
                 "guest": {
                     "title": "Login RDP",
-                    "warning": "ATENCIÓN: La contrasenya es guardarà com a text pla!!",
+                    "warning": "ATENCIÓ: La contrasenya es guardarà com a text pla!!",
                     "username": "Usuari",
                     "password": "Contrasenya"
                 }
@@ -833,7 +833,7 @@
                 "vgpus": "GPU"
             },
             "media": {
-                "title": "Media",
+                "title": "Mitjans",
                 "isos": "Isos",
                 "floppies": "Floppies"
             },
