@@ -261,7 +261,9 @@ def _parse_desktop(desktop):
     ]
 
     if desktop["status"] == "Started":
-        if "wireguard" in desktop["create_dict"]["hardware"]["interfaces"]:
+        if "wireguard" in [
+            i["id"] for i in desktop["create_dict"]["hardware"]["interfaces"]
+        ]:
             desktop["ip"] = desktop.get("viewer", {}).get("guest_ip")
             if not desktop["ip"]:
                 desktop["status"] = "WaitingIP"
