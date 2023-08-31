@@ -260,10 +260,6 @@ def _parse_desktop(desktop):
         v.replace("_", "-") for v in list(desktop["guest_properties"]["viewers"].keys())
     ]
 
-    desktop["create_dict"]["hardware"]["interfaces"] = [
-        interface["id"]
-        for interface in desktop["create_dict"]["hardware"]["interfaces"]
-    ]
     if desktop["status"] == "Started":
         if "wireguard" in desktop["create_dict"]["hardware"]["interfaces"]:
             desktop["ip"] = desktop.get("viewer", {}).get("guest_ip")
