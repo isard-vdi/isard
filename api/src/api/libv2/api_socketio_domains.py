@@ -9,6 +9,7 @@ import os
 import time
 from pprint import pformat
 
+from jose.jwt import ExpiredSignatureError
 from rethinkdb import RethinkDB
 
 from api import app
@@ -44,7 +45,7 @@ threads = {}
 from flask import request
 
 from .._common.api_exceptions import Error
-from .._common.tokens import Error, get_token_payload
+from .._common.tokens import get_expired_user_data, get_token_payload
 from ..libv2.deployments.api_deployments import get
 from .api_scheduler import Scheduler
 from .helpers import (
@@ -295,30 +296,25 @@ def start_domains_thread():
 
 # Domains namespace
 @socketio.on("connect", namespace="/userspace")
-def socketio_users_connect():
+def socketio_users_connect(nothing_should_be_here=None):
+    if nothing_should_be_here != None:
+        app.logger.error(
+            "Call to socketio_admins_connect with args, wtf? args="
+            + str(nothing_should_be_here)
+        )
+        return
+
     try:
         payload = get_token_payload(request.args.get("jwt"))
     except:
-        app.logger.error(
-            {
-                "websocket": "join_room_jwt_error",
-                **payload,
-                **request.args,
-                "error": str(traceback.format_exc()),
-            },
-        )
+        quit_users_rooms(request.args.get("jwt"))
         return
 
     if payload.get("desktop_id"):
         with app.app_context():
             if not r.table("domains").get(payload.get("desktop_id")).run(db.conn):
-                raise Error(
-                    "not_found",
-                    "Websocket viewer desktop_id "
-                    + str(payload.get("desktop_id"))
-                    + " not found",
-                    traceback.format_exc(),
-                )
+                quit_users_rooms(request.args.get("jwt"))
+                return
 
         join_room(payload.get("desktop_id"))
         if os.environ.get("DEBUG_WEBSOCKETS", "") == "true":
@@ -342,6 +338,7 @@ def socketio_users_connect():
             print(sc.green("join_room_user_id", "reverse"))
             print(sc.magenta(pformat(payload), "reverse"))
     else:
+        quit_users_rooms(request.args.get("jwt"))
         if os.environ.get("DEBUG_WEBSOCKETS", "") == "true":
             app.logger.error(
                 {
@@ -355,36 +352,47 @@ def socketio_users_connect():
 
 @socketio.on("disconnect", namespace="/userspace")
 def socketio_domains_disconnect(data=None):
+    quit_users_rooms(request.args.get("jwt"))
+
+
+def quit_users_rooms(jwt):
     try:
-        payload = get_token_payload(request.args.get("jwt"))
-        if payload.get("desktop_id"):
-            leave_room(payload.get("desktop_id"))
-            if os.environ.get("DEBUG_WEBSOCKETS", "") == "true":
-                app.logger.debug(
-                    {
-                        "websocket": "leave_room_desktop_id_direct_viewer",
-                        **payload,
-                    },
-                )
-            print(sc.yellow("leave_room_desktop_id_direct_viewer", "reverse"))
-            print(sc.magenta(pformat(payload), "reverse"))
-        else:
-            leave_room(payload["user_id"])
-            if os.environ.get("DEBUG_WEBSOCKETS", "") == "true":
-                app.logger.debug(
-                    {
-                        "websocket": "leave_room_user_id",
-                        **payload,
-                    },
-                )
-                print(sc.yellow("leave_room_user_id", "reverse"))
-                print(sc.magenta(pformat(payload), "reverse"))
-    except:
-        app.logger.error(
+        payload = get_token_payload(jwt)
+    except ExpiredSignatureError:
+        payload = get_expired_user_data(jwt)
+        if not payload:
+            return {}
+        app.logger.debug(
             {
-                "websocket": "leave_room_users_internal_server",
+                "websocket": "leave_room_users_expired_token",
                 **payload,
-                **request.args,
-                "error": str(traceback.format_exc()),
             },
         )
+    except:
+        payload = get_expired_user_data(jwt)
+        if not payload:
+            return {}
+
+    if payload.get("desktop_id"):
+        leave_room(payload.get("desktop_id"))
+        if os.environ.get("DEBUG_WEBSOCKETS", "") == "true":
+            app.logger.debug(
+                {
+                    "websocket": "leave_room_desktop_id_direct_viewer",
+                    **payload,
+                },
+            )
+        print(sc.yellow("leave_room_desktop_id_direct_viewer", "reverse"))
+        print(sc.magenta(pformat(payload), "reverse"))
+    elif payload.get("user_id"):
+        leave_room(payload["user_id"])
+        if os.environ.get("DEBUG_WEBSOCKETS", "") == "true":
+            app.logger.debug(
+                {
+                    "websocket": "leave_room_user_id",
+                    **payload,
+                },
+            )
+            print(sc.yellow("leave_room_user_id", "reverse"))
+            print(sc.magenta(pformat(payload), "reverse"))
+    return payload

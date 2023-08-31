@@ -29,6 +29,7 @@ import threading
 
 from flask import request
 from flask_socketio import join_room, leave_room
+from jose.jwt import ExpiredSignatureError
 
 from .. import socketio
 
@@ -36,7 +37,7 @@ threads = {}
 
 from flask import request
 
-from .._common.tokens import get_token_payload
+from .._common.tokens import get_expired_user_data, get_token_payload
 from .api_admin import ApiAdmin
 from .api_logging import logs_domain_start_engine, logs_domain_stop_engine
 from .api_scheduler import Scheduler
@@ -762,18 +763,13 @@ def socketio_admins_connect(nothing_should_be_here=None):
             + str(nothing_should_be_here)
         )
         return
+
     try:
         payload = get_token_payload(request.args.get("jwt"))
     except:
-        app.logger.error(
-            {
-                "websocket": "join_room_jwt_error",
-                **payload,
-                **request.args,
-                "error": str(traceback.format_exc()),
-            },
-        )
+        quit_admins_rooms(request.args.get("jwt"))
         return
+
     try:
         if payload["role_id"] == "admin":
             join_room(payload["user_id"])
@@ -810,6 +806,7 @@ def socketio_admins_connect(nothing_should_be_here=None):
                 print(sc.red("join_room_admins_not_allowed", "reverse"))
                 print(sc.magenta(pformat(payload), "reverse"))
     except:
+        payload = quit_admins_rooms(request.args.get("jwt"))
         app.logger.error(
             {
                 "websocket": "join_room_admins_internal_server",
@@ -822,8 +819,28 @@ def socketio_admins_connect(nothing_should_be_here=None):
 
 @socketio.on("disconnect", namespace="/administrators")
 def socketio_admins_disconnect(data=None):
+    quit_admins_rooms(request.args.get("jwt"))
+
+
+def quit_admins_rooms(jwt):
     try:
-        payload = get_token_payload(request.args.get("jwt"))
+        payload = get_token_payload(jwt)
+    except ExpiredSignatureError:
+        payload = get_expired_user_data(jwt)
+        if not payload:
+            return {}
+        app.logger.debug(
+            {
+                "websocket": "leave_room_admins_expired_token",
+                **payload,
+            },
+        )
+    except:
+        payload = get_expired_user_data(jwt)
+        if not payload:
+            return {}
+
+    if payload.get("user_id"):
         leave_room(payload["user_id"])
         if payload["role_id"] == "admin":
             leave_room("admins")
@@ -854,14 +871,8 @@ def socketio_admins_disconnect(data=None):
                     **payload,
                 },
             )
-            print(sc.red("leave_room_admins_not_allowed", "reverse"))
-            print(sc.magenta(pformat(payload), "reverse"))
-    except:
-        app.logger.error(
-            {
-                "websocket": "leave_room_admins_internal_server",
-                **payload,
-                **request.args,
-                "error": str(traceback.format_exc()),
-            },
-        )
+            if os.environ.get("DEBUG_WEBSOCKETS", "") == "true":
+                print(sc.red("leave_room_admins_not_allowed", "reverse"))
+                print(sc.magenta(pformat(payload), "reverse"))
+        return payload
+    return {}
