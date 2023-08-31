@@ -5,7 +5,8 @@
         "minLengthValue": "The {property} field has {model} characters, but it must have a min length of {min}.",
         "maxLengthValue": "The {property} field has {model} characters, but it must have a maximum length of {max}.",
         "inputFormat": "Valid characters are letters, numbers, comma, dot, -, _",
-        "url": "The {property} field must be an url."
+        "url": "The {property} field must be an url.",
+        "undefined": "Not defined"
     },
     "forms": {
         "allowed": {

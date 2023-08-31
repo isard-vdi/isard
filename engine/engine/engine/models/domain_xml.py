@@ -1552,8 +1552,8 @@ def populate_dict_hardware_from_create_dict(id_domain):
     list_interfaces_mac = []
     interfaces = create_dict["hardware"].get("interfaces", None)
     if interfaces:
-        list_interfaces_id = list(interfaces)
-        list_interfaces_mac = list(interfaces.values())
+        list_interfaces_id = [i["id"] for i in interfaces]
+        list_interfaces_mac = [i["mac"] for i in interfaces]
     new_hardware_dict["interfaces"] = create_list_interfaces_from_list_ids(
         list_interfaces_id, list_interfaces_mac
     )
@@ -1742,8 +1742,8 @@ def recreate_xml_interfaces(dict_domain, x):
     try:
         interfaces = dict_domain["create_dict"]["hardware"].get("interfaces", None)
         if interfaces:
-            list_interfaces = list(interfaces)
-            list_interfaces_mac = list(interfaces.values())
+            list_interfaces = [i["id"] for i in interfaces]
+            list_interfaces_mac = [i["mac"] for i in interfaces]
     except:
         log.error(
             "domain {} interfaces error in create_dict. Starting without any interface!".format(

@@ -331,9 +331,9 @@ def formatDomains(data, user_id):
         d["hypervisors_pools"] = d["create_dict"]["hypervisors_pools"]
         d["guest_properties"] = default_guest_properties()
         interfaces = d["create_dict"]["hardware"]["interfaces"]
-        d["create_dict"]["hardware"]["interfaces"] = {
-            interface: gen_new_mac() for interface in interfaces
-        }
+        d["create_dict"]["hardware"]["interfaces"] = [
+            {"id": interface, "mac": gen_new_mac()} for interface in interfaces
+        ]
         if d.get("options"):
             d.pop("options")
         d.update(get_user_data(user_id))

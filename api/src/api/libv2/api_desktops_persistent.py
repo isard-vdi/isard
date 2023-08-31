@@ -151,6 +151,7 @@ class ApiDesktopsPersistent:
                 )
 
         if new_data:
+            # In new data interfaces are a list of ids
             if not new_data.get("hardware", {}).get("interfaces"):
                 new_data["hardware"]["interfaces"] = template["create_dict"][
                     "hardware"
@@ -164,7 +165,17 @@ class ApiDesktopsPersistent:
                     "reservables"
                 ]
                 template["create_dict"]["hardware"].pop("reservables")
-
+        else:
+            # In template interfaces are a list of dicts (as we inherited from existing template)
+            # so we need to convert them to a list of ids
+            template["create_dict"]["hardware"]["interfaces"] = [
+                i["id"] for i in template["create_dict"]["hardware"]["interfaces"]
+            ]
+            # Generate new macs always for new desktops
+            template["create_dict"]["hardware"] = {
+                **template["create_dict"]["hardware"],
+                **parse_domain_insert(template["create_dict"])["hardware"],
+            }
         parent_disk = template["hardware"]["disks"][0]["file"]
         create_dict = template["create_dict"]
         create_dict["hardware"]["disks"] = [
@@ -357,9 +368,9 @@ class ApiDesktopsPersistent:
             check_user_duplicated_domain_name(data["name"], user_id)
             quotas.desktop_create(user_id)
 
-        template["create_dict"]["hardware"]["interfaces"] = list(
-            template["create_dict"]["hardware"].get("interfaces", {}).keys()
-        )
+        template["create_dict"]["hardware"]["interfaces"] = [
+            i["id"] for i in template["create_dict"]["hardware"].get("interfaces", {})
+        ]
         for user_id in users:
             desktop_data = {
                 "name": data["name"],
@@ -464,9 +475,10 @@ class ApiDesktopsPersistent:
                     traceback.format_exc(),
                     description_code="not_found",
                 )
-            data["hardware"]["interfaces"] = {
-                interface: gen_new_mac() for interface in interfaces
-            }
+            data["hardware"]["interfaces"] = [
+                {"id": interface, "mac": gen_new_mac()}
+                for interface in data["hardware"]["interfaces"]
+            ]
 
         if data["hardware"].get("disk_size"):
             disks = [
@@ -689,11 +701,15 @@ class ApiDesktopsPersistent:
 
             if data.get("hardware", {}).get("interfaces") == None:
                 data["hardware"] = {
-                    "interfaces": list(domain["create_dict"]["hardware"]["interfaces"])
+                    "interfaces": [
+                        interface["id"]
+                        for interface in domain["create_dict"]["hardware"]["interfaces"]
+                    ]
                 }
-                viewers_hardware["interfaces"] = list(
-                    domain["create_dict"]["hardware"]["interfaces"]
-                )
+                viewers_hardware["interfaces"] = [
+                    interface["id"]
+                    for interface in domain["create_dict"]["hardware"]["interfaces"]
+                ]
             elif data.get("hardware", {}).get("interfaces") == []:
                 data["hardware"] = {"interfaces": []}
                 viewers_hardware["interfaces"] = []

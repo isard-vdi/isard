@@ -125,13 +125,6 @@ class DomainsThread(threading.Thread):
                         else:
                             if not _is_frontend_desktop_status(c["new_val"]["status"]):
                                 continue
-                            c["new_val"]["create_dict"]["hardware"][
-                                "interfaces"
-                            ] = list(
-                                c["new_val"]["create_dict"]["hardware"].get(
-                                    "interfaces", []
-                                )
-                            )
                             if c["new_val"]["kind"] != "desktop":
                                 item = "template"
                             else:
@@ -217,11 +210,7 @@ class DomainsThread(threading.Thread):
                             if c["old_val"] is None or c["old_val"].get("tag_visible"):
                                 socketio.emit(
                                     "desktop_delete",
-                                    json.dumps(
-                                        data
-                                        if item != "desktop"
-                                        else _parse_desktop(data)
-                                    ),
+                                    json.dumps({"id": data["id"]}),
                                     namespace="/userspace",
                                     room=data["user"],
                                 )

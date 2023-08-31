@@ -176,9 +176,9 @@ def new(
 ):
     # CREATE_DEPLOYMENT
     new_data["hardware"] = parse_domain_insert(new_data)["hardware"]
-    new_data["hardware"]["interfaces"] = list(
-        new_data["hardware"].get("interfaces", {}).keys()
-    )
+    new_data["hardware"]["interfaces"] = [
+        i["id"] for i in new_data["hardware"].get("interfaces", {})
+    ]
     new_data["hardware"]["memory"] = new_data["hardware"]["memory"] * 1048576
     new_data["reservables"] = new_data["hardware"].pop("reservables")
     deployment = {
@@ -575,9 +575,7 @@ def get_deployment_details_hardware(deployment_id):
             .pluck("create_dict")["create_dict"]
             .merge(
                 lambda domain: {
-                    "interfaces_names": domain["hardware"]["interfaces"]
-                    .keys()
-                    .map(
+                    "interfaces_names": domain["hardware"]["interfaces"].map(
                         lambda interface: r.table("interfaces").get(interface)["name"]
                     ),
                     "video_name": domain["hardware"]["videos"].map(

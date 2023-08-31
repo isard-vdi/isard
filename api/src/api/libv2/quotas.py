@@ -982,25 +982,30 @@ class Quotas:
                 create_dict["hardware"]["memory"] = user_hardware["quota"]["memory"]
 
         if len(create_dict["hardware"].get("interfaces", [])):
-            interfaces = [uh["id"] for uh in user_hardware["interfaces"]]
-            for interface in create_dict["hardware"]["interfaces"]:
-                if interface not in interfaces:
-                    if "interfaces" not in limited:
-                        limited["interfaces"] = {
-                            "old_value": [
-                                {
-                                    "id": interface,
-                                    "name": r.table("interfaces")
-                                    .get(interface)
-                                    .pluck("name")
-                                    .run(db.conn)["name"],
-                                }
-                            ],
-                            "new_value": [],
+            limited["interfaces"] = {"old_value": [], "new_value": []}
+            interfaces_allowed = [uh["id"] for uh in user_hardware["interfaces"]]
+            interfaces_requested = create_dict["hardware"]["interfaces"]
+            for interface_requested in interfaces_requested:
+                if interface_requested["id"] not in interfaces_allowed:
+                    limited["interfaces"]["old_value"].append(
+                        {
+                            "id": interface_requested["id"],
+                            "name": r.table("interfaces")
+                            .get(interface_requested["id"])
+                            .pluck("name")
+                            .run(db.conn)["name"],
                         }
-                    else:
-                        limited["interfaces"]["old_value"].append(interface)
-                    create_dict["hardware"]["interfaces"].remove(interface)
+                    )
+
+            create_dict["hardware"]["interfaces"] = [
+                x
+                for x in create_dict["hardware"]["interfaces"]
+                if x["id"] not in [i["id"] for i in limited["interfaces"]["old_value"]]
+            ]
+
+            if not len(limited["interfaces"]["old_value"]):
+                del limited["interfaces"]
+
             if not len(create_dict["hardware"]["interfaces"]):
                 limited["interfaces"]["new_value"] = [
                     r.table("interfaces")
@@ -1221,7 +1226,9 @@ class Quotas:
                     traceback.format_exc(),
                     description_code="not_found",
                 )
-            domain["hardware"]["interfaces"] = list(domain["hardware"]["interfaces"])
+            domain["hardware"]["interfaces"] = [
+                i["id"] for i in domain["hardware"]["interfaces"]
+            ]
         else:
             domain = {}
 

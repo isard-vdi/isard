@@ -24,7 +24,7 @@
         >
           <ul>
             {{ hardwareWarningTitle[key] }}
-            <li v-if="['videos', 'boot_order', 'isos', 'vgpus', 'floppies'].includes(key)">
+            <li v-if="['videos', 'boot_order', 'isos', 'vgpus', 'floppies', 'interfaces'].includes(key)">
               <span
                 v-for="change of value['old_value']"
                 :key="change['id']"
@@ -276,9 +276,9 @@
         </div>
         <span v-if="domain.kind === 'desktop'">
           <template
-            v-for="(mac, network, index) in interfacesMac"
+            v-for="(network, index) in interfaces"
           >
-            <template v-if="index > 0">, </template>{{ `${availableHardware.interfaces.find(e => e.id === network).name} - ${mac}` }}
+            <template v-if="index > 0">, </template>{{ `${availableHardware.interfaces.find(e => e.id === interfaces[index]).name} - ${interfacesMac[index] ? interfacesMac[index] : `${$t("validations.undefined")}` }` }}
           </template>
         </span>
       </b-col>

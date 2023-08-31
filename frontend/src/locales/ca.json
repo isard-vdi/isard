@@ -698,7 +698,8 @@
         "minLengthValue": "El camp {property} té {model} caràcters, però ha de tenir com a mínim una llargada de {min}.",
         "maxLengthValue": "El camp {property} te {model} caràcters, però ha de tenir una com a màxim una llargada de {max}.",
         "inputFormat": "Els caràcters vàlids són lletres, digits, coma, punt, - i _",
-        "url": "El camp {property} ha de ser una adreça web."
+        "url": "El camp {property} ha de ser una adreça web.",
+        "undefined": "No definit"
     },
     "forms": {
         "allowed": {

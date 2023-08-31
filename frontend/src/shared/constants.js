@@ -144,6 +144,7 @@ export const hardwareWarningTitle = {
   vcpus: i18n.t('forms.domain.hardware.vcpus'),
   memory: i18n.t('forms.domain.hardware.memory'),
   isos: i18n.t('forms.domain.media.isos'),
+  interfaces: i18n.t('forms.domain.hardware.interfaces'),
   floppies: i18n.t('forms.domain.media.floppies'),
   boot_order: i18n.t('forms.domain.hardware.boot'),
   vgpus: i18n.t('forms.domain.bookables.vgpus')

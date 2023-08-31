@@ -17,7 +17,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 100
+release_version = 101
+# release 101: Interfaces as list to keep order
 # release 100: Fix interfaces starting with blank space
 # release 99: Fix empty interface array to dict
 # release 98: Update desktops created with wrong interfaces
@@ -1848,6 +1849,114 @@ class Upgrade(object):
                 r.table("interfaces").filter(
                     lambda interface: interface["id"].match("^ ")
                 ).delete().run(self.conn)
+
+            except Exception as e:
+                print(e)
+
+        if version == 101:
+            try:
+                domains_to_update = list(
+                    r.table("domains")
+                    .pluck(
+                        {
+                            "id": True,
+                            "hardware": {"interfaces": True},
+                            "create_dict": {"hardware": {"interfaces": True}},
+                        }
+                    )
+                    .run(self.conn)
+                )
+
+                updated_domains = []
+                for domain in domains_to_update:
+                    new_interfaces = []
+                    if not domain["create_dict"]["hardware"].get("interfaces"):
+                        continue
+                    if not domain["hardware"].get("interfaces"):
+                        en_ifs = []
+                    else:
+                        en_ifs = [
+                            interface["mac"]
+                            for interface in domain["hardware"]["interfaces"]
+                        ]
+                    ui_ifs = [
+                        mac
+                        for mac in domain["create_dict"]["hardware"][
+                            "interfaces"
+                        ].values()
+                    ]
+                    if en_ifs == ui_ifs:
+                        # Has been updated, so create new default order
+                        if (
+                            "default"
+                            in domain["create_dict"]["hardware"]["interfaces"].keys()
+                        ):
+                            new_interfaces.append(
+                                {
+                                    "id": "default",
+                                    "mac": domain["create_dict"]["hardware"][
+                                        "interfaces"
+                                    ]["default"],
+                                }
+                            )
+                            domain["create_dict"]["hardware"]["interfaces"].pop(
+                                "default"
+                            )
+                        if (
+                            "wireguard"
+                            in domain["create_dict"]["hardware"]["interfaces"].keys()
+                        ):
+                            new_interfaces.append(
+                                {
+                                    "id": "wireguard",
+                                    "mac": domain["create_dict"]["hardware"][
+                                        "interfaces"
+                                    ]["wireguard"],
+                                }
+                            )
+                            domain["create_dict"]["hardware"]["interfaces"].pop(
+                                "wireguard"
+                            )
+                        for interface in domain["create_dict"]["hardware"][
+                            "interfaces"
+                        ]:
+                            new_interfaces.append(
+                                {
+                                    "id": interface,
+                                    "mac": domain["create_dict"]["hardware"][
+                                        "interfaces"
+                                    ][interface],
+                                }
+                            )
+                    else:
+                        # user en_ifs to construct the new_interfaces
+                        for mac in en_ifs:
+                            for interface in domain["create_dict"]["hardware"][
+                                "interfaces"
+                            ]:
+                                if (
+                                    domain["create_dict"]["hardware"]["interfaces"][
+                                        interface
+                                    ]
+                                    == mac
+                                ):
+                                    new_interfaces.append({"id": interface, "mac": mac})
+
+                    domain["create_dict"]["hardware"]["interfaces"] = new_interfaces
+                    domain["hardware"].pop("interfaces", None)
+                    updated_domains.append(domain)
+                r.table("domains").insert(updated_domains, conflict="update").run(
+                    self.conn
+                )
+
+                r.table(table).index_drop("wg_mac").run(self.conn)
+                r.table(table).index_create(
+                    "wg_mac",
+                    lambda domain: domain["create_dict"]["hardware"][
+                        "interfaces"
+                    ].concat_map(lambda data: [data["mac"]]),
+                    multi=True,
+                ).run(self.conn)
 
             except Exception as e:
                 print(e)
