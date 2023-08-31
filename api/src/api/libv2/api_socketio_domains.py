@@ -125,13 +125,6 @@ class DomainsThread(threading.Thread):
                         else:
                             if not _is_frontend_desktop_status(c["new_val"]["status"]):
                                 continue
-                            c["new_val"]["create_dict"]["hardware"][
-                                "interfaces"
-                            ] = list(
-                                c["new_val"]["create_dict"]["hardware"].get(
-                                    "interfaces", []
-                                )
-                            )
                             if c["new_val"]["kind"] != "desktop":
                                 item = "template"
                             else:
