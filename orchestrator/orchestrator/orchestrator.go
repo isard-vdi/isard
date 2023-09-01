@@ -117,6 +117,11 @@ func (o *Orchestrator) Start(ctx context.Context) {
 
 				o.log.Debug().Array("isard_hypervisors", log.NewModelHypervisors(hypers)).Array("infrastructure_hypervisors", log.NewOperationsV1ListHypervisorsResponse(operationsHypers)).Msg("infrastructure state")
 
+				// Cleanup "zombie" hypervisors (hypervisors that no longer exist in the operations service, but are still in the API but are not online)
+				if err := o.cleanup(ctx, hypers, operationsHypers.GetHypervisors()); err != nil {
+					o.log.Error().Err(err).Msg("cleanup zombie hypervisors")
+				}
+
 				create, destroy, removeDeadRow, addDeadRow, err := o.director.NeedToScaleHypervisors(ctx, operationsHypers.Hypervisors, hypers)
 				if err != nil {
 					o.log.Error().Err(err).Msg("check if there are hypervisors that need to scale")
