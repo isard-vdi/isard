@@ -53,6 +53,7 @@ type Interface interface {
 
 	HypervisorList(context.Context) ([]*Hypervisor, error)
 	HypervisorGet(ctx context.Context, id string) (*Hypervisor, error)
+	HypervisorDelete(ctx context.Context, id string) error
 
 	DesktopList(context.Context) ([]*Desktop, error)
 	DesktopGet(ctx context.Context, id string) (*Desktop, error)

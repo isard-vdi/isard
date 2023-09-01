@@ -50,3 +50,16 @@ func (c *Client) HypervisorGet(ctx context.Context, id string) (*Hypervisor, err
 
 	return hyper, nil
 }
+
+func (c *Client) HypervisorDelete(ctx context.Context, id string) error {
+	req, err := c.newRequest(http.MethodDelete, fmt.Sprintf("hypervisor/%s", id), nil)
+	if err != nil {
+		return err
+	}
+
+	if _, err := c.do(ctx, req, nil); err != nil {
+		return fmt.Errorf("delete hypervisor: %w", err)
+	}
+
+	return nil
+}

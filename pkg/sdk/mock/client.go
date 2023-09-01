@@ -102,6 +102,11 @@ func (c *Client) HypervisorGet(ctx context.Context, id string) (*isardvdi.Hyperv
 	return args.Get(0).(*isardvdi.Hypervisor), args.Error(1)
 }
 
+func (c *Client) HypervisorDelete(ctx context.Context, id string) error {
+	args := c.Called(ctx, id)
+	return args.Error(0)
+}
+
 func (c *Client) DesktopList(ctx context.Context) ([]*isardvdi.Desktop, error) {
 	args := c.Called(ctx)
 	return args.Get(0).([]*isardvdi.Desktop), args.Error(1)
