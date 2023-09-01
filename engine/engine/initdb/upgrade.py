@@ -17,7 +17,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 101
+release_version = 102
+# release 102: Fix domains with empty interfaces field that got a dict instead of list
 # release 101: Interfaces as list to keep order
 # release 100: Fix interfaces starting with blank space
 # release 99: Fix empty interface array to dict
@@ -1961,6 +1962,30 @@ class Upgrade(object):
             except Exception as e:
                 print(e)
 
+        if version == 102:
+            try:
+                domains_to_update = list(
+                    r.table("domains")
+                    .filter(
+                        r.row["create_dict"]["hardware"]["interfaces"].type_of()
+                        == "OBJECT"
+                    )
+                    .merge(
+                        lambda domain: {"create_dict": {"hardware": {"interfaces": []}}}
+                    )
+                    .pluck(
+                        {
+                            "id": True,
+                            "create_dict": {"hardware": {"interfaces": True}},
+                        }
+                    )
+                    .run(self.conn)
+                )
+                r.table("domains").insert(domains_to_update, conflict="update").run(
+                    self.conn
+                )
+            except Exception as e:
+                print(e)
         return True
 
     """
