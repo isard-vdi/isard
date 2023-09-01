@@ -55,12 +55,15 @@ func main() {
 			failed = instance.RspErr
 
 			if errors.Is(instance.RspErr, ErrHypersNum) {
+				log.Warn().Str("host", instance.Host).Int("expected_hypers", instance.HypersNum).Int32("actual_hypers", instance.Rsp.HypervisorNum).Str("isardvdi_version", instance.Rsp.IsardvdiVersion).Msg("check finished")
 				msg += fmt.Sprintf("WARN (%d/%d) %s - %s\n", instance.Rsp.HypervisorNum, instance.HypersNum, instance.Host, instance.Rsp.IsardvdiVersion)
 			} else {
+				log.Error().Str("host", instance.Host).Err(instance.RspErr).Msg("check failed")
 				msg += fmt.Sprintf("FAIL (?/?) %s - ???\n", instance.Host)
 				err = instance.RspErr
 			}
 		} else {
+			log.Info().Str("host", instance.Host).Str("isardvdi_version", instance.Rsp.IsardvdiVersion).Msg("check finished")
 			msg += fmt.Sprintf("OK   (%d/%d) %s - %s\n", instance.Rsp.HypervisorNum, instance.HypersNum, instance.Host, instance.Rsp.IsardvdiVersion)
 		}
 	}
@@ -90,14 +93,16 @@ type MonitorConfig struct {
 }
 
 type MonitorInstance struct {
-	Host       string                         `json:"host"`
-	Category   string                         `json:"category"`
-	Username   string                         `json:"username"`
-	Password   string                         `json:"password"`
-	TemplateID string                         `json:"template_id"`
-	HypersNum  int                            `json:"hypers_num"`
-	Rsp        *checkv1.CheckIsardVDIResponse `json:"-"`
-	RspErr     error                          `json:"-"`
+	Host            string                         `json:"host"`
+	Category        string                         `json:"category"`
+	Username        string                         `json:"username"`
+	Password        string                         `json:"password"`
+	TemplateID      string                         `json:"template_id"`
+	HypersNum       int                            `json:"hypers_num"`
+	FailMaintenance bool                           `json:"fail_maintenance"`
+	FailSelfSigned  bool                           `json:"fail_self_signed"`
+	Rsp             *checkv1.CheckIsardVDIResponse `json:"-"`
+	RspErr          error                          `json:"-"`
 }
 
 func check(ctx context.Context, wg *sync.WaitGroup, checkAddr string, instance *MonitorInstance) {
@@ -124,8 +129,8 @@ func check(ctx context.Context, wg *sync.WaitGroup, checkAddr string, instance *
 			},
 		},
 		TemplateId:          instance.TemplateID,
-		FailMaintenanceMode: true,
-		FailSelfSigned:      true,
+		FailMaintenanceMode: instance.FailMaintenance,
+		FailSelfSigned:      instance.FailSelfSigned,
 	})
 	if err != nil {
 		instance.RspErr = err

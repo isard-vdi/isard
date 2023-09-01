@@ -11,6 +11,8 @@
             "username": "admin",
             "password": "password",
             "template_id": "tempalte_id",
+            "fail_maintenance": true,
+            "fail_self_signed": true,
             "hypers_num": 3
         }
     ]
