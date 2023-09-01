@@ -26,7 +26,7 @@ version:
     # https://github.com/semantic-release/semantic-release/issues/2207
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   script:
-    - npm install -g semantic-release @semantic-release/exec conventional-changelog-conventionalcommits
+    - npm install -g semantic-release @semantic-release/exec conventional-changelog-conventionalcommits@6
     - cp releaserc.version.yml .releaserc.yml
     - semantic-release --dry-run --branches $CI_COMMIT_REF_NAME
   artifacts:
@@ -40,6 +40,6 @@ release:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   script:
     - test ! -e ".VERSION" && exit 0
-    - npm install -g semantic-release @semantic-release/gitlab conventional-changelog-conventionalcommits
+    - npm install -g semantic-release @semantic-release/gitlab conventional-changelog-conventionalcommits@6
     - cp releaserc.release.yml .releaserc.yml
     - semantic-release --branches $CI_DEFAULT_BRANCH
