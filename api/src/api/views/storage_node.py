@@ -27,7 +27,8 @@ from api import app
 
 from .._common.api_exceptions import Error
 from .._common.storage_node import StorageNode
-from .decorators import is_hyper
+from ..libv2.api_storage_node import storage_node_list
+from .decorators import is_admin, is_hyper
 
 
 @app.route("/api/v3/storage_node", methods=["POST", "PUT", "DELETE"])
@@ -66,3 +67,13 @@ def manage_storage_node():
                 "Unable to connect to storage node at " + str(storage_node.id),
                 traceback.format_exc(),
             )
+
+
+@app.route("/api/v3/storage_nodes", methods=["GET"])
+@is_admin
+def storage_nodes(payload):
+    return (
+        json.dumps(storage_node_list()),
+        200,
+        {"Content-Type": "application/json"},
+    )
