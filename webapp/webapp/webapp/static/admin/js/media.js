@@ -435,18 +435,18 @@ $(document).ready(function() {
                     $.ajax({
                       type: "GET",
                       url:
-                        "/api/v3/admin/storage/physical/toolbox_host",
+                        "/api/v3/admin/storage/physical/storage_host",
                       contentType: "application/json",
-                      success: function (toolbox_host) {
+                      success: function (storage_host) {
                         $.ajax({
                           type: "PUT",
-                          url: toolbox_host+"/storage/media",
+                          url: storage_host+"/storage/media",
                           contentType: "application/json",
                           success: function (data) {
                             media_physical.ajax.reload();
                             new PNotify({
                               title: "Updated",
-                              text:  "Updated "+data.media+" media from "+toolbox_host,
+                              text:  "Updated "+data.media+" media from "+storage_host,
                               hide: true,
                               delay: 5000,
                               opacity: 1,

@@ -29,12 +29,12 @@ from api import app
 from .._common.api_exceptions import Error
 from ..libv2.api_storage_physical import (
     phy_storage_delete,
+    phy_storage_host,
     phy_storage_list,
     phy_storage_reset_domains,
     phy_storage_reset_media,
     phy_storage_update,
     phy_storage_upgrade_to_storage,
-    phy_toolbox_host,
 )
 from ..libv2.helpers import get_user_data
 from .decorators import is_admin, ownsStorageId
@@ -110,11 +110,11 @@ def api_v3_admin_storage_physical_multiple_actions(payload, action_id):
     )
 
 
-@app.route("/api/v3/admin/storage/physical/toolbox_host", methods=["GET"])
+@app.route("/api/v3/admin/storage/physical/storage_host", methods=["GET"])
 @is_admin
 def api_v3_admin_storage_physical_host(payload):
     return (
-        json.dumps(phy_toolbox_host()),
+        json.dumps(phy_storage_host()),
         200,
         {"Content-Type": "application/json"},
     )

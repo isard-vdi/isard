@@ -43,7 +43,7 @@ def wait_for_api(app):
 def setup_app(app):
     try:
         app.config.setdefault("LOG_LEVEL", os.environ.get("LOG_LEVEL", "INFO"))
-        app.config.setdefault("LOG_FILE", "isard-toolbox.log")
+        app.config.setdefault("LOG_FILE", "isard-storage.log")
         app.debug = True if os.environ["LOG_LEVEL"] == "DEBUG" else False
 
     except:
