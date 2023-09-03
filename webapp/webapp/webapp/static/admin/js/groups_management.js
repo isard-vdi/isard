@@ -183,7 +183,7 @@ $(document).ready(function() {
         $('#modalAddGroupForm')[0].reset();
         $('#modalAddGroupForm :checkbox').iCheck('uncheck').iCheck('update');
         $('#modalAddGroupForm #ephimeral-data').hide();
-        $('#modalAddGroupForm #auto-desktops-data').hide();
+        // $('#modalAddGroupForm #auto-desktops-data').hide();
 
         $('#modalAddGroupForm #linked_groups').select2({
             minimumInputLength: 2,
@@ -222,7 +222,7 @@ $(document).ready(function() {
             });
         });
         ephemeralDesktopsShow('#modalAddGroupForm', {})
-        autoDesktopsShow('#modalAddGroupForm', {})
+        // autoDesktopsShow('#modalAddGroupForm', {})
 	});
 
     $("#modalAddGroup #send").on('click', function(e){
@@ -239,7 +239,7 @@ $(document).ready(function() {
                     data['ephimeral-minutes'] = parseInt(data['ephimeral-minutes'])
                 }
                 delete data['ephimeral-enabled'];
-                delete data['auto-desktops-enabled'];
+                // delete data['auto-desktops-enabled'];
                 data=JSON.unflatten(data);
                 var notice = new PNotify({
                     text: 'Creating group...',
@@ -346,7 +346,7 @@ function actionsGroupDetail(){
                 $('#modalEditGroupForm #id').val(pk);
                 $('#modalEditGroupForm :checkbox').iCheck('uncheck').iCheck('update');
 
-                autoDesktopsShow('#modalEditGroupForm', group)
+                // autoDesktopsShow('#modalEditGroupForm', group)
                 ephemeralDesktopsShow('#modalEditGroupForm', group)          
 
                 $.each(group.linked_groups_data, function(i, group) {
@@ -370,10 +370,10 @@ function actionsGroupDetail(){
                     delete data['ephimeral-enabled'];
                     data['ephimeral-minutes'] = parseInt(data['ephimeral-minutes'])
                 }
-                if (!('auto-desktops-enabled' in data)) {
-                    delete data['auto-desktops'];
-                    data['auto'] = false
-                }
+                // if (!('auto-desktops-enabled' in data)) {
+                //     delete data['auto-desktops'];
+                //     data['auto'] = false
+                // }
                 data = JSON.unflatten(data);
                 var notice = new PNotify({
                     text: 'Updating group...',
