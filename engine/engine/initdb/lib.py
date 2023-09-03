@@ -3,9 +3,7 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
-#!/usr/bin/env python
-# coding=utf-8
-
+import datetime
 import os
 import random
 import string
@@ -70,12 +68,21 @@ class Certificates(object):
                 "certificate": False,
                 "server-cert": False,
                 "host-subject": False,
+                "notAfter": "",
                 "domain": False,
             }
 
         db_viewer = self.__get_hypervisor_pool_viewer()
-        # ~ log.info(server_cert)
         if server_cert == db_viewer["server-cert"]:
+            if not db_viewer.get("notAfter", False):
+                db_viewer["notAfter"] = datetime.datetime.strptime(
+                    crypto.load_certificate(
+                        crypto.FILETYPE_PEM, open(self.server_file).read()
+                    )
+                    .get_notAfter()
+                    .decode("utf-8"),
+                    "%Y%m%d%H%M%S%fZ",
+                ).strftime("%Y-%m-%d")
             return db_viewer
 
         """From here we have a valid server_cert that has to be updated"""
@@ -87,9 +94,6 @@ class Certificates(object):
             """NEW VERIFIED CERT"""
             print("Seems a trusted certificate...")
             if self.__extract_ca() is False:
-                log.error(
-                    "Something failed while extracting ca root cert from server-cert.pem!!"
-                )
                 print(
                     "Something failed while extracting ca root cert from server-cert.pem!!"
                 )
@@ -98,6 +102,7 @@ class Certificates(object):
                     "certificate": False,
                     "server-cert": False,
                     "host-subject": False,
+                    "notAfter": "",
                     "domain": "ERROR IMPORTING CERTS",
                 }
             print("Domain: " + server_cert_obj.get_subject().CN)
@@ -106,6 +111,9 @@ class Certificates(object):
                 "certificate": False,
                 "server-cert": server_cert,
                 "host-subject": False,
+                "notAfter": datetime.datetime.strptime(
+                    server_cert_obj.get_notAfter().decode("utf-8"), "%Y%m%d%H%M%S%fZ"
+                ).strftime("%Y-%m-%d"),
                 "domain": server_cert_obj.get_subject().CN,
             }
         else:
@@ -123,6 +131,9 @@ class Certificates(object):
                 "certificate": ca_cert,
                 "server-cert": server_cert,
                 "host-subject": hs[:-1],
+                "notAfter": datetime.datetime.strptime(
+                    server_cert_obj.get_notAfter().decode("utf-8"), "%Y%m%d%H%M%S%fZ"
+                ).strftime("%Y-%m-%d"),
                 "domain": ca_cert_obj.get_subject().CN,
             }
 
@@ -131,13 +142,9 @@ class Certificates(object):
             certs = pem.parse_file(self.server_file)
         except:
             print("Could not find server-cert.pem file in folder!!")
-            log.error("Could not find server-cert.pem file in folder!!")
             return False
         if len(certs) < 2:
             print(
-                "The server-cert.pem certificate is not the full chain!! Please add ca root certificate to server-cert.pem chain."
-            )
-            log.error(
                 "The server-cert.pem certificate is not the full chain!! Please add ca root certificate to server-cert.pem chain."
             )
             return False
@@ -146,37 +153,33 @@ class Certificates(object):
             print(
                 "The ca-cert.file already exists. This ca extraction can not be done."
             )
-            log.error(
-                "The ca-cert.file already exists. This ca extraction can not be done."
-            )
             return False
         try:
             with open(self.ca_file, "w") as caFile:
                 res = caFile.write(ca)
         except:
             print("Unable to write to server-cert.pem file!!")
-            log.error("Unable to write to server-cert.pem file!!")
             return False
         return ca
 
     def __get_hypervisor_pool_viewer(self):
         try:
-            with app.app_context():
-                viewer = (
-                    r.table("hypervisors_pools")
-                    .get(self.pool)
-                    .pluck("viewer")
-                    .run()["viewer"]
-                )
-                if "server-cert" not in viewer.keys():
-                    viewer["server-cert"] = False
-                return viewer
+            viewer = (
+                r.table("hypervisors_pools")
+                .get(self.pool)
+                .pluck("viewer")
+                .run()["viewer"]
+            )
+            if "server-cert" not in viewer.keys():
+                viewer["server-cert"] = False
+            return viewer
         except:
             return {
                 "defaultMode": "Insecure",
                 "certificate": False,
                 "server-cert": False,
                 "host-subject": False,
+                "notAfter": "",
                 "domain": False,
             }
 
@@ -188,7 +191,7 @@ class Certificates(object):
                 self.cfg["RETHINKDB_DB"],
             ).repl()
         except Exception as e:
-            log.error(
+            print(
                 "Database not reacheable at "
                 + self.cfg["RETHINKDB_HOST"]
                 + ":"
@@ -208,7 +211,7 @@ class Certificates(object):
                         {"viewer_hostname": viewer["domain"]}
                     ).run()
             except Exception as e:
-                log.error(
+                print(
                     "Could not update hypervisor isard-hypervisor with certificate name. You should do it through UI"
                 )
         print("Certificates updated in database")
