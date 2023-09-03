@@ -16,5 +16,4 @@ COPY component/_common/src /src/scheduler/_common
 WORKDIR /src
 
 CMD ["python3", "start.py"]
-HEALTHCHECK --interval=10s CMD curl -f http://localhost:5000/scheduler/healthcheck
 STOPSIGNAL SIGKILL

@@ -36,3 +36,5 @@ services:
       REDIS_PASSWORD:
     healthcheck:
       test: ["CMD", "redis-cli","ping"]
+      start_period: 10s
+      interval: 5s

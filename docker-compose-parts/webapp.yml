@@ -11,6 +11,10 @@ services:
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.26
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:5000/isard-admin/healthcheck" ]
+      start_period: 30s
+      interval: 5s
     volumes:
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
