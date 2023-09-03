@@ -3,9 +3,7 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
-#!/usr/bin/env python
-# coding=utf-8
-
+import datetime
 import os
 import random
 import string
@@ -70,12 +68,21 @@ class Certificates(object):
                 "certificate": False,
                 "server-cert": False,
                 "host-subject": False,
+                "notAfter": "",
                 "domain": False,
             }
 
         db_viewer = self.__get_hypervisor_pool_viewer()
-        # ~ log.info(server_cert)
         if server_cert == db_viewer["server-cert"]:
+            if not db_viewer.get("notAfter", False):
+                db_viewer["notAfter"] = datetime.datetime.strptime(
+                    crypto.load_certificate(
+                        crypto.FILETYPE_PEM, open(self.server_file).read()
+                    )
+                    .get_notAfter()
+                    .decode("utf-8"),
+                    "%Y%m%d%H%M%S%fZ",
+                ).strftime("%Y-%m-%d")
             return db_viewer
 
         """From here we have a valid server_cert that has to be updated"""
@@ -95,6 +102,7 @@ class Certificates(object):
                     "certificate": False,
                     "server-cert": False,
                     "host-subject": False,
+                    "notAfter": "",
                     "domain": "ERROR IMPORTING CERTS",
                 }
             print("Domain: " + server_cert_obj.get_subject().CN)
@@ -103,6 +111,9 @@ class Certificates(object):
                 "certificate": False,
                 "server-cert": server_cert,
                 "host-subject": False,
+                "notAfter": datetime.datetime.strptime(
+                    server_cert_obj.get_notAfter().decode("utf-8"), "%Y%m%d%H%M%S%fZ"
+                ).strftime("%Y-%m-%d"),
                 "domain": server_cert_obj.get_subject().CN,
             }
         else:
@@ -120,6 +131,9 @@ class Certificates(object):
                 "certificate": ca_cert,
                 "server-cert": server_cert,
                 "host-subject": hs[:-1],
+                "notAfter": datetime.datetime.strptime(
+                    server_cert_obj.get_notAfter().decode("utf-8"), "%Y%m%d%H%M%S%fZ"
+                ).strftime("%Y-%m-%d"),
                 "domain": ca_cert_obj.get_subject().CN,
             }
 
@@ -165,6 +179,7 @@ class Certificates(object):
                 "certificate": False,
                 "server-cert": False,
                 "host-subject": False,
+                "notAfter": "",
                 "domain": False,
             }
 
