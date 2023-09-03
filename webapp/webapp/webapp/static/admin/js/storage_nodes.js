@@ -30,7 +30,7 @@ function socketio_on () {
 $(document).ready(function () {
     table = $('#storage_nodes').DataTable({
         "ajax": {
-            "url": "/admin/table/storage_node",
+            "url": "/api/v3/storage_nodes",
             "dataSrc": ""
         },
         "language": {

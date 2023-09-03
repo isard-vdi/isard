@@ -209,7 +209,7 @@ def phy_add_to_storage(
 ):
     try:
         qemu_img_info = ApiRest(
-            service="isard-storage", base_url=_phy_internal_toolbox_host()
+            service="isard-storage", base_url=_phy_internal_storage_host()
         ).post("/storage/disk/info", {"path_id": path_id})
         if qemu_img_info.get("format") in ["qcow2"]:
             new_disk = {
@@ -367,7 +367,7 @@ def phy_storage_upgrade_to_storage(data, user_id):
     return errors
 
 
-def _phy_internal_toolbox_host():
+def _phy_internal_storage_host():
     with app.app_context():
         viewers = list(
             r.table("hypervisors")
@@ -385,7 +385,7 @@ def _phy_internal_toolbox_host():
     )
 
 
-def phy_toolbox_host():
+def phy_storage_host():
     with app.app_context():
         viewers = list(
             r.table("hypervisors")

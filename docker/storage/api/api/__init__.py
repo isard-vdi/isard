@@ -52,7 +52,7 @@ app.url_map.strict_slashes = False
 # Max upload size
 app.config["MAX_CONTENT_LENGTH"] = 1 * 1000 * 1000  # 1 MB
 
-print("Starting toolbox api...")
+print("Starting storage api...")
 
 from api.libv2.load_config import setup_app
 from isardvdi_common.api_rest import ApiRest

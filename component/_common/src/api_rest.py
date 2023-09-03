@@ -121,9 +121,12 @@ class ApiRest:
                 if max_retries >= 0:
                     max_retries -= 1
 
-    def get(self, url=""):
+    def get(self, url="", timeout=5):
         resp = requests.get(
-            self.base_url + url, headers=header_auth(), verify=self.verify_cert
+            self.base_url + url,
+            headers=header_auth(),
+            verify=self.verify_cert,
+            timeout=timeout,
         )
         resp.raise_for_status()
         return json.loads(resp.text)

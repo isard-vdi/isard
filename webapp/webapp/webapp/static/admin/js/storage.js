@@ -468,12 +468,12 @@ $(document).ready(function() {
             $.ajax({
               type: "GET",
               url:
-                "/api/v3/admin/storage/physical/toolbox_host",
+                "/api/v3/admin/storage/physical/storage_host",
               contentType: "application/json",
-              success: function (toolbox_host) {
+              success: function (storage_host) {
                 $.ajax({
                   type: "POST",
-                  url: toolbox_host+"/storage/disk/info",
+                  url: storage_host+"/storage/disk/info",
                   headers: {"Authorization": "Bearer " +localStorage.getItem("token")},
                   data: JSON.stringify({
                     'path_id': data.path
@@ -538,18 +538,18 @@ $(document).ready(function() {
             $.ajax({
               type: "GET",
               url:
-                "/api/v3/admin/storage/physical/toolbox_host",
+                "/api/v3/admin/storage/physical/storage_host",
               contentType: "application/json",
-              success: function (toolbox_host) {
+              success: function (storage_host) {
                 $.ajax({
                   type: "PUT",
-                  url: toolbox_host+"/storage/disks",
+                  url: storage_host+"/storage/disks",
                   contentType: "application/json",
                   success: function (data) {
                     storage_physical.ajax.reload();
                     rescan_pnotify.update({
                       title: "Physical storage",
-                      text:  "Updated "+data.templates+" templates and "+data.desktops+" desktop disks from "+toolbox_host,
+                      text:  "Updated "+data.templates+" templates and "+data.desktops+" desktop disks from "+storage_host,
                       hide: true,
                       delay: 5000,
                       opacity: 1,
