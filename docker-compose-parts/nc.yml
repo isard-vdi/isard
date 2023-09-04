@@ -24,7 +24,7 @@ services:
       - POSTGRES_USER=admin
       - POSTGRES_PASSWORD=$WEBAPP_ADMIN_PWD
       - POSTGRES_HOST=isard-postgres
-      - REDIS_HOST=isard-nc-redis
+      - REDIS_HOST=isard-nc-redis # Note, this is not configurable in cfg. The one in cfg is the isard redis.
       - OVERWRITEPROTOCOL=https
       - OVERWRITEWEBROOT=/isard-nc
       - OVERWRITECLIURL=http://localhost/isard-nc
