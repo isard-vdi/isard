@@ -21,6 +21,7 @@ import base64
 import json
 import os
 import pathlib
+import subprocess
 
 from engine.services.db.domains import PersonalUnit as DbPersonalUnit
 from engine.services.db.domains import get_personal_unit_from_domain
@@ -68,32 +69,53 @@ def exec_commands(domain: virDomain, desktop_id: str, cmds):
     command_status = {}
     while failed and cmd <= len(cmds) - 1:
         command_exec = cmds[cmd]
+        cmd = cmd + 1
 
         try:
-            logs.workers.error(command_exec)
-            command_exec_response = qemuAgentCommand(
-                domain, json.dumps(command_exec), 30, 0
-            )
+            raw_cmd = [
+                "virsh",
+                f"--connect={domain._conn.getURI()}",
+                "qemu-agent-command",
+                f"--domain={domain.name()}",
+                f"--cmd={json.dumps(command_exec)}",
+            ]
+            logs.workers.debug(raw_cmd)
 
-            failed = False
+            result = subprocess.run(raw_cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                continue
+
+            logs.workers.debug(str(result.stdout))
+
             command_status = {
                 "execute": "guest-exec-status",
                 "arguments": {
-                    "pid": json.loads(command_exec_response)
-                    .get("return", {})
-                    .get("pid"),
+                    "pid": json.loads(str(result.stdout)).get("return", {}).get("pid"),
                 },
             }
+            raw_cmd = [
+                "virsh",
+                f"--connect={domain._conn.getURI()}",
+                "qemu-agent-command",
+                f"--domain={domain.name()}",
+                f"--cmd={json.dumps(command_status)}",
+            ]
+            logs.workers.debug(raw_cmd)
 
-        except libvirtError as error:
+            result = subprocess.run(raw_cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                continue
+
+            failed = False
+
+            logs.workers.debug("RESULT => " + str(result.stdout))
+
+        except Exception as error:
             logs.workers.error(
                 f"libvirt error trying to execute command in desktop {desktop_id} "
                 f"with: {error}"
             )
 
-        cmd = cmd + 1
-
-    print(command_status)
     if command_status != {} and not command_status.get("exitcode"):
         return None
 
@@ -102,7 +124,7 @@ def exec_commands(domain: virDomain, desktop_id: str, cmds):
 
 class Notifier:
     @staticmethod
-    def notify_desktop(domain: virDomain, message: bytes):  # TODO: Bytes? Or String
+    def notify_desktop(domain: virDomain, message: bytes):
         """
         Notify desktop with a message
 
@@ -152,7 +174,7 @@ class Notifier:
         return {
             "execute": "guest-exec",
             "arguments": {
-                "path": "cmd",
+                "path": "cmd.exe",
                 "arg": ["/U"],
                 "input-data": base64.b64encode(shellscript).decode(),
                 "capture-output": True,
@@ -207,7 +229,6 @@ class PersonalUnit:
                 f'error "{base64.b64decode(command_status.get("err-data", "")).decode()}"'
             )
 
-    # TODO: Self signed, mount automatically
     def cmd_windows(unit: DbPersonalUnit):
         shellscript = PERSONAL_UNIT_CMD_WINDOWS.format(
             protocol="s" if unit["tls"] else "",
@@ -220,7 +241,7 @@ class PersonalUnit:
         return {
             "execute": "guest-exec",
             "arguments": {
-                "path": "cmd",
+                "path": "cmd.exe",
                 "arg": ["/U"],
                 "input-data": base64.b64encode(shellscript).decode(),
                 "capture-output": True,

@@ -7,5 +7,5 @@ echo oFS.DeleteFile(WScript.ScriptFullName) | more >> %scriptPath%
 
 REM Wait for a network connection to the server and make the mount afterwards
 echo Set oShell = CreateObject("Wscript.Shell") | more >> %scriptPath%
-echo Return = oShell.Run("powershell -Command do {{ $ping = test-connection -comp {host} -count 1 -Quiet }} until ($ping)", 0, true) | more >> %scriptPath%
+echo Return = oShell.Run("powershell -Command do {{ $url = [uri]'http{protocol}://{host}'; $ping = test-connection -comp $url.Host -count 1 -Quiet }} until ($ping)", 0, true) | more >> %scriptPath%
 echo Return = oShell.Run("net use Z: http{protocol}://{host}/ {password} /user:{user} /persistent:no", 0, true) | more >> %scriptPath%
