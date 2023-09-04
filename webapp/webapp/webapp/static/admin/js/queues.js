@@ -30,12 +30,25 @@ $(document).ready(function () {
         "rowId": "id",
         "columns": [
             {
-                "data": "type"
+                "data": "id"
             },
             {
-                "data": "id",
+                "data": "type",
+            },
+            {
+                "data": "priority",
+            },
+            {
+                "data": "priority_id",
+            },
+            {
+                "data": "subscribers",
+            },
+            {
+                "data": "status",
             },
         ],
+        "order": [[1, "asc"], [2, "desc"]],
     });
     $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
 })

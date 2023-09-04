@@ -46,17 +46,78 @@ def _connect_redis():
 
 
 @cached(TTLCache(maxsize=1, ttl=5))
-def active_clients():
-    with _connect_redis() as redis:
-        clients = [
-            client for client in redis.client_list() if client.get("name", "") != ""
-        ]
-    data = []
-    for client in clients:
-        data.append(
+def subscribers():
+    with _connect_redis() as r:
+        subscribers = r.pubsub_channels()
+    s = []
+    for subscriber in subscribers:
+        s.append(
             {
-                "id": client.get("name").split(":")[1],
-                "type": client.get("name").split(":")[0],
+                "id": str(subscriber).split(":")[3].split("'")[0],
+                "type": str(subscriber).split(":")[2],
             }
         )
-    return data
+    return s
+
+
+@cached(TTLCache(maxsize=1, ttl=5))
+def workers():
+    with _connect_redis() as r:
+        workers = r.keys()
+    w = []
+    for worker in workers:
+        if str(worker).split(":")[1] != "workers":
+            continue
+        if str(worker).split(":")[2].split(".")[0].split("'")[0] not in [
+            "core",
+            "storage",
+        ]:
+            continue
+        w.append(
+            {
+                "id": str(worker).split(":")[2].split("'")[0],
+                "type": str(worker).split(":")[2].split(".")[0].split("'")[0],
+                "queue_id": str(worker).split(":")[2].split(".")[1]
+                if len(str(worker).split(":")[2].split(".")) > 1
+                else None,
+                "priority_id": str(worker).split(":")[2].split(".")[2].split("'")[0]
+                if len(str(worker).split(":")[2].split(".")) > 2
+                else None,
+            }
+        )
+    for worker in w:
+        if worker["priority_id"] == None:
+            worker["priority"] = None
+        if worker["priority_id"] == "high":
+            worker["priority"] = 3
+        if worker["priority_id"] == "default":
+            worker["priority"] = 2
+        if worker["priority_id"] == "low":
+            worker["priority"] = 1
+    return w
+
+
+@cached(TTLCache(maxsize=1, ttl=5))
+def workers_with_subscribers():
+    w = workers()
+    s = subscribers()
+    for worker in w:
+        worker["subscribers"] = [
+            subs["id"] for subs in s if subs["type"] == worker["type"]
+        ]
+        if not len(worker["subscribers"]):
+            worker["status"] = "error"
+        else:
+            worker["status"] = "ok"
+    return w
+
+
+@cached(TTLCache(maxsize=1, ttl=5))
+def subscribers_with_workers():
+    s = subscribers()
+    w = workers()
+    for subscriber in s:
+        subscriber["workers"] = [
+            worker["id"] for worker in w if subscriber["type"] == worker["type"]
+        ]
+    return s
