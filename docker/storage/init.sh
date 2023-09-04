@@ -19,7 +19,7 @@ then
       previous_pools="$previous_pools $pool"
     done
   done
-  rq worker --url "redis://:${REDIS_PASSWORD}@${REDIS_HOST:-isard-redis}" -P /opt/isardvdi/isardvdi_task $queues &
+  rq worker --name ${STORAGE_DOMAIN:-isard-storage} --url "redis://:${REDIS_PASSWORD}@${REDIS_HOST:-isard-redis}" -P /opt/isardvdi/isardvdi_task $queues &
 fi
 
 # Wait background tasks and clean it at termination.
