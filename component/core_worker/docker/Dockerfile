@@ -4,4 +4,4 @@ ENV PYTHONPATH /opt/isardvdi
 COPY component/_common/src /opt/isardvdi/isardvdi_common
 COPY component/core_worker/src /opt/isardvdi/isardvdi_core_worker
 # Takes url from RQ_REDIS_URL env var
-CMD ["rq", "worker", "core", "-n", "isard-core_worker", "-P", "/opt/isardvdi/isardvdi_core_worker"]
+CMD ["rq", "worker", "core", "-n", "api:isard-core_worker", "-P", "/opt/isardvdi/isardvdi_core_worker"]

@@ -128,6 +128,7 @@ from .views import (
     MediaViews,
     NotifyView,
     PublicView,
+    QueuesView,
     Stats,
     StorageView,
     TemplatesView,
@@ -135,7 +136,6 @@ from .views import (
     VpnViews,
     maintenance,
     socketio_emit,
-    storage_node,
     task,
 )
 from .views.bookings import BookingView, ReservablesView

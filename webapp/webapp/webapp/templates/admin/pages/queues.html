@@ -1,6 +1,6 @@
 <!--
    IsardVDI - Open Source KVM Virtual Desktops based on KVM Linux and dockers
-   Copyright (C) 2022 Simó Albert i Beltran
+   Copyright (C) 2023 Josep Maria Viñolas Auquer, Alberto Larraz Dalmases
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU Affero General Public License as published by
@@ -21,21 +21,18 @@
 {% block content %}
 <div class="x_panel">
   <div class="x_title">
-    <h3><i class="fa fa-hdd-o"></i> Storage Nodes</h3>
+    <h3><i class="fa fa-tasks"></i> Task consumers</h3>
     <ul class="nav navbar-right panel_toolbox">
       <li class="pull-right"><a class="collapse-link"><i class="fa fa-chevron-up"></i></a></li>
     </ul>
     <div class="clearfix"></div>
   </div>
   <div class="x_content">
-    <table id="storage_nodes" class="table">
+    <table id="queues" class="table">
       <thead>
         <tr>
-          <th>Status</th>
-          <th>Status Time</th>
-          <th>ID</th>
-          <th>Storage Pools</th>
-          <th>SSL verify</th>
+          <th>Type</th>
+          <th>Id</th>
         </tr>
       </thead>
       <tbody>
@@ -45,5 +42,5 @@
 </div>
 {% endblock %}
 {% block pagescript %}
-    <script src="/isard-admin/static/admin/js/storage_nodes.js"></script>
+    <script src="/isard-admin/static/admin/js/queues.js"></script>
 {% endblock %}
