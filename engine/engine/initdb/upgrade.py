@@ -48,7 +48,7 @@ release_version = 102
 # release 75: replace desktop interface macs if found duplicated
 # release 74: update gpus_profiles
 # release 73: 'favourite_hyp' domains field should be a list if it isn't False
-# release 72: Remove existing storage_node entries
+# release 72: Remove existing storage_node entries (does not exist anymore)
 # release 71: Added bookings_priority name index
 # release 70: Add hypervisor execution time
 # release 69: Buffering hyper
@@ -131,7 +131,6 @@ tables = [
     "categories",
     "qos_net",
     "qos_disk",
-    "storage_node",
     "gpu_profiles",
     "desktops_priority",
     "logs_users",
@@ -3008,12 +3007,12 @@ class Upgrade(object):
             r.table(table).delete().run(self.conn)
         return True
 
-    def storage_node(self, version):
-        table = "storage_node"
-        log.info("UPGRADING " + table + " VERSION " + str(version))
-        if version == 72:
-            r.table(table).delete().run(self.conn)
-        return True
+    # def storage_node(self, version):
+    #     table = "storage_node"
+    #     log.info("UPGRADING " + table + " VERSION " + str(version))
+    #     if version == 72:
+    #         r.table(table).delete().run(self.conn)
+    #     return True
 
     def remotevpn(self, version):
         table = "remotevpn"
