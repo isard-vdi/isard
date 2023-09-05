@@ -340,17 +340,17 @@ def admin_hypervisors():
     )
 
 
-@app.route("/isard-admin/admin/storage_nodes", methods=["GET"])
+@app.route("/isard-admin/admin/queues", methods=["GET"])
 @login_required
 @isAdmin
-def storage_nodes():
+def queues():
     """
     Storage Nodes
     """
     return render_template(
-        "admin/pages/storage_nodes.html",
-        title="Storage Nodes",
-        nav="Storage Nodes",
+        "admin/pages/queues.html",
+        title="Queues registeres",
+        nav="Queues",
         monitor_host=monitor_host,
     )
 
