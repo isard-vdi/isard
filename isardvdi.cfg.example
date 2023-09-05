@@ -1,4 +1,4 @@
-# Isard main config v2.10.1
+# Isard main config v2.10.2
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -76,7 +76,6 @@ DIRECTVIEWER_MODE=browser
 ## openssl rand -base64 32
 WEBAPP_SESSION_SECRET=xq0Z3MP5ujxrQxtMGxgPiijH9xpuxkyP04R6At/V+g4=
 API_ISARDVDI_SECRET=kpWpdF0NtI2XCEfzMp36hdSV9S42E7axS8D5TvP9c0A=
-INFLUXDB_ADMIN_TOKEN_SECRET=9eFW/Qi29hL3hFGUP8wIGH89XKCH8s1k0il44GCRF2g=
 API_HYPERVISORS_SECRET=B5/bUEUzIC+AjNQRmFh3vxR3VeIKirwdeL/xuHPVO+E=
 
 # ------ Letsencrypt certificate ---------------------------------------------
