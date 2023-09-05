@@ -836,7 +836,8 @@
             "media": {
                 "title": "Mitjans",
                 "isos": "Isos",
-                "floppies": "Floppies"
+                "floppies": "Floppies",
+                "placeholder": "Escriu almenys 2 caràcters per cercar."
             },
             "image": {
                 "title": "Imatge"
