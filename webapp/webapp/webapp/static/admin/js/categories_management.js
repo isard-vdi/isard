@@ -182,9 +182,9 @@ $(document).ready(function () {
         $('#modalAddCategoryForm')[0].reset();
         $('#modalAddCategoryForm :checkbox').iCheck('uncheck').iCheck('update');
         $('#modalAddCategoryForm #ephimeral-data').hide();
-        $('#modalAddCategoryForm #auto-desktops-data').hide();
+        // $('#modalAddCategoryForm #auto-desktops-data').hide();
 
-        autoDesktopsShow('#modalAddCategoryForm', {})
+        // autoDesktopsShow('#modalAddCategoryForm', {})
         ephemeralDesktopsShow('#modalAddCategoryForm', {})
 
     });
@@ -202,9 +202,9 @@ $(document).ready(function () {
                 delete data['ephimeral-enabled'];
                 data['ephimeral-minutes'] = parseInt(data['ephimeral-minutes'])
             }
-            if (!('auto-desktops-enabled' in data)) {
-                delete data['auto-desktops'];
-            }
+            // if (!('auto-desktops-enabled' in data)) {
+            //     delete data['auto-desktops'];
+            // }
             data = JSON.unflatten(data);
             var notice = new PNotify({
                 text: 'Creating...',
@@ -286,7 +286,7 @@ function actionsCategoryDetail() {
             } else {
                 $('#modalEditCategoryForm #frontend').iCheck('unckeck').iCheck('update');
             }
-            autoDesktopsShow('#modalEditCategoryForm', category)
+            // autoDesktopsShow('#modalEditCategoryForm', category)
             ephemeralDesktopsShow('#modalEditCategoryForm', category)
         });
 
@@ -308,10 +308,10 @@ function actionsCategoryDetail() {
                     delete data['ephimeral-enabled'];
                     data['ephimeral-minutes'] = parseInt(data['ephimeral-minutes'])
                 }
-                if (!('auto-desktops-enabled' in data)) {
-                    delete data['auto-desktops'];
-                    data['auto'] = false;
-                }
+                // if (!('auto-desktops-enabled' in data)) {
+                //     delete data['auto-desktops'];
+                //     data['auto'] = false;
+                // }
                 data = JSON.unflatten(data);
                 var notice = new PNotify({
                     text: 'Updating category...',
@@ -438,55 +438,55 @@ function ephemeralDesktopsShow(form, item) {
     });
 }
 
-function autoDesktopsShow(form, item) {
-    if (item.auto) {
-        $(form + (" #auto-desktops-enabled")).iCheck('check').iCheck('update');
-        $(form + (" #auto-desktops")).empty()
+// function autoDesktopsShow(form, item) {
+//     if (item.auto) {
+//         $(form + (" #auto-desktops-enabled")).iCheck('check').iCheck('update');
+//         $(form + (" #auto-desktops")).empty()
 
-        item['auto']['desktops'].forEach(function (dom_id) {
-            api.ajax('/api/v3/admin/table/domains', 'POST', { 'id': dom_id, 'pluck': ['id', 'name'] }).done(function (dom) {
-                var newOption = new Option(dom.name, dom.id, true, true);
-                $(form + (" #auto-desktops")).append(newOption).trigger('change');
-            });
-        });
-        $(form + (" #auto-desktops-data")).show();
-    } else {
-        $(form + (" #auto-desktops-enabled")).iCheck('unckeck').iCheck('update');
-        $(form + (" #auto-desktops-data")).hide();
-    }
+//         item['auto']['desktops'].forEach(function (dom_id) {
+//             api.ajax('/api/v3/admin/table/domains', 'POST', { 'id': dom_id, 'pluck': ['id', 'name'] }).done(function (dom) {
+//                 var newOption = new Option(dom.name, dom.id, true, true);
+//                 $(form + (" #auto-desktops")).append(newOption).trigger('change');
+//             });
+//         });
+//         $(form + (" #auto-desktops-data")).show();
+//     } else {
+//         $(form + (" #auto-desktops-enabled")).iCheck('unckeck').iCheck('update');
+//         $(form + (" #auto-desktops-data")).hide();
+//     }
 
-        $(form + (" #auto-desktops")).select2({
-        minimumInputLength: 2,
-        multiple: true,
-        ajax: {
-            type: "GET",
-            url: '/api/v3/user/templates/allowed/all',
-            dataType: 'json',
-            contentType: "application/json",
-            delay: 250,
-            data: function (params) {
-                return  JSON.stringify({
-                    term: params.term,
-                    pluck: ['id','name']
-                });
-            },
-            processResults: function (data) {
-                return {
-                    results: $.map(data, function (item, i) {
-                        return {
-                            text: item.name,
-                            id: item.id
-                        }
-                    })
-                };
-            }
-        },
-    });
+//         $(form + (" #auto-desktops")).select2({
+//         minimumInputLength: 2,
+//         multiple: true,
+//         ajax: {
+//             type: "GET",
+//             url: '/api/v3/user/templates/allowed/all',
+//             dataType: 'json',
+//             contentType: "application/json",
+//             delay: 250,
+//             data: function (params) {
+//                 return  JSON.stringify({
+//                     term: params.term,
+//                     pluck: ['id','name']
+//                 });
+//             },
+//             processResults: function (data) {
+//                 return {
+//                     results: $.map(data, function (item, i) {
+//                         return {
+//                             text: item.name,
+//                             id: item.id
+//                         }
+//                     })
+//                 };
+//             }
+//         },
+//     });
 
-    $(form + (" #auto-desktops-enabled")).on('ifChecked', function(event){
-        $(form + (" #auto-desktops-data")).show();
-    });
-    $(form + (" #auto-desktops-enabled")).on('ifUnchecked', function(event){
-        $(form + (" #auto-desktops-data")).hide();
-    });
-}
+//     $(form + (" #auto-desktops-enabled")).on('ifChecked', function(event){
+//         $(form + (" #auto-desktops-data")).show();
+//     });
+//     $(form + (" #auto-desktops-enabled")).on('ifUnchecked', function(event){
+//         $(form + (" #auto-desktops-data")).hide();
+//     });
+// }
