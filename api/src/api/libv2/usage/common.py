@@ -121,10 +121,12 @@ def get_params():
         )
 
 
-@cached(TTLCache(maxsize=10, ttl=60))
-def get_default_consumption():
+def get_default_consumption(parameters_ids=None):
+    query = r.table("usage_parameter")
+    if parameters_ids:
+        query = query.get_all(r.args(parameters_ids))
     with app.app_context():
-        default_consumption = list(r.table("usage_parameter").run(db.conn))
+        default_consumption = list(query.run(db.conn))
     return {dc["id"]: dc["default"] for dc in default_consumption}
 
 

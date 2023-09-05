@@ -1,7 +1,7 @@
 <!-- extend base layout -->
 {% extends "base.html" %} {% block css %}
 {% endblock %} {% block content %}
-
+ 
 <div class="row">
   <div class="col-md-12 col-sm-12 col-xs-12">
      <div class="x_panel">
@@ -36,7 +36,7 @@
           <li>
             <a id="btn-credit_add"><span style="color: #5499c7;">
                 <i class="fa fa-plus"></i>
-                Add Category Credit</span></a>
+                Add Credit</span></a>
           </li>
         </ul>
         <div class="clearfix"></div>
@@ -44,10 +44,11 @@
       <div class="x_content">
         <div class="row">
           <div class="col-md-12 col-sm-12 col-xs-12">
-            <table id="table-category_credit" class="table">
+            <table id="table-credit" class="table">
               <thead>
                 <tr>
                   <th>item</th>
+                  <th>consumer</th>
                   <th>item_type</th>
                   <th>grouping</th>
                   <th>start_date</th>

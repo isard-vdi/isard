@@ -166,6 +166,10 @@ def get_item_date_consumption(
             "item_consumer",
         )
 
+    if grouping_params:
+        default_consumption = get_default_consumption(grouping_params)
+    else:
+        default_consumption = get_default_consumption()
     with app.app_context():
         data = (
             r.table("usage_consumption")
@@ -178,8 +182,8 @@ def get_item_date_consumption(
                 {
                     "name": item_name,
                     "date": date,
-                    "inc": get_default_consumption(),
-                    "abs": get_default_consumption(),
+                    "inc": default_consumption,
+                    "abs": default_consumption,
                     "item_id": item_id,
                     "item_type": item_type,
                 }
@@ -640,8 +644,9 @@ def add_usage_credit(data):
                 "start_date": data["start_date"],
                 "end_date": data["end_date"],
                 "limits": limits.get("limits"),
-                "limits_desc": limits.get("name"),
-                "limits_name": limits.get("desc"),
+                "limits_id": limits.get("id"),
+                "limits_desc": limits.get("desc"),
+                "limits_name": limits.get("name"),
             }
         ).run(db.conn)
         cache_usage_credits.clear()

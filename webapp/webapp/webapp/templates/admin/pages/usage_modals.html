@@ -5,6 +5,10 @@
     #modalEditParameterGroupingForm .select2-container {
         width: 85% !important;
     }
+    .valuesOptions .filter-item {
+        width: 250px;
+        display: inline-grid;
+    }
 </style>
 
 {% block content %}
@@ -142,12 +146,8 @@
                                     <select class="form-control" style="width:100%" name="limit_id" id=limits></select>
                                 </div>
                             </div>
+                            <hr>
                             <div class="x_panel valuesOptions">
-                                <div class="col-md-6 col-xs-2">
-                                    <label class="control-label" for="limits">Limit<span
-                                            class="required">*</span></label>
-                                    <select class="form-control" style="width:100%" name="limit_id" id=limits></select>
-                                </div>
                             </div>
                             <div class="x_title">
                                 <h4><i class="fa fa-calendar" aria-hidden="true"></i> Interval
@@ -234,25 +234,13 @@
                             </div>
                             <div class="x_panel">
                                 <div class="col-md-6 col-xs-2">
-                                    <label class="control-label" for="item_type">Item type<span
+                                    <label class="control-label" for="limits">Limit<span
                                             class="required">*</span></label>
-                                    <select class="form-control" style="width:100%" id="item_type"></select>
-                                </div>
-                                <div class="col-md-6 col-xs-2">
-                                    <label class="control-label" for="item_id">Item<span
-                                            class="required">*</span></label>
-                                    <select class="form-control" style="width:100%" name="item_id"
-                                        id="item_id"></select>
-                                    <div class="select2-resize-handle"></div>
+                                    <select class="form-control" style="width:100%" name="limit_id" id=limits></select>
                                 </div>
                             </div>
-                            <div class="x_panel">
-                                <div class="col-md-6 col-xs-2">
-                                    <label class="control-label" for="grouping_id">Parameter grouping<span
-                                            class="required">*</span></label>
-                                    <select class="form-control" style="width:100%" name="grouping_id"
-                                        id="grouping_id"></select>
-                                </div>
+                            <hr>
+                            <div class="x_panel valuesOptions">
                                 <div class="col-md-6 col-xs-2">
                                     <label class="control-label" for="limits">Limit<span
                                             class="required">*</span></label>

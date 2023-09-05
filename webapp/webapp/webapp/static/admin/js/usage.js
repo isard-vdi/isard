@@ -134,141 +134,147 @@ function createUsageTable(data) {
   if ($.fn.dataTable.isDataTable(tableId)) {
     $(tableId).DataTable().destroy();
   }
-
+  
   //2nd empty html
   $(tableId + " tbody").empty();
   $(tableId + " thead").empty();
   $(tableId + ' thead').append('<tr></tr><tr></tr>')
-
-  // This columns are always the same
-  cols = [
-    {
-      'data': null,
-      'className': 'select-checkbox',
-      'width': '10px',
-      'defaultContent': '<input type="checkbox" class="form-check-input"></input>'
-    },
-    {
-      'data': 'item_id',
-      'visible': false
-    },
-    {
-      'data': 'item_name',
-      'defaultContent': ''
-    },
-    {
-      'data': 'item_consumer',
-      'defaultContent': '',
-      'visible': false
-    }
-  ]
-
-  // This columns can change (custom fields can be added), therefore they're generated dynamically
-  // Retrieve the info of the selected parameters in order to show its name on the header
-  $.ajax({
-    type: "PUT",
-    url: '/admin/usage/list_parameters',
-    dataType: 'json',
-    contentType: "application/json",
-    data: JSON.stringify({
-      ids: data.grouping.parameters
-    }),
-    success: function (parameters) {
-      // Add the header
-      $(tableId + ' thead tr').first().append('<th rowspan="2">Selected</th><th rowspan="2">Item id</th><th rowspan="2">Name</th><th rowspan="2">Consumer</th>')
-      $.each(parameters, function (pos, parameter) {
-        // Add header dynamically
-        $(tableId + ' thead tr').first().append(`<th colspan="4" title="${parameter.desc}\n${parameter.formula ? 'Applied formula: ' + parameter.formula : ''}">${parameter.name} <i class="fa fa-info-circle" aria-hidden="true"></i></th>`)
-        $(tableId + ' thead tr').eq(1).append(`<th>Start</th><th>End</th><th>Start</th><th>End</th>`)
-        cols.push({
-          'data': 'start.abs.' + parameter.id,
-          'defaultContent': 0,
-          'render': (value) => {
-            return value ? value.toFixed(2) : 0
-          }
-        },
-        {
-          'data': 'end.abs.' + parameter.id,
-          'defaultContent': 0,
-          'render': function (data, type, row) {
-            if (data) {
-              value = data.toFixed(2)
-              if (row.end.abs[parameter.id] > row.start.abs[parameter.id])  {
-                return value + ` <i title="+${row.end.abs[parameter.id]-row.start.abs[parameter.id]}" class="fa fa-caret-up fa-lg" style="color:orange;"></i>`
-              } else if (row.end.abs[parameter.id] < row.start.abs[parameter.id]) {
-                return value + ` <i title="${row.end.abs[parameter.id]-row.start.abs[parameter.id]}" class="fa fa-caret-down fa-lg" style="color:cornflowerblue;"></i>`
-              } else {
-                return  value + ' <i class="fa fa-caret-right fa-lg" style="color:lightgrey;"></i>'
-              }
-            } else {
-              return 0
+  
+  if (data.grouping.parameters.toString() !== "") {
+    // This columns are always the same
+    cols = [
+      {
+        'data': null,
+        'className': 'select-checkbox',
+        'width': '10px',
+        'defaultContent': '<input type="checkbox" class="form-check-input"></input>'
+      },
+      {
+        'data': 'item_id',
+        'visible': false
+      },
+      {
+        'data': 'item_name',
+        'defaultContent': ''
+      },
+      {
+        'data': 'item_consumer',
+        'defaultContent': '',
+        'visible': false
+      }
+    ]
+    // These columns can change (custom fields can be added), therefore they're generated dynamically
+    // Retrieve the info of the selected parameters in order to show its name on the header
+    $.ajax({
+      type: "PUT",
+      url: '/admin/usage/list_parameters',
+      dataType: 'json',
+      contentType: "application/json",
+      data: JSON.stringify({
+        ids: data.grouping.parameters
+      }),
+      success: function (parameters) {
+        // Add the header
+        $(tableId + ' thead tr').first().append('<th rowspan="2">Selected</th><th rowspan="2">Item id</th><th rowspan="2">Name</th><th rowspan="2">Consumer</th>')
+        $.each(parameters, function (pos, parameter) {
+          // Add header dynamically
+          $(tableId + ' thead tr').first().append(`<th colspan="4" title="${parameter.desc}\n${parameter.formula ? 'Applied formula: ' + parameter.formula : ''}">${parameter.name} <i class="fa fa-info-circle" aria-hidden="true"></i></th>`)
+          $(tableId + ' thead tr').eq(1).append(`<th>Start</th><th>End</th><th>Start</th><th>End</th>`)
+          cols.push({
+            'data': 'start.abs.' + parameter.id,
+            'defaultContent': 0,
+            'render': (value) => {
+              return value ? value.toFixed(2) : 0
             }
-          }
-        },
-        {
-          'data': 'start.inc.' + parameter.id,
-          'defaultContent': 0,
-          'visible': false,
-          'render': (value) => {
-            return value ? value.toFixed(2) : 0
-          }
-        },
-        {
-          'data': 'end.inc.' + parameter.id,
-          'defaultContent': 0,
-          'visible': false,
-          'render': (value) => {
-            return value ? value.toFixed(2) : 0
-          }
-        })
-      })
-      //3rd recreate Datatable object
-      $(tableId).DataTable({
-        processing: true,
-        rowId: "id",
-        deferRender: true,
-        paging: true,
-        cache: false,
-        columns: cols,
-        ajax: {
-          url: "/admin/usage/start_end",
-          contentType: "application/json",
-          type: "PUT",
-          data: function (d) {
-            return JSON.stringify({
-              items_ids: data.items_ids,
-              start_date: data.startDate,
-              end_date: data.endDate,
-              grouping: data.grouping.parameters,
-              item_type: data.grouping.itemType,
-              item_consumer: data.consumer
-            });
           },
-        },
-        sAjaxDataProp: "",
-        language: {
-          loadingRecords:
-            '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
-        },
-        rowId: "id",
-      })
+            {
+              'data': 'end.abs.' + parameter.id,
+              'defaultContent': 0,
+              'render': function (data, type, row) {
+                if (data) {
+                  value = data.toFixed(2)
+                  if (row.end.abs[parameter.id] > row.start.abs[parameter.id]) {
+                    return value + ` <i title="+${row.end.abs[parameter.id] - row.start.abs[parameter.id]}" class="fa fa-caret-up fa-lg" style="color:orange;"></i>`
+                  } else if (row.end.abs[parameter.id] < row.start.abs[parameter.id]) {
+                    return value + ` <i title="${row.end.abs[parameter.id] - row.start.abs[parameter.id]}" class="fa fa-caret-down fa-lg" style="color:cornflowerblue;"></i>`
+                  } else {
+                    return value + ' <i class="fa fa-caret-right fa-lg" style="color:lightgrey;"></i>'
+                  }
+                } else {
+                  return 0
+                }
+              }
+            },
+            {
+              'data': 'start.inc.' + parameter.id,
+              'defaultContent': 0,
+              'visible': false,
+              'render': (value) => {
+                return value ? value.toFixed(2) : 0
+              }
+            },
+            {
+              'data': 'end.inc.' + parameter.id,
+              'defaultContent': 0,
+              'visible': false,
+              'render': (value) => {
+                return value ? value.toFixed(2) : 0
+              }
+            })
+        })
+        //3rd recreate Datatable object
+        $(tableId).DataTable({
+          processing: true,
+          rowId: "id",
+          deferRender: true,
+          paging: true,
+          cache: false,
+          columns: cols,
+          ajax: {
+            url: "/admin/usage/start_end",
+            contentType: "application/json",
+            type: "PUT",
+            data: function (d) {
+              return JSON.stringify({
+                items_ids: data.items_ids,
+                start_date: data.startDate,
+                end_date: data.endDate,
+                grouping: data.grouping.parameters,
+                item_type: data.grouping.itemType,
+                item_consumer: data.consumer
+              });
+            },
+          },
+          sAjaxDataProp: "",
+          language: {
+            loadingRecords:
+              '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
+          },
+          rowId: "id",
+        })
 
-      $(tableId).off('click', 'tr[role="row"]').on('click', 'tr[role="row"]', function (e) {
-        toggleRow(this, e);
-        selectedItems = []
-        $.each($(tableId).DataTable().rows('.active').data(), function (key, value) {
-          selectedItems.push({ id: value.item_id, name: value.item_name, consumer: value.item_consumer })
-        });
-        selectedRows['items'] = selectedItems
-        $('#btn-view-graph').prop('disabled', selectedItems.length ? false : true)
-        $('#btn-view-graph').prop('title', selectedItems.length ? 'Generate graph' : 'Select items from the table in order to generate its graph')
-      })
+        $(tableId).off('click', 'tr[role="row"]').on('click', 'tr[role="row"]', function (e) {
+          toggleRow(this, e);
+          selectedItems = []
+          $.each($(tableId).DataTable().rows('.active').data(), function (key, value) {
+            selectedItems.push({ id: value.item_id, name: value.item_name, consumer: value.item_consumer })
+          });
+          selectedRows['items'] = selectedItems
+          $('#btn-view-graph').prop('disabled', selectedItems.length ? false : true)
+          $('#btn-view-graph').prop('title', selectedItems.length ? 'Generate graph' : 'Select items from the table in order to generate its graph')
+        })
 
-      showExportButtons($(tableId).DataTable(), 'usage-buttons-row')
-    }
-  })
+        showExportButtons($(tableId).DataTable(), 'usage-buttons-row')
+      }
+    })
 
-
+  } else {
+    $('#usageTable tbody').html(`
+      <div style="text-align:center; padding:10px; background:#f7f7f7;">
+        <h4>No parameters in this grouping</h4>
+      </div>
+    `);
+  }
 
 }
 

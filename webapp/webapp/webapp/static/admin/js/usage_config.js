@@ -6,16 +6,17 @@
 */
 
 var selectedRows = {}
-var render_table_groupings, table_limits, table_parameters, table_category_credits;
+var render_table_groupings, table_limits, table_parameters, table_credits;
+var creditFilters = [];
 
 $(document).ready(function () {
-  render_table_parameters();
+  render_table_credits();
   render_table_limits();
+  render_table_parameters();
   render_table_groupings();
-  render_table_category_credits();
 
   // CREDIT
-  const creditFilters = [
+  creditFilters = [
     {
       value: 'grouping',
       label: 'Grouping',
@@ -81,11 +82,16 @@ $(document).ready(function () {
   ]
 
   $('#btn-credit_add').on('click', function () {
-    showModal('#modalAddCredit');
-    populateLimits('#modalAddCredit');
-    initialize_filters(null, creditFilters, '.valuesOptions')
-    $('#modalAddCreditForm :checkbox').iCheck('uncheck').iCheck('update');
-    addDateRangePicker('#modalAddCreditForm');
+    var modal='#modalAddCredit';
+
+    showModal(modal);
+    $(modal+'Form .valuesOptions').empty();
+    populateLimits(modal);
+    initialize_filters(null, creditFilters, modal+' .valuesOptions');
+    $(modal+'Form #consumer').val('category');
+    $(modal+'Form #consumer').prop('disabled', true);
+    $(modal+'Form :checkbox').iCheck('uncheck').iCheck('update');
+    addDateRangePicker(modal+'Form');
   });
 
   $('#modalAddCredit #send').on('click', function () {
@@ -94,11 +100,13 @@ $(document).ready(function () {
     form.parsley().validate();
     data['item_type'] = JSON.parse(data.grouping).itemType;
     data['item_consumer'] = data.consumer;
-    data['item_id'] = data[data.consumer];
-    data['limit_id'] = $('#limits').val()
-    data['grouping_id'] = JSON.parse($('#grouping').val()).id;
+    data['item_consumer'] = form.find('#consumer').val();
+    data['item_id'] = data.category;
+    data['limit_id'] = form.find(' #limits').val()
+    data['grouping_id'] = JSON.parse(form.find('#grouping').val()).id;
     data['start_date'] = moment(data['start_date'], "MM/DD/YYYY").format("YYYY-MM-DD");
     data['end_date'] = ('end_date-cb' in data) ? moment(data['end_date'], "MM/DD/YYYY").format("YYYY-MM-DD") : null;
+
     delete data['id'];
     delete data['grouping'];
     delete data['end_date-cb'];
@@ -110,9 +118,10 @@ $(document).ready(function () {
     delete data['deployment'];
     delete data['template'];
     delete data['hypervisor'];
+  
     if (data['end_date'] == null || moment(data['end_date']).isAfter(data['start_date'])) {
       if (form.parsley().isValid()) {
-        addItem('credit', data, table_category_credits);
+        addItem('credit', data, table_credits);
       }
     } else {
       new PNotify({
@@ -131,14 +140,29 @@ $(document).ready(function () {
     var form = $('#modalEditCreditForm');
     data = form.serializeObject();
     form.parsley().validate();
-    data['item_type'] = 'category';
-    data['category_id'] = data['item_id'];
+    data['item_type'] = JSON.parse(data.grouping).itemType;
+    data['item_consumer'] = data.consumer;
+    data['item_consumer'] = form.find('#consumer').val();
+    data['item_id'] = data.category;
+    data['limit_id'] = form.find(' #limits').val()
+    data['grouping_id'] = JSON.parse(form.find('#grouping').val()).id;
     data['start_date'] = moment(data['start_date'], "MM/DD/YYYY").format("YYYY-MM-DD");
     data['end_date'] = ('end_date-cb' in data) ? moment(data['end_date'], "MM/DD/YYYY").format("YYYY-MM-DD") : null;
 
+    delete data['id'];
+    delete data['grouping'];
+    delete data['end_date-cb'];
+    delete data['consumer'];
+    delete data['category'];
+    delete data['group'];
+    delete data['user'];
+    delete data['desktop'];
+    delete data['deployment'];
+    delete data['template'];
+    delete data['hypervisor'];
     if (data['end_date'] == null || moment(data['end_date']).isAfter(data['start_date'])) {
       if (form.parsley().isValid()) {
-        editItem('credit', data, table_category_credits);
+        editItem('credit', data, table_credits);
       };
     } else {
       new PNotify({
@@ -154,37 +178,9 @@ $(document).ready(function () {
 
   });
 
-  // GROUPINGS
-
-  $('#btn-parameter_grouping_add').on('click', function () {
-    showModal('#modalAddParameterGrouping');
-    fetchAvailableParameters('#modalAddParameterGrouping');
-    populateItemType('#modalAddParameterGrouping');
-  });
-
-  $('#modalAddParameterGrouping #send').on('click', function () {
-    var form = $('#modalAddParameterGroupingForm');
-    data = form.serializeObject();
-    form.parsley().validate();
-    delete data['id'];
-
-    if (form.parsley().isValid()) {
-      addItem('grouping', data, table_groupings);
-    };
-  });
-
-  $('#modalEditParameterGrouping #send').on('click', function () {
-    var form = $('#modalEditParameterGroupingForm');
-    data = form.serializeObject();
-    form.parsley().validate();
-
-    if (form.parsley().isValid()) {
-      editItem('grouping', data, table_groupings);
-    };
-  });
-
+  
   // LIMITS
-
+  
   $('#btn-limit_add').on('click', function () {
     showModal('#modalAddLimits');
   });
@@ -279,6 +275,35 @@ $(document).ready(function () {
     };
   });
 
+    // GROUPINGS
+
+    $('#btn-parameter_grouping_add').on('click', function () {
+      showModal('#modalAddParameterGrouping');
+      fetchAvailableParameters('#modalAddParameterGrouping');
+      populateItemType('#modalAddParameterGrouping');
+    });
+  
+    $('#modalAddParameterGrouping #send').on('click', function () {
+      var form = $('#modalAddParameterGroupingForm');
+      data = form.serializeObject();
+      form.parsley().validate();
+      delete data['id'];
+  
+      if (form.parsley().isValid()) {
+        addItem('grouping', data, table_groupings);
+      };
+    });
+  
+    $('#modalEditParameterGrouping #send').on('click', function () {
+      var form = $('#modalEditParameterGroupingForm');
+      data = form.serializeObject();
+      form.parsley().validate();
+  
+      if (form.parsley().isValid()) {
+        editItem('grouping', data, table_groupings);
+      };
+    });
+
   // CONSOLIDATE
 
   $("#btn-consolidate-desktops").on("click", function () {
@@ -302,6 +327,7 @@ $(document).ready(function () {
     `);
   })
 
+
   $('#modalConsolidateUsers #send').on('click', function () {
     var formData = $('#modalConsolidateUsersForm').serializeObject();
     consolidate('users', formData.days);
@@ -315,10 +341,11 @@ $(document).ready(function () {
   $("#btn-consolidate-media").on("click", function () {
     consolidate('media', false);
   })
+
 });
 
-function render_table_category_credits() {
-  table_category_credits = $('#table-category_credit').DataTable({
+function render_table_credits() {
+  table_credits = $('#table-credit').DataTable({
     "ajax": {
       "url": "/api/v3/admin/usage/category_credits",
       "contentType": "application/json",
@@ -331,26 +358,38 @@ function render_table_category_credits() {
     "rowId": "id",
     "deferRender": true,
     "columns": [
-      { "data": "item_id",
-      "render": function (data, type, row) {
-        return row.category_name;
-      }
+      {
+        "data": "item_id",
+        "title": "Consumer name",
+        "render": function (data, type, row) {
+          return row.category_name;
+        }
       },
-      { "data": "item_type", },
+      {
+        "data": "item_consumer",
+        "title": "Consumer type",
+      },
+      {
+        "data": "item_type",
+        "title": "Item type",
+      },
       {
         "data": "grouping_id",
+        "title": "Grouping",
         "render": function (data, type, row) {
           return row.grouping_name;
         }
       },
       {
         "data": "start_date",
+        "title": "Start date",
         "render": function (data, type, row) {
           return moment(row.start_date).format("DD-MM-YYYY");
         }
       },
       {
         "data": "end_date",
+        "title": "End date",
         "render": function (data, type, row) {
           if (row.end_date) {
             return moment(row.end_date).format("DD-MM-YYYY");
@@ -361,58 +400,20 @@ function render_table_category_credits() {
       },
       {
         "data": "limits",
+        "title": "Limits",
         "render": function (data, type, row) {
-          return row.limits.name;
+          return row.limits_name;
         }
       },
       {
         "orderable": false,
         "data": null,
+        "title": "Action",
         "width": "100px",
         "render": function (data, type, row) {
           if (moment(row.end_date).isAfter(moment()) || !row.end_date) {
             return `<button class="btn btn-xs btn-info btn-edit-credit" type="button" data-placement="top" ><i class="fa fa-pencil"></i></button>
                     <button class="btn btn-xs btn-danger btn-delete-credit" type="button" data-placement="top" ><i class="fa fa-times"></i></button>`;
-          } else {
-            return null;
-          }
-        }
-      },
-    ],
-  });
-};
-
-function render_table_groupings() {
-  table_groupings = $('#table_groupings').DataTable({
-    "ajax": {
-      "url": "/api/v3/admin/usage/groupings",
-      "contentType": "application/json",
-      "type": 'GET',
-    },
-    "sAjaxDataProp": "",
-    "language": {
-      "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
-    },
-    "rowId": "id",
-    "deferRender": true,
-    "columns": [
-      { "data": "name", },
-      { "data": "item_type", },
-      { "data": "desc", },
-      {
-        "data": "parameters",
-        "render": function (data, type, row) {
-          return data.join(', ');
-        }
-      },
-      {
-        "orderable": false,
-        "data": null,
-        "width": "100px",
-        "render": function (data, type, row) {
-          if (!(['_all', '_system', '_custom']).includes(row.id)) {
-            return `<button class="btn btn-xs btn-info btn-edit-grouping" type="button" data-placement="top" ><i class="fa fa-pencil"></i></button>
-                    <button class="btn btn-xs btn-danger btn-delete-grouping" type="button" data-placement="top" ><i class="fa fa-times"></i></button>`;
           } else {
             return null;
           }
@@ -436,15 +437,34 @@ function render_table_limits() {
     "rowId": "id",
     "deferRender": true,
     "columns": [
-      { "data": "name", },
-      { "data": "desc", },
-      { "data": "limits.soft", },
-      { "data": "limits.hard", },
-      { "data": "limits.exp_min", },
-      { "data": "limits.exp_max", },
+      {
+        "data": "name",
+        "title": "Name",
+      },
+      {
+        "data": "desc",
+        "title": "Description",
+      },
+      {
+        "data": "limits.soft",
+        "title": "Soft Limit",
+      },
+      {
+        "data": "limits.hard",
+        "title": "Hard limit",
+      },
+      {
+        "data": "limits.exp_min",
+        "title": "Expected min",
+      },
+      {
+        "data": "limits.exp_max",
+        "title": "Expected max",
+      },
       {
         "orderable": false,
         "data": null,
+        "title": "Action",
         "width": "100px",
         "render": function (data, type, row) {
           return `<button class="btn btn-xs btn-info btn-edit-limit" type="button" data-placement="top" ><i class="fa fa-pencil"></i></button>
@@ -470,39 +490,115 @@ function render_table_parameters() {
     "rowId": "id",
     "deferRender": true,
     "columns": [
-      { "data": "id", },
-      { "data": "custom",
+      {
+        "data": "id",
+        "title": "ID",
+      },
+      {
+        "data": "custom",
+        "title": "Source",
         "render": function (data, type, row) {
-        if (data == false) {
-          return 'System';
+          if (data == false) {
+            return 'System';
+          }
+          return 'Custom';
         }
-        return 'Custom';
-      } },
-      { "data": "item_type", },
-      { "data": "name" },
-      { "data": "desc" },
-      { "data": "formula",
-      "render": function (data, type, row) {
-        if (data == null) {
-          return '-';
+      },
+      {
+        "data": "item_type",
+        "title": "Item type",
+      },
+      {
+        "data": "name",
+        "title": "Name",
+      },
+      {
+        "data": "desc",
+        "title": "Description",
+      },
+      {
+        "data": "formula",
+        "title": "Formula",
+        "render": function (data, type, row) {
+          if (data == null) {
+            return '-';
+          }
+          return data;
         }
-        return data;
-      }},
-      { "data": "units",
-      "render": function (data, type, row) {
-        if (data == null) {
-          return '-';
+      },
+      {
+        "data": "units",
+        "title": "Units",
+        "render": function (data, type, row) {
+          if (data == null) {
+            return '-';
+          }
+          return data;
         }
-        return data;
-      } },
+      },
       {
         "orderable": false,
         "data": null,
+        "title": "Action",
         "width": "100px",
         "render": function (data, type, row) {
           if (row.custom) {
             return `<button class="btn btn-xs btn-info btn-edit-parameter" type="button" data-placement="top" ><i class="fa fa-pencil"></i></button>
                     <button class="btn btn-xs btn-danger btn-delete-parameter" type="button" data-placement="top" ><i class="fa fa-times"></i></button>`;
+          } else {
+            return null;
+          }
+        }
+      },
+    ],
+  });
+};
+
+function render_table_groupings() {
+  table_groupings = $('#table_groupings').DataTable({
+    "ajax": {
+      "url": "/api/v3/admin/usage/groupings",
+      "contentType": "application/json",
+      "type": 'GET',
+    },
+    "sAjaxDataProp": "",
+    "language": {
+      "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+    },
+    "rowId": "id",
+    "deferRender": true,
+    "columns": [
+      {
+        "data": "name",
+        "title": "Name",
+      },
+      {
+        "data": "item_type",
+        "title": "Item type",
+      },
+      {
+        "data": "desc",
+        "title": "Description",
+      },
+      {
+        "data": "parameters",
+        "title": "Parameters",
+        "render": function (data, type, row) {
+          if (!data.length) {
+            return '-';
+          }
+          return data.join(', ');
+        }
+      },
+      {
+        "orderable": false,
+        "data": null,
+        "title": "Action",
+        "width": "100px",
+        "render": function (data, type, row) {
+          if (!(['_all', '_system', '_custom']).includes(row.id)) {
+            return `<button class="btn btn-xs btn-info btn-edit-grouping" type="button" data-placement="top" ><i class="fa fa-pencil"></i></button>
+                    <button class="btn btn-xs btn-danger btn-delete-grouping" type="button" data-placement="top" ><i class="fa fa-times"></i></button>`;
           } else {
             return null;
           }
@@ -540,11 +636,9 @@ function fetchAvailableParameters(modal) {
       $(modal + ' #formula').attr("pattern", regex);
     }
   })
-
 }
 
 function populateLimits(modal) {
-
   $.ajax({
     type: 'GET',
     url: '/api/v3/admin/usage/limits',
@@ -555,7 +649,6 @@ function populateLimits(modal) {
       });
     }
   });
-
 }
 
 function showModal(modal_id) {
@@ -566,6 +659,7 @@ function showModal(modal_id) {
     $(this).remove();
   });
 }
+
 function populateItemType(modal) {
   $(modal + ' #item_type').append(`
     <option value='desktop'>Desktop</option>
@@ -628,7 +722,7 @@ function selectParameterList(modal, row) {
 }
 
 function addItem(kind, data, datatable) {
-  url = (kind == 'credit') ? `/api/v3/admin/usage/${kind}s/${data.item_type}` : `/api/v3/admin/usage/${kind}s`
+  url = (kind == 'credit') ? `/api/v3/admin/usage/${kind}s/${data.item_consumer}` : `/api/v3/admin/usage/${kind}s`;
 
   $.ajax({
     type: 'POST',
@@ -663,7 +757,7 @@ function addItem(kind, data, datatable) {
 }
 
 function editItem(kind, data, datatable) {
-  url = (kind == 'credit') ? `/api/v3/admin/usage/${kind}s/${data.item_type}` : `/api/v3/admin/usage/${kind}s`
+  url = (kind == 'credit') ? `/api/v3/admin/usage/${kind}s/${data.item_consumer}` : `/api/v3/admin/usage/${kind}s`;
 
   $.ajax({
     type: 'PUT',
@@ -698,7 +792,7 @@ function editItem(kind, data, datatable) {
 }
 
 function deleteItem(kind, id, datatable) {
-  url = (kind == 'credit') ? `/api/v3/admin/usage/${kind}s/category/${id}` : `/api/v3/admin/usage/${kind}s/${id}`;
+  url = (kind == 'credit') ? `/api/v3/admin/usage/${kind}s/${data.item_consumer}/${id}` : `/api/v3/admin/usage/${kind}s/${id}`;
 
   new PNotify({
     title: 'Confirmation Needed',
@@ -753,26 +847,32 @@ $('tbody').on('click', 'button', function () {
 
   if ($(this).hasClass('btn-edit-credit')) {
     var modal = "#modalEditCredit"
-
+    
     showModal(modal);
-    populateItemType(modal);
+    $(modal+'Form .valuesOptions').empty();
+    populateLimits(modal);
+    initialize_filters(null, creditFilters, modal+' .valuesOptions');
+    $(modal+'Form #consumer').val('category');
+    $(modal+'Form #consumer').prop('disabled', true);
     addDateRangePicker(modal);
-    populateCredit(modal);
 
     $.ajax({
       type: 'GET',
       url: `/api/v3/admin/usage/category_credits/${id}`,
       contentType: 'application/json',
       success: function (data) {
-        $(modal + ' #item_id').val(data.item_id)
-        $(modal + ' #grouping_id').val(data.grouping_id)
-        $(modal + ' #limits').val(data.limits.id)
-        $(modal + ' #start_date-calendar').val(moment(data['start_date']).format("MM/DD/YYYY"))
-        $(modal + ' #id').val(id)
+        $(modal + ' #item_id').val(data.item_id);
+        $(modal + ' #limits').val(data.limits_id);
+        $(modal + ' #start_date-calendar').val(moment(data['start_date']).format("MM/DD/YYYY"));
+        $(modal + ' #id').val(id);
+        grouping_id = $(modal + ' #grouping option[id="' + data.item_type +  data.grouping_id + '"]').val();
+        $(modal + ' #grouping').val(grouping_id);
+        $(modal + ' #consumer').val(data.item_consumer);
+        $(modal + ' #category').val(data.item_id);
 
         if (data.end_date) {
           $(modal + ' :checkbox').iCheck('check').iCheck('update');
-          $(modal + ' #end_date-calendar').val(moment(data['end_date']).format("MM/DD/YYYY"))
+          $(modal + ' #end_date-calendar').val(moment(data['end_date']).format("MM/DD/YYYY"));
         } else {
           $(modal + ' :checkbox').iCheck('uncheck').iCheck('update');
         }
@@ -781,28 +881,9 @@ $('tbody').on('click', 'button', function () {
   }
 
   if ($(this).hasClass('btn-delete-credit')) {
-    deleteItem('credit', id, table_category_credits)
+    deleteItem('credit', id, table_credits);
   }
 
-  // GROUPINGS
-
-  else if ($(this).hasClass('btn-edit-grouping')) {
-    var modal = "#modalEditParameterGrouping";
-
-    showModal(modal);
-    populateItemType(modal);
-    selectParameterList(modal, row);
-
-    $(modal + ' #name').val(row.data().name);
-    $(modal + ' #desc').val(row.data().desc);
-    $(modal + ' #item_type').val(row.data().item_type);
-    $(modal + ' #parameters').val(row.data().parameters);
-    $(modal + ' #id').val(id);
-  }
-
-  else if ($(this).hasClass('btn-delete-grouping')) {
-    deleteItem('grouping', id, table_groupings);
-  }
 
   // LIMITS
 
@@ -843,6 +924,26 @@ $('tbody').on('click', 'button', function () {
 
   else if ($(this).hasClass('btn-delete-parameter')) {
     deleteItem('parameter', id, table_parameters);
+  }
+
+  // GROUPINGS
+
+  else if ($(this).hasClass('btn-edit-grouping')) {
+    var modal = "#modalEditParameterGrouping";
+
+    showModal(modal);
+    populateItemType(modal);
+    selectParameterList(modal, row);
+
+    $(modal + ' #name').val(row.data().name);
+    $(modal + ' #desc').val(row.data().desc);
+    $(modal + ' #item_type').val(row.data().item_type);
+    $(modal + ' #parameters').val(row.data().parameters);
+    $(modal + ' #id').val(id);
+  }
+
+  else if ($(this).hasClass('btn-delete-grouping')) {
+    deleteItem('grouping', id, table_groupings);
   }
 
 });

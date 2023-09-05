@@ -406,14 +406,13 @@ def api_v3_admin_usage_credits(
     methods=["POST"],
 )
 @is_admin
-def api_v3_admin_usage_credits_category(payload, item_type):
+def api_v3_admin_usage_credits_add(payload, item_type):
     try:
         data = request.get_json()
     except:
         raise Error("bad_request")
 
     data["end_date"] = data["end_date"] if data["end_date"] != "null" else None
-    data["item_id"] = data["item_id"]
 
     itemExists("usage_limit", data["limit_id"])
 
@@ -439,21 +438,21 @@ def api_v3_admin_usage_credits_category(payload, item_type):
 
 @cached(cache=TTLCache(maxsize=10, ttl=5))
 @app.route(
-    "/api/v3/admin/usage/credits/category",
+    "/api/v3/admin/usage/credits/<item_type>",
     methods=["PUT"],
 )
 @is_admin
-def api_v3_admin_usage_credits_category_update(payload):
+def api_v3_admin_usage_credits_update(payload, item_type):
     try:
         data = request.get_json()
     except:
         raise Error("bad_request")
 
     data["end_date"] = data["end_date"] if data["end_date"] != "null" else None
-    data["item_type"] = "category"
-    data["item_id"] = data["category_id"]
 
-    itemExists("categories", data["category_id"])
+    if data["item_consumer"] == "category":
+        ##TODO: adapt to every kind of consumer
+        itemExists("categories", data["item_id"])
     itemExists("usage_limit", data["limit_id"])
 
     data = _validate_item("usage_credit", data)
@@ -477,9 +476,9 @@ def api_v3_admin_usage_credits_category_update(payload):
 
 
 @cached(cache=TTLCache(maxsize=10, ttl=5))
-@app.route("/api/v3/admin/usage/credits/category/<credit_id>", methods=["DELETE"])
+@app.route("/api/v3/admin/usage/credits/<item_type>/<credit_id>", methods=["DELETE"])
 @is_admin
-def api_v3_admin_usage_credits_delete(payload, credit_id):
+def api_v3_admin_usage_credits_delete(payload, item_type, credit_id):
     return (
         json.dumps(delete_usage_credit(credit_id)),
         200,

@@ -70,7 +70,7 @@ function initialize_filters(cbf, filterList, divId) {
       $('#reportrange_right').daterangepicker(dateFilterOptions, cb);
     }
     if (it.populate) {
-      populateSelect(it)
+      populateSelect(it, divId);
     }
   })
   // Create the filter buttons events
@@ -121,8 +121,8 @@ function newFilterBox(item, selected = null) {
  * @param  {String} item type of filter that will be populated.
  * @return {undefined}
  */
-function populateSelect(item) {
-  const elem = $("#" + item.value)
+function populateSelect(item, divId) {
+  const elem = $(divId + " #" + item.value);
   const select2Options = {
     placeholder: `Type to select a ${item.label}`,
     maximumSelectionLength: item.maxSelect || null
@@ -145,12 +145,12 @@ function populateSelect(item) {
             elem.append('</optgroup>');
           });
           // Once finished populating select by default the desktop_all grouping
-          grouping = $("#grouping").find("[id='desktop_all']").val()
+          grouping = $(`${divId} #grouping`).find("[id='desktop_all']").val();
           elem.val(grouping)
-          $("#grouping").trigger("change")
+          $(`${divId} #grouping`).trigger("change");
           // If it's a manager by default show the group consumer selected, if it's an admin the category consumer
-          $("#consumer").val($('meta[id=user_data]').attr('data-role') == 'manager' ? 'group' : 'category')
-          $("#consumer").trigger("change")
+          $(`${divId} #consumer`).val($('meta[id=user_data]').attr('data-role') == 'manager' ? 'group' : 'category');
+          $(`${divId} #consumer`).trigger("change");
           $('#btn-filter').trigger("click")
         })
       break;
@@ -193,45 +193,45 @@ function generate_events(divId) {
 }
 
 function generate_change_events (divId) {
-  $("#filter-grouping").on('change', function () {
+  valuesOptions = divId;
+  $(divId + " #filter-grouping").on('change', function () {
     itemType = JSON.parse($("#grouping").val()).itemType
-    fetchConsumers()
+    fetchConsumers(divId);
   })
-
-  $("#filter-consumer").on('change', function () {
-    consumer = $('#consumer').val();
+  $(valuesOptions + " #filter-consumer").on('change', function () {
+    consumer = $(valuesOptions + ' #consumer').val();
     // Show hide 
-    const item = $('#consumer').val();
+    const item = $(valuesOptions + ' #consumer').val();
     if (item !== "null") {
-      $(divId).children('[always-shown!=true][id!=filter-' + item + ']').hide()
-      $(divId).children('[always-shown!=true][id=filter-' + item + ']').show()
+      $(valuesOptions).children('[always-shown!=true][id!=filter-' + item + ']').hide();
+      $(valuesOptions).children('[always-shown!=true][id=filter-' + item + ']').show();
     }
-    $("#" + item).find('option').remove();
-    fetchConsumerItems()
+    $(valuesOptions + " #" + item).find('option').remove();
+    fetchConsumerItems(divId);
   });
 }
 
-function fetchConsumers () {
+function fetchConsumers (divId) {
   $.ajax({
     url: '/api/v3/admin/usage/consumers/' + itemType,
     type: 'GET',
     async: false
   }).then(function (d) {
-    $("#consumer").find('option').remove();
+    $(divId + " #consumer").find('option').remove();
     $.each(d, function (pos, it) {
-      $("#consumer").append('<option value=' + it + '>' + it + '</option>');
+      $(divId + " #consumer").append('<option value=' + it + '>' + it + '</option>');
     })
   });
 }
 
-function fetchConsumerItems () {
+function fetchConsumerItems (divId) {
   $.ajax({
     url: '/api/v3/admin/usage/distinct_items/' + consumer + "/" + startDate + "/" + endDate,
     type: 'GET',
     async: false
   }).then(function (items) {
     $.each(items, function (pos, it) {
-      $("#" + consumer).append('<option value=' + it.item_id + '>' + it.item_name + '</option>');
+      $(divId + " #" + consumer).append('<option value=' + it.item_id + '>' + it.item_name + '</option>');
     })
   });
 }
