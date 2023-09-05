@@ -2063,8 +2063,8 @@ github.com/yvasiyarov/go-metrics v0.0.0-20140926110328-57bccd1ccd43/go.mod h1:aX
 github.com/yvasiyarov/gorelic v0.0.0-20141212073537-a9bba5b9ab50/go.mod h1:NUSPSUX/bi6SeDMUh6brw0nXpxHnc96TguQh0+r/ssA=
 github.com/yvasiyarov/newrelic_platform_go v0.0.0-20140908184405-b21fdbd4370f/go.mod h1:GlGEuHIJweS1mbCqG+7vt2nvWLzLLnRHbXz5JKd/Qbg=
 github.com/zenazn/goji v1.0.1/go.mod h1:7S9M489iMyHBNxwZnk9/EHS098H4/F6TATF2mIxtB1Q=
-gitlab.com/isard/isardvdi-sdk-go v1.1.0 h1:fPQEhP1Gp4MBFUvuWyOvALoMuHkQT9kxxD8GHmHCdHM=
-gitlab.com/isard/isardvdi-sdk-go v1.1.0/go.mod h1:tHKp0m3CXVe4OHfb5t9wQjNaAbwXzyBaCzKMTNu4+Wk=
+gitlab.com/isard/isardvdi-sdk-go v1.4.0 h1:oBJmCC/THfVRRHX30xtrCIyy8gYCrMDJFfpaOrY+Ki8=
+gitlab.com/isard/isardvdi-sdk-go v1.4.0/go.mod h1:tHKp0m3CXVe4OHfb5t9wQjNaAbwXzyBaCzKMTNu4+Wk=
 gitlab.com/nyarla/go-crypt v0.0.0-20160106005555-d9a5dc2b789b/go.mod h1:T3BPAOm2cqquPa0MKWeNkmOM5RQsRhkrwMWonFMN7fE=
 go.elastic.co/apm v1.5.0/go.mod h1:OdB9sPtM6Vt7oz3VXt7+KR96i9li74qrxBGHTQygFvk=
 go.elastic.co/apm v1.11.0/go.mod h1:qoOSi09pnzJDh5fKnfY7bPmQgl8yl2tULdOu03xhui0=

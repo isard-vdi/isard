@@ -75,6 +75,73 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				Id: "testing",
 			},
 		},
+		"if some hyperviosrs are offline, buffer, GPU only, or only forced don't cound them": {
+			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{{
+				Id:    "testing",
+				State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_CREATE,
+				Ram:   5000,
+			}, {
+				Id:    "HUGE HYPERVISOR",
+				State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_CREATE,
+				Ram:   99999999,
+			}, {
+				Id:    "already",
+				State: operationsv1.HypervisorState_HYPERVISOR_STATE_AVAILABLE_TO_CREATE,
+				Ram:   300,
+			}},
+			Hypers: []*isardvdi.OrchestratorHypervisor{{
+				ID:         "already",
+				Status:     isardvdi.HypervisorStatusOnline,
+				OnlyForced: false,
+				RAM: isardvdi.OrchestratorResourceLoad{
+					Total: 300,
+					Used:  200,
+					Free:  100,
+				},
+			}, {
+				ID:         "offline",
+				Status:     isardvdi.HypervisorStatusOffline,
+				OnlyForced: false,
+				RAM: isardvdi.OrchestratorResourceLoad{
+					Total: 1000,
+					Used:  10,
+					Free:  990,
+				},
+			}, {
+				ID:         "buffering",
+				Status:     isardvdi.HypervisorStatusOnline,
+				Buffering:  true,
+				OnlyForced: false,
+				RAM: isardvdi.OrchestratorResourceLoad{
+					Total: 1000,
+					Used:  10,
+					Free:  990,
+				},
+			}, {
+				ID:         "only forced",
+				Status:     isardvdi.HypervisorStatusOnline,
+				OnlyForced: true,
+				RAM: isardvdi.OrchestratorResourceLoad{
+					Total: 1000,
+					Used:  10,
+					Free:  990,
+				},
+			}, {
+				ID:         "gpu only",
+				Status:     isardvdi.HypervisorStatusOnline,
+				OnlyForced: false,
+				GPUOnly:    true,
+				RAM: isardvdi.OrchestratorResourceLoad{
+					Total: 1000,
+					Used:  10,
+					Free:  990,
+				},
+			}},
+			RataMinRAM: 500,
+			ExpectedCreateHypervisor: &operationsv1.CreateHypervisorRequest{
+				Id: "testing",
+			},
+		},
 		"if there's too much free RAM, it should add the biggest hypervisor that it can to the dead row": {
 			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
 			Hypers: []*isardvdi.OrchestratorHypervisor{{
