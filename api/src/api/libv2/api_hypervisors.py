@@ -67,8 +67,7 @@ class ApiHypervisors:
 
         if hyp_id:
             query = query.get(hyp_id)
-        else:
-            query = query.filter({"gpu_only": False})
+
         query = query.pluck(
             "id",
             "status",
@@ -78,6 +77,7 @@ class ApiHypervisors:
             "stats",
             "orchestrator_managed",
             "min_free_mem_gb",
+            "gpu_only",
         )
         query = query.merge(
             lambda hyper: {
@@ -103,6 +103,7 @@ class ApiHypervisors:
                     "stats": {},
                     "orchestrator_managed": False,
                     "min_free_mem_gb": 0,
+                    "gpu_only": False,
                 },
                 **self._get_hypervisors_gpus(hyp_id, data["status"]),
                 **data,
@@ -119,6 +120,7 @@ class ApiHypervisors:
                         "stats": {},
                         "orchestrator_managed": False,
                         "min_free_mem_gb": 0,
+                        "gpu_only": False,
                     },
                     **self._get_hypervisors_gpus(d["id"], d["status"]),
                     **d,

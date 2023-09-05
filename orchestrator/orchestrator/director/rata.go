@@ -175,7 +175,6 @@ func (r *Rata) maxRAM() int {
 	return getCurrentHourlyLimit(r.cfg.MaxRAMHourly, time.Now())
 }
 
-// TODO: GPUs
 // TODO: Start a smaller available hypervisor in order to scale down afterwards
 func (r *Rata) NeedToScaleHypervisors(ctx context.Context, operationsHypers []*operationsv1.ListHypervisorsResponseHypervisor, hypers []*isardvdi.OrchestratorHypervisor) (*operationsv1.CreateHypervisorRequest, *operationsv1.DestroyHypervisorRequest, string, string, error) {
 	var (
@@ -204,8 +203,8 @@ availHypersLoop:
 			if h.DestroyTime.IsZero() {
 				// Ensure we don't play with buffering hypervisors! :)
 				if !h.Buffering {
-					if !h.OnlyForced {
-						// It's online and not only forced, count it as available resources
+					if !h.OnlyForced && !h.GPUOnly {
+						// It's online, is not forced to GPUs and not only forced, count it as available resources
 						cpuAvail += h.CPU.Free
 						ramAvail += h.RAM.Free
 						hypersAvail = append(hypersAvail, h)

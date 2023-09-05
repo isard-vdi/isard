@@ -20,6 +20,7 @@ func (m ModelHypervisor) MarshalZerologObject(e *zerolog.Event) {
 		Bool("buffering", m.h.Buffering).
 		Time("destroy_time", m.h.DestroyTime).
 		Bool("orchestrator_managed", m.h.OrchestratorManaged).
+		Bool("gpu_only", m.h.GPUOnly).
 		Int("desktops_started", m.h.DesktopsStarted).
 		Object("cpu", NewModelResourceLoad(m.h.CPU)).
 		Object("ram", NewModelResourceLoad(m.h.RAM))
