@@ -16,6 +16,7 @@
           :close-on-select="false"
           :deselect-from-dropdown="true"
           :selected-values="selectedIsos"
+          :placeholder="$t(`forms.domain.media.placeholder`)"
           @search="fetchIsoAllowedTerm"
           @updateSelected="updateIsosSelected"
         />
@@ -31,6 +32,7 @@
           :close-on-select="false"
           :deselect-from-dropdown="true"
           :selected-values="selectedFloppies"
+          :placeholder="$t(`forms.domain.media.placeholder`)"
           @search="fetchFloppyAllowedTerm"
           @updateSelected="updateFloppiesSelected"
         />
