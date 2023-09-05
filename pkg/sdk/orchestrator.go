@@ -17,6 +17,7 @@ type OrchestratorHypervisor struct {
 	Stats               OrchestratorHypervisorStats  `json:"stats,omitempty"`
 	MinFreeMemGB        int                          `json:"min_free_mem_gb,omitempty"`
 	OrchestratorManaged bool                         `json:"orchestrator_managed,omitempty"`
+	GPUOnly             bool                         `json:"gpu_only,omitempty"`
 	DesktopsStarted     int                          `json:"desktops_started,omitempty"`
 	CPU                 OrchestratorResourceLoad     `json:"-"`
 	RAM                 OrchestratorResourceLoad     `json:"-"`
