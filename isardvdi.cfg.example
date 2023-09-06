@@ -1,4 +1,4 @@
-# Isard main config v2.10.2
+# Isard main config v2.10.3
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -292,6 +292,7 @@ LOG_LEVEL=INFO
 #ONLY_FORCED_HYP=false
 
 # Comma separated CIDR networks/hosts you want guests to be blocked access
+# WARNING: By default only DOCKER_NET and self hypervisor is filtered for guest
 #BLACKLIST_IPTABLES=10.10.10.1/24,10.10.11.1/24
 
 # Memory free at hypervisor
