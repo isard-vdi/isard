@@ -31,10 +31,11 @@ services:
         ipv4_address: ${DOCKER_NET:-172.31.255}.12
     volumes:
       - /opt/isard/redis/data:/data
-    command: /bin/sh -c "redis-server --requirepass \"$$REDIS_PASSWORD\""
+    command: /bin/sh -c "redis-server --port \"$$REDIS_PORT\" --requirepass \"$$REDIS_PASSWORD\""
     environment:
       REDIS_PASSWORD:
+      REDIS_PORT: ${REDIS_PORT:-6379}
     healthcheck:
-      test: ["CMD", "redis-cli","ping"]
+      test: ["CMD-SHELL", "redis-cli -p $$REDIS_PORT:-6379 ping"]
       start_period: 10s
       interval: 5s

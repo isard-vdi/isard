@@ -30,5 +30,6 @@ class RedisBase(ABC):
 
     _redis = Redis(
         host=os.environ.get("REDIS_HOST", "isard-redis"),
+        port=int(os.environ.get("REDIS_PORT", 6379)),
         password=os.environ.get("REDIS_PASSWORD", ""),
     )

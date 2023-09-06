@@ -34,4 +34,4 @@ services:
       RETHINKDB_PORT: ${RETHINKDB_PORT:-28015}
       RETHINKDB_DB: ${RETHINKDB_DB:-isard}
       API_ISARDVDI_SECRET:
-      RQ_REDIS_URL: "redis://:${REDIS_PASSWORD}@${REDIS_HOST:-isard-redis}"
+      RQ_REDIS_URL: "redis://:${REDIS_PASSWORD}@${REDIS_HOST:-isard-redis}:${REDIS_PORT:-6379}"
