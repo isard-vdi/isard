@@ -63,10 +63,15 @@ do
   fi
 done
 
-echo "---> Securing network connections from guests..."
+echo "---> Securing network connections from guests to dockers..."
+# Block traffic from guests to other dockers
 iptables -I FORWARD -o eth0 -d $(ip -o -4 addr show dev eth0 | awk '{print $4}') -j REJECT
+# Block traffic from guests default isolated network to hypervisor itself
+iptables -A INPUT -s 192.168.120.0/22  -d $DOCKER_NET.17 -j REJECT --reject-with icmp-port-unreachable
+# Block traffic from guests shared network to hypervisor itself
+iptables -A INPUT -s 192.168.124.0/22  -d $DOCKER_NET.17 -j REJECT --reject-with icmp-port-unreachable
 
-echo "---> Applying iptables rules"
+echo "---> Applying custom BLACKLIST_IPTABLES rules"
 BLACKLIST_IPTABLES=$(echo $BLACKLIST_IPTABLES | tr "," " ")
 for BLACKLIST_IPTABLES in $BLACKLIST_IPTABLES
 do
