@@ -41,6 +41,7 @@ from .._common.storage_node import StorageNode
 def _connect_redis():
     return Redis(
         host=os.environ.get("REDIS_HOST", "isard-redis"),
+        port=int(os.environ.get("REDIS_PORT", 6379)),
         password=os.environ.get("REDIS_PASSWORD", ""),
     )
 

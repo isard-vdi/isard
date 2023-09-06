@@ -463,6 +463,7 @@ WG_GUESTS_RESERVED_HOSTS=20
 ##   - hypervisor
 ##   - hypervisor-standalone
 #REDIS_HOST=isard-redis
+#REDIS_PORT=6379
 
 ##################################################################
 ## STATS PARAMETERS                                             ##

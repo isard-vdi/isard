@@ -27,5 +27,7 @@ services:
       ENV: /usr/local/etc/environment
       STORAGE_DOMAIN:
       REDIS_HOST:
+      REDIS_PORT:
+      REDIS_PASSWORD:
       QCOW2_CLUSTER_SIZE:
       QCOW2_EXTENDED_L2:
