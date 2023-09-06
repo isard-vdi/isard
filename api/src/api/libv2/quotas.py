@@ -104,7 +104,10 @@ class Quotas:
                 .run(db.conn)
             )
             user_media = (
-                r.table("media").get_all(user_id, index="user").count().run(db.conn)
+                r.table("media")
+                .get_all(["Downloaded", user_id], index="status_user")
+                .count()
+                .run(db.conn)
             )
 
             user_total_storage_size = (
@@ -116,7 +119,7 @@ class Quotas:
 
             user_total_media_size = (
                 r.table("media")
-                .get_all(user_id, index="user")
+                .get_all(["Downloaded", user_id], index="status_user")
                 .sum(lambda size: size["progress"]["total_bytes"].default(0))
                 .run(db.conn)
             ) / 1073741824
