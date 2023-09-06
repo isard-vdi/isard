@@ -97,6 +97,11 @@
                 "groups-users": "Se debe escoger como mínimo un usuario o un grupo"
             }
         },
+        "edit-deployment": {
+            "desktop": {
+                "title": "Editar escritorios del despliegue"
+            }
+        },
         "new-media": {
             "title": "Crear nuevo medio:",
             "url": "Dirección web",
@@ -232,6 +237,12 @@
                     },
                     "delete": {
                         "title": "Eliminar despliegue"
+                    },
+                    "edit": {
+                        "title": "Editar despliegue"
+                    },
+                    "allowed": {
+                        "title": "Editar usuarios"
                     }
                 }
             },
@@ -879,6 +890,7 @@
             "create-nonpersistent": "ATENCIÓN! Este escritorio es temporal. Al pararlo se eliminarán todos sus datos. Crear escritorio?",
             "visible-deployment": "Los escritorios serán visibles",
             "recreate-deployment": "Los escritorios eliminados de '{name}' se recrearán, continuar?",
+            "edit-deployment": "Los escritorios de '{name}' se editarán, continuar?",
             "delete-deployment": "'{name}' se borrará, continuar?",
             "delete-deployment-desktop": "El escritorio de '{name}' se borrará, continuar?",
             "start-deployment-desktops": "Los escritorios de '{name}' se iniciarán, continuar?",
@@ -1005,7 +1017,7 @@
         "deployment_desktop_new_category_limit_exceeded": "Se ha excedido el límite de creación de escritorios de la categoria '{category}'",
         "unable_to_stop_desktop_from": "No se puede parar el escritorio desde su estado",
         "unable_to_start_desktop_from": "No se puede arrancar un escritorio desde su estado",
-        "deployment_delete_stop": "Para eliminar un despliegue es necesario que sus escritorios estén parados",
+        "deployment_stop": "Para realizar esta acción es necesario que los escritorios del despliegue estén parados",
         "desktop_not_booked": "Para arrancar el escritorio debe estar reservado",
         "desktop_not_booked_until": "No se puede arrancar el escritorio hasta su próxima reserva: {start}",
         "booking_does_not_fit_date": "La reserva no se ajusta a la fecha solicitada",
@@ -1047,7 +1059,8 @@
         "desktop_storage_not_ready": "El almacenamiento del escritorio no está listo",
         "vpn_missing_itemid": "Falta el identificador del elemento en la VPN",
         "no_reservables": "El ítem no tiene reservables",
-        "incorrect_new_plan_body_data": "Datos de nuevo plan incorrectos"
+        "incorrect_new_plan_body_data": "Datos de nuevo plan incorrectos",
+        "cant_edit_booked_deployment": "No se pueden editar los reservables un despliegue con reservas planeadas"
     },
     "router": {
         "titles": {
@@ -1073,7 +1086,8 @@
             "maintenance": "Mantenimiento",
             "direct_viewer": "Visor directo",
             "edit-domain": "Editar dominio",
-            "storage": "Almacenamiento"
+            "storage": "Almacenamiento",
+            "edit-deployment": "Editar despliegue"
         }
     },
     "message-modal": {

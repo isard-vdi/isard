@@ -23,7 +23,7 @@ export class DomainsUtils {
         disks: hardware.disks,
         diskSize: hardware.disk_size,
         floppies: AllowedUtils.parseItems(hardware.floppies),
-        graphics: hardware.graphics,
+        graphics: hardware.graphics ? hardware.graphics : 'default',
         interfaces: hardware.interfaces.map(i => i.id),
         interfacesMac: hardware.interfaces.map(i => i.mac),
         isos: AllowedUtils.parseItems(hardware.isos),

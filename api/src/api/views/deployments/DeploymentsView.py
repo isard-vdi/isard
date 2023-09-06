@@ -5,6 +5,8 @@
 
 import json
 
+from api.libv2.api_admin import admin_table_get
+from api.libv2.api_desktops_common import ApiDesktopsCommon
 from api.libv2.api_desktops_persistent import check_template_status
 from api.libv2.deployments import api_deployments
 from api.libv2.validators import _validate_item
@@ -19,6 +21,11 @@ from ..decorators import (
     is_not_user,
     ownsDeploymentId,
 )
+
+common = ApiDesktopsCommon()
+from api.libv2.quotas import Quotas
+
+quotas = Quotas()
 
 
 @app.route("/api/v3/deployment/<deployment_id>", methods=["GET"])
@@ -126,8 +133,66 @@ def api_v3_deployments_directviewer_csv(payload, deployment_id):
 @app.route("/api/v3/deployment/hardware/<deployment_id>", methods=["GET"])
 @is_not_user
 def api_v3_deployment_hardware(payload, deployment_id):
+    return (json.dumps(api_deployments.get_deployment_details_hardware(deployment_id)),)
+
+
+@app.route("/api/v3/deployment/info/<deployment_id>", methods=["GET"])
+@is_not_user
+def api_v3_deployment_info(payload, deployment_id):
+    ownsDeploymentId(payload, deployment_id)
+    deployment = api_deployments.get_deployment_info(deployment_id)
+    deployment = quotas.limit_user_hardware_allowed(payload, deployment)
     return (
-        json.dumps(api_deployments.get_deployment_details_hardware(deployment_id)),
+        json.dumps(deployment),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/deployment/<deployment_id>", methods=["PUT"])
+@is_not_user
+def api_v3_deployment_edit(payload, deployment_id):
+    ownsDeploymentId(payload, deployment_id)
+    api_deployments.checkDesktopsStarted(deployment_id)
+    try:
+        data = request.get_json(force=True)
+    except:
+        raise Error(
+            "bad_request", "Could not decode body data", description_code="bad_request"
+        )
+
+    data = _validate_item("deployment_update", data)
+    checkDuplicate(
+        "deployments", data["name"], user=payload["user_id"], item_id=deployment_id
+    )
+    api_deployments.edit_deployment(deployment_id, data)
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/deployment/users/<deployment_id>", methods=["PUT"])
+@is_not_user
+def api_v3_deployment_edit_users(payload, deployment_id):
+    ownsDeploymentId(payload, deployment_id)
+    api_deployments.checkDesktopsStarted(deployment_id)
+    try:
+        data = request.get_json(force=True)
+        if data.get("allowed").get("categories"):
+            data.get("allowed").pop("categories")
+        if data.get("allowed").get("roles"):
+            data.get("allowed").pop("roles")
+    except:
+        raise Error(
+            "bad_request", "Could not decode body data", description_code="bad_request"
+        )
+
+    data = _validate_item("allowed", data)
+    api_deployments.edit_deployment_users(payload, deployment_id, data.get("allowed"))
+    return (
+        json.dumps({}),
         200,
         {"Content-Type": "application/json"},
     )

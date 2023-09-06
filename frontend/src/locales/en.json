@@ -97,6 +97,11 @@
                 "groups-users": "At least one user or one group must be selected"
             }
         },
+        "edit-deployment": {
+            "desktop": {
+                "title": "Edit deployment desktops"
+            }
+        },
         "new-media": {
             "title": "Create new media:",
             "url": "URL",
@@ -232,6 +237,12 @@
                     },
                     "delete": {
                         "title": "Delete deployment"
+                    },
+                    "edit": {
+                        "title": "Edit deployment"
+                    },
+                    "allowed": {
+                        "title": "Edit users"
                     }
                 }
             },
@@ -865,6 +876,7 @@
             "create-nonpersistent": "WARNING! This desktop is temporal. When stopping it all data will be deleted. Create desktop?",
             "visible-deployment": "Desktops will be visible",
             "recreate-deployment": "'{name}' deleted desktops will be recreated, continue?",
+            "edit-deployment": "'{name}' desktops will be edited, continue?",
             "delete-deployment": "'{name}' will be deleted, continue?",
             "delete-deployment-desktop": "'{name}' desktop will be deleted, continue?",
             "start-deployment-desktops": "'{name}' desktops will be started, continue?",
@@ -1021,7 +1033,7 @@
         "invalid_end_date": "Invalid end date",
         "deployment_desktop_new_group_limit_exceeded": "Group '{group}' desktop creation limit has been exceeded",
         "deployment_desktop_new_category_limit_exceeded": "Category '{category}' desktop creation limit has been exceeded",
-        "deployment_delete_stop": "To delete a deployment its desktops must be stopped",
+        "deployment_stop": "To perform this action the deployment desktops must be stopped",
         "desktop_not_booked": "The desktop needs a booking to be started",
         "desktop_not_booked_until": "The desktop can't be started until its next booking: {start}",
         "incorrect_new_plan_body_data": "Incorrect new plan body data",
@@ -1033,7 +1045,8 @@
         "not_enough_advanced_time": "There's not enough advanced time to start the desktop",
         "one_viewer_minimum": "At least one viewer must be selected",
         "template_failed": "Due to an error this template can't be used to create a new desktop, please contact the administrator",
-        "desktop_storage_not_ready": "Desktop storage is not ready"
+        "desktop_storage_not_ready": "Desktop storage is not ready",
+        "cant_edit_booked_deployment": "Can't edit the reservables from a deployment with a scheduled booking"
     },
     "router": {
         "titles": {
@@ -1059,7 +1072,8 @@
             "maintenance": "Maintenance",
             "direct_viewer": "Direct viewer",
             "edit-domain": "Edit domain",
-            "storage": "Storage"
+            "storage": "Storage",
+            "edit-deployment": "Edit deployment"
         }
     },
     "message-modal": {

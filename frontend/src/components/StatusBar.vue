@@ -205,6 +205,27 @@
               />
             </b-button>
             <b-button
+              class="rounded-circle btn btn-blue px-2 mr-2"
+              :title="$t('components.statusbar.deployment.buttons.edit.title')"
+              @click="editDeployment()"
+            >
+              <b-icon
+                icon="pencil-fill"
+                scale="0.75"
+              />
+            </b-button>
+            <b-button
+              class="rounded-circle px-2 mr-2 btn-dark-blue"
+              :title="$t('components.statusbar.deployment.buttons.allowed.title')"
+              @click="showAllowedModal()"
+            >
+              <b-icon
+                icon="people-fill"
+                scale="0.75"
+              />
+            </b-button>
+            <AllowedModal @updateAllowed="updateUsers" />
+            <b-button
               class="rounded-circle btn-red px-2 mr-2"
               :title="$t('components.statusbar.deployment.buttons.delete.title')"
               @click="deleteDeployment()"
@@ -280,6 +301,7 @@
 
 <script>
 import { desktopStates } from '@/shared/constants'
+import AllowedModal from '@/components/AllowedModal.vue'
 import DesktopsFilter from '@/components/desktops/DesktopsFilter.vue'
 import DeploymentModal from '@/components/deployments/DeploymentModal.vue'
 import { ref, computed, watch } from '@vue/composition-api'
@@ -288,7 +310,8 @@ import i18n from '@/i18n'
 export default {
   components: {
     DesktopsFilter,
-    DeploymentModal
+    DeploymentModal,
+    AllowedModal
   },
   setup (props, context) {
     const $store = context.root.$store
@@ -407,6 +430,18 @@ export default {
       })
     }
 
+    const showAllowedModal = () => {
+      $store.dispatch('fetchAllowed', { table: 'deployments', id: deployment.value.id })
+    }
+
+    const updateUsers = (allowed) => {
+      $store.dispatch('editDeploymentUsers', { id: deployment.value.id, allowed: allowed })
+    }
+
+    const editDeployment = () => {
+      $store.dispatch('goToEditDeployment', deployment.value.id)
+    }
+
     const deleteDeployment = () => {
       context.root.$snotify.clear()
 
@@ -483,6 +518,9 @@ export default {
       goToVideowall,
       toggleVisible,
       downloadDirectViewerCSV,
+      showAllowedModal,
+      updateUsers,
+      editDeployment,
       deleteDeployment,
       recreateDeployment,
       createDesktop,
