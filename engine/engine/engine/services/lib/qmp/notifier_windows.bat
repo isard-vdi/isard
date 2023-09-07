@@ -1,1 +1,1 @@
-msg.exe * "{message}"
+msg * "{message}"
