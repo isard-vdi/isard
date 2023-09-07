@@ -18,16 +18,9 @@ then
       previous_pools="$previous_pools $pool"
     done
   done
-  rq worker --name storage:${STORAGE_DOMAIN:-isard-storage}:$(uuidgen) --url "redis://:${REDIS_PASSWORD}@${REDIS_HOST:-isard-redis}:${REDIS_PORT:-6379}" -P /opt/isardvdi/isardvdi_task $queues
+  while true
+  do
+    rq worker --name storage:${STORAGE_DOMAIN:-isard-storage}:$(uuidgen) --url "redis://:${REDIS_PASSWORD}@${REDIS_HOST:-isard-redis}:${REDIS_PORT:-6379}" -P /opt/isardvdi/isardvdi_task $queues
+    sleep 1
+  done
 fi
-
-# Wait background tasks and clean it at termination.
-stop_background_tasks()
-{
-  echo Stopping background tasks...
-  trap - SIGTERM
-  kill -TERM -$$
-  wait
-}
-trap stop_background_tasks SIGTERM SIGINT SIGQUIT 
-wait
