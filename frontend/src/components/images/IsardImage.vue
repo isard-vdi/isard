@@ -4,7 +4,7 @@
       :class="imageClass"
       thumbnail
       fluid
-      :src="`..${imageUrl}`"
+      :src="`${imageUrl}`"
       @click="$emit('imageClicked')"
     />
   </div>

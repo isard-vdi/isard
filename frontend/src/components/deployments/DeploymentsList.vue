@@ -116,6 +116,26 @@
               <template #cell(actions)="data">
                 <div class="d-flex align-items-center">
                   <b-button
+                    class="rounded-circle btn btn-blue px-2 mr-2"
+                    :title="$t('components.statusbar.deployment.buttons.edit.title')"
+                    @click="editDeployment(data.item.id)"
+                  >
+                    <b-icon
+                      icon="pencil-fill"
+                      scale="0.75"
+                    />
+                  </b-button>
+                  <b-button
+                    class="rounded-circle px-2 mr-2 btn-dark-blue"
+                    :title="$t('components.statusbar.deployment.buttons.allowed.title')"
+                    @click="showAllowedModal(data.item.id)"
+                  >
+                    <b-icon
+                      icon="people-fill"
+                      scale="0.75"
+                    />
+                  </b-button>
+                  <b-button
                     class="rounded-circle btn btn-red px-2 mr-2"
                     :title="$t('components.statusbar.deployment.buttons.delete.title')"
                     @click="deleteDeployment(data.item)"
@@ -171,16 +191,18 @@
           </b-col>
         </b-row>
       </b-skeleton-wrapper>
+      <AllowedModal @updateAllowed="updateUsers" />
     </b-container>
   </div>
 </template>
 <script>
 import i18n from '@/i18n'
+import AllowedModal from '@/components/AllowedModal.vue'
 import ListItemSkeleton from '@/components/ListItemSkeleton.vue'
-import { ref, reactive, watch } from '@vue/composition-api'
+import { computed, ref, reactive, watch } from '@vue/composition-api'
 
 export default {
-  components: { ListItemSkeleton },
+  components: { ListItemSkeleton, AllowedModal },
   props: {
     deployments: {
       required: true,
@@ -220,6 +242,20 @@ export default {
       } else {
         return null
       }
+    }
+
+    const showAllowedModal = (deploymentId) => {
+      $store.dispatch('fetchAllowed', { table: 'deployments', id: deploymentId })
+    }
+
+    const deploymentId = computed(() => $store.getters.getId)
+
+    const updateUsers = (allowed) => {
+      $store.dispatch('editDeploymentUsers', { id: deploymentId.value, allowed: allowed })
+    }
+
+    const editDeployment = (deploymentId) => {
+      $store.dispatch('goToEditDeployment', deploymentId)
     }
 
     const redirectDeployment = (item) => {
@@ -268,7 +304,10 @@ export default {
       perPage,
       pageOptions,
       currentPage,
-      totalRows
+      totalRows,
+      editDeployment,
+      showAllowedModal,
+      updateUsers
     }
   },
   data () {

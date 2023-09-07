@@ -3,6 +3,7 @@ import Booking from '@/pages/Booking'
 import BookingsSummary from '@/pages/BookingsSummary'
 import Deployment from '@/pages/Deployment.vue'
 import DeploymentNew from '@/pages/DeploymentNew.vue'
+import DeploymentEdit from '@/pages/DeploymentEdit.vue'
 import Deployments from '@/pages/Deployments.vue'
 import DeploymentVideowall from '@/pages/DeploymentVideowall.vue'
 import DomainEdit from '@/pages/DomainEdit.vue'
@@ -204,6 +205,15 @@ const router = new VueRouter({
           component: DeploymentVideowall,
           meta: {
             title: i18n.t('router.titles.deployment_videowall'),
+            allowedRoles: ['admin', 'manager', 'advanced']
+          }
+        },
+        {
+          path: 'edit',
+          name: 'deploymentEdit',
+          component: DeploymentEdit,
+          meta: {
+            title: i18n.t('router.titles.edit-deployment'),
             allowedRoles: ['admin', 'manager', 'advanced']
           }
         }

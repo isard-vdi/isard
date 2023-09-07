@@ -4,10 +4,14 @@
 #      Josep Maria Viñolas Auquer
 #      Alberto Larraz Dalmases
 # License: AGPLv3
+import copy
 import csv
 import io
 import os
+import traceback
+from datetime import datetime
 
+import pytz
 from api.libv2.quotas import Quotas
 from rethinkdb import RethinkDB
 
@@ -25,18 +29,24 @@ quotas = Quotas()
 db = RDB(app)
 db.init_app(app)
 
+from api.libv2.api_allowed import ApiAllowed
+
+alloweds = ApiAllowed()
+
+
 from api.libv2.quotas import Quotas
 
 from ..api_desktop_events import desktops_delete, desktops_stop
 from ..api_desktops_common import ApiDesktopsCommon
 from ..api_desktops_persistent import ApiDesktopsPersistent
-from ..bookings.api_booking import Bookings
+from ..bookings.api_booking import Bookings, is_future
 from ..helpers import (
     _check,
     _parse_deployment_booking,
     _parse_deployment_desktop,
     _parse_string,
     parse_domain_insert,
+    parse_domain_update,
     set_current_booking,
 )
 from ..validators import _validate_item
@@ -163,6 +173,55 @@ def get(deployment_id, desktops=True):
     return deployment
 
 
+def get_deployment_info(deployment_id):
+    with app.app_context():
+        create_dict = (
+            r.table("deployments")
+            .get(deployment_id)
+            .pluck({"create_dict": True})
+            .run(db.conn)["create_dict"]
+        )
+        template = (
+            r.table("domains")
+            .get(create_dict["template"])
+            .pluck({"create_dict": True, "guest_properties": True, "image": True})
+            .run(db.conn)
+        )
+        template["hardware"] = template["create_dict"].pop("hardware")
+        template.pop("create_dict")
+        template["guest_properties"] = template.pop("guest_properties")
+        template["image"] = template.pop("image")
+    template.update(create_dict)
+    if "isos" in create_dict["hardware"]:
+        with app.app_context():
+            isos = create_dict["hardware"]["isos"]
+            create_dict["hardware"]["isos"] = []
+            # Loop instead of a get_all query to keep the isos array order
+            for iso in isos:
+                create_dict["hardware"]["isos"].append(
+                    r.table("media").get(iso["id"]).pluck("id", "name").run(db.conn)
+                )
+    if "floppies" in create_dict["hardware"]:
+        with app.app_context():
+            create_dict["hardware"]["floppies"] = list(
+                r.table("media")
+                .get_all(
+                    r.args([i["id"] for i in create_dict["hardware"]["floppies"]]),
+                    index="id",
+                )
+                .pluck("id", "name")
+                .run(db.conn)
+            )
+
+    create_dict["hardware"]["interfaces"] = [
+        {"id": i, "mac": ""} for i in create_dict["hardware"]["interfaces"]
+    ]
+    create_dict["hardware"]["memory"] = create_dict["hardware"]["memory"] / 1048576
+    create_dict["id"] = deployment_id
+    create_dict["allowed"] = alloweds.get_allowed(create_dict.get("allowed"))
+    return create_dict
+
+
 def new(
     payload,
     template_id,
@@ -200,7 +259,7 @@ def new(
         "user": payload["user_id"],
     }
 
-    users = get_selected_users(payload, selected, desktop_name, False)
+    users = get_selected_users(payload, selected, desktop_name, True)
     quotas.deployment_create(users)
 
     """Create deployment"""
@@ -236,7 +295,13 @@ def new(
     return deployment["id"]
 
 
-def get_selected_users(payload, selected, desktop_name, skip_existing_desktops):
+def get_selected_users(
+    payload,
+    selected,
+    desktop_name,
+    existing_desktops_error,
+    include_existing_desktops=False,
+):
     """Check who has to be created"""
     users = []
 
@@ -302,14 +367,14 @@ def get_selected_users(payload, selected, desktop_name, skip_existing_desktops):
                 description_code="unable_to_get_deployment_desktops",
             )
     if len(existing_desktops):
-        if not skip_existing_desktops:
+        if existing_desktops_error:
             raise Error(
                 "conflict",
                 "This users already have a desktop with this name: "
                 + str(existing_desktops),
                 description_code="new_desktop_name_exists",
             )
-        else:
+        elif not include_existing_desktops:
             users = [u for u in users if u["id"] not in existing_desktops]
     return users
 
@@ -337,6 +402,136 @@ def create_deployment_desktops(deployment_tag, desktop_data, users):
         set_current_booking(domain)
 
 
+def edit_deployment_users(payload, deployment_id, allowed):
+    with app.app_context():
+        deployment = r.table("deployments").get(deployment_id).run(db.conn)
+    if not deployment:
+        raise Error(
+            "not_found",
+            "Not found deployment id to edit its users: " + str(deployment_id),
+            description_code="not_found",
+        )
+
+    deployment_booking = _parse_deployment_booking(deployment)
+    if deployment_booking.get("next_booking_end"):
+        raise Error(
+            "precondition_required",
+            "Can't edit a deployment with a scheduled booking",
+            traceback.format_exc(),
+            "cant_edit_booked_deployment",
+        )
+    r.table("deployments").get(deployment_id).update(
+        {"create_dict": {"allowed": allowed}}
+    ).run(db.conn)
+    old_users = get_selected_users(
+        payload,
+        deployment.get("create_dict").get("allowed"),
+        deployment.get("create_dict").get("name"),
+        False,
+        True,
+    )
+    new_users = get_selected_users(
+        payload, allowed, deployment.get("create_dict").get("name"), False, True
+    )
+
+    remove_desktops = []
+    for user in old_users:
+        if user not in new_users:
+            domain_id = list(
+                r.table("domains")
+                .get_all(deployment_id, index="tag")
+                .filter({"user": user["id"]})
+                .pluck("id")["id"]
+                .run(db.conn)
+            )[0]
+            if domain_id:
+                remove_desktops.append(domain_id)
+    desktops_delete(remove_desktops, True)
+    recreate(payload, deployment_id)
+
+
+def edit_deployment(deployment_id, data):
+    with app.app_context():
+        deployment = r.table("deployments").get(deployment_id).run(db.conn)
+    if not deployment:
+        raise Error(
+            "not_found",
+            "Not found deployment id to edit: " + str(deployment_id),
+            description_code="not_found",
+        )
+    data["tag_name"] = data.get("name")
+    data["name"] = data.pop("desktop_name")
+    data["reservables"] = data.get("hardware").pop("reservables")
+    data["hardware"]["memory"] = data["hardware"]["memory"] * 1048576
+    deployment_booking = _parse_deployment_booking(deployment)
+    if data.get("reservables") != deployment["create_dict"].get(
+        "reservables"
+    ) and deployment_booking.get("next_booking_end"):
+        raise Error(
+            "precondition_required",
+            "Can't edit a deployment with a scheduled booking",
+            traceback.format_exc(),
+            "cant_edit_booked_deployment",
+        )
+    if data["reservables"].get("vgpus") == ["None"]:
+        data["reservables"]["vgpus"] = None
+    r.table("deployments").get(deployment_id).update(
+        {
+            "create_dict": {
+                **data,
+                "guest_properties": r.literal(data["guest_properties"]),
+            }
+        }
+    ).run(db.conn)
+    # If the networks have changed new macs should be generated for each domain
+    if (
+        deployment["create_dict"]["hardware"]["interfaces"]
+        != data["hardware"]["interfaces"]
+    ):
+        domains = (
+            r.table("domains")
+            .get_all(deployment_id, index="tag")
+            .pluck("id")["id"]
+            .run(db.conn)
+        )
+        deployment_interfaces = data["hardware"]["interfaces"]
+        data["hardware"]["memory"] = data["hardware"]["memory"] / 1048576
+        for domain in domains:
+            domain_data = copy.deepcopy(data)
+            domain_update = parse_domain_update(domain, domain_data)
+            r.table("domains").get(domain).update(
+                {
+                    "status": "Updating",
+                    "create_dict": {
+                        "hardware": domain_update["create_dict"]["hardware"],
+                        "reservables": r.literal(data.get("reservables")),
+                    },
+                    "name": data["name"],
+                    "description": data["description"],
+                    "guest_properties": data.get("guest_properties"),
+                    "image": data["image"],
+                }
+            ).run(db.conn)
+            data["hardware"]["interfaces"] = deployment_interfaces
+
+    # Otherwise the rest of the hardware can be update at once
+    else:
+        data["hardware"].pop("interfaces")
+        r.table("domains").get_all(deployment_id, index="tag").update(
+            {
+                "status": "Updating",
+                "create_dict": {
+                    "hardware": data["hardware"],
+                    "reservables": r.literal(data.get("reservables")),
+                },
+                "name": data["name"],
+                "description": data["description"],
+                "guest_properties": r.literal(data["guest_properties"]),
+                "image": data["image"],
+            }
+        ).run(db.conn)
+
+
 def checkDesktopsStarted(deployment_id):
     with app.app_context():
         started_desktops = (
@@ -354,7 +549,7 @@ def checkDesktopsStarted(deployment_id):
         raise Error(
             "precondition_required",
             "The deployment " + str(deployment_id) + " desktops must be stopped ",
-            description_code="deployment_delete_stop",
+            description_code="deployment_stop",
         )
 
 
@@ -391,7 +586,7 @@ def recreate(payload, deployment_id):
         payload,
         deployment["create_dict"]["allowed"],
         deployment["create_dict"]["name"],
-        True,
+        False,
     )
 
     """Create desktops for each user found"""

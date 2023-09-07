@@ -67,6 +67,12 @@
                     },
                     "delete": {
                         "title": "Esborrar desplegament"
+                    },
+                    "edit": {
+                        "title": "Editar desplegament"
+                    },
+                    "allowed": {
+                        "title": "Editar usuaris"
                     }
                 }
             },
@@ -790,6 +796,11 @@
                 "groups-users": "S'ha d'escollir com a mínim un usuari o un grup"
             }
         },
+        "edit-deployment": {
+            "desktop": {
+                "title": "Editar escriptoris del desplegament"
+            }
+        },
         "new-media": {
             "title": "Crear un nou mitjà:",
             "url": "Adreça web",
@@ -932,7 +943,7 @@
         "deployment_desktop_new_category_limit_exceeded": "S'ha excedit el límit per a crear nous escriptoris de la categoria '{category}'",
         "unable_to_stop_desktop_from": "No és possible aturar un escriptori des del seu estat",
         "unable_to_start_desktop_from": "No és possible engegar un escriptori des del seu estat",
-        "deployment_delete_stop": "Per esborrar un desplegament és necessari que els seus escriptoris estiguin aturats",
+        "deployment_stop": "Per realitzar aquesta acció és necessari que els escriptoris del desplegament estiguin aturats",
         "desktop_not_booked": "Per iniciar l'escriptori ha d'estar reservat",
         "desktop_not_booked_until": "No es pot iniciar l'escriptori fins a la propera reserva {start}",
         "only_works_rdp": "Mode 'Only GPU' només funciona amb visors RDP",
@@ -963,7 +974,8 @@
         "unknown_extension": "S'ignora el fitxer penjat, ja que té una extensió desconeguda",
         "no_wireguard_keys": "Encara hi ha claus de WireGuard al webapp. Reintenta-ho en uns segons...",
         "vpn_missing_itemid": "Li falta l'identificador de l'element a la VPN",
-        "no_reservables": "L'element no té reservables"
+        "no_reservables": "L'element no té reservables",
+        "cant_edit_booked_deployment": "No es poden editar els reservables d'un desplegament amb reserves planificades"
     },
     "messages": {
         "title": {
@@ -974,6 +986,7 @@
             "create-nonpersistent": "ATENCIÓ! Aquest escriptori és temporal. A l'aturar-ho totes les dades seràn esborrades. Crear escriptori?",
             "visible-deployment": "Els escriptoris seran visibles",
             "recreate-deployment": "Els escriptoris esborrats de '{name}' es crearan de nou, continuar?",
+            "edit-deployment": "Els escriptoris de '{name}' s'editaran, continuar?",
             "delete-deployment": "'{name}' s'esborrarà, continuar?",
             "delete-deployment-desktop": "L'escriptori de '{name}' s'esborrarà, continuar?",
             "start-deployment-desktops": "Els escriptoris de '{name}' s'iniciaran, continuar?",
@@ -1056,7 +1069,8 @@
             "maintenance": "Manteniment",
             "direct_viewer": "Visor directe",
             "edit-domain": "Editar domini",
-            "storage": "Emmagatzematge"
+            "storage": "Emmagatzematge",
+            "edit-deployment": "Editar desplegament"
         }
     },
     "message-modal": {

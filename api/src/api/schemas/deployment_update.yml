@@ -1,0 +1,22 @@
+name:
+  required: true
+  type: string
+  empty: false
+description:
+  required: false
+  type: string
+  default: ""
+desktop_name:
+  required: false
+  type: string
+  empty: false
+  default: setdeploymentname
+allowed:
+  schema: allowed
+hardware:
+  schema: hardware_update
+guest_properties:
+  type: dict
+  schema: guest_properties_update
+image:
+  schema: image_update

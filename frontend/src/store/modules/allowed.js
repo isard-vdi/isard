@@ -91,20 +91,23 @@ export default {
     fetchAllowed (context, data) {
       return axios.post(`${apiV3Segment}/allowed/table/${data.table}`, data).then(response => {
         context.commit('setId', data.id)
-        // Groups
-        if (response.data.groups !== false) {
-          context.dispatch('updateChecked', { table: 'groups', checked: true })
-        }
-        context.commit('setGroups', AllowedUtils.parseAllowed('groups', response.data.groups))
-        context.commit('setSelectedGroups', AllowedUtils.parseAllowed('groups', response.data.groups))
-        // Users
-        if (response.data.users !== false) {
-          context.dispatch('updateChecked', { table: 'users', checked: true })
-        }
-        context.commit('setUsers', AllowedUtils.parseAllowed('users', response.data.users))
-        context.commit('setSelectedUsers', AllowedUtils.parseAllowed('users', response.data.users))
+        context.dispatch('setAllowedGroupsUsers', { groups: response.data.groups, users: response.data.users })
         context.dispatch('showAllowedModal', true)
       })
+    },
+    setAllowedGroupsUsers (context, data) {
+      // Groups
+      if (data.groups !== false) {
+        context.dispatch('updateChecked', { table: 'groups', checked: true })
+      }
+      context.commit('setGroups', AllowedUtils.parseAllowed('groups', data.groups))
+      context.commit('setSelectedGroups', AllowedUtils.parseAllowed('groups', data.groups))
+      // Users
+      if (data.users !== false) {
+        context.dispatch('updateChecked', { table: 'users', checked: true })
+      }
+      context.commit('setUsers', AllowedUtils.parseAllowed('users', data.users))
+      context.commit('setSelectedUsers', AllowedUtils.parseAllowed('users', data.users))
     },
     updateAllowed (context, data) {
       axios.post(`${apiV3Segment}/admin/allowed/update/${data.table}`, data).catch(e => {

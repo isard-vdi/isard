@@ -2,7 +2,9 @@ import i18n from '@/i18n'
 import axios from 'axios'
 import { apiV3Segment } from '../../shared/constants'
 import { DeploymentsUtils } from '../../utils/deploymentsUtils'
+import { DomainsUtils } from '../../utils/domainsUtils'
 import { ErrorUtils } from '../../utils/errorUtils'
+import router from '@/router'
 
 const getDefaultState = () => {
   return {
@@ -199,6 +201,33 @@ export default {
           stopStartedDomains: false,
           reset: false
         }
+      })
+    },
+    goToEditDeployment (context, editDeploymentId) {
+      context.commit('setEditDeploymentId', editDeploymentId)
+      router.replace({ name: 'deploymentEdit', params: { id: editDeploymentId } })
+    },
+    fetchDeploymentInfo (context, deploymentId) {
+      axios.get(`${apiV3Segment}/deployment/info/${deploymentId}`).then(response => {
+        context.commit('setDomain', DomainsUtils.parseDomain(response.data))
+        context.commit('setDeployment', { name: response.data.tag_name })
+        context.dispatch('setAllowedGroupsUsers', { groups: response.data.allowed.groups, users: response.data.allowed.users })
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    editDeployment (context, data) {
+      ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.editing'))
+      axios.put(`${apiV3Segment}/deployment/${data.id}`, data).then(response => {
+        context.dispatch('navigate', 'deployments')
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    editDeploymentUsers (context, data) {
+      ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.editing'))
+      axios.put(`${apiV3Segment}/deployment/users/${data.id}`, data).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     }
   }
