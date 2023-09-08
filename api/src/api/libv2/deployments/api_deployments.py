@@ -480,7 +480,8 @@ def edit_deployment(deployment_id, data):
             "create_dict": {
                 **data,
                 "guest_properties": r.literal(data["guest_properties"]),
-            }
+            },
+            "name": data["tag_name"],
         }
     ).run(db.conn)
     # If the networks have changed new macs should be generated for each domain
