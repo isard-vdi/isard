@@ -1,7 +1,7 @@
 <!-- extend base layout -->
 {% extends "base.html" %} {% block css %}
 {% endblock %} {% block content %}
- 
+
 <div class="row">
   <div class="col-md-12 col-sm-12 col-xs-12">
      <div class="x_panel">
@@ -27,7 +27,23 @@
   </div>
 </div>
 
-<div class="row">
+<div class="row not_computed">
+  <div class="row">
+    <div class="col-md-12 col-sm-12 col-xs-12">
+      <div class="x_panel">
+        <div class="x_title">
+            <h3><i class="fa fa-warning"></i> There is no usage data computed</h3>
+            <div class="clearfix"></div>
+        </div>
+        <div class="x_content alert alert-info" role="alert" style="padding:15px;">
+          <h5>Please, click on at least one of the "Consolidate" buttons to start managing computed data</h5>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row computed">
   <div class="col-md-12 col-sm-12 col-xs-12">
     <div class="x_panel">
       <div class="x_title">
@@ -67,7 +83,7 @@
   </div>
 </div>
 
-<div class="row">
+<div class="row computed">
   <div class="col-md-12 col-sm-12 col-xs-12">
     <div class="x_panel">
       <div class="x_title">
@@ -109,7 +125,7 @@
   </div>
 </div>
 
-<div class="row">
+<div class="row computed">
   <div class="col-md-12 col-sm-12 col-xs-12">
     <div class="x_panel">
       <div class="x_title">
@@ -149,7 +165,7 @@
   </div>
 </div>
 
-<div class="row">
+<div class="row computed">
   <div class="col-md-12 col-sm-12 col-xs-12">
     <div class="x_panel">
       <div class="x_title">

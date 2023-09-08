@@ -432,13 +432,21 @@ def ownsBookingId(payload, bookings_id):
 
 
 def itemExists(item_table, item_id):
-    item = r.table(item_table).get(item_id).run(db.conn)
-    if not item:
-        raise Error(
-            "not_found",
-            item_table + " not found id: " + item_id,
-            traceback.format_exc(),
-        )
+    with app.app_context():
+        try:
+            item = r.table(item_table).get(item_id).run(db.conn)
+            if not item:
+                raise Error(
+                    "not_found",
+                    item_table + " not found id: " + item_id,
+                    traceback.format_exc(),
+                )
+        except:
+            raise Error(
+                "bad_request",
+                item_table + " is missing",
+                traceback.format_exc(),
+            )
 
 
 def userNotExists(uid, category_id, provider="local"):
@@ -455,7 +463,6 @@ def userNotExists(uid, category_id, provider="local"):
 
 
 def checkDuplicate(item_table, item_name, category=False, user=False, item_id=None):
-
     query = (
         r.table(item_table)
         .get_all(item_name, index="name")

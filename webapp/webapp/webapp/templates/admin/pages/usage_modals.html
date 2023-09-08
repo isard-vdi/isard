@@ -199,11 +199,8 @@
             </div>
         </div>
     </div>
-
-
-
-
 </div>
+
 
 <div class="modal fade" id="modalEditCredit" tabindex="-1" role="dialog"
     aria-labelledby="modalEditCredit" aria-hidden="true">
@@ -232,14 +229,7 @@
                                 </h4>
                                 <div class="clearfix"></div>
                             </div>
-                            <div class="x_panel">
-                                <div class="col-md-6 col-xs-2">
-                                    <label class="control-label" for="limits">Limit<span
-                                            class="required">*</span></label>
-                                    <select class="form-control" style="width:100%" name="limit_id" id=limits></select>
-                                </div>
-                            </div>
-                            <hr>
+
                             <div class="x_panel valuesOptions">
                                 <div class="col-md-6 col-xs-2">
                                     <label class="control-label" for="limits">Limit<span
@@ -297,10 +287,66 @@
             </div>
         </div>
     </div>
+</div>
 
+<div class="modal fade" id="modalEditCreditLimits" tabindex="-1" role="dialog" aria-labelledby="modalEditCreditLimits"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
 
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel">
+                    <i class="fa fa-pencil fa-1x"></i><i class="fa fa-rocket"> </i> Edit Credit Limits
+                </h4>
+            </div>
 
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <form id="modalEditCreditLimitsForm" class="form-inline form-label-left">
+                    <input hidden id="id" name="id" />
+                    <input hidden id="item_consumer" name="item_consumer" />
+                    <div class="row">
+                        <div class="x_panel">
+                            <div class="x_title">
+                                <h4>Limits
+                                </h4>
+                                <div class="clearfix"></div>
+                            </div>
 
+                            <div class="x_panel">
+                                <div class="col-md-6 col-xs-2">
+                                    <select class="form-control" style="width:100%" name="limits_id" id=limits>
+                                        <option value="null" disabled>Select a limit</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    </li>
+                    </li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li>
+                        <button id="send" type="button" class="btn btn-success">Edit Limits</button>
+                    </li>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
 </div>
 
 <div class="modal fade" id="modalAddParameterGrouping" tabindex="-1" role="dialog"

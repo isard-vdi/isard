@@ -125,7 +125,8 @@ function populateSelect(item, divId) {
   const elem = $(divId + " #" + item.value);
   const select2Options = {
     placeholder: `Type to select a ${item.label}`,
-    maximumSelectionLength: item.maxSelect || null
+    maximumSelectionLength: item.maxSelect || null,
+    dropdownParent: $(divId)
   }
   elem.select2(select2Options);
   elem.attr("index", item.value);

@@ -34,6 +34,7 @@ from ..libv2.api_usage import (
     add_usage_limits,
     add_usage_parameters,
     consolidate_consumptions,
+    count_usage_consumers,
     delete_usage_credit,
     delete_usage_grouping,
     delete_usage_limits,
@@ -122,6 +123,16 @@ def api_v3_admin_usage_consumers(payload, item_type):
                 item_type,
             )
         ),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/usage/consumers", methods=["GET"])
+@is_admin_or_manager
+def api_v3_admin_usage_consumers_count(payload):
+    return (
+        json.dumps(count_usage_consumers()),
         200,
         {"Content-Type": "application/json"},
     )
@@ -378,15 +389,15 @@ def api_v3_admin_usage_credits_by_id(payload, category_credit_id):
 
 @cached(cache=TTLCache(maxsize=10, ttl=5))
 @app.route(
-    "/api/v3/admin/usage/credits/<item_type>/<item_id>/<grouping_id>/<start_date>/<end_date>",
+    "/api/v3/admin/usage/credits/<consumer>/<item_type>/<item_id>/<grouping_id>/<start_date>/<end_date>",
     methods=["GET"],
 )
 @is_admin_or_manager
 def api_v3_admin_usage_credits(
-    payload, item_type, item_id, grouping_id, start_date, end_date
+    payload, consumer, item_type, item_id, grouping_id, start_date, end_date
 ):
     if (
-        item_type == "category"
+        consumer == "category"
         and payload["role_id"] == "manager"
         and payload["category_id"] != item_id
     ):
@@ -438,35 +449,40 @@ def api_v3_admin_usage_credits_add(payload, item_type):
 
 @cached(cache=TTLCache(maxsize=10, ttl=5))
 @app.route(
-    "/api/v3/admin/usage/credits/<item_type>",
+    "/api/v3/admin/usage/credits/<item_consumer>",
     methods=["PUT"],
 )
 @is_admin
-def api_v3_admin_usage_credits_update(payload, item_type):
+def api_v3_admin_usage_credits_update(payload, item_consumer):
     try:
         data = request.get_json()
     except:
         raise Error("bad_request")
 
-    data["end_date"] = data["end_date"] if data["end_date"] != "null" else None
+    if data.get("end_date"):
+        data["end_date"] = data["end_date"] if data["end_date"] != "null" else None
 
-    if data["item_consumer"] == "category":
+    if item_consumer == "category" and data.get("item_id"):
         ##TODO: adapt to every kind of consumer
         itemExists("categories", data["item_id"])
-    itemExists("usage_limit", data["limit_id"])
+    if data.get("limit_id"):
+        itemExists("usage_limit", data["limit_id"])
 
-    data = _validate_item("usage_credit", data)
+    data = _validate_item("usage_credit_update", data)
 
-    try:
-        data["start_date"] = datetime.strptime(
-            data["start_date"], "%Y-%m-%d"
-        ).astimezone(pytz.UTC)
-        if data["end_date"]:
-            data["end_date"] = datetime.strptime(
-                data["end_date"], "%Y-%m-%d"
+    if data.get("start_date") or data.get("end_date"):
+        try:
+            data["start_date"] = datetime.strptime(
+                data["start_date"], "%Y-%m-%d"
             ).astimezone(pytz.UTC)
-    except:
-        raise Error("bad_request", "Incorrect date format. Expected format: %Y-%m-%d")
+            if data["end_date"]:
+                data["end_date"] = datetime.strptime(
+                    data["end_date"], "%Y-%m-%d"
+                ).astimezone(pytz.UTC)
+        except:
+            raise Error(
+                "bad_request", "Incorrect date format. Expected format: %Y-%m-%d"
+            )
 
     return (
         json.dumps(update_usage_credit(data)),

@@ -108,7 +108,7 @@ $('#btn-view-graph').on('click', function (e) {
       success: function (resp) {
         $.ajax({
           type: "GET",
-          url: '/api/v3/admin/usage/credits/' + data.itemType + '/' + it.id + '/' + data.grouping.id + '/' + data.startDate + '/' + data.endDate,
+          url: `/api/v3/admin/usage/credits/${data.consumer}/${data.itemType}/${it.id}/${data.grouping.id}/${data.startDate}/${data.endDate}`,
           dataType: 'json',
           contentType: "application/json",
           success: function (limits) {
