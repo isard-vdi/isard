@@ -5,7 +5,8 @@
         "url": "Pole {property} musi być adresem URL.",
         "minLengthValue": "Pole {property} ma {model} znaków, ale musi mieć minimum {min}.",
         "required": "{property} jest wymagane.",
-        "maxLengthValue": "Pole {property} ma {model} znaków, ale może mieć maksimum {max}."
+        "maxLengthValue": "Pole {property} ma {model} znaków, ale może mieć maksymalną długość {max}.",
+        "undefined": "Nie zdefiniowano"
     },
     "forms": {
         "allowed": {
@@ -52,7 +53,8 @@
             "media": {
                 "isos": "Isos",
                 "floppies": "Dyskietki",
-                "title": "Media"
+                "title": "Media",
+                "placeholder": "Wpisz co najmniej 2 litery, aby wyszukać."
             },
             "viewers": {
                 "guest": {
@@ -145,7 +147,7 @@
                 "user": "Użytkownik"
             },
             "title": "Stwórz nowy desktop:",
-            "section-title-template": "Wybierz szablon:",
+            "section-title-template": "Wyberz szablon:",
             "desktop-template": "Szablon",
             "filter": "Filtr",
             "filter-placeholder": "Wpisz, aby wyszukać"
@@ -160,7 +162,12 @@
         },
         "show-pages": "Pokaż",
         "submit": "Prześlij",
-        "create": "Utwórz"
+        "create": "Utwórz",
+        "edit-deployment": {
+            "desktop": {
+                "title": "Edytuj pulpity wdrożeniowe"
+            }
+        }
     },
     "components": {
         "navbar": {
@@ -193,7 +200,7 @@
         },
         "statusbar": {
             "desktops-started": "Uruchomione pulpity",
-            "new-deployment": "Nowe wdrożenie",
+            "new-deployment": "Nowe Wdrożenie",
             "upload-file": "Prześlij plik",
             "select": "Wybierz",
             "deployment": {
@@ -208,7 +215,7 @@
                         "title": "Usuń wdrożenie"
                     },
                     "make-not-visible": {
-                        "title": "Uczyń niewidocznym"
+                        "title": "Zrób niewidocznym"
                     },
                     "make-visible": {
                         "title": "Uczyń widocznym"
@@ -221,6 +228,12 @@
                     },
                     "stop": {
                         "title": "Zatrzymaj wszystkie pulpity wdrożenia"
+                    },
+                    "edit": {
+                        "title": "Edycja wdrożenia"
+                    },
+                    "allowed": {
+                        "title": "Edycja użytkowników"
                     }
                 },
                 "back": "Powrót do wdrożeń"
@@ -229,7 +242,7 @@
             "videowall": {
                 "back": "Powrót do wdrażania"
             },
-            "new-desktop": "Nowy pulpit",
+            "new-desktop": "Nowy Pulpit",
             "cancel": "Anuluj",
             "checkbox-text-short": "Uruchomione",
             "new-media": "Nowy nośnik"
@@ -252,12 +265,13 @@
             },
             "notification-bar": {
                 "no-next-booking": "Pulpit nie jest zarezerwowany!",
-                "booking-ends": "Rezerwacja kończy się ",
+                "booking-ends": "Rezerwacja kończy się: ",
                 "shutdown": "Automatyczne wyłączenie w dniu {date}",
                 "next-booking": "Następna rezerwacja"
             },
             "filter-label": "Filtr",
-            "no-info-default": "Brak dostępnego opisu"
+            "no-info-default": "Brak dostępnego opisu",
+            "open-with": "Otwórz z podgląde"
         },
         "deployment-desktop-list": {
             "table-header": {
@@ -376,7 +390,7 @@
                 "user-storage": "Przestrzeń dyskowa użytkownika",
                 "name": "Imię",
                 "email": "E-mail",
-                "authentication": "Uwierzytelnienie",
+                "authentication": "Uwierzytelnianie",
                 "group": "Grupa"
             },
             "quota": {
@@ -424,7 +438,7 @@
                 "button": "Zmień i uruchom"
             },
             "title": {
-                "available-profile": "Model karty graficznej tego pulpitu ({profile}) nie jest obecnie dostępny",
+                "available-profile": "Model karty graficznej tego pulpitu ({profile}) jest obecnie niedostępny",
                 "no-available-profile": "Obecnie nie jest dostępny żaden inny model karty graficznej"
             },
             "go-to-bookings": {
@@ -460,7 +474,7 @@
         "undefined_error": "Wystąpił błąd",
         "user_new_group_cuota_exceeded": "Przekroczono limit tworzenia użytkowników dla tej grupy",
         "media_url_not_valid": "Podany adres url jest nieprawidłowy",
-        "unable_to_get_domain_jumperurl": "  nie można uzyskać domeny jumperurl, ponieważ domena nie istnieje",
+        "unable_to_get_domain_jumperurl": "nie można uzyskać domeny jumperurl, ponieważ domena nie istnieje",
         "unable_to_change_desktop_status": "Nie można zmienić stanu pulpitu",
         "unable_to_change_hypervisor_status": "Nie można zmienić stanu hiperwizora",
         "desktop_not_booked": "Do uruchomienia pulpitu wymagana jest rezerwacja",
@@ -468,7 +482,7 @@
         "user_new_generic_exception": "Wystąpił błąd podczas tworzenia użytkownika",
         "viewer_not_started": "Przeglądarka nie jest uruchomiona",
         "template_already_exists": "Identyfikator szablonu już istnieje: ",
-        "quota_general_exception": "Wystąpił błąd związany z przydziałami limitów dla użytkowników",
+        "quota_general_exception": "Wystąpił błąd związany z limitami użytkowników",
         "desktop_new_user_quota_exceeded": "Przekroczono limit utworzonych pulpitów. Musisz usunąć pulpit, aby utworzyć nowy.",
         "desktop_start_user_quota_exceeded": "Przekroczono limit uruchomionych pulpitów. Musisz zatrzymać pulpit, aby uruchomić kolejny.",
         "desktop_start_group_limit_exceeded": "Limit uruchomionych pulpitów grupy został przekroczony",
@@ -485,7 +499,7 @@
         "unable_to_stop_desktop_from": "Pulpit nie może zostać zatrzymany ze swojego statusu",
         "unable_to_gen_enrollment_code": "Nie można wygenerować kodu rejestracji",
         "get_vnc_viewer_data_error": "Błąd wewnętrzny pobierania danych przeglądarki VNC",
-        "vpn_missing_itemid": "VPN nie uzyskał itemid",
+        "vpn_missing_itemid": "Brakujący itemid w VPN",
         "unable_to_process_vpnfile": "Nie można przetworzyć pliku VPN",
         "needs_deployment_booking": "Pulpitu nie można teraz uruchomić, skontaktuj się z właścicielem wdrożenia, aby go zarezerwować",
         "not_enough_advanced_time": "Nie ma wystarczająco dużo czasu na uruchomienie pulpitu",
@@ -508,7 +522,7 @@
         "unable_to_insert": "Nie można wstawić do bazy danych.",
         "conflict": "Konflikt",
         "conflict_title": "Konflikt",
-        "missing_required_data": "Braki w wymaganych polach",
+        "missing_required_data": "Brakujące wymagane pola",
         "unable_to_get_viewer_started": "Nie można pobrać przeglądarki dla nieuruchomionego pulpitu",
         "desktop_same_id": "Istnieje już pulpit o tym identyfikatorze",
         "unable_to_reset_domain_jumperurl": "Nie można zresetować domeny jumperurl, ponieważ domena nie istnieje",
@@ -520,7 +534,7 @@
         "desktop_is_not_visible": "Pulpit nie jest teraz widoczny dla tego użytkownika.",
         "deployment_desktop_new_group_limit_exceeded": "Grupowy '{group}' limit tworzenia pulpitów został przekroczony",
         "deployment_desktop_new_category_limit_exceeded": "Limit tworzenia pulpitów kategorii '{category}'został przekroczony",
-        "template_new_user_quota_exceeded": "Przekroczyłeś limit szablonów. Musisz wyłączyć lub usunąć szablon, aby utworzyć lub włączyć nowy.",
+        "template_new_user_quota_exceeded": "Przekroczono limit szablonów. Musisz wyłączyć lub usunąć szablon, aby utworzyć lub włączyć nowy.",
         "desktop_new_category_limit_exceeded": "Przekroczono limit tworzenia pulpitów kategorii",
         "desktop_start_vcpu_quota_exceeded": "Przekroczono limit vCPU. Musisz zatrzymać pulpit, aby uruchomić inny lub edytować ten pulpit i zmniejszyć jego CPU.",
         "desktop_start_group_memory_limit_exceeded": "Limit pamięci grupy został przekroczony",
@@ -537,7 +551,16 @@
         "current_plan_doesnt_match": "Profil pulpitu nie udostępnia procesora graficznego",
         "template_failed": "Z powodu błędu nie można użyć tego szablonu do utworzenia nowego pulpitu, prosimy o kontakt z administratorem",
         "user_disabled": "Użytkownik jest wyłączony",
-        "invalid_end_date": "Nieprawidłowa data zakończenia"
+        "invalid_end_date": "Nieprawidłowa data zakończenia",
+        "cant_edit_booked_deployment": "Nie można edytować elementów rezerwacji z wdrożenia z zaplanowaną rezerwacją",
+        "desktop_incorrect_body_data": "Pulpit dodaje nieprawidłowe dane treści",
+        "incorrect_viewer_body_data": "Nieprawidłowy stan danych w podglądzie pulpitu",
+        "media_not_downloaded": "Nie pobrano multimediów",
+        "desktop_start_incorrect_body_data": "Nieprawidłowy stan danych podczas uruchamiania pulpitu",
+        "deployment_stop": "Aby wykonać tę akcję, należy zatrzymać pulpity wdrażania",
+        "new_template_bad_body_data": "Nieprawidłowy format danych nowego szablonu",
+        "incorrect_new_plan_body_data": "Nieprawidłowe dane nowego planu",
+        "no_reservables": "Pozycja nie ma możliwości rezerwacji"
     },
     "router": {
         "titles": {
@@ -548,7 +571,7 @@
             "storage": "Przestrzeń dyskowa",
             "planning": "Planowanie",
             "edit-domain": "Edytuj domenę",
-            "deployment_videowall": "Wdrożenie Videowalla",
+            "deployment_videowall": "Wdrożenie Videowall'a",
             "new_deployment": "Nowe wdrożenie",
             "images": "Obrazy",
             "deployments": "Wdrożenia",
@@ -563,7 +586,8 @@
             "new_media": "Nowe multimedia",
             "register": "Rejestr",
             "direct_viewer": "Bezpośrednia przeglądarka",
-            "media": "Multimedia"
+            "media": "Multimedia",
+            "edit-deployment": "Edytuj wdrożenie"
         }
     },
     "message-modal": {
@@ -656,7 +680,7 @@
                     "text": "Oczekiwanie"
                 },
                 "shutting-down": {
-                    "action": "Wymuszone zatrzymanie",
+                    "action": "Wymuś zatrzymanie",
                     "text": "Zatrzymanie"
                 },
                 "reset": {
@@ -688,7 +712,7 @@
             "viewer-name": {
                 "file-rdpgw": "RDP",
                 "file-spice": "SPICE",
-                "browser-vnc": "Przeglądarka",
+                "browser-vnc": "Przeglądarka VNC",
                 "file-rdpvpn": "RDP VPN",
                 "browser-rdp": "Przeglądarka RDP"
             },
@@ -703,7 +727,7 @@
                 "subtitle": "Jeśli uważasz, że jest to błąd, skontaktuj się z administratorem"
             },
             "no-templates-filtered": {
-                "title": "Nie ma szablonów zgodnych z wybranym filtrowaniem"
+                "title": "Nie ma szablonów dostępnych dla zastosowanych filtrów"
             },
             "volatile-compact": "Tymczasowy",
             "viewers": "Widzowie",
@@ -743,14 +767,14 @@
                 "title": {
                     "make-invisible": "Uczyń wdrożenie '{name}' niewidocznym",
                     "download-csv": "Pobierz '{name}' przeglądarkę CSV",
-                    "make-visible": "Uczyń wdrożenie '{name}' wydocznym"
+                    "make-visible": "Uczyń wdrożenie '{name}' widocznym"
                 },
                 "option": {
                     "dont-stop-desktops": "Uczyń to wdrożenie niewidocznym dla użytkowników i zezwól na korzystanie z pulpitów, dopóki nie zostaną zatrzymane",
-                    "keep-csv": "Zachowaj aktualne adresy URL i pobrane pliki csv",
+                    "keep-csv": "Zachowaj aktualne adresy URL i pobierz plik csv",
                     "stop-desktops": "Uczyń to wdrożenie niewidocznym dla użytkowników i zatrzymaj wszystkie pulpity",
                     "make-visible": "Uczyń to wdrożenie widocznym, aby użytkownicy wdrożenia mieli dostęp do pulpitów",
-                    "reset-csv": "Zresetuj adres URL wdrożenia (stare adresy URL nie będą dostępne) i pobierz plik csv"
+                    "reset-csv": "Zresetuj adresy URL wdrożenia (stare adresy URL nie będą dostępne) i pobierz plik csv"
                 },
                 "confirmation": {
                     "dont-stop": "Nie zatrzymuj pulpitów",
@@ -784,7 +808,7 @@
             },
             "buttons": {
                 "allowed": {
-                    "title": "Zmiana dozwolona"
+                    "title": "Dozwolona zmiana"
                 },
                 "stop-download": {
                     "title": "Zatrzymaj pobieranie"
@@ -803,7 +827,13 @@
                 "downloaded": "Pobrane",
                 "deleting": "Usuwanie",
                 "download-failed": "Pobieranie nie powiodło się",
-                "downloading": "Pobieranie"
+                "downloading": "Pobieranie",
+                "faileddeleted": "Pobranie nieudane",
+                "downloadstarting": "Pobranie rozpoczęte",
+                "downloadaborting": "Pobranie przerwane",
+                "maintenance": "Konserwacja",
+                "downloadfailed": "Pobranie nieudane",
+                "resetdownloading": "Resetuję pobieranie"
             },
             "delete-media": {
                 "title": "Usuń nośnik",
@@ -822,7 +852,7 @@
                 "media-compact": "Twój",
                 "media": "Twoje multimedia",
                 "shared-media-compact": "Współdzielone",
-                "shared-media": "Multimedia udostępnione tobie"
+                "shared-media": "Media udostępnione użytkownikowi"
             }
         },
         "storage": {
@@ -889,9 +919,9 @@
             },
             "tabs": {
                 "templates-compact": "Twój",
-                "shared-templates": "Szablony udostępnione tobie",
+                "shared-templates": "Szablony udostępnione dla Ciebie",
                 "templates": "Twoje szablony",
-                "shared-templates-compact": "Wspólne"
+                "shared-templates-compact": "Współdzielone"
             },
             "no-templates": {
                 "title": "Nie ma szablonów od tego użytkownika",
@@ -903,7 +933,7 @@
             },
             "buttons": {
                 "allowed": {
-                    "title": "Zmiana dozwolona"
+                    "title": "Dozwolona zmiana"
                 },
                 "enable": {
                     "title": "Włącz"
@@ -942,7 +972,7 @@
                     "other-windows-versions": "inne wersje systemu Windows",
                     "once-installed": "Po zainstalowaniu kliknij przycisk \"SPICE\", co spowoduje pobranie pliku wirtualnego pulpitu.",
                     "spice-client-required": "ale wymagana jest zewnętrzna aplikacja.",
-                    "close-guide": "Poradnik"
+                    "close-guide": "Zamknij przewodnik"
                 },
                 "rdp": {
                     "once-installed": "Po zainstalowaniu kliknij przycisk \"RDP\", który pobierze plik wirtualnego pulpitu.",
@@ -951,7 +981,7 @@
                     "rdp-help": "Instrukcje instalacji RDP",
                     "included": "System Windows zawiera oprogramowanie wymagane do korzystania z niego,",
                     "require-update": "ale może być wymagana aktualizacja (szczególnie w wersjach Windows 7 i Windows 8). Zaleca się korzystanie z najnowszej dostępnej wersji ",
-                    "close-guide": "Poradnik"
+                    "close-guide": "Zamknij przewodnik"
                 }
             },
             "file": {
@@ -959,8 +989,8 @@
                 "title": "Dostęp przez aplikację"
             },
             "browser": {
-                "title": "Dostęp przez tą przeglądarkę",
-                "subtitle": "Nie wymaga żadnej instalacji"
+                "title": "Dostęp przez tę przeglądarkę",
+                "subtitle": "Nie wymaga instalacji"
             },
             "waitingip": "Oczekiwanie na uruchomienie pulpitu",
             "description": {
@@ -970,7 +1000,7 @@
                 "rdpgw": "System Windows zawiera oprogramowanie wymagane do korzystania z niego"
             },
             "reset-modal": {
-                "title": "Resetuj pulpit",
+                "title": "Zresetuj pulpit",
                 "option": {
                     "reset-desktop": "Wymuszenie resetu pulpitu jest niebezpiecznym działaniem. Jest to równoważne z odłączeniem komputera od zasilania w trakcie działania. Jeśli możesz, zatrzymaj go z poziomu przeglądarki."
                 },
@@ -978,7 +1008,7 @@
                     "reset-desktop": "Wymuś reset pulpitu"
                 }
             },
-            "title": "Dostęp z przeglądarek stacjonarnych:"
+            "title": "Dostęp do podglądów pulpitu:"
         },
         "maintenance": {
             "the-service": "Usługa będzie ponownie dostępna za kilka minut",
@@ -1006,7 +1036,8 @@
             "delete-deployment-desktop": "'{name}' pulpit zostanie usunięty, kontynuować?",
             "enable-template": "'{name}' będzie widoczna dla użytkowników, kontynuować?",
             "disable-template": "'{name}' będzie niewidoczny dla użytkowników, kontynuować?",
-            "delete-event": "'{name}' rezerwacja zostanie usunięta, kontynuować?"
+            "delete-event": "'{name}' rezerwacja zostanie usunięta, kontynuować?",
+            "edit-deployment": "Pulpity '{name}' zostaną edytowane, kontynuować?"
         },
         "cancel": "Anuluj",
         "info": {
