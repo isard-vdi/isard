@@ -108,7 +108,7 @@ $('#btn-view-graph').on('click', function (e) {
       success: function (resp) {
         $.ajax({
           type: "GET",
-          url: '/api/v3/admin/usage/credits/' + data.itemType + '/' + it.id + '/' + data.grouping.id + '/' + data.startDate + '/' + data.endDate,
+          url: `/api/v3/admin/usage/credits/${data.consumer}/${data.itemType}/${it.id}/${data.grouping.id}/${data.startDate}/${data.endDate}`,
           dataType: 'json',
           contentType: "application/json",
           success: function (limits) {
@@ -134,141 +134,147 @@ function createUsageTable(data) {
   if ($.fn.dataTable.isDataTable(tableId)) {
     $(tableId).DataTable().destroy();
   }
-
+  
   //2nd empty html
   $(tableId + " tbody").empty();
   $(tableId + " thead").empty();
   $(tableId + ' thead').append('<tr></tr><tr></tr>')
-
-  // This columns are always the same
-  cols = [
-    {
-      'data': null,
-      'className': 'select-checkbox',
-      'width': '10px',
-      'defaultContent': '<input type="checkbox" class="form-check-input"></input>'
-    },
-    {
-      'data': 'item_id',
-      'visible': false
-    },
-    {
-      'data': 'item_name',
-      'defaultContent': ''
-    },
-    {
-      'data': 'item_consumer',
-      'defaultContent': '',
-      'visible': false
-    }
-  ]
-
-  // This columns can change (custom fields can be added), therefore they're generated dynamically
-  // Retrieve the info of the selected parameters in order to show its name on the header
-  $.ajax({
-    type: "PUT",
-    url: '/admin/usage/list_parameters',
-    dataType: 'json',
-    contentType: "application/json",
-    data: JSON.stringify({
-      ids: data.grouping.parameters
-    }),
-    success: function (parameters) {
-      // Add the header
-      $(tableId + ' thead tr').first().append('<th rowspan="2">Selected</th><th rowspan="2">Item id</th><th rowspan="2">Name</th><th rowspan="2">Consumer</th>')
-      $.each(parameters, function (pos, parameter) {
-        // Add header dynamically
-        $(tableId + ' thead tr').first().append(`<th colspan="4" title="${parameter.desc}\n${parameter.formula ? 'Applied formula: ' + parameter.formula : ''}">${parameter.name} <i class="fa fa-info-circle" aria-hidden="true"></i></th>`)
-        $(tableId + ' thead tr').eq(1).append(`<th>Start</th><th>End</th><th>Start</th><th>End</th>`)
-        cols.push({
-          'data': 'start.abs.' + parameter.id,
-          'defaultContent': 0,
-          'render': (value) => {
-            return value ? value.toFixed(2) : 0
-          }
-        },
-        {
-          'data': 'end.abs.' + parameter.id,
-          'defaultContent': 0,
-          'render': function (data, type, row) {
-            if (data) {
-              value = data.toFixed(2)
-              if (row.end.abs[parameter.id] > row.start.abs[parameter.id])  {
-                return value + ` <i title="+${row.end.abs[parameter.id]-row.start.abs[parameter.id]}" class="fa fa-caret-up fa-lg" style="color:orange;"></i>`
-              } else if (row.end.abs[parameter.id] < row.start.abs[parameter.id]) {
-                return value + ` <i title="${row.end.abs[parameter.id]-row.start.abs[parameter.id]}" class="fa fa-caret-down fa-lg" style="color:cornflowerblue;"></i>`
-              } else {
-                return  value + ' <i class="fa fa-caret-right fa-lg" style="color:lightgrey;"></i>'
-              }
-            } else {
-              return 0
+  
+  if (data.grouping.parameters.toString() !== "") {
+    // This columns are always the same
+    cols = [
+      {
+        'data': null,
+        'className': 'select-checkbox',
+        'width': '10px',
+        'defaultContent': '<input type="checkbox" class="form-check-input"></input>'
+      },
+      {
+        'data': 'item_id',
+        'visible': false
+      },
+      {
+        'data': 'item_name',
+        'defaultContent': ''
+      },
+      {
+        'data': 'item_consumer',
+        'defaultContent': '',
+        'visible': false
+      }
+    ]
+    // These columns can change (custom fields can be added), therefore they're generated dynamically
+    // Retrieve the info of the selected parameters in order to show its name on the header
+    $.ajax({
+      type: "PUT",
+      url: '/admin/usage/list_parameters',
+      dataType: 'json',
+      contentType: "application/json",
+      data: JSON.stringify({
+        ids: data.grouping.parameters
+      }),
+      success: function (parameters) {
+        // Add the header
+        $(tableId + ' thead tr').first().append('<th rowspan="2">Selected</th><th rowspan="2">Item id</th><th rowspan="2">Name</th><th rowspan="2">Consumer</th>')
+        $.each(parameters, function (pos, parameter) {
+          // Add header dynamically
+          $(tableId + ' thead tr').first().append(`<th colspan="4" title="${parameter.desc}\n${parameter.formula ? 'Applied formula: ' + parameter.formula : ''}">${parameter.name} <i class="fa fa-info-circle" aria-hidden="true"></i></th>`)
+          $(tableId + ' thead tr').eq(1).append(`<th>Start</th><th>End</th><th>Start</th><th>End</th>`)
+          cols.push({
+            'data': 'start.abs.' + parameter.id,
+            'defaultContent': 0,
+            'render': (value) => {
+              return value ? value.toFixed(2) : 0
             }
-          }
-        },
-        {
-          'data': 'start.inc.' + parameter.id,
-          'defaultContent': 0,
-          'visible': false,
-          'render': (value) => {
-            return value ? value.toFixed(2) : 0
-          }
-        },
-        {
-          'data': 'end.inc.' + parameter.id,
-          'defaultContent': 0,
-          'visible': false,
-          'render': (value) => {
-            return value ? value.toFixed(2) : 0
-          }
-        })
-      })
-      //3rd recreate Datatable object
-      $(tableId).DataTable({
-        processing: true,
-        rowId: "id",
-        deferRender: true,
-        paging: true,
-        cache: false,
-        columns: cols,
-        ajax: {
-          url: "/admin/usage/start_end",
-          contentType: "application/json",
-          type: "PUT",
-          data: function (d) {
-            return JSON.stringify({
-              items_ids: data.items_ids,
-              start_date: data.startDate,
-              end_date: data.endDate,
-              grouping: data.grouping.parameters,
-              item_type: data.grouping.itemType,
-              item_consumer: data.consumer
-            });
           },
-        },
-        sAjaxDataProp: "",
-        language: {
-          loadingRecords:
-            '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
-        },
-        rowId: "id",
-      })
+            {
+              'data': 'end.abs.' + parameter.id,
+              'defaultContent': 0,
+              'render': function (data, type, row) {
+                if (data) {
+                  value = data.toFixed(2)
+                  if (row.end.abs[parameter.id] > row.start.abs[parameter.id]) {
+                    return value + ` <i title="+${row.end.abs[parameter.id] - row.start.abs[parameter.id]}" class="fa fa-caret-up fa-lg" style="color:orange;"></i>`
+                  } else if (row.end.abs[parameter.id] < row.start.abs[parameter.id]) {
+                    return value + ` <i title="${row.end.abs[parameter.id] - row.start.abs[parameter.id]}" class="fa fa-caret-down fa-lg" style="color:cornflowerblue;"></i>`
+                  } else {
+                    return value + ' <i class="fa fa-caret-right fa-lg" style="color:lightgrey;"></i>'
+                  }
+                } else {
+                  return 0
+                }
+              }
+            },
+            {
+              'data': 'start.inc.' + parameter.id,
+              'defaultContent': 0,
+              'visible': false,
+              'render': (value) => {
+                return value ? value.toFixed(2) : 0
+              }
+            },
+            {
+              'data': 'end.inc.' + parameter.id,
+              'defaultContent': 0,
+              'visible': false,
+              'render': (value) => {
+                return value ? value.toFixed(2) : 0
+              }
+            })
+        })
+        //3rd recreate Datatable object
+        $(tableId).DataTable({
+          processing: true,
+          rowId: "id",
+          deferRender: true,
+          paging: true,
+          cache: false,
+          columns: cols,
+          ajax: {
+            url: "/admin/usage/start_end",
+            contentType: "application/json",
+            type: "PUT",
+            data: function (d) {
+              return JSON.stringify({
+                items_ids: data.items_ids,
+                start_date: data.startDate,
+                end_date: data.endDate,
+                grouping: data.grouping.parameters,
+                item_type: data.grouping.itemType,
+                item_consumer: data.consumer
+              });
+            },
+          },
+          sAjaxDataProp: "",
+          language: {
+            loadingRecords:
+              '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
+          },
+          rowId: "id",
+        })
 
-      $(tableId).off('click', 'tr[role="row"]').on('click', 'tr[role="row"]', function (e) {
-        toggleRow(this, e);
-        selectedItems = []
-        $.each($(tableId).DataTable().rows('.active').data(), function (key, value) {
-          selectedItems.push({ id: value.item_id, name: value.item_name, consumer: value.item_consumer })
-        });
-        selectedRows['items'] = selectedItems
-        $('#btn-view-graph').prop('disabled', selectedItems.length ? false : true)
-        $('#btn-view-graph').prop('title', selectedItems.length ? 'Generate graph' : 'Select items from the table in order to generate its graph')
-      })
+        $(tableId).off('click', 'tr[role="row"]').on('click', 'tr[role="row"]', function (e) {
+          toggleRow(this, e);
+          selectedItems = []
+          $.each($(tableId).DataTable().rows('.active').data(), function (key, value) {
+            selectedItems.push({ id: value.item_id, name: value.item_name, consumer: value.item_consumer })
+          });
+          selectedRows['items'] = selectedItems
+          $('#btn-view-graph').prop('disabled', selectedItems.length ? false : true)
+          $('#btn-view-graph').prop('title', selectedItems.length ? 'Generate graph' : 'Select items from the table in order to generate its graph')
+        })
 
-      showExportButtons($(tableId).DataTable(), 'usage-buttons-row')
-    }
-  })
+        showExportButtons($(tableId).DataTable(), 'usage-buttons-row')
+      }
+    })
 
-
+  } else {
+    $('#usageTable tbody').html(`
+      <div style="text-align:center; padding:10px; background:#f7f7f7;">
+        <h4>No parameters in this grouping</h4>
+      </div>
+    `);
+  }
 
 }
 
@@ -288,7 +294,7 @@ function addChart(data, itemId, graphTitle, graphSubtitle, limits) {
       name: key,
       type: 'line',
       data: data.map(function (item) {
-        return [item.date, item.abs[key]]
+        return [moment(item.date).utc().format('YYYY-MM-DD'), item.abs[key]]
       }),
       markLine: {
         data: [
@@ -344,7 +350,11 @@ function addChart(data, itemId, graphTitle, graphSubtitle, limits) {
       type: 'category',
       axisLabel: {
         formatter: (function (value) {
-          return new Date(value).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+          if (/^en\b/.test(navigator.language)) {
+            return new Date(value).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+          } else {
+            return new Date(value).toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' })
+          }
         })
       }
     }],
@@ -375,8 +385,8 @@ function addChart(data, itemId, graphTitle, graphSubtitle, limits) {
       let usageEndDate = new Date(data[data.length - 1].date)
       let limitEndDate = new Date(credit.end_date)
       let graphLimitEndDate = limitEndDate > usageEndDate ? usageEndDate : limitEndDate
-      graphLimitStartDate = moment(graphLimitStartDate).utc().format('YYYY-MM-DD HH:mm:ssZ')
-      graphLimitEndDate = moment(graphLimitEndDate).utc().format('YYYY-MM-DD HH:mm:ssZ')
+      graphLimitStartDate = moment(graphLimitStartDate).utc().format('YYYY-MM-DD')
+      graphLimitEndDate = moment(graphLimitEndDate).utc().format('YYYY-MM-DD')
 
       option.series[0].markLine.data.push(
         // Draw hard limit line
@@ -439,15 +449,18 @@ function addChart(data, itemId, graphTitle, graphSubtitle, limits) {
         // Draw area between exp_min and exp_max
         [
           {
-            name: "Expected use area",
+            xAxis: graphLimitStartDate,
             yAxis: credit.limits.exp_min,
             itemStyle: { color: 'rgba(200, 200, 200, 0.5)', opacity: 0.5 },
             label: {
               show: true,
-              position: 'left',
+              position: 'inside',
+              formatter: 'Expected use area',
+              color: '#3b3e47'
             },
           },
           {
+            xAxis: graphLimitEndDate,
             yAxis: credit.limits.exp_max
           }
         ]

@@ -166,6 +166,10 @@ def get_item_date_consumption(
             "item_consumer",
         )
 
+    if grouping_params:
+        default_consumption = get_default_consumption(grouping_params)
+    else:
+        default_consumption = get_default_consumption()
     with app.app_context():
         data = (
             r.table("usage_consumption")
@@ -178,8 +182,8 @@ def get_item_date_consumption(
                 {
                     "name": item_name,
                     "date": date,
-                    "inc": get_default_consumption(),
-                    "abs": get_default_consumption(),
+                    "inc": default_consumption,
+                    "abs": default_consumption,
                     "item_id": item_id,
                     "item_type": item_type,
                 }
@@ -205,14 +209,19 @@ def get_usage_distinct_items(item_consumer, start_date, end_date, item_category=
 
 
 def get_usage_consumers(item_type):
-    return list(
-        r.db("isard")
-        .table("usage_consumption")
-        .get_all(item_type, index="item_type")
-        .pluck("item_consumer")
-        .distinct()["item_consumer"]
-        .run(db.conn)
-    )
+    with app.app_context():
+        return list(
+            r.table("usage_consumption")
+            .get_all(item_type, index="item_type")
+            .pluck("item_consumer")
+            .distinct()["item_consumer"]
+            .run(db.conn)
+        )
+
+
+def count_usage_consumers():
+    with app.app_context():
+        return r.table("usage_consumption").count().run(db.conn)
 
 
 def consolidate_consumptions(item_type=None, total_days=29):
@@ -525,15 +534,25 @@ def get_usage_credits(item_id, item_type, grouping_id, start_date, end_date):
     before = [
         c
         for c in credit
-        if c["start_date"] <= start_date and c["end_date"] >= start_date
+        if c["start_date"] <= start_date
+        and (
+            c["end_date"]
+            and (c["end_date"] >= start_date and c["end_date"] <= end_date)
+        )
     ]
     if len(before) > 1:
         raise Error("internal_server", "More than one before credit interval found")
     inner = [
-        c for c in credit if c["start_date"] >= start_date and c["end_date"] <= end_date
+        c
+        for c in credit
+        if c["start_date"] >= start_date
+        and (c["end_date"] and c["end_date"] <= end_date)
     ]
     after = [
-        c for c in credit if c["start_date"] <= end_date and c["end_date"] >= end_date
+        c
+        for c in credit
+        if c["start_date"] <= end_date
+        and (not c["end_date"] or c["end_date"] >= end_date)
     ]
     if len(after) > 1:
         raise Error("internal_server", "More than one after credit interval found")
@@ -543,34 +562,38 @@ def get_usage_credits(item_id, item_type, grouping_id, start_date, end_date):
         return [
             {
                 "limits": None,
-                "start_date": start_date,
-                "end_date": end_date,
+                "start_date": start_date.strftime("%Y-%m-%d %H:%M%z"),
+                "end_date": end_date.strftime("%Y-%m-%d %H:%M%z"),
             }
         ]
     if len(before):
         before[0]["start_date"] = start_date
     else:
-        before[0] = {
-            "limits": None,
-            "start_date": start_date,
-            "end_date": inner[0]["start_date"]
-            if len(inner)
-            else after[0]["start_date"]
-            if len(after)
-            else end_date,
-        }
+        before = [
+            {
+                "limits": None,
+                "start_date": start_date,
+                "end_date": inner[0]["start_date"]
+                if len(inner)
+                else after[0]["start_date"]
+                if len(after)
+                else end_date,
+            }
+        ]
     if len(after):
         after[0]["end_date"] = end_date
     else:
-        after[0] = {
-            "limits": None,
-            "start_date": inner[-1]["end_date"]
-            if len(inner)
-            else before[0]["end_date"]
-            if len(before)
-            else start_date,
-            "end_date": end_date,
-        }
+        after = [
+            {
+                "limits": None,
+                "start_date": inner[-1]["end_date"]
+                if len(inner)
+                else before[0]["end_date"]
+                if len(before)
+                else start_date,
+                "end_date": end_date,
+            }
+        ]
     all_intervals = before + inner + after
     for interval in all_intervals:
         interval["start_date"] = (
@@ -624,6 +647,15 @@ def add_usage_credit(data):
     # (same category and its start_date is earlier than
     # the end_date we want to set)
 
+    # Cut/Delete existing overlapping intervals
+    cut_existing_usage_credits(
+        data["item_id"],
+        data["item_type"],
+        data["grouping_id"],
+        data["start_date"],
+        data["end_date"],
+    )
+
     with app.app_context():
         limits = (
             r.table("usage_limit")
@@ -640,8 +672,9 @@ def add_usage_credit(data):
                 "start_date": data["start_date"],
                 "end_date": data["end_date"],
                 "limits": limits.get("limits"),
-                "limits_desc": limits.get("name"),
-                "limits_name": limits.get("desc"),
+                "limits_id": limits.get("id"),
+                "limits_desc": limits.get("desc"),
+                "limits_name": limits.get("name"),
             }
         ).run(db.conn)
         cache_usage_credits.clear()
@@ -649,12 +682,38 @@ def add_usage_credit(data):
 
 
 def update_usage_credit(data):
-    if (not data["end_date"]) or (data["end_date"].date() >= datetime.now().date()):
-        with app.app_context():
-            r.table("usage_credit").get(data["id"]).update(data).run(db.conn)
-            cache_usage_credits.clear()
-    else:
-        raise Error("bad_request", "Past credits can not be edited")
+    if (
+        data.get("item_id")
+        or data.get("item_type")
+        or data.get("grouping_id")
+        or data.get("start_date")
+        or data.get("end_data")
+    ):
+        cut_existing_usage_credits(
+            data["item_id"],
+            data["item_type"],
+            data["grouping_id"],
+            data["start_date"],
+            data["end_date"],
+        )
+    if data.get("limit_id"):
+        limits = (
+            r.table("usage_limit")
+            .get(data.pop("limit_id"))
+            .pluck("id", "name", "desc", "limits")
+            .run(db.conn)
+        )
+        data.update(
+            {
+                "limits": limits.get("limits"),
+                "limits_id": limits.get("id"),
+                "limits_desc": limits.get("desc"),
+                "limits_name": limits.get("name"),
+            }
+        )
+    with app.app_context():
+        r.table("usage_credit").get(data["id"]).update(data).run(db.conn)
+        cache_usage_credits.clear()
     return True
 
 
@@ -668,3 +727,96 @@ def delete_usage_credit(credit_id):
             "not_found", "Credit with ID " + credit_id + " not found in database"
         )
     return True
+
+
+def cut_existing_usage_credits(item_id, item_type, grouping_id, start_date, end_date):
+    if not end_date:
+        end_date = datetime.now(pytz.utc)
+
+    with app.app_context():
+        credit = list(
+            r.table("usage_credit")
+            .get_all(
+                [item_id, item_type, grouping_id], index="item_id-item_type-grouping"
+            )
+            .run(db.conn)
+        )
+
+    if not len(credit):
+        return
+
+    # First check if there is a bigger credit interval than interval requested
+    outer = [
+        c
+        for c in credit
+        if c["start_date"] <= start_date
+        and (not c["end_date"] or c["end_date"] >= end_date)
+    ]
+    if len(outer):
+        if len(outer) > 1:
+            raise Error("internal_server", "More than one outer credit interval found")
+        app.logger.warning(
+            f"Existing credit interval {outer[0]['id']} end_date {outer[0]['end_date'].date() if outer[0]['end_date'] else None} cutted to {(start_date+timedelta(days=-1)).date()}"
+        )
+        outer[0]["end_date"] = start_date + timedelta(days=-1)
+        with app.app_context():
+            r.table("usage_credit").get(outer[0]["id"]).update(outer[0]).run(db.conn)
+            cache_usage_credits.clear()
+        return
+
+    # It must only be one credit interval maximum matching before and after
+    before = [
+        c
+        for c in credit
+        if c["start_date"] <= start_date
+        and (
+            c["end_date"]
+            and (c["end_date"] >= start_date and c["end_date"] <= end_date)
+        )
+    ]
+    if len(before):
+        if len(before) > 1:
+            raise Error("internal_server", "More than one before credit interval found")
+        app.logger.warning(
+            f"Existing credit interval {before[0]['id']} end_date {before[0]['end_date'].date() if before[0]['end_date'] else None} cutted to {(start_date+timedelta(days=-1)).date()}"
+        )
+        before[0]["end_date"] = start_date + timedelta(days=-1)
+        with app.app_context():
+            r.table("usage_credit").get(before[0]["id"]).update(before[0]).run(db.conn)
+            cache_usage_credits.clear()
+        return
+
+    inner = [
+        c
+        for c in credit
+        if c["start_date"] >= start_date
+        and (c["end_date"] and c["end_date"] <= end_date)
+    ]
+    if len(inner):
+        if len(inner) > 1:
+            raise Error("internal_server", "More than one inner credit interval found")
+        app.logger.warning(
+            f"Existing credit interval {inner[0]['id']} {inner[0]['start_date'].date()}/{inner[0]['end_date'].date() if inner[0]['end_date'] else None} removed as is inside {start_date.date()}/{end_date.date()}"
+        )
+        with app.app_context():
+            r.table("usage_credit").get(inner[0]["id"]).delete().run(db.conn)
+            cache_usage_credits.clear()
+        return
+
+    after = [
+        c
+        for c in credit
+        if c["start_date"] <= end_date
+        and (not c["end_date"] or c["end_date"] >= end_date)
+    ]
+    if len(after):
+        if len(after) > 1:
+            raise Error("internal_server", "More than one after credit interval found")
+        app.logger.warning(
+            f"Existing credit interval start_date {after[0]['start_date'].date()} cutted to {(end_date+timedelta(days=1)).date()}"
+        )
+        after[0]["start_date"] = end_date + timedelta(days=1)
+        with app.app_context():
+            r.table("usage_credit").get(after[0]["id"]).update(after[0]).run(db.conn)
+            cache_usage_credits.clear()
+    return
