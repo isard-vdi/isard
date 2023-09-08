@@ -1,1 +1,1 @@
-msg * "{message}"
+msg * {message}

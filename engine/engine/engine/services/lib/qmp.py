@@ -22,6 +22,7 @@ import json
 import os
 import pathlib
 import subprocess
+from shlex import quote
 
 from engine.services.db.domains import PersonalUnit as DbPersonalUnit
 from engine.services.db.domains import get_personal_unit_from_domain
@@ -168,7 +169,7 @@ class Notifier:
 
     def cmd_windows(message):
         shellscript = NOTIFIER_CMD_WINDOWS.format(
-            message=message,
+            message="^" + "^".join(message),  # Escape the characters for Windows
         ).encode()
 
         return {
@@ -183,8 +184,8 @@ class Notifier:
 
     def cmd_linux(message):
         shellscript = NOTIFIER_CMD_LINUX.format(
-            title="IsardVDI Notification",
-            message=message,
+            title=quote("IsardVDI Notification"),
+            message=quote(message),
         ).encode()
 
         return {
