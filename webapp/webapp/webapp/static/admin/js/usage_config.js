@@ -896,7 +896,7 @@ $('tbody').on('click', 'button', function () {
     })
   }
 
-  if ($(this).hasClass('btn-edit-credit-limits')) {
+  else if ($(this).hasClass('btn-edit-credit-limits')) {
     var modal = "#modalEditCreditLimits";
     var id = row.data().id;
 
@@ -915,7 +915,7 @@ $('tbody').on('click', 'button', function () {
     });
   }
 
-  if ($(this).hasClass('btn-delete-credit')) {
+  else if ($(this).hasClass('btn-delete-credit')) {
     deleteItem('credit', id, table_credits);
   }
 

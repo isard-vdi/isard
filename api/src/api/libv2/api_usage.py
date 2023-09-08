@@ -562,8 +562,8 @@ def get_usage_credits(item_id, item_type, grouping_id, start_date, end_date):
         return [
             {
                 "limits": None,
-                "start_date": start_date,
-                "end_date": end_date,
+                "start_date": start_date.strftime("%Y-%m-%d %H:%M%z"),
+                "end_date": end_date.strftime("%Y-%m-%d %H:%M%z"),
             }
         ]
     if len(before):
@@ -731,7 +731,7 @@ def delete_usage_credit(credit_id):
 
 def cut_existing_usage_credits(item_id, item_type, grouping_id, start_date, end_date):
     if not end_date:
-        end_date = datetime.now()
+        end_date = datetime.now(pytz.utc)
 
     with app.app_context():
         credit = list(

@@ -294,7 +294,7 @@ function addChart(data, itemId, graphTitle, graphSubtitle, limits) {
       name: key,
       type: 'line',
       data: data.map(function (item) {
-        return [item.date, item.abs[key]]
+        return [moment(item.date).utc().format('YYYY-MM-DD'), item.abs[key]]
       }),
       markLine: {
         data: [
@@ -350,7 +350,11 @@ function addChart(data, itemId, graphTitle, graphSubtitle, limits) {
       type: 'category',
       axisLabel: {
         formatter: (function (value) {
-          return new Date(value).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+          if (/^en\b/.test(navigator.language)) {
+            return new Date(value).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+          } else {
+            return new Date(value).toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' })
+          }
         })
       }
     }],
@@ -381,8 +385,8 @@ function addChart(data, itemId, graphTitle, graphSubtitle, limits) {
       let usageEndDate = new Date(data[data.length - 1].date)
       let limitEndDate = new Date(credit.end_date)
       let graphLimitEndDate = limitEndDate > usageEndDate ? usageEndDate : limitEndDate
-      graphLimitStartDate = moment(graphLimitStartDate).utc().format('YYYY-MM-DD HH:mm:ssZ')
-      graphLimitEndDate = moment(graphLimitEndDate).utc().format('YYYY-MM-DD HH:mm:ssZ')
+      graphLimitStartDate = moment(graphLimitStartDate).utc().format('YYYY-MM-DD')
+      graphLimitEndDate = moment(graphLimitEndDate).utc().format('YYYY-MM-DD')
 
       option.series[0].markLine.data.push(
         // Draw hard limit line
@@ -445,15 +449,18 @@ function addChart(data, itemId, graphTitle, graphSubtitle, limits) {
         // Draw area between exp_min and exp_max
         [
           {
-            name: "Expected use area",
+            xAxis: graphLimitStartDate,
             yAxis: credit.limits.exp_min,
             itemStyle: { color: 'rgba(200, 200, 200, 0.5)', opacity: 0.5 },
             label: {
               show: true,
-              position: 'left',
+              position: 'inside',
+              formatter: 'Expected use area',
+              color: '#3b3e47'
             },
           },
           {
+            xAxis: graphLimitEndDate,
             yAxis: credit.limits.exp_max
           }
         ]
