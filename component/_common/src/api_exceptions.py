@@ -23,7 +23,7 @@ import json
 import logging as log
 import os
 
-from flask import jsonify, request
+from flask import has_request_context, jsonify, request
 
 try:
     from api import app
@@ -103,6 +103,13 @@ ex = {
 ex_codes = [ex[x]["status_code"] for x in ex]
 
 
+class RequestObj:
+    def __init__(self, method="", url="", headers={}):
+        self.method = method
+        self.url = url
+        self.headers = headers
+
+
 class Error(Exception):
     def __init__(
         self,
@@ -117,7 +124,10 @@ class Error(Exception):
         if custom_request:
             self.request = custom_request
         else:
-            self.request = request
+            if has_request_context():
+                self.request = request
+            else:
+                self.request = RequestObj()
         # NOTE: Description codes are defined at https://gitlab.com/isard/isardvdi/-/blob/main/frontend/src/locales/en.json#L340
         self.error = ex[error]["error"].copy()
         self.error["description_code"] = description_code if description_code else error
@@ -184,7 +194,9 @@ class Error(Exception):
                         "error": self.error.get("description"),
                         "error_type": error,
                         "request": {
-                            "method": self.request.method,
+                            "method": self.request.method
+                            if hasattr(self.request, "method")
+                            else "",
                             "url": url[0],
                         },
                         "data": data if data else "",
@@ -200,9 +212,15 @@ class Error(Exception):
                         "function_call": "[%s -> %s]"
                         % (self.error.get("function_call"), self.error.get("function")),
                         "request": {
-                            "method": self.request.method,
-                            "url": self.request.url,
-                            "headers": self.request.headers,
+                            "method": self.request.method
+                            if hasattr(self.request, "method")
+                            else "",
+                            "url": self.request.url
+                            if hasattr(self.request, "url")
+                            else "",
+                            "headers": self.request.headers
+                            if hasattr(self.request, "headers")
+                            else "",
                             "body": self.request.body
                             if hasattr(self.request, "body")
                             else "",
