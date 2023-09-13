@@ -975,7 +975,8 @@
         "no_wireguard_keys": "Encara hi ha claus de WireGuard al webapp. Reintenta-ho en uns segons...",
         "vpn_missing_itemid": "Li falta l'identificador de l'element a la VPN",
         "no_reservables": "L'element no té reservables",
-        "cant_edit_booked_deployment": "No es poden editar els reservables d'un desplegament amb reserves planificades"
+        "cant_edit_booked_deployment": "No es poden editar els reservables d'un desplegament amb reserves planificades",
+        "temporal_new_reservable": "No es pot crear un escriptori temporal d'una plantilla amb reservables"
     },
     "messages": {
         "title": {

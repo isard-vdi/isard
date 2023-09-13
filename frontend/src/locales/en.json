@@ -1046,7 +1046,8 @@
         "one_viewer_minimum": "At least one viewer must be selected",
         "template_failed": "Due to an error this template can't be used to create a new desktop, please contact the administrator",
         "desktop_storage_not_ready": "Desktop storage is not ready",
-        "cant_edit_booked_deployment": "Can't edit the reservables from a deployment with a scheduled booking"
+        "cant_edit_booked_deployment": "Can't edit the reservables from a deployment with a scheduled booking",
+        "temporal_new_reservable": "Can't create a temporal desktop from a template with a reservable"
     },
     "router": {
         "titles": {
