@@ -607,27 +607,34 @@ class HypervisorsThread(threading.Thread):
                             if c["old_val"] == None or c["old_val"].get("status") != c[
                                 "new_val"
                             ].get("status"):
-                                data = (
-                                    r.table("hypervisors")
-                                    .get(c["new_val"]["id"])
-                                    .merge(
-                                        lambda hyper: {
-                                            "gpus": r.table("vgpus")
-                                            .filter({"hyp_id": hyper["id"]})
-                                            .count(),
-                                            "desktops_started": r.table("domains")
-                                            .get_all(hyper["id"], index="hyp_started")
-                                            .count(),
-                                        }
+                                try:
+                                    data = (
+                                        r.table("hypervisors")
+                                        .get(c["new_val"]["id"])
+                                        .merge(
+                                            lambda hyper: {
+                                                "gpus": r.table("vgpus")
+                                                .filter({"hyp_id": hyper["id"]})
+                                                .count(),
+                                                "desktops_started": r.table("domains")
+                                                .get_all(
+                                                    hyper["id"], index="hyp_started"
+                                                )
+                                                .count(),
+                                            }
+                                        )
+                                        .run(db.conn)
                                     )
-                                    .run(db.conn)
-                                )
-                                socketio.emit(
-                                    "hyper_data",
-                                    json.dumps(data),
-                                    namespace="/administrators",
-                                    room="admins",
-                                )
+                                    socketio.emit(
+                                        "hyper_data",
+                                        json.dumps(data),
+                                        namespace="/administrators",
+                                        room="admins",
+                                    )
+                                except Exception as e:
+                                    app.logger.warning(
+                                        f"Hypervisor {c['new_val']['id']} already deleted in system. Skip sending socketio event"
+                                    )
                                 continue
                             if c["new_val"]["status"] != "Online":
                                 data = c["new_val"]
