@@ -108,7 +108,15 @@ class Actions:
         )
 
     def desktop_stop(**kwargs):
-        api_client.get("/desktop/stop/" + kwargs["desktop_id"])
+        try:
+            api_client.get("/desktop/stop/" + kwargs["desktop_id"])
+        except:
+            log.error(
+                "Exception when stopping desktop "
+                + kwargs["desktop_id"]
+                + ": "
+                + traceback.format_exc()
+            )
 
     def stop_domains():
         with app.app_context():
