@@ -145,6 +145,14 @@ class ApiDesktopsNonPersistent:
             **parse_domain_insert(template["create_dict"])["hardware"],
         }
 
+        if create_dict.get("reservables", {}).get("vgpus"):
+            raise Error(
+                "bad_request",
+                "Can't create temporal desktop from a template with a reservable",
+                traceback.format_exc(),
+                "temporal_new_reservable",
+            )
+
         new_desktop = {
             "name": template["name"],
             "description": template["description"],
