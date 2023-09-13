@@ -89,7 +89,7 @@ def SetupHypervisor():
                 sleep(2)
                 continue
         except:
-            print("Could not contact api... retrying...")
+            print("Could not contact api to register me... retrying...")
             sleep(2)
             continue
         if not data["certs"]["ca-cert.pem"]:
@@ -133,8 +133,28 @@ def SetupHypervisor():
 
 
 def DeleteHypervisor():
-    return apic.delete("hypervisor/" + os.environ.get("HYPER_ID", "isard-hypervisor"))
+    ok = False
+    while not ok:
+        try:
+            deleted = apic.delete(
+                "hypervisor/" + os.environ.get("HYPER_ID", "isard-hypervisor")
+            )
+            ok = True
+        except:
+            print("Could not contact api to delete me... retrying...")
+            sleep(1)
+    return deleted
 
 
 def EnableHypervisor():
-    return apic.update("hypervisor/" + os.environ.get("HYPER_ID", "isard-hypervisor"))
+    ok = False
+    while not ok:
+        try:
+            enabled = apic.update(
+                "hypervisor/" + os.environ.get("HYPER_ID", "isard-hypervisor"),
+            )
+            ok = True
+        except:
+            print("Could not contact api to enable me... retrying...")
+            sleep(1)
+    return enabled
