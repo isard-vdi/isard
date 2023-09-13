@@ -12,7 +12,7 @@ then
   then
     if certbot certonly --standalone -d "$LETSENCRYPT_DOMAIN" -m "$LETSENCRYPT_EMAIL" -n --agree-tos
     then
-      RENEWED_LINEAGE="/etc/letsencrypt/live/$LETSENCRYPT_DOMAIN" /etc/letsencrypt/renewal-hooks/deploy/concatenate.sh
+      RENEWED_LINEAGE="/etc/letsencrypt/live/$(echo "$LETSENCRYPT_DOMAIN" | tr '[:upper:]' '[:lower:]')" /etc/letsencrypt/renewal-hooks/deploy/concatenate.sh
     fi
   fi
 fi
