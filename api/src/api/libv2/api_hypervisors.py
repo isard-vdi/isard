@@ -452,35 +452,39 @@ class ApiHypervisors:
             return {"status": True, "msg": "Hypervisor disabled", "data": {}}
 
     def remove_hyper(self, hyper_id, restart=True):
-        self.stop_hyper_domains(hyper_id)
-        with app.app_context():
-            hyper = r.table("hypervisors").get(hyper_id).run(db.conn)
-            if not hyper:
-                return {"status": False, "msg": "Hypervisor not found", "data": {}}
-
-        if hyper["status"] != "Deleting":
+        try:
             with app.app_context():
-                r.table("hypervisors").get(hyper_id).update(
-                    {"enabled": False, "status": "Deleting"}
-                ).run(db.conn)
-        else:
-            with app.app_context():
-                r.table("hypervisors").get(hyper_id).delete().run(db.conn)
-
-        now = int(time.time())
-        while int(time.time()) - now < 20:
+                r.table("hypervisors").get(hyper_id).update({"forced_hyp": True}).run(
+                    db.conn
+                )
+            self.stop_hyper_domains(hyper_id)
+            r.table("hypervisors").get(hyper_id).update({"enabled": False}).run(db.conn)
             time.sleep(1)
-        with app.app_context():
-            if not r.table("hypervisors").get(hyper_id).run(db.conn):
+            r.table("hypervisors").get(hyper_id).update({"status": "Deleting"}).run(
+                db.conn
+            )
+        except:
+            return {"status": False, "msg": "Hypervisor not found", "data": {}}
+
+        # Wait for engine to remove hyper thread
+        timeout = 10
+        while timeout:
+            time.sleep(1)
+            with app.app_context():
+                hyper = r.table("hypervisors").get(hyper_id).run(db.conn)
+            if not hyper:
                 return {
                     "status": True,
-                    "msg": "Removed from database",
+                    "msg": "Hypervisor removed by engine from database",
                     "data": {},
                 }
+            timeout -= 1
 
+        with app.app_context():
+            r.table("hypervisors").get(hyper_id).delete().run(db.conn)
         return {
-            "status": False,
-            "msg": "Hypervisor yet in database, timeout waiting to delete",
+            "status": True,
+            "msg": "Hypervisor force removed from database",
             "data": {},
         }
 
