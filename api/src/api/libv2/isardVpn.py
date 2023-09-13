@@ -30,14 +30,22 @@ class isardVpn:
         pass
 
     def vpn_data(self, vpn, kind, op_sys, itemid=False):
+        if vpn not in ["users", "hypers", "remotevpn"]:
+            raise Error(
+                "bad_request",
+                "Vpn kind " + str(vpn) + " does not exist",
+                traceback.format_exc(),
+                description_code="vpn_kind_not_found",
+            )
+        if not itemid:
+            raise Error(
+                "bad_request",
+                "Vpn " + str(vpn) + " missing itemid",
+                traceback.format_exc(),
+                description_code="vpn_missing_itemid",
+            )
+
         if vpn == "users":
-            if itemid == False:
-                raise Error(
-                    "bad_request",
-                    "Vpn missing itemid",
-                    traceback.format_exc(),
-                    description_code="vpn_missing_itemid",
-                )
             with app.app_context():
                 wgdata = r.table("users").get(itemid).pluck("id", "vpn").run(db.conn)
             port = os.environ.get("WG_USERS_PORT", "443")
@@ -46,7 +54,8 @@ class isardVpn:
             # colon command does nothing on Windows and GNU/Linux
             postup = ":"
             endpoint = os.environ["DOMAIN"]
-        elif vpn == "hypers":
+
+        if vpn == "hypers":
             with app.app_context():
                 hyper = (
                     r.table("hypervisors")
@@ -59,14 +68,8 @@ class isardVpn:
             mtu = os.environ.get("VPN_MTU", "1600")
             postup = "iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu"
             endpoint = hyper.get("isard_hyper_vpn_host", "isard-vpn")
-        elif vpn == "remotevpn":
-            if not itemid:
-                raise Error(
-                    "bad_request",
-                    "Vpn missing itemid",
-                    traceback.format_exc(),
-                    description_code="vpn_missing_itemid",
-                )
+
+        if vpn == "remotevpn":
             with app.app_context():
                 wgdata = (
                     r.table("remotevpn").get(itemid).pluck("id", "vpn").run(db.conn)
@@ -77,18 +80,11 @@ class isardVpn:
             # colon command does nothing on Windows and GNU/Linux
             postup = ":"
             endpoint = os.environ["DOMAIN"]
-        else:
-            raise Error(
-                "not_found",
-                "Vpn kind does not exist",
-                traceback.format_exc(),
-                description_code="vpn_kind_not_found",
-            )
 
         if wgdata == None or "vpn" not in wgdata.keys():
             raise Error(
                 "not_found",
-                "Vpn data not found for user",
+                "Vpn data not found for kind " + str(vpn) + " and id " + str(itemid),
                 traceback.format_exc(),
                 description_code="vpn_data_not_found",
             )
@@ -106,7 +102,7 @@ class isardVpn:
         if not wireguard_server_keys:
             raise Error(
                 "precondition_required",
-                "There are no wireguard keys in webapp config yet. Try again in a few seconds...",
+                "There are no wireguard keys in db config yet. Try again in a few seconds...",
                 traceback.format_exc(),
                 description_code="no_wireguard_keys",
             )
