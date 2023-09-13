@@ -8,8 +8,12 @@ service OperationsService {
     rpc ListHypervisors(ListHypervisorsRequest) returns (ListHypervisorsResponse) {}
     // CreateHypervisor creates and adds a new hypervisor on the pool
     rpc CreateHypervisor(CreateHypervisorRequest) returns (stream CreateHypervisorResponse) {}
+    // CreateHypervisors creates and adds multiple new hypervisor on the pool
+    rpc CreateHypervisors(CreateHypervisorsRequest) returns (stream CreateHypervisorsResponse) {}
     // DestroyHypervisor destroys a Hypervisor. It doesn't stop / migrate the running VMs or anything like that
     rpc DestroyHypervisor(DestroyHypervisorRequest) returns (stream DestroyHypervisorResponse) {}
+    // DestroyHypervisor destroys multiple Hypervisors. It doesn't stop / migrate the running VMs or anything like that
+    rpc DestroyHypervisors(DestroyHypervisorsRequest) returns (stream DestroyHypervisorsResponse) {}
     
     // ExpandStorage adds more storage to the shared storage pool
     rpc ExpandStorage(ExpandStorageRequest) returns (stream ExpandStorageResponse) {}
@@ -56,6 +60,14 @@ enum HypervisorState {
     HYPERVISOR_STATE_AVAILABLE_TO_DESTROY = 3;
 }
 
+// HypervisorGPU is the representation of a GPU that an hypervisor can have
+message HypervisorGPU {
+    // Brand is the brand of the GPU. This is probably going to be 'NVIDIA'
+    string brand = 1;
+    // Model is the GPU model
+    string model = 2;
+}
+
 // ListHypervisorsRequest is the request for the ListHypervisors method
 message ListHypervisorsRequest {}
 
@@ -81,6 +93,9 @@ message ListHypervisorsResponseHypervisor {
 
     // state is the state of the hypervisor
     HypervisorState state = 5;
+
+    // gpus are all the gpus that the hypervisor has available. If there are GPUs, the HYPERVISOR_CAPABILITIES_GPU needs to be set
+    repeated HypervisorGPU gpus = 6;
 }
 
 // CreateHypervisorRequest is the request for the CreateHypervisor method
@@ -98,6 +113,21 @@ message CreateHypervisorResponse {
     string msg = 2;
 }
 
+// CreateHypervisorsRequest is the request for the CreateHypervisors method
+message CreateHypervisorsRequest {
+    // ids are the IDs of the hypervisors
+    repeated string ids = 1;
+}
+
+// CreateHypervisorsResponse is the response for the CreateHypervisors method
+message CreateHypervisorsResponse {
+    // state is the state of the operation
+    OperationState state = 1;
+
+    // msg contains info related with the operation
+    string msg = 2;
+}
+
 // DestroyHypervisorRequest is the request for the DestroyHypervisor method
 message DestroyHypervisorRequest {
     // id is the ID of the hypervisor
@@ -106,6 +136,21 @@ message DestroyHypervisorRequest {
 
 // DestroyHypervisorResponse is the response for the DestroyHypervisor method
 message DestroyHypervisorResponse {
+    // state is the state of the operation
+    OperationState state = 1;
+
+    // msg contains info related with the operation
+    string msg = 2;
+}
+
+// DestroyHypervisorsRequest is the request for the DestroyHypervisors method
+message DestroyHypervisorsRequest {
+    // ids are the ID of the hypervisors
+    repeated string ids = 1;
+}
+
+// DestroyHypervisorsResponse is the response for the DestroyHypervisors method
+message DestroyHypervisorsResponse {
     // state is the state of the operation
     OperationState state = 1;
 

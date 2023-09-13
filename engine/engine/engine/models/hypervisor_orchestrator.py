@@ -14,6 +14,7 @@ import traceback
 from engine.config import CONFIG_DICT
 from engine.models.pool_hypervisors import move_actions_to_others_hypers
 from engine.services.db import (
+    cleanup_hypervisor_gpus,
     close_rethink_connection,
     delete_table_item,
     get_domains_flag_server_to_starting,
@@ -455,6 +456,9 @@ class HypervisorChangesThread(threading.Thread):
                         and c["old_val"]["status"] in ["Error", "Offline"]
                     ):
                         hyp_id = c["new_val"].get("id")
+
+                        # Remove all the GPUs of the said hypervisor
+                        cleanup_hypervisor_gpus(hyp_id)
                         delete_table_item("hypervisors", hyp_id)
 
         self.r_conn.close()

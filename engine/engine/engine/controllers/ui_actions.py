@@ -216,8 +216,11 @@ class UiActions(object):
             action="start_paused_domain",
             forced_hyp=forced_hyp,
             favourite_hyp=favourite_hyp,
-            force_gpus=force_gpus,
-            reservables=reservables,
+            # We set force_gpus and reservables to None because we'll override all the
+            # GPU configuration in order to be able to create GPU desktops without having
+            # an hypervisor online hypervisor with GPUs
+            force_gpus=None,
+            reservables=None,
         )
 
     def start_domain_from_xml(

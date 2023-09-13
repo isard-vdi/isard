@@ -43,5 +43,9 @@ func NewOperationsV1ListHypervisorsResponseHypervisor(hyp *operationsv1.ListHype
 }
 
 func (o OperationsV1ListHypervisorsResponseHypervisor) MarshalZerologObject(e *zerolog.Event) {
-	e.Str("id", o.hyp.Id).Str("state", o.hyp.State.String()).Int32("total_cpu", o.hyp.Cpu).Int32("total_ram", o.hyp.Ram).Array("capabilities", NewOperationsV1HypervisorCapabilities(o.hyp.Capabilities))
+	e.Str("id", o.hyp.Id).
+		Str("state", o.hyp.State.String()).
+		Int32("total_cpu", o.hyp.Cpu).
+		Int32("total_ram", o.hyp.Ram).
+		Array("capabilities", NewOperationsV1HypervisorCapabilities(o.hyp.Capabilities))
 }
