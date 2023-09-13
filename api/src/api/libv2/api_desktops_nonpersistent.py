@@ -35,7 +35,7 @@ from .validators import _validate_item
 
 isardviewer = isardViewer()
 
-from .helpers import _check, _parse_media_info
+from .helpers import _check, _parse_media_info, parse_domain_insert
 
 
 class ApiDesktopsNonPersistent:
@@ -135,6 +135,15 @@ class ApiDesktopsNonPersistent:
             {"extension": "qcow2", "parent": parent_disk}
         ]
         create_dict = _parse_media_info(create_dict)
+
+        template["create_dict"]["hardware"]["interfaces"] = [
+            i["id"] for i in template["create_dict"]["hardware"]["interfaces"]
+        ]
+
+        create_dict["hardware"] = {
+            **template["create_dict"]["hardware"],
+            **parse_domain_insert(template["create_dict"])["hardware"],
+        }
 
         new_desktop = {
             "name": template["name"],
