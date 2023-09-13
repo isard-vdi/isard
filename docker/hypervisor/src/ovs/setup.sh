@@ -1,5 +1,5 @@
-ovsdb-server --detach --remote=punix:/var/run/openvswitch/db.sock --pidfile=ovsdb-server.pid --remote=ptcp:6640
-ovs-vswitchd --detach --verbose --pidfile
+ovsdb-server --detach --remote=punix:/var/run/openvswitch/db.sock --pidfile=ovsdb-server.pid --remote=ptcp:6640 >/tmp/ovsdb-server.out 2>&1
+ovs-vswitchd --detach --verbose --pidfile >/tmp/ovs-vswitchd.out 2>&1
 ovs-vsctl add-br ovsbr0
 ip link set ovsbr0 up
 
