@@ -147,14 +147,32 @@ def DeleteHypervisor():
 
 
 def EnableHypervisor():
+    data = {"enabled": True}
     ok = False
     while not ok:
         try:
             enabled = apic.update(
                 "hypervisor/" + os.environ.get("HYPER_ID", "isard-hypervisor"),
+                data=data,
             )
             ok = True
         except:
             print("Could not contact api to enable me... retrying...")
+            sleep(1)
+    return enabled
+
+
+def DisableHypervisor():
+    data = {"enabled": False}
+    ok = False
+    while not ok:
+        try:
+            enabled = apic.update(
+                "hypervisor/" + os.environ.get("HYPER_ID", "isard-hypervisor"),
+                data=data,
+            )
+            ok = True
+        except:
+            print("Could not contact api to disable me... retrying...")
             sleep(1)
     return enabled

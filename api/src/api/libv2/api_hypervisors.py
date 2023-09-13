@@ -437,15 +437,19 @@ class ApiHypervisors:
             )
         return result
 
-    def enable_hyper(self, hyper_id):
+    def enable_hyper(self, hyper_id, enable=True):
         with app.app_context():
             if not r.table("hypervisors").get(hyper_id).run(db.conn):
                 return {"status": False, "msg": "Hypervisor not found", "data": {}}
 
         with app.app_context():
-            r.table("hypervisors").get(hyper_id).update({"enabled": True}).run(db.conn)
-
-        return {"status": True, "msg": "Hypervisor enabled", "data": {}}
+            r.table("hypervisors").get(hyper_id).update({"enabled": enable}).run(
+                db.conn
+            )
+        if enable:
+            return {"status": True, "msg": "Hypervisor enabled", "data": {}}
+        else:
+            return {"status": True, "msg": "Hypervisor disabled", "data": {}}
 
     def remove_hyper(self, hyper_id, restart=True):
         self.stop_hyper_domains(hyper_id)

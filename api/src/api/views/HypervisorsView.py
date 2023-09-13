@@ -171,8 +171,12 @@ def api_v3_hypervisor(hyper_id=False):
         return json.dumps(data["data"]), 200, {"Content-Type": "application/json"}
 
     if request.method == "PUT":
-        log.warning("Enabling hypervisor: " + hyper_id)
-        data = api_hypervisors.enable_hyper(hyper_id)
+        enable = request.form.get("enabled", default=True, type=bool)
+        if enable:
+            log.warning("Enabling hypervisor: " + hyper_id)
+        else:
+            log.warning("Disabling hypervisor: " + hyper_id)
+        data = api_hypervisors.enable_hyper(hyper_id, enable)
         if not data["status"]:
             raise Error(
                 "bad_request",
