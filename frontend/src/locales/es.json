@@ -855,7 +855,8 @@
                 "resetdownloading": "Reiniciando descarga",
                 "downloaded": "Descargado",
                 "deleting": "Borrando",
-                "maintenance": "Mantenimiento"
+                "maintenance": "Mantenimiento",
+                "downloadaborting": "Abortando descarga"
             },
             "delete-media": {
                 "title": "Borrar medio",
