@@ -1635,8 +1635,12 @@ def update_domains_started_in_hyp_to_unknown(hyp_id):
 def domain_get_vgpu_info(domain_id):
     r_conn = new_rethink_connection()
     rtable_dom = r.table("domains")
-    d = dict(rtable_dom.get(domain_id).pluck("vgpu_info").run(r_conn))
-    close_rethink_connection(r_conn)
+    try:
+        d = dict(rtable_dom.get(domain_id).pluck("vgpu_info").run(r_conn))
+        close_rethink_connection(r_conn)
+    except Exception as e:
+        close_rethink_connection(r_conn)
+        return {}
     return d.get("vgpu_info", {})
 
 
