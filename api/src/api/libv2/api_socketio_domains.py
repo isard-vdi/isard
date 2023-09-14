@@ -176,10 +176,19 @@ class DomainsThread(threading.Thread):
                             and c.get("new_val", {}).get("status") == "Started"
                             and c.get("new_val", {}).get("viewer", {}).get("tls", {})
                         ):
-                            viewers = common.DesktopViewerFromToken(
-                                data.get("jumperurl"),
-                                start_desktop=False,
-                            )
+                            try:
+                                viewers = common.DesktopViewerFromToken(
+                                    data.get("jumperurl"),
+                                    start_desktop=False,
+                                )
+                            except Exception as e:
+                                app.logger.error(
+                                    {
+                                        "error": "desktop_viewer_from_token",
+                                        "msg": str(e),
+                                    }
+                                )
+                                continue
                             if viewers is not None:
                                 viewer_data = {
                                     "desktopId": viewers.pop("desktopId", None),
