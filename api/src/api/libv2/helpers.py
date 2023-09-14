@@ -244,11 +244,6 @@ def default_guest_properties():
 
 def _parse_desktop(desktop):
     desktop = parse_frontend_desktop_status(desktop)
-    desktop["user_name"] = r.table("users").get(desktop["user"]).run(db.conn)["name"]
-    desktop["group_name"] = r.table("groups").get(desktop["group"]).run(db.conn)["name"]
-    desktop["category_name"] = (
-        r.table("categories").get(desktop["category"]).run(db.conn)["name"]
-    )
     desktop["image"] = desktop.get("image", None)
     desktop["from_template"] = desktop.get("parents", [None])[-1]
     if desktop.get("persistent", True):
@@ -288,12 +283,13 @@ def _parse_desktop(desktop):
     editable = True
     if desktop.get("tag"):
         try:
-            deployment_user = (
-                r.table("deployments")
-                .get(desktop.get("tag"))
-                .pluck("user")
-                .run(db.conn)
-            )["user"]
+            with app.app_context():
+                deployment_user = (
+                    r.table("deployments")
+                    .get(desktop.get("tag"))
+                    .pluck("user")
+                    .run(db.conn)
+                )["user"]
             editable = True if deployment_user == desktop["user"] else False
         except:
             log.debug(traceback.format_exc())
@@ -303,12 +299,13 @@ def _parse_desktop(desktop):
     if desktop.get("type") == "persistent" and desktop["create_dict"]["hardware"].get(
         "disks", [{}]
     )[0].get("storage_id"):
-        desktop_storage = (
-            r.table("storage")
-            .get(desktop["create_dict"]["hardware"]["disks"][0]["storage_id"])
-            .pluck({"qemu-img-info": {"actual-size"}})
-            .run(db.conn)
-        )
+        with app.app_context():
+            desktop_storage = (
+                r.table("storage")
+                .get(desktop["create_dict"]["hardware"]["disks"][0]["storage_id"])
+                .pluck({"qemu-img-info": {"actual-size"}})
+                .run(db.conn)
+            )
         if desktop_storage.get("qemu-img-info"):
             desktop_size = desktop_storage["qemu-img-info"]["actual-size"]
     return {
@@ -362,6 +359,14 @@ def _parse_deployment_desktop(desktop, user_id=False):
     desktop = _parse_desktop(desktop)
     desktop["viewer"] = viewer
     desktop["user_photo"] = user_photo
+
+    with app.app_context():
+        desktop["user_name"] = (
+            r.table("users").get(desktop["user"])["name"].run(db.conn)
+        )
+        desktop["group_name"] = (
+            r.table("groups").get(desktop["group"])["name"].run(db.conn)
+        )
 
     return desktop
 
@@ -436,9 +441,10 @@ def set_current_booking(desktop):
             )
 
     if booking:
-        r.table("domains").get(desktop["id"]).update(
-            {"booking_id": booking[0]["id"]}
-        ).run(db.conn)
+        with app.app_context():
+            r.table("domains").get(desktop["id"]).update(
+                {"booking_id": booking[0]["id"]}
+            ).run(db.conn)
     return
 
 
