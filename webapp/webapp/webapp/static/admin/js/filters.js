@@ -146,12 +146,21 @@ function populateSelect(item, divId) {
             elem.append('</optgroup>');
           });
           // Once finished populating select by default the desktop_all grouping
-          grouping = $(`${divId} #grouping`).find("[id='desktop_all']").val();
-          elem.val(grouping)
-          $(`${divId} #grouping`).trigger("change");
+          $(`${divId} #grouping`).val($(`${divId} #grouping`).find("[id='desktop_all']").val())
+          $(`${divId} #grouping`).trigger({
+            type: 'select2:select',
+            params: {
+                data: elem.val($(`${divId} #grouping`).find("[id='desktop_all']").val())
+            }
+          });
           // If it's a manager by default show the group consumer selected, if it's an admin the category consumer
           $(`${divId} #consumer`).val($('meta[id=user_data]').attr('data-role') == 'manager' ? 'group' : 'category');
-          $(`${divId} #consumer`).trigger("change");
+          $(`${divId} #consumer`).trigger({
+            type: 'select2:select',
+            params: {
+                data: $('meta[id=user_data]').attr('data-role') == 'manager' ? 'group' : 'category'
+            }
+          });
           $('#btn-filter').trigger("click")
         })
       break;
@@ -194,20 +203,18 @@ function generate_events(divId) {
 }
 
 function generate_change_events (divId) {
-  valuesOptions = divId;
-  $(divId + " #filter-grouping").on('change', function () {
+  $(divId + " #filter-grouping").on('select2:select', function () {
     itemType = JSON.parse($("#grouping").val()).itemType
     fetchConsumers(divId);
   })
-  $(valuesOptions + " #filter-consumer").on('change', function () {
-    consumer = $(valuesOptions + ' #consumer').val();
-    // Show hide 
-    const item = $(valuesOptions + ' #consumer').val();
-    if (item !== "null") {
-      $(valuesOptions).children('[always-shown!=true][id!=filter-' + item + ']').hide();
-      $(valuesOptions).children('[always-shown!=true][id=filter-' + item + ']').show();
+
+  $(divId + " #filter-consumer").on('select2:select', function () {
+    consumer = $(divId + " #filter-consumer").find('select').val()
+    if (consumer !== "null") {
+      $(divId).children('[always-shown!=true][id!=filter-' + consumer + ']').hide();
+      $(divId).children('[always-shown!=true][id=filter-' + consumer + ']').show();
     }
-    $(valuesOptions + " #" + item).find('option').remove();
+    $(divId + " #" + consumer).find('option').remove();
     fetchConsumerItems(divId);
   });
 }
@@ -222,6 +229,12 @@ function fetchConsumers (divId) {
     $.each(d, function (pos, it) {
       $(divId + " #consumer").append('<option value=' + it + '>' + it + '</option>');
     })
+    $(`${divId} #consumer`).trigger({
+      type: 'select2:select',
+      params: {
+          data: $('meta[id=user_data]').attr('data-role') == 'manager' ? 'group' : 'category'
+      }
+    });
   });
 }
 
@@ -231,6 +244,7 @@ function fetchConsumerItems (divId) {
     type: 'GET',
     async: false
   }).then(function (items) {
+    $(divId + " #" + consumer).find('option').remove();
     $.each(items, function (pos, it) {
       $(divId + " #" + consumer).append('<option value=' + it.item_id + '>' + it.item_name + '</option>');
     })
