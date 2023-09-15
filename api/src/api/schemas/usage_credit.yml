@@ -2,8 +2,8 @@ id:
   required: true
   empty: false
   default_setter: genuuid
-item_id:
-  type: string
+item_ids:
+  type: list
   required: true
   empty: false
   nullable: false
