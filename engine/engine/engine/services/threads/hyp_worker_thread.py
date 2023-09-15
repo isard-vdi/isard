@@ -628,7 +628,15 @@ class HypWorkerThread(threading.Thread):
                             f"{error}"
                         )
                     else:
-                        Notifier.notify_desktop(domain, action["message"])
+                        try:
+                            Notifier.notify_desktop(domain, action["message"])
+
+                        except Exception as error:
+                            logs.workers.error(
+                                f'error notifying desktop {action["desktop_id"]}: '
+                                f'notify with "{base64.b64decode(action["message"])}": '
+                                f"{error}"
+                            )
 
                 elif action["type"] == "personal_unit":
                     try:
@@ -640,7 +648,14 @@ class HypWorkerThread(threading.Thread):
                             f"{error}"
                         )
                     else:
-                        PersonalUnit.connect_personal_unit(domain)
+                        try:
+                            PersonalUnit.connect_personal_unit(domain)
+
+                        except Exception as error:
+                            logs.workers.error(
+                                f'error connecting the personal unit for desktop {action["desktop_id"]}'
+                                f"{error}"
+                            )
 
                 else:
                     logs.workers.error(
