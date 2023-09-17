@@ -113,7 +113,14 @@ def get_reset_dates(start_date, end_date):
     # Must return first reset date before start_date and all dates
     # between start_date and end_date in descending order (newest first)
     # If none found, return empty list
-    return []
+    return [
+        (
+            datetime(2023, 8, 31)
+            .astimezone()
+            .replace(minute=0, hour=0, second=0, microsecond=0, tzinfo=pytz.utc)
+        )
+        + timedelta(days=-1)
+    ]
     with app.app_context():
         previous = list(
             r.table("usage_reset_dates")
