@@ -3,3 +3,5 @@ services:
   isard-portal:
     environment:
       DEVELOPMENT: "true"
+    volumes:
+    - ${BUILD_ROOT_PATH}/docker/portal/haproxy.conf:/usr/local/etc/haproxy/haproxy.cfg
