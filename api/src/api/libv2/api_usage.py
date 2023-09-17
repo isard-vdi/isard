@@ -29,6 +29,7 @@ from api import app
 from .._common.api_exceptions import Error
 from .flask_rethink import RDB
 from .usage.common import get_default_consumption, get_params
+from .usage.consolidate import substract_dicts
 from .usage.desktop import ConsolidateDesktopConsumption
 from .usage.media import ConsolidateMediaConsumption
 from .usage.storage import ConsolidateStorageConsumption
@@ -37,6 +38,15 @@ from .usage.user import ConsolidateUserConsumption
 r = RethinkDB()
 db = RDB(app)
 db.init_app(app)
+
+
+def grouping_applies_reset(grouping):
+    # Reset only applies to desktops and users
+    # It doesn't make sense in sizes or items created (storage/media)
+    for parameter in grouping:
+        if parameter.startswith("dsk_") or parameter.startswith("usr_"):
+            return True
+    return False
 
 
 def get_usage_consumption_between_dates(
@@ -61,6 +71,7 @@ def get_usage_consumption_between_dates(
             .run(db.conn)
         )
     data = []
+    reset_dates = get_reset_dates(start_date, end_date)
     for current_day in range(0, (end_date - start_date).days + 1):
         current_day = start_date + timedelta(days=current_day)
         for item in items:
@@ -71,16 +82,72 @@ def get_usage_consumption_between_dates(
                 item["item_name"],
                 grouping_params=grouping,
             )
+            abs = item_data["abs"]
+            if grouping_applies_reset(grouping) and len(reset_dates):
+                for date in reset_dates:
+                    if current_day >= date:
+                        # TODO: cache this
+                        abs_reset_data = get_item_date_consumption(
+                            date,
+                            item["item_id"],
+                            item_type,
+                            item["item_name"],
+                            grouping_params=grouping,
+                        )["abs"]
+                        abs = substract_dicts(item_data["abs"], abs_reset_data)
+                        break
             data.append(
                 {
                     "name": item["item_name"],
                     "date": current_day,
                     "inc": item_data["inc"],
-                    "abs": item_data["abs"],
+                    "abs": abs,
                     "item_id": item["item_id"],
                 }
             )
     return data
+
+
+def get_reset_dates(start_date, end_date):
+    # TODO: Check that it is doing what is supposed to do
+    # Must return first reset date before start_date and all dates
+    # between start_date and end_date in descending order (newest first)
+    # If none found, return empty list
+    return []
+    with app.app_context():
+        previous = list(
+            r.table("usage_reset_dates")
+            .filter(r.row["date"] <= start_date)
+            .order_by(r.desc("date"))
+            .limit(1)["date"]
+            .run(db.conn)
+        )
+        within = list(
+            r.table("usage_reset_dates")
+            .filter(r.row["date"] <= end_date & r.row["date"] >= start_date)
+            .order_by(r.desc("date"))["date"]
+            .run(db.conn)
+        )
+    # return within + previous
+
+    # TODO: Remove this when we've got dates in DB
+    reset_date1 = (
+        datetime(2023, 8, 16)
+        .astimezone()
+        .replace(minute=0, hour=0, second=0, microsecond=0, tzinfo=pytz.utc)
+    ) + timedelta(days=-1)
+    reset_date2 = (
+        datetime(2023, 8, 31)
+        .astimezone()
+        .replace(minute=0, hour=0, second=0, microsecond=0, tzinfo=pytz.utc)
+    ) + timedelta(days=-1)
+    reset_date3 = (
+        datetime(2023, 9, 13)
+        .astimezone()
+        .replace(minute=0, hour=0, second=0, microsecond=0, tzinfo=pytz.utc)
+    ) + timedelta(days=-1)
+    return [reset_date3, reset_date2, reset_date1]
+    # END TODO
 
 
 def get_start_end_consumption(

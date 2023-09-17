@@ -123,7 +123,7 @@ class Populate(object):
             "usage_parameter",
             "usage_grouping",
             "usage_limit",
-            "user_storage",
+            "usage_reset_dates",
             # config should be the last table to be created
             # api waits for config table to start
             "config",
@@ -1740,6 +1740,14 @@ class Populate(object):
         try:
             log.info("Table usage_limit not found, creating...")
             r.table_create("usage_limit", primary_key="id").run(self.conn)
+        except Exception as e:
+            log.error(e)
+            None
+
+    def usage_reset_dates(self):
+        try:
+            log.info("Table usage_reset_dates not found, creating...")
+            r.table_create("usage_reset_dates", primary_key="id").run(self.conn)
         except Exception as e:
             log.error(e)
             None
