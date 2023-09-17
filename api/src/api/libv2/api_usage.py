@@ -22,6 +22,7 @@ from datetime import datetime, timedelta
 
 import pytz
 from cachetools import TTLCache, cached
+from cachetools.keys import hashkey
 from rethinkdb import RethinkDB
 
 from api import app
@@ -108,6 +109,10 @@ def get_usage_consumption_between_dates(
     return data
 
 
+@cached(
+    TTLCache(maxsize=10, ttl=60),
+    key=lambda start_date, end_date: f"{start_date}-{end_date}",
+)
 def get_reset_dates(start_date, end_date):
     # TODO: Check that it is doing what is supposed to do
     # Must return first reset date before start_date and all dates
@@ -157,6 +162,29 @@ def get_reset_dates(start_date, end_date):
     # END TODO
 
 
+# Define a custom key function
+def GSEC_KEY(
+    start_date,
+    end_date,
+    items_ids=None,
+    item_type=None,
+    item_consumer=None,
+    grouping_params=None,
+    category_id=None,
+):
+    args = (
+        start_date,
+        end_date,
+        tuple(items_ids) if items_ids else None,
+        item_type,
+        item_consumer,
+        tuple(grouping_params),
+        category_id,
+    )
+    return hashkey(args)
+
+
+@cached(TTLCache(maxsize=200, ttl=60), key=GSEC_KEY)
 def get_start_end_consumption(
     start_date,
     end_date,
@@ -215,6 +243,13 @@ def get_start_end_consumption(
     return data
 
 
+# Define a custom key function
+def GIDC_KEY(date, item_id, item_type, item_name, grouping_params=None):
+    args = (date, item_id, item_type, item_name, tuple(grouping_params))
+    return hashkey(args)
+
+
+@cached(TTLCache(maxsize=100, ttl=60), key=GIDC_KEY)
 def get_item_date_consumption(
     date, item_id, item_type, item_name, grouping_params=None
 ):
@@ -267,6 +302,7 @@ def get_item_date_consumption(
     return data
 
 
+@cached(TTLCache(maxsize=100, ttl=60))
 def get_usage_distinct_items(item_consumer, start_date, end_date, item_category=None):
     start_date = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=pytz.utc)
     end_date = datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=pytz.utc)
@@ -282,6 +318,7 @@ def get_usage_distinct_items(item_consumer, start_date, end_date, item_category=
     return data
 
 
+@cached(TTLCache(maxsize=10, ttl=60))
 def get_usage_consumers(item_type):
     with app.app_context():
         return list(
