@@ -438,7 +438,3 @@ def gen_pk(item_id, item_type, consumer, consolidation_day):
             consumer,
             consolidation_day,
         )
-
-
-def the_key(item_id, consumer, _):
-    return hashkey(item_id, consumer)
