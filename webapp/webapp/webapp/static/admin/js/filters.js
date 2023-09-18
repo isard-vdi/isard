@@ -11,7 +11,7 @@ var grouping = null
 var itemType = null
 var consumer = null
 var startDate = moment().subtract(29, 'days').format('YYYY-MM-DD')
-var endDate = moment().format('YYYY-MM-DD')
+var endDate = moment().subtract(1, 'days').format('YYYY-MM-DD')
 var dateFilterOptions = {
   startDate: moment().subtract(29, 'days'),
   endDate: moment(),
@@ -22,10 +22,9 @@ var dateFilterOptions = {
   timePickerIncrement: 1,
   timePicker12Hour: true,
   ranges: {
-    'Today': [moment(), moment()],
-    'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
-    'Last 7 Days': [moment().subtract(6, 'days'), moment()],
-    'Last 30 Days': [moment().subtract(29, 'days'), moment()],
+    'Yesterday': [moment().subtract(2, 'days'), moment().subtract(1, 'days')],
+    'Last 7 Days': [moment().subtract(6, 'days'), moment().subtract(1, 'days')],
+    'Last 30 Days': [moment().subtract(29, 'days'), moment().subtract(1, 'days')],
     'This Month': [moment().startOf('month'), moment().endOf('month')],
     'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
   },
@@ -66,7 +65,7 @@ function initialize_filters(cbf, filterList, divId) {
     var node = newFilterBox(it)
     $(divId).append(node)
     if (it.kind === 'dateRange') {
-      $('#reportrange_right span').html(moment().subtract(29, 'days').format('MMMM D, YYYY') + ' - ' + moment().format('MMMM D, YYYY'));
+      $('#reportrange_right span').html(moment().subtract(29, 'days').format('MMMM D, YYYY') + ' - ' + moment().subtract(1, 'days').format('MMMM D, YYYY'));
       $('#reportrange_right').daterangepicker(dateFilterOptions, cb);
     }
     if (it.populate) {
