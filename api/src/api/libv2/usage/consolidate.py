@@ -239,6 +239,7 @@ class ConsolidateConsumption:
         for result in batches_processed:
             data = data + result
         self.times["get_" + self.name + "_batches"] = time()
+        data.append(self.compute_consumer_totals(consumer, data))
         with app.app_context():
             result = (
                 r.table("usage_consumption")
@@ -257,6 +258,27 @@ class ConsolidateConsumption:
             - self.times["get_" + self.name + "_system_items_data"],
             time() - self.times["start"],
         )
+
+    def compute_consumer_totals(self, consumer, data):
+        totals = {"inc": {}, "abs": {}}
+        for item in data:
+            totals["inc"] = add_dicts(totals["inc"], item["inc"])
+            totals["abs"] = add_dicts(totals["abs"], item["abs"])
+        return {
+            "date": self.consolidation_day,
+            "item_id": "_total_",
+            "item_type": self.name,
+            "item_consumer": consumer,
+            "item_consumer_category_id": None,
+            "item_name": "[Total]",
+            "pk": gen_pk(
+                "total",
+                self.name,
+                consumer,
+                self.consolidation_day,
+            ),
+            **totals,
+        }
 
     def _item_base_data(self, consumer, item_day_data, consolidation_day, item_type):
         if consumer == "user":
