@@ -59,6 +59,60 @@ with open(
     PERSONAL_UNIT_CMD_WINDOWS = f.read()
 
 
+def windows_encode(domain: virDomain, desktop_id: str, msg: str) -> str:
+    """
+    Get the Windows cmd.exe encoding
+    """
+    result = exec_command(
+        domain,
+        desktop_id,
+        {
+            "execute": "guest-exec",
+            "arguments": {
+                "path": "cmd.exe",
+                "arg": ["/C", "chcp"],
+                "capture-output": True,
+            },
+        },
+    )
+    result.split(": ")
+
+    return msg.encode("cp" + result[1])
+
+
+def exec_command(domain: virDomain, desktop_id: str, cmd) -> str:
+    raw_cmd = [
+        "virsh",
+        f"--connect={domain._conn.getURI()}",
+        "qemu-agent-command",
+        f"--domain={domain.name()}",
+        f"--cmd={json.dumps(command_exec)}",
+    ]
+    result = subprocess.run(raw_cmd, capture_output=True, text=True)
+    logs.workers.debug(f"Running QMP command in '{desktop_id}': {command_exec}")
+
+    result.check_returncode()
+
+    command_status = {
+        "execute": "guest-exec-status",
+        "arguments": {
+            "pid": json.loads(str(result.stdout)).get("return", {}).get("pid"),
+        },
+    }
+    raw_cmd = [
+        "virsh",
+        f"--connect={domain._conn.getURI()}",
+        "qemu-agent-command",
+        f"--domain={domain.name()}",
+        f"--cmd={json.dumps(command_status)}",
+    ]
+
+    result = subprocess.run(raw_cmd, capture_output=True, text=True)
+    result.check_returncode()
+
+    return str(result.stdout) if result.stdout else ""
+
+
 def exec_commands(domain: virDomain, desktop_id: str, cmds):
     """
     Execute a list of commands in the specified domain
@@ -67,49 +121,18 @@ def exec_commands(domain: virDomain, desktop_id: str, cmds):
     """
     failed = True
     cmd = 0
-    command_status = {}
+
     while failed and cmd <= len(cmds) - 1:
         command_exec = cmds[cmd]
         cmd = cmd + 1
 
         try:
-            raw_cmd = [
-                "virsh",
-                f"--connect={domain._conn.getURI()}",
-                "qemu-agent-command",
-                f"--domain={domain.name()}",
-                f"--cmd={json.dumps(command_exec)}",
-            ]
-            logs.workers.debug(raw_cmd)
+            logs.workers.debug(f"Running QMP command in '{desktop_id}': {command_exec}")
 
-            result = subprocess.run(raw_cmd, capture_output=True, text=True)
-            if result.returncode != 0:
-                continue
-
-            logs.workers.debug(str(result.stdout))
-
-            command_status = {
-                "execute": "guest-exec-status",
-                "arguments": {
-                    "pid": json.loads(str(result.stdout)).get("return", {}).get("pid"),
-                },
-            }
-            raw_cmd = [
-                "virsh",
-                f"--connect={domain._conn.getURI()}",
-                "qemu-agent-command",
-                f"--domain={domain.name()}",
-                f"--cmd={json.dumps(command_status)}",
-            ]
-            logs.workers.debug(raw_cmd)
-
-            result = subprocess.run(raw_cmd, capture_output=True, text=True)
-            if result.returncode != 0:
-                continue
+            result = exec_command(domain, desktop_id, command_exec)
+            logs.workers.debug("RESULT => " + result)
 
             failed = False
-
-            logs.workers.debug("RESULT => " + str(result.stdout))
 
         except Exception as error:
             logs.workers.error(
@@ -117,10 +140,8 @@ def exec_commands(domain: virDomain, desktop_id: str, cmds):
                 f"with: {error}"
             )
 
-    if command_status != {} and not command_status.get("exitcode"):
-        return None
-
-    return command_status
+    if failed:
+        raise Exception("all commands have failed")
 
 
 class Notifier:
@@ -153,24 +174,25 @@ class Notifier:
             Notifier.cmd_windows(message_decoded),
         ]
 
-        command_status = exec_commands(domain, desktop_id, cmds)
-        if not command_status:
-            logs.workers.info(
-                f"Domain {desktop_id} was successfully notified "
-                f'with message "{message_decoded}"'
-            )
+        try:
+            exec_commands(domain, desktop_id, cmds)
+            logs.workers.info(f"Domain {desktop_id} was successfully notified ")
 
-        else:
+        except Exception as error:
             logs.workers.error(
                 f"Failed to notify desktop {desktop_id} "
                 f'with message "{message_decoded}" with '
-                f'error "{base64.b64decode(command_status.get("err-data", "")).decode()}"'
+                f'error "{err}"'
             )
 
     def cmd_windows(message):
-        shellscript = NOTIFIER_CMD_WINDOWS.format(
-            message="^" + "^".join(message),  # Escape the characters for Windows
-        ).encode()
+        shellscript = windows_encode(
+            domain,
+            desktop_id,
+            NOTIFIER_CMD_WINDOWS.format(
+                message="^" + "^".join(message),  # Escape the characters for Windows
+            ),
+        )
 
         return {
             "execute": "guest-exec",
@@ -217,27 +239,31 @@ class PersonalUnit:
             PersonalUnit.cmd_windows(unit),
         ]
 
-        command_status = exec_commands(domain, desktop_id, cmds)
-        if not command_status:
+        try:
+            exec_commands(domain, desktop_id, cmds)
             logs.workers.error(
                 f"Desktop {desktop_id} was successfully connected to the personal unit"
             )
 
-        else:
+        except Exception as error:
             logs.workers.error(
                 f"Failed to connect the desktop {desktop_id} "
                 f"to the personal unit with"
-                f'error "{base64.b64decode(command_status.get("err-data", "")).decode()}"'
+                f'error "{error}"'
             )
 
     def cmd_windows(unit: DbPersonalUnit):
-        shellscript = PERSONAL_UNIT_CMD_WINDOWS.format(
-            protocol="s" if unit["tls"] else "",
-            verify_cert=unit["verify_cert"],
-            user=unit["user_id"],
-            password=unit["password"],
-            host=unit["dav"],
-        ).encode()
+        shellscript = windows_encode(
+            domain,
+            desktop_id,
+            PERSONAL_UNIT_CMD_WINDOWS.format(
+                protocol="s" if unit.get("tls", False) else "",
+                verify_cert=unit["verify_cert"],
+                user=unit["user_id"],
+                password=unit["password"],
+                host=unit["dav"],
+            ),
+        )
 
         return {
             "execute": "guest-exec",
@@ -251,7 +277,7 @@ class PersonalUnit:
 
     def cmd_linux(unit: DbPersonalUnit):
         shellscript = PERSONAL_UNIT_CMD_LINUX.format(
-            protocol="s" if unit["tls"] else "",
+            protocol="s" if unit.get("tls", False) else "",
             verify_cert=unit["verify_cert"],
             user=unit["user_id"],
             password=unit["password"],
