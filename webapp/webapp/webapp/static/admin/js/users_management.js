@@ -97,31 +97,138 @@ function socketio_on(){
         });
 	});
 
-    $('.btn-bulkdelete').on('click', function () {
-        let usersToDelete = [];
-        users_table.rows({ filter: 'applied' }).every(function () {
-            var rowNodes = this.nodes();
-            var rowData = this.data();
-            if ($('thead #select-all').prop('checked')) { // case select all is checked
-                usersToDelete.push(rowData); // get all the users filtered in the table
-                rowNodes.each(function () {
-                    if (!$(this).hasClass('active')) {
-                        var index = usersToDelete.indexOf(rowData);
-                        if (index !== -1) {
-                            usersToDelete.splice(index, 1);
-                        } // delete the unchecked rows
-                        return false;
-                    }
-                })
+    $('.btn-bulk-edit-users').on('click', function () {
+        let usersToEdit = getSelectedUserList();
+        if (usersToEdit.length != 0) {
+ var modal = '#modalBulkEditUser';
+        $(modal + "Form")[0].reset();
+        $(modal + "Form #active").empty();
+        $(modal + 'Form #id').val(JSON.stringify(usersToEdit));
+        $(modal).modal({
+            backdrop: 'static',
+            keyboard: false
+        }).modal('show');
+        $(modal + ' #users-list').empty()
+        $(modal + ' #users-number').text(usersToEdit.length + " user(s) will be updated")
+        $.each(usersToEdit, function (key, value) {
+            $(modal + ' #users-list').append(
+                '<p style="font-size:smaller; margin: 0px">' + value['username'] + '</p>'
+            );
+        });
+        $(modal + " #active").append(`<option value="true">True</option><option value="false">False</option>`);
+
+        $(modal + ' :checkbox').iCheck('uncheck').iCheck('update');
+
+        $(modal + ' #secondary_groups').select2({
+            minimumInputLength: 2,
+            multiple: true,
+            ajax: {
+                type: "POST",
+                url: '/api/v3/admin/allowed/term/groups/',
+                dataType: 'json',
+                contentType: "application/json",
+                delay: 250,
+                data: function (params) {
+                    return JSON.stringify({
+                        term: params.term,
+                        category: current_category,
+                    });
+                },
+                processResults: function (data) {
+                    return {
+                        results: $.map(data, function (item, i) {
+                            return {
+                                text: item.name,
+                                id: item.id
+                            }
+                        })
+                    };
+                }
+            },
+        });
+
+        disableFirstOption(modal);
+        showAndHideByCheckbox($(modal + " #edit-secondary-group-checkbox"), $(modal + " #secondary-groups-panel"));
+
+        var ids = [];
+        $.each(usersToEdit, function (key, value) {
+            ids.push(value.id);
+        })
+        $(modal + ' #ids').val(ids.join(','));
+
+        $(modal + ' #secondary_groups option:first').remove();
+        } else {
+            new PNotify({
+                title: 'Please select at least one user',
+                hide: true,
+                icon: 'fa fa-warning',
+                type: 'info',
+                delay: 4000,
+                opacity: 1,
+            })
+        }
+       
+    });
+
+
+    $("#modalBulkEditUser #send").on('click', function (e) {
+        var form = $('#modalBulkEditUserForm');
+        formdata = form.serializeObject();
+        form.parsley().validate();
+        data = formdata;
+
+        if (form.parsley().isValid()) {
+            data['ids'] = data['ids'].split(',')
+            if (data['role'] == '--') {
+                delete data['role'];
+            }
+            if (data['active'] == '--') {
+                delete data['active'];
             } else {
-                rowNodes.each(function () {
-                    if ($(this).hasClass('active')) {
-                        usersToDelete.push(rowData);
-                        return false;
-                    }
-                });
+                data['active'] = (data['active'] === 'true')
+            }
+            if (!data["edit-secondary-group"] === 'on') {
+                delete data['secondary_group'];
+            }
+        }
+
+        $.ajax({
+            type: 'PUT',
+            url: '/api/v3/admin/users/bulk',
+            data: JSON.stringify(data),
+            contentType: 'application/json',
+            success: function () {
+                $('form').each(function () {
+                    this.reset()
+                })
+                $('.modal').modal('hide')
+                new PNotify({
+                    title: 'Updated',
+                    text: ids.length + ' user(s) updated successfully',
+                    hide: true,
+                    icon: 'fa fa-success',
+                    delay: 4000,
+                    opacity: 1,
+                    type: 'success'
+                })
+            },
+            error: function (data) {
+                new PNotify({
+                    title: 'ERROR updating multiple users',
+                    text: data.responseJSON.description,
+                    type: 'error',
+                    hide: true,
+                    icon: 'fa fa-warning',
+                    delay: 5000,
+                    opacity: 1
+                })
             }
         });
+    });
+
+
+    $('.btn-bulkdelete').on('click', function () {
+        let usersToDelete = getSelectedUserList();
 
         if (!(usersToDelete.length == 0)) {
             $("#modalDeleteUserForm")[0].reset();
@@ -823,7 +930,7 @@ function actionsUserDetail(){
         var closest=$(this).closest("div");
         var id=closest.attr("data-pk");
         var name=closest.attr("data-name");
-        var active = users_table.row($(this).closest("tr").prev()).data().active
+        var active = !(users_table.row($(this).closest("tr").prev()).data().active)
         new PNotify({
             title: 'Confirmation Needed',
             text: "Are you sure you want to enable/disable: "+name+"?",
@@ -1088,4 +1195,32 @@ function showUserExportButtons(table, buttonsRowClass) {
         ]
     }).container()
         .appendTo($('.' + buttonsRowClass));
+}
+
+function getSelectedUserList() {
+    let userList = [];
+    users_table.rows({ filter: 'applied' }).every(function () {
+        var rowNodes = this.nodes();
+        var rowData = this.data();
+        if ($('thead #select-all').prop('checked')) { // case select all is checked
+            userList.push(rowData); // get all the users filtered in the table
+            rowNodes.each(function () {
+                if (!$(this).hasClass('active')) {
+                    var index = userList.indexOf(rowData);
+                    if (index !== -1) {
+                        userList.splice(index, 1);
+                    } // delete the unchecked rows
+                    return false;
+                }
+            })
+        } else {
+            rowNodes.each(function () {
+                if ($(this).hasClass('active')) {
+                    userList.push(rowData);
+                    return false;
+                }
+            });
+        }
+    });
+    return userList;
 }

@@ -398,7 +398,7 @@ function infoDomains(value, tbody) {
 
 function disableFirstOption (id) {
   $(id + ' select').prepend(
-    $('<option></option>').attr('value', null).text('  -- ')
+    $('<option selected></option>').attr('value', null).text('  -- ')
   )
 }
 

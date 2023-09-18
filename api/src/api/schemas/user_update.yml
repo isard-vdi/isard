@@ -2,7 +2,6 @@ id:
   type: string
 name:
   type: string
-  empty: false
 email:
   type: string
 role:
@@ -18,6 +17,7 @@ secondary_groups:
   default: []
 password:
   type: string
-  empty: false
 active:
   type: boolean
+ids:
+  type: list

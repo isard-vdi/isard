@@ -179,7 +179,8 @@ def api_v3_user_update(payload):
         )
 
     users.Update(
-        payload["user_id"], name=name, email=email, photo=photo, password=password
+        [payload["user_id"]],
+        {"name": name, "email": email, "photo": photo, "password": password},
     )
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 

@@ -5,3 +5,5 @@ quota:
     - dict
     - boolean
   schema: quotas
+ids:
+  type: list
