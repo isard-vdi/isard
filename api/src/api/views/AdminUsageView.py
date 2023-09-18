@@ -440,8 +440,12 @@ def api_v3_admin_usage_credits_add(payload, item_type):
     except:
         raise Error("bad_request", "Incorrect date format. Expected format: %Y-%m-%d")
 
+    for item_id in data["item_ids"]:
+        data["item_id"] = item_id
+        result = add_usage_credit(data)
+
     return (
-        json.dumps(add_usage_credit(data)),
+        json.dumps(result),
         200,
         {"Content-Type": "application/json"},
     )

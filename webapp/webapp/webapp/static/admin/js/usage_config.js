@@ -101,6 +101,7 @@ $(document).ready(function () {
     showModal(modal);
     $(modal+'Form .valuesOptions').empty();
     populateLimits(modal);
+    creditFilters[2]['kind'] = 'select-multiple';
     initialize_filters(null, creditFilters, modal+' .valuesOptions');
     $(modal+'Form #consumer').val('category');
     $(modal+'Form #consumer').prop('disabled', true);
@@ -115,7 +116,7 @@ $(document).ready(function () {
     data['item_type'] = JSON.parse(data.grouping).itemType;
     data['item_consumer'] = data.consumer;
     data['item_consumer'] = form.find('#consumer').val();
-    data['item_id'] = data.category;
+    data['item_ids'] = data.category;
     data['limit_id'] = form.find(' #limits').val()
     data['grouping_id'] = JSON.parse(form.find('#grouping').val()).id;
     data['start_date'] = moment(data['start_date'], "MM/DD/YYYY").format("YYYY-MM-DD");
@@ -868,6 +869,7 @@ $('tbody').on('click', 'button', function () {
     showModal(modal);
     $(modal+'Form .valuesOptions').empty();
 
+    creditFilters[2]['kind'] = 'select';
     initialize_filters(null, creditFilters, modal+' .valuesOptions');
     $(modal+'Form #consumer').val('category');
     $(modal+'Form #consumer').prop('disabled', true);
