@@ -190,6 +190,7 @@ function generate_events(divId) {
 
     }
     callbackFunctionParams.itemType = JSON.parse($("#grouping").val()).itemType
+    callbackFunctionParams.incremental = $('#other-filters #incremental').iCheck('update')[0].checked
     callbackFunction(callbackFunctionParams)
   })
 
