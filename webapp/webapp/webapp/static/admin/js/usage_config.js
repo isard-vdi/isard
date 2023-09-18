@@ -331,7 +331,14 @@ $(document).ready(function () {
     showModal('#modalConsolidateDesktops');
     $('#modalConsolidateDesktopsForm #days').append(`
       <option value="all">Beggining of logs</option>
-      <option selected value="7">7 days ago</option>
+      <option selected value="1">Yesterday</option>
+      <option selected value="7">1 week ago</option>
+      <option selected value="14">2 weeks ago</option>
+      <option selected value="23">3 weeks ago</option>
+      <option selected value="30">1 month ago</option>
+      <option selected value="60">2 month ago</option>
+      <option selected value="90">3 month ago</option>
+      <option selected value="270">6 month ago</option>
     `);
   })
 
@@ -344,7 +351,14 @@ $(document).ready(function () {
     showModal('#modalConsolidateUsers');
     $('#modalConsolidateUsersForm #days').append(`
       <option value="all">Beggining of logs</option>
-      <option selected value="7">7 days ago</option>
+      <option selected value="1">Yesterday</option>
+      <option selected value="7">1 week ago</option>
+      <option selected value="14">2 weeks ago</option>
+      <option selected value="23">3 weeks ago</option>
+      <option selected value="30">1 month ago</option>
+      <option selected value="60">2 month ago</option>
+      <option selected value="90">3 month ago</option>
+      <option selected value="270">6 month ago</option>
     `);
   })
 
