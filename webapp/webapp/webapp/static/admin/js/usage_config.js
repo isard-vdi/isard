@@ -155,50 +155,24 @@ $(document).ready(function () {
     var form = $('#modalEditCreditForm');
     data = form.serializeObject();
     form.parsley().validate();
-    data['item_type'] = JSON.parse(data.grouping).itemType;
-    data['item_consumer'] = data.consumer;
-    data['item_consumer'] = form.find('#consumer').val();
-    data['item_id'] = data.category;
-    data['grouping_id'] = JSON.parse(form.find('#grouping').val()).id;
     data['start_date'] = moment(data['start_date'], "MM/DD/YYYY").format("YYYY-MM-DD");
     data['end_date'] = ('end_date-cb' in data) ? moment(data['end_date'], "MM/DD/YYYY").format("YYYY-MM-DD") : null;
+    data['item_consumer'] = form.find('#consumer').val();
+ 
 
-    delete data['grouping'];
+    data['limits'] = {
+      'soft': parseInt(data['soft']),
+      'hard': parseInt(data['hard']),
+      'exp_min': parseInt(data['exp_min']),
+      'exp_max': parseInt(data['exp_max'])
+    }
+
     delete data['end_date-cb'];
-    delete data['consumer'];
-    delete data['category'];
-    delete data['group'];
-    delete data['user'];
-    delete data['desktop'];
-    delete data['deployment'];
-    delete data['template'];
-    delete data['hypervisor'];
     if (form.parsley().isValid()) {
       editItem('credit', data, table_credits);
     };
 
   });
-
-  $('#modalEditCreditLimits #send').on('click', function () {
-    var form = $('#modalEditCreditLimitsForm');
-    data = form.serializeObject();
-    form.parsley().validate();
-    data['limit_id'] = form.find(' #limits').val();
-    data['item_consumer'] = form.find(' #item_consumer').val();
-    if (data["limit_id"] != null) {
-      editItem('credit', data, table_credits);
-    } else {
-      new PNotify({
-        title: `Please select a limit`,
-        type: 'info',
-        hide: true,
-        delay: 5000,
-        opacity: 1
-      })
-    }
-
-  });
-
   
   // LIMITS
   
@@ -434,11 +408,20 @@ function render_table_credits() {
         }
       },
       {
-        "data": "limits",
-        "title": "Limits",
-        "render": function (data, type, row) {
-          return row.limits_name;
-        }
+        "data": "limits.soft",
+        "title": "Soft Limit",
+      },
+      {
+        "data": "limits.hard",
+        "title": "Hard limit",
+      },
+      {
+        "data": "limits.exp_min",
+        "title": "Expected min",
+      },
+      {
+        "data": "limits.exp_max",
+        "title": "Expected max",
       },
       {
         "orderable": false,
@@ -447,7 +430,6 @@ function render_table_credits() {
         "width": "100px",
         "render": function (data, type, row) {
           return `<button title="Edit values" class="btn btn-xs btn-info btn-edit-credit" type="button" data-placement="top" ><i class="fa fa-pencil"></i></button>
-                  <button title="Edit limits" class="btn btn-xs btn-info btn-edit-credit-limits" type="button" data-placement="top" ><i class="fa fa-minus-circle"></i></button>
                   <button title="Delete" class="btn btn-xs btn-danger btn-delete-credit" type="button" data-placement="top" ><i class="fa fa-times"></i></button>`;
         }
       },
@@ -754,7 +736,7 @@ function selectParameterList(modal, row) {
 }
 
 function addItem(kind, data, datatable) {
-  url = (kind == 'credit') ? `/api/v3/admin/usage/${kind}s/${data.item_consumer}` : `/api/v3/admin/usage/${kind}s`;
+  url = `/api/v3/admin/usage/${kind}s`;
 
   $.ajax({
     type: 'POST',
@@ -789,7 +771,7 @@ function addItem(kind, data, datatable) {
 }
 
 function editItem(kind, data, datatable) {
-  url = (kind == 'credit') ? `/api/v3/admin/usage/${kind}s/${data.item_consumer}` : `/api/v3/admin/usage/${kind}s`;
+  url = `/api/v3/admin/usage/${kind}s/${data.id}`;
 
   $.ajax({
     type: 'PUT',
@@ -824,7 +806,7 @@ function editItem(kind, data, datatable) {
 }
 
 function deleteItem(kind, id, datatable) {
-  url = (kind == 'credit') ? `/api/v3/admin/usage/${kind}s/category/${id}` : `/api/v3/admin/usage/${kind}s/${id}`;
+  url = `/api/v3/admin/usage/${kind}s/${id}`;
 
   new PNotify({
     title: 'Confirmation Needed',
@@ -881,12 +863,6 @@ $('tbody').on('click', 'button', function () {
     var modal = "#modalEditCredit"
     
     showModal(modal);
-    $(modal+'Form .valuesOptions').empty();
-
-    creditFilters[2]['kind'] = 'select';
-    initialize_filters(null, creditFilters, modal+' .valuesOptions');
-    $(modal+'Form #consumer').val('category');
-    $(modal+'Form #consumer').prop('disabled', true);
     addDateRangePicker(modal);
 
     $.ajax({
@@ -894,13 +870,16 @@ $('tbody').on('click', 'button', function () {
       url: `/api/v3/admin/usage/category_credits/${id}`,
       contentType: 'application/json',
       success: function (data) {
-        $(modal + ' #item_id').val(data.item_id);
-        $(modal + ' #start_date-calendar').val(moment(data['start_date']).format("MM/DD/YYYY"));
         $(modal + ' #id').val(id);
-        grouping_id = $(modal + ' #grouping option[id="' + data.item_type +  data.grouping_id + '"]').val();
-        $(modal + ' #grouping').val(grouping_id);
+        $(modal + ' #limits_name').val(row.data().limits_name);
+        $(modal + ' #desc').val(row.data().limits_desc);
+        $(modal + ' #soft').val(row.data().limits.soft);
+        $(modal + ' #hard').val(row.data().limits.hard);
+        $(modal + ' #exp_min').val(row.data().limits.exp_min);
+        $(modal + ' #exp_max').val(row.data().limits.exp_max);
+        $(modal + ' #start_date-calendar').val(moment(data['start_date']).format("MM/DD/YYYY"));
         $(modal + ' #consumer').val(data.item_consumer);
-        $(modal + ' #category').val(data.item_id);
+        $(modal + ' #item_id').val(data.item_id);
 
         if (data.end_date) {
           $(modal + ' :checkbox').iCheck('check').iCheck('update');
@@ -910,25 +889,6 @@ $('tbody').on('click', 'button', function () {
         }
       }
     })
-  }
-
-  else if ($(this).hasClass('btn-edit-credit-limits')) {
-    var modal = "#modalEditCreditLimits";
-    var id = row.data().id;
-
-    showModal(modal);
-    populateLimits(modal);
-
-    $.ajax({
-      type: 'GET',
-      url: `/api/v3/admin/usage/category_credits/${id}`,
-      contentType: 'application/json',
-      success: function (data) {
-        $(modal + ' #limits').val(data.limits_id);
-        $(modal + ' #id').val(id);
-        $(modal + ' #item_consumer').val(data.item_consumer);
-      }
-    });
   }
 
   else if ($(this).hasClass('btn-delete-credit')) {

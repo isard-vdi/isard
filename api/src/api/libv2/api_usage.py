@@ -800,6 +800,11 @@ def update_usage_credit(data):
         or data.get("start_date")
         or data.get("end_data")
     ):
+        credit = get_usage_credits_by_id(data["id"])
+        data["grouping_id"] = credit["grouping_id"]
+        data["item_type"] = credit["item_type"]
+        data["item_id"] = credit["item_id"]
+
         cut_existing_usage_credits(
             data["item_id"],
             data["item_type"],
