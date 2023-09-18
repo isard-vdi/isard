@@ -428,28 +428,3 @@ function desktop_table(){
     } );
 }
 
-var monthNames = ["January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-];
-
-function getMonthName(monthNumber) {
-    return monthNames[monthNumber - 1] || '';
-}
-
-function formatXAxis(value) {
-    var date = new Date(value);
-    var monthName = getMonthName(date.getMonth());
-    return monthName + ' ' + date.getFullYear();
-}
-
-
-function debounce(fn, delay) {
-    let timeoutId;
-    return function () {
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(() => {
-            fn.apply(this, arguments);
-        }, delay);
-    };
-}
-

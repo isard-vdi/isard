@@ -166,7 +166,7 @@ $.fn.echartDailyItems = function (table, date_field) {
                 scale: true,
                 axisLabel: {
                     formatter: function (value) {
-                        return value + ' logs';
+                        return value + ' entries';
                     },
                     margin: 20 // Situate label a little bit more to the left to not overlap
                 },
@@ -177,7 +177,7 @@ $.fn.echartDailyItems = function (table, date_field) {
                 {
                     name: 'Desktops',
                     type: 'bar',
-                    data: d.series["starting_time"],
+                    data: d.series[date_field],
                     itemStyle: {
                         normal: {
                             color: function(params) {
@@ -226,3 +226,22 @@ $.fn.echartDailyItems = function (table, date_field) {
       });
     });
 };
+
+
+var monthNames = ["January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+];
+
+function getMonthName(monthNumber) {
+    return monthNames[monthNumber - 1] || '';
+}
+
+function debounce(fn, delay) {
+    let timeoutId;
+    return function () {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+            fn.apply(this, arguments);
+        }, delay);
+    };
+}
