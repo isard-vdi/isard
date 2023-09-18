@@ -124,6 +124,7 @@ class Populate(object):
             "usage_grouping",
             "usage_limit",
             "usage_reset_dates",
+            "user_storage",
             # config should be the last table to be created
             # api waits for config table to start
             "config",
