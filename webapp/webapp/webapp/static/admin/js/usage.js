@@ -136,7 +136,7 @@ $('#btn-view-graph').on('click', function (e) {
           contentType: "application/json",
           success: function (limits) {
             let graphTitle = it.name
-            addChart(resp, it.id, graphTitle, null, limits, 'abs')
+            addChart(resp, it.id, graphTitle, null, limits, data.incremental ? 'inc' : 'abs')
           }
         })
       }

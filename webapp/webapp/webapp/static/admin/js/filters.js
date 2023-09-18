@@ -204,6 +204,14 @@ function generate_events(divId) {
 }
 
 function generate_change_events (divId) {
+  $('#other-filters #incremental').on('ifChecked', function(event){
+    callbackFunctionParams.incremental = $('#other-filters #incremental').iCheck('update')[0].checked
+  });
+
+  $('#other-filters #incremental').on('ifUnchecked', function(event){
+    callbackFunctionParams.incremental = $('#other-filters #incremental').iCheck('update')[0].checked
+  });
+
   $(divId + " #filter-grouping").on('select2:select', function () {
     itemType = JSON.parse($("#grouping").val()).itemType
     fetchConsumers(divId);
