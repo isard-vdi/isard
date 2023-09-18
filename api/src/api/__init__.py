@@ -123,6 +123,7 @@ from .views import (
     CommonView,
     DesktopsNonPersistentView,
     DesktopsPersistentView,
+    EchartsView,
     HypervisorsView,
     JumperViewerView,
     MediaViews,

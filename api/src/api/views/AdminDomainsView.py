@@ -23,7 +23,8 @@ from ..libv2.api_admin import (
 )
 from ..libv2.api_desktops_persistent import ApiDesktopsPersistent, domain_template_tree
 from ..libv2.api_domains import ApiDomains
-from .decorators import is_admin_or_manager, ownsDomainId
+from ..libv2.datatables import LogsDesktopsQuery
+from .decorators import is_admin, is_admin_or_manager, ownsDomainId
 
 admins = ApiAdmin()
 desktops_persistent = ApiDesktopsPersistent()
@@ -205,3 +206,34 @@ def api_v3_domain_hardware(payload, domain_id):
         200,
         {"Content-Type": "application/json"},
     )
+
+
+@cached(TTLCache(maxsize=10, ttl=60))
+@app.route("/api/v3/admin/logs_desktops", methods=["POST"])
+@app.route("/api/v3/admin/logs_desktops/<view>", methods=["POST"])
+@is_admin
+def api_v3_logs_desktops(payload, view="raw"):
+    if view == "raw":
+        return (
+            json.dumps(
+                LogsDesktopsQuery(request.form).data,
+                indent=4,
+                sort_keys=True,
+                default=str,
+            ),
+            200,
+            {"Content-Type": "application/json"},
+        )
+    if view == "desktops_view":
+        ld = LogsDesktopsQuery(request.form)
+        ld.desktop_view
+        return (
+            json.dumps(
+                ld.data,
+                indent=4,
+                sort_keys=True,
+                default=str,
+            ),
+            200,
+            {"Content-Type": "application/json"},
+        )
