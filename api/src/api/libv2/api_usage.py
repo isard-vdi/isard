@@ -22,6 +22,7 @@ from datetime import datetime, timedelta
 
 import pytz
 from cachetools import TTLCache, cached
+from cachetools.keys import hashkey
 from rethinkdb import RethinkDB
 
 from api import app
@@ -29,6 +30,7 @@ from api import app
 from .._common.api_exceptions import Error
 from .flask_rethink import RDB
 from .usage.common import get_default_consumption, get_params
+from .usage.consolidate import substract_dicts
 from .usage.desktop import ConsolidateDesktopConsumption
 from .usage.media import ConsolidateMediaConsumption
 from .usage.storage import ConsolidateStorageConsumption
@@ -37,6 +39,15 @@ from .usage.user import ConsolidateUserConsumption
 r = RethinkDB()
 db = RDB(app)
 db.init_app(app)
+
+
+def grouping_applies_reset(grouping):
+    # Reset only applies to desktops and users
+    # It doesn't make sense in sizes or items created (storage/media)
+    for parameter in grouping:
+        if parameter.startswith("dsk_") or parameter.startswith("usr_"):
+            return True
+    return False
 
 
 def get_usage_consumption_between_dates(
@@ -61,6 +72,7 @@ def get_usage_consumption_between_dates(
             .run(db.conn)
         )
     data = []
+    reset_dates = get_reset_dates(start_date, end_date)
     for current_day in range(0, (end_date - start_date).days + 1):
         current_day = start_date + timedelta(days=current_day)
         for item in items:
@@ -71,18 +83,108 @@ def get_usage_consumption_between_dates(
                 item["item_name"],
                 grouping_params=grouping,
             )
+            abs = item_data["abs"]
+            if grouping_applies_reset(grouping) and len(reset_dates):
+                for date in reset_dates:
+                    if current_day >= date:
+                        # TODO: cache this
+                        abs_reset_data = get_item_date_consumption(
+                            date,
+                            item["item_id"],
+                            item_type,
+                            item["item_name"],
+                            grouping_params=grouping,
+                        )["abs"]
+                        abs = substract_dicts(item_data["abs"], abs_reset_data)
+                        break
             data.append(
                 {
                     "name": item["item_name"],
                     "date": current_day,
                     "inc": item_data["inc"],
-                    "abs": item_data["abs"],
+                    "abs": abs,
                     "item_id": item["item_id"],
                 }
             )
     return data
 
 
+@cached(
+    TTLCache(maxsize=10, ttl=60),
+    key=lambda start_date, end_date: f"{start_date}-{end_date}",
+)
+def get_reset_dates(start_date, end_date):
+    # TODO: Check that it is doing what is supposed to do
+    # Must return first reset date before start_date and all dates
+    # between start_date and end_date in descending order (newest first)
+    # If none found, return empty list
+    return [
+        (
+            datetime(2023, 8, 31)
+            .astimezone()
+            .replace(minute=0, hour=0, second=0, microsecond=0, tzinfo=pytz.utc)
+        )
+        + timedelta(days=-1)
+    ]
+    with app.app_context():
+        previous = list(
+            r.table("usage_reset_dates")
+            .filter(r.row["date"] <= start_date)
+            .order_by(r.desc("date"))
+            .limit(1)["date"]
+            .run(db.conn)
+        )
+        within = list(
+            r.table("usage_reset_dates")
+            .filter(r.row["date"] <= end_date & r.row["date"] >= start_date)
+            .order_by(r.desc("date"))["date"]
+            .run(db.conn)
+        )
+    # return within + previous
+
+    # TODO: Remove this when we've got dates in DB
+    reset_date1 = (
+        datetime(2023, 8, 16)
+        .astimezone()
+        .replace(minute=0, hour=0, second=0, microsecond=0, tzinfo=pytz.utc)
+    ) + timedelta(days=-1)
+    reset_date2 = (
+        datetime(2023, 8, 31)
+        .astimezone()
+        .replace(minute=0, hour=0, second=0, microsecond=0, tzinfo=pytz.utc)
+    ) + timedelta(days=-1)
+    reset_date3 = (
+        datetime(2023, 9, 13)
+        .astimezone()
+        .replace(minute=0, hour=0, second=0, microsecond=0, tzinfo=pytz.utc)
+    ) + timedelta(days=-1)
+    return [reset_date3, reset_date2, reset_date1]
+    # END TODO
+
+
+# Define a custom key function
+def GSEC_KEY(
+    start_date,
+    end_date,
+    items_ids=None,
+    item_type=None,
+    item_consumer=None,
+    grouping_params=None,
+    category_id=None,
+):
+    args = (
+        start_date,
+        end_date,
+        tuple(items_ids) if items_ids else None,
+        item_type,
+        item_consumer,
+        tuple(grouping_params),
+        category_id,
+    )
+    return hashkey(args)
+
+
+@cached(TTLCache(maxsize=200, ttl=60), key=GSEC_KEY)
 def get_start_end_consumption(
     start_date,
     end_date,
@@ -141,6 +243,13 @@ def get_start_end_consumption(
     return data
 
 
+# Define a custom key function
+def GIDC_KEY(date, item_id, item_type, item_name, grouping_params=None):
+    args = (date, item_id, item_type, item_name, tuple(grouping_params))
+    return hashkey(args)
+
+
+@cached(TTLCache(maxsize=100, ttl=60), key=GIDC_KEY)
 def get_item_date_consumption(
     date, item_id, item_type, item_name, grouping_params=None
 ):
@@ -193,6 +302,7 @@ def get_item_date_consumption(
     return data
 
 
+@cached(TTLCache(maxsize=100, ttl=60))
 def get_usage_distinct_items(item_consumer, start_date, end_date, item_category=None):
     start_date = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=pytz.utc)
     end_date = datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=pytz.utc)
@@ -208,6 +318,7 @@ def get_usage_distinct_items(item_consumer, start_date, end_date, item_category=
     return data
 
 
+@cached(TTLCache(maxsize=10, ttl=60))
 def get_usage_consumers(item_type):
     with app.app_context():
         return list(
