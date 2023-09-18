@@ -515,14 +515,6 @@ function formatTimestampUTC(timestamp) {
 function showExportButtons (table, buttonsRowClass) {
     new $.fn.dataTable.Buttons( table, {
         buttons: [
-            // TODO: Add css
-            // {
-            //     buttons: [
-            //         { extend: 'print', className: 'btn btn-primary' },
-            //         { extend: 'csv', className: 'btn btn-primary' },
-            //         { extend: 'excel', className: 'btn btn-primary' }
-            //     ]
-            // }
             'csv', 'excel', 'print'
         ]
     } ).container()
