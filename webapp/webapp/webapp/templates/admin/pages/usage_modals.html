@@ -222,19 +222,53 @@
             <div class="modal-body">
                 <form id="modalEditCreditForm" class="form-inline form-label-left">
                     <input hidden id="id" name="id" />
+                    <input hidden id="item_id" name="item_id" />
                     <div class="row">
                         <div class="x_panel">
                             <div class="x_title">
-                                <h4>Values
+                                <h4><i class="fa fa-minus-circle" aria-hidden="true"></i> Limit values
                                 </h4>
                                 <div class="clearfix"></div>
                             </div>
-
-                            <div class="x_panel valuesOptions">
-                                <div class="col-md-6 col-xs-2">
-                                    <label class="control-label" for="limits">Limit<span
-                                            class="required">*</span></label>
-                                    <select class="form-control" style="width:100%" name="limit_id" id=limits></select>
+                            <div class="x_panel">
+                                <div class="col-md-4 col-sm-4 col-xs-12">
+                                    <label class="control-label" for="limits_name">Name <span class="required">*</span>
+                                    </label>
+                                    <input id="limits_name" class="roundbox" maxlength="40"
+                                        pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9@]+$" data-parsley-length="[1, 40]"
+                                        name="name" placeholder="Edit limit name" data-parsley-trigger="change" required
+                                        type="text" style="width:100%">
+                                </div>
+                                <div class="col-md-8 col-sm-8 col-xs-12">
+                                    <label class="control-label" for="limits_desc">Description</label>
+                                    <input id="desc" class="roundbox" name="limits_desc" placeholder="Description" type="text"
+                                        style="width:100%">
+                                </div>
+                            </div>
+                            <div class="x_panel">
+                                <div class="col-md-3 col-xs-12">
+                                    <label class="control-label" for="soft">Soft Limit<span class="required">*</span>
+                                    </label>
+                                    <input id="soft" class="form-control roundbox" name="soft" type="number" value="0"
+                                        style="width:100%" required="required">
+                                </div>
+                                <div class="col-md-3 col-xs-12">
+                                    <label class="control-label" for="hard">Hard limit<span class="required">*</span>
+                                    </label>
+                                    <input id="hard" class="form-control roundbox" name="hard" type="number" value="0"
+                                        style="width:100%" required="required">
+                                </div>
+                                <div class="col-md-3 col-xs-12">
+                                    <label class="control-label" for="exp_min">Expected min<span class="required">*</span>
+                                    </label>
+                                    <input id="exp_min" class="form-control roundbox" name="exp_min" type="number" value="0"
+                                        style="width:100%" required="required">
+                                </div>
+                                <div class="col-md-3 col-xs-12">
+                                    <label class="control-label" for="exp_max">Expected max<span class="required">*</span>
+                                    </label>
+                                    <input id="exp_max" class="form-control roundbox" name="exp_max" type="number" value="0"
+                                        style="width:100%" required="required">
                                 </div>
                             </div>
                             <div class="x_title">
@@ -281,66 +315,6 @@
                 <ul class="nav navbar-right panel_toolbox">
                     <li>
                         <button id="send" type="button" class="btn btn-success">Edit Credit</button>
-                    </li>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="modalEditCreditLimits" tabindex="-1" role="dialog" aria-labelledby="modalEditCreditLimits"
-    aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-
-            <!-- Modal Header -->
-            <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal">
-                    <span aria-hidden="true">&times;</span>
-                    <span class="sr-only">Close</span>
-                </button>
-                <h4 class="modal-title" id="myModalLabel">
-                    <i class="fa fa-pencil fa-1x"></i><i class="fa fa-rocket"> </i> Edit Credit Limits
-                </h4>
-            </div>
-
-            <!-- Modal Body -->
-            <div class="modal-body">
-                <form id="modalEditCreditLimitsForm" class="form-inline form-label-left">
-                    <input hidden id="id" name="id" />
-                    <input hidden id="item_consumer" name="item_consumer" />
-                    <div class="row">
-                        <div class="x_panel">
-                            <div class="x_title">
-                                <h4>Limits
-                                </h4>
-                                <div class="clearfix"></div>
-                            </div>
-
-                            <div class="x_panel">
-                                <div class="col-md-6 col-xs-2">
-                                    <select class="form-control" style="width:100%" name="limits_id" id=limits>
-                                        <option value="null" disabled>Select a limit</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </form>
-            </div>
-
-            <!-- Modal Footer -->
-            <div class="modal-footer">
-                <ul class="nav navbar-left panel_toolbox">
-                    <li>
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                    </li>
-                    </li>
-                </ul>
-                <ul class="nav navbar-right panel_toolbox">
-                    <li>
-                        <button id="send" type="button" class="btn btn-success">Edit Limits</button>
                     </li>
                     </li>
                 </ul>

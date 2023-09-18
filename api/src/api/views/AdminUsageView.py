@@ -215,9 +215,9 @@ def api_v3_admin_usage_parameters_add(payload):
 
 
 @cached(cache=TTLCache(maxsize=10, ttl=5))
-@app.route("/api/v3/admin/usage/parameters", methods=["PUT"])
+@app.route("/api/v3/admin/usage/parameters/<parameter_id>", methods=["PUT"])
 @is_admin
-def api_v3_admin_usage_parameters_update(payload):
+def api_v3_admin_usage_parameters_update(payload, parameter_id):
     try:
         data = request.get_json()
     except:
@@ -269,15 +269,15 @@ def api_v3_admin_usage_limits_add(payload):
     )
 
 
-@app.route("/api/v3/admin/usage/limits", methods=["PUT"])
+@app.route("/api/v3/admin/usage/limits/<limit_id>", methods=["PUT"])
 @is_admin
-def api_v3_admin_usage_limits_update(payload):
+def api_v3_admin_usage_limits_update(payload, limit_id):
     data = request.get_json()
     _validate_item("usage_limit", data)
 
     return (
         json.dumps(
-            update_usage_limits(data["id"], data["name"], data["desc"], data["limits"])
+            update_usage_limits(limit_id, data["name"], data["desc"], data["limits"])
         ),
         200,
         {"Content-Type": "application/json"},
@@ -333,9 +333,9 @@ def api_v3_admin_usage_groupings_add(payload):
     )
 
 
-@app.route("/api/v3/admin/usage/groupings", methods=["PUT"])
+@app.route("/api/v3/admin/usage/groupings/<grouping_id>", methods=["PUT"])
 @is_admin
-def api_v3_admin_usage_groupings_update(payload):
+def api_v3_admin_usage_groupings_update(payload, grouping_id):
     data = request.get_json()
     data = _validate_item("usage_grouping", data)
     return (
@@ -413,11 +413,11 @@ def api_v3_admin_usage_credits(
 
 @cached(cache=TTLCache(maxsize=10, ttl=5))
 @app.route(
-    "/api/v3/admin/usage/credits/<item_type>",
+    "/api/v3/admin/usage/credits",
     methods=["POST"],
 )
 @is_admin
-def api_v3_admin_usage_credits_add(payload, item_type):
+def api_v3_admin_usage_credits_add(payload):
     try:
         data = request.get_json()
     except:
@@ -453,24 +453,20 @@ def api_v3_admin_usage_credits_add(payload, item_type):
 
 @cached(cache=TTLCache(maxsize=10, ttl=5))
 @app.route(
-    "/api/v3/admin/usage/credits/<item_consumer>",
+    "/api/v3/admin/usage/credits/<credit_id>",
     methods=["PUT"],
 )
 @is_admin
-def api_v3_admin_usage_credits_update(payload, item_consumer):
+def api_v3_admin_usage_credits_update(payload, credit_id):
     try:
         data = request.get_json()
     except:
         raise Error("bad_request")
 
+    itemExists("usage_credit", credit_id)
+
     if data.get("end_date"):
         data["end_date"] = data["end_date"] if data["end_date"] != "null" else None
-
-    if item_consumer == "category" and data.get("item_id"):
-        ##TODO: adapt to every kind of consumer
-        itemExists("categories", data["item_id"])
-    if data.get("limit_id"):
-        itemExists("usage_limit", data["limit_id"])
 
     data = _validate_item("usage_credit_update", data)
 
@@ -496,9 +492,9 @@ def api_v3_admin_usage_credits_update(payload, item_consumer):
 
 
 @cached(cache=TTLCache(maxsize=10, ttl=5))
-@app.route("/api/v3/admin/usage/credits/<item_type>/<credit_id>", methods=["DELETE"])
+@app.route("/api/v3/admin/usage/credits/<credit_id>", methods=["DELETE"])
 @is_admin
-def api_v3_admin_usage_credits_delete(payload, item_type, credit_id):
+def api_v3_admin_usage_credits_delete(payload, credit_id):
     return (
         json.dumps(delete_usage_credit(credit_id)),
         200,

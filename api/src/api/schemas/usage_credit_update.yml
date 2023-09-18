@@ -1,14 +1,6 @@
 id:
   required: true
   empty: false
-item_id:
-  type: string
-  empty: false
-  nullable: false
-grouping_id:
-  type: string
-  empty: false
-  nullable: false
 start_date:
   type: string
   empty: false
@@ -17,9 +9,19 @@ end_date:
   type: string
   empty: false
   nullable: true
-limit_id:
-  type: string
-item_type:
-  type: string
-item_consumer:
-  type: string
+limits:
+  required: true
+  type: dict
+  schema:
+    soft:
+      required: true
+      type: integer
+    hard:
+      required: true
+      type: integer
+    exp_min:
+      required: true
+      type: integer
+    exp_max:
+      required: true
+      type: integer

@@ -63,13 +63,19 @@
             <table id="table-credit" class="table">
               <thead>
                 <tr>
-                  <th>item</th>
-                  <th>consumer</th>
-                  <th>item_type</th>
-                  <th>grouping</th>
-                  <th>start_date</th>
-                  <th>end_date</th>
-                  <th>limits</th>
+                  <th rowspan="2">item</th>
+                  <th rowspan="2">consumer</th>
+                  <th rowspan="2">item_type</th>
+                  <th rowspan="2">grouping</th>
+                  <th rowspan="2">start_date</th>
+                  <th rowspan="2">end_date</th>
+                  <th colspan="4">limits</th>
+                </tr>
+                <tr>
+                  <th>soft</th>
+                  <th>hard</th>
+                  <th>exp_min</th>
+                  <th>exp_max</th>
                   <th>action</th>
                 </tr>
               </thead>
