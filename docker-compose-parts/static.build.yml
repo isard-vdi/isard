@@ -8,7 +8,3 @@ services:
       args: 
         SRC_VERSION_ID: ${SRC_VERSION_ID}
         SRC_VERSION_LINK: ${SRC_VERSION_LINK}
-  isard-cypress:
-    build:
-      context: ${BUILD_ROOT_PATH}
-      dockerfile: frontend/tests/e2e/Dockerfile
