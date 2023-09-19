@@ -28,6 +28,7 @@ from flask import request
 from api import app
 
 from .._common.api_exceptions import Error
+from ..libv2.api_admin import admin_table_list
 from ..libv2.api_usage import (
     add_usage_credit,
     add_usage_grouping,
@@ -56,7 +57,14 @@ from ..libv2.api_usage import (
     update_usage_parameters,
 )
 from ..libv2.validators import _validate_item
-from .decorators import is_admin, is_admin_or_manager, itemExists
+from .decorators import (
+    is_admin,
+    is_admin_or_manager,
+    itemExists,
+    ownsCategoryId,
+    ownsDomainId,
+    ownsUserId,
+)
 
 # VIEWS: Usage Consumption
 
@@ -66,7 +74,25 @@ from .decorators import is_admin, is_admin_or_manager, itemExists
 @is_admin_or_manager
 def api_v3_admin_usage(payload):
     filters = request.get_json()
-    # TODO: Check filter owner. Filter manager category.
+
+    if filters.get("item_ids"):
+        if filters["item_type"] == "category":
+            for item_id in filters["item_ids"]:
+                ownsCategoryId(item_id)
+        elif filters["item_type"] == "group":
+            for item_id in filters["item_ids"]:
+                ownsCategoryId(
+                    admin_table_list("groups", pluck="parent_category", id=item_id)[
+                        "parent_category"
+                    ]
+                )
+        elif filters["item_type"] == "group":
+            for item_id in filters["item_ids"]:
+                ownsUserId(item_id)
+        elif filters["item_type"] in ["template", "desktop"]:
+            for item_id in filters["item_ids"]:
+                ownsDomainId(item_id)
+
     data = get_usage_consumption_between_dates(
         filters.get("start_date", None),
         filters.get("end_date", None),
@@ -91,7 +117,25 @@ def api_v3_admin_usage(payload):
 @is_admin_or_manager
 def api_v3_admin_usage_start_end(payload):
     filters = request.get_json()
-    # TODO: Check filter owner. Filter manager category.
+
+    if filters.get("item_ids"):
+        if filters["item_type"] == "category":
+            for item_id in filters["item_ids"]:
+                ownsCategoryId(item_id)
+        elif filters["item_type"] == "group":
+            for item_id in filters["item_ids"]:
+                ownsCategoryId(
+                    admin_table_list("groups", pluck="parent_category", id=item_id)[
+                        "parent_category"
+                    ]
+                )
+        elif filters["item_type"] == "user":
+            for item_id in filters["item_ids"]:
+                ownsUserId(item_id)
+        elif filters["item_type"] in ["template", "desktop"]:
+            for item_id in filters["item_ids"]:
+                ownsDomainId(item_id)
+
     data = get_start_end_consumption(
         filters.get("start_date", None),
         filters.get("end_date", None),
@@ -116,7 +160,6 @@ def api_v3_admin_usage_start_end(payload):
 @app.route("/api/v3/admin/usage/consumers/<item_type>", methods=["GET"])
 @is_admin_or_manager
 def api_v3_admin_usage_consumers(payload, item_type):
-    # TODO: Check filter owner. Filter manager category.
     return (
         json.dumps(
             get_usage_consumers(
