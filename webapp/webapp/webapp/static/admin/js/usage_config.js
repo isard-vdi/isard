@@ -628,26 +628,41 @@ function fetchAvailableParameters(modal) {
     url: '/api/v3/admin/table/usage_parameter',
     contentType: "application/json",
     success: function (parameter) {
-      var parameterList = [];
+      $(modal + ' #item_type').on("change", function () {
+        $(modal + ' #available-parameters').empty();
+        $(modal + ' #parameters').empty();
 
-      $.each(parameter, function (key, value) {
-        $(modal + " #available-parameters").append(`<a title="${value.name} (${value.desc})" value="${value.id}" class="list-group-item list-group-item-action">${value.id}</a>`);
-        $(modal + ' #parameters').append(`<option title="${value.desc}" value="${value.id}">${value.name}</option>`)
-        parameterList.push(value.id);
-      });
+        var parameterList = [];
+        $.each(parameter, function (key, value) {
+          if ($(modal + " #item_type").val() == value.item_type) {
+            $(modal + " #available-parameters").append(`<a title="${value.name} (${value.desc})" value="${value.id}" class="list-group-item list-group-item-action">${value.id}</a>`);
+            $(modal + ' #parameters').append(`<option title="${value.desc}" value="${value.id}">${value.name}</option>`)
+            parameterList.push(value.id);
+          }
+        });
 
-      $(modal + ' #available-parameters a').off('click').on('click', function () {
-        parameter_id = $(this)[0].text
-        $(modal + ' #formula').val($(modal + ' #formula').val() + parameter_id);
-      });
+        $(modal + ' #available-parameters a').off('click').on('click', function () {
+          parameter_id = $(this)[0].text;
+          $(modal + ' #formula').val($(modal + ' #formula').val() + parameter_id);
+        });
+        parameterList = parameterList.join("|");
+        var regex = `^([+-/*\(\)^ ]|\\d+|${parameterList})*$`;
+        $(modal + ' #formula').attr("pattern", regex);
+
+      })
 
       $(modal + ' #parameters').select2({
         placeholder: "Click to select a list of parameters",
       });
+      $(modal + ' #item_type').trigger("change");
 
-      parameterList = parameterList.join("|")
-      var regex = `^([+-/*\(\)^ ]|\\d+|${parameterList})*$`;
-      $(modal + ' #formula').attr("pattern", regex);
+      $(modal + ' #formula').on("input", function () {
+        if ($(modal + ' #formula').val()!="") {
+          $(modal + ' #item_type').attr('disabled', true)
+        } else {
+          $(modal + ' #item_type').attr('disabled', false)
+        }
+      })
     }
   })
 }
