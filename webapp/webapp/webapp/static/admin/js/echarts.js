@@ -233,7 +233,7 @@ var monthNames = ["January", "February", "March", "April", "May", "June",
 ];
 
 function getMonthName(monthNumber) {
-    return monthNames[monthNumber - 1] || '';
+    return monthNames[monthNumber] || '';
 }
 
 function debounce(fn, delay) {
