@@ -299,6 +299,19 @@ def get_item_date_consumption(
             )
             .run(db.conn)
         )
+        data["inc"] = (
+            r.table("usage_consumption")
+            .get_all(item_id, index="item_id")
+            .pluck(pluck)
+            .filter((r.row["date"] == date) & (r.row["item_type"] == item_type))
+            .nth(0)
+            .default(
+                {
+                    "inc": default_consumption,
+                }
+            )["inc"]
+            .run(db.conn)
+        )
     return data
 
 

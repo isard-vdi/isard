@@ -552,7 +552,6 @@ function addChartTable(data, itemId, itemName, itemConsumer, limits, kind) {
     success: function (parameters) {
       // This columns can change (custom fields can be added), therefore they're generated dynamically
       $.each(parameters, function (pos, parameter) {
-        console.log(parameter.name)
         cols.push(
           {
             'title': `
