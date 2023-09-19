@@ -515,6 +515,7 @@ def get_usage_limits():
 
 
 def add_usage_limits(name, desc, limits):
+    check_usage_limits(limits)
     with app.app_context():
         r.table("usage_limit").insert(
             {
@@ -528,6 +529,7 @@ def add_usage_limits(name, desc, limits):
 
 
 def update_usage_limits(id, name, desc, limits):
+    check_usage_limits(limits)
     with app.app_context():
         r.table("usage_limit").get(id).update(
             {
@@ -548,6 +550,30 @@ def delete_usage_limits(limit_id):
     except:
         raise Error("not_found", "Limit with ID" + limit_id + " not found in database")
     return True
+
+
+def check_usage_limits(limits):
+    if not all(
+        [
+            limits["hard"] >= limits["exp_min"],
+            limits["hard"] >= limits["exp_max"],
+            limits["hard"] >= limits["soft"],
+        ]
+    ):
+        raise Error(
+            "bad_request",
+            "The hard limit must be higher than or equal to all other limit values.",
+        )
+
+    if not (limits["exp_max"] > limits["exp_min"]):
+        raise Error(
+            "bad_request", "Expected maximum must be greater than the expected minimum"
+        )
+
+    if not (limits["soft"] > limits["exp_min"]):
+        raise Error(
+            "bad_request", "Expected minimum can not be greater than the soft limit"
+        )
 
 
 ## VIEWS: Usage parameters
@@ -812,21 +838,8 @@ def update_usage_credit(data):
             data["start_date"],
             data["end_date"],
         )
-    if data.get("limit_id"):
-        limits = (
-            r.table("usage_limit")
-            .get(data.pop("limit_id"))
-            .pluck("id", "name", "desc", "limits")
-            .run(db.conn)
-        )
-        data.update(
-            {
-                "limits": limits.get("limits"),
-                "limits_id": limits.get("id"),
-                "limits_desc": limits.get("desc"),
-                "limits_name": limits.get("name"),
-            }
-        )
+    if data.get("limits"):
+        check_usage_limits(data.get("limits"))
     with app.app_context():
         r.table("usage_credit").get(data["id"]).update(data).run(db.conn)
         cache_usage_credits.clear()
