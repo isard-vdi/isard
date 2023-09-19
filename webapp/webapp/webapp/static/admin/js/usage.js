@@ -135,8 +135,9 @@ $('#btn-view-graph').on('click', function (e) {
           dataType: 'json',
           contentType: "application/json",
           success: function (limits) {
-            let graphTitle = it.name
-            addChart(resp, it.id, graphTitle, null, limits, data.incremental ? 'inc' : 'abs')
+            addChart(resp, it.id, `${it.consumer} ${it.name}`, data.incremental ? 'Showing incremental values' : 'Showing absolute values', limits, data.incremental ? 'inc' : 'abs')
+            $(`#table-${it.id}`).html('')
+            addChartTable(resp, it.id, it.name, it.consumer, limits, data.incremental ? 'inc' : 'abs')
           }
         })
       }
@@ -304,7 +305,7 @@ function createUsageTable(data) {
 }
 
 function addChart(data, itemId, graphTitle, graphSubtitle, limits, kind) {
-
+  $(`#canvas-holder-${itemId}`).html('')
   // Extract the legend keys from the data
   var legendKeys = Object.keys(data[0][kind]);
   // Sort the data by its date in order to show correctly in graph
@@ -495,8 +496,10 @@ function addChart(data, itemId, graphTitle, graphSubtitle, limits, kind) {
     })
   }
   // Initialize the ECharts instance and set the option
-  $(`#canvas-holder`).append(`
+  $('#usageGraphs').append(`
     <div id="canvas-holder-${itemId}">
+    </div>
+    <div id="table-${itemId}">
     </div>
   `)
   let canvas = document.createElement("canvas")
@@ -505,48 +508,28 @@ function addChart(data, itemId, graphTitle, graphSubtitle, limits, kind) {
   $(`#canvas-holder-${itemId}`).append(canvas)
   var chart = echarts.init(canvas)
   chart.setOption(option)
-  if (kind === 'abs') {
-    $(`#canvas-holder-${itemId}`).append(`
-    <div id="graph-other-filters">
-      <div class="col-md-12 col-sm-12 col-xs-12" style="margin-bottom:20px;margin-right:10px">
-        <label for="incremental">
-          <input type="checkbox" id="incremental-${itemId}" title="Will show the difference between the end date value and the start date value">
-          View incremental values
-        </label>
-      </div>
-    </div>
-  `)
-  } else {
-    $(`#canvas-holder-${itemId}`).append(`
-    <div id="graph-other-filters">
-      <div class="col-md-12 col-sm-12 col-xs-12" style="margin-bottom:20px;margin-right:10px">
-        <label for="incremental">
-          <input type="checkbox" checked id="incremental-${itemId}" title="Will show the difference between the end date value and the start date value">
-          View incremental values
-        </label>
-      </div>
-    </div>
-  `)
-  }
-  addChartTable(data, itemId, graphTitle, limits)
-
-  let hr = document.createElement("hr")
-  $(`#canvas-holder-${itemId}`).append(hr)
 
   // Resize the chart to fit the container
   window.addEventListener('resize', function () {
   });
 }
 
-function addChartTable(data, itemId, graphTitle, limits) {
-  let exportButtons = document.createElement('div')
-  exportButtons.setAttribute('class', 'row ' + itemId + '-buttons-row')
-  let table = document.createElement("table")
-  table.setAttribute('id', itemId)
-  table.setAttribute('style', 'width: 100%; padding-left: 25px; padding-right: 25px')
-  table.setAttribute('class', "table cell-border text-center")
-  $(`#canvas-holder-${itemId}`).append(exportButtons)
-  $(`#canvas-holder-${itemId}`).append(table)
+function addChartTable(data, itemId, itemName, itemConsumer, limits, kind) {
+  $(`#table-${itemId}`).append(`
+    <div id="graph-other-filters">
+      <div class="col-md-12 col-sm-12 col-xs-12" style="margin-bottom:20px;margin-right:10px">
+        <label for="incremental">
+          <input type="checkbox" ${kind === 'inc' ? 'checked' : ''} id="incremental-${itemId}" title="Will show the difference between the end date value and the start date value">
+          View incremental values
+        </label>
+      </div>
+    </div>
+    <div class="row ${itemId}-buttons-row">
+    </div>
+    <table id="${itemId}" style="width: 100%; padding-left: 25px; padding-right: 25px" class="table cell-border text-center">
+    </table>
+    <hr/>
+  `)
   cols = [
     {
       'title': 'Date',
@@ -558,46 +541,63 @@ function addChartTable(data, itemId, graphTitle, limits) {
       }
     }
   ]
+  $.ajax({
+    type: "PUT",
+    url: '/admin/usage/list_parameters',
+    dataType: 'json',
+    contentType: "application/json",
+    data: JSON.stringify({
+      ids: Object.keys(data[0].abs)
+    }),
+    success: function (parameters) {
+      // This columns can change (custom fields can be added), therefore they're generated dynamically
+      $.each(parameters, function (pos, parameter) {
+        console.log(parameter.name)
+        cols.push(
+          {
+            'title': `
+              ${parameter.name} <i class='fa fa-info-circle' aria-hidden='true' title="${parameter.desc}\n${parameter.formula ? 'Applied formula: ' + parameter.formula : ''}"></i><br>
+              <em style="font-weight: normal;">${parameter.units ? parameter.units: '-'}</em>
+            `,
+            'data': 'abs.' + parameter.id,
+            'defaultContent': 0,
+            'visible': !(kind === 'inc'),
+            'render': (value) => {
+              return value ? value.toFixed(2) : 0
+            }
+          },
+          {
+            'title': `
+              ${parameter.name} <i class='fa fa-info-circle' aria-hidden='true' title="${parameter.desc}\n${parameter.formula ? 'Applied formula: ' + parameter.formula : ''}"></i><br>
+              <em style="font-weight: normal;">${parameter.units ? parameter.units: '-'}</em>
+            `,
+            'data': 'inc.' + parameter.id,
+            'className': 'incremental',
+            'defaultContent': 0,
+            'visible': kind === 'inc',
+            'render': (value) => {
+              return value ? value.toFixed(2) : 0
+            }
+          }
+        )
+      })
 
-  // This columns can change (custom fields can be added), therefore they're generated dynamically
-  $.each(Object.keys(data[0].abs), function (pos, it) {
-    cols.push(
-      {
-        'title': it,
-        'data': 'abs.' + it,
-        'defaultContent': 0,
-        'render': (value) => {
-          return value ? value.toFixed(2) : 0
-        }
-      },
-      {
-        'title': it + ' inc',
-        'data': 'inc.' + it,
-        'className': 'incremental',
-        'defaultContent': 0,
-        'visible': false,
-        'render': (value) => {
-          return value ? value.toFixed(2) : 0
-        }
-      }
-    )
+      table = $('#' + itemId).DataTable({
+        data: data,
+        processing: true,
+        rowId: "id",
+        deferRender: true,
+        paging: true,
+        cache: false,
+        columns: cols
+      })
+
+      $(`#graph-other-filters #incremental-${itemId}`).on('change', function(event){
+        addChart(data, itemId, `${itemConsumer} ${itemName}`, this.checked ? 'Showing incremental values' : 'Showing absolute values', limits, this.checked ? 'inc' : 'abs')
+        showHideIncremental('#' + itemId, this.checked ? true : false)
+      });
+
+      showExportButtons(table, itemId + '-buttons-row')
+    }
   })
-
-  table = $('#' + itemId).DataTable({
-    data: data,
-    processing: true,
-    rowId: "id",
-    deferRender: true,
-    paging: true,
-    cache: false,
-    columns: cols
-  })
-
-  $(`#graph-other-filters #incremental-${itemId}`).on('change', function(event){
-    $(`#canvas-holder-${itemId}`).html('')
-    addChart(data, itemId, graphTitle, null, limits, this.checked ? 'inc' : 'abs')
-    showHideIncremental('#' + itemId, this.checked ? true : false)
-  });
-
-  showExportButtons(table, itemId + '-buttons-row')
 }
