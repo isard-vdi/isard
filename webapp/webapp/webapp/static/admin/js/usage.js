@@ -240,11 +240,16 @@ function createUsageTable(data) {
               'className': 'incremental',
               'visible': data.incremental,
               'render': (data, type, row) => {
+                value = (row.end.abs[parameter.id] - row.start.abs[parameter.id]).toFixed(2)
                 if (row.end.abs[parameter.id] > row.start.abs[parameter.id]) {
-                  return (row.end.abs[parameter.id] - row.start.abs[parameter.id]).toFixed(2)
-                } else {
-                  return 0
-                }
+                    if (row.end.abs[parameter.id] > row.start.abs[parameter.id]) {
+                      return value + ` <i title="+${(row.end.abs[parameter.id] - row.start.abs[parameter.id]).toFixed(2)}" class="fa fa-caret-up fa-lg" style="color:orange;"></i>`
+                    } else if (row.end.abs[parameter.id] < row.start.abs[parameter.id]) {
+                      return value + ` <i title="${(row.end.abs[parameter.id] - row.start.abs[parameter.id].toFixed(2))}" class="fa fa-caret-down fa-lg" style="color:cornflowerblue;"></i>`
+                    } else {
+                      return value + ' <i class="fa fa-caret-right fa-lg" style="color:lightgrey;"></i>'
+                    }
+                  }
               }
             })
         })
