@@ -24,6 +24,8 @@ def set_storage_maintenance(payload, storage_id):
     """
     Set storage to maintenance status.
 
+    :param payload: Data from JWT
+    :type payload: dict
     :param storage_id: Storage ID
     :type storage_id: str
     :return: Storage object
