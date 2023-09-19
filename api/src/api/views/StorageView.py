@@ -20,6 +20,20 @@ from ..libv2.api_storage import get_disks, parse_disks
 from .decorators import has_token, is_admin, ownsStorageId
 
 
+def check_storage_existence_and_permissions(payload, storage_id):
+    """
+    Check storage existence and permissions.
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :param storage_id: Storage ID
+    :type storage_id: str
+    """
+    if not Storage.exists(storage_id):
+        raise Error(error="not_found", description="Storage not found")
+    ownsStorageId(payload, storage_id)
+
+
 def set_storage_maintenance(payload, storage_id):
     """
     Set storage to maintenance status.
@@ -32,9 +46,7 @@ def set_storage_maintenance(payload, storage_id):
     :rtype: isardvdi_common.storage.Storage
     """
 
-    if not Storage.exists(storage_id):
-        raise Error(error="not_found", description="Storage not found")
-    ownsStorageId(payload, storage_id)
+    check_storage_existence_and_permissions(payload, storage_id)
     storage = Storage(storage_id)
     if storage.status != "ready":
         raise Error(error="precondition_required", description="Storage not ready")
@@ -395,9 +407,7 @@ def storage_move(payload, storage_id, path):
     :return: Task ID
     :rtype: Set with Flask response values and data in JSON
     """
-    if not Storage.exists(storage_id):
-        raise Error(error="not_found", description="Storage not found")
-    ownsStorageId(payload, storage_id)
+    check_storage_exitence_and_permissions(payload, storage_id)
     path = f"/{path}"
     storage_pool_destination = StoragePool.get_best_for_action("move", path=path)
     if not storage_pool_destination:
