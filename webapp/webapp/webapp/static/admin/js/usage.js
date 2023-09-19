@@ -110,6 +110,7 @@ function showHideIncremental (tableId, show) {
 
 $('#btn-view-graph').on('click', function (e) {
   $('#canvas-holder').html('')
+  $('#usageGraphs').html('')
   data = selectedRows
   $('#graphsModal').modal({
     keyboard: false
