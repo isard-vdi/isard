@@ -318,6 +318,28 @@ def storage_update_qemu_img_info(payload, storage_id):
     return jsonify(storage.task)
 
 
+@app.route("/api/v3/storage/<storage_id>/check_backing_chain", methods=["PUT"])
+@has_token
+def storage_check_check_backing_chain(payload, storage_id):
+    """
+    Endpoint that creates a Task to check storage backing chain.
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :param storage_id: Storage ID
+    :type storage_id: str
+    :return: Task ID
+    :rtype: Set with Flask response values and data in JSON
+    """
+    check_storage_existence_and_permissions(payload, storage_id)
+    storage = Storage(storage_id)
+    if storage.task and Task(storage.task).pending:
+        raise Error(
+            error="precondition_required", description="Storage with a pending task"
+        )
+    return jsonify(storage.check_backing_chain(user_id=payload.get("user_id")))
+
+
 @app.route(
     "/api/v3/storage/<storage_id>/check_existence",
     methods=["PUT"],
