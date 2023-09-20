@@ -17,6 +17,9 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+from isardvdi_common.storage_pool import StoragePool
+from rq.job import JobStatus
+
 from . import domain
 from .rethink_custom_base_factory import RethinkCustomBase
 from .task import Task
@@ -116,3 +119,54 @@ class Storage(RethinkCustomBase):
             if Task(self.task).pending:
                 raise Exception(f"Storage {self.id} have the pending task {self.task}")
         self.task = Task(*args, **kwargs).id
+
+    def check_backing_chain(self, user_id):
+        """
+        Create a task to check the storage.
+
+        :param user_id: User ID
+        :type user_id: str
+        :return: Task ID
+        :rtype: str
+        """
+
+        self.create_task(
+            user_id=user_id,
+            queue=f"storage.{StoragePool.get_best_for_action('qemu_img_info', path=self.directory_path).id}.default",
+            task="qemu_img_info_backing_chain",
+            job_kwargs={
+                "kwargs": {
+                    "storage_id": self.id,
+                    "storage_path": f"{self.directory_path}/{self.id}.{self.type}",
+                }
+            },
+            dependents=[
+                {
+                    "queue": "core",
+                    "task": "storage_update",
+                    "dependents": [
+                        {
+                            "queue": "core",
+                            "task": "update_status",
+                            "job_kwargs": {
+                                "kwargs": {
+                                    "statuses": {
+                                        JobStatus.CANCELED: {
+                                            self.status: {
+                                                "storage": [self.id],
+                                            },
+                                        },
+                                        JobStatus.FAILED: {
+                                            self.status: {
+                                                "storage": [self.id],
+                                            },
+                                        },
+                                    }
+                                }
+                            },
+                        }
+                    ],
+                }
+            ],
+        )
+        return self.task

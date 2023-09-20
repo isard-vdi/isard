@@ -176,7 +176,11 @@ def storage_update(**storage_dict):
                     child.status = "orphan"
         else:
             for dependency in task.dependencies:
-                if dependency.task in ("qemu_img_info", "check_existence"):
+                if dependency.task in (
+                    "qemu_img_info",
+                    "qemu_img_info_backing_chain",
+                    "check_existence",
+                ):
                     storage_update(**dependency.result)
                 if dependency.task == "check_backing_filename":
                     for result in dependency.result:
