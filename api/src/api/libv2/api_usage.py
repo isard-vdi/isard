@@ -113,45 +113,45 @@ def get_reset_dates(start_date, end_date):
     # If none found, return empty list
     return [
         (
-            datetime(2023, 8, 31)
+            datetime(2023, 9, 1)
             .astimezone()
             .replace(minute=0, hour=0, second=0, microsecond=0, tzinfo=pytz.utc)
         )
         + timedelta(days=-1)
     ]
-    with app.app_context():
-        previous = list(
-            r.table("usage_reset_dates")
-            .filter(r.row["date"] <= start_date)
-            .order_by(r.desc("date"))
-            .limit(1)["date"]
-            .run(db.conn)
-        )
-        within = list(
-            r.table("usage_reset_dates")
-            .filter(r.row["date"] <= end_date & r.row["date"] >= start_date)
-            .order_by(r.desc("date"))["date"]
-            .run(db.conn)
-        )
+    # with app.app_context():
+    #     previous = list(
+    #         r.table("usage_reset_dates")
+    #         .filter(r.row["date"] <= start_date)
+    #         .order_by(r.desc("date"))
+    #         .limit(1)["date"]
+    #         .run(db.conn)
+    #     )
+    #     within = list(
+    #         r.table("usage_reset_dates")
+    #         .filter(r.row["date"] <= end_date & r.row["date"] >= start_date)
+    #         .order_by(r.desc("date"))["date"]
+    #         .run(db.conn)
+    #     )
     # return within + previous
 
     # TODO: Remove this when we've got dates in DB
-    reset_date1 = (
-        datetime(2023, 8, 16)
-        .astimezone()
-        .replace(minute=0, hour=0, second=0, microsecond=0, tzinfo=pytz.utc)
-    ) + timedelta(days=-1)
-    reset_date2 = (
-        datetime(2023, 8, 31)
-        .astimezone()
-        .replace(minute=0, hour=0, second=0, microsecond=0, tzinfo=pytz.utc)
-    ) + timedelta(days=-1)
-    reset_date3 = (
-        datetime(2023, 9, 13)
-        .astimezone()
-        .replace(minute=0, hour=0, second=0, microsecond=0, tzinfo=pytz.utc)
-    ) + timedelta(days=-1)
-    return [reset_date3, reset_date2, reset_date1]
+    # reset_date1 = (
+    #     datetime(2023, 8, 16)
+    #     .astimezone()
+    #     .replace(minute=0, hour=0, second=0, microsecond=0, tzinfo=pytz.utc)
+    # ) + timedelta(days=-1)
+    # reset_date2 = (
+    #     datetime(2023, 8, 31)
+    #     .astimezone()
+    #     .replace(minute=0, hour=0, second=0, microsecond=0, tzinfo=pytz.utc)
+    # ) + timedelta(days=-1)
+    # reset_date3 = (
+    #     datetime(2023, 9, 13)
+    #     .astimezone()
+    #     .replace(minute=0, hour=0, second=0, microsecond=0, tzinfo=pytz.utc)
+    # ) + timedelta(days=-1)
+    # return [reset_date3, reset_date2, reset_date1]
     # END TODO
 
 
@@ -201,14 +201,27 @@ def get_start_end_consumption(
                 items = items.filter({"item_consumer_category_id": category_id})
             items = list(items.distinct().run(db.conn))
     else:
-        items = list(
-            r.table("usage_consumption")
-            .get_all(r.args(items_ids), index="item_id")
-            .pluck("item_id", "item_name")
-            .distinct()
-            .run(db.conn)
-        )
+        with app.app_context():
+            items = list(
+                r.table("usage_consumption")
+                .get_all(r.args(items_ids), index="item_id")
+                .pluck("item_id", "item_name")
+                .distinct()
+                .run(db.conn)
+            )
     data = []
+
+    reset_dates = get_reset_dates(start_date, end_date)  # First should be the newest
+    reset_start_date = None
+    reset_end_date = None
+    if item_type in ["desktop", "user"] and len(reset_dates):
+        for reset_date in reset_dates:
+            if reset_date <= start_date:
+                reset_start_date = reset_date
+                break
+        if reset_dates[0] < end_date:
+            reset_end_date = reset_dates[0]
+
     for item in items:
         start_data = get_item_date_consumption(
             start_date,
@@ -217,6 +230,17 @@ def get_start_end_consumption(
             item["item_name"],
             grouping_params=grouping_params,
         )
+        if reset_start_date:
+            reset_start_data = get_item_date_consumption(
+                reset_start_date,
+                item["item_id"],
+                item_type,
+                item["item_name"],
+                grouping_params=grouping_params,
+            )
+            start_data["abs"] = substract_dicts(
+                start_data["abs"], reset_start_data["abs"]
+            )
         end_data = get_item_date_consumption(
             end_date,
             item["item_id"],
@@ -224,6 +248,15 @@ def get_start_end_consumption(
             item["item_name"],
             grouping_params=grouping_params,
         )
+        if reset_end_date:
+            reset_end_data = get_item_date_consumption(
+                reset_end_date,
+                item["item_id"],
+                item_type,
+                item["item_name"],
+                grouping_params=grouping_params,
+            )
+            end_data["abs"] = substract_dicts(end_data["abs"], reset_end_data["abs"])
         data.append(
             {
                 "item_id": item["item_id"],
@@ -238,11 +271,13 @@ def get_start_end_consumption(
 
 # Define a custom key function
 def GIDC_KEY(date, item_id, item_type, item_name, grouping_params=None):
+    # DISABLED: This is not working properly
+    # Randomly getting item date consumptions erroneusly
     args = (date, item_id, item_type, item_name, tuple(grouping_params))
     return hashkey(args)
 
 
-@cached(TTLCache(maxsize=100, ttl=60), key=GIDC_KEY)
+# @cached(TTLCache(maxsize=100, ttl=60), key=GIDC_KEY)
 def get_item_date_consumption(
     date, item_id, item_type, item_name, grouping_params=None
 ):
