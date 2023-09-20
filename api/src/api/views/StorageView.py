@@ -17,7 +17,7 @@ from .._common.storage import Storage
 from .._common.storage_pool import StoragePool
 from .._common.task import Task
 from ..libv2.api_storage import get_disks, parse_disks
-from .decorators import has_token, ownsStorageId
+from .decorators import has_token, is_admin, ownsStorageId
 
 
 def set_storage_maintenance(payload, storage_id):
@@ -43,7 +43,9 @@ def set_storage_maintenance(payload, storage_id):
 
 
 @app.route("/api/v3/storage", methods=["POST"])
-@has_token
+# TODO: Quotas should be implemented before open this endpoint
+# @has_token
+@is_admin
 def create_storage(payload):
     """
     Endpoint to create a storage with storage specifications as JSON in body request.
