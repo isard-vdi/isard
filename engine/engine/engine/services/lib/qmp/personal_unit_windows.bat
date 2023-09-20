@@ -1,6 +1,9 @@
 REM We use 'more' to ensure the encoding is ansi and it can be executed
 set scriptPath="C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp/isard_personal_unit.vbs"
 
+REM Start the WebClient service (in order to be able to mount)
+net start WebClient
+
 REM Remove the file right when the execution starts, so there are less changes of leaked credentials
 echo Set oFS = CreateObject("Scripting.FileSystemObject") | more > %scriptPath%
 echo oFS.DeleteFile(WScript.ScriptFullName) | more >> %scriptPath%
