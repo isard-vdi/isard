@@ -1659,7 +1659,7 @@ class Populate(object):
                         "id": "str_created",
                         "name": "Storage created",
                         "desc": "Storage created",
-                        "units": "GB",
+                        "units": "",
                         "item_type": "storage",
                         "custom": False,
                         "default": 0,
