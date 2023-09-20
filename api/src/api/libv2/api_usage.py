@@ -41,15 +41,6 @@ db = RDB(app)
 db.init_app(app)
 
 
-def grouping_applies_reset(grouping):
-    # Reset only applies to desktops and users
-    # It doesn't make sense in sizes or items created (storage/media)
-    for parameter in grouping:
-        if parameter.startswith("dsk_") or parameter.startswith("usr_"):
-            return True
-    return False
-
-
 def get_usage_consumption_between_dates(
     start_date, end_date, items_ids, item_type, grouping=None
 ):
@@ -84,7 +75,9 @@ def get_usage_consumption_between_dates(
                 grouping_params=grouping,
             )
             abs = item_data["abs"]
-            if grouping_applies_reset(grouping) and len(reset_dates):
+            # Reset only applies to desktops and users
+            # It doesn't make sense in sizes or items created (storage/media)
+            if item_type in ["desktop", "user"] and len(reset_dates):
                 for date in reset_dates:
                     if current_day >= date:
                         # TODO: cache this
