@@ -76,8 +76,10 @@ def qemu_img_info(storage_id, storage_path):
     """
     Get storage data with `qemu-img info` data updated.
 
-    :param storage_path: Storage path
+    :param storage_id: Storage ID
     :type storage_id: str
+    :param storage_path: Storage path
+    :type storage_path: str
     :return: Storage data to update
     :rtype: dict
     """
