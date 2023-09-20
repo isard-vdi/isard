@@ -17,7 +17,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 103
+release_version = 104
+# release 104: Remove existing user_storages and it's entries in users
 # release 103: Add logs_desktops tables indexes
 # release 102: Fix domains with empty interfaces field that got a dict instead of list
 # release 101: Interfaces as list to keep order
@@ -2648,6 +2649,12 @@ class Upgrade(object):
             except Exception as e:
                 None
 
+        if version == 104:
+            try:
+                r.table(table).replace(r.row.without("user_storage")).run(self.conn)
+            except Exception as e:
+                None
+
         return True
 
     """
@@ -3358,8 +3365,13 @@ class Upgrade(object):
             try:
                 r.table(table).index_create("name").run(self.conn)
             except Exception as e:
-                print(e)
+                None
 
+        if version == 104:
+            try:
+                r.table(table).index_create("name").run(self.conn)
+            except Exception as e:
+                None
         return True
 
     def secrets(self, version):
