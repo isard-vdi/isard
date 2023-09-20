@@ -117,7 +117,8 @@ def api_v3_admin_usage(payload):
 @is_admin_or_manager
 def api_v3_admin_usage_start_end(payload):
     filters = request.get_json()
-
+    if payload["role_id"] != "admin" and filters["item_consumer"] == "hypervisor":
+        raise Error("forbidden", "Not enough rights to access hypervisor usage")
     if filters.get("item_ids"):
         if filters["item_type"] == "category":
             for item_id in filters["item_ids"]:
@@ -160,19 +161,20 @@ def api_v3_admin_usage_start_end(payload):
 @app.route("/api/v3/admin/usage/consumers/<item_type>", methods=["GET"])
 @is_admin_or_manager
 def api_v3_admin_usage_consumers(payload, item_type):
+    consumers = get_usage_consumers(
+        item_type,
+    )
+    if payload["role_id"] != "admin" and "hypervisor" in consumers:
+        consumers.remove("hypervisor")
     return (
-        json.dumps(
-            get_usage_consumers(
-                item_type,
-            )
-        ),
+        json.dumps(consumers),
         200,
         {"Content-Type": "application/json"},
     )
 
 
 @app.route("/api/v3/admin/usage/consumers", methods=["GET"])
-@is_admin_or_manager
+@is_admin
 def api_v3_admin_usage_consumers_count(payload):
     return (
         json.dumps(count_usage_consumers()),
@@ -186,6 +188,8 @@ def api_v3_admin_usage_consumers_count(payload):
 )
 @is_admin_or_manager
 def api_v3_admin_usage_distinct_items(payload, item_consumer, start, end):
+    if payload["role_id"] != "admin" and item_consumer == "hypervisor":
+        raise Error("forbidden", "Not enough rights to access hypervisor usage")
     return (
         json.dumps(
             get_usage_distinct_items(
