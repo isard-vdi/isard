@@ -225,6 +225,7 @@ $(document).ready(function () {
     data = form.serializeObject();
     form.parsley().validate();
     data['custom'] = true;
+    data['item_type'] = $("#modalAddParameters #item_type").val();
     try {
       math.parse(data['formula']);
     } catch {
@@ -250,6 +251,7 @@ $(document).ready(function () {
     data = form.serializeObject();
     form.parsley().validate();
     data['custom'] = true;
+    data['item_type'] = $("#modalEditParameters #item_type").val();
     try {
       math.parse(data['formula']);
     } catch {
