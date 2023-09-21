@@ -311,7 +311,7 @@ function createUsageTable(data) {
 }
 
 function addChart(data, itemId, graphTitle, graphSubtitle, limits, kind) {
-  $(`#canvas-holder-${itemId}`).html(`<canvas id="canvas-${itemId}" (window:resize)="onResize($event)"></canvas>`)
+  $(`#canvas-holder-${itemId}`).html(`<div id="canvas-${itemId}" (window:resize)="onResize($event)"></div>`)
   // Extract the legend keys from the data
   var legendKeys = Object.keys(data[0][kind]);
   // Sort the data by its date in order to show correctly in graph
@@ -377,9 +377,24 @@ function addChart(data, itemId, graphTitle, graphSubtitle, limits, kind) {
       itemWidth: 10 
     },
     calculable: true,
+    tooltip: {
+      triggerOn: "mousemove",
+      show: true,
+      trigger: "axis",
+      valueFormatter: (value) => (value).toFixed(2),
+      textStyle: {
+        align: 'left'
+      }
+    },
+    axisPointer: {
+      snap: true,
+    },
     // Configure the xAxis
     xAxis: [{
       type: 'category',
+      axisLine: {
+        onZero: false,
+      },
       axisLabel: {
         formatter: (function (value) {
           if (/^en\b/.test(navigator.language)) {
@@ -403,7 +418,7 @@ function addChart(data, itemId, graphTitle, graphSubtitle, limits, kind) {
             return 0
           }
         }))
-        return limitsMax && limitsMax > value.max ? parseInt(limitsMax) : value.max;
+        return limitsMax && limitsMax > value.max ? parseInt(limitsMax) : (value.max).toFixed(2);
       }
     }]
   };
@@ -504,12 +519,12 @@ function addChart(data, itemId, graphTitle, graphSubtitle, limits, kind) {
   // Initialize the ECharts instance and set the option
   $('#usageGraphs').append(`
     <div id="canvas-holder-${itemId}">
-      <canvas id="canvas-${itemId}" (window:resize)="onResize($event)"></canvas>
+      <div id="canvas-${itemId}" (window:resize)="onResize($event)"></div>
     </div>
     <div id="table-${itemId}">
     </div>
   `)
-  var chart = echarts.init($(`#canvas-${itemId}`)[0], null, { renderer: 'canvas' })
+  var chart = echarts.init($(`#canvas-${itemId}`)[0])
   chart.setOption(option)
   var modalWidth = $('.modal-dialog').width();
   chart.resize({width: modalWidth - 50, height: "400"});
