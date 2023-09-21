@@ -311,7 +311,7 @@ function createUsageTable(data) {
 }
 
 function addChart(data, itemId, graphTitle, graphSubtitle, limits, kind) {
-  $(`#canvas-holder-${itemId}`).html('')
+  $(`#canvas-holder-${itemId}`).html(`<canvas id="canvas-${itemId}" (window:resize)="onResize($event)"></canvas>`)
   // Extract the legend keys from the data
   var legendKeys = Object.keys(data[0][kind]);
   // Sort the data by its date in order to show correctly in graph
@@ -504,20 +504,21 @@ function addChart(data, itemId, graphTitle, graphSubtitle, limits, kind) {
   // Initialize the ECharts instance and set the option
   $('#usageGraphs').append(`
     <div id="canvas-holder-${itemId}">
+      <canvas id="canvas-${itemId}" (window:resize)="onResize($event)"></canvas>
     </div>
     <div id="table-${itemId}">
     </div>
   `)
-  let canvas = document.createElement("canvas")
-  canvas.width = 1500
-  canvas.height = 400
-  $(`#canvas-holder-${itemId}`).append(canvas)
-  var chart = echarts.init(canvas)
+  var chart = echarts.init($(`#canvas-${itemId}`)[0], null, { renderer: 'canvas' })
   chart.setOption(option)
+  var modalWidth = $('.modal-dialog').width();
+  chart.resize({width: modalWidth - 50, height: "400"});
 
-  // Resize the chart to fit the container
   window.addEventListener('resize', function () {
-  });
+    var modalWidth = $('.modal-dialog').width();
+    chart.resize({width: modalWidth - 50, height: "400"});
+  })
+
 }
 
 function addChartTable(data, itemId, itemName, itemConsumer, limits, kind) {
