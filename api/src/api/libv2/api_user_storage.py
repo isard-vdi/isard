@@ -55,7 +55,7 @@ def _clear_caches():
 ## GET
 
 
-@cached(cache=TTLCache(maxsize=10, ttl=60))
+@cached(cache=TTLCache(maxsize=10, ttl=10))
 def isard_user_storage_get_users():
     with app.app_context():
         provider_users = list(
@@ -497,7 +497,7 @@ def _get_isard_users_array(provider_id=None):
             return r.table("users").pluck("id")["id"].coerce_to("array").run(db.conn)
 
 
-@cached(TTLCache(maxsize=10, ttl=60))
+@cached(TTLCache(maxsize=10, ttl=10))
 def _get_provider_users_array(provider_id):
     provider = _get_provider(provider_id)
     if not provider:
@@ -651,7 +651,7 @@ def _get_isard_categories_array(provider_id=None):
 # PROVIDERS MANAGEMENT #
 ########################
 
-cache_provider = TTLCache(maxsize=10, ttl=60)
+cache_provider = TTLCache(maxsize=10, ttl=5)
 
 
 @cached(cache_provider)
@@ -688,7 +688,7 @@ def _get_provider(provider_id, user_id=None):
     return None
 
 
-@cached(TTLCache(maxsize=10, ttl=60))
+@cached(TTLCache(maxsize=10, ttl=10))
 def _get_isard_category_provider_id(category_id):
     with app.app_context():
         providers_cfgs = list(
