@@ -113,7 +113,19 @@ class ApiRest:
                 )
                 self.get()
                 max_retries = 0
+            except requests.exceptions.ConnectionError:
+                logging.error(
+                    "Unable to reach "
+                    + self.service
+                    + " container at "
+                    + self.base_url
+                    + " (ConnectionError)"
+                )
+                time.sleep(timeout)
+                if max_retries >= 0:
+                    max_retries -= 1
             except:
+                logging.error(traceback.format_exc())
                 logging.error(
                     "Unable to reach " + self.service + " container at " + self.base_url
                 )
