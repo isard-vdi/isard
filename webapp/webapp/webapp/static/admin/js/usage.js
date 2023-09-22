@@ -381,7 +381,7 @@ function addChart(data, itemId, graphTitle, graphSubtitle, limits, kind) {
       triggerOn: "mousemove",
       show: true,
       trigger: "axis",
-      valueFormatter: (value) => (value).toFixed(2),
+      valueFormatter: (value) => value ? (value).toFixed(2) : value,
       textStyle: {
         align: 'left'
       }
