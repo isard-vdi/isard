@@ -309,7 +309,11 @@ class UiActions(object):
             failed = True
 
         if failed is True:
-            if reservables.get("vgpus") and len(reservables.get("vgpus", [])):
+            if (
+                reservables
+                and reservables.get("vgpus")
+                and len(reservables.get("vgpus", []))
+            ):
                 detail = f"desktop not started: no hypervisors online with GPU model available and profile"
             else:
                 detail = f"desktop not started: no hypervisors online in pool {pool_id}"
