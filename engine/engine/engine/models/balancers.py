@@ -114,7 +114,7 @@ class Balancer_less_cpu_till_low_ram:
             ) <= RAM_LIMIT:
                 logs.main.info(
                     "BALANCER LESS CPU TILL LOW RAM. BEST CPU HYPER SELECTED: %s"
-                    % hyper["id"]
+                    % str(hyper["id"])
                 )
                 return hyper
         hyper = [
@@ -130,7 +130,7 @@ class Balancer_less_cpu_till_low_ram:
         ][0]
         logs.main.info(
             "BALANCER LESS CPU TILL LOW RAM. NO BEST CPU HYPER, SELECTED BY RAM: %s"
-            % hyper["id"]
+            % str(hyper["id"])
         )
         return hyper
 
@@ -160,7 +160,7 @@ class Balancer_less_cpu_till_low_ram_percent:
             ) <= RAM_LIMIT:
                 logs.main.info(
                     "BALANCER LESS CPU TILL LOW RAM. BEST CPU HYPER SELECTED: %s"
-                    % hyper["id"]
+                    % str(hyper["id"])
                 )
                 return hyper
         hyper = [
@@ -183,8 +183,8 @@ class Balancer_less_cpu_till_low_ram_percent:
             )
         ][0]
         logs.main.info(
-            "BALANCER LESS CPU TILL LOW RAM PERCENTAGE. NO BEST CPU HYPER, SELECTED BY RAM %: %s"
-            % hyper["id"]
+            "BALANCER LESS CPU TILL LOW RAM PERCENTAGE. NO BEST CPU HYPER, SELECTED BY RAM PERCENT: %s"
+            % str(hyper["id"])
         )
         return hyper
 
