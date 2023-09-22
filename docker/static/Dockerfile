@@ -1,4 +1,4 @@
-FROM node:18-alpine as frontend
+FROM node:18.17-alpine as frontend
 
 RUN mkdir /isard-frontend
 COPY frontend /isard-frontend
