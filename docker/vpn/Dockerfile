@@ -41,8 +41,8 @@ ENV IPTABLES_LIBDIR=/tmp/iptables/lib
 ENV XTABLES_LIBDIR=/tmp/iptables/lib/xtables
 
 # python requirements
-COPY docker/vpn/requirements.pip3 /requirements.pip3
-RUN pip3 install --no-cache-dir -r requirements.pip3
+COPY docker/vpn/requirements.txt /requirements.txt
+RUN pip3 install --no-cache-dir -r requirements.txt
 RUN apk del .build_deps
 
 # Install guacd and freerdp

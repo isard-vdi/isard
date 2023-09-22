@@ -4,5 +4,5 @@ services:
     image: ${DOCKER_IMAGE_PREFIX}storage-base:${DOCKER_IMAGE_TAG-latest}
     build:
       context: ${BUILD_ROOT_PATH}
-      dockerfile: docker/storage/Dockerfile.base
+      dockerfile: docker/storage/base/Dockerfile
       target: production

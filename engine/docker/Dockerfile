@@ -34,8 +34,8 @@ RUN apk add --no-cache --virtual .build_deps \
 
 RUN apk upgrade openssh-client
 RUN pip3 install --upgrade pip
-COPY engine/docker/requirements.pip3 /requirements.pip3
-RUN pip3 install --no-cache-dir -r /requirements.pip3
+COPY engine/docker/requirements.txt /requirements.txt
+RUN pip3 install --no-cache-dir -r /requirements.txt
 RUN pip3 install tabulate pid
 RUN apk del .build_deps
 

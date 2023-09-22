@@ -1,7 +1,7 @@
 FROM fedora:38 as production
 MAINTAINER isard <info@isard.com>
 
-COPY docker/storage/requirements-base.pip3 /requirements-base.pip3
+COPY docker/storage/base/requirements.txt /requirements.txt
 
 # NOTE: virt-install installs python3-charset-normalizer that has conflict with
 #       cerberus, so installing virt-install after cerberus from pip requirements
@@ -15,7 +15,7 @@ RUN dnf update -y \
     && python3 setup.py install \
     && cd / && rm -r /libqcow \
     && pip3 install --upgrade pip \
-    && pip3 install --no-cache-dir -r requirements-base.pip3 \
+    && pip3 install --no-cache-dir -r requirements.txt \
     && dnf install -y virt-install \
     && dnf remove -y git autoconf automake pkg-config gettext-devel libtool python3-devel gcc \
     && dnf clean all \
