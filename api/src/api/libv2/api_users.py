@@ -595,43 +595,13 @@ class ApiUsers:
         isard_user_storage_add_user(user_id)
         return user_id
 
-    def Update(
-        self,
-        user_id,
-        name=None,
-        email=None,
-        photo=None,
-        password=None,
-        role=None,
-        quota=None,
-    ):
-        self.Get(user_id)
-        update_values = {}
-        if name:
-            update_values["name"] = name
-        if email:
-            update_values["email"] = email
-        if photo:
-            update_values["photo"] = photo
-        if role:
-            update_values["role"] = role
-        if quota is not None:
-            update_values["quota"] = quota
-
-        if password:
+    def Update(self, user_ids, data):
+        if data.get("password"):
             p = Password()
-            update_values["password"] = p.encrypt(password)
-        if update_values:
-            with app.app_context():
-                if not _check(
-                    r.table("users").get(user_id).update(update_values).run(db.conn),
-                    "replaced",
-                ):
-                    raise Error(
-                        "internal_server",
-                        "Unable to update in database user_id " + user_id,
-                        traceback.format_exc(),
-                    )
+            data["password"] = p.encrypt(data["password"])
+
+        with app.app_context():
+            r.table("users").get_all(r.args(user_ids)).update(data).run(db.conn)
 
     def Templates(self, payload):
         try:

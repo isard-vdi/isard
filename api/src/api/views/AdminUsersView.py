@@ -140,8 +140,9 @@ def api_v3_admin_categories_nav(payload, nav):
 
 # Update user
 @app.route("/api/v3/admin/user/<user_id>", methods=["PUT"])
+@app.route("/api/v3/admin/users/bulk", methods=["PUT"])
 @has_token
-def api_v3_admin_user_update(payload, user_id):
+def api_v3_admin_user_update(payload, user_id=None):
     try:
         data = request.get_json()
     except:
@@ -151,41 +152,45 @@ def api_v3_admin_user_update(payload, user_id):
             traceback.format_exc(),
         )
 
-    user = users.Get(user_id)
+    if user_id:
+        data["ids"] = [user_id]
 
-    ownsUserId(payload, user_id)
-    ownsCategoryId(payload, user["category"])
+    for user_id in data["ids"]:
+        if user_id == payload["user_id"] and data.get("active") is not None:
+            raise Error("forbidden", "Can not deactivate your own account")
 
-    if data.get("bulk"):
-        match = CategoryNameGroupNameMatch(data["category"], data["group"])
-        data["category"] = users.CategoryGetByName(match["category"])["id"]
-        data["group"] = users.GroupGetByNameCategory(match["group"], data["category"])[
-            "id"
-        ]
+        user = users.Get(user_id)
+        if (
+            user["username"] == "admin"
+            and users.GroupGet(user["group"])["name"] == "Default"
+            and users.CategoryGet(user["category"])["name"] == "Default"
+            and data.get("active") is not None
+        ):
+            raise Error("forbidden", "Can not deactivate default admin")
 
-    if data.get("secondary_groups"):
-        if len(data["secondary_groups"]) > 0:
-            users.check_secondary_groups_category(
-                data["category"], data["secondary_groups"]
-            )
+        ownsUserId(payload, user_id)
+        ownsCategoryId(payload, user["category"])
 
-    itemExists("categories", user["category"])
-    itemExists("groups", user["group"])
+        if data.get("secondary_groups"):
+            if len(data["secondary_groups"]) > 0:
+                users.check_secondary_groups_category(
+                    user["category"], data["secondary_groups"]
+                )
 
-    data["id"] = user_id
-
-    if "password" in data:
-        data["password"] = Password().encrypt(data["password"])
-
-    if "active" in data:
-        data["active"] = not data["active"]
+        ## bulk update by creation csv
+        if data.get("bulk"):
+            match = CategoryNameGroupNameMatch(data["category"], data["group"])
+            data["category"] = users.CategoryGetByName(match["category"])["id"]
+            data["group"] = users.GroupGetByNameCategory(
+                match["group"], data["category"]
+            )["id"]
 
     if "quota" in data:
         data = _validate_item("user_update_quota", data)
     else:
         data = _validate_item("user_update", data)
 
-    admin_table_update("users", data, payload)
+    users.Update(data["ids"], data)
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
