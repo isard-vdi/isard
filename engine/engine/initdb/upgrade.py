@@ -17,7 +17,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 104
+release_version = 105
+# release 105: Remove units from str_created in usage limits
 # release 104: Remove existing user_storages and it's entries in users
 # release 103: Add logs_desktops tables indexes
 # release 102: Fix domains with empty interfaces field that got a dict instead of list
@@ -138,6 +139,7 @@ tables = [
     "logs_users",
     "logs_desktops",
     "user_storage",
+    "usage_parameter",
     "secrets",
 ]
 
@@ -3384,6 +3386,20 @@ class Upgrade(object):
                 print(e)
             try:
                 r.table(table).get("isardvdi-hypervisors").delete().run(self.conn)
+            except Exception as e:
+                print(e)
+        return True
+
+    """
+    USAGE PARAMETER TABLE UPGRADES
+    """
+
+    def usage_parameter(self, version):
+        table = "usage_parameter"
+        log.info("UPGRADING " + table + " TABLE TO VERSION " + str(version))
+        if version == 105:
+            try:
+                r.table(table).get("str_created").update({"units": ""}).run(self.conn)
             except Exception as e:
                 print(e)
         return True
