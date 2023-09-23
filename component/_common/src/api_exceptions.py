@@ -104,10 +104,15 @@ ex_codes = [ex[x]["status_code"] for x in ex]
 
 
 class RequestObj:
-    def __init__(self, method="", url="", headers={}):
+    # Used when requests are being done outside flask context
+    # For example in whithin a thread from the same app, not from client
+    def __init__(self, method="", url="", data=None, headers=None):
         self.method = method
         self.url = url
-        self.headers = headers
+        if data:
+            self.body = data
+        if headers:
+            self.headers = headers
 
 
 class Error(Exception):
@@ -161,7 +166,9 @@ class Error(Exception):
                 self.request.method + " " + self.request.url,
                 "\r\n".join(
                     "{}: {}".format(k, v) for k, v in self.request.headers.items()
-                ),
+                )
+                if hasattr(self.request, "headers")
+                else "",
                 self.request.body if hasattr(self.request, "body") else "",
                 "----------- REQUEST STOP  -----------",
             )
