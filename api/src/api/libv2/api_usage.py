@@ -192,13 +192,15 @@ def get_start_end_consumption(
     end_date = datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=pytz.utc)
     if items_ids is None:
         with app.app_context():
-            items = (
-                r.table("usage_consumption")
-                .get_all(item_consumer, index="item_consumer")
-                .pluck("item_id", "item_name", "item_consumer_category_id")
+            items = r.table("usage_consumption").get_all(
+                item_consumer, index="item_consumer"
             )
             if category_id:
-                items = items.filter({"item_consumer_category_id": category_id})
+                items = items.pluck(
+                    "item_id", "item_name", "item_consumer_category_id"
+                ).filter({"item_consumer_category_id": category_id})
+            else:
+                items = items.pluck("item_id", "item_name")
             items = list(items.distinct().run(db.conn))
     else:
         with app.app_context():
@@ -347,13 +349,13 @@ def get_item_date_consumption(
 def get_usage_distinct_items(item_consumer, start_date, end_date, item_category=None):
     start_date = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=pytz.utc)
     end_date = datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=pytz.utc)
-    query = (
-        r.table("usage_consumption")
-        .get_all(item_consumer, index="item_consumer")
-        .pluck("item_id", "item_name", "item_consumer_category_id")
-    )
+    query = r.table("usage_consumption").get_all(item_consumer, index="item_consumer")
     if item_category:
-        query = query.filter({"item_consumer_category_id": item_category})
+        query = query.pluck("item_id", "item_name", "item_consumer_category_id").filter(
+            {"item_consumer_category_id": item_category}
+        )
+    else:
+        query = query.pluck("item_id", "item_name")
     with app.app_context():
         data = list(query.distinct().run(db.conn))
     return data
