@@ -22,10 +22,19 @@ import json
 import traceback
 import xml.etree.ElementTree as ET
 
+import gevent
 import requests
+from rethinkdb import RethinkDB
 
-from ..._common.api_exceptions import Error
+from ..._common.api_exceptions import Error, RequestObj
 from ...libv2.log import *
+
+r = RethinkDB()
+
+from ..flask_rethink import RDB
+
+db = RDB(app)
+db.init_app(app)
 
 
 def parse_dav_propstat(xml_data):
@@ -38,6 +47,162 @@ def parse_dav_propstat(xml_data):
         value = prop_elem.text.strip() if prop_elem.text else ""
         prop_dict[item] = value
     return prop_dict
+
+
+def _request(
+    method,
+    url,
+    data={},
+    headers={"OCS-APIRequest": "true"},
+    auth=None,
+    verify_cert=True,
+):
+    try:
+        resp = requests.request(
+            method,
+            url,
+            data=data,
+            auth=auth,
+            verify=verify_cert,
+            headers=headers,
+        )
+    ## At least the ProviderSslError is not being catched or not raised correctly
+    except requests.exceptions.HTTPError as errh:
+        raise Error("gateway_timeout", "HTTP Error", traceback.format_exc())
+    except requests.exceptions.Timeout as errt:
+        raise Error("gateway_timeout", "HTTP Timeout", traceback.format_exc())
+    except requests.exceptions.SSLError as err:
+        raise Error("bad_request", "HTTP SSL Error", traceback.format_exc())
+    except requests.exceptions.ConnectionError as errc:
+        raise Error(
+            "gateway_timeout",
+            "HTTP Provider connection error",
+            traceback.format_exc(),
+        )
+    except requests.exceptions.RequestException:
+        raise Error(
+            "internal_server",
+            "HTTP Provider connection error",
+            traceback.format_exc(),
+        )
+    if resp.status_code == 401:
+        raise Error(
+            "bad_request",
+            "HTTP Provider unauthorized. Check your credentials or bruteforce block by provider.",
+        )
+    if resp.status_code == 404:
+        raise Error(
+            "not_found",
+            "HTTP Provider url " + url + " not found.",
+        )
+    if resp.status_code == 499:
+        raise Error(
+            "not_found",
+            "HTTP Provider unexpected closed connection.",
+        )
+    if method == "MKCOL":
+        # This method returns 201 if created, 405 if already exists and other codes
+        # Should do tests
+        if resp.status_code == 405:
+            raise Error(
+                "conflict",
+                "Folder already exists",
+                traceback.format_exc(),
+            )
+        if resp.status_code != 201:
+            raise Error(
+                "internal_server",
+                "HTTP Provider MKCOL connection error with status code: "
+                + str(resp.status_code),
+                traceback.format_exc(),
+            )
+        return resp.text
+    if method == "PROPFIND":
+        # This method returns 207 if exists, 405 if already exists and other codes
+        # Should do tests
+        if resp.status_code == 405:
+            raise Error(
+                "conflict",
+                "Folder already exists",
+                traceback.format_exc(),
+            )
+        if resp.status_code != 207:
+            raise Error(
+                "internal_server",
+                "HTTP Provider PROPFIND connection error with status code: "
+                + str(resp.status_code),
+                traceback.format_exc(),
+            )
+        return resp.text
+    if resp.status_code not in [302, 304, 200]:
+        raise Error(
+            "internal_server",
+            "HTTP Provider connection error with status code: " + str(resp.status_code),
+            traceback.format_exc(),
+        )
+    return resp.text
+
+
+### Login auth v2
+login_thread = None
+
+
+def start_login_auth(provider_id):
+    global login_thread
+    if login_thread:
+        login_thread.kill()
+    with app.app_context():
+        provider = r.table("user_storage").get(provider_id).run(db.conn)
+    login_url = "https://" + provider["url"] + provider["urlprefix"]
+    headers = {
+        "ACCEPT_LANGUAGE": "en-US,en;q=0.5",
+        "USER_AGENT": "Mozilla/5.0 (X11; Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0",
+    }
+    data = json.loads(
+        _request(
+            "POST",
+            login_url + "/index.php/login/v2",
+            headers=headers,
+            verify_cert=provider["verify_cert"],
+        )
+    )
+    if data.get("poll", {}).get("token"):
+        # Launch thread to see if user has logged in and wait for it
+        # Nextcloud allows for 20 minutes, we are not that patient
+        # We will wait 5 minutes. Thread will be started in 5 seconds...
+        # https://docs.nextcloud.com/server/latest/developer_manual/client_apis/LoginFlow/index.html#login-flow-v2
+        login_thread = gevent.spawn_later(
+            5, get_login_auth_callback, data["poll"]["token"], login_url, provider_id
+        )
+        # gevent.joinall([login_thread], timeout=5 * 60, raise_error=False)
+    # Should be opened in a new window
+    return data.get("login")
+
+
+def get_login_auth_callback(token, login_url, provider_id):
+    # If we got the credentials, we can finish the thread after
+    # updating login credentials into database
+    # How will notify the user that registration was completed?
+    # socket.emit to the client and form close and table reload with connection status
+    while True:
+        time.sleep(1)
+        result = json.loads(
+            _request(
+                "POST",
+                login_url + "/login/v2/poll",
+                data={"token": token},
+                headers={"OCS-APIRequest": "true"},
+            )
+        )
+        if "loginName" in result and "appPassword" in result:
+            with app.app_context():
+                r.table("user_storage").get(provider_id).update(
+                    {
+                        "user": result["loginName"],
+                        "password": result["appPassword"],
+                    }
+                ).run(db.conn)
+            break
 
 
 class NextcloudApi:
@@ -61,22 +226,27 @@ class NextcloudApi:
     def set_webdav_auth(self, user, password):
         self.webdav_auth = (user, password)
 
-    def _request_obj(
-        self, method, url, data={}, headers={"OCS-APIRequest": "true"}, auth=None
-    ):
-        class RequestObj:
-            def __init__(self, method, url, data, headers, auth):
-                self.method = method
-                self.url = url
-                self.body = data
-                self.headers = headers
-                self.auth = auth
-
-        return RequestObj(method, url, data, headers, auth)
-
     def _request(
-        self, method, url, data={}, headers={"OCS-APIRequest": "true"}, auth=None
+        self,
+        method,
+        url,
+        data={},
+        headers={"OCS-APIRequest": "true"},
+        auth=None,
+        timeout=None,
     ):
+        app.logger.debug(
+            "NextcloudApi request: "
+            + str(method)
+            + " "
+            + str(url)
+            + " "
+            + str(data)
+            + " "
+            + str(headers)
+            + " "
+            + str(auth)
+        )
         if not self.auth_protocol:
             raise Error("bad_request", "No auth protocol set")
         if not auth:
@@ -90,6 +260,7 @@ class NextcloudApi:
                     auth=auth,
                     verify=self.verify_cert,
                     headers=headers,
+                    timeout=timeout,
                 )
             ## At least the ProviderSslError is not being catched or not raised correctly
             except requests.exceptions.HTTPError as errh:
@@ -168,7 +339,7 @@ class NextcloudApi:
                 )
             return resp.text
 
-    def check_connection(self):
+    def check_connection(self, timeout=2):
         url = self.apiurl + "users/" + self.user + "?format=json"
         self._request("GET", url)
         return True
@@ -183,7 +354,7 @@ class NextcloudApi:
         raise Error(
             "not_found",
             "Provider user " + user_id + " not found",
-            custom_request=self._request_obj("GET", url),
+            custom_request=RequestObj("GET", url, headers={"OCS-APIRequest": "true"}),
         )
 
     def get_users(self):
@@ -200,7 +371,7 @@ class NextcloudApi:
             "not_found",
             "Get provider users list error: " + str(result),
             traceback.format_exc(),
-            custom_request=self._request_obj("GET", url),
+            custom_request=RequestObj("GET", url, headers={"OCS-APIRequest": "true"}),
         )
 
     def get_user_quota(self, user_id):
@@ -234,7 +405,7 @@ class NextcloudApi:
                 .get("meta", {})
                 .get("message", "NO ERROR MESSAGE PROVIDED")
             ),
-            custom_request=self._request_obj("GET", url),
+            custom_request=RequestObj("GET", url, headers={"OCS-APIRequest": "true"}),
         )
 
     def add_user(
@@ -263,8 +434,11 @@ class NextcloudApi:
                 +result.get("ocs")
                 .get("meta")
                 .get("message", "NO ERROR MESSAGE PROVIDED"),
-                custom_request=self._request_obj(
-                    "POST", url, data=data, headers=headers
+                custom_request=RequestObj(
+                    "POST",
+                    url,
+                    data=data,
+                    headers={"OCS-APIRequest": "true"},
                 ),
             )
         if result["ocs"]["meta"]["statuscode"] == 102:
@@ -276,8 +450,8 @@ class NextcloudApi:
                 + result.get("ocs")
                 .get("meta")
                 .get("message", "NO ERROR MESSAGE PROVIDED"),
-                custom_request=self._request_obj(
-                    "POST", url, data=data, headers=headers
+                custom_request=RequestObj(
+                    "POST", url, data=data, headers={"OCS-APIRequest": "true"}
                 ),
             )
         if result["ocs"]["meta"]["statuscode"] == 104:
@@ -287,8 +461,8 @@ class NextcloudApi:
                 + result.get("ocs")
                 .get("meta")
                 .get("message", "NO ERROR MESSAGE PROVIDED"),
-                custom_request=self._request_obj(
-                    "POST", url, data=data, headers=headers
+                custom_request=RequestObj(
+                    "POST", url, data=data, headers={"OCS-APIRequest": "true"}
                 ),
             )
         if result["ocs"]["meta"]["statuscode"] == 107:
@@ -298,15 +472,17 @@ class NextcloudApi:
                 + result.get("ocs")
                 .get("meta")
                 .get("message", "NO ERROR MESSAGE PROVIDED"),
-                custom_request=self._request_obj(
-                    "POST", url, data=data, headers=headers
+                custom_request=RequestObj(
+                    "POST", url, data=data, headers={"OCS-APIRequest": "true"}
                 ),
             )
         raise Error(
             "internal_server",
             "Nextcloud provider user add error: " + str(result),
             traceback.format_exc(),
-            custom_request=self._request_obj("POST", url, data=data, headers=headers),
+            custom_request=RequestObj(
+                "POST", url, data=data, headers={"OCS-APIRequest": "true"}
+            ),
         )
 
     def remove_user(self, user_id):
@@ -326,13 +502,17 @@ class NextcloudApi:
                 + result.get("ocs")
                 .get("meta")
                 .get("message", "NO ERROR MESSAGE PROVIDED"),
-                custom_request=self._request_obj("DELETE", url),
+                custom_request=RequestObj(
+                    "DELETE", url, headers={"OCS-APIRequest": "true"}
+                ),
             )
         raise Error(
             "internal_server",
             "HTTP Provider remove user internal error: ",
             traceback.format_exc(),
-            custom_request=self._request_obj("DELETE", url),
+            custom_request=RequestObj(
+                "DELETE", url, headers={"OCS-APIRequest": "true"}
+            ),
         )
 
     def update_user(
@@ -398,9 +578,7 @@ class NextcloudApi:
                         .get("meta", {})
                         .get("message", "NO ERROR MESSAGE PROVIDED")
                     ),
-                    custom_request=self._request_obj(
-                        "PUT", url, data=data, headers=headers
-                    ),
+                    custom_request=RequestObj("PUT", url, data=data, headers=headers),
                 )
             if result["ocs"]["meta"]["statuscode"] == 102:
                 raise Error(
@@ -413,9 +591,7 @@ class NextcloudApi:
                         .get("meta", {})
                         .get("message", "NO ERROR MESSAGE PROVIDED")
                     ),
-                    custom_request=self._request_obj(
-                        "PUT", url, data=data, headers=headers
-                    ),
+                    custom_request=RequestObj("PUT", url, data=data, headers=headers),
                 )
             raise Error(
                 "internal_server",
@@ -423,9 +599,7 @@ class NextcloudApi:
                 + user_id
                 + ". Provider reported error: "
                 + str(result),
-                custom_request=self._request_obj(
-                    "PUT", url, data=data, headers=headers
-                ),
+                custom_request=RequestObj("PUT", url, data=data, headers=headers),
             )
         return True
 
@@ -448,9 +622,7 @@ class NextcloudApi:
                 + user_id
                 + " not found, so can't be scalated to subadmin: "
                 + result.get("ocs").get("meta").get("message"),
-                custom_request=self._request_obj(
-                    "POST", url, data=data, headers=headers
-                ),
+                custom_request=RequestObj("POST", url, data=data, headers=headers),
             )
         if result["ocs"]["meta"]["statuscode"] == 102:
             raise Error(
@@ -461,9 +633,7 @@ class NextcloudApi:
                 + user_id
                 + " can't be added as subadmin: "
                 + result.get("ocs").get("meta").get("message"),
-                custom_request=self._request_obj(
-                    "POST", url, data=data, headers=headers
-                ),
+                custom_request=RequestObj("POST", url, data=data, headers=headers),
             )
         raise Error(
             "internal_server",
@@ -472,7 +642,7 @@ class NextcloudApi:
             + " scalate to subadmin error: "
             + str(result),
             traceback.format_exc(),
-            custom_request=self._request_obj("POST", url, data=data, headers=headers),
+            custom_request=RequestObj("POST", url, data=data, headers=headers),
         )
 
     def delete_subadmin(self, user_id, group_id):
@@ -494,9 +664,7 @@ class NextcloudApi:
                 + user_id
                 + " not found, so can't be de-scalated from subadmin: "
                 + result.get("ocs").get("meta").get("message"),
-                custom_request=self._request_obj(
-                    "DELETE", url, data=data, headers=headers
-                ),
+                custom_request=RequestObj("DELETE", url, data=data, headers=headers),
             )
         if result["ocs"]["meta"]["statuscode"] == 102:
             raise Error(
@@ -507,9 +675,7 @@ class NextcloudApi:
                 + user_id
                 + " can't be removed as subadmin of this group: "
                 + result.get("ocs").get("meta").get("message"),
-                custom_request=self._request_obj(
-                    "DELETE", url, data=data, headers=headers
-                ),
+                custom_request=RequestObj("DELETE", url, data=data, headers=headers),
             )
         raise Error(
             "internal_server",
@@ -518,7 +684,7 @@ class NextcloudApi:
             + " de scalate from subadmin error: "
             + str(result),
             traceback.format_exc(),
-            custom_request=self._request_obj("DELETE", url, data=data, headers=headers),
+            custom_request=RequestObj("DELETE", url, data=data, headers=headers),
         )
 
     def enable_user(self, user_id):
@@ -542,14 +708,14 @@ class NextcloudApi:
                 + result.get("ocs")
                 .get("meta")
                 .get("message", "NO ERROR MESSAGE PROVIDED"),
-                custom_request=self._request_obj("PUT", url, headers=headers),
+                custom_request=RequestObj("PUT", url, headers=headers),
             )
 
         raise Error(
             "internal_server",
             "HTTP Provider disable user internal error: " + str(result),
             traceback.format_exc(),
-            custom_request=self._request_obj("PUT", url, headers=headers),
+            custom_request=RequestObj("PUT", url, headers=headers),
         )
 
     def disable_user(self, user_id):
@@ -573,14 +739,14 @@ class NextcloudApi:
                 + result.get("ocs")
                 .get("meta")
                 .get("message", "NO ERROR MESSAGE PROVIDED"),
-                custom_request=self._request_obj("PUT", url, headers=headers),
+                custom_request=RequestObj("PUT", url, headers=headers),
             )
 
         raise Error(
             "internal_server",
             "HTTP Provider disable user internal error: " + str(result),
             traceback.format_exc(),
-            custom_request=self._request_obj("PUT", url, headers=headers),
+            custom_request=RequestObj("PUT", url, headers=headers),
         )
 
     def exists_user_folder(self, user_id, password, folder="IsardVDI"):
@@ -592,7 +758,7 @@ class NextcloudApi:
             "OCS-APIRequest": "true",
         }
         try:
-            result = self._request("PROPFIND", url, auth=auth, headers=headers)
+            self._request("PROPFIND", url, auth=auth, headers=headers)
             return True
             # {
             #     'getlastmodified': 'Tue, 06 Jun 2023 16:29:47 GMT',
@@ -609,9 +775,7 @@ class NextcloudApi:
                 "internal_server",
                 "Nextcloud exists_user_folder error: ",
                 traceback.format_exc(),
-                custom_request=self._request_obj(
-                    "PROPFIND", url, auth=auth, headers=headers
-                ),
+                custom_request=RequestObj("PROPFIND", url, auth=auth, headers=headers),
             )
 
     def add_user_folder(
@@ -634,9 +798,7 @@ class NextcloudApi:
                 raise Error(
                     "conflict",
                     "User " + user_id + " folder " + folder + " already exists",
-                    custom_request=self._request_obj(
-                        "MKCOL", url, auth=auth, headers=headers
-                    ),
+                    custom_request=RequestObj("MKCOL", url, auth=auth, headers=headers),
                 )
 
     def get_user_share_folder_data(self, user_id, password, folder="IsardVDI"):
@@ -699,7 +861,7 @@ class NextcloudApi:
                     + " folder "
                     + folder
                     + " does not exist, so it cannot be shared",
-                    custom_request=self._request_obj(
+                    custom_request=RequestObj(
                         "POST", url, data=data, auth=auth, headers=headers
                     ),
                 )
@@ -708,7 +870,7 @@ class NextcloudApi:
                 "internal_server",
                 "Nextcloud exists_user_shared_folder error: ",
                 traceback.format_exc(),
-                custom_request=self._request_obj(
+                custom_request=RequestObj(
                     "POST", url, data=data, auth=auth, headers=headers
                 ),
             )
@@ -759,7 +921,7 @@ class NextcloudApi:
                 raise Error(
                     "conflict",
                     "Group " + group_id + " already exists",
-                    custom_request=self._request_obj(
+                    custom_request=RequestObj(
                         "POST", url, data=data, auth=self.auth, headers=headers
                     ),
                 )
@@ -769,7 +931,7 @@ class NextcloudApi:
             "internal_server",
             "HTTP Provider add group internal error",
             traceback.format_exc(),
-            custom_request=self._request_obj(
+            custom_request=RequestObj(
                 "POST", url, data=data, auth=self.auth, headers=headers
             ),
         )
@@ -789,7 +951,7 @@ class NextcloudApi:
             raise Error(
                 "not_found",
                 "Group " + group_id + " does not exist, so it cannot be removed",
-                custom_request=self._request_obj(
+                custom_request=RequestObj(
                     "DELETE", url, auth=self.auth, headers=headers
                 ),
             )
@@ -817,9 +979,7 @@ class NextcloudApi:
                     .get("meta", {})
                     .get("message", "NO ERROR MESSAGE PROVIDED")
                 ),
-                custom_request=self._request_obj(
-                    "PUT", url, data=data, headers=headers
-                ),
+                custom_request=RequestObj("PUT", url, data=data, headers=headers),
             )
         if result["ocs"]["meta"]["statuscode"] == 102:
             raise Error(
@@ -832,9 +992,7 @@ class NextcloudApi:
                     .get("meta", {})
                     .get("message", "NO ERROR MESSAGE PROVIDED")
                 ),
-                custom_request=self._request_obj(
-                    "PUT", url, data=data, headers=headers
-                ),
+                custom_request=RequestObj("PUT", url, data=data, headers=headers),
             )
         raise Error(
             "internal_server",
@@ -842,5 +1000,5 @@ class NextcloudApi:
             + group_id
             + ". Provider reported error: "
             + str(result),
-            custom_request=self._request_obj("PUT", url, data=data, headers=headers),
+            custom_request=RequestObj("PUT", url, data=data, headers=headers),
         )

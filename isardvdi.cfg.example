@@ -1,4 +1,4 @@
-# Isard main config v2.10.3
+# Isard main config v2.10.4
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -69,7 +69,10 @@ DIRECTVIEWER_MODE=browser
 ## Will start a docker Nextcloud instance integrated into IsardVDI Personal
 ## units. Other Nextcloud providers can be set at admin resources page.
 #NEXTCLOUD_INSTANCE=false
-#NEXTCLOUD_IMG=nextcloud:27.0.0-fpm-alpine
+#NEXTCLOUD_AUTO_REGISTER=true
+#NEXTCLOUD_ADMIN_USER=isardvdi
+#NEXTCLOUD_ADMIN_PASSWORD=<defaults to WEBAPP_ADMIN_PWD>
+#NEXTCLOUD_IMG=nextcloud:27.1.1-fpm-alpine
 
 # ------ Secrets -------------------------------------------------------------
 ## Generate your own SECRETS!

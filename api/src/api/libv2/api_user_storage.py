@@ -33,7 +33,7 @@ from api import app
 
 from .. import socketio
 from .._common.api_exceptions import Error
-from .providers.Nextcloud import NextcloudApi
+from .providers.Nextcloud import NextcloudApi, start_login_auth
 
 r = RethinkDB()
 
@@ -55,7 +55,7 @@ def _clear_caches():
 ## GET
 
 
-@cached(cache=TTLCache(maxsize=10, ttl=60))
+@cached(cache=TTLCache(maxsize=10, ttl=10))
 def isard_user_storage_get_users():
     with app.app_context():
         provider_users = list(
@@ -89,8 +89,7 @@ def isard_user_storage_add_user(user_id):
         )
     except:
         app.logger.error(
-            "USER_STORAGE - Error adding user %s to USER_STORAGE - %s"
-            % (user_id, traceback.format_exc())
+            f"USER_STORAGE - Error adding user {user_id} to user_storage provider"
         )
 
 
@@ -102,8 +101,7 @@ def isard_user_storage_add_group(group_id):
         )
     except:
         app.logger.error(
-            "USER_STORAGE - Error adding group %s to USER_STORAGE - %s"
-            % (group_id, traceback.format_exc())
+            f"USER_STORAGE - Error adding group {group_id} to user_storage provider"
         )
 
 
@@ -115,8 +113,7 @@ def isard_user_storage_add_category(category_id):
         )
     except:
         app.logger.error(
-            "USER_STORAGE - Error adding category %s to USER_STORAGE - %s"
-            % (category_id, traceback.format_exc())
+            f"USER_STORAGE - Error adding category {category_id} to user_storage provider"
         )
 
 
@@ -126,8 +123,7 @@ def isard_user_storage_remove_user(user_id):
         user_storage_remove_user_th(user_id, _get_isard_user_provider_id(user_id))
     except:
         app.logger.error(
-            "USER_STORAGE - Error removing user %s from USER_STORAGE - %s"
-            % (user_id, traceback.format_exc())
+            f"USER_STORAGE - Error removing user {user_id} in user_storage provider"
         )
 
 
@@ -140,8 +136,7 @@ def isard_user_storage_remove_group(group_id, cascade=True):
         )
     except:
         app.logger.error(
-            "USER_STORAGE - Error removing group %s from USER_STORAGE - %s"
-            % (group_id, traceback.format_exc())
+            f"USER_STORAGE - Error removing group {group_id} in user_storage provider"
         )
 
 
@@ -154,8 +149,7 @@ def isard_user_storage_remove_category(category_id, cascade=True):
         )
     except:
         app.logger.error(
-            "USER_STORAGE - Error removing category %s from USER_STORAGE - %s"
-            % (category_id, traceback.format_exc())
+            f"USER_STORAGE - Error removing category {category_id} in user_storage provider"
         )
 
 
@@ -174,8 +168,7 @@ def isard_user_storage_update_user(
         )
     except:
         app.logger.error(
-            "USER_STORAGE - Error updating user %s from USER_STORAGE - %s"
-            % (user_id, traceback.format_exc())
+            f"USER_STORAGE - Error updating user {user_id} in user_storage provider"
         )
 
 
@@ -188,8 +181,7 @@ def isard_user_storage_update_group(group_id, group_name):
         )
     except:
         app.logger.error(
-            "USER_STORAGE - Error updating group %s from USER_STORAGE - %s"
-            % (group_id, traceback.format_exc())
+            f"USER_STORAGE - Error updating group {group_id} in user_storage provider"
         )
 
 
@@ -202,8 +194,7 @@ def isard_user_storage_update_category(category_id, category_name):
         )
     except:
         app.logger.error(
-            "USER_STORAGE - Error updating category %s from USER_STORAGE - %s"
-            % (category_id, traceback.format_exc())
+            f"USER_STORAGE - Error updating category {category_id} in user_storage provider"
         )
 
 
@@ -212,8 +203,7 @@ def isard_user_storage_update_user_quota(user_id):
         user_storage_update_user_quota(user_id)
     except:
         app.logger.error(
-            "USER_STORAGE - Error updating user %s quota from USER_STORAGE - %s"
-            % (user_id, traceback.format_exc())
+            f"USER_STORAGE - Error updating user {user_id} quota in user_storage provider"
         )
 
 
@@ -239,10 +229,10 @@ def isard_user_storage_get_provider(provider_id):
             return None
 
 
-@cached(TTLCache(maxsize=10, ttl=60))
-def isard_user_storage_get_providers():
+@cached(TTLCache(maxsize=1, ttl=3))
+def isard_user_storage_get_providers(check_connection=False):
     with app.app_context():
-        return list(
+        providers = list(
             r.table("user_storage")
             .merge(
                 lambda user_storage: {
@@ -253,6 +243,28 @@ def isard_user_storage_get_providers():
             )
             .run(db.conn)
         )
+    new_providers = []
+    for provider in providers:
+        if not provider.get("password"):
+            provider["authorization"] = False
+        else:
+            provider["authorization"] = True
+            if check_connection:
+                try:
+                    isard_user_storage_provider_basic_auth_test(
+                        provider["provider"],
+                        "pepito",
+                        provider["urlprefix"],
+                        provider["user"],
+                        provider["password"],
+                        provider["verify_cert"],
+                    )
+                    provider["connection"] = True
+                except:
+                    provider["connection"] = False
+        provider.pop("password", None)
+        new_providers.append(provider)
+    return new_providers
 
 
 def isard_user_storage_provider_reset(provider_id):
@@ -315,36 +327,53 @@ def isard_user_storage_provider_basic_auth_test(
         return provider.check_connection()
 
 
-def isard_user_storage_provider_basic_auth_add_intra_docker():
-    if os.environ.get("NEXTCLOUD_INSTANCE", "") == "true":
+def isard_user_storage_provider_auto_register_auth(
+    domain, user, password, intra_docker, verify_cert
+):
+    provider_id = [
+        p["id"] for p in isard_user_storage_get_providers() if p["url"] == domain
+    ]
+    if provider_id:
         with app.app_context():
-            try:
-                r.table("user_storage").insert(
-                    {
-                        "id": "intra_docker",
-                        "provider": "nextcloud",
-                        "name": "Intra Docker",
-                        "description": "Connection to Nextcloud instance inside IsardVDI containers",
-                        "url": os.environ.get("DOMAIN", ""),
-                        "urlprefix": "/isard-nc",
-                        "access": "*",
-                        "quota": {
-                            "admin": 500,
-                            "advanced": 300,
-                            "manager": 500,
-                            "user": 100,
-                        },
-                        "user": "admin",
-                        "password": os.environ.get("WEBAPP_ADMIN_PWD", ""),
-                        "verify_cert": False,
-                        "auth_protocol": "basic",
-                        "intra_docker": True,
-                        "enabled": True,
+            r.table("user_storage").get(provider_id[0]).update(
+                {
+                    "user": user,
+                    "password": password,
+                    "intra_docker": intra_docker,
+                    "verify_cert": verify_cert,
+                }
+            ).run(db.conn)
+        return provider_id[0]
+    with app.app_context():
+        provider_id = (
+            r.table("user_storage")
+            .insert(
+                {
+                    "provider": "nextcloud",
+                    "name": domain,
+                    "description": "Connection to Nextcloud instance inside IsardVDI containers",
+                    "url": domain,
+                    "urlprefix": "/isard-nc",
+                    "access": "*",
+                    "quota": {
+                        "admin": 500,
+                        "advanced": 300,
+                        "manager": 500,
+                        "user": 100,
                     },
-                ).run(db.conn)
-            except:
-                pass
-        _clear_caches()
+                    "user": user,
+                    "password": password,
+                    "tls": True,  # Engine takes this into account. Will set davs:// or dav:// on QMP guest agent command.
+                    "verify_cert": verify_cert,  # Engine davs:// command and API ocs connections will take this into account.
+                    "auth_protocol": "basic",
+                    "intra_docker": intra_docker,  # API uses this to connect internally to http://isard-nc-nginx if set
+                    "enabled": True,
+                },
+                return_changes=True,
+            )
+            .run(db.conn)["changes"][0]["new_val"]["id"]
+        )
+    return provider_id
 
 
 def isard_user_storage_provider_basic_auth_add(
@@ -355,16 +384,8 @@ def isard_user_storage_provider_basic_auth_add(
     urlprefix,
     access,
     quota,
-    user,
-    password,
     verify_cert,
 ):
-    # add provider and get id
-    if os.environ.get("NEXTCLOUD_INSTANCE", "") == "true":
-        intra_docker = True
-        verify_cert = False
-    else:
-        intra_docker = False
     with app.app_context():
         provider_id = (
             r.table("user_storage")
@@ -377,11 +398,13 @@ def isard_user_storage_provider_basic_auth_add(
                     "urlprefix": urlprefix,
                     "access": access,
                     "quota": quota,
-                    "user": user,
-                    "password": password,
+                    "user": False,
+                    "password": False,
+                    "tls": True,
                     "verify_cert": verify_cert,
                     "auth_protocol": "basic",
-                    "intra_docker": intra_docker,
+                    "intra_docker": False,
+                    "connection": False,
                     "enabled": True,
                 },
                 return_changes=True,
@@ -390,6 +413,12 @@ def isard_user_storage_provider_basic_auth_add(
         )
     _clear_caches()
     return provider_id
+
+
+def isard_user_storage_provider_login_auth(
+    provider_id,
+):
+    return start_login_auth(provider_id)
 
 
 ####################
@@ -468,7 +497,7 @@ def _get_isard_users_array(provider_id=None):
             return r.table("users").pluck("id")["id"].coerce_to("array").run(db.conn)
 
 
-@cached(TTLCache(maxsize=10, ttl=60))
+@cached(TTLCache(maxsize=10, ttl=10))
 def _get_provider_users_array(provider_id):
     provider = _get_provider(provider_id)
     if not provider:
@@ -622,7 +651,7 @@ def _get_isard_categories_array(provider_id=None):
 # PROVIDERS MANAGEMENT #
 ########################
 
-cache_provider = TTLCache(maxsize=10, ttl=60)
+cache_provider = TTLCache(maxsize=10, ttl=5)
 
 
 @cached(cache_provider)
@@ -659,7 +688,7 @@ def _get_provider(provider_id, user_id=None):
     return None
 
 
-@cached(TTLCache(maxsize=10, ttl=60))
+@cached(TTLCache(maxsize=10, ttl=10))
 def _get_isard_category_provider_id(category_id):
     with app.app_context():
         providers_cfgs = list(
@@ -811,10 +840,7 @@ def process_user_storage_add_user_subadmin_batch(data_batch, provider_id):
             provider["conn"].add_subadmin(user_id=item_id[0], group_id=item_id[1])
         except:
             app.logger.error(
-                "USER_STORAGE - Error adding subadmin: %s to group: %s. Error: %s",
-                item_id[0],
-                item_id[1],
-                traceback.format_exc(),
+                f"USER_STORAGE - Error adding subadmin user {item_id[0]} in group {item_id[1]} in user_storage provider",
             )
             socketio.emit(
                 "personal_unit",
@@ -866,10 +892,7 @@ def process_user_storage_delete_subadmin_batch(data_batch, provider_id):
             provider["conn"].delete_subadmin(user_id=item_id[0], group_id=item_id[1])
         except:
             app.logger.error(
-                "USER_STORAGE - Error deleting subadmin: %s from group: %s. Error: %s",
-                item_id[0],
-                item_id[1],
-                traceback.format_exc(),
+                f"USER_STORAGE - Error deleting subadmin user {item_id[0]} in group {item_id[1]} in user_storage provider",
             )
             socketio.emit(
                 "personal_unit",
@@ -1123,7 +1146,7 @@ def user_storage_add_user(
     if not provider:
         # We will return as there are no providers defined in system
         app.logger.debug(
-            "USER_STORAGE - Add user. No user_storage provider defined in system."
+            "USER_STORAGE - Add user. No user_storage provider defined/available in system."
         )
         return
 
@@ -1210,9 +1233,7 @@ def user_storage_add_user(
         )
     except:
         app.logger.error(
-            "USER_STORAGE - Error adding user: %s. Error: %s",
-            user_id,
-            traceback.format_exc(),
+            f"USER_STORAGE - Error adding user {user_id} in user_storage provider",
         )
         socketio.emit(
             "personal_unit",
@@ -1270,14 +1291,11 @@ def user_storage_remove_user(user_id, provider_id=None):
     except Error as e:
         if e.status_code == 404:
             app.logger.error(
-                "USER_STORAGE - User storage to remove not found for user " + user_id
+                f"USER_STORAGE - User storage remove user {user_id} not found in user_storage provider"
             )
     except:
         app.logger.error(
-            "USER_STORAGE - User storage to remove exception. "
-            + user_id
-            + ". Error: "
-            + traceback.format_exc()
+            f"USER_STORAGE - User storage remove user {user_id} in user_storage provider internal error"
         )
         socketio.emit(
             "personal_unit",
@@ -1329,9 +1347,7 @@ def user_storage_update_user(
         )
     except:
         app.logger.error(
-            "USER_STORAGE - Error updating user: %s. Error: %s",
-            user_id,
-            traceback.format_exc(),
+            f"USER_STORAGE - Error updating user: {user_id} in user_storage provider",
         )
         socketio.emit(
             "personal_unit",
@@ -1722,9 +1738,7 @@ def user_storage_update_group(group_id, new_group_name, provider_id):
         )
     except:
         app.logger.error(
-            "USER_STORAGE - Error updating group: %s. Error: %s",
-            group_id,
-            traceback.format_exc(),
+            f"USER_STORAGE - Error updating group {group_id} in user_storage provider",
         )
         socketio.emit(
             "personal_unit",
@@ -1843,9 +1857,7 @@ def user_storage_add_category(category_id, provider_id=None):
         )
     except:
         app.logger.error(
-            "USER_STORAGE - Error adding category: %s. Error: %s",
-            category_id,
-            traceback.format_exc(),
+            f"USER_STORAGE - Error adding category {category_id} in user_storage provider",
         )
         socketio.emit(
             "personal_unit",

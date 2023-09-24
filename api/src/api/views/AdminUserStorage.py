@@ -29,10 +29,11 @@ from ..libv2.api_user_storage import (
     isard_user_storage_get_provider,
     isard_user_storage_get_providers,
     isard_user_storage_get_users,
+    isard_user_storage_provider_auto_register_auth,
     isard_user_storage_provider_basic_auth_add,
-    isard_user_storage_provider_basic_auth_add_intra_docker,
     isard_user_storage_provider_basic_auth_test,
     isard_user_storage_provider_delete,
+    isard_user_storage_provider_login_auth,
     isard_user_storage_provider_reset,
     isard_user_storage_reset_all,
     isard_user_storage_sync_groups,
@@ -41,8 +42,19 @@ from ..libv2.api_user_storage import (
 from ..libv2.validators import _validate_item
 from .decorators import checkDuplicate, is_admin
 
-# Auto create nextcloud instance intra docker if this is an all-in-one installation
-isard_user_storage_provider_basic_auth_add_intra_docker()
+
+@app.route("/api/v3/admin/user_storage/auto_register", methods=["POST"])
+@is_admin
+def admin_user_storage_auto_register(payload):
+    data = request.get_json(force=True)
+    result = isard_user_storage_provider_auto_register_auth(
+        data["domain"],
+        data["user"],
+        data["password"],
+        data["intra_docker"],
+        data["verify_cert"],
+    )
+    return json.dumps({"id": result})
 
 
 @app.route("/api/v3/admin/user_storage/conn_test", methods=["POST"])
@@ -61,10 +73,18 @@ def admin_user_storage_test(payload):
     return json.dumps({})
 
 
+@app.route("/api/v3/admin/user_storage/<provider_id>/login_auth", methods=["GET"])
+@is_admin
+def admin_user_storage_login_auth(payload, provider_id):
+    # TODO: Check cerberus schema
+    login_url = isard_user_storage_provider_login_auth(provider_id)
+    return json.dumps({"login_url": login_url})
+
+
 @app.route("/api/v3/admin/user_storage", methods=["GET"])
 @is_admin
 def admin_user_storage_list(payload):
-    return json.dumps(isard_user_storage_get_providers())
+    return json.dumps(isard_user_storage_get_providers(check_connection=True))
 
 
 @app.route("/api/v3/admin/user_storage/<provider_id>", methods=["GET"])
@@ -100,6 +120,7 @@ def admin_user_storage_add(payload, auth_protocol):
     data = request.get_json(force=True)
     data = _validate_item("user_storage", data)
     checkDuplicate("user_storage", data["name"])
+    checkDuplicate("user_storage", data["url"])
     if auth_protocol == "auth_basic":
         return json.dumps(
             {
@@ -111,8 +132,6 @@ def admin_user_storage_add(payload, auth_protocol):
                     data["urlprefix"],
                     data["access"],
                     data["quota"],
-                    data["user"],
-                    data["password"],
                     data["verify_cert"],
                 )
             }

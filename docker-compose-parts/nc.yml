@@ -18,11 +18,19 @@ services:
       - ${BUILD_ROOT_PATH}/docker/nextcloud/background.jpg:/ctheming/background.jpg:ro
       - /etc/localtime:/etc/localtime:ro
     environment:
-      - NEXTCLOUD_ADMIN_USER=admin
-      - NEXTCLOUD_ADMIN_PASSWORD=$WEBAPP_ADMIN_PWD
+      - NEXTCLOUD_INSTANCE=${NEXTCLOUD_INSTANCE:-false}
+      - NEXTCLOUD_AUTO_REGISTER=${NEXTCLOUD_AUTO_REGISTER:-false}
+      - API_ISARDVDI_SECRET=${API_ISARDVDI_SECRET}
+      - DOMAIN=${DOMAIN}
+      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
+      - API_DOMAIN=${API_DOMAIN}
+      - NEXTCLOUD_ADMIN_USER=${NEXTCLOUD_ADMIN_USER:-isardvdi}
+      - NEXTCLOUD_ADMIN_PASSWORD=${NEXTCLOUD_ADMIN_PASSWORD:-$WEBAPP_ADMIN_PWD}
+      - NC_PASS=${NEXTCLOUD_ADMIN_PASSWORD:-$WEBAPP_ADMIN_PWD}
+      - OC_PASS=${NEXTCLOUD_ADMIN_PASSWORD:-$WEBAPP_ADMIN_PWD}
       - POSTGRES_DB=isard_nc
-      - POSTGRES_USER=admin
-      - POSTGRES_PASSWORD=$WEBAPP_ADMIN_PWD
+      - POSTGRES_USER=${NEXTCLOUD_ADMIN_USER:-admin}
+      - POSTGRES_PASSWORD=${NEXTCLOUD_ADMIN_PASSWORD:-$WEBAPP_ADMIN_PWD}
       - POSTGRES_HOST=isard-postgres
       - REDIS_HOST=isard-nc-redis # Note, this is not configurable in cfg. The one in cfg is the isard redis.
       - OVERWRITEPROTOCOL=https
@@ -55,7 +63,7 @@ services:
 
   isard-nc-redis:
     container_name: isard-nc-redis
-    image: ${REDIS_IMG-redis:6.2.11-alpine3.17}
+    image: redis:alpine3.17
     logging:
       driver: "json-file"
       options:

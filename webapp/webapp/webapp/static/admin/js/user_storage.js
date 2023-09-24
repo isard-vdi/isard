@@ -19,20 +19,6 @@
 
 
 $(document).ready(function () {
-    $('.admin-status').show()
-    // PERSONAL UNITS
-
-    $('#btn-check-personal_unit').on('click', function () {
-        var form = $('#modalPersonalunitsForm');
-        data = form.serializeObject()
-        form.parsley().validate();
-        if (form.parsley().isValid()){
-            $(this).prop("disabled", true);
-            $("#spinner_check_conn").show();
-            check_personalunit(data)
-        }
-    });
-
     personalunits_table = $('#table-personalunits').DataTable({
         "ajax": {
             "url": "/api/v3/admin/user_storage",
@@ -50,14 +36,16 @@ $(document).ready(function () {
                 "className": 'details-control',
                 "orderable": false,
                 "data": null,
-                "defaultContent": '<button id="btn-details" class="btn btn-xs btn-info" type="button" data-placement="top"><i class="fa fa-plus"></i></button>'
+                "defaultContent": '' //'<button id="btn-details" class="btn btn-xs btn-info" type="button" data-placement="top"><i class="fa fa-plus"></i></button>'
             },
-            { "data": "enabled", "defaultContent": "X" },
+            { "data": "enabled" },
+            { "data": "provider" },
             { "data": "name" },
             { "data": "description" },
             { "data": "category_name" },
+            { "data": "authorization" },
+            { "data": "connection" },
             { "data": "verify_cert" },
-            { "data": "provider" },
             {
                 "className": 'actions-control',
                 "orderable": false,
@@ -71,13 +59,44 @@ $(document).ready(function () {
         "order": [[1, 'asc']],
         "columnDefs":[
             {
-                "targets": 4,
+                "targets": 1,
+                "render": function ( data, type, full, meta ) {
+                    if (full.enabled) {
+                        return '<i class="fa fa-circle" aria-hidden="true" style="color:green" title="' + full.enabled + '"></i>'
+                    } else {
+                        return '<i class="fa fa-circle" aria-hidden="true" style="color:darkgray"></i>'
+                    }
+                }
+            },
+            {
+                "targets": 6,
+                "render": function ( data, type, full, meta ) {
+                    if (full.authorization) {
+                        return '<i class="fa fa-circle" aria-hidden="true" style="color:green" title="Authorization keys found"></i>'
+                    } else {
+                        return '<i class="fa fa-circle" aria-hidden="true" style="color:darkgray"></i>  \
+                        <button id="btn-login_auth" class="btn btn-xs" type="button" data-placement="top"><i class="fa fa-user" style="color:orange" title="Authorize client"></i> Authorize</button>'
+                    }
+                }
+            },
+            {
+                "targets": 7,
+                "render": function ( data, type, full, meta ) {
+                    if (full.connection) {
+                        return '<i class="fa fa-circle" aria-hidden="true" style="color:green" title="Can reach and authorize clien"></i>'
+                    } else {
+                        return '<i class="fa fa-circle" aria-hidden="true" style="color:darkgray"></i>'
+                    }
+                }
+            },
+            {
+                "targets": 5,
                 "render": function ( data, type, full, meta ) {
                     return full.category_name == "*" ? "Everyone" : full.category_name;
                 }
             },
             {
-                "targets": 5,
+                "targets": 8,
                 "render": function ( data, type, full, meta ) {
                     if ('verify_cert' && full.verify_cert) {
                         return '<i class="fa fa-circle" aria-hidden="true" style="color:green" title="' + full.verify_cert + '"></i>'
@@ -85,7 +104,7 @@ $(document).ready(function () {
                         return '<i class="fa fa-circle" aria-hidden="true" style="color:darkgray"></i>'
                     }
                 }
-            }
+            },
         ]
     });
 
@@ -236,6 +255,47 @@ $(document).ready(function () {
                     });
                 }).on('pnotify.cancel', function() {});	
                 break;
+                case 'btn-login_auth':
+                    new PNotify({
+                        title: '<b>AUTHORIZE PROVIDER</b>',
+                        type: "warning",
+                        text: "<b>This will open your provider login page where you should input your admin credentials.</b>",
+                        hide: false,
+                        opacity: 0.9,
+                        confirm: {
+                            confirm: true
+                        },
+                        buttons: {
+                            closer: false,
+                            sticker: false
+                        },
+                        history: {
+                            history: false
+                        },
+                        addclass: 'pnotify-center-large',
+                        width: '550'
+                    }).get().on('pnotify.confirm', function() {
+                        $.ajax({
+                            type: "GET",
+                            url: "/api/v3/admin/user_storage/" + data["id"]+"/login_auth",
+                            success: function (data) {
+                                data = JSON.parse(data);
+                                window.open(data.login_url, '_blank');
+                            },
+                            error: function (xhr, ajaxOptions, thrownError) {
+                                new PNotify({
+                                    title: "ERROR contacting provider. Check data and try again.",
+                                    text: xhr.responseJSON.description,
+                                    hide: true,
+                                    delay: 3000,
+                                    icon: 'fa fa-warning',
+                                    opacity: 1,
+                                    type: 'error'
+                                });
+                            }
+                        });
+                    }).on('pnotify.cancel', function() {});	
+                    break;
         }
     });      
 
@@ -566,45 +626,4 @@ function renderPersonalUnitsDetails(data) {
     //   return oldHtml.replace(/d.id/g, data.id).replace(/d.name/g, data.name).replace(/d.description/g, data.description);
     // });
     return $newPanel;
-}
-
-function check_personalunit(data) {
-    if('verify_cert' in data){
-        verify_cert=true
-    }else{
-        verify_cert=false
-    }
-
-    $.ajax({
-        type: "POST",
-        url: "/api/v3/admin/user_storage/conn_test",
-        data: JSON.stringify({'provider':data.provider,'verify_cert':verify_cert,'url':data.url,'urlprefix':data.urlprefix,'user':data.user,'password':data.password}),
-        contentType: "application/json",
-        success: function () {
-            new PNotify({
-                title: "Personal units",
-                text: "Connection success.",
-                hide: true,
-                delay: 4000,
-                icon: 'fa fa-info',
-                opacity: 1,
-                type: 'info'
-            });
-        },
-        error: function (xhr, ajaxOptions, thrownError) {
-            new PNotify({
-                title: "Personal units",
-                text: xhr.responseJSON.description,
-                hide: true,
-                delay: 4000,
-                icon: 'fa fa-alert',
-                opacity: 1,
-                type: 'error'
-            });
-        },
-        complete: function(){
-            $('#spinner_check_conn').hide();
-            $('#btn-check-personal_unit').prop('disabled', false);
-        }
-    });  
 }
