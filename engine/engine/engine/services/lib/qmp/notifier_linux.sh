@@ -5,22 +5,22 @@ notifier() {{
     trap '' HUP INT
 
     # Notify the users on the tty
-    echo '{message}' | wall;
+    echo {message} | wall;
 
     # Notify the users using a graphical interface
     if which sw-notify-send; then
-        CMD="$(which sw-notify-send) -a IsardVDI -u CRITICAL '{title}' '{message}'"
+        CMD=`$(which sw-notify-send) -a IsardVDI -u CRITICAL {title} {message}`
 
     elif which notify-send; then
-        CMD="$(which notify-send) -a IsardVDI -u CRITICAL '{title}' '{message}'"
+        CMD=`$(which notify-send) -a IsardVDI -u CRITICAL {title} {message}`
 
     elif which gdbus; then
-        CMD="gdbus call --session \
+        CMD=`gdbus call --session \
             --dest=org.freedesktop.Notifications \
             --object-path=/org/freedesktop/Notifications \
             --method=org.freedesktop.Notifications.Notify \
-            'IsardVDI' 0 '' '{title}' '{message}' \
-            '[]' '{{}}' 5000"
+            'IsardVDI' 0 '' {title} {message} \
+            '[]' '{{}}' 5000`
 
     else
         echo "No graphical notification program found!"
