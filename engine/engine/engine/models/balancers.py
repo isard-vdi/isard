@@ -38,17 +38,7 @@ class Balancer_available_ram:
         logs.main.debug(
             f"BALANCER AVAILABLE RAM. MEMORY AVAILABLE: {[{h['id']: h['stats']['mem_stats']['available']} for h in hypers if h.get('stats',{}).get('mem_stats',{}).get('available')]}"
         )
-        return [
-            h
-            for h in hypers
-            if h.get("stats", {}).get("mem_stats", {}).get("available", 0)
-            == max(
-                [
-                    h.get("stats", {}).get("mem_stats", {}).get("available", 0)
-                    for h in hypers
-                ]
-            )
-        ][0]
+        return sort_hypervisors_ram_absolute(hypers)[0]
 
 
 class Balancer_available_ram_percent:
@@ -57,20 +47,8 @@ class Balancer_available_ram_percent:
         logs.main.debug(
             f"BALANCER AVAILABLE RAM%. MEMORY AVAILABLE: {[{h['id']: h['stats']['mem_stats']['available']*100/h['stats']['mem_stats']['total']} for h in hypers if h.get('stats',{}).get('mem_stats',{}).get('available')]}"
         )
-        # Get the hypervisor with more available ram in percentage
-        return [
-            h
-            for h in hypers
-            if h.get("stats", {}).get("mem_stats", {}).get("available", 0)
-            / h.get("stats", {}).get("mem_stats", {}).get("total", 1)
-            == max(
-                [
-                    h.get("stats", {}).get("mem_stats", {}).get("available", 0)
-                    / h.get("stats", {}).get("mem_stats", {}).get("total", 1)
-                    for h in hypers
-                ]
-            )
-        ][0]
+
+        return sort_hypervisors_ram_percentage(hypers)[0]
 
 
 class Balancer_less_cpu:
@@ -79,114 +57,73 @@ class Balancer_less_cpu:
         logs.main.debug(
             f"BALANCER LESS CPU. CPU IDLE: {[{h['id']: h['stats']['cpu_1min']['idle']} for h in hypers if h.get('stats',{}).get('cpu_1min',{}).get('idle')]}"
         )
-        return [
-            h
-            for h in hypers
-            if h.get("stats", {}).get("cpu_1min", {}).get("idle", 0)
-            == max(
-                [h.get("stats", {}).get("cpu_1min", {}).get("idle", 0) for h in hypers]
-            )
-        ][0]
+
+        return sort_hypervisors_cpu_percentage(hypers)[0]
 
 
 class Balancer_less_cpu_till_low_ram:
+    RAM_LIMIT = 0.85  # If ram is below 85%, return hypervisor with less cpu usage
+
     # This balancer will return the hypervisor with less cpu usage when ram is below 85%
     # After that, it will return the hypervisor with more available ram
     def _balancer(self, hypers):
-        RAM_LIMIT = 0.85  # If ram is below 85%, return hypervisor with less cpu usage
-        hypers_ordered_by_cpu = sorted(
-            hypers,
-            key=lambda h: h.get("stats", {}).get("cpu_1min", {}).get("idle", 0),
-            reverse=True,
-        )
+        hypers_ordered_by_cpu = sort_hypervisors_cpu_percentage(hypers)
         logs.main.debug(
             f"BALANCER LESS CPU TILL LOW RAM. CPU IDLE: {[{h['id']: h['stats']['cpu_1min']['idle']} for h in hypers_ordered_by_cpu if h.get('stats',{}).get('cpu_1min',{}).get('idle')]}"
         )
         logs.main.debug(
             f"BALANCER LESS CPU TILL LOW RAM. RAM PERCENTAGE: {[{h['id']: (h['stats']['mem_stats']['total']-h['stats']['mem_stats']['available'])/h['stats']['mem_stats']['total']} for h in hypers_ordered_by_cpu if h.get('stats',{}).get('cpu_1min',{}).get('idle')]}"
         )
+
+        # If the hypervisor has enough free RAM, choose it!
         for hyper in hypers_ordered_by_cpu:
-            if (
-                hyper.get("stats", {}).get("mem_stats", {}).get("total", 1)
-                - hyper.get("stats", {}).get("mem_stats", {}).get("available", 0)
-            ) / hyper.get("stats", {}).get("mem_stats", {}).get(
-                "total", 1
-            ) <= RAM_LIMIT:
+            if _get_used_ram_percentage(hyper) <= self.RAM_LIMIT:
                 logs.main.info(
                     "BALANCER LESS CPU TILL LOW RAM. BEST CPU HYPER SELECTED: %s"
                     % str(hyper["id"])
                 )
                 return hyper
-        hyper = [
-            h
-            for h in hypers
-            if h.get("stats", {}).get("mem_stats", {}).get("available", 0)
-            == max(
-                [
-                    h.get("stats", {}).get("mem_stats", {}).get("available", 0)
-                    for h in hypers
-                ]
-            )
-        ][0]
+
+        # If none of the hypervisors has enough RAM, choose the one with more available
+        hypers_ordered_by_ram = sort_hypervisors_ram_absolute(hypers)
         logs.main.info(
             "BALANCER LESS CPU TILL LOW RAM. NO BEST CPU HYPER, SELECTED BY RAM: %s"
-            % str(hyper["id"])
+            % str(hypers_ordered_by_ram[0]["id"])
         )
-        return hyper
+        return hypers_ordered_by_ram[0]
 
 
 class Balancer_less_cpu_till_low_ram_percent:
+    RAM_LIMIT = 0.85  # If ram is below 85%, return hypervisor with less cpu usage
+
     # This balancer will return the hypervisor with less cpu usage when ram is below 85%
     # After that, it will return the hypervisor with more available ram in percentage
     def _balancer(self, hypers):
-        RAM_LIMIT = 0.85  # If ram is below 85%, return hypervisor with less cpu usage
-        hypers_ordered_by_cpu = sorted(
-            hypers,
-            key=lambda h: h.get("stats", {}).get("cpu_1min", {}).get("idle", 0),
-            reverse=True,
-        )
+        hypers_ordered_by_cpu = sort_hypervisors_cpu_percentage(hypers)
         logs.main.debug(
             f"BALANCER LESS CPU TILL LOW RAM PERCENTAGE. CPU IDLE: {[{h['id']: h['stats']['cpu_1min']['idle']} for h in hypers_ordered_by_cpu if h.get('stats',{}).get('cpu_1min',{}).get('idle')]}"
         )
         logs.main.debug(
             f"BALANCER LESS CPU TILL LOW RAM. RAM PERCENTAGE: {[{h['id']: (h['stats']['mem_stats']['total']-h['stats']['mem_stats']['available'])/h['stats']['mem_stats']['total']} for h in hypers_ordered_by_cpu if h.get('stats',{}).get('cpu_1min',{}).get('idle')]}"
         )
+
+        # If the hypervisor has enough free RAM, choose it!
         for hyper in hypers_ordered_by_cpu:
-            if (
-                hyper.get("stats", {}).get("mem_stats", {}).get("total", 1)
-                - hyper.get("stats", {}).get("mem_stats", {}).get("available", 0)
-            ) / hyper.get("stats", {}).get("mem_stats", {}).get(
-                "total", 1
-            ) <= RAM_LIMIT:
+            if _get_used_ram_percentage(hyper) <= self.RAM_LIMIT:
                 logs.main.info(
                     "BALANCER LESS CPU TILL LOW RAM. BEST CPU HYPER SELECTED: %s"
                     % str(hyper["id"])
                 )
                 return hyper
-        hyper = [
-            h
-            for h in hypers
-            if (
-                h.get("stats", {}).get("mem_stats", {}).get("total", 1)
-                - h.get("stats", {}).get("mem_stats", {}).get("available", 0)
-            )
-            / h.get("stats", {}).get("mem_stats", {}).get("total", 1)
-            == max(
-                [
-                    (
-                        h.get("stats", {}).get("mem_stats", {}).get("total", 1)
-                        - h.get("stats", {}).get("mem_stats", {}).get("available", 0)
-                    )
-                    / h.get("stats", {}).get("mem_stats", {}).get("total", 1)
-                    for h in hypers
-                ]
-            )
-        ][0]
+
+        # If none of the hypervisors has enough RAM, choose the one with more available
+        hypers_ordered_by_ram = sort_hypervisors_ram_percentage(hypers)
+
         logs.main.info(
             "BALANCER LESS CPU TILL LOW RAM PERCENTAGE. NO BEST CPU HYPER, SELECTED BY RAM PERCENT: %s"
-            % str(hyper["id"])
+            % str(hypers_ordered_by_ram[0]["id"])
         )
-        return hyper
+        return hypers_ordered_by_ram[0]
 
 
 """
@@ -398,3 +335,34 @@ def _parse_extra_gpu_info(gpu_selected):
         "model": gpu_selected["gpu_profile"].split("-")[-2],
         "profile": gpu_selected["gpu_profile"].split("-")[-1],
     }
+
+
+def _get_used_ram_percentage(hyper) -> float:
+    mem_stats = hyper.get("stats", {}).get("mem_stats", {})
+    total_ram = mem_stats.get("total", 1)
+    used_ram = total_ram - mem_stats.get("available", 0)
+
+    return 1 / (total_ram / used_ram)
+
+
+# Sort the hypervisors by used RAM (absolute) (low to high)
+def sort_hypervisors_ram_absolute(hypers):
+    return sorted(
+        hypers,
+        key=lambda h: h.get("stats", {}).get("mem_stats", {}).get("available", 0),
+        reverse=True,
+    )
+
+
+# Sort the hypervisors by used RAM percentage (low to high)
+def sort_hypervisors_ram_percentage(hypers):
+    return sorted(hypers, key=lambda h: _get_used_ram_percentage(h))
+
+
+# Sort the hypervisors by used CPU percentage (low to high)
+def sort_hypervisors_cpu_percentage(hypers):
+    return sorted(
+        hypers,
+        key=lambda h: h.get("stats", {}).get("cpu_1min", {}).get("idle", 0),
+        reverse=True,
+    )
