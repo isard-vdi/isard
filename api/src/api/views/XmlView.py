@@ -8,9 +8,10 @@
 
 import json
 
+from isardvdi_common.api_exceptions import Error
+
 from api import app
 
-from .._common.api_exceptions import Error
 from ..libv2.quotas import Quotas
 
 quotas = Quotas()

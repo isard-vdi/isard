@@ -11,10 +11,10 @@ from api.libv2.api_desktops_persistent import check_template_status
 from api.libv2.deployments import api_deployments
 from api.libv2.validators import _validate_item
 from flask import request
+from isardvdi_common.api_exceptions import Error
 
 from api import app
 
-from ..._common.api_exceptions import Error
 from ..decorators import (
     allowedTemplateId,
     checkDuplicate,

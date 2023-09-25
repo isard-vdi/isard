@@ -10,10 +10,10 @@ from secrets import token_bytes
 
 import yaml
 from cerberus import Validator, schema_registry
+from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 
 from api import app
 
-from .._common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from .helpers import _parse_string
 
 

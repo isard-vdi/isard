@@ -12,8 +12,8 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 RUN apk del .build_deps
 
 COPY api/src /api
-COPY component/_common/src /api/api/_common
 ENV PYTHONPATH /opt/isardvdi
+COPY component/_common/src /opt/isardvdi/isardvdi_common
 COPY pkg/gen/proto/python /opt/isardvdi/isardvdi_protobuf
 
 ENV PYTHONWARNINGS "ignore:Unverified HTTPS request"

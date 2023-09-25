@@ -8,12 +8,12 @@ import logging as log
 import traceback
 
 from flask import request
+from isardvdi_common.api_exceptions import Error
 
 #!flask/bin/python
 # coding=utf-8
 from api import app
 
-from .._common.api_exceptions import Error
 from ..libv2.api_allowed import ApiAllowed
 from ..libv2.api_templates import ApiTemplates
 

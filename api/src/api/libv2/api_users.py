@@ -26,10 +26,10 @@ from datetime import datetime, timedelta
 
 import bcrypt
 from cachetools import TTLCache, cached
+from isardvdi_common.api_exceptions import Error
 
 from api import app
 
-from .._common.api_exceptions import Error
 from .api_desktop_events import desktops_delete
 from .quotas import Quotas
 

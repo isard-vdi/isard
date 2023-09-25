@@ -24,8 +24,8 @@ from pprint import pformat
 
 import portion as P
 import pytz
+from isardvdi_common.api_exceptions import Error
 
-from ..._common.api_exceptions import Error
 from ..api_scheduler import Scheduler
 from ..helpers import _check, _get_reservables
 from .api_reservables import Reservables

@@ -8,7 +8,7 @@
 import time
 import traceback
 
-from api._common.domain import Domain
+from isardvdi_common.domain import Domain
 from rethinkdb import RethinkDB
 
 from api import app
@@ -20,7 +20,8 @@ from .api_desktop_events import template_delete, templates_delete
 r = RethinkDB()
 import logging as log
 
-from .._common.api_exceptions import Error
+from isardvdi_common.api_exceptions import Error
+
 from .flask_rethink import RDB
 
 db = RDB(app)

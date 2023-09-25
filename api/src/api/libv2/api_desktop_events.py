@@ -1,9 +1,8 @@
-from api._common.domain import Domain
+from isardvdi_common.api_exceptions import Error
+from isardvdi_common.domain import Domain
 from rethinkdb import RethinkDB
 
 from api import app
-
-from .._common.api_exceptions import Error
 
 r = RethinkDB()
 import time

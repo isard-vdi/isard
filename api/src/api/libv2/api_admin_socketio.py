@@ -36,8 +36,8 @@ from .. import socketio
 threads = {}
 
 from flask import request
+from isardvdi_common.tokens import get_expired_user_data, get_token_payload
 
-from .._common.tokens import get_expired_user_data, get_token_payload
 from .api_admin import ApiAdmin
 from .api_logging import logs_domain_start_engine, logs_domain_stop_engine
 from .api_scheduler import Scheduler

@@ -6,11 +6,11 @@
 import traceback
 
 from cachetools import TTLCache, cached
+from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
 
 from api import app
 
-from .._common.api_exceptions import Error
 from .api_allowed import ApiAllowed
 
 allowed = ApiAllowed()

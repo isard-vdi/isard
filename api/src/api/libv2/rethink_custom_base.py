@@ -21,8 +21,8 @@ import json
 from abc import ABC
 from time import time
 
-from api._common.rethink_base import RethinkBase
 from api.libv2.flask_rethink import RDB
+from isardvdi_common.rethink_base import RethinkBase
 
 from api import app, socketio
 

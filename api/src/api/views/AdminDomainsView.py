@@ -9,12 +9,12 @@ import traceback
 
 from cachetools import TTLCache, cached
 from flask import request
+from isardvdi_common.api_exceptions import Error
 
 #!flask/bin/python
 # coding=utf-8
 from api import app
 
-from .._common.api_exceptions import Error
 from ..libv2.api_admin import (
     ApiAdmin,
     admin_domains_delete,

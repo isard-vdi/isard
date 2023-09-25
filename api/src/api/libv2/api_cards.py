@@ -8,11 +8,10 @@
 import os
 import traceback
 
+from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
 
 from api import app
-
-from .._common.api_exceptions import Error
 
 r = RethinkDB()
 import logging as log

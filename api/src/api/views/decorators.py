@@ -8,11 +8,10 @@ import logging as log
 from functools import wraps
 
 from flask import request
+from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
 
 from api import app
-
-from .._common.api_exceptions import Error
 
 r = RethinkDB()
 import traceback
@@ -24,11 +23,12 @@ from ..libv2.flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
-from .._common.tokens import (
+from isardvdi_common.tokens import (
     Error,
     get_auto_register_jwt_payload,
     get_header_jwt_payload,
 )
+
 from ..libv2.api_allowed import get_all_linked_groups
 from ..libv2.maintenance import Maintenance
 

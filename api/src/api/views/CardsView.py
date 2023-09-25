@@ -21,7 +21,8 @@ from ..libv2.api_cards import ApiCards
 
 api_cards = ApiCards()
 
-from .._common.api_exceptions import Error
+from isardvdi_common.api_exceptions import Error
+
 from .decorators import has_token, is_admin
 
 

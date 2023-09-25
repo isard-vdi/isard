@@ -7,11 +7,11 @@ import json
 import traceback
 
 from flask import request
+from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
 
 from api import app
 
-from .._common.api_exceptions import Error
 from ..libv2.quotas import Quotas
 
 quotas = Quotas()

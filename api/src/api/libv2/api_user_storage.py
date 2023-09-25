@@ -27,12 +27,12 @@ from math import ceil
 import gevent
 from cachetools import TTLCache, cached
 from cachetools.keys import hashkey
+from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
 
 from api import app
 
 from .. import socketio
-from .._common.api_exceptions import Error
 from .providers.Nextcloud import NextcloudApi, start_login_auth
 
 r = RethinkDB()

@@ -18,9 +18,9 @@ from .flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
+from isardvdi_common.api_exceptions import Error
 from rethinkdb.errors import ReqlNonExistenceError
 
-from .._common.api_exceptions import Error
 from .api_allowed import ApiAllowed
 from .quotas_process import QuotasProcess
 

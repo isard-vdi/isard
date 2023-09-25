@@ -21,10 +21,10 @@
 import json
 
 from flask import request
+from isardvdi_common.api_exceptions import Error
 
 from api import app
 
-from .._common.api_exceptions import Error
 from ..libv2.api_user_storage import (
     isard_user_storage_get_provider,
     isard_user_storage_get_providers,

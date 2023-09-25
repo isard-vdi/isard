@@ -5,10 +5,10 @@ import json
 
 from cachetools import TTLCache, cached
 from flask import request
+from isardvdi_common.api_exceptions import Error
 
 from api import app
 
-from .._common.api_exceptions import Error
 from ..libv2.api_admin import admin_table_delete, admin_table_insert, admin_table_update
 from ..libv2.api_downloads import (
     formatDomains,

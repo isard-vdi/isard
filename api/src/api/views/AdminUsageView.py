@@ -24,10 +24,10 @@ from datetime import date, datetime
 import pytz
 from cachetools import TTLCache, cached
 from flask import request
+from isardvdi_common.api_exceptions import Error
 
 from api import app
 
-from .._common.api_exceptions import Error
 from ..libv2.api_admin import admin_table_list
 from ..libv2.api_usage import (
     add_usage_credit,

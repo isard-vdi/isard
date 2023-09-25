@@ -5,10 +5,10 @@ from datetime import datetime, timedelta, timezone
 
 import pytz
 from flask import request
+from isardvdi_common.api_exceptions import Error
 
 from api import app
 
-from ..._common.api_exceptions import Error
 from ...libv2.api_allowed import ApiAllowed
 from ...libv2.api_desktops_persistent import ApiDesktopsPersistent
 from ...libv2.bookings.api_booking import Bookings
