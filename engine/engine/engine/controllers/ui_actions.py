@@ -12,8 +12,6 @@ from pprint import pformat
 # from qcow import create_disk_from_base, backing_chain, create_cmds_disk_from_base
 from time import sleep
 
-from _common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
-from _common.domain import Domain
 from engine.models.domain_xml import (
     BUS_TYPES,
     DomainXML,
@@ -64,6 +62,8 @@ from engine.services.lib.storage import (
     update_storage_deleted_domain,
 )
 from engine.services.log import *
+from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+from isardvdi_common.domain import Domain
 
 DEFAULT_HOST_MODE = "host-passthrough"
 

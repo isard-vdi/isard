@@ -14,7 +14,6 @@ from os.path import dirname
 from time import sleep
 
 import humanfriendly as hf
-from _common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from engine.config import CONFIG_DICT
 from engine.services.db import (
     delete_domain,
@@ -45,6 +44,7 @@ from engine.services.lib.qcow import (
 )
 from engine.services.lib.storage import create_storage, update_storage_status
 from engine.services.log import logs
+from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from rethinkdb import r
 
 URL_DOWNLOAD_INSECURE_SSL = True
