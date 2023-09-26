@@ -46,6 +46,12 @@ default:
       paths:
         - e2e/node_modules
 
+include:
+ - template: Security/Dependency-Scanning.gitlab-ci.yml
+ - template: Security/License-Scanning.gitlab-ci.yml
+ - template: Security/SAST.gitlab-ci.yml
+ - template: Security/Secret-Detection.gitlab-ci.yml
+
 stages:
  - lint
  - docker-image-codegen
@@ -310,6 +316,11 @@ docker-image:
 #     paths:
 #       - frontend/test-results
 #       - frontend/playwright-report
+
+gemnasium-dependency_scanning:
+  variables:
+    # Scan all the subdirectories
+    DS_MAX_DEPTH: -1
 
 docker-tag:
   stage: docker-registry

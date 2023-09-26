@@ -7,8 +7,8 @@ RUN apk add --no-cache --virtual .build_deps \
     build-base \
     python3-dev \
     libffi-dev
-COPY api/docker/requirements.pip3 /requirements.pip3
-RUN pip3 install --no-cache-dir -r requirements.pip3
+COPY api/docker/requirements.txt /requirements.txt
+RUN pip3 install --no-cache-dir -r requirements.txt
 RUN apk del .build_deps
 
 COPY api/src /api
