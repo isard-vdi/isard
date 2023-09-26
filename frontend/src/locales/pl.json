@@ -555,7 +555,6 @@
         "cant_edit_booked_deployment": "Nie można edytować elementów rezerwacji z wdrożenia z zaplanowaną rezerwacją",
         "desktop_incorrect_body_data": "Pulpit dodaje nieprawidłowe dane treści",
         "incorrect_viewer_body_data": "Nieprawidłowy stan danych w podglądzie pulpitu",
-        "media_not_downloaded": "Nie pobrano multimediów",
         "desktop_start_incorrect_body_data": "Nieprawidłowy stan danych podczas uruchamiania pulpitu",
         "deployment_stop": "Aby wykonać tę akcję, należy zatrzymać pulpity wdrażania",
         "new_template_bad_body_data": "Nieprawidłowy format danych nowego szablonu",

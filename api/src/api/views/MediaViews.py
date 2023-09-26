@@ -222,20 +222,33 @@ def api_v3_admin_media_desktops(payload, media_id):
 @app.route("/api/v3/media/<media_id>", methods=["DELETE"])
 @is_admin_or_manager_or_advanced
 def api_v3_admin_media_delete(payload, media_id):
+    """
+    Endpoint to delete a media
+
+    :param payload: Data from JWT
+    :type payload: dict
+    :param media_id: Media ID
+    :type media_id: str
+    :return: Task ID or None
+    :rtype: Set with Flask response values and data in JSON
+    """
     if not Media.exists(media_id):
         raise Error(error="not_found", description="Media not found")
     ownsMediaId(payload, media_id)
     media = Media(media_id)
-    if media.status != "Downloaded":
+    if media.status not in ["Downloaded", "DownloadFailed"]:
         raise Error(
             error="precondition_required",
-            description="Media not Downloaded",
-            description_code="media_not_downloaded",
+            description="Media should not be downloading",
+            description_code="media_should_not_be_downloading",
         )
     media.status = "maintenance"
     api_media.DeleteDesktops(media_id)
-    return jsonify(
-        Task(
+    if not media.path_downloaded:
+        media.status = "deleted"
+        task_id = None
+    else:
+        task_id = Task(
             user_id=payload.get("user_id"),
             queue=f"storage.{StoragePool.get_best_for_action('delete', path=media.path_downloaded.rsplit('/', 1)[0]).id}.default",
             task="delete",
@@ -267,4 +280,4 @@ def api_v3_admin_media_delete(payload, media_id):
                 }
             ],
         ).id
-    )
+    return jsonify(task_id)
