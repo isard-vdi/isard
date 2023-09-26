@@ -1,5 +1,7 @@
 FROM python:3.9
-RUN pip install "rq~=1.14" "rethinkdb~=2.4" "requests~=2.30" "python-jose~=3.3" "cachetools~=5.3" "uuid"
+COPY component/core_worker/docker/requirements.txt .
+RUN pip install -r requirements.txt && \
+    rm requirements.txt
 ENV PYTHONPATH /opt/isardvdi
 COPY component/core_worker/docker/uuidgen.py /opt/isardvdi/uuidgen.py
 COPY component/_common/src /opt/isardvdi/isardvdi_common
