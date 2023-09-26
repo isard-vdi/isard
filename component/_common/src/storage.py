@@ -19,6 +19,7 @@
 
 from . import domain
 from .rethink_custom_base_factory import RethinkCustomBase
+from .task import Task
 
 
 def get_storage_id_from_path(path):
@@ -106,3 +107,12 @@ class Storage(RethinkCustomBase):
         storage_id = get_storage_id_from_path(path)
         if cls.exists(storage_id):
             return cls(storage_id)
+
+    def create_task(self, *args, **kwargs):
+        """
+        Create Task for a Storage.
+        """
+        if self.task:
+            if Task(self.task).pending:
+                raise Exception(f"Storage {self.id} have the pending task {self.task}")
+        self.task = Task(*args, **kwargs).id

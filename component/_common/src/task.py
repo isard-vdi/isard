@@ -226,6 +226,23 @@ class Task(RedisBase):
         return global_status(self._chain)
 
     @property
+    def pending(self):
+        """
+        Get True if task is pending otherwise return False
+
+        :return: True if pending otherwise False
+        :rtype: bool
+        """
+        if self.status in (
+            JobStatus.STARTED,
+            JobStatus.SCHEDULED,
+            JobStatus.QUEUED,
+            JobStatus.DEFERRED,
+        ):
+            return True
+        return False
+
+    @property
     def progress(self):
         """
         Get progress of task including the progress of jobs related by dependencies.
