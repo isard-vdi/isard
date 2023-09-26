@@ -124,7 +124,7 @@ export default {
           },
           rdpgw: {
             icon: 'file',
-            buttonText: i18n.t('views.select-template.viewer-name.file-rdpvpn')
+            buttonText: i18n.t('views.select-template.viewer-name.file-rdpgw')
           }
         }
       }
