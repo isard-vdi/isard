@@ -62,9 +62,9 @@ class Balancer_less_cpu:
 
 
 class Balancer_less_cpu_till_low_ram:
-    RAM_LIMIT = 0.85  # If ram is below 85%, return hypervisor with less cpu usage
+    RAM_LIMIT = 0.75  # If ram is below 75%, return hypervisor with less cpu usage
 
-    # This balancer will return the hypervisor with less cpu usage when ram is below 85%
+    # This balancer will return the hypervisor with less cpu usage when ram is below 75%
     # After that, it will return the hypervisor with more available ram
     def _balancer(self, hypers):
         hypers_ordered_by_cpu = sort_hypervisors_cpu_percentage(hypers)
@@ -94,9 +94,9 @@ class Balancer_less_cpu_till_low_ram:
 
 
 class Balancer_less_cpu_till_low_ram_percent:
-    RAM_LIMIT = 0.85  # If ram is below 85%, return hypervisor with less cpu usage
+    RAM_LIMIT = 0.75  # If ram is below 75%, return hypervisor with less cpu usage
 
-    # This balancer will return the hypervisor with less cpu usage when ram is below 85%
+    # This balancer will return the hypervisor with less cpu usage when ram is below 75%
     # After that, it will return the hypervisor with more available ram in percentage
     def _balancer(self, hypers):
         hypers_ordered_by_cpu = sort_hypervisors_cpu_percentage(hypers)
