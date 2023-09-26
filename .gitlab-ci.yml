@@ -48,9 +48,9 @@ default:
 
 include:
  - template: Security/Dependency-Scanning.gitlab-ci.yml
- - template: Security/License-Scanning.gitlab-ci.yml
  - template: Security/SAST.gitlab-ci.yml
  - template: Security/Secret-Detection.gitlab-ci.yml
+ - template: Security/Container-Scanning.gitlab-ci.yml
 
 stages:
  - lint
@@ -62,6 +62,7 @@ stages:
  - docker-images
  - test
  - docker-registry
+ - container-scan
  - release
 
 commit-lint:
@@ -347,6 +348,26 @@ docker-tag:
     - crane tag $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA $CI_COMMIT_REF_SLUG
     - test ! -e ".VERSION" && exit 0
     - crane tag $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA v$(cat .VERSION | tr '.' '-')
+
+container_scanning:
+  stage: container-scan
+  variables:
+    CI_APPLICATION_REPOSITORY: $CI_REGISTRY_IMAGE/$IMAGE
+    CI_APPLICATION_TAG: $CI_COMMIT_REF_SLUG
+  parallel:
+    matrix:
+      - IMAGE:
+          *containers
+      - IMAGE:
+          - codegen
+          - check
+          - check-client
+          - vpn
+          - orchestrator
+          - video
+          - monitor-proxy
+          - nc-proxy
+          - nc-app
 
 release:
   stage: release
