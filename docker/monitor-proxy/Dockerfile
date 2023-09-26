@@ -1,4 +1,7 @@
-FROM haproxy:lts-alpine3.17 as production
+ARG HAPROXY_RUN_IMAGE
+
+FROM ${HAPROXY_RUN_IMAGE} as production
+
 USER root
 RUN apk add openssl certbot
 COPY docker/monitor-proxy/prepare.sh /usr/local/sbin/

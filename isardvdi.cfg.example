@@ -1,4 +1,4 @@
-# Isard main config v2.10.4
+# Isard main config v2.11.0
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -230,9 +230,12 @@ DOCKER_IMAGE_PREFIX=registry.gitlab.com/isard/isardvdi/
 DOCKER_IMAGE_TAG=main
 
 # Golang image used for building the Golang microservices images
-#GOLANG_BUILD_IMAGE=golang:1.20-alpine
+GOLANG_BUILD_IMAGE=golang:1.20-alpine
 # Image used for running the images the Golang microservices images
-#GOLANG_RUN_IMAGE=alpine:3.18
+GOLANG_RUN_IMAGE=alpine:3.18
+
+# Image used for running all the HAProxy services
+HAPROXY_RUN_IMAGE=haproxy:lts-alpine3.17
 
 # ------ Logs ----------------------------------------------------------------
 LOG_LEVEL=INFO
