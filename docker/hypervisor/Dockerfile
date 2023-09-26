@@ -153,13 +153,15 @@ RUN mkdir /root/.ssh
 COPY docker/hypervisor/networks/ /etc/libvirt/qemu/networks/
 
 # Api
+COPY docker/hypervisor/requirements.txt requirements.txt
 RUN apk add  --no-cache bash python3 py3-pip py3-requests
 RUN pip3 install --upgrade pip
 RUN apk add --no-cache --virtual .build_deps \
     build-base \
     python3-dev \
     libffi-dev 
-RUN pip3 install --no-cache-dir python-jose==3.3.0 python-iptables==1.0.0 pythonping==1.0.15
+RUN pip3 install --no-cache-dir -r requirements.txt && \
+    rm requirements.txt
 # RUN apk del .build_deps
 
 # Openvswitch

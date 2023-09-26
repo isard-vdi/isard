@@ -40,13 +40,11 @@ RUN set -ex; \
     apk add --virtual .nextcloud-phpext-rundeps $runDeps; \
     apk del .build-deps
 
-RUN set -ex; \
-    \
-    apk add --no-cache \
-        py3-pip; \
-    pip3 install --no-cache-dir \
-        python-jose~=3.3 \
-        requests==2.27.1
+COPY docker/nextcloud/requirements.txt .
+RUN apk add --no-cache \
+        py3-pip && \
+    pip3 install --no-cache-dir -r requirements.txt && \
+    rm requirements.txt
 
 RUN mkdir -p \
     /var/log/supervisord \
