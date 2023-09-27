@@ -110,7 +110,7 @@ class RethinkBase(ABC):
 
     def _update_cache(self, **kwargs):
         for name, value in kwargs.items():
-            if name is not "id":
+            if name != "id":
                 _cache[hashkey(self, name)] = value
 
     @classmethod
