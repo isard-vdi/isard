@@ -17,6 +17,8 @@ services:
       - /opt/isard-local/sockets/:/var/run/libvirt/
       - /opt/isard-local/environment:/usr/local/etc/environment
       - /dev/vfio:/dev/vfio
+      - /dev/kvm:/dev/kvm
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     env_file:
