@@ -236,7 +236,7 @@ function load_data(){
                             {
                             "targets": 4,
                             "render": function ( data, type, full, meta ) {
-                                if(full.status == 'Available'){
+                                if(['Available', 'deleted'].includes(full.status)){
                                     return '<button id="btn-download" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-download" style="color:darkblue"></i></button>'
                                 }
                                 if(full.status == 'Downloading' || full.status == 'Unknown'){
