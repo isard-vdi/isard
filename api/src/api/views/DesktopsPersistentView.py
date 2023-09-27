@@ -14,9 +14,10 @@ from ..libv2.helpers import _parse_desktop_booking
 
 r = RethinkDB()
 
+from isardvdi_common.api_exceptions import Error
+
 from api import app
 
-from .._common.api_exceptions import Error
 from ..libv2.api_logging import logs_domain_start_api, logs_domain_stop_api
 from ..libv2.quotas import Quotas
 

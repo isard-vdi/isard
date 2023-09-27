@@ -8,10 +8,10 @@ import logging as log
 import traceback
 
 from flask import request
+from isardvdi_common.api_exceptions import Error
 
 from api import app
 
-from .._common.api_exceptions import Error
 from ..libv2.api_storage import (
     get_disk_tree,
     get_disks,

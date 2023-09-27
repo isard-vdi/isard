@@ -18,10 +18,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from flask import jsonify, request
+from isardvdi_common.api_exceptions import Error
 
 from api import app, socketio
 
-from .._common.api_exceptions import Error
 from .decorators import is_admin
 
 

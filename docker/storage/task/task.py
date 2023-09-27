@@ -20,6 +20,7 @@
 from json import loads
 from os import environ, remove, rename
 from os.path import isfile
+from re import search
 from subprocess import PIPE, Popen, check_output, run
 from time import sleep
 
@@ -99,6 +100,58 @@ def qemu_img_info(storage_id, storage_path):
     qemu_img_info_data.setdefault("backing-filename-format")
     qemu_img_info_data.setdefault("full-backing-filename")
     return {"id": storage_id, "qemu-img-info": qemu_img_info_data}
+
+
+def qemu_img_info_backing_chain(storage_id, storage_path):
+    """
+    Get storage data with `qemu-img info` data updated.
+
+    :param storage_id: Storage ID
+    :type storage_id: str
+    :param storage_path: Storage path
+    :type storage_path: str
+    :return: Storage data to update
+    :rtype: dict
+    """
+
+    completed_process = run(
+        [
+            "qemu-img",
+            "info",
+            "-U",
+            "--backing-chain",
+            "--output",
+            "json",
+            storage_path,
+        ],
+        capture_output=True,
+    )
+    storage_data = {"id": storage_id}
+    if completed_process.returncode == 0:
+        storage_data["status"] = "ready"
+        qemu_img_info_data = loads(completed_process.stdout)
+        qemu_img_info_data[0].setdefault("backing-filename")
+        qemu_img_info_data[0].setdefault("backing-filename-format")
+        qemu_img_info_data[0].setdefault("full-backing-filename")
+        storage_data["qemu-img-info"] = qemu_img_info_data[0]
+    else:
+        path = (
+            search(
+                rb"^qemu-img: Could not open \'([^\']*)\': ", completed_process.stderr
+            )
+            .group(1)
+            .decode()
+        )
+        if path == storage_path:
+            storage_data["status"] = "deleted"
+        elif path == qemu_img_info(storage_id, storage_path).get(
+            "qemu-img-info", {}
+        ).get("backing-filename"):
+            storage_data["status"] = "orphan"
+        else:
+            storage_data["status"] = "broken_chain"
+
+    return storage_data
 
 
 def check_existence(storage_id, storage_path):

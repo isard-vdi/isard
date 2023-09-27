@@ -2,10 +2,10 @@ import json
 import logging as log
 
 from flask import request
+from isardvdi_common.api_exceptions import Error
 
 from api import app
 
-from ..._common.api_exceptions import Error
 from ...libv2.bookings.api_reservables import Reservables
 from ...libv2.bookings.api_reservables_planner import ReservablesPlanner
 from ...libv2.bookings.api_reservables_planner_compute import get_subitems_planning

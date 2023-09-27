@@ -28,12 +28,12 @@ import gevent
 import pytz
 from cachetools import TTLCache, cached
 from cachetools.keys import hashkey
+from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
 from rethinkdb.errors import ReqlNonExistenceError
 
 from api import app
 
-from ..._common.api_exceptions import Error
 from ..flask_rethink import RDB
 
 r = RethinkDB()

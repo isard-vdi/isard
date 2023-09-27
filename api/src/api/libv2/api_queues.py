@@ -32,10 +32,9 @@ db = RDB(app)
 db.init_app(app)
 
 from cachetools import TTLCache, cached
+from isardvdi_common.api_rest import ApiRest
+from isardvdi_common.storage_node import StorageNode
 from redis import Redis
-
-from .._common.api_rest import ApiRest
-from .._common.storage_node import StorageNode
 
 
 def _connect_redis():

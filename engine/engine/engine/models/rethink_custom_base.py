@@ -19,9 +19,9 @@
 
 from abc import ABC
 
-from _common.atexit_register import atexit_register
-from _common.rethink_base import RethinkBase
 from engine.services.db import new_rethink_connection
+from isardvdi_common.atexit_register import atexit_register
+from isardvdi_common.rethink_base import RethinkBase
 
 
 class RethinkCustomBase(RethinkBase, ABC):

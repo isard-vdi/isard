@@ -13,11 +13,11 @@ import traceback
 import uuid
 from datetime import timedelta
 
+from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
 
 from api import app
 
-from .._common.api_exceptions import Error
 from ..libv2.isardViewer import isardViewer
 from .flask_rethink import RDB
 

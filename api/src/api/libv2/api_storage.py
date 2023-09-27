@@ -6,11 +6,10 @@
 # License: AGPLv3
 
 
+from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
 
 from api import app
-
-from .._common.api_exceptions import Error
 
 r = RethinkDB()
 import csv
@@ -24,7 +23,7 @@ db.init_app(app)
 
 import logging as log
 
-from .._common.api_exceptions import Error
+from isardvdi_common.api_exceptions import Error
 
 
 def get_disks(user_id=None, status=None, pluck=None, category_id=None):

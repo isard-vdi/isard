@@ -10,7 +10,6 @@ import traceback
 from datetime import datetime
 from time import sleep
 
-from _common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from engine.config import (
     POLLING_INTERVAL_BACKGROUND,
     STATUS_POLLING_INTERVAL,
@@ -47,6 +46,7 @@ from engine.services.lib.functions import (
 )
 from engine.services.log import logs
 from engine.services.threads.download_thread import launch_thread_download_changes
+from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from rethinkdb import r
 from tabulate import tabulate
 

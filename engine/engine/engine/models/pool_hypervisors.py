@@ -7,10 +7,10 @@
 import os
 import pprint
 
-from _common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 from engine.services.db.hypervisors import get_pool_hypers_conf
 from engine.services.lib.functions import clean_intermediate_status
 from engine.services.log import logs
+from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 
 from .balancers import BalancerInterface
 

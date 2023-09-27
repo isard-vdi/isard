@@ -24,8 +24,8 @@ db.init_app(app)
 from datetime import datetime
 
 from flask import request
+from isardvdi_common.api_exceptions import Error
 
-from .._common.api_exceptions import Error
 from ..libv2.api_logging import (
     logs_domain_event_directviewer,
     logs_domain_start_directviewer,

@@ -19,11 +19,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 
+from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
 
 from api import app
-
-from .._common.api_exceptions import Error
 
 r = RethinkDB()
 import csv
@@ -36,7 +35,8 @@ from .flask_rethink import RDB
 db = RDB(app)
 db.init_app(app)
 
-from .._common.api_exceptions import Error
+from isardvdi_common.api_exceptions import Error
+
 from .api_desktop_events import desktops_start, desktops_stop
 from .api_desktops_persistent import ApiDesktopsPersistent
 from .api_templates import ApiTemplates

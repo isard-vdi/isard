@@ -24,9 +24,9 @@ import xml.etree.ElementTree as ET
 
 import gevent
 import requests
+from isardvdi_common.api_exceptions import Error, RequestObj
 from rethinkdb import RethinkDB
 
-from ..._common.api_exceptions import Error, RequestObj
 from ...libv2.log import *
 
 r = RethinkDB()

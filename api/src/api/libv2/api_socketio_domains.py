@@ -43,9 +43,9 @@ api_cards = ApiCards()
 threads = {}
 
 from flask import request
+from isardvdi_common.api_exceptions import Error
+from isardvdi_common.tokens import get_expired_user_data, get_token_payload
 
-from .._common.api_exceptions import Error
-from .._common.tokens import get_expired_user_data, get_token_payload
 from ..libv2.deployments.api_deployments import get
 from .api_scheduler import Scheduler
 from .helpers import (

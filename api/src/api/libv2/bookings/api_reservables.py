@@ -19,7 +19,8 @@ db.init_app(app)
 
 import traceback
 
-from ..._common.api_exceptions import Error
+from isardvdi_common.api_exceptions import Error
+
 from ..helpers import _check, _parse_string
 from ..validators import _validate_item, _validate_table
 

@@ -31,9 +31,8 @@ db = RDB(app)
 db.init_app(app)
 
 from cachetools import TTLCache, cached
-
-from .._common.api_rest import ApiRest
-from .._common.storage_node import StorageNode
+from isardvdi_common.api_rest import ApiRest
+from isardvdi_common.storage_node import StorageNode
 
 
 @cached(TTLCache(maxsize=1, ttl=5))

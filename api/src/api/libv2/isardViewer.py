@@ -20,9 +20,9 @@ from ..libv2.log import *
 r = RethinkDB()
 import urllib
 
+from isardvdi_common.api_exceptions import Error
 from rethinkdb.errors import ReqlNonExistenceError
 
-from .._common.api_exceptions import Error
 from ..libv2.flask_rethink import RDB
 from ..libv2.utils import parse_delta
 

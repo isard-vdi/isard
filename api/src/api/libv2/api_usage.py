@@ -23,11 +23,11 @@ from datetime import datetime, timedelta
 import pytz
 from cachetools import TTLCache, cached
 from cachetools.keys import hashkey
+from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
 
 from api import app
 
-from .._common.api_exceptions import Error
 from .flask_rethink import RDB
 from .usage.common import get_default_consumption, get_params
 from .usage.consolidate import substract_dicts

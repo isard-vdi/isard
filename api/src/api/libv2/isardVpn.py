@@ -10,11 +10,11 @@ import os
 import traceback
 from pydoc import describe
 
+from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
 
 from api import app
 
-from .._common.api_exceptions import Error
 from ..libv2.log import *
 
 r = RethinkDB()

@@ -25,11 +25,11 @@ import traceback
 
 from flask import request
 from flask_login import logout_user
+from isardvdi_common.api_exceptions import Error
 
 from api import app
 
 from .. import socketio
-from .._common.api_exceptions import Error
 from ..libv2.api_admin import (
     admin_table_delete,
     admin_table_insert,

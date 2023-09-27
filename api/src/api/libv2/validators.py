@@ -12,7 +12,8 @@ from api import app
 r = RethinkDB()
 import traceback
 
-from .._common.api_exceptions import Error
+from isardvdi_common.api_exceptions import Error
+
 from .flask_rethink import RDB
 
 db = RDB(app)

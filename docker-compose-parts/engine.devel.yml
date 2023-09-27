@@ -3,4 +3,4 @@ services:
   isard-engine:
     volumes:
       - ${BUILD_ROOT_PATH}/engine/engine:/isard:rw
-      - ${BUILD_ROOT_PATH}/component/_common/src:/isard/_common
+      - ${BUILD_ROOT_PATH}/component/_common/src:/opt/isardvdi/isardvdi_common

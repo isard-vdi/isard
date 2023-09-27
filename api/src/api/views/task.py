@@ -18,11 +18,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from flask import jsonify
+from isardvdi_common.api_exceptions import Error
+from isardvdi_common.task import Task
 
 from api import app
 
-from .._common.api_exceptions import Error
-from .._common.task import Task
 from .decorators import has_token, is_admin_or_manager, ownsUserId
 
 

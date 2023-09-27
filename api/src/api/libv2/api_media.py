@@ -20,7 +20,8 @@ from ..libv2.api_cards import ApiCards
 
 api_cards = ApiCards()
 
-from .._common.api_exceptions import Error
+from isardvdi_common.api_exceptions import Error
+
 from ..libv2.api_admin import admin_table_update
 from ..libv2.api_desktops_persistent import ApiDesktopsPersistent
 from .api_allowed import ApiAllowed
