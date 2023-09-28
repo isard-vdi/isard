@@ -32,7 +32,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 
-	collectors, libvirtConn, sshConn := startCollectors(cfg, log)
+	collectors, libvirtConn, sshConn := startCollectors(ctx, cfg, log)
 
 	enabledCollectors := []string{}
 	for _, c := range collectors {
@@ -87,7 +87,7 @@ func hasWeb(flavour string) bool {
 	}
 }
 
-func startCollectors(cfg cfg.Cfg, log *zerolog.Logger) ([]collector.Collector, *libvirt.Connect, *ssh.Client) {
+func startCollectors(ctx context.Context, cfg cfg.Cfg, log *zerolog.Logger) ([]collector.Collector, *libvirt.Connect, *ssh.Client) {
 	domain := hasHypervisor(cfg.Flavour) && cfg.Collectors.Domain.Enable
 	hypervisor := hasHypervisor(cfg.Flavour) && cfg.Collectors.Hypervisor.Enable
 	socket := hasHypervisor(cfg.Flavour) && cfg.Collectors.Socket.Enable
@@ -158,7 +158,7 @@ func startCollectors(cfg cfg.Cfg, log *zerolog.Logger) ([]collector.Collector, *
 	}
 
 	if domain {
-		d := collector.NewDomain(&libvirtMux, &sshMux, cfg, log, libvirtConn, sshConn)
+		d := collector.NewDomain(ctx, &libvirtMux, &sshMux, cfg, log, libvirtConn, sshConn)
 		collectors = append(collectors, d)
 	}
 
