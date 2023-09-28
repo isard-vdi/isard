@@ -4,24 +4,17 @@
     class="main-container pl-3 pr-3 pl-xl-5 pr-xl-5 pb-5"
   >
     <b-form @submit.prevent="submitForm">
-      <h4 class="my-4">
-        <strong>{{ $t('forms.edit.title', {name: domainName } ) }}</strong>
-      </h4>
-      <b-row>
-        <b-col
-          class="px-4"
-          cols="12"
-        >
-          <div>
-            <DomainInfo />
-            <DomainViewers />
-            <DomainHardware />
-            <DomainBookables />
-            <DomainMedia />
-            <DomainImage />
-          </div>
-        </b-col>
+      <b-row clas="mt-2">
+        <h4 class="p-1 mb-4 mt-2 mt-xl-4 ml-2">
+          <strong>{{ $t('forms.edit.title', {name: domainName } ) }}</strong>
+        </h4>
       </b-row>
+      <DomainInfo />
+      <DomainViewers />
+      <DomainHardware />
+      <DomainBookables />
+      <DomainMedia />
+      <DomainImage />
 
       <!-- Buttons -->
       <b-row align-h="end">

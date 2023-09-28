@@ -1,9 +1,17 @@
 <template>
   <div>
-    <!-- Title -->
-    <h4 class="my-4">
-      <strong>{{ $t('forms.domain.image.title') }}</strong>
-    </h4>
+    <b-row class="mt-2">
+      <h4
+        class="p-2 mt-2 cursor-pointer"
+        @click="collapseVisible = !collapseVisible"
+      >
+        <strong>{{ $t('forms.domain.image.title') }}</strong>
+        <b-icon
+          class="ml-2"
+          :icon="collapseVisible ? 'chevron-up' : 'chevron-down'"
+        />
+      </h4>
+    </b-row>
     <b-row v-if="editDomainId">
       <b-col
         cols="12"
@@ -31,21 +39,28 @@
         </b-button>
       </b-col>
     </b-row>
-    <b-row align-h="center">
-      <b-col
-        v-for="image in items"
-        :key="image.id"
-        cols="auto"
-        class="m-2 p-2"
-      >
-        <IsardImage
-          :image-url="image.url"
-          :image-id="image.id"
-          :image-class="image.id === domain.image.id ? 'selected-image' : 'desktop-image'"
-          @imageClicked="onClickChangeDesktopImage(image.id, image.type)"
-        />
-      </b-col>
-    </b-row>
+    <b-collapse
+      id="collapse-advanced"
+      v-model="collapseVisible"
+      class="mt-2"
+    >
+      <b-row align-h="center">
+        <b-col
+          v-for="image in items"
+          :key="image.id"
+          cols="auto"
+          class="m-2 p-2"
+        >
+          <IsardImage
+            :image-url="image.url"
+            :image-id="image.id"
+            :image-class="image.id === domain.image.id ? 'selected-image' : 'desktop-image'"
+            @imageClicked="onClickChangeDesktopImage(image.id, image.type)"
+          />
+        </b-col>
+      </b-row>
+      <b-collapse />
+    </b-collapse>
   </div>
 </template>
 
@@ -57,6 +72,7 @@ export default {
   components: { IsardImage },
   setup (_, context) {
     const $store = context.root.$store
+    const collapseVisible = ref(false)
     const imageFile = ref(null)
     const editDomainId = computed(() => $store.getters.getEditDomainId)
     const domain = computed(() => $store.getters.getDomain)
@@ -78,7 +94,8 @@ export default {
       domain,
       imageFile,
       onClickChangeDesktopImage,
-      onClickUploadImageFile
+      onClickUploadImageFile,
+      collapseVisible
     }
   }
 }

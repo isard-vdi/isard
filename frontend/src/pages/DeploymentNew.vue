@@ -67,8 +67,8 @@
         </b-col>
       </b-row>
 
-      <b-row clas="mt-2">
-        <h4 class="p-1 mb-4 mt-2 mt-xl-4 ml-2">
+      <b-row>
+        <h4 class="p-1 mt-2 mt-xl-4 ml-2">
           <strong>{{ $t('forms.new-deployment.desktop.title') }}</strong>
         </h4>
       </b-row>
@@ -76,10 +76,10 @@
       <DomainInfo />
 
       <!-- Template section title -->
-      <b-row class="mt-2 mt-xl-5">
-        <h5 class="p-2 mt-2">
+      <b-row>
+        <h4 class="p-1 mt-2 mt-xl-4 ml-2">
           <strong>{{ $t('forms.new-desktop.section-title-template') }}</strong>
-        </h5>
+        </h4>
       </b-row>
 
       <!-- Table validation hidden field -->
@@ -101,36 +101,6 @@
         </b-col>
       </b-row>
 
-      <!-- Filter -->
-      <b-row class="mt-2">
-        <b-col cols="2">
-          <label for="filter-input">{{ $t('forms.new-desktop.filter') }}</label>
-        </b-col>
-        <b-col
-          cols="8"
-          md="6"
-          lg="4"
-          xl="4"
-        >
-          <b-input-group size="sm">
-            <b-form-input
-              id="filter-input"
-              v-model="filter"
-              type="search"
-              :placeholder="$t('forms.new-desktop.filter-placeholder')"
-            />
-            <b-input-group-append>
-              <b-button
-                :disabled="!filter"
-                @click="filter = ''"
-              >
-                {{ $t('forms.clear') }}
-              </b-button>
-            </b-input-group-append>
-          </b-input-group>
-        </b-col>
-      </b-row>
-
       <!-- Table -->
       <b-skeleton-wrapper
         :loading="!getTemplatesLoaded"
@@ -139,78 +109,150 @@
         <template #loading>
           <DesktopNewSkeleton />
         </template>
-        <b-row class="mt-4">
-          <b-col>
-            <b-table
-              id="selectedTemplateId"
-              ref="templateTable"
-              striped
-              hover
-              :items="items"
-              :per-page="perPage"
-              :current-page="currentPage"
-              :filter="filter"
-              :filter-included-fields="filterOn"
-              :fields="fields"
-              :responsive="true"
-              :head-row-variant="v$.selectedTemplateId.$error ? 'danger' : ''"
-              small
-              select-mode="single"
-              selected-variant="primary"
-              selectable
-              tabindex="0"
-              @filtered="onFiltered"
-              @row-selected="onRowSelected"
-            >
-              <!-- Scoped slot for line selected column -->
-              <template #cell(selected)="{ rowSelected }">
-                <template v-if="rowSelected">
-                  <span aria-hidden="true">&check;</span>
-                </template>
-                <template v-else>
-                  <span aria-hidden="true">&nbsp;</span>
-                </template>
-              </template>
-
-              <!-- Scoped slot for image -->
-              <template #cell(image)="data">
-                <b-icon
-                  v-if="data.item.status.toLowerCase() === desktopStates.failed"
-                  v-b-tooltip="{ title: $t(`errors.template_failed`), placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
-                  icon="exclamation-triangle-fill"
-                  variant="danger"
-                  class="danger-icon position-absolute cursor-pointer"
-                />
-                <img
-                  :src="`..${data.item.image.url}`"
-                  alt=""
-                  style="height: 2rem; border: 1px solid #555;"
+        <b-row class="mt-2">
+          <b-col
+            cols="8"
+            md="6"
+            lg="4"
+            xl="4"
+          >
+            <b-input-group size="sm">
+              <b-form-input
+                id="filter-input"
+                v-model="filter"
+                type="search"
+                :placeholder="$t('forms.new-desktop.filter-placeholder')"
+              />
+              <b-input-group-append>
+                <b-button
+                  :disabled="!filter"
+                  @click="filter = ''"
                 >
-              </template>
-            </b-table>
+                  {{ $t('forms.clear') }}
+                </b-button>
+              </b-input-group-append>
+            </b-input-group>
           </b-col>
+          <b-row
+            class="ml-auto mr-2"
+          >
+            <b-col>
+              <b-form-group
+                :label="$t('forms.show-pages')"
+                label-for="per-page-select"
+                label-cols-md="5"
+                label-align-sm="right"
+                class="text-medium-gray mr-2 mr-lg-0"
+              >
+                <b-form-select
+                  id="per-page-select"
+                  v-model="perPage"
+                  class="card-list"
+                  :label="$t('forms.show-pages')"
+                  :options="pageOptions"
+                  size="sm"
+                />
+              </b-form-group>
+            </b-col>
+            <b-col>
+              <b-pagination
+                v-model="currentPage"
+                :total-rows="totalRows"
+                :per-page="perPage"
+                aria-controls="selectedTemplateId"
+                size="sm"
+              />
+            </b-col>
+          </b-row>
+        </b-row>
+        <b-table
+          id="selectedTemplateId"
+          ref="templateTable"
+          striped
+          hover
+          :items="items"
+          :per-page="perPage"
+          :current-page="currentPage"
+          :filter="filter"
+          :filter-included-fields="filterOn"
+          :fields="fields"
+          :responsive="true"
+          :head-row-variant="v$.selectedTemplateId.$error ? 'danger' : ''"
+          small
+          select-mode="single"
+          selected-variant="primary"
+          selectable
+          tabindex="0"
+          @filtered="onFiltered"
+          @row-selected="onRowSelected"
+        >
+          <!-- Scoped slot for line selected column -->
+          <template #cell(selected)="{ rowSelected }">
+            <template v-if="rowSelected">
+              <span aria-hidden="true">&check;</span>
+            </template>
+            <template v-else>
+              <span aria-hidden="true">&nbsp;</span>
+            </template>
+          </template>
+
+          <!-- Scoped slot for image -->
+          <template #cell(image)="data">
+            <b-icon
+              v-if="data.item.status.toLowerCase() === desktopStates.failed"
+              v-b-tooltip="{ title: $t(`errors.template_failed`), placement: 'top', customClass: 'isard-tooltip', trigger: 'hover' }"
+              icon="exclamation-triangle-fill"
+              variant="danger"
+              class="danger-icon position-absolute cursor-pointer"
+            />
+            <img
+              :src="`..${data.item.image.url}`"
+              alt=""
+              style="height: 2rem; border: 1px solid #555;"
+            >
+          </template>
+        </b-table>
+        <b-row class="mt-4">
+          <b-row
+            class="ml-auto mr-2"
+          >
+            <b-col>
+              <b-form-group
+                :label="$t('forms.show-pages')"
+                label-for="per-page-select"
+                label-cols-md="5"
+                label-align-sm="right"
+                class="text-medium-gray mr-2 mr-lg-0"
+              >
+                <b-form-select
+                  id="per-page-select"
+                  v-model="perPage"
+                  class="card-list"
+                  :label="$t('forms.show-pages')"
+                  :options="pageOptions"
+                  size="sm"
+                />
+              </b-form-group>
+            </b-col>
+            <b-col>
+              <b-pagination
+                v-model="currentPage"
+                :total-rows="totalRows"
+                :per-page="perPage"
+                aria-controls="selectedTemplateId"
+                size="sm"
+              />
+            </b-col>
+          </b-row>
         </b-row>
       </b-skeleton-wrapper>
-
-      <!-- Pagination -->
-      <b-row>
-        <b-col>
-          <b-pagination
-            v-model="currentPage"
-            :total-rows="totalRows"
-            :per-page="perPage"
-            aria-controls="selectedTemplateId"
-            size="sm"
-          />
-        </b-col>
-      </b-row>
 
       <!-- Allowed -->
       <AllowedForm />
 
       <!-- Advanced options section title -->
-      <b-row class="mt-2 mt-xl-5">
-        <h5
+      <b-row class="mt-2">
+        <h4
           class="p-2 mt-2 cursor-pointer"
           @click="collapseVisible = !collapseVisible"
         >
@@ -219,7 +261,7 @@
             class="ml-2"
             :icon="collapseVisible ? 'chevron-up' : 'chevron-down'"
           />
-        </h5>
+        </h4>
       </b-row>
 
       <div>
@@ -311,6 +353,7 @@ export default {
     const items = computed(() => $store.getters.getTemplates)
     const perPage = ref(5)
     const currentPage = ref(1)
+    const pageOptions = ref([5, 10, 20, 30, 50, 100])
     const filter = ref('')
     const filterOn = reactive([])
     const selected = ref([])
@@ -521,6 +564,7 @@ export default {
       fields,
       perPage,
       currentPage,
+      pageOptions,
       filter,
       filterOn,
       selected,
