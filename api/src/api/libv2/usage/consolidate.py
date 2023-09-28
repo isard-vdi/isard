@@ -241,7 +241,7 @@ class ConsolidateConsumption:
                 continue
             data = data + result
         self.times["get_" + self.name + "_batches"] = time()
-        data.append(self.compute_consumer_totals(consumer, data))
+        # data.append(self.compute_consumer_totals(consumer, data))
         with app.app_context():
             result = (
                 r.table("usage_consumption")
