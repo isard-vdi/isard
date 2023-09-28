@@ -1,7 +1,7 @@
 <template>
   <div>
     <!-- Title -->
-    <h4 class="my-4">
+    <h4 class="my-2">
       <strong>{{ $t('forms.domain.hardware.title') }}</strong>
     </h4>
     <!-- Domain changed data -->

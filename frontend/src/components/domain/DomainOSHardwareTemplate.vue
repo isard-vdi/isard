@@ -1,11 +1,8 @@
 <template>
   <div>
-    <!-- Template section title -->
-    <b-row class="mt-2">
-      <h5 class="p-2 mt-2">
-        <strong>{{ $t('forms.new-desktop.section-title-template') }}</strong>
-      </h5>
-    </b-row>
+    <h4 class="my-2">
+      <strong>{{ $t('forms.new-desktop.section-title-template') }}</strong>
+    </h4>
 
     <!-- Table validation hidden field -->
     <b-row>
@@ -28,9 +25,6 @@
 
     <!-- Filter -->
     <b-row class="mt-2">
-      <b-col cols="2">
-        <label for="filter-input">{{ $t('forms.new-desktop.filter') }}</label>
-      </b-col>
       <b-col
         cols="8"
         md="6"

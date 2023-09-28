@@ -1,7 +1,7 @@
 <template>
   <div>
     <!-- Title -->
-    <h4 class="my-4">
+    <h4 class="my-2">
       <strong>{{ $t('forms.domain.viewers.title') }}</strong>
     </h4>
     <b-row>
@@ -45,7 +45,7 @@
             :value="{ [viewer.key]: {options: null} }"
           >
             <b-col md="12">
-              <div class="bg-white rounded-15 py-4 px-5 my-4 text-center cursor-pointer">
+              <div class="bg-white rounded-15 py-2 px-3 my-2 text-center cursor-pointer">
                 <div
                   style="height: 5rem; width: 10rem; padding-top: 0.5rem"
                   class="mb-4"
@@ -57,9 +57,9 @@
                   >
                 </div>
                 <div>
-                  <p>
+                  <span>
                     {{ $t(`views.select-template.viewer-name.${viewer.type}-${viewer.id}`) }}
-                  </p>
+                  </span>
                 </div>
               </div>
             </b-col>

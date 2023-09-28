@@ -1,12 +1,7 @@
 <template>
-  <div>
-    <!-- Title -->
-    <h4 class="my-4">
-      <strong>{{ $t('forms.domain.info.title') }}</strong>
-    </h4>
-
-    <!-- Name -->
+  <span>
     <b-row>
+      <!-- Name -->
       <b-col
         cols="4"
         xl="2"
@@ -54,7 +49,7 @@
         />
       </b-col>
     </b-row>
-  </div>
+  </span>
 </template>
 
 <script>
