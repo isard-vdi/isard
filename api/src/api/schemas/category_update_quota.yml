@@ -1,0 +1,7 @@
+id:
+  type: string
+quota:
+  type: 
+    - dict
+    - boolean
+  schema: quotas

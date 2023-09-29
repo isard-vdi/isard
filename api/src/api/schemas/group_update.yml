@@ -9,39 +9,8 @@ description:
   type: string
 linked_groups:
   type: list
-  default: []
 enrollment:
   type: dict
-  default:
-    schema:
-  schema:
-    manager:
-      type:
-        - string 
-        - boolean
-      default: false
-    advanced:
-      type:
-        - string 
-        - boolean
-      default: false
-    user:
-      type:
-        - string 
-        - boolean
-      default: false
-limits:
-  type: 
-    - dict
-    - boolean
-  default: false
-  schema: limits
-quota:
-  type: 
-    - dict
-    - boolean
-  default: false
-  schema: quotas
 ephimeral:
   type:
     - dict
@@ -55,7 +24,6 @@ auto:
   type:
     - dict
     - boolean
-  default: false
   schema:
     desktops:
       required: true

@@ -14,7 +14,6 @@ role:
 secondary_groups:
   required: false
   type: list
-  default: []
 password:
   type: string
 active:
