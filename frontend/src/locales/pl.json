@@ -51,21 +51,21 @@
                 "disk-size": "Rozmiar dysku (GB)"
             },
             "media": {
-                "isos": "Isos",
+                "isos": "ISO",
                 "floppies": "Dyskietki",
-                "title": "Media",
+                "title": "Nośniki",
                 "placeholder": "Wpisz co najmniej 2 litery, aby wyszukać."
             },
             "viewers": {
                 "guest": {
-                    "title": "Logowanie RDP",
+                    "title": "Logowanie Pulpitu Zdalnego (RDP)",
                     "warning": "OSTRZEŻENIE: Hasło gościa będzie przechowywane w postaci zwykłego tekstu!!!",
                     "username": "Nazwa użytkownika",
                     "password": "Hasło"
                 },
                 "fullscreen-disabled": "Tryb pełnoekranowy wyłączony",
                 "fullscreen-enabled": "Tryb pełnoekranowy włączony",
-                "title": "Widzowie"
+                "title": "Sposoby dostępu"
             },
             "info": {
                 "name": "Nazwa",
@@ -82,20 +82,20 @@
         },
         "direct-link": {
             "modal": {
-                "enable": "Włącz bezpośredni dostęp do podglądu",
-                "title": "Bezpośredni link do podglądu"
+                "enable": "Włącz dostęp bezpośredni",
+                "title": "Link do dostępu bezpośredniego"
             }
         },
         "filter-placeholder": "Wpisz, aby wyszukać",
         "clear": "Wyczyść",
         "duplicate": "Duplikat",
         "new-deployment": {
-            "name": "Nazwa wdrożenia",
-            "visible": "Widoczny dla użytkowników",
+            "name": "Nazwa floty",
+            "visible": "Widoczna dla użytkowników",
             "desktop": {
-                "description": "Opis pulpitu",
+                "description": "Opis dla pulpitów",
                 "title": "Dane nowego pulpitu:",
-                "name": "Nazwa pulpitu",
+                "name": "Nazwa dla pulpitów",
                 "template": "Szablon"
             },
             "error": {
@@ -103,7 +103,7 @@
                 "groups-users": "Należy wybrać co najmniej jednego użytkownika lub jedną grupę",
                 "groups": "Należy wybrać co najmniej jedną grupę"
             },
-            "title": "Utwórz nowe wdrożenie:",
+            "title": "Utwórz nową flotę:",
             "filter-placeholder": "Wpisz, aby wyszukać",
             "template-table-column-headers": {
                 "selected": "Wybrane",
@@ -114,7 +114,7 @@
                 "description": "Opis",
                 "user": "Użytkownik"
             },
-            "not-visible": "Niewidoczne dla użytkowników",
+            "not-visible": "Niewidoczna dla użytkowników",
             "section-title-template": "Wybierz szablon:",
             "filter": "Filtr"
         },
@@ -147,7 +147,7 @@
                 "user": "Użytkownik"
             },
             "title": "Stwórz nowy desktop:",
-            "section-title-template": "Wyberz szablon:",
+            "section-title-template": "Wybierz szablon:",
             "desktop-template": "Szablon",
             "filter": "Filtr",
             "filter-placeholder": "Wpisz, aby wyszukać"
@@ -165,7 +165,7 @@
         "create": "Utwórz",
         "edit-deployment": {
             "desktop": {
-                "title": "Edytuj pulpity wdrożeniowe"
+                "title": "Edytuj pulpity floty"
             }
         }
     },
@@ -182,9 +182,9 @@
                     "description": "Plik konfiguracyjny VPN został pobrany pomyślnie"
                 }
             },
-            "viewers": "Widzowie",
-            "media": "Media",
-            "deployments": "Wdrożenia",
+            "viewers": "Sposoby dostępu",
+            "media": "Nośniki",
+            "deployments": "Floty",
             "desktops": "Pulpity",
             "templates": "Szablony",
             "bookings": {
@@ -196,23 +196,23 @@
             "admin": "Administracja",
             "logout": "Wyloguj",
             "help": "Pomoc",
-            "storage": "Schowek"
+            "storage": "Dyski"
         },
         "statusbar": {
             "desktops-started": "Uruchomione pulpity",
-            "new-deployment": "Nowe Wdrożenie",
+            "new-deployment": "Nowa Flota",
             "upload-file": "Prześlij plik",
             "select": "Wybierz",
             "deployment": {
                 "buttons": {
                     "recreate": {
-                        "title": "Odtwórz wdrożenie"
+                        "title": "Odtwórz flotę"
                     },
                     "download-direct-viewer": {
-                        "title": "Pobierz plik bezpośredniego podglądu"
+                        "title": "Pobierz plik dostępu bezpośredniego"
                     },
                     "delete": {
-                        "title": "Usuń wdrożenie"
+                        "title": "Usuń flotę"
                     },
                     "make-not-visible": {
                         "title": "Zrób niewidocznym"
@@ -221,26 +221,26 @@
                         "title": "Uczyń widocznym"
                     },
                     "videowall": {
-                        "title": "Przejdź do Videowall-a"
+                        "title": "Przejdź do podglądu pulpitów"
                     },
                     "start": {
-                        "title": "Uruchom wszystkie pulpity wdrożenia"
+                        "title": "Uruchom wszystkie pulpity floty"
                     },
                     "stop": {
-                        "title": "Zatrzymaj wszystkie pulpity wdrożenia"
+                        "title": "Zatrzymaj wszystkie pulpity floty"
                     },
                     "edit": {
-                        "title": "Edycja wdrożenia"
+                        "title": "Edycja floty"
                     },
                     "allowed": {
                         "title": "Edycja użytkowników"
                     }
                 },
-                "back": "Powrót do wdrożeń"
+                "back": "Powrót do flot"
             },
             "checkbox-text": "Tylko uruchomione",
             "videowall": {
-                "back": "Powrót do wdrażania"
+                "back": "Powrót do floty"
             },
             "new-desktop": "Nowy Pulpit",
             "cancel": "Anuluj",
@@ -250,14 +250,14 @@
         "desktop-cards": {
             "actions": {
                 "template": "Zrób z tego szablon",
-                "booking": "Harmonogram",
+                "booking": "Rezerwuj",
                 "direct-link": "Bezpośrednie łącze",
                 "delete": "Usuń",
                 "edit": "Edytuj"
             },
             "table-header": {
                 "state": "Stan",
-                "viewers": "Widzowie",
+                "viewers": "Dostęp",
                 "action": "Akcja",
                 "name": "Nazwa",
                 "description": "Opis",
@@ -265,17 +265,17 @@
             },
             "notification-bar": {
                 "no-next-booking": "Pulpit nie jest zarezerwowany!",
-                "booking-ends": "Rezerwacja kończy się: ",
+                "booking-ends": "Rezerwacja kończy się o: ",
                 "shutdown": "Automatyczne wyłączenie w dniu {date}",
                 "next-booking": "Następna rezerwacja"
             },
             "filter-label": "Filtr",
             "no-info-default": "Brak dostępnego opisu",
-            "open-with": "Otwórz z podgląde"
+            "open-with": "Otwórz za pomocą"
         },
         "deployment-desktop-list": {
             "table-header": {
-                "viewers": "Widzowie",
+                "viewers": "Dostęp",
                 "state": "Stan",
                 "user": "Użytkownik",
                 "group": "Grupa",
@@ -331,7 +331,7 @@
                     "unavailable": "Niedostępny"
                 },
                 "status-bar": {
-                    "forbid-time": "Potrzeba czasu z wyprzedzeniem",
+                    "forbid-time": "Czas wymagany na rezerwację",
                     "max-items": "Maksymalna liczba rezerwacji",
                     "max-time": "Maksymalny czas rezerwacji",
                     "buttons": {
@@ -373,7 +373,7 @@
                 }
             },
             "errors": {
-                "forbid": "Aby utworzyć rezerwację musisz działać z większym wyprzedzeniem",
+                "forbid": "Potrzebny jest dłuższy czas wyprzedzenia, aby utworzyć rezerwację",
                 "past-booking": "Nie można utworzyć rezerwacji w przeszłości",
                 "end-before-start": "Czas zakończenia rezerwacji nie może być wcześniejszy niż czas rozpoczęcia",
                 "minimum-time": "Rezerwacja musi trwać co najmniej 5 minut",
@@ -408,7 +408,7 @@
                 "media": "Utworzone nośniki / Wszystkie nośniki",
                 "total-disk-size": "Używany rozmiar dysku / Całkowity rozmiar dysku",
                 "total-size": "Używany rozmiar / Całkowity rozmiar (GB)",
-                "total-media-size": "Używany rozmiar nośnika / Całkowity rozmiar nośnika",
+                "total-media-size": "Używany rozmiar nośników / Całkowity rozmiar nośników",
                 "unit": "Osobisty rozmiar jednostki / Całkowity rozmiar jednostki (MB)"
             },
             "language": "Język",
@@ -443,27 +443,27 @@
             },
             "go-to-bookings": {
                 "button": "Zarezerwuj pulpit",
-                "text": "Zarezerwuj pulpit ze sprawdzeniem aktualnego modelu karty graficznej i planowaniem"
+                "text": "Zarezerwuj pulpit z wybranym modelem karty graficznej, sprawdzając zgodność z planem dostępności"
             }
         }
     },
     "errors": {
-        "one_viewer_minimum": "Należy wybrać co najmniej jedną przeglądarkę",
-        "desktop_storage_not_ready": "Pamięć masowa pulpitu nie jest gotowa",
+        "one_viewer_minimum": "Należy wybrać co najmniej jeden sposób dostępu do pulpitu",
+        "desktop_storage_not_ready": "Przestrzeń dyskowa pulpitu nie jest gotowa",
         "desktop_new_group_limit_exceeded": "Przekroczono limit tworzenia pulpitów grupowych",
-        "desktop_start_category_limit_exceeded": "Przekroczono limit uruchomionych pulpitów kategorii",
+        "desktop_start_category_limit_exceeded": "Przekroczono limit uruchomionych pulpitów dla kategorii",
         "desktop_start_group_vcpu_limit_exceeded": "Limit vCPU grupy został przekroczony",
-        "desktop_start_category_vcpu_limit_exceeded": "Przekroczono limit vCPU kategorii",
+        "desktop_start_category_vcpu_limit_exceeded": "Przekroczono limit vCPU dla kategorii",
         "desktop_start_memory_quota_exceeded": "Przekroczono limit pamięci. Musisz zatrzymać pulpit, aby uruchomić inny lub edytować ten pulpit i zmniejszyć jego pamięć.",
-        "group_total_size_limit_exceeded": "Przekroczono limit rozmiaru grupowej pamięci masowej",
+        "group_total_size_limit_exceeded": "Przekroczono limit rozmiaru przestrzeni dyskowej dla grupy",
         "update_generic_exception": "Wystąpił błąd aktualizacji",
-        "unable_to_get_deployment_desktops": "Nie można uzyskać pulpitów wdrożenia",
+        "unable_to_get_deployment_desktops": "Nie można odczytać pulpitów floty",
         "user_delete_generic_exception": "Wystąpił błąd podczas usuwania użytkownika",
         "templates_get_error": "Wystąpił błąd podczas pobierania szablonów",
-        "viewer_protocol_not_implemented": "Protokół przeglądarki nie został zaimplementowany",
+        "viewer_protocol_not_implemented": "Protokół dostępu do pulpitu nie został zaimplementowany",
         "duplicated_name": "Zduplikowana nazwa",
         "username_exists": "Użytkownik o tej samej nazwie już istnieje",
-        "media_new_category_limit_exceeded": "Przekroczono limit tworzenia kategorii nośników",
+        "media_new_category_limit_exceeded": "Przekroczono limit tworzenia nośników dla kategorii",
         "not_enough_rights_desktop": "Brak wystarczających uprawnień, aby uzyskać dostęp do tego pulpitu",
         "not_found": "Nie znaleziono",
         "template_new_not_created": "Wystąpił błąd podczas tworzenia szablonu",
@@ -474,37 +474,37 @@
         "undefined_error": "Wystąpił błąd",
         "user_new_group_cuota_exceeded": "Przekroczono limit tworzenia użytkowników dla tej grupy",
         "media_url_not_valid": "Podany adres url jest nieprawidłowy",
-        "unable_to_get_domain_jumperurl": "nie można uzyskać domeny jumperurl, ponieważ domena nie istnieje",
+        "unable_to_get_domain_jumperurl": "Nie można utworzyć linku dostępu bezpośredniego, ponieważ pulpit nie istnieje",
         "unable_to_change_desktop_status": "Nie można zmienić stanu pulpitu",
         "unable_to_change_hypervisor_status": "Nie można zmienić stanu hiperwizora",
         "desktop_not_booked": "Do uruchomienia pulpitu wymagana jest rezerwacja",
         "new_template_name_exists": "Szablon o tej samej nazwie już istnieje dla tego użytkownika",
         "user_new_generic_exception": "Wystąpił błąd podczas tworzenia użytkownika",
-        "viewer_not_started": "Przeglądarka nie jest uruchomiona",
+        "viewer_not_started": "Dostęp nie jest uruchomiony",
         "template_already_exists": "Identyfikator szablonu już istnieje: ",
         "quota_general_exception": "Wystąpił błąd związany z limitami użytkowników",
         "desktop_new_user_quota_exceeded": "Przekroczono limit utworzonych pulpitów. Musisz usunąć pulpit, aby utworzyć nowy.",
         "desktop_start_user_quota_exceeded": "Przekroczono limit uruchomionych pulpitów. Musisz zatrzymać pulpit, aby uruchomić kolejny.",
         "desktop_start_group_limit_exceeded": "Limit uruchomionych pulpitów grupy został przekroczony",
-        "media_new_user_quota_exceeded": "Przekroczono limit utworzonych nośników. Aby utworzyć nowy nośnik, należy go usunąć.",
+        "media_new_user_quota_exceeded": "Przekroczono limit utworzonych nośników. Aby utworzyć nowy, należy usunąć istniejący nośnik.",
         "user_new_category_cuota_exceeded": "Przekroczono limit tworzenia użytkowników dla tej kategorii",
         "template_new_group_limit_exceeded": "Przekroczono limit tworzenia szablonów grup",
-        "template_new_category_limit_exceeded": "Przekroczono limit tworzenia szablonów kategorii",
-        "media_new_group_limit_exceeded": "Przekroczono limit tworzenia nośników grupowych",
+        "template_new_category_limit_exceeded": "Przekroczono limit tworzenia szablonów dla kategorii",
+        "media_new_group_limit_exceeded": "Przekroczono limit tworzenia nośników dla grupy",
         "unable_to_start_desktop_from": "Pulpit nie może zostać uruchomiony ze swojego stanu",
         "not_enough_rights_media": "Brak wystarczających praw dostępu do tego nośnika",
-        "unable_to_get_viewer_inexistent": "Nie można pobrać przeglądarki dla nieistniejącego pulpitu",
+        "unable_to_get_viewer_inexistent": "Nie można uzyskać dostępu do nieistniejącego pulpitu",
         "unable_to_parse_media": "Nie można przeanalizować informacji o nośniku",
         "unable_to_parse_string": "Nie można przeanalizować ciągu znaków",
         "unable_to_stop_desktop_from": "Pulpit nie może zostać zatrzymany ze swojego statusu",
         "unable_to_gen_enrollment_code": "Nie można wygenerować kodu rejestracji",
-        "get_vnc_viewer_data_error": "Błąd wewnętrzny pobierania danych przeglądarki VNC",
+        "get_vnc_viewer_data_error": "Błąd wewnętrzny pobierania danych dla dostępu przez VNC",
         "vpn_missing_itemid": "Brakujący itemid w VPN",
         "unable_to_process_vpnfile": "Nie można przetworzyć pliku VPN",
-        "needs_deployment_booking": "Pulpitu nie można teraz uruchomić, skontaktuj się z właścicielem wdrożenia, aby go zarezerwować",
+        "needs_deployment_booking": "Pulpitu nie można teraz uruchomić, skontaktuj się z właścicielem floty, aby go zarezerwować",
         "not_enough_advanced_time": "Nie ma wystarczająco dużo czasu na uruchomienie pulpitu",
         "media_url_not_found": "Podany adres url nie został znaleziony",
-        "category_total_size_limit_exceeded": "Przekroczono limit rozmiaru nośnika kategorii",
+        "category_total_size_limit_exceeded": "Przekroczono limit rozmiaru przestrzeni dyskowej dla kategorii",
         "desktop_new_template_forbidden": "Błąd uprawnień podczas tworzenia pulpitu",
         "new_desktop_name_exists": "Pulpit o tej samej nazwie już istnieje dla tego użytkownika",
         "login_failed": "Logowanie nie powiodło się",
@@ -515,15 +515,15 @@
         "generic_error": "Wystąpił błąd",
         "booking_new_event_start_error": "Czas rozpoczęcia jest nieprawidłowy",
         "booking_new_event_end_error": "Czas zakończenia jest nieprawidłowy",
-        "booking_new_event_overlap_error": "Wydarzenie pokrywa się z",
-        "booking_does_not_fit_date": "Rezerwacja nie pasuje do żądanej daty",
-        "booking_deployment_delete_stop": "Aby usunąć tę rezerwację, pulpity wdrożenia muszą zostać zatrzymane",
+        "booking_new_event_overlap_error": "Wydarzenie zazębia się czasowo z innym",
+        "booking_does_not_fit_date": "Rezerwacja nie mieści się w żądanym czasie",
+        "booking_deployment_delete_stop": "Aby usunąć tę rezerwację, pulpity floty muszą zostać zatrzymane",
         "booking_max_items_exceeded": "Przekroczono maksymalną liczbę rezerwacji użytkownika",
         "unable_to_insert": "Nie można wstawić do bazy danych.",
         "conflict": "Konflikt",
         "conflict_title": "Konflikt",
         "missing_required_data": "Brakujące wymagane pola",
-        "unable_to_get_viewer_started": "Nie można pobrać przeglądarki dla nieuruchomionego pulpitu",
+        "unable_to_get_viewer_started": "Nie można uzyskać dostępu do nieuruchomionego pulpitu",
         "desktop_same_id": "Istnieje już pulpit o tym identyfikatorze",
         "unable_to_reset_domain_jumperurl": "Nie można zresetować domeny jumperurl, ponieważ domena nie istnieje",
         "table_not_allowed": "Tabela nie może zmienić właściciela",
@@ -532,13 +532,13 @@
         "unknown_extension": "Pomijanie przesłanego pliku z nieznanym rozszerzeniem",
         "no_wireguard_keys": "W konfiguracji webapp nie ma jeszcze kluczy wireguard. Spróbuj ponownie za kilka sekund...",
         "desktop_is_not_visible": "Pulpit nie jest teraz widoczny dla tego użytkownika.",
-        "deployment_desktop_new_group_limit_exceeded": "Grupowy '{group}' limit tworzenia pulpitów został przekroczony",
-        "deployment_desktop_new_category_limit_exceeded": "Limit tworzenia pulpitów kategorii '{category}'został przekroczony",
+        "deployment_desktop_new_group_limit_exceeded": "Limit tworzenia pulpitów grupy '{group}' został przekroczony",
+        "deployment_desktop_new_category_limit_exceeded": "Limit tworzenia pulpitów kategorii '{category}' został przekroczony",
         "template_new_user_quota_exceeded": "Przekroczono limit szablonów. Musisz wyłączyć lub usunąć szablon, aby utworzyć lub włączyć nowy.",
-        "desktop_new_category_limit_exceeded": "Przekroczono limit tworzenia pulpitów kategorii",
+        "desktop_new_category_limit_exceeded": "Przekroczono limit tworzenia pulpitów dla kategorii",
         "desktop_start_vcpu_quota_exceeded": "Przekroczono limit vCPU. Musisz zatrzymać pulpit, aby uruchomić inny lub edytować ten pulpit i zmniejszyć jego CPU.",
         "desktop_start_group_memory_limit_exceeded": "Limit pamięci grupy został przekroczony",
-        "desktop_start_category_memory_limit_exceeded": "Limit pamięci kategorii został przekroczony",
+        "desktop_start_category_memory_limit_exceeded": "Limit pamięci został przekroczony dla kategorii",
         "total_size_quota_exceeded": "Przekroczono limit miejsca na dysku. Musisz usunąć pulpit, szablon lub nośnik, aby zwolnić miejsce na dysku.",
         "category_generic_exception": "Wystąpił błąd podczas pobierania kategorii",
         "get_generic_exception": "Wystąpił błąd podczas pobierania danych",
@@ -546,20 +546,22 @@
         "unable_to_update": "Nie można zaktualizować w bazie danych.",
         "booking_desktop_delete_stop": "Aby usunąć tę rezerwację, pulpit musi zostać zatrzymany",
         "deployment_delete_stop": "Aby usunąć wdrożenie, jego pulpity muszą zostać zatrzymane",
-        "desktop_not_booked_until": "Pulpit nie może zostać uruchomiony przed kolejną rezerwacją: {start}",
-        "only_works_rdp": "Tryb \"Tylko GPU\" działa tylko z przeglądarkami RDP",
+        "desktop_not_booked_until": "Pulpit nie może zostać uruchomiony przed rozpoczęciem rezerwacji o: {start}",
+        "only_works_rdp": "Tryb \"Tylko GPU\" działa tylko przy dostępie poprzez Pulpit Zdalny (RDP)",
         "current_plan_doesnt_match": "Profil pulpitu nie udostępnia procesora graficznego",
         "template_failed": "Z powodu błędu nie można użyć tego szablonu do utworzenia nowego pulpitu, prosimy o kontakt z administratorem",
         "user_disabled": "Użytkownik jest wyłączony",
         "invalid_end_date": "Nieprawidłowa data zakończenia",
-        "cant_edit_booked_deployment": "Nie można edytować elementów rezerwacji z wdrożenia z zaplanowaną rezerwacją",
-        "desktop_incorrect_body_data": "Pulpit dodaje nieprawidłowe dane treści",
-        "incorrect_viewer_body_data": "Nieprawidłowy stan danych w podglądzie pulpitu",
+        "cant_edit_booked_deployment": "Nie można edytować elementów rezerwacji dla floty z zaplanowaną rezerwacją",
+        "desktop_incorrect_body_data": "Nieprawidłowy stan danych podczas dodawania pulpitu",
+        "incorrect_viewer_body_data": "Nieprawidłowy stan danych w konfiguracji dostępu pulpitu",
         "desktop_start_incorrect_body_data": "Nieprawidłowy stan danych podczas uruchamiania pulpitu",
-        "deployment_stop": "Aby wykonać tę akcję, należy zatrzymać pulpity wdrażania",
+        "deployment_stop": "Aby wykonać tę akcję, należy zatrzymać pulpity floty",
         "new_template_bad_body_data": "Nieprawidłowy format danych nowego szablonu",
         "incorrect_new_plan_body_data": "Nieprawidłowe dane nowego planu",
-        "no_reservables": "Pozycja nie ma możliwości rezerwacji"
+        "no_reservables": "Element nie ma możliwości rezerwacji",
+        "media_should_not_be_downloading": "Nośnik nie powinien być pobierany",
+        "temporal_new_reservable": "Nie można utworzyć pulpitu tymczasowego na podstawie szablonu z elementem do rezerwacji"
     },
     "router": {
         "titles": {
@@ -567,14 +569,14 @@
             "login": "Login",
             "not_found": "Nie znaleziono",
             "maintenance": "Konserwacja",
-            "storage": "Przestrzeń dyskowa",
+            "storage": "Dyski",
             "planning": "Planowanie",
             "edit-domain": "Edytuj domenę",
-            "deployment_videowall": "Wdrożenie Videowall'a",
-            "new_deployment": "Nowe wdrożenie",
+            "deployment_videowall": "Podgląd pulpitów floty",
+            "new_deployment": "Nowa flota",
             "images": "Obrazy",
-            "deployments": "Wdrożenia",
-            "deployment": "Wdrożenie",
+            "deployments": "Floty",
+            "deployment": "Flota",
             "booking": "Rezerwacja",
             "desktops": "Pulpity",
             "new_desktop": "Nowy pulpit",
@@ -582,11 +584,11 @@
             "new_template": "Nowy szablon",
             "profile": "Profil",
             "error": "Błąd",
-            "new_media": "Nowe multimedia",
+            "new_media": "Nowy nośnik",
             "register": "Rejestr",
-            "direct_viewer": "Bezpośrednia przeglądarka",
-            "media": "Multimedia",
-            "edit-deployment": "Edytuj wdrożenie"
+            "direct_viewer": "Dostęp bezpośredni",
+            "media": "Nośniki",
+            "edit-deployment": "Edycja floty"
         }
     },
     "message-modal": {
@@ -709,11 +711,11 @@
             "volatile": "Pulpity tymczasowe",
             "persistent-compact": "Trwały",
             "viewer-name": {
-                "file-rdpgw": "RDP",
+                "file-rdpgw": "Pulpit Zdalny (RDP)",
                 "file-spice": "SPICE",
-                "browser-vnc": "Przeglądarka VNC",
-                "file-rdpvpn": "RDP VPN",
-                "browser-rdp": "Przeglądarka RDP"
+                "browser-vnc": "VNC przez przeglądarkę",
+                "file-rdpvpn": "Pulpit Zdalny (RDP) przez VPN",
+                "browser-rdp": "Pulpit Zdalny (RDP) przez przeglądarkę"
             },
             "remove": "Usunąć",
             "template": "Szablon",
@@ -729,7 +731,7 @@
                 "title": "Nie ma szablonów dostępnych dla zastosowanych filtrów"
             },
             "volatile-compact": "Tymczasowy",
-            "viewers": "Widzowie",
+            "viewers": "Sposoby dostępu",
             "notification": {
                 "loading": {
                     "title": "Ładowanie",
@@ -743,13 +745,13 @@
         },
         "deployments": {
             "no-deployments": {
-                "title": "Nie ma żadnych wdrożeń od tego użytkownika",
+                "title": "Nie ma żadnych flot tego użytkownika",
                 "subtitle": "Jeśli uważasz, że jest to błąd, skontaktuj się z administratorem"
             },
             "table-header": {
-                "visible": "Widoczny",
+                "visible": "Widoczna",
                 "started-desktops": "Uruchomione pulpity / Wszystkie",
-                "desktop-name": "Nazwa pulpitu",
+                "desktop-name": "Nazwa pulpitów",
                 "description": "Opis",
                 "actions": "Działania",
                 "template": "Szablon",
@@ -757,27 +759,27 @@
             }
         },
         "deployment": {
-            "visibility-warning": "Pulpity z tego wdrożenia są {visibility}.",
+            "visibility-warning": "Pulpity tej floty są {visibility}.",
             "visibility": {
                 "not-visible": "Niewidoczne",
                 "visible": "Widoczne"
             },
             "modal": {
                 "title": {
-                    "make-invisible": "Uczyń wdrożenie '{name}' niewidocznym",
-                    "download-csv": "Pobierz '{name}' przeglądarkę CSV",
-                    "make-visible": "Uczyń wdrożenie '{name}' widocznym"
+                    "make-invisible": "Uczyń flotę '{name}' niewidoczną",
+                    "download-csv": "Pobierz CSV z linkami do dostępu bezpośredniego dla floty '{name}'",
+                    "make-visible": "Uczyń flotę '{name}' widoczną"
                 },
                 "option": {
-                    "dont-stop-desktops": "Uczyń to wdrożenie niewidocznym dla użytkowników i zezwól na korzystanie z pulpitów, dopóki nie zostaną zatrzymane",
+                    "dont-stop-desktops": "Uczyń tę flotę niewidoczną dla użytkowników i zezwól na korzystanie z pulpitów, dopóki nie zostaną zatrzymane",
                     "keep-csv": "Zachowaj aktualne adresy URL i pobierz plik csv",
-                    "stop-desktops": "Uczyń to wdrożenie niewidocznym dla użytkowników i zatrzymaj wszystkie pulpity",
-                    "make-visible": "Uczyń to wdrożenie widocznym, aby użytkownicy wdrożenia mieli dostęp do pulpitów",
-                    "reset-csv": "Zresetuj adresy URL wdrożenia (stare adresy URL nie będą dostępne) i pobierz plik csv"
+                    "stop-desktops": "Uczyń tę flotę niewidoczną dla użytkowników i zatrzymaj wszystkie pulpity",
+                    "make-visible": "Uczyń tę flotę widoczną, aby użytkownicy floty mieli dostęp do pulpitów",
+                    "reset-csv": "Zresetuj adresy URL floty (stare adresy URL nie będą dostępne) i pobierz plik csv"
                 },
                 "confirmation": {
                     "dont-stop": "Nie zatrzymuj pulpitów",
-                    "make-visible": "Uczyń widocznym",
+                    "make-visible": "Uczyń widoczną",
                     "keep-csv": "Zachowaj adresy URL i pobierz plik csv",
                     "reset-csv": "Zresetuj adresy URL i pobierz plik csv",
                     "stop": "Zatrzymaj pulpity"
@@ -787,13 +789,13 @@
                 "not-available": "Pulpit niedostępny"
             },
             "no-started-desktops": {
-                "title": "Nie ma uruchomionych pulpitów w tym wdrożeniu"
+                "title": "Nie ma uruchomionych pulpitów tej floty"
             }
         },
         "media": {
             "no-shared-media": {
                 "subtitle": "Jeśli uważasz, że jest to błąd, skontaktuj się z administratorem",
-                "title": "Temu użytkownikowi nie udostępniono żadnych multimediów"
+                "title": "Temu użytkownikowi nie udostępniono żadnych nośników"
             },
             "table-header": {
                 "group": "Grupa",
@@ -807,7 +809,7 @@
             },
             "buttons": {
                 "allowed": {
-                    "title": "Dozwolona zmiana"
+                    "title": "Zmiana dozwolona"
                 },
                 "stop-download": {
                     "title": "Zatrzymaj pobieranie"
@@ -819,7 +821,7 @@
                     "title": "Usuń nośnik"
                 },
                 "download": {
-                    "title": "Pobieranie multimediów"
+                    "title": "Pobierz nośnik"
                 }
             },
             "status": {
@@ -832,7 +834,7 @@
                 "downloadaborting": "Pobranie przerwane",
                 "maintenance": "Konserwacja",
                 "downloadfailed": "Pobranie nieudane",
-                "resetdownloading": "Resetuję pobieranie"
+                "resetdownloading": "Resetowanie pobierania"
             },
             "delete-media": {
                 "title": "Usuń nośnik",
@@ -845,13 +847,13 @@
             },
             "no-media": {
                 "subtitle": "Jeśli uważasz, że jest to błąd, skontaktuj się z administratorem",
-                "title": "Ten użytkownik nie udostępnił żadnych multimediów"
+                "title": "Ten użytkownik nie posiada żadnych nośników"
             },
             "tabs": {
-                "media-compact": "Twój",
-                "media": "Twoje multimedia",
+                "media-compact": "Twoje",
+                "media": "Twoje nośniki",
                 "shared-media-compact": "Współdzielone",
-                "shared-media": "Media udostępnione użytkownikowi"
+                "shared-media": "Nośniki udostępnione użytkownikowi"
             }
         },
         "storage": {
@@ -859,7 +861,7 @@
                 "percentage": "% limitu",
                 "last": "Ostatni dostęp",
                 "domains": "Pulpity/szablony",
-                "quantity-domains": "№ desktopy/szablony",
+                "quantity-domains": "Ilość pulpitów/szablonów",
                 "actual-size": "Rozmiar"
             },
             "no-storage": {
@@ -923,7 +925,7 @@
                 "shared-templates-compact": "Współdzielone"
             },
             "no-templates": {
-                "title": "Nie ma szablonów od tego użytkownika",
+                "title": "Nie ma szablonów tego użytkownika",
                 "subtitle": "Jeśli uważasz, że jest to błąd, skontaktuj się z administratorem"
             },
             "no-shared-templates": {
@@ -974,10 +976,10 @@
                     "close-guide": "Zamknij przewodnik"
                 },
                 "rdp": {
-                    "once-installed": "Po zainstalowaniu kliknij przycisk \"RDP\", który pobierze plik wirtualnego pulpitu.",
-                    "local-client": "Użyj klienta RDP (zalecane)",
+                    "once-installed": "Po zainstalowaniu kliknij przycisk \"Pulpit Zdalny (RDP)\", który pobierze plik wirtualnego pulpitu.",
+                    "local-client": "Użyj klienta Pulpitu Zdalnego (RDP) (zalecane)",
                     "here": "tutaj.",
-                    "rdp-help": "Instrukcje instalacji RDP",
+                    "rdp-help": "Instrukcje instalacji Pulpitu Zdalnego (RDP)",
                     "included": "System Windows zawiera oprogramowanie wymagane do korzystania z niego,",
                     "require-update": "ale może być wymagana aktualizacja (szczególnie w wersjach Windows 7 i Windows 8). Zaleca się korzystanie z najnowszej dostępnej wersji ",
                     "close-guide": "Zamknij przewodnik"
@@ -994,20 +996,20 @@
             "waitingip": "Oczekiwanie na uruchomienie pulpitu",
             "description": {
                 "vnc": "Dostęp do pulpitu w tej przeglądarce",
-                "rdp": "Dostęp do pulpitu w tej przeglądarce (wymaga użytkownika i hasła pulpitu Windows)",
+                "rdp": "Dostęp do pulpitu w tej przeglądarce (wymaga podania użytkownika i hasła pulpitu Windows)",
                 "spice": "Dostęp do pulpitu poprzez plik, który należy otworzyć za pomocą programu remote-viewer",
-                "rdpgw": "System Windows zawiera oprogramowanie wymagane do korzystania z niego"
+                "rdpgw": "System Windows zawiera już wymagane oprogramowanie"
             },
             "reset-modal": {
                 "title": "Zresetuj pulpit",
                 "option": {
-                    "reset-desktop": "Wymuszenie resetu pulpitu jest niebezpiecznym działaniem. Jest to równoważne z odłączeniem komputera od zasilania w trakcie działania. Jeśli możesz, zatrzymaj go z poziomu przeglądarki."
+                    "reset-desktop": "Wymuszenie resetu pulpitu jest niebezpiecznym działaniem. Jest to równoważne z odłączeniem komputera od zasilania w trakcie działania. Jeśli możesz, zatrzymaj go z poziomu pulpitu."
                 },
                 "confirmation": {
                     "reset-desktop": "Wymuś reset pulpitu"
                 }
             },
-            "title": "Dostęp do podglądów pulpitu:"
+            "title": "Dostęp za pomocą:"
         },
         "maintenance": {
             "the-service": "Usługa będzie ponownie dostępna za kilka minut",
@@ -1019,24 +1021,24 @@
     },
     "messages": {
         "confirmation": {
-            "start-deployment-desktops": "'{name}' pulpity zostaną uruchomione, kontynuować?",
-            "stop-deployment-desktops": "'{name}' pulpity zostaną zatrzymane, kontynuować?",
-            "delete-media": "'{name}' nośnik zostanie usunięty, kontynuować?",
+            "start-deployment-desktops": "Pulpity floty '{name}' zostaną uruchomione, kontynuować?",
+            "stop-deployment-desktops": "Pulpity floty '{name}' zostaną zatrzymane, kontynuować?",
+            "delete-media": "Nośnik '{name}' zostanie usunięty, kontynuować?",
             "change-desktop-gpu": "Modyfikacja profilu pulpitu",
             "go-to-bookings": "Zarezerwuj pulpit",
             "create-nonpersistent": "OSTRZEŻENIE! Ten pulpit jest tymczasowy. Po jego zatrzymaniu wszystkie dane zostaną usunięte. Utworzyć pulpit?",
-            "recreate-deployment": "'{name}' usunięte pulpity zostaną odtworzone, kontynuować?",
-            "new-deployment": "{quantity} pulpity zostaną utworzone, po jednym dla każdego wybranego użytkownika. Kontynuować?",
+            "recreate-deployment": "Usunięte pulpity floty '{name}' zostaną odtworzone, kontynuować?",
+            "new-deployment": "{quantity} pulpit/ów floty zostanie utworzona, po jednym dla każdego wybranego użytkownika. Kontynuować?",
             "go-to-profile": "Sprawdź limit",
-            "delete-deployment": "'{name}' zostanie usunięty/ta, kontynuować?",
+            "delete-deployment": "Flota '{name}' zostanie usunięta, kontynuować?",
             "edit-domain": "'{name}' sprzęt będzie ograniczony, a jego dane zostaną zmienione, kontynuować?",
             "delete-desktop": "'{name}' zostanie usunięty/ta, kontynuować?",
             "visible-deployment": "Pulpity będą widoczne",
-            "delete-deployment-desktop": "'{name}' pulpit zostanie usunięty, kontynuować?",
+            "delete-deployment-desktop": "Pulpit floty '{name}' zostanie usunięty, kontynuować?",
             "enable-template": "'{name}' będzie widoczna dla użytkowników, kontynuować?",
             "disable-template": "'{name}' będzie niewidoczny dla użytkowników, kontynuować?",
-            "delete-event": "'{name}' rezerwacja zostanie usunięta, kontynuować?",
-            "edit-deployment": "Pulpity '{name}' zostaną edytowane, kontynuować?"
+            "delete-event": "Rezerwacja '{name}' zostanie usunięta, kontynuować?",
+            "edit-deployment": "Pulpity floty '{name}' zostaną edytowane, kontynuować?"
         },
         "cancel": "Anuluj",
         "info": {
@@ -1045,22 +1047,22 @@
             "stopping-download": "Zatrzymywanie pobierania",
             "counting-desktops": "Liczenie, ile pulpitów zostanie utworzonych",
             "new-template-server": "Nie można utworzyć szablonu z serwera",
-            "wireguard-viewers-removed": "Przeglądarki RDP zostały usunięte, ponieważ wymagana jest sieć wireguard",
+            "wireguard-viewers-removed": "Dostępy przez Pulpit Zdalny (RDP) zostały usunięte, ponieważ wymagana jest sieć wireguard",
             "file-downloaded": "Plik pobrany",
-            "making-invisible-deployment": "Uczynienie wdrożenia niewidocznym",
+            "making-invisible-deployment": "Uczynienie floty niewidoczną",
             "opening-desktop": "Otwieranie pulpitu",
             "creating-desktop": "Tworzenie pulpitu",
             "edit-desktop-server": "Nie można edytować serwera",
             "deleting-desktop": "Usuwanie pulpitu",
             "creating-template": "Tworzenie szablonu",
             "new-template-stop": "Aby utworzyć szablon, pulpit musi być zatrzymany",
-            "wireguard-network-added": "Sieć wireguard została dodana, ponieważ jest wymagana do korzystania z przeglądarek RDP",
-            "recreating-deployment": "Odtwarzanie wdrożenia",
-            "deleting-deployment": "Usuwanie wdrożenia",
-            "making-visible-deployment": "Uwidocznienie wdrożenia",
-            "starting-desktops": "Uruchamianie pulpitów wdrożenia",
-            "stopping-desktops": "Zatrzymywanie pulpitów wdrożenia",
-            "wireguard-network-required": "Nie można wybrać przeglądarki RDP, ponieważ wymagana jest sieć wireguard. Skontaktuj się z administratorem w celu korzystania z sieci wireguard",
+            "wireguard-network-added": "Sieć wireguard została dodana, ponieważ jest wymagana do korzystania z dostępu przez Pulpit Zdalny (RDP)",
+            "recreating-deployment": "Odtwarzanie floty",
+            "deleting-deployment": "Usuwanie floty",
+            "making-visible-deployment": "Uwidocznienie floty",
+            "starting-desktops": "Uruchamianie pulpitów floty",
+            "stopping-desktops": "Zatrzymywanie pulpitów floty",
+            "wireguard-network-required": "Nie można wybrać dostępu przez Pulpit Zdalny (RDP), ponieważ wymagana jest sieć wireguard. Skontaktuj się z administratorem w celu korzystania z sieci wireguard",
             "delete-desktop-stop": "Aby usunąć pulpit, należy go zatrzymać",
             "no-availability-event": "Brak dostępności w wybranym zakresie",
             "not-created-event": "Nie można utworzyć zdarzenia",
@@ -1068,13 +1070,13 @@
             "image-uploaded": "Obraz przesłany poprawnie",
             "editing": "Edycja",
             "edit-desktop-stop": "Aby edytować pulpit, należy go zatrzymać",
-            "creating-deployment": "Tworzenie wdrożenia",
+            "creating-deployment": "Tworzenie floty",
             "creating-event": "Tworzenie wydarzenia",
             "editing-event": "Edycja wydarzenia",
             "deleting-event": "Usuwanie wydarzenia",
-            "deleting-media": "Usuwanie multimediów",
+            "deleting-media": "Usuwanie nośnika",
             "downloading-media": "Pobieranie nośnika",
-            "creating-media": "Tworzenie multimediów"
+            "creating-media": "Tworzenie nośnika"
         },
         "loading": "Ładowanie",
         "title": {
