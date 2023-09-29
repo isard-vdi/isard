@@ -541,7 +541,8 @@
             "title": "Créer un nouveau modèle",
             "name": "Nom",
             "description": "Description",
-            "enabled": "Actif"
+            "enabled": "Actif",
+            "disabled": "Désactivé"
         }
     },
     "messages": {
