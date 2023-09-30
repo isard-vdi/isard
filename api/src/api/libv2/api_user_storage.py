@@ -230,7 +230,7 @@ def isard_user_storage_get_provider(provider_id):
 
 
 @cached(TTLCache(maxsize=1, ttl=3))
-def isard_user_storage_get_providers(check_connection=False):
+def isard_user_storage_get_providers():
     with app.app_context():
         providers = list(
             r.table("user_storage")
@@ -249,19 +249,60 @@ def isard_user_storage_get_providers(check_connection=False):
             provider["authorization"] = False
         else:
             provider["authorization"] = True
-            if check_connection:
-                try:
-                    isard_user_storage_provider_basic_auth_test(
-                        provider["provider"],
-                        "pepito",
-                        provider["urlprefix"],
-                        provider["user"],
-                        provider["password"],
-                        provider["verify_cert"],
-                    )
-                    provider["connection"] = True
-                except:
-                    provider["connection"] = False
+        provider.pop("password", None)
+        new_providers.append(provider)
+    return new_providers
+
+
+#### Get isard_user_storage_get_providers_th gevent delayed connection status
+def get_ws_connection_status(provider):
+    try:
+        isard_user_storage_provider_basic_auth_test(
+            provider["provider"],
+            "pepito",
+            provider["urlprefix"],
+            provider["user"],
+            provider["password"],
+            provider["verify_cert"],
+        )
+        provider["connection"] = True
+    except:
+        provider["connection"] = False
+    socketio.emit(
+        "user_storage_provider",
+        json.dumps(
+            {
+                "id": provider["id"],
+                "connection": provider["connection"],
+            }
+        ),
+        namespace="/administrators",
+        room="admins",
+    )
+
+
+def isard_user_storage_get_providers_th():
+    with app.app_context():
+        providers = list(
+            r.table("user_storage")
+            .merge(
+                lambda user_storage: {
+                    "category_name": r.table("categories")
+                    .get(user_storage["access"])["name"]
+                    .default("*")
+                }
+            )
+            .run(db.conn)
+        )
+    new_providers = []
+    for provider in providers:
+        if not provider.get("password"):
+            provider["authorization"] = False
+            provider["connection"] = False
+        else:
+            provider["authorization"] = True
+            # Check connection Thread
+            gevent.spawn_later(0.5, get_ws_connection_status, provider.copy())
         provider.pop("password", None)
         new_providers.append(provider)
     return new_providers
@@ -401,7 +442,6 @@ def isard_user_storage_provider_basic_auth_add(
                     "verify_cert": verify_cert,
                     "auth_protocol": "basic",
                     "intra_docker": False,
-                    "connection": False,
                     "enabled": True,
                 },
                 return_changes=True,

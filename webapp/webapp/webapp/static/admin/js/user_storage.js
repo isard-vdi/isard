@@ -82,6 +82,9 @@ $(document).ready(function () {
             {
                 "targets": 7,
                 "render": function ( data, type, full, meta ) {
+                    if ( ! full.hasOwnProperty('connection') ) {
+                        return '<i class="fa fa-spinner fa-pulse fa-fw"></i><span class="sr-only">...</span>'
+                    }
                     if (full.connection) {
                         return '<i class="fa fa-circle" aria-hidden="true" style="color:green" title="Can reach and authorize clien"></i>'
                     } else {
@@ -569,6 +572,12 @@ $(document).ready(function () {
     $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
 
     function socketio_on(){
+        socket.on('user_storage_provider', function(data){
+            var data = JSON.parse(data);
+            data = {...personalunits_table.row("#"+data.id).data(),...data}
+            dtUpdateInsert(personalunits_table,data,false);
+        });
+
         socket.on('personal_unit', function(data){
             var data = JSON.parse(data);
             dtUpdateInsert(personalunits_progress,data,false);
