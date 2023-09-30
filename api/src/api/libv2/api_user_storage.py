@@ -187,7 +187,7 @@ def isard_user_storage_update_group(group_id, group_name):
 
 def isard_user_storage_update_category(category_id, category_name):
     try:
-        user_storage_update_category(
+        user_storage_update_category_th(
             category_id,
             category_name,
             _get_isard_category_provider_id(category_id),
@@ -200,7 +200,7 @@ def isard_user_storage_update_category(category_id, category_name):
 
 def isard_user_storage_update_user_quota(user_id):
     try:
-        user_storage_update_user_quota(user_id)
+        user_storage_update_user_quota_th(user_id)
     except:
         app.logger.error(
             f"USER_STORAGE - Error updating user {user_id} quota in user_storage provider"
