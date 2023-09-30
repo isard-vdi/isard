@@ -458,9 +458,55 @@ def isard_user_storage_provider_basic_auth_add(
     return provider_id
 
 
+def isard_user_storage_provider_login_auth_socketio(
+    provider_id,
+):
+    with app.app_context():
+        try:
+            # Wait for admin to authorize provider
+            app.logger.info("USER_STORAGE - Waiting for admin to authorize provider")
+            with gevent.Timeout(5 * 60):
+                for data in (
+                    r.table("user_storage")
+                    .get(provider_id)
+                    .changes()
+                    .pluck({"new_val": {"password": True}})
+                    .run(db.conn)
+                ):
+                    socketio.emit(
+                        "user_storage_provider",
+                        json.dumps(
+                            {
+                                "id": provider_id,
+                                "authorization": True,
+                                "connection": True,
+                            }
+                        ),
+                        namespace="/administrators",
+                        room="admins",
+                    )
+                    app.logger.info(
+                        f"USER_STORAGE - Admin authorized provider {provider_id}"
+                    )
+                    return
+        except:
+            app.logger.warning(
+                f"USER_STORAGE - Timeout when waiting for admin to authorize provider {provider_id}"
+            )
+
+
+login_thread = None
+
+
 def isard_user_storage_provider_login_auth(
     provider_id,
 ):
+    global login_thread
+    if login_thread:
+        login_thread.kill()
+    login_thread = gevent.spawn(
+        isard_user_storage_provider_login_auth_socketio, provider_id
+    )
     return start_login_auth(provider_id)
 
 

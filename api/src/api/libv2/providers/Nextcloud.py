@@ -171,8 +171,8 @@ def start_login_auth(provider_id):
         # Nextcloud allows for 20 minutes, we are not that patient
         # We will wait 5 minutes. Thread will be started in 5 seconds...
         # https://docs.nextcloud.com/server/latest/developer_manual/client_apis/LoginFlow/index.html#login-flow-v2
-        login_thread = gevent.spawn_later(
-            5, get_login_auth_callback, data["poll"]["token"], login_url, provider_id
+        login_thread = gevent.spawn(
+            get_login_auth_callback, data["poll"]["token"], login_url, provider_id
         )
         # gevent.joinall([login_thread], timeout=5 * 60, raise_error=False)
     # Should be opened in a new window
@@ -184,8 +184,13 @@ def get_login_auth_callback(token, login_url, provider_id):
     # updating login credentials into database
     # How will notify the user that registration was completed?
     # socket.emit to the client and form close and table reload with connection status
-    while True:
-        time.sleep(1)
+    app.logger.info(
+        f"Starting login auth callback. Waiting for admin to authorize user storage provider {provider_id}"
+    )
+    timeout = 5 * 60
+    t = 0
+    while t <= timeout:
+        time.sleep(2)
         try:
             result = json.loads(
                 _request(
@@ -204,9 +209,10 @@ def get_login_auth_callback(token, login_url, provider_id):
                         }
                     ).run(db.conn)
                 break
-        except Exception as e:
-            app.logger.debug("Error in login auth callback: " + str(e))
-            app.logger.error("Error in login auth callback")
+        except:
+            # Do nothing as we are waiting for the user to login and authorize
+            pass
+        t += 2
 
 
 class NextcloudApi:
