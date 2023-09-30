@@ -186,23 +186,27 @@ def get_login_auth_callback(token, login_url, provider_id):
     # socket.emit to the client and form close and table reload with connection status
     while True:
         time.sleep(1)
-        result = json.loads(
-            _request(
-                "POST",
-                login_url + "/login/v2/poll",
-                data={"token": token},
-                headers={"OCS-APIRequest": "true"},
+        try:
+            result = json.loads(
+                _request(
+                    "POST",
+                    login_url + "/login/v2/poll",
+                    data={"token": token},
+                    headers={"OCS-APIRequest": "true"},
+                )
             )
-        )
-        if "loginName" in result and "appPassword" in result:
-            with app.app_context():
-                r.table("user_storage").get(provider_id).update(
-                    {
-                        "user": result["loginName"],
-                        "password": result["appPassword"],
-                    }
-                ).run(db.conn)
-            break
+            if "loginName" in result and "appPassword" in result:
+                with app.app_context():
+                    r.table("user_storage").get(provider_id).update(
+                        {
+                            "user": result["loginName"],
+                            "password": result["appPassword"],
+                        }
+                    ).run(db.conn)
+                break
+        except Exception as e:
+            app.logger.debug("Error in login auth callback: " + str(e))
+            app.logger.error("Error in login auth callback")
 
 
 class NextcloudApi:

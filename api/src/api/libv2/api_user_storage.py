@@ -266,7 +266,13 @@ def get_ws_connection_status(provider):
             provider["verify_cert"],
         )
         provider["connection"] = True
-    except:
+    except Exception as e:
+        app.logger.debug(
+            f"USER_STORAGE - Error testing connection to provider {provider['id']}: {e}"
+        )
+        app.logger.error(
+            f"USER_STORAGE - Error testing connection to provider {provider['id']}"
+        )
         provider["connection"] = False
     socketio.emit(
         "user_storage_provider",
