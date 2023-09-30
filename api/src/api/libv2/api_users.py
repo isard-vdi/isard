@@ -53,6 +53,7 @@ from ..libv2.api_user_storage import (
     isard_user_storage_remove_category,
     isard_user_storage_remove_group,
     isard_user_storage_remove_user,
+    isard_user_storage_update_user,
     isard_user_storage_update_user_quota,
 )
 from .api_admin import (
@@ -602,6 +603,13 @@ class ApiUsers:
 
         with app.app_context():
             r.table("users").get_all(r.args(user_ids)).update(data).run(db.conn)
+        for user_id in user_ids:
+            isard_user_storage_update_user(
+                user_id=user_id,
+                email=data.get("email"),
+                displayname=data.get("name"),
+                role=data.get("role"),
+            )
 
     def Templates(self, payload):
         try:
