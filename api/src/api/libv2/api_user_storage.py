@@ -656,6 +656,9 @@ def _get_provider(provider_id, user_id=None):
     if not provider_cfg.get("enabled"):
         app.logger.debug("USER_STORAGE - User storage provider not enabled in system.")
         return None
+    if not provider_cfg.get("password"):
+        app.logger.debug("USER_STORAGE - User storage provider not authorized yet.")
+        return None
     if provider_cfg["provider"] == "nextcloud":
         provider = NextcloudApi(
             provider_cfg["url"] + provider_cfg["urlprefix"],
