@@ -339,9 +339,9 @@ class NextcloudApi:
                 )
             return resp.text
 
-    def check_connection(self, timeout=2):
+    def check_connection(self, timeout=5):
         url = self.apiurl + "users/" + self.user + "?format=json"
-        self._request("GET", url)
+        self._request("GET", url, timeout=timeout)
         return True
 
     def get_user(self, user_id):
