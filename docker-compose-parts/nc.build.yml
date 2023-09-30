@@ -5,4 +5,4 @@ services:
       context: ${BUILD_ROOT_PATH}
       dockerfile: docker/nextcloud/Dockerfile
       args:
-        - IMG=${NEXTCLOUD_IMG-nextcloud:27.1.1-fpm-alpine}
+        - IMG=${NEXTCLOUD_BASE_IMAGE-nextcloud:27.1.1-fpm-alpine}
