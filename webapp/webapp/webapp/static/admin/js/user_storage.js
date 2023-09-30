@@ -46,14 +46,7 @@ $(document).ready(function () {
             { "data": "authorization" },
             { "data": "connection" },
             { "data": "verify_cert" },
-            {
-                "className": 'actions-control',
-                "orderable": false,
-                "data": null,
-                "defaultContent": '<button id="btn-delete" class="btn btn-xs" type="button" data-placement="top"><i class="fa fa-times" style="color:darkred"></i></button> \
-                                   <button id="btn-sync" class="btn btn-xs btn-sync" type="button" data-placement="top"><i class="fa fa-refresh" style="color:green"></i></button> \
-                                   <button id="btn-reset-data" class="btn btn-xs btn-reset-data" type="button" data-placement="top"><i class="fa fa-users" style="color:red"></i></button>'
-            },
+            { "data": null, "width": "75" },
             { "data": "id", "visible": false },
         ],
         "order": [[1, 'asc']],
@@ -108,8 +101,23 @@ $(document).ready(function () {
                     }
                 }
             },
+            {
+                "targets": 9,
+                "render": function ( data, type, full, meta ) {
+                    if (full.enabled && full.connection && full.authorization) {
+                        buttons = '<button id="btn-sync" class="btn btn-xs" type="button" data-placement="top"><i class="fa fa-refresh" style="color:darkblue" title="Sync users"></i></button> \
+                        <button id="btn-reset-data" class="btn btn-xs" type="button" data-placement="top"><i class="fa fa-users" style="color:darkred" title="Reset users"></i></button> \
+                        <button id="btn-delete" class="btn btn-xs" type="button" data-placement="top"><i class="fa fa-trash" style="color:darkred" title="Delete"></i></button>'
+                    } else {
+                        buttons = '<button id="btn-delete" class="btn btn-xs" type="button" data-placement="top"><i class="fa fa-trash" style="color:darkred" title="Delete"></i></button>'
+                    }
+                    return buttons
+                }
+            }
         ]
     });
+
+
 
     function init_personalunits_table() {
         $('#personalunits-progress-log').DataTable().clear().destroy();
