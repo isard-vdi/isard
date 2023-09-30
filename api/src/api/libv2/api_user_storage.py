@@ -271,9 +271,6 @@ def isard_user_storage_provider_reset(provider_id):
     provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Provider reset. No user_storage provider defined in system."
-        )
         return
     process_user_storage_remove_user_batches(
         data_batch=_get_provider_users_array(provider_id), provider_id=provider_id
@@ -502,9 +499,6 @@ def _get_provider_users_array(provider_id):
     provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Users array. No user_storage provider defined in system."
-        )
         return
     if provider["cfg"]["access"] == "*":
         return provider["conn"].get_groups()
@@ -658,15 +652,10 @@ cache_provider = TTLCache(maxsize=10, ttl=5)
 def _get_provider(provider_id, user_id=None):
     provider_cfg = isard_user_storage_get_provider(provider_id)
     if not provider_cfg:
-        app.logger.debug(
-            "USER_STORAGE - Get provider. No user_storage provider defined in system."
-        )
         return None
-        # raise Error("not_found", "Provider not found")
     if not provider_cfg.get("enabled"):
         app.logger.debug("USER_STORAGE - User storage provider not enabled in system.")
         return None
-        # raise Error("not_found", "Provider not enabled")
     if provider_cfg["provider"] == "nextcloud":
         provider = NextcloudApi(
             provider_cfg["url"] + provider_cfg["urlprefix"],
@@ -682,9 +671,6 @@ def _get_provider(provider_id, user_id=None):
                     user["user_storage"]["user_id"], user["user_storage"]["password"]
                 )
         return {"cfg": provider_cfg, "conn": provider}
-    app.logger.debug(
-        "USER_STORAGE - Get provider after check. No user_storage provider defined in system."
-    )
     return None
 
 
@@ -706,9 +692,6 @@ def _get_isard_category_provider_id(category_id):
             provider_cfg = provider[0]
 
     if not provider_cfg:
-        app.logger.debug(
-            "USER_STORAGE - Category provider id. No user_storage provider defined in system."
-        )
         return None
     return provider_cfg["id"]
 
@@ -732,9 +715,6 @@ def _users_inconsistency(provider_id):
     provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Users inconsistency. No user_storage provider defined in system."
-        )
         return
 
     isard_users = _get_isard_users_array(provider_id)
@@ -956,9 +936,6 @@ def _groups_inconsistency(provider_id):
     provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Groups inconsistency. No user_storage provider defined in system."
-        )
         return
 
     provider_groups = _get_provider_groups(provider_id)
@@ -1145,9 +1122,6 @@ def user_storage_add_user(
     provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Add user. No user_storage provider defined/available in system."
-        )
         return
 
     if create_groups:
@@ -1264,9 +1238,6 @@ def user_storage_remove_user(user_id, provider_id=None):
         provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Remove user. No user_storage provider defined in system."
-        )
         return
 
     try:
@@ -1332,9 +1303,6 @@ def user_storage_update_user(
     provider = _get_provider(_get_isard_user_provider_id(user_id))
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Update user. No user_storage provider defined in system. Not updating user"
-        )
         return
     # Update user
     try:
@@ -1399,9 +1367,6 @@ def user_storage_update_user_subadmin(user_id, role, provider_id):
     provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Update subadmin. No user_storage provider defined in system."
-        )
         return
     user_subadmin_groups = provider["conn"].get_user(user_id).get("subadmin", [])
     groups_add = []
@@ -1455,9 +1420,6 @@ def user_storage_quota(user_id):
     provider = _get_provider(_get_isard_user_provider_id(user_id))
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Storage quota. No user_storage provider defined in system."
-        )
         return
 
     return provider["conn"].get_user_quota(user_id)
@@ -1471,9 +1433,6 @@ def user_storage_update_user_quota(user_id):
     provider = _get_provider(_get_isard_user_provider_id(user_id))
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Update user quota. No user_storage provider defined in system. Not updating user"
-        )
         return
     provider_quota = provider["conn"].get_user_quota(user_id)
     with app.app_context():
@@ -1502,9 +1461,6 @@ def user_storage_add_user_folder(user_id, folder=ISARD_SHARE_FOLDER):
     user = _get_isard_user_info(user_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Add user folder. No user_storage provider defined in system."
-        )
         return
     # Add user folder
     try:
@@ -1545,9 +1501,6 @@ def user_storage_add_user_share_folder(user_id, folder=ISARD_SHARE_FOLDER):
     user = _get_isard_user_info(user_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Add user share folder. No user_storage provider defined in system."
-        )
         return
     try:
         data = provider["conn"].add_user_share_folder(
@@ -1630,9 +1583,6 @@ def _get_provider_groups(provider_id):
     provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Provider groups. No user_storage provider defined in system."
-        )
         return
     groups = provider["conn"].get_groups()
     if provider["cfg"]["access"] == "*":
@@ -1652,9 +1602,6 @@ def user_storage_add_group(group_id, provider_id=None):
     provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Add group. No user_storage provider defined in system."
-        )
         return
     try:
         provider["conn"].add_group(group_id)
@@ -1713,9 +1660,6 @@ def user_storage_update_group(group_id, new_group_name, provider_id):
     provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Update group. No user_storage provider defined in system."
-        )
         return
     app.logger.debug(
         "USER_STORAGE - Renaming group {} to {}".format(group_id, new_group_name)
@@ -1763,9 +1707,6 @@ def user_storage_remove_group(group_id, provider_id, cascade=False):
     provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Remove group. No user_storage provider defined in system."
-        )
         return
 
     if cascade:
@@ -1809,9 +1750,6 @@ def _provider_group_members(group_id, provider_id):
     provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Group members. No user_storage provider defined in system."
-        )
         return
     return provider["conn"].get_group_members(group_id)
 
@@ -1833,9 +1771,6 @@ def user_storage_add_category(category_id, provider_id=None):
     provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Add category. No user_storage provider defined in system."
-        )
         return
     try:
         provider["conn"].add_group(category_id)
@@ -1878,9 +1813,6 @@ def user_storage_add_provider_categories_th(provider_id):
     provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Add provider categories. No user_storage provider defined in system."
-        )
         return
 
     app.logger.info(
@@ -1933,9 +1865,6 @@ def user_storage_update_category(category_id, new_category_name, provider_id):
     provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Update category. No user_storage provider defined in system."
-        )
         return
     app.logger.debug(
         "USER_STORAGE - Renaming category {} to {}".format(
