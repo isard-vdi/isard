@@ -393,17 +393,25 @@ class NextcloudApi:
             if "free" not in result["ocs"]["data"]["quota"]:
                 return {
                     "free": 0.0,
-                    "quota": result["ocs"]["data"]["quota"]["quota"] / 1024 / 1024,
+                    "quota": round(
+                        result["ocs"]["data"]["quota"]["quota"] / 1024 / 1024, 1
+                    ),
                     "relative": 0.0,
                     "total": 0.0,
-                    "used": result["ocs"]["data"]["quota"]["used"] / 1024 / 1024,
+                    "used": round(
+                        result["ocs"]["data"]["quota"]["used"] / 1024 / 1024, 1
+                    ),
                 }
             return {
-                "free": result["ocs"]["data"]["quota"]["free"] / 1024 / 1024,
-                "quota": result["ocs"]["data"]["quota"]["quota"] / 1024 / 1024,
-                "relative": result["ocs"]["data"]["quota"]["relative"],
-                "total": result["ocs"]["data"]["quota"]["total"] / 1024 / 1024,
-                "used": result["ocs"]["data"]["quota"]["used"] / 1024 / 1024,
+                "free": round(result["ocs"]["data"]["quota"]["free"] / 1024 / 1024, 1),
+                "quota": round(
+                    result["ocs"]["data"]["quota"]["quota"] / 1024 / 1024, 1
+                ),
+                "relative": round(result["ocs"]["data"]["quota"]["relative"], 1),
+                "total": round(
+                    result["ocs"]["data"]["quota"]["total"] / 1024 / 1024, 1
+                ),
+                "used": round(result["ocs"]["data"]["quota"]["used"] / 1024 / 1024, 1),
             }
         raise Error(
             "not_found",
