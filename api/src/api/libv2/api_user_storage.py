@@ -314,6 +314,15 @@ def isard_user_storage_get_providers_ws():
         providers = list(r.table("user_storage").run(db.conn))
     new_providers = []
     for provider in providers:
+        if provider["access"] == []:
+            provider["category_names"] = []
+        else:
+            provider["category_names"] = (
+                r.table("categories")
+                .get_all(r.args(provider["access"]))["name"]
+                .coerce_to("array")
+                .run(db.conn)
+            )
         if not provider.get("password"):
             provider["authorization"] = False
             provider["connection"] = False

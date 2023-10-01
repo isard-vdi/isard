@@ -42,7 +42,7 @@ $(document).ready(function () {
             { "data": "provider" },
             { "data": "name" },
             { "data": "description" },
-            { "data": "category_name" },
+            { "data": "category_names" },
             { "data": "authorization" },
             { "data": "connection" },
             { "data": "verify_cert" },
@@ -60,6 +60,12 @@ $(document).ready(function () {
                     } else {
                         return '<i class="fa fa-circle" aria-hidden="true" style="color:darkgray"></i>'
                     }
+                }
+            },
+            {
+                "targets": 5,
+                "render": function ( data, type, full, meta ) {
+                    return full.category_names == [] ? "Everyone" : full.category_names.join(", ");
                 }
             },
             {
