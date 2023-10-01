@@ -133,8 +133,7 @@ $(document).ready(function () {
                 "targets": 10,
                 "render": function ( data, type, full, meta ) {
                     if (full.enabled && full.connection && full.authorization) {
-                        buttons = '<button id="btn-sync" class="btn btn-xs" type="button" data-placement="top"><i class="fa fa-refresh" style="color:darkblue" title="Sync users"></i></button> \
-                        <button id="btn-reset-data" class="btn btn-xs" type="button" data-placement="top"><i class="fa fa-users" style="color:darkred" title="Reset users"></i></button> \
+                        buttons = '<button id="btn-reset-data" class="btn btn-xs" type="button" data-placement="top"><i class="fa fa-users" style="color:darkred" title="Reset users"></i></button> \
                         <button id="btn-delete" class="btn btn-xs" type="button" data-placement="top"><i class="fa fa-trash" style="color:darkred" title="Delete"></i></button>'
                     } else {
                         buttons = '<button id="btn-delete" class="btn btn-xs" type="button" data-placement="top"><i class="fa fa-trash" style="color:darkred" title="Delete"></i></button>'

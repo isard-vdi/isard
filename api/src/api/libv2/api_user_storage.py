@@ -247,17 +247,7 @@ def isard_user_storage_get_provider(provider_id):
 @cached(TTLCache(maxsize=1, ttl=3))
 def isard_user_storage_get_providers():
     with app.app_context():
-        providers = list(
-            r.table("user_storage")
-            .merge(
-                lambda user_storage: {
-                    "category_name": r.table("categories")
-                    .get(user_storage["access"])["name"]
-                    .default("*")
-                }
-            )
-            .run(db.conn)
-        )
+        providers = list(r.table("user_storage").run(db.conn))
     new_providers = []
     for provider in providers:
         if not provider.get("password"):
@@ -321,17 +311,7 @@ def get_ws_connection_status(provider):
 
 def isard_user_storage_get_providers_ws():
     with app.app_context():
-        providers = list(
-            r.table("user_storage")
-            .merge(
-                lambda user_storage: {
-                    "category_name": r.table("categories")
-                    .get(user_storage["access"])["name"]
-                    .default("*")
-                }
-            )
-            .run(db.conn)
-        )
+        providers = list(r.table("user_storage").run(db.conn))
     new_providers = []
     for provider in providers:
         if not provider.get("password"):
@@ -357,12 +337,14 @@ def isard_user_storage_provider_reset(provider_id):
     process_user_storage_remove_group_batches(
         data_batch=_get_provider_groups(provider_id), provider_id=provider_id
     )
-    provider["conn"].remove_group(provider["cfg"]["access"])
+
+    for category_id in provider["cfg"]["access"]:
+        provider["conn"].remove_group(category_id)
 
     # Get users from db that matches this provider access
     query = r.table("users")
-    if provider["cfg"]["access"] != "*":
-        query = query.get_all(provider["cfg"]["access"], index="category")
+    if provider["cfg"]["access"] != []:
+        query = query.get_all(r.args(provider["cfg"]["access"]), index="category")
     with app.app_context():
         query.replace(r.row.without("user_storage")).run(db.conn)
 
@@ -430,7 +412,7 @@ def isard_user_storage_provider_auto_register_auth(
                     "description": "Connection to Nextcloud instance inside IsardVDI containers",
                     "url": domain,
                     "urlprefix": "/isard-nc",
-                    "access": "*",
+                    "access": [],
                     "quota": {
                         "admin": 500,
                         "advanced": 300,
@@ -472,7 +454,11 @@ def isard_user_storage_provider_basic_auth_add(
                     "description": description,
                     "url": domain,
                     "urlprefix": urlprefix,
-                    "access": access,
+                    "access": access
+                    if type(access) == list
+                    else [access]
+                    if access != "*"
+                    else [],
                     "quota": quota,
                     "user": False,
                     "password": False,
@@ -553,7 +539,7 @@ isard_users_info_cache = TTLCache(maxsize=10, ttl=240)
 @cached(isard_users_info_cache)
 def _get_isard_users_info(provider_id=None):
     provider = _get_provider(provider_id)
-    if not provider or provider.get("cfg", {}).get("access") == "*":
+    if not provider or provider.get("cfg", {}).get("access") == []:
         with app.app_context():
             return (
                 r.table("users")
@@ -567,7 +553,7 @@ def _get_isard_users_info(provider_id=None):
     with app.app_context():
         return (
             r.table("users")
-            .get_all(provider["cfg"]["access"], index="category")
+            .get_all(r.args(provider["cfg"]["access"]), index="category")
             .pluck("id", "name", "role", "group", "category", "user_storage", "email")
             .group("id")
             .run(db.conn)
@@ -604,11 +590,11 @@ isard_users_cache = TTLCache(maxsize=10, ttl=10)
 @cached(isard_users_cache)
 def _get_isard_users_array(provider_id=None):
     provider = _get_provider(provider_id)
-    if provider["cfg"]["access"] != "*":
+    if provider["cfg"]["access"] != []:
         with app.app_context():
             return (
                 r.table("users")
-                .get_all(provider["cfg"]["access"], index="category")
+                .get_all(r.args(provider["cfg"]["access"]), index="category")
                 .pluck("id")["id"]
                 .coerce_to("array")
                 .run(db.conn)
@@ -624,9 +610,12 @@ def _get_provider_users_array(provider_id):
     if not provider:
         # We will return as there are no providers defined in system
         return
-    if provider["cfg"]["access"] == "*":
+    if provider["cfg"]["access"] == []:
         return provider["conn"].get_users()
-    return provider["conn"].get_group_members(provider["cfg"]["access"])
+    group_members = []
+    for category_id in provider["cfg"]["access"]:
+        group_members += provider["conn"].get_group_members(category_id)
+    return group_members
 
 
 ## Groups generic queries
@@ -652,11 +641,11 @@ def _get_isard_groups_info(provider_id=None):
                 .run(db.conn)
             )
     provider = _get_provider(provider_id)
-    if provider["cfg"]["access"] != "*":
+    if provider["cfg"]["access"] != []:
         with app.app_context():
             return (
                 r.table("groups")
-                .get_all(provider["cfg"]["access"], index="parent_category")
+                .get_all(r.args(provider["cfg"]["access"]), index="parent_category")
                 .pluck("id", "name", "parent_category")
                 .merge(
                     lambda group: {
@@ -709,23 +698,14 @@ def _get_isard_groups_array(provider_id=None):
         with app.app_context():
             return r.table("groups").pluck("id")["id"].coerce_to("array").run(db.conn)
     provider = _get_provider(provider_id)
-    if provider["cfg"]["access"] != "*":
-        with app.app_context():
-            return (
-                r.table("groups")
-                .get_all(provider["cfg"]["access"], index="parent_category")
-                .pluck("id")["id"]
-                .merge(r.row["parent_category"])
-                .coerce_to("array")
-                .run(db.conn)
-            )
-    else:
-        with app.app_context():
-            return (
-                r.table("groups").pluck("id")["id"].coerce_to("array").run(db.conn)
-            ) + (
-                r.table("categories").pluck("id")["id"].coerce_to("array").run(db.conn)
-            )
+    query = r.table("groups")
+    if provider["cfg"]["access"] != []:
+        query = query.get_all(
+            r.args(provider["cfg"]["access"]), index="parent_category"
+        )
+    with app.app_context():
+        groups = query.pluck("id", "parent_category").run(db.conn)
+    return [g["id"] for g in groups] + list(set([g["parent_category"] for g in groups]))
 
 
 ## Categories generic queries
@@ -736,11 +716,11 @@ isard_categories_info_cache = TTLCache(maxsize=10, ttl=10)
 @cached(isard_categories_info_cache)
 def _get_isard_categories_info(provider_id=None):
     provider = _get_provider(provider_id)
-    if provider["cfg"]["access"] != "*":
+    if provider["cfg"]["access"] != []:
         with app.app_context():
             return (
                 r.table("categories")
-                .get_all(provider["cfg"]["access"])
+                .get_all(r.args(provider["cfg"]["access"]))
                 .pluck("id", "name")
                 .group("id")
                 .run(db.conn)
@@ -757,12 +737,12 @@ def _get_isard_category_name(category_id):
 
 def _get_isard_categories_array(provider_id=None):
     provider = _get_provider(provider_id)
-    if provider["cfg"]["access"] != "*":
+    if provider["cfg"]["access"] != []:
         with app.app_context():
             return (
                 r.table("categories")
-                .get_all(provider["cfg"]["access"])
-                .pluck("id")
+                .get_all(r.args(provider["cfg"]["access"]))
+                .pluck("id")["id"]
                 .coerce_to("array")
                 .run(db.conn)
             )
@@ -809,17 +789,19 @@ def _get_provider(provider_id, user_id=None):
 @cached(TTLCache(maxsize=10, ttl=10))
 def _get_isard_category_provider_id(category_id):
     with app.app_context():
+        # Get provider that has category_id in access field array
         providers_cfgs = list(
-            r.table("user_storage").filter({"access": category_id}).run(db.conn)
+            r.table("user_storage")
+            .filter(lambda doc: doc["access"].contains(category_id))
+            .run(db.conn)
         )
     if len(providers_cfgs):
+        # Should be only one, and should be controlled in the UI
         provider_cfg = providers_cfgs[0]
     else:
         provider_cfg = None
         with app.app_context():
-            provider = list(
-                r.table("user_storage").filter({"access": "*"}).run(db.conn)
-            )
+            provider = list(r.table("user_storage").filter({"access": []}).run(db.conn))
         if len(provider):
             provider_cfg = provider[0]
 
@@ -1765,7 +1747,7 @@ def _get_provider_groups(provider_id):
         # We will return as there are no providers defined in system
         return
     groups = provider["conn"].get_groups()
-    if provider["cfg"]["access"] == "*":
+    if provider["cfg"]["access"] == []:
         groups.remove("admin")
         return groups
     return [
@@ -2002,13 +1984,14 @@ def user_storage_add_provider_categories_th(provider_id):
         "USER_STORAGE - Adding categories %s for provider %s"
         % (provider["cfg"]["access"], provider_id)
     )
-    if provider["cfg"]["access"] != "*":
-        gevent.spawn(user_storage_add_category, provider["cfg"]["access"], provider_id)
+    if provider["cfg"]["access"] != []:
+        categories = _get_isard_categories_array(provider_id=provider_id)
     else:
-        process_user_storage_add_category_batches(
-            _get_isard_categories_array(provider_id=provider_id),
-            provider_id=provider_id,
-        )
+        categories = provider["cfg"]["access"]
+    process_user_storage_add_category_batches(
+        categories,
+        provider_id=provider_id,
+    )
 
 
 def user_storage_remove_category_th(category_id, cascade=False):
