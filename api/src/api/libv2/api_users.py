@@ -609,6 +609,7 @@ class ApiUsers:
                 email=data.get("email"),
                 displayname=data.get("name"),
                 role=data.get("role"),
+                enabled=data.get("active"),
             )
 
     def Templates(self, payload):

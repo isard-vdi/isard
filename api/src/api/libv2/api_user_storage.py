@@ -155,17 +155,32 @@ def isard_user_storage_remove_category(category_id, cascade=True):
 
 ## UPDATE
 def isard_user_storage_update_user(
-    user_id, password=None, quota_MB=None, email=None, displayname=None, role=None
+    user_id,
+    password=None,
+    quota_MB=None,
+    email=None,
+    displayname=None,
+    role=None,
+    enabled=None,
 ):
     try:
-        user_storage_update_user_th(
-            user_id,
-            password=password,
-            quota_MB=quota_MB,
-            email=email,
-            displayname=displayname,
-            role=role,
-        )
+        if (
+            password != None
+            or quota_MB != None
+            or email != None
+            or displayname != None
+            or role != None
+        ):
+            user_storage_update_user_th(
+                user_id,
+                password=password,
+                quota_MB=quota_MB,
+                email=email,
+                displayname=displayname,
+                role=role,
+            )
+        if enabled != None:
+            user_storage_enable_user_th(user_id, enabled)
     except:
         app.logger.error(
             f"USER_STORAGE - Error updating user {user_id} in user_storage provider"
@@ -1456,6 +1471,54 @@ def user_storage_update_user(
         r.table("users").get(user_id).update({"user_storage": user_storage}).run(
             db.conn
         )
+
+
+def user_storage_enable_user_th(user_id, enabled):
+    gevent.spawn(user_storage_enable_user, user_id, enabled)
+
+
+def user_storage_enable_user(user_id, enabled):
+    provider = _get_provider(_get_isard_user_provider_id(user_id))
+    if not provider:
+        # We will return as there are no providers defined in system
+        return
+    try:
+        if enabled == False:
+            provider["conn"].disable_user(user_id)
+        if enabled == True:
+            provider["conn"].enable_user(user_id)
+    except Exception as e:
+        app.logger.debug(f"USER_STORAGE - Error enabling user: {e}")
+        app.logger.error(
+            f"USER_STORAGE - Error enabling user: {user_id} in user_storage provider",
+        )
+        socketio.emit(
+            "personal_unit",
+            json.dumps(
+                {
+                    "action": "Enable user",
+                    "name": user_id,
+                    "status": False,
+                    "msg": "Error enabling user",
+                }
+            ),
+            namespace="/administrators",
+            room="admins",
+        )
+
+    socketio.emit(
+        "personal_unit",
+        json.dumps(
+            {
+                "action": "Enable user",
+                "name": user_id,
+                "status": True,
+                "msg": "Enabled user",
+            }
+        ),
+        namespace="/administrators",
+        room="admins",
+    )
 
 
 def user_storage_update_user_subadmin(user_id, role, provider_id):
