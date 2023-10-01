@@ -570,7 +570,9 @@ $(document).ready(function () {
 
         socket.on('personal_unit', function(data){
             var data = JSON.parse(data);
-            dtUpdateInsert(personalunits_progress,data,false);
+            if (typeof personalunits_progress !== 'undefined') {
+                dtUpdateInsert(personalunits_progress,data,false);
+            }
         });
     
         socket.on('result', function (data) {
