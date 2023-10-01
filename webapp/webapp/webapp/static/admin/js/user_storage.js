@@ -46,7 +46,8 @@ $(document).ready(function () {
             { "data": "authorization" },
             { "data": "connection" },
             { "data": "verify_cert" },
-            { "data": null, "width": "75" },
+            { "data": null, "width": "100px","orderable": false, "defaultContent": '<i class="fa fa-spinner fa-pulse fa-fw"></i><span class="sr-only">...</span>'},
+            { "data": null, "width": "75px" },
             { "data": "id", "visible": false },
         ],
         "order": [[1, 'asc']],
@@ -103,6 +104,33 @@ $(document).ready(function () {
             },
             {
                 "targets": 9,
+                "render": function ( data, type, full, meta ) {
+                    if ( full.hasOwnProperty('new_users') ) {
+                        toshow = ""
+                        if ( full.new_users > 0 ) {
+                            toshow += '<i class="fa fa-user-plus" aria-hidden="true" style="color:orange" title="New users"></i> '+full.new_users+' New<br>'
+                        }
+                        if ( full.deleted_users > 0 ) {
+                            toshow += '<i class="fa fa-user-times" aria-hidden="true" style="color:orange" title="Deleted users"></i> '+full.deleted_users+' Deleted<br>'
+                        }
+                        if ( full.new_groups > 0 ) {
+                            toshow += '<i class="fa fa-users" aria-hidden="true" style="color:orange" title="New groups"></i> '+full.new_groups+' New<br>'
+                        }
+                        if ( full.deleted_groups > 0 ) {
+                            toshow += '<i class="fa fa-users" aria-hidden="true" style="color:orange" title="Deleted groups"></i> '+full.deleted_groups+' Deleted<br>'
+                        }
+                        if ( toshow == "" ) {
+                            toshow = '<i class="fa fa-check" aria-hidden="true" style="color:green" title="Everything is ok"></i>'
+                        }else{
+                            // Add red warning icon inside button
+                            toshow += '<button id="btn-sync" class="btn btn-xs" type="button" data-placement="top"><i class="fa fa-refresh" style="color:darkred" title="Synchronize"></i></button>'
+                        }
+                        return toshow
+                    }
+                }
+            },
+            {
+                "targets": 10,
                 "render": function ( data, type, full, meta ) {
                     if (full.enabled && full.connection && full.authorization) {
                         buttons = '<button id="btn-sync" class="btn btn-xs" type="button" data-placement="top"><i class="fa fa-refresh" style="color:darkblue" title="Sync users"></i></button> \

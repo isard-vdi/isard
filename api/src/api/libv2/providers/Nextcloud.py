@@ -355,7 +355,7 @@ class NextcloudApi:
         return True
 
     def get_user(self, user_id):
-        if user_id == "admin":
+        if user_id == self.user:
             raise Error("bad_request", "user_id cannot be admin")
         url = self.apiurl + "users/" + user_id + "?format=json"
         result = json.loads(self._request("GET", url))
@@ -373,7 +373,7 @@ class NextcloudApi:
         result = json.loads(self._request("GET", url))
         if result["ocs"]["meta"]["statuscode"] == 100:
             try:
-                result["ocs"]["data"]["users"].remove("admin")
+                result["ocs"]["data"]["users"].remove(self.user)
             except ValueError:
                 pass
             return result["ocs"]["data"]["users"]
@@ -385,8 +385,8 @@ class NextcloudApi:
         )
 
     def get_user_quota(self, user_id):
-        if user_id == "admin":
-            raise Error("bad_request", "user_id cannot be admin")
+        if user_id == self.user:
+            raise Error(f"bad_request", "user_id cannot be admin {self.user}")
         url = self.apiurl + "users/" + user_id + "?format=json"
         result = json.loads(self._request("GET", url))
         if result["ocs"]["meta"]["statuscode"] == 100:
@@ -504,8 +504,8 @@ class NextcloudApi:
         )
 
     def remove_user(self, user_id):
-        if user_id == "admin":
-            app.logger.debug("Nextcloud admin user cannot be removed")
+        if user_id == self.user:
+            app.logger.debug(f"Nextcloud {self.user} admin user cannot be removed")
             return
         url = self.apiurl + "users/" + user_id + "?format=json"
         result = json.loads(self._request("DELETE", url))
@@ -706,8 +706,8 @@ class NextcloudApi:
         )
 
     def enable_user(self, user_id):
-        if user_id == "admin":
-            app.logger.debug("Nextcloud admin user cannot be enabled")
+        if user_id == self.user:
+            app.logger.debug(f"Nextcloud {self.user} admin user cannot be enabled")
             return
         url = self.apiurl + "users/" + user_id + "/enable?format=json"
         headers = {
@@ -737,8 +737,8 @@ class NextcloudApi:
         )
 
     def disable_user(self, user_id):
-        if user_id == "admin":
-            app.logger.debug("Nextcloud admin user cannot be disabled")
+        if user_id == self.user:
+            app.logger.debug(f"Nextcloud {self.user} admin user cannot be disabled")
             return
         url = self.apiurl + "users/" + user_id + "/disable?format=json"
         headers = {
@@ -906,7 +906,7 @@ class NextcloudApi:
         url = self.apiurl + "groups?format=json"
         result = json.loads(self._request("GET", url))
         try:
-            result["ocs"]["data"]["groups"].remove("admin")
+            result["ocs"]["data"]["groups"].remove(self.user)
         except ValueError:
             pass
         return result["ocs"]["data"]["groups"]
@@ -917,7 +917,7 @@ class NextcloudApi:
         if not len(result["ocs"]["data"]):
             return []
         try:
-            result["ocs"]["data"]["users"].remove("admin")
+            result["ocs"]["data"]["users"].remove(self.user)
         except ValueError:
             pass
         return result["ocs"]["data"]["users"]

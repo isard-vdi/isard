@@ -300,9 +300,26 @@ def get_ws_connection_status(provider):
         namespace="/administrators",
         room="admins",
     )
+    if provider["connection"]:
+        new_users, deleted_users = get_users_inconsistency(provider["id"])
+        new_groups, deleted_groups = get_groups_inconsistency(provider["id"])
+        socketio.emit(
+            "user_storage_provider",
+            json.dumps(
+                {
+                    "id": provider["id"],
+                    "new_users": len(new_users),
+                    "deleted_users": len(deleted_users),
+                    "new_groups": len(new_groups),
+                    "deleted_groups": len(deleted_groups),
+                }
+            ),
+            namespace="/administrators",
+            room="admins",
+        )
 
 
-def isard_user_storage_get_providers_th():
+def isard_user_storage_get_providers_ws():
     with app.app_context():
         providers = list(
             r.table("user_storage")
@@ -608,7 +625,7 @@ def _get_provider_users_array(provider_id):
         # We will return as there are no providers defined in system
         return
     if provider["cfg"]["access"] == "*":
-        return provider["conn"].get_groups()
+        return provider["conn"].get_users()
     return provider["conn"].get_group_members(provider["cfg"]["access"])
 
 
@@ -698,12 +715,17 @@ def _get_isard_groups_array(provider_id=None):
                 r.table("groups")
                 .get_all(provider["cfg"]["access"], index="parent_category")
                 .pluck("id")["id"]
+                .merge(r.row["parent_category"])
                 .coerce_to("array")
                 .run(db.conn)
             )
     else:
         with app.app_context():
-            return r.table("groups").pluck("id")["id"].coerce_to("array").run(db.conn)
+            return (
+                r.table("groups").pluck("id")["id"].coerce_to("array").run(db.conn)
+            ) + (
+                r.table("categories").pluck("id")["id"].coerce_to("array").run(db.conn)
+            )
 
 
 ## Categories generic queries
@@ -821,7 +843,7 @@ def _get_isard_user_provider_id(user_id):
 ### BATCH Add/Remove Users in batches with greenlets threads
 
 
-def _users_inconsistency(provider_id):
+def get_users_inconsistency(provider_id):
     provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
@@ -1026,7 +1048,7 @@ def process_user_storage_delete_subadmin_batches(data_batch, provider_id):
 
 
 def user_storage_provider_users_sync(provider_id):
-    new_users, removed_users = _users_inconsistency(provider_id)
+    new_users, removed_users = get_users_inconsistency(provider_id)
     process_user_storage_add_user_batches(
         data_batch=new_users,
         provider_id=provider_id,
@@ -1041,7 +1063,7 @@ def user_storage_provider_users_sync(provider_id):
 ### BATCH Add/Update/Remove Groups in batches with greenlets threads
 
 
-def _groups_inconsistency(provider_id):
+def get_groups_inconsistency(provider_id):
     # Get groups from provider
     provider = _get_provider(provider_id)
     if not provider:
@@ -1157,7 +1179,7 @@ def process_user_storage_remove_group_batches(data_batch, provider_id):
 
 
 def user_storage_provider_groups_sync(provider_id):
-    new_groups, removed_groups = _groups_inconsistency(provider_id)
+    new_groups, removed_groups = get_groups_inconsistency(provider_id)
     process_user_storage_add_group_batches(
         data_batch=new_groups, provider_id=provider_id
     )
@@ -1744,8 +1766,11 @@ def _get_provider_groups(provider_id):
         return
     groups = provider["conn"].get_groups()
     if provider["cfg"]["access"] == "*":
+        groups.remove("admin")
         return groups
-    return [g for g in groups if g in _get_isard_groups_array(provider_id)]
+    return [
+        g for g in groups if g in _get_isard_groups_array(provider_id) and g != "admin"
+    ]
 
 
 def user_storage_add_group_th(group_id, provider_id):
