@@ -845,7 +845,29 @@ class ApiUsers:
                 )
 
         domains = desktops + templates + derivated + users + groups
-        return [i for n, i in enumerate(domains) if i not in domains[n + 1 :]]
+        domains = [i for n, i in enumerate(domains) if i not in domains[n + 1 :]]
+        if table == "user":
+            with app.app_context():
+                user_storage = (
+                    r.table("users")
+                    .get(item_id)
+                    .pluck("name", "user_storage")
+                    .run(db.conn)
+                )
+                if user_storage.get("user_storage"):
+                    domains.append(
+                        {
+                            "id": None,
+                            "kind": "user_storage",
+                            "user_name": user_storage.get("name"),
+                            "name": r.table("user_storage")
+                            .get(user_storage["user_storage"].get("provider_id"))
+                            .pluck("name")
+                            .run(db.conn)
+                            .get("name"),
+                        }
+                    )
+        return domains
 
     @cached(TTLCache(maxsize=10, ttl=5))
     def OwnsDesktopViewerIP(self, user_id, category_id, role_id, guess_ip):
