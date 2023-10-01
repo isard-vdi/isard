@@ -604,6 +604,7 @@ def _get_isard_users_array(provider_id=None):
             return (
                 r.table("users")
                 .get_all(r.args(provider["cfg"]["access"]), index="category")
+                .has_fields("user_storage")
                 .pluck("id")["id"]
                 .coerce_to("array")
                 .run(db.conn)

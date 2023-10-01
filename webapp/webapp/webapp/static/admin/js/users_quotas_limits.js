@@ -55,6 +55,7 @@ $(document).ready(function() {
             { "data": "domains_size", className: "xe-desktops", defaultContent: "-"},
             { "data": "media_size", className: "xe-desktops", defaultContent: "-"},
             { "data": null, className: "xe-desktops", defaultContent: "-"},
+            { "data": null, className: "xe-desktops", defaultContent: "-"},
             { "data": "id", "visible": false}
         ],
 		"columnDefs": [
@@ -88,6 +89,14 @@ $(document).ready(function() {
                     return (full.domains_size && full.media_size) ? (full.domains_size + full.media_size).toFixed(1) : 0.0;
                 }
             },
+            {
+                "targets": 11,
+                "render": function ( data, type, full, meta ) {
+                    if (full.hasOwnProperty('user_storage')){
+                        return full.user_storage.provider_quota.used +' ('+full.user_storage.provider_quota.relative+'%)'
+                    }
+                }
+            }
         ],
         footerCallback: function (row, data, start, end, display) {
             var api = this.api();

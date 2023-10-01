@@ -219,6 +219,7 @@ class ApiUsers:
             "email",
             "accessed",
             {"vpn": {"wireguard": {"connected": True}}},
+            {"user_storage": {"provider_quota": {"used": True, "relative": True}}},
         )
         if nav == "management":
             query = query.merge(
@@ -241,6 +242,7 @@ class ApiUsers:
                 "role",
                 "category",
                 "group",
+                {"user_storage": {"provider_quota": {"used": True, "relative": True}}},
             ).merge(
                 lambda user: {
                     "group_name": r.table("groups").get(user["group"])["name"],
