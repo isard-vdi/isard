@@ -266,7 +266,14 @@ class Scheduler:
             .run(db.conn)
         )
         for job in jobs:
-            self.remove_job(job["id"])
+            try:
+                self.remove_job(job["id"])
+            except:
+                log.info(
+                    "Job id "
+                    + str(job["id"])
+                    + " not found. Probably was already deleted"
+                )
 
     def turnOff(self):
         self.scheduler.shutdown()
