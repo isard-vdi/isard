@@ -206,7 +206,7 @@ $(document).ready(function () {
                 new PNotify({
                     title: '<b>WARNING</b>',
                     type: "error",
-                    text: "<b>All users and groups in your Nextcloud (not only in Isard ones) will be deleted.\nAre you sure you want to delete provider '"+data['name']+"'?</b>",
+                    text: "<b>All users and their current data in storage provider will be lost.\nAre you sure you want to delete provider '"+data['name']+"'?</b>",
                     hide: false,
                     opacity: 0.9,
                     confirm: {
@@ -261,7 +261,7 @@ $(document).ready(function () {
                 new PNotify({
                     title: '<b>WARNING: RESET PROVIDER DATA</b>',
                     type: "error",
-                    text: "<b>All users and groups in your Nextcloud (not only in Isard ones) will be deleted.\nAre you sure you want to delete provider '"+data['name']+"'?</b>",
+                    text: "<b>All users and their current data in storage provider will be lost.\nAre you sure you want to delete users and groups in '"+data['name']+"'?</b>",
                     hide: false,
                     opacity: 0.9,
                     confirm: {
@@ -444,57 +444,6 @@ $(document).ready(function () {
         });
         $('#modalPersonalunits #modalPersonalunitsForm').parsley();
     });
-
-    $('.reset-all-personalunit').on( 'click', function () {
-        new PNotify({
-            title: "Reset all providers",
-            text: "<b>All users and groups in your Nextcloud (not only in Isard ones) will be deleted.\nAre you sure you want to reset all providers?</b>",
-            hide: false,
-            confirm: {
-                confirm: true
-            },
-            buttons: {
-                closer: false,
-                sticker: false
-            },
-            history: {
-                history: false
-            },
-            addclass: 'pnotify-center-large',
-            width: '550'
-        }).get().on('pnotify.confirm', function() {
-            $.ajax({
-                type: "DELETE",
-                url: "/api/v3/admin/user_storage/reset/all",
-                success: function (data) {
-                    new PNotify({
-                        title: "Reset all providers",
-                        text: "All providers data are being reset",
-                        hide: true,
-                        delay: 4000,
-                        icon: 'fa fa-info',
-                        opacity: 1,
-                        type: 'info'
-                    });
-                    personalunits_table.ajax.reload();
-                },
-                error: function (xhr, ajaxOptions, thrownError) {
-                    new PNotify({
-                        title: "Reset all providers",
-                        text: xhr.responseJSON.description,
-                        hide: true,
-                        delay: 4000,
-                        icon: 'fa fa-alert',
-                        opacity: 1,
-                        type: 'error'
-                    });
-                }
-            });
-        }).on('pnotify.cancel', function() {
-            //Do Nothing
-        });
-    });
-
 
     $("#modalPersonalunits #send").on('click', function(e){
         var form = $('#modalPersonalunitsForm');
