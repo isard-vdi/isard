@@ -392,7 +392,7 @@ def api_v3_admin_edit_category(payload, category_id):
             traceback.format_exc(),
         )
 
-    data = _validate_item("category", data)
+    data = _validate_item("category_update", data)
     checkDuplicate("categories", data["name"], item_id=data["id"])
     checkDuplicateCustomURL(data["custom_url_name"], category_id=data["id"])
     admin_table_update("categories", data)
@@ -406,7 +406,7 @@ def api_v3_admin_quota_group(payload, group_id):
     propagate = True if "propagate" in data.keys() else False
     if data["quota"]:
         data["id"] = group_id
-        _validate_item("group_update", data)
+        _validate_item("group_update_quota", data)
     if data["role"] == "all_roles":
         data["role"] = False
     group = users.GroupGet(group_id)
@@ -424,7 +424,7 @@ def api_v3_admin_quota_category(payload, category_id):
     propagate = True if "propagate" in data.keys() else False
     if data.get("quota"):
         data["id"] = category_id
-        _validate_item("category_update", data)
+        _validate_item("category_update_quota", data)
     if data["role"] == "all_roles":
         data["role"] = False
     ownsCategoryId(payload, category_id)
@@ -438,7 +438,7 @@ def api_v3_admin_limits_group(payload, group_id):
     data = request.get_json()
     if data["limits"]:
         data["id"] = group_id
-        _validate_item("group_update", data)
+        _validate_item("group_update_quota", data)
     group = users.GroupGet(group_id)
     ownsCategoryId(payload, group["parent_category"])
     users.UpdateGroupLimits(group, data["limits"])
@@ -452,7 +452,7 @@ def api_v3_admin_limits_category(payload, category_id):
     propagate = True if "propagate" in data.keys() else False
     if data["limits"]:
         data["id"] = category_id
-        _validate_item("category_update", data)
+        _validate_item("category_update_quota", data)
     ownsCategoryId(payload, category_id)
     users.UpdateCategoryLimits(category_id, data["limits"], propagate)
     return json.dumps(data), 200, {"Content-Type": "application/json"}
