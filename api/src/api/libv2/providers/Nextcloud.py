@@ -936,6 +936,7 @@ class NextcloudApi:
             return True
         if result["ocs"]["meta"]["statuscode"] == 102:
             if not skip_if_exists:
+                app.logger.error("Group " + group_id + " already exists")
                 raise Error(
                     "conflict",
                     "Group " + group_id + " already exists",
@@ -943,7 +944,6 @@ class NextcloudApi:
                         "POST", url, data=data, auth=self.auth, headers=headers
                     ),
                 )
-            app.logger.error("Group " + group_id + " already exists")
             return True
         raise Error(
             "internal_server",

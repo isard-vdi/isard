@@ -611,61 +611,28 @@ def _get_provider_users_array(provider_id):
 
 ## Groups generic queries
 
-isard_groups_info_cache = TTLCache(maxsize=100, ttl=10)
 
-
-@cached(isard_groups_info_cache)
-def _get_isard_groups_info(provider_id=None):
-    if not provider_id:
-        with app.app_context():
-            return (
-                r.table("groups")
-                .pluck("id", "name", "parent_category")
-                .merge(
-                    lambda group: {
-                        "category_name": r.table("categories").get(
-                            group["parent_category"]
-                        )["name"],
-                    }
-                )
-                .group("id")
-                .run(db.conn)
-            )
-    provider = _get_provider(provider_id)
-    if provider["cfg"]["access"] != []:
-        with app.app_context():
-            return (
-                r.table("groups")
-                .get_all(r.args(provider["cfg"]["access"]), index="parent_category")
-                .pluck("id", "name", "parent_category")
-                .merge(
-                    lambda group: {
-                        "category_name": r.table("categories").get(
-                            group["parent_category"]
-                        )["name"],
-                    }
-                )
-                .group("id")
-                .run(db.conn)
-            )
-    with app.app_context():
-        return (
-            r.table("groups")
-            .pluck("id", "name", "parent_category")
-            .merge(
-                lambda group: {
-                    "category_name": r.table("categories").get(
-                        group["parent_category"]
-                    )["name"],
-                }
-            )
-            .group("id")
-            .run(db.conn)
-        )
-
-
+@cached(TTLCache(maxsize=50, ttl=5))
 def _get_isard_group_info(group_id):
-    return _get_isard_groups_info(_get_isard_group_provider_id(group_id))[group_id][0]
+    with app.app_context():
+        group = r.table("groups").get(group_id).run(db.conn)
+        category = r.table("categories").get(group_id).run(db.conn)
+        if group:
+            return {
+                "id": group["id"],
+                "name": group["name"],
+                "parent_category": group["parent_category"],
+                "category_name": r.table("categories")
+                .get(group["parent_category"])["name"]
+                .run(db.conn),
+            }
+    if category:
+        return {
+            "id": category["id"],
+            "name": category["name"],
+            "parent_category": category["id"],
+            "category_name": category["name"],
+        }
 
 
 def _get_isard_group_category_name(group_id):
@@ -801,9 +768,12 @@ def _get_isard_category_provider_id(category_id):
     return provider_cfg["id"]
 
 
+r
+
+
 def _get_isard_group_provider_id(group_id):
     return _get_isard_category_provider_id(
-        _get_isard_groups_info()[group_id][0]["parent_category"]
+        _get_isard_group_info(group_id)["parent_category"]
     )
 
 
@@ -850,7 +820,9 @@ def process_user_storage_add_user_batches(
     if create_groups:
         user_storage_add_provider_categories_th(provider_id)
         process_user_storage_add_group_batches(
-            data_batch=_get_isard_groups_array(provider_id), provider_id=provider_id
+            data_batch=_get_isard_groups_array(provider_id),
+            provider_id=provider_id,
+            skip_if_exists=True,
         )
 
     # Number of simultaneous users that can be created
@@ -1049,15 +1021,18 @@ def get_groups_inconsistency(provider_id):
     return new_groups, removed_groups
 
 
-def process_user_storage_add_group_batch(data_batch, provider_id):
+def process_user_storage_add_group_batch(data_batch, provider_id, skip_if_exists=False):
     for item_id in data_batch:
         user_storage_add_group(
             group_id=item_id,
             provider_id=provider_id,
+            skip_if_exists=skip_if_exists,
         )
 
 
-def process_user_storage_add_group_batches(data_batch, provider_id):
+def process_user_storage_add_group_batches(
+    data_batch, provider_id, skip_if_exists=False
+):
     if not len(data_batch):
         app.logger.debug("USER_STORAGE - No groups to add to provider")
         return
@@ -1078,7 +1053,12 @@ def process_user_storage_add_group_batches(data_batch, provider_id):
     jobs = []
     for batch in batches:
         jobs.append(
-            gevent.spawn(process_user_storage_add_group_batch, batch, provider_id)
+            gevent.spawn(
+                process_user_storage_add_group_batch,
+                batch,
+                provider_id,
+                skip_if_exists=skip_if_exists,
+            )
         )
     gevent.joinall(jobs)
 
@@ -1243,7 +1223,9 @@ def user_storage_add_user(
 
     if create_groups:
         user_storage_add_group(
-            group_id=_get_isard_user_group_id(user_id), provider_id=provider_id
+            group_id=_get_isard_user_group_id(user_id),
+            provider_id=provider_id,
+            skip_if_exists=True,
         )
 
     password = secrets.token_urlsafe(20)
@@ -1766,13 +1748,13 @@ def user_storage_add_group_th(group_id, provider_id):
     )
 
 
-def user_storage_add_group(group_id, provider_id=None):
+def user_storage_add_group(group_id, provider_id=None, skip_if_exists=False):
     provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
         return
     try:
-        provider["conn"].add_group(group_id)
+        provider["conn"].add_group(group_id, skip_if_exists=skip_if_exists)
         provider["conn"].update_group(
             group_id, _get_isard_group_provider_name(group_id)
         )
@@ -1789,7 +1771,10 @@ def user_storage_add_group(group_id, provider_id=None):
             namespace="/administrators",
             room="admins",
         )
-    except:
+    except Exception as e:
+        app.logger.debug(
+            f"USER_STORAGE - Error adding group {group_id} in user_storage provider: {traceback.format_exc()}"
+        )
         app.logger.error(
             "USER_STORAGE - Add group. Error adding group {}".format(group_id)
         )
