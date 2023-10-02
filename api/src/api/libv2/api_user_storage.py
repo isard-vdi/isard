@@ -81,7 +81,7 @@ def isard_user_storage_get_users():
 ## ADD
 def isard_user_storage_add_user(user_id):
     try:
-        user_storage_add_user_th(
+        user_storage_add_user_th_later(
             user_id,
             provider_id=_get_isard_user_provider_id(user_id),
             create_groups=False,
@@ -542,35 +542,17 @@ def isard_user_storage_provider_login_auth(
 ####################
 
 ## Users generic queries
-isard_users_info_cache = TTLCache(maxsize=10, ttl=240)
 
 
-@cached(isard_users_info_cache)
-def _get_isard_users_info(provider_id=None):
-    provider = _get_provider(provider_id)
-    if not provider or provider.get("cfg", {}).get("access") == []:
-        with app.app_context():
-            return (
-                r.table("users")
-                .pluck(
-                    "id", "name", "role", "group", "category", "user_storage", "email"
-                )
-                .group("id")
-                .run(db.conn)
-            )
-
+@cached(TTLCache(maxsize=50, ttl=5))
+def _get_isard_user_info(user_id):
     with app.app_context():
         return (
             r.table("users")
-            .get_all(r.args(provider["cfg"]["access"]), index="category")
+            .get(user_id)
             .pluck("id", "name", "role", "group", "category", "user_storage", "email")
-            .group("id")
             .run(db.conn)
         )
-
-
-def _get_isard_user_info(user_id):
-    return _get_isard_users_info(_get_isard_user_provider_id(user_id))[user_id][0]
 
 
 def _get_isard_user_name(user_id):
@@ -826,9 +808,7 @@ def _get_isard_group_provider_id(group_id):
 
 
 def _get_isard_user_provider_id(user_id):
-    return _get_isard_category_provider_id(
-        _get_isard_users_info()[user_id][0]["category"]
-    )
+    return _get_isard_category_provider_id(_get_isard_user_info(user_id)["category"])
 
 
 ### BATCH Add/Remove Users in batches with greenlets threads
@@ -1223,6 +1203,20 @@ def process_user_storage_add_category_batches(data_batch, provider_id):
 ########################
 
 ## Add/Update/Remove users
+
+
+def user_storage_add_user_th_later(
+    user_id, provider_id=None, create_groups=False, webdav_folder=True
+):
+    # Wait 1 second before adding to let user be in database for sure
+    gevent.spawn_later(
+        1,
+        user_storage_add_user,
+        user_id,
+        provider_id,
+        create_groups,
+        webdav_folder,
+    )
 
 
 def user_storage_add_user_th(

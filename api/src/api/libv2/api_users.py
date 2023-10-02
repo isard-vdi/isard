@@ -594,7 +594,6 @@ class ApiUsers:
                     "Unable to insert in database user_id " + user_id,
                     traceback.format_exc(),
                 )
-
         isard_user_storage_add_user(user_id)
         return user_id
 
