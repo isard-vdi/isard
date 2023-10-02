@@ -1,0 +1,8 @@
+password:
+  type: string
+name:
+  type: string
+email:
+  type: string
+photo:
+  type: string
