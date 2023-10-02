@@ -13,6 +13,7 @@ from rethinkdb import RethinkDB
 from api import app
 
 from ..libv2.quotas import Quotas
+from ..libv2.validators import _validate_item
 
 quotas = Quotas()
 from ..libv2.flask_rethink import RDB
@@ -164,23 +165,11 @@ def api_v3_user_owns_desktop(payload):
 @has_token
 def api_v3_user_update(payload):
     data = request.get_json(force=True)
-    try:
-        name = data.get("name", None)
-        email = data.get("email", None)
-        photo = data.get("photo", None)
-        password = data.get("password", None)
-    except:
-        raise Error("bad_request", "Update user bad body data", traceback.format_exc())
-    if not name and not email and not photo and not password:
-        raise Error(
-            "bad_request",
-            "Update user incorrect body data",
-            traceback.format_exc(),
-        )
+    data = _validate_item("user_update_frontend", data)
 
     users.Update(
         [payload["user_id"]],
-        {"name": name, "email": email, "photo": photo, "password": password},
+        data,
     )
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
