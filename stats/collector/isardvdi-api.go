@@ -17,8 +17,8 @@ type IsardVDIAPI struct {
 	descScrapeDuration               *prometheus.Desc
 	descScrapeSuccess                *prometheus.Desc
 	descUserInfo                     *prometheus.Desc
+	descDomainStatus                 *prometheus.Desc
 	descDesktopNumber                *prometheus.Desc
-	descDesktopNumberStarted         *prometheus.Desc
 	descDesktopNumberCategory        *prometheus.Desc
 	descDesktopNumberCategoryStarted *prometheus.Desc
 	descDesktopInfo                  *prometheus.Desc
@@ -52,15 +52,15 @@ func NewIsardVDIAPI(log *zerolog.Logger, cli *isardvdi.Client) *IsardVDIAPI {
 		[]string{"id", "role", "category", "group"},
 		prometheus.Labels{},
 	)
+	a.descDomainStatus = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, a.String(), "domain_status"),
+		"Information of the number of domains of a domain type that have a specific status",
+		[]string{"type", "status"},
+		prometheus.Labels{},
+	)
 	a.descDesktopNumber = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, a.String(), "desktop_number"),
 		"The number of desktops",
-		[]string{},
-		prometheus.Labels{},
-	)
-	a.descDesktopNumberStarted = prometheus.NewDesc(
-		prometheus.BuildFQName(namespace, a.String(), "desktop_number_started"),
-		"The number of desktops started",
 		[]string{},
 		prometheus.Labels{},
 	)
@@ -118,8 +118,8 @@ func (a *IsardVDIAPI) Describe(ch chan<- *prometheus.Desc) {
 	ch <- a.descScrapeDuration
 	ch <- a.descScrapeSuccess
 	ch <- a.descUserInfo
+	ch <- a.descDomainStatus
 	ch <- a.descDesktopNumber
-	ch <- a.descDesktopNumberStarted
 	ch <- a.descDesktopNumberCategory
 	ch <- a.descDesktopInfo
 	ch <- a.descTemplateNumber
@@ -133,7 +133,9 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 
 	success := 1
 
-	usr, err := a.cli.StatsUsers(context.Background())
+	ctx := context.Background()
+
+	usr, err := a.cli.StatsUsers(ctx)
 	if err != nil {
 		a.Log.Info().Str("collector", a.String()).Err(err).Msg("list users")
 		success = 0
@@ -143,7 +145,21 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 		ch <- prometheus.MustNewConstMetric(a.descUserInfo, prometheus.GaugeValue, 1, isardvdi.GetString(u.ID), isardvdi.GetString(u.Role), isardvdi.GetString(u.Category), isardvdi.GetString(u.Group))
 	}
 
-	dsk, err := a.cli.StatsDesktops(context.Background())
+	dom, err := a.cli.StatsDomainsStatus(ctx)
+	if err != nil {
+		a.Log.Info().Str("collector", a.String()).Err(err).Msg("get domains status")
+		success = 0
+	}
+	if dom != nil {
+		for state, number := range dom.Desktop {
+			ch <- prometheus.MustNewConstMetric(a.descDomainStatus, prometheus.GaugeValue, float64(number), "destkop", string(state))
+		}
+		for state, number := range dom.Template {
+			ch <- prometheus.MustNewConstMetric(a.descDomainStatus, prometheus.GaugeValue, float64(number), "template", string(state))
+		}
+	}
+
+	dsk, err := a.cli.StatsDesktops(ctx)
 	if err != nil {
 		a.Log.Info().Str("collector", a.String()).Err(err).Msg("list desktops")
 		success = 0
@@ -154,7 +170,7 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 		ch <- prometheus.MustNewConstMetric(a.descDesktopInfo, prometheus.GaugeValue, 1, isardvdi.GetString(d.ID), isardvdi.GetString(d.User))
 	}
 
-	cat, err := a.cli.StatsCategoryList(context.Background())
+	cat, err := a.cli.StatsCategoryList(ctx)
 	if err != nil {
 		a.Log.Info().Str("collector", a.String()).Err(err).Msg("get category statistics")
 		success = 0
@@ -165,14 +181,14 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 		ch <- prometheus.MustNewConstMetric(a.descTemplateNumberCategory, prometheus.GaugeValue, float64(isardvdi.GetInt(c.TemplateNum)), isardvdi.GetString(c.ID))
 	}
 
-	tmpl, err := a.cli.StatsTemplates(context.Background())
+	tmpl, err := a.cli.StatsTemplates(ctx)
 	if err != nil {
 		a.Log.Info().Str("collector", a.String()).Err(err).Msg("list templates")
 		success = 0
 	}
 	ch <- prometheus.MustNewConstMetric(a.descTemplateNumber, prometheus.GaugeValue, float64(len(tmpl)))
 
-	hyp, err := a.cli.StatsHypervisors(context.Background())
+	hyp, err := a.cli.StatsHypervisors(ctx)
 	if err != nil {
 		a.Log.Info().Str("collector", a.String()).Err(err).Msg("list hypervisors")
 		success = 0
@@ -182,7 +198,7 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 		ch <- prometheus.MustNewConstMetric(a.descHypervisorInfo, prometheus.GaugeValue, 1, isardvdi.GetString(h.ID), string(*h.Status), strconv.FormatBool(isardvdi.GetBool(h.OnlyForced)))
 	}
 
-	dply, err := a.cli.StatsDeploymentByCategory(context.Background())
+	dply, err := a.cli.StatsDeploymentByCategory(ctx)
 	if err != nil {
 		a.Log.Info().Str("collector", a.String()).Err(err).Msg("get deployments statistics")
 		success = 0

@@ -21,7 +21,7 @@ require (
 	github.com/spf13/viper v1.16.0
 	github.com/stretchr/testify v1.8.4
 	github.com/teris-io/shortid v0.0.0-20220617161101-71ec9f2aa569
-	gitlab.com/isard/isardvdi-sdk-go v1.4.0
+	gitlab.com/isard/isardvdi-sdk-go v1.5.1
 	golang.org/x/crypto v0.13.0
 	golang.org/x/oauth2 v0.12.0
 	google.golang.org/grpc v1.56.2
