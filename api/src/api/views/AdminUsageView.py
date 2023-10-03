@@ -233,12 +233,28 @@ def api_v3_admin_consolidate_item(payload, item_type, days=29):
 
 
 @cached(cache=TTLCache(maxsize=10, ttl=5))
+@app.route("/api/v3/admin/usage/parameters", methods=["GET"])
+@is_admin
+def api_v3_admin_usage_parameters(payload):
+    return (
+        json.dumps(get_usage_parameters()),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@cached(cache=TTLCache(maxsize=10, ttl=5))
 @app.route("/api/v3/admin/usage/list_parameters", methods=["PUT"])
 @is_admin_or_manager
-def api_v3_admin_usage_parameters(payload):
+def api_v3_admin_usage_list_parameters(payload):
     data = request.get_json(force=True)
+    if data.get("ids"):
+        result = get_usage_parameters(data.get("ids"))
+    else:
+        result = {}
+
     return (
-        json.dumps(get_usage_parameters(data.get("ids") if data else None)),
+        json.dumps(result),
         200,
         {"Content-Type": "application/json"},
     )
@@ -294,7 +310,7 @@ def api_v3_admin_usage_parameters_delete(payload, parameter_id):
 
 @cached(cache=TTLCache(maxsize=10, ttl=5))
 @app.route("/api/v3/admin/usage/limits", methods=["GET"])
-@is_admin_or_manager
+@is_admin
 def api_v3_admin_usage_limits(payload):
     return (
         json.dumps(get_usage_limits()),
@@ -347,7 +363,7 @@ def api_v3_admin_usage_limits_delete(payload, limit_id):
 
 @cached(cache=TTLCache(maxsize=10, ttl=5))
 @app.route("/api/v3/admin/usage/groupings", methods=["GET"])
-@is_admin_or_manager
+@is_admin
 def api_v3_admin_usage_groupings(payload):
     return (
         json.dumps(get_usage_groupings()),
