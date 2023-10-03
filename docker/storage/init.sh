@@ -18,9 +18,5 @@ then
       previous_pools="$previous_pools $pool"
     done
   done
-  while true
-  do
-    rq worker --name storage:${STORAGE_DOMAIN:-isard-storage}:$(uuidgen) --url "redis://:${REDIS_PASSWORD}@${REDIS_HOST:-isard-redis}:${REDIS_PORT:-6379}" -P /opt/isardvdi/isardvdi_task $queues
-    sleep 1
-  done
+  rq worker --connection-class="isardvdi_common.redis_retry.RedisRetry" --name storage:${STORAGE_DOMAIN:-isard-storage}:$(uuidgen) --url "redis://:${REDIS_PASSWORD}@${REDIS_HOST:-isard-redis}:${REDIS_PORT:-6379}" -P /opt/isardvdi/isardvdi_task $queues
 fi
