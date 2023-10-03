@@ -171,3 +171,22 @@ func (c *Client) StatsHypervisors(ctx context.Context) ([]*StatsHypervisor, erro
 
 	return h, nil
 }
+
+type StatsDomainsStatus struct {
+	Desktop  map[DomainState]int `json:"desktop,omitempty"`
+	Template map[DomainState]int `json:"template,omitempty"`
+}
+
+func (c *Client) StatsDomainsStatus(ctx context.Context) (*StatsDomainsStatus, error) {
+	req, err := c.newRequest(http.MethodGet, "stats/domains/status", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	s := &StatsDomainsStatus{}
+	if _, err := c.do(ctx, req, s); err != nil {
+		return nil, fmt.Errorf("get domains status stats: %w", err)
+	}
+
+	return s, nil
+}

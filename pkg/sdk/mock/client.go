@@ -192,6 +192,11 @@ func (c *Client) StatsHypervisors(ctx context.Context) ([]*isardvdi.StatsHypervi
 	return args.Get(0).([]*isardvdi.StatsHypervisor), args.Error(1)
 }
 
+func (c *Client) StatsDomainsStatus(ctx context.Context) (*isardvdi.StatsDomainsStatus, error) {
+	args := c.Called(0)
+	return args.Get(0).(*isardvdi.StatsDomainsStatus), args.Error(1)
+}
+
 func (c *Client) OrchestratorHypervisorList(ctx context.Context) ([]*isardvdi.OrchestratorHypervisor, error) {
 	args := c.Called(ctx)
 	return args.Get(0).([]*isardvdi.OrchestratorHypervisor), args.Error(1)

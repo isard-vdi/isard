@@ -11,13 +11,13 @@ import (
 )
 
 type Desktop struct {
-	ID          *string `json:"id,omitempty"`
-	State       *string `json:"state,omitempty"`
-	Type        *string `json:"type,omitempty"`
-	Template    *string `json:"template,omitempty"`
-	Name        *string `json:"name,omitempty"`
-	Description *string `json:"description,omitempty"`
-	IP          *string `json:"ip,omitempty"`
+	ID          *string      `json:"id,omitempty"`
+	State       *DomainState `json:"state,omitempty"`
+	Type        *string      `json:"type,omitempty"`
+	Template    *string      `json:"template,omitempty"`
+	Name        *string      `json:"name,omitempty"`
+	Description *string      `json:"description,omitempty"`
+	IP          *string      `json:"ip,omitempty"`
 }
 
 type DesktopViewer string

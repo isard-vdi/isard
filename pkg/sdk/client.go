@@ -74,6 +74,7 @@ type Interface interface {
 	StatsDesktops(ctx context.Context) ([]*StatsDesktop, error)
 	StatsTemplates(ctx context.Context) ([]*StatsTemplate, error)
 	StatsHypervisors(ctx context.Context) ([]*StatsHypervisor, error)
+	StatsDomainsStatus(ctx context.Context) (*StatsDomainsStatus, error)
 
 	OrchestratorHypervisorList(ctx context.Context) ([]*OrchestratorHypervisor, error)
 	OrchestratorHypervisorGet(ctx context.Context, id string) (*OrchestratorHypervisor, error)

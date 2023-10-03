@@ -81,3 +81,17 @@ func TestStatsHypervisors(t *testing.T) {
 	assert.NoError(err)
 	assert.Nil(hypervisors)
 }
+
+func TestStatsDomainStatus(t *testing.T) {
+	assert := assert.New(t)
+
+	cli := newClient(t)
+
+	status, err := cli.StatsDomainsStatus(context.Background())
+
+	b, _ := json.Marshal(status)
+	fmt.Println(string(b))
+
+	assert.NoError(err)
+	assert.Nil(status)
+}
