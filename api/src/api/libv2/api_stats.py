@@ -61,13 +61,7 @@ def Templates():
 
 def DomainsStatus():
     with app.app_context():
-        domains = (
-            r.table("domains")
-            .pluck("status", "kind")
-            .group("kind", "status")
-            .count()
-            .run(db.conn)
-        )
+        domains = r.table("domains").group(index="kind_status").count().run(db.conn)
     d = {}
     for k, v in domains.items():
         if k[0] not in d:
