@@ -1,18 +1,19 @@
 package collector
 
 import (
+	"context"
 	"encoding/xml"
 	"fmt"
-	"log"
 	"net"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"gitlab.com/isard/isardvdi/stats/cfg"
 
-	"github.com/patrickmn/go-cache"
+	"github.com/jellydator/ttlcache/v3"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog"
 	"golang.org/x/crypto/ssh"
@@ -20,81 +21,121 @@ import (
 	"libvirt.org/go/libvirtxml"
 )
 
-const viewersBasePort = 5900
+const (
+	viewersBasePort = 5900
+	domainBatchSize = 50
+)
 
-type Domain struct {
-	hyp         string
-	Log         *zerolog.Logger
-	libvirtMux  *sync.Mutex
-	libvirtConn *libvirt.Connect
-	sshMux      *sync.Mutex
-	sshConn     *ssh.Client
-	cache       *cache.Cache
-
-	descScrapeDuration        *prometheus.Desc
-	descScrapeSuccess         *prometheus.Desc
-	descCPUTime               *prometheus.Desc
-	descCPUUser               *prometheus.Desc
-	descCPUSystem             *prometheus.Desc
-	descBalloonCurrent        *prometheus.Desc
-	descBalloonMaximum        *prometheus.Desc
-	descBalloonSwapIn         *prometheus.Desc
-	descBalloonSwapOut        *prometheus.Desc
-	descBalloonMajorFault     *prometheus.Desc
-	descBalloonMinorFault     *prometheus.Desc
-	descBalloonUnused         *prometheus.Desc
-	descBalloonAvailable      *prometheus.Desc
-	descBalloonRss            *prometheus.Desc
-	descBalloonUsable         *prometheus.Desc
-	descBalloonLastUpdate     *prometheus.Desc
-	descBalloonDiskCaches     *prometheus.Desc
-	descBalloonHugetlbPgAlloc *prometheus.Desc
-	descBalloonHugetlbPgFail  *prometheus.Desc
-	descVCPUCurrent           *prometheus.Desc
-	descVCPUState             *prometheus.Desc
-	descVCPUTime              *prometheus.Desc
-	descVCPUWait              *prometheus.Desc
-	descVCPUDelay             *prometheus.Desc
-	descVCPUHalted            *prometheus.Desc
-	descNetRxBytes            *prometheus.Desc
-	descNetRxPkts             *prometheus.Desc
-	descNetRxErrs             *prometheus.Desc
-	descNetRxDrop             *prometheus.Desc
-	descNetTxBytes            *prometheus.Desc
-	descNetTxPkts             *prometheus.Desc
-	descNetTxErrs             *prometheus.Desc
-	descNetTxDrop             *prometheus.Desc
-	descBlockBackingIndex     *prometheus.Desc
-	descBlockRdBytes          *prometheus.Desc
-	descBlockRdReqs           *prometheus.Desc
-	descBlockRdTimes          *prometheus.Desc
-	descBlockWrBytes          *prometheus.Desc
-	descBlockWrReqs           *prometheus.Desc
-	descBlockWrTimes          *prometheus.Desc
-	descBlockFlReqs           *prometheus.Desc
-	descBlockFlTimes          *prometheus.Desc
-	descBlockAllocation       *prometheus.Desc
-	descBlockCapacity         *prometheus.Desc
-	descBlockPhysical         *prometheus.Desc
-	descMemAvailable          *prometheus.Desc
-	descMemTotal              *prometheus.Desc
-	descPortSpice             *prometheus.Desc
-	descPortSpiceTLS          *prometheus.Desc
-	descPortVNC               *prometheus.Desc
-	descPortVNCWebsocket      *prometheus.Desc
+type DomainStats struct {
+	stats    *libvirt.DomainStats
+	mem      *DomainMem
+	ports    DomainPorts
+	xml      *libvirtxml.Domain
+	metadata *IsardMetadata
 }
 
-func NewDomain(libvirtMux *sync.Mutex, sshMux *sync.Mutex, cfg cfg.Cfg, log *zerolog.Logger, libvirtConn *libvirt.Connect, sshConn *ssh.Client) *Domain {
+type DomainPorts struct {
+	spice        int
+	spiceTls     int
+	vncWebsocket int
+	vnc          int
+}
+
+type DomainMem struct {
+	total     float64
+	available float64
+}
+
+type Domain struct {
+	hyp             string
+	log             *zerolog.Logger
+	libvirtMux      *sync.Mutex
+	libvirtConn     *libvirt.Connect
+	sshMux          *sync.Mutex
+	sshConn         *ssh.Client
+	cache           *ttlcache.Cache[string, DomainStats]
+	extractDuration atomic.Pointer[time.Duration]
+
+	descStatsExtractionDuration *prometheus.Desc
+	descScrapeDuration          *prometheus.Desc
+	descScrapeSuccess           *prometheus.Desc
+	descCPUTime                 *prometheus.Desc
+	descCPUUser                 *prometheus.Desc
+	descCPUSystem               *prometheus.Desc
+	descBalloonCurrent          *prometheus.Desc
+	descBalloonMaximum          *prometheus.Desc
+	descBalloonSwapIn           *prometheus.Desc
+	descBalloonSwapOut          *prometheus.Desc
+	descBalloonMajorFault       *prometheus.Desc
+	descBalloonMinorFault       *prometheus.Desc
+	descBalloonUnused           *prometheus.Desc
+	descBalloonAvailable        *prometheus.Desc
+	descBalloonRss              *prometheus.Desc
+	descBalloonUsable           *prometheus.Desc
+	descBalloonLastUpdate       *prometheus.Desc
+	descBalloonDiskCaches       *prometheus.Desc
+	descBalloonHugetlbPgAlloc   *prometheus.Desc
+	descBalloonHugetlbPgFail    *prometheus.Desc
+	descVCPUCurrent             *prometheus.Desc
+	descVCPUState               *prometheus.Desc
+	descVCPUTime                *prometheus.Desc
+	descVCPUWait                *prometheus.Desc
+	descVCPUDelay               *prometheus.Desc
+	descVCPUHalted              *prometheus.Desc
+	descNetRxBytes              *prometheus.Desc
+	descNetRxPkts               *prometheus.Desc
+	descNetRxErrs               *prometheus.Desc
+	descNetRxDrop               *prometheus.Desc
+	descNetTxBytes              *prometheus.Desc
+	descNetTxPkts               *prometheus.Desc
+	descNetTxErrs               *prometheus.Desc
+	descNetTxDrop               *prometheus.Desc
+	descBlockBackingIndex       *prometheus.Desc
+	descBlockRdBytes            *prometheus.Desc
+	descBlockRdReqs             *prometheus.Desc
+	descBlockRdTimes            *prometheus.Desc
+	descBlockWrBytes            *prometheus.Desc
+	descBlockWrReqs             *prometheus.Desc
+	descBlockWrTimes            *prometheus.Desc
+	descBlockFlReqs             *prometheus.Desc
+	descBlockFlTimes            *prometheus.Desc
+	descBlockAllocation         *prometheus.Desc
+	descBlockCapacity           *prometheus.Desc
+	descBlockPhysical           *prometheus.Desc
+	descMemAvailable            *prometheus.Desc
+	descMemTotal                *prometheus.Desc
+	descPortSpice               *prometheus.Desc
+	descPortSpiceTLS            *prometheus.Desc
+	descPortVNC                 *prometheus.Desc
+	descPortVNCWebsocket        *prometheus.Desc
+}
+
+func NewDomain(ctx context.Context, libvirtMux *sync.Mutex, sshMux *sync.Mutex, cfg cfg.Cfg, log *zerolog.Logger, libvirtConn *libvirt.Connect, sshConn *ssh.Client) *Domain {
+	// TODO: Setup domain cache expiration?
 	d := &Domain{
 		libvirtMux:  libvirtMux,
 		libvirtConn: libvirtConn,
 		sshMux:      sshMux,
 		sshConn:     sshConn,
-		cache:       cache.New(6*time.Hour, time.Hour),
-		Log:         log,
 		hyp:         cfg.Domain,
+		cache:       ttlcache.New[string, DomainStats](),
 	}
+	l := log.With().Str("collector", d.String()).Str("hypervisor", d.hyp).Logger()
+	d.log = &l
 
+	zeroDur := time.Duration(0)
+	d.extractDuration.Store(&zeroDur)
+
+	go d.collectStats(ctx)
+
+	d.descStatsExtractionDuration = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, d.String(), "stats_extraction_duration_seconds"),
+		"node_exporter: Duration of a complete stats extraction (including all batches)",
+		[]string{},
+		prometheus.Labels{
+			"hypervisor": cfg.Domain,
+		},
+	)
 	d.descScrapeDuration = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, d.String(), "scrape_duration_seconds"),
 		"node_exporter: Duration of a collector scrape",
@@ -507,62 +548,62 @@ func NewDomain(libvirtMux *sync.Mutex, sshMux *sync.Mutex, cfg cfg.Cfg, log *zer
 	return d
 }
 
-func (d *Domain) String() string {
+func (c *Domain) String() string {
 	return "domain"
 }
 
-func (d *Domain) Describe(ch chan<- *prometheus.Desc) {
-	ch <- d.descScrapeDuration
-	ch <- d.descScrapeSuccess
-	ch <- d.descCPUTime
-	ch <- d.descCPUUser
-	ch <- d.descCPUSystem
-	ch <- d.descBalloonCurrent
-	ch <- d.descBalloonMaximum
-	ch <- d.descBalloonSwapIn
-	ch <- d.descBalloonSwapOut
-	ch <- d.descBalloonMajorFault
-	ch <- d.descBalloonMinorFault
-	ch <- d.descBalloonUnused
-	ch <- d.descBalloonAvailable
-	ch <- d.descBalloonRss
-	ch <- d.descBalloonUsable
-	ch <- d.descBalloonLastUpdate
-	ch <- d.descBalloonDiskCaches
-	ch <- d.descBalloonHugetlbPgAlloc
-	ch <- d.descBalloonHugetlbPgFail
-	ch <- d.descVCPUCurrent
-	ch <- d.descVCPUState
-	ch <- d.descVCPUTime
-	ch <- d.descVCPUWait
-	ch <- d.descVCPUDelay
-	ch <- d.descVCPUHalted
-	ch <- d.descNetRxBytes
-	ch <- d.descNetRxPkts
-	ch <- d.descNetRxErrs
-	ch <- d.descNetRxDrop
-	ch <- d.descNetTxBytes
-	ch <- d.descNetTxPkts
-	ch <- d.descNetTxErrs
-	ch <- d.descNetTxDrop
-	ch <- d.descBlockBackingIndex
-	ch <- d.descBlockRdBytes
-	ch <- d.descBlockRdReqs
-	ch <- d.descBlockRdTimes
-	ch <- d.descBlockWrBytes
-	ch <- d.descBlockWrReqs
-	ch <- d.descBlockWrTimes
-	ch <- d.descBlockFlReqs
-	ch <- d.descBlockFlTimes
-	ch <- d.descBlockAllocation
-	ch <- d.descBlockCapacity
-	ch <- d.descBlockPhysical
-	ch <- d.descMemAvailable
-	ch <- d.descMemTotal
-	ch <- d.descPortSpice
-	ch <- d.descPortSpiceTLS
-	ch <- d.descPortVNC
-	ch <- d.descPortVNCWebsocket
+func (c *Domain) Describe(ch chan<- *prometheus.Desc) {
+	ch <- c.descScrapeDuration
+	ch <- c.descScrapeSuccess
+	ch <- c.descCPUTime
+	ch <- c.descCPUUser
+	ch <- c.descCPUSystem
+	ch <- c.descBalloonCurrent
+	ch <- c.descBalloonMaximum
+	ch <- c.descBalloonSwapIn
+	ch <- c.descBalloonSwapOut
+	ch <- c.descBalloonMajorFault
+	ch <- c.descBalloonMinorFault
+	ch <- c.descBalloonUnused
+	ch <- c.descBalloonAvailable
+	ch <- c.descBalloonRss
+	ch <- c.descBalloonUsable
+	ch <- c.descBalloonLastUpdate
+	ch <- c.descBalloonDiskCaches
+	ch <- c.descBalloonHugetlbPgAlloc
+	ch <- c.descBalloonHugetlbPgFail
+	ch <- c.descVCPUCurrent
+	ch <- c.descVCPUState
+	ch <- c.descVCPUTime
+	ch <- c.descVCPUWait
+	ch <- c.descVCPUDelay
+	ch <- c.descVCPUHalted
+	ch <- c.descNetRxBytes
+	ch <- c.descNetRxPkts
+	ch <- c.descNetRxErrs
+	ch <- c.descNetRxDrop
+	ch <- c.descNetTxBytes
+	ch <- c.descNetTxPkts
+	ch <- c.descNetTxErrs
+	ch <- c.descNetTxDrop
+	ch <- c.descBlockBackingIndex
+	ch <- c.descBlockRdBytes
+	ch <- c.descBlockRdReqs
+	ch <- c.descBlockRdTimes
+	ch <- c.descBlockWrBytes
+	ch <- c.descBlockWrReqs
+	ch <- c.descBlockWrTimes
+	ch <- c.descBlockFlReqs
+	ch <- c.descBlockFlTimes
+	ch <- c.descBlockAllocation
+	ch <- c.descBlockCapacity
+	ch <- c.descBlockPhysical
+	ch <- c.descMemAvailable
+	ch <- c.descMemTotal
+	ch <- c.descPortSpice
+	ch <- c.descPortSpiceTLS
+	ch <- c.descPortVNC
+	ch <- c.descPortVNCWebsocket
 }
 
 type metadata struct {
@@ -587,246 +628,324 @@ type cacheDomain struct {
 	RawXML string
 }
 
-func (d *Domain) Collect(ch chan<- prometheus.Metric) {
+func (c *Domain) Collect(ch chan<- prometheus.Metric) {
 	start := time.Now()
 
 	success := 1
-	stats, err := d.collectStats()
-	if err != nil {
-		d.Log.Error().Str("collector", d.String()).Err(err).Msg("collect stats")
-		success = 0
-	}
-
-	for _, s := range stats {
-		id, domain, err, msg := d.getDomainXML(s)
-		if err != nil {
-			d.Log.Info().Str("collector", d.String()).Err(err).Msg(msg)
-
-			continue
-		}
-
-		defer func() {
-			d.libvirtMux.Lock()
-			defer d.libvirtMux.Unlock()
-
-			s.Domain.Free()
-		}()
+	for id, item := range c.cache.Items() {
+		stats := item.Value()
+		s := stats.stats
 
 		var (
 			userID     string
 			groupID    string
 			categoryID string
 		)
-		metadata, err := parseIsardMetadata(domain.XML.Metadata)
-		if err != nil {
-			d.Log.Error().Str("collector", d.String()).Str("desktop", domain.XML.Name).Err(err).Msg("extract Isard metadata from domain")
-		} else {
-			userID = metadata.Who.UserID
-			groupID = metadata.Who.GroupID
-			categoryID = metadata.Who.CategoryID
+		if stats.metadata != nil {
+			userID = stats.metadata.Who.UserID
+			groupID = stats.metadata.Who.GroupID
+			categoryID = stats.metadata.Who.CategoryID
 		}
 
 		if s.Cpu != nil {
-			ch <- prometheus.MustNewConstMetric(d.descCPUTime, prometheus.GaugeValue, float64(s.Cpu.Time), id, userID, groupID, categoryID)
-			ch <- prometheus.MustNewConstMetric(d.descCPUUser, prometheus.GaugeValue, float64(s.Cpu.User), id, userID, groupID, categoryID)
-			ch <- prometheus.MustNewConstMetric(d.descCPUSystem, prometheus.GaugeValue, float64(s.Cpu.System), id, userID, groupID, categoryID)
+			ch <- prometheus.MustNewConstMetric(c.descCPUTime, prometheus.GaugeValue, float64(s.Cpu.Time), id, userID, groupID, categoryID)
+			ch <- prometheus.MustNewConstMetric(c.descCPUUser, prometheus.GaugeValue, float64(s.Cpu.User), id, userID, groupID, categoryID)
+			ch <- prometheus.MustNewConstMetric(c.descCPUSystem, prometheus.GaugeValue, float64(s.Cpu.System), id, userID, groupID, categoryID)
 		}
 
 		if s.Balloon != nil {
-			ch <- prometheus.MustNewConstMetric(d.descBalloonCurrent, prometheus.GaugeValue, float64(s.Balloon.Current), id, userID, groupID, categoryID)
-			ch <- prometheus.MustNewConstMetric(d.descBalloonMaximum, prometheus.GaugeValue, float64(s.Balloon.Maximum), id, userID, groupID, categoryID)
-			ch <- prometheus.MustNewConstMetric(d.descBalloonSwapIn, prometheus.GaugeValue, float64(s.Balloon.SwapIn), id, userID, groupID, categoryID)
-			ch <- prometheus.MustNewConstMetric(d.descBalloonSwapOut, prometheus.GaugeValue, float64(s.Balloon.SwapOut), id, userID, groupID, categoryID)
-			ch <- prometheus.MustNewConstMetric(d.descBalloonMajorFault, prometheus.GaugeValue, float64(s.Balloon.MajorFault), id, userID, groupID, categoryID)
-			ch <- prometheus.MustNewConstMetric(d.descBalloonMinorFault, prometheus.GaugeValue, float64(s.Balloon.MinorFault), id, userID, groupID, categoryID)
-			ch <- prometheus.MustNewConstMetric(d.descBalloonUnused, prometheus.GaugeValue, float64(s.Balloon.Unused), id, userID, groupID, categoryID)
-			ch <- prometheus.MustNewConstMetric(d.descBalloonAvailable, prometheus.GaugeValue, float64(s.Balloon.Available), id, userID, groupID, categoryID)
-			ch <- prometheus.MustNewConstMetric(d.descBalloonRss, prometheus.GaugeValue, float64(s.Balloon.Rss), id, userID, groupID, categoryID)
-			ch <- prometheus.MustNewConstMetric(d.descBalloonUsable, prometheus.GaugeValue, float64(s.Balloon.Usable), id, userID, groupID, categoryID)
-			ch <- prometheus.MustNewConstMetric(d.descBalloonLastUpdate, prometheus.GaugeValue, float64(s.Balloon.LastUpdate), id, userID, groupID, categoryID)
-			ch <- prometheus.MustNewConstMetric(d.descBalloonDiskCaches, prometheus.GaugeValue, float64(s.Balloon.DiskCaches), id, userID, groupID, categoryID)
-			ch <- prometheus.MustNewConstMetric(d.descBalloonHugetlbPgAlloc, prometheus.GaugeValue, float64(s.Balloon.HugetlbPgAlloc), id, userID, groupID, categoryID)
-			ch <- prometheus.MustNewConstMetric(d.descBalloonHugetlbPgFail, prometheus.GaugeValue, float64(s.Balloon.HugetlbPgFail), id, userID, groupID, categoryID)
+			ch <- prometheus.MustNewConstMetric(c.descBalloonCurrent, prometheus.GaugeValue, float64(s.Balloon.Current), id, userID, groupID, categoryID)
+			ch <- prometheus.MustNewConstMetric(c.descBalloonMaximum, prometheus.GaugeValue, float64(s.Balloon.Maximum), id, userID, groupID, categoryID)
+			ch <- prometheus.MustNewConstMetric(c.descBalloonSwapIn, prometheus.GaugeValue, float64(s.Balloon.SwapIn), id, userID, groupID, categoryID)
+			ch <- prometheus.MustNewConstMetric(c.descBalloonSwapOut, prometheus.GaugeValue, float64(s.Balloon.SwapOut), id, userID, groupID, categoryID)
+			ch <- prometheus.MustNewConstMetric(c.descBalloonMajorFault, prometheus.GaugeValue, float64(s.Balloon.MajorFault), id, userID, groupID, categoryID)
+			ch <- prometheus.MustNewConstMetric(c.descBalloonMinorFault, prometheus.GaugeValue, float64(s.Balloon.MinorFault), id, userID, groupID, categoryID)
+			ch <- prometheus.MustNewConstMetric(c.descBalloonUnused, prometheus.GaugeValue, float64(s.Balloon.Unused), id, userID, groupID, categoryID)
+			ch <- prometheus.MustNewConstMetric(c.descBalloonAvailable, prometheus.GaugeValue, float64(s.Balloon.Available), id, userID, groupID, categoryID)
+			ch <- prometheus.MustNewConstMetric(c.descBalloonRss, prometheus.GaugeValue, float64(s.Balloon.Rss), id, userID, groupID, categoryID)
+			ch <- prometheus.MustNewConstMetric(c.descBalloonUsable, prometheus.GaugeValue, float64(s.Balloon.Usable), id, userID, groupID, categoryID)
+			ch <- prometheus.MustNewConstMetric(c.descBalloonLastUpdate, prometheus.GaugeValue, float64(s.Balloon.LastUpdate), id, userID, groupID, categoryID)
+			ch <- prometheus.MustNewConstMetric(c.descBalloonDiskCaches, prometheus.GaugeValue, float64(s.Balloon.DiskCaches), id, userID, groupID, categoryID)
+			ch <- prometheus.MustNewConstMetric(c.descBalloonHugetlbPgAlloc, prometheus.GaugeValue, float64(s.Balloon.HugetlbPgAlloc), id, userID, groupID, categoryID)
+			ch <- prometheus.MustNewConstMetric(c.descBalloonHugetlbPgFail, prometheus.GaugeValue, float64(s.Balloon.HugetlbPgFail), id, userID, groupID, categoryID)
 		}
 
 		if s.Vcpu != nil {
-			ch <- prometheus.MustNewConstMetric(d.descVCPUCurrent, prometheus.GaugeValue, float64(len(s.Vcpu)), id, userID, groupID, categoryID)
+			ch <- prometheus.MustNewConstMetric(c.descVCPUCurrent, prometheus.GaugeValue, float64(len(s.Vcpu)), id, userID, groupID, categoryID)
 
 			for i, v := range s.Vcpu {
-				ch <- prometheus.MustNewConstMetric(d.descVCPUState, prometheus.GaugeValue, float64(v.State), id, strconv.Itoa(i), userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(d.descVCPUTime, prometheus.GaugeValue, float64(v.Time), id, strconv.Itoa(i), userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(d.descVCPUWait, prometheus.GaugeValue, float64(v.Wait), id, strconv.Itoa(i), userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(d.descVCPUDelay, prometheus.GaugeValue, float64(int(v.Delay)), id, strconv.Itoa(i), userID, groupID, categoryID)
+				ch <- prometheus.MustNewConstMetric(c.descVCPUState, prometheus.GaugeValue, float64(v.State), id, strconv.Itoa(i), userID, groupID, categoryID)
+				ch <- prometheus.MustNewConstMetric(c.descVCPUTime, prometheus.GaugeValue, float64(v.Time), id, strconv.Itoa(i), userID, groupID, categoryID)
+				ch <- prometheus.MustNewConstMetric(c.descVCPUWait, prometheus.GaugeValue, float64(v.Wait), id, strconv.Itoa(i), userID, groupID, categoryID)
+				ch <- prometheus.MustNewConstMetric(c.descVCPUDelay, prometheus.GaugeValue, float64(int(v.Delay)), id, strconv.Itoa(i), userID, groupID, categoryID)
 
 				var halted float64 = 0
 				if v.Halted {
 					halted = 1
 				}
-				ch <- prometheus.MustNewConstMetric(d.descVCPUHalted, prometheus.GaugeValue, halted, id, strconv.Itoa(i), userID, groupID, categoryID)
+				ch <- prometheus.MustNewConstMetric(c.descVCPUHalted, prometheus.GaugeValue, halted, id, strconv.Itoa(i), userID, groupID, categoryID)
 			}
 		}
 
 		if s.Net != nil {
 			for _, n := range s.Net {
 				mac := ""
-				for _, i := range domain.XML.Devices.Interfaces {
+				for _, i := range stats.xml.Devices.Interfaces {
 					if i.Target.Dev == n.Name {
 						mac = i.MAC.Address
 					}
 				}
 
-				ch <- prometheus.MustNewConstMetric(d.descNetRxBytes, prometheus.GaugeValue, float64(n.RxBytes), id, n.Name, mac, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(d.descNetRxPkts, prometheus.GaugeValue, float64(n.RxPkts), id, n.Name, mac, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(d.descNetRxErrs, prometheus.CounterValue, float64(n.RxErrs), id, n.Name, mac, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(d.descNetRxDrop, prometheus.GaugeValue, float64(n.RxDrop), id, n.Name, mac, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(d.descNetTxBytes, prometheus.GaugeValue, float64(n.TxBytes), id, n.Name, mac, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(d.descNetTxPkts, prometheus.GaugeValue, float64(n.TxPkts), id, n.Name, mac, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(d.descNetTxErrs, prometheus.CounterValue, float64(n.TxErrs), id, n.Name, mac, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(d.descNetTxDrop, prometheus.GaugeValue, float64(n.TxDrop), id, n.Name, mac, userID, groupID, categoryID)
+				ch <- prometheus.MustNewConstMetric(c.descNetRxBytes, prometheus.GaugeValue, float64(n.RxBytes), id, n.Name, mac, userID, groupID, categoryID)
+				ch <- prometheus.MustNewConstMetric(c.descNetRxPkts, prometheus.GaugeValue, float64(n.RxPkts), id, n.Name, mac, userID, groupID, categoryID)
+				ch <- prometheus.MustNewConstMetric(c.descNetRxErrs, prometheus.CounterValue, float64(n.RxErrs), id, n.Name, mac, userID, groupID, categoryID)
+				ch <- prometheus.MustNewConstMetric(c.descNetRxDrop, prometheus.GaugeValue, float64(n.RxDrop), id, n.Name, mac, userID, groupID, categoryID)
+				ch <- prometheus.MustNewConstMetric(c.descNetTxBytes, prometheus.GaugeValue, float64(n.TxBytes), id, n.Name, mac, userID, groupID, categoryID)
+				ch <- prometheus.MustNewConstMetric(c.descNetTxPkts, prometheus.GaugeValue, float64(n.TxPkts), id, n.Name, mac, userID, groupID, categoryID)
+				ch <- prometheus.MustNewConstMetric(c.descNetTxErrs, prometheus.CounterValue, float64(n.TxErrs), id, n.Name, mac, userID, groupID, categoryID)
+				ch <- prometheus.MustNewConstMetric(c.descNetTxDrop, prometheus.GaugeValue, float64(n.TxDrop), id, n.Name, mac, userID, groupID, categoryID)
 			}
 		}
 
 		if s.Block != nil {
 			for _, b := range s.Block {
-				ch <- prometheus.MustNewConstMetric(d.descBlockBackingIndex, prometheus.GaugeValue, float64(b.BackingIndex), id, b.Path, b.Name, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(d.descBlockRdBytes, prometheus.GaugeValue, float64(b.RdBytes), id, b.Path, b.Name, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(d.descBlockRdReqs, prometheus.GaugeValue, float64(b.RdReqs), id, b.Path, b.Name, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(d.descBlockRdTimes, prometheus.GaugeValue, float64(b.RdTimes), id, b.Path, b.Name, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(d.descBlockWrBytes, prometheus.GaugeValue, float64(b.WrBytes), id, b.Path, b.Name, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(d.descBlockWrTimes, prometheus.GaugeValue, float64(b.WrTimes), id, b.Path, b.Name, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(d.descBlockWrReqs, prometheus.GaugeValue, float64(b.WrReqs), id, b.Path, b.Name, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(d.descBlockFlTimes, prometheus.GaugeValue, float64(b.FlTimes), id, b.Path, b.Name, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(d.descBlockFlReqs, prometheus.GaugeValue, float64(b.FlReqs), id, b.Path, b.Name, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(d.descBlockAllocation, prometheus.GaugeValue, float64(b.Allocation), id, b.Path, b.Name, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(d.descBlockCapacity, prometheus.GaugeValue, float64(b.Capacity), id, b.Path, b.Name, userID, groupID, categoryID)
-				ch <- prometheus.MustNewConstMetric(d.descBlockPhysical, prometheus.GaugeValue, float64(b.Physical), id, b.Path, b.Name, userID, groupID, categoryID)
+				ch <- prometheus.MustNewConstMetric(c.descBlockBackingIndex, prometheus.GaugeValue, float64(b.BackingIndex), id, b.Path, b.Name, userID, groupID, categoryID)
+				ch <- prometheus.MustNewConstMetric(c.descBlockRdBytes, prometheus.GaugeValue, float64(b.RdBytes), id, b.Path, b.Name, userID, groupID, categoryID)
+				ch <- prometheus.MustNewConstMetric(c.descBlockRdReqs, prometheus.GaugeValue, float64(b.RdReqs), id, b.Path, b.Name, userID, groupID, categoryID)
+				ch <- prometheus.MustNewConstMetric(c.descBlockRdTimes, prometheus.GaugeValue, float64(b.RdTimes), id, b.Path, b.Name, userID, groupID, categoryID)
+				ch <- prometheus.MustNewConstMetric(c.descBlockWrBytes, prometheus.GaugeValue, float64(b.WrBytes), id, b.Path, b.Name, userID, groupID, categoryID)
+				ch <- prometheus.MustNewConstMetric(c.descBlockWrTimes, prometheus.GaugeValue, float64(b.WrTimes), id, b.Path, b.Name, userID, groupID, categoryID)
+				ch <- prometheus.MustNewConstMetric(c.descBlockWrReqs, prometheus.GaugeValue, float64(b.WrReqs), id, b.Path, b.Name, userID, groupID, categoryID)
+				ch <- prometheus.MustNewConstMetric(c.descBlockFlTimes, prometheus.GaugeValue, float64(b.FlTimes), id, b.Path, b.Name, userID, groupID, categoryID)
+				ch <- prometheus.MustNewConstMetric(c.descBlockFlReqs, prometheus.GaugeValue, float64(b.FlReqs), id, b.Path, b.Name, userID, groupID, categoryID)
+				ch <- prometheus.MustNewConstMetric(c.descBlockAllocation, prometheus.GaugeValue, float64(b.Allocation), id, b.Path, b.Name, userID, groupID, categoryID)
+				ch <- prometheus.MustNewConstMetric(c.descBlockCapacity, prometheus.GaugeValue, float64(b.Capacity), id, b.Path, b.Name, userID, groupID, categoryID)
+				ch <- prometheus.MustNewConstMetric(c.descBlockPhysical, prometheus.GaugeValue, float64(b.Physical), id, b.Path, b.Name, userID, groupID, categoryID)
 			}
 		}
 
-		// TODO: Perf, DirtyRate?
+		ch <- prometheus.MustNewConstMetric(c.descMemAvailable, prometheus.GaugeValue, stats.mem.available, id, userID, groupID, categoryID)
+		ch <- prometheus.MustNewConstMetric(c.descMemTotal, prometheus.GaugeValue, stats.mem.total, id, userID, groupID, categoryID)
 
-		mem, err := d.collectMemStats(s.Domain)
-		if err != nil {
-			d.Log.Info().Str("collector", d.String()).Str("desktop", id).Err(err).Msg("collect memory stats")
-			log.Println(err)
+		if stats.ports.spice != 0 {
+			ch <- prometheus.MustNewConstMetric(c.descPortSpice, prometheus.GaugeValue, 1, id, strconv.Itoa(stats.ports.spice), userID, groupID, categoryID)
 		}
 
-		ch <- prometheus.MustNewConstMetric(d.descMemAvailable, prometheus.GaugeValue, mem["available"], id, userID, groupID, categoryID)
-		ch <- prometheus.MustNewConstMetric(d.descMemTotal, prometheus.GaugeValue, mem["total"], id, userID, groupID, categoryID)
-
-		ports, err := d.collectDomainPorts(id)
-		if err != nil {
-			d.Log.Info().Str("collector", d.String()).Str("desktop", id).Err(err).Msg("collect desktop ports")
+		if stats.ports.spiceTls != 0 {
+			ch <- prometheus.MustNewConstMetric(c.descPortSpiceTLS, prometheus.GaugeValue, 1, id, strconv.Itoa(stats.ports.spiceTls), userID, groupID, categoryID)
 		}
 
-		if port, ok := ports["spice"]; ok {
-			ch <- prometheus.MustNewConstMetric(d.descPortSpice, prometheus.GaugeValue, 1, id, strconv.Itoa(port), userID, groupID, categoryID)
+		if stats.ports.vnc != 0 {
+			ch <- prometheus.MustNewConstMetric(c.descPortVNC, prometheus.GaugeValue, 1, id, strconv.Itoa(stats.ports.vnc), userID, groupID, categoryID)
 		}
 
-		if port, ok := ports["spice_tls"]; ok {
-			ch <- prometheus.MustNewConstMetric(d.descPortSpiceTLS, prometheus.GaugeValue, 1, id, strconv.Itoa(port), userID, groupID, categoryID)
-		}
-
-		if port, ok := ports["vnc"]; ok {
-			ch <- prometheus.MustNewConstMetric(d.descPortVNC, prometheus.GaugeValue, 1, id, strconv.Itoa(port), userID, groupID, categoryID)
-		}
-
-		if port, ok := ports["vnc_websocket"]; ok {
-			ch <- prometheus.MustNewConstMetric(d.descPortVNCWebsocket, prometheus.GaugeValue, 1, id, strconv.Itoa(port), userID, groupID, categoryID)
+		if stats.ports.vncWebsocket != 0 {
+			ch <- prometheus.MustNewConstMetric(c.descPortVNCWebsocket, prometheus.GaugeValue, 1, id, strconv.Itoa(stats.ports.vncWebsocket), userID, groupID, categoryID)
 		}
 	}
 
 	duration := time.Since(start)
 
-	ch <- prometheus.MustNewConstMetric(d.descScrapeDuration, prometheus.GaugeValue, duration.Seconds())
-	ch <- prometheus.MustNewConstMetric(d.descScrapeSuccess, prometheus.GaugeValue, float64(success))
+	ch <- prometheus.MustNewConstMetric(c.descStatsExtractionDuration, prometheus.GaugeValue, c.extractDuration.Load().Seconds())
+	ch <- prometheus.MustNewConstMetric(c.descScrapeDuration, prometheus.GaugeValue, duration.Seconds())
+	ch <- prometheus.MustNewConstMetric(c.descScrapeSuccess, prometheus.GaugeValue, float64(success))
 }
 
-func (d *Domain) getDomainXML(s libvirt.DomainStats) (string, cacheDomain, error, string) {
-	d.libvirtMux.Lock()
-	defer d.libvirtMux.Unlock()
+func (c *Domain) collectStats(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
 
-	id, err := s.Domain.GetName()
-	if err != nil {
-		return id, cacheDomain{}, err, "get domain name"
-	}
+		default:
+			var wg sync.WaitGroup
 
-	cacheDom, ok := d.cache.Get(id)
-	var domain cacheDomain
-	if !ok {
-		raw, err := s.Domain.GetXMLDesc(0)
-		if err != nil {
-			return id, cacheDomain{}, err, "get domain XML"
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+
+				defer func() {
+					if r := recover(); r != nil {
+						c.log.Error().Err(fmt.Errorf("%v", r)).Msg("recovered from panic")
+					}
+				}()
+
+				start := time.Now()
+
+				c.log.Trace().Msg("listing libvirt domains")
+				c.libvirtMux.Lock()
+				doms, err := c.libvirtConn.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_RUNNING)
+				c.libvirtMux.Unlock()
+				if err != nil {
+					c.log.Error().Err(err).Msg("list all running domains")
+					return
+				}
+				c.log.Debug().Int("running", len(doms)).Msg("libvirt domains listed")
+
+				// Free the resources after usage? They probably don't need it
+				// defer func() {
+				// 	for _, d := range doms {
+				// 		d.Free()
+				// 	}
+				// }()
+
+				// Get the cached data and extract new data if the desktop isn't cached
+				domsToExtract := []*libvirt.Domain{}
+				domsCached := map[string]DomainStats{}
+				for _, d := range doms {
+					id, err := d.GetName()
+					if err != nil {
+						c.log.Error().Err(err).Msg("get domain ID")
+						continue
+					}
+
+					cachedDom := c.cache.Get(id)
+					if cachedDom == nil {
+						ports, err := c.collectDomainPorts(id)
+						if err != nil {
+							c.log.Error().Err(err).Str("id", id).Msg("collect domain ports")
+							continue
+						}
+
+						domsCached[id] = DomainStats{
+							ports: ports,
+						}
+
+					} else {
+						domsCached[id] = cachedDom.Value()
+					}
+
+					domsToExtract = append(domsToExtract, &d)
+				}
+
+				c.log.Debug().Int("doms_to_extract", len(domsToExtract)).Msg("domains to extract")
+				c.log.Debug().Int("doms_cached", len(domsCached)).Msg("domains cached")
+
+				// Cleanup old cached domains
+				for _, id := range c.cache.Keys() {
+					if _, ok := domsCached[id]; !ok {
+						// The domain is in the cache, but it's not running, so we delete it
+						c.cache.Delete(id)
+					}
+				}
+
+				// Split the stats extraction in batches
+				batches := splitDomainsIntoBatches(domsToExtract)
+				c.log.Debug().Int("num_batches", len(batches)).Int("batches_size", domainBatchSize).Msg("batches prepated")
+
+				// Extract the stats
+				for _, batch := range batches {
+					c.log.Trace().Msg("extracting libvirt stats")
+
+					c.libvirtMux.Lock()
+					stats, err := c.libvirtConn.GetAllDomainStats(batch, 0, libvirt.CONNECT_GET_ALL_DOMAINS_STATS_RUNNING)
+					c.libvirtMux.Unlock()
+					if err != nil {
+						c.log.Error().Err(err).Msg("extract domain stats")
+						continue
+					}
+
+					c.log.Debug().Int("stats_number", len(stats)).Msg("stats batch extracted")
+
+					for _, s := range stats {
+						defer s.Domain.Free()
+
+						id, err := s.Domain.GetName()
+						if err != nil {
+							c.log.Error().Err(err).Msg("get domain ID")
+							continue
+						}
+
+						// TODO: Perf, DirtyRate?
+
+						c.log.Debug().Str("id", id).Msg("extract domain memory stats")
+						mem, err := c.collectMemStats(s.Domain)
+						if err != nil {
+							c.log.Error().Err(err).Str("id", id).Msg("extract memory stats")
+							continue
+						}
+
+						cachedDom, ok := domsCached[id]
+						if !ok {
+							c.log.Warn().Str("id", id).Msg("stats were extracted, but the domain wasn't cached")
+							continue
+						}
+
+						if cachedDom.xml == nil || cachedDom.metadata == nil {
+							c.log.Debug().Str("id", id).Msg("extract domain metadata")
+							cachedDom.xml, cachedDom.metadata, err = c.collectDomainMetadata(s.Domain)
+							if err != nil {
+								c.log.Error().Err(err).Str("id", id).Msg("extract domain metadata")
+							}
+						}
+
+						// Store the extracted stats in the cache, making it available to the collector
+						c.cache.Set(id, DomainStats{
+							stats:    &s,
+							mem:      mem,
+							ports:    cachedDom.ports,
+							xml:      cachedDom.xml,
+							metadata: cachedDom.metadata,
+						}, 0)
+					}
+
+					// Wait 2 seconds between batches to ensure we're not killing libvirt
+					time.Sleep(2 * time.Second)
+				}
+
+				duration := time.Since(start)
+				c.extractDuration.Store(&duration)
+
+				c.log.Info().Dur("duration", duration).Msg("stats extracted")
+			}()
+
+			wg.Wait()
 		}
 
-		xml := &libvirtxml.Domain{}
-		if err := xml.Unmarshal(raw); err != nil {
-			return id, cacheDomain{}, err, "unmarshal domain XML"
-		}
-
-		domain = cacheDomain{XML: xml, RawXML: raw}
-
-		d.cache.Add(id, domain, cache.DefaultExpiration)
-	} else {
-		domain = cacheDom.(cacheDomain)
+		// Wait 30 seconds between stats extraction
+		time.Sleep(30 * time.Second)
 	}
-
-	return id, domain, nil, ""
 }
 
-func (d *Domain) collectStats() ([]libvirt.DomainStats, error) {
-	d.libvirtMux.Lock()
-	defer d.libvirtMux.Unlock()
-
-	// TODO: Test if getting a batch of domain stats performs better than getting 1 domain each time
-
-	stats, err := d.libvirtConn.GetAllDomainStats(nil, 0, libvirt.CONNECT_GET_ALL_DOMAINS_STATS_RUNNING)
-	if err != nil {
-		return nil, fmt.Errorf("get the domain stats: %w", err)
-	}
-
-	return stats, nil
-}
-
-func (d *Domain) collectMemStats(dom *libvirt.Domain) (map[string]float64, error) {
-	d.libvirtMux.Lock()
-	defer d.libvirtMux.Unlock()
+func (c *Domain) collectMemStats(dom *libvirt.Domain) (*DomainMem, error) {
+	c.libvirtMux.Lock()
+	defer c.libvirtMux.Unlock()
 
 	mem, err := dom.MemoryStats(uint32(libvirt.DOMAIN_MEMORY_STAT_NR), 0)
 	if err != nil {
 		return nil, fmt.Errorf("get the domain memory stats: %w", err)
 	}
 
-	res := map[string]float64{}
+	res := &DomainMem{}
 	for _, m := range mem {
 		switch m.Tag {
 		case int32(libvirt.DOMAIN_MEMORY_STAT_UNUSED):
-			res["available"] = float64(m.Val)
+			res.available = float64(m.Val)
 
 		case int32(libvirt.DOMAIN_MEMORY_STAT_AVAILABLE):
-			res["total"] = float64(m.Val)
+			res.total = float64(m.Val)
 		}
 	}
 
 	return res, nil
 }
 
-func (d *Domain) collectDomainPorts(id string) (map[string]int, error) {
-	d.sshMux.Lock()
-	defer d.sshMux.Unlock()
+func (c *Domain) collectDomainPorts(id string) (DomainPorts, error) {
+	c.sshMux.Lock()
+	defer c.sshMux.Unlock()
 
-	sess, err := d.sshConn.NewSession()
+	sess, err := c.sshConn.NewSession()
 	if err != nil {
-		return nil, fmt.Errorf("create ssh session: %w", err)
+		return DomainPorts{}, fmt.Errorf("create ssh session: %w", err)
 	}
 	defer sess.Close()
 
 	b, err := sess.CombinedOutput(fmt.Sprintf(`cat /var/log/libvirt/qemu/%s.log | grep -e tls-port -e websocket | tail -n 2`, id))
 	if err != nil {
-		return nil, fmt.Errorf("collect domain ports: %w: %s", err, b)
+		return DomainPorts{}, fmt.Errorf("collect domain ports: %w: %s", err, b)
 	}
 
-	ports := map[string]int{}
+	ports := DomainPorts{}
 
 	// split the different options
 	for _, s := range strings.Split(strings.Replace(string(b), "\\\n", ",", -1), ",") {
@@ -837,26 +956,26 @@ func (d *Domain) collectDomainPorts(id string) (map[string]int, error) {
 			case "-spice port":
 				i, err := strconv.Atoi(opts[1])
 				if err != nil {
-					return nil, fmt.Errorf("convert '%s' to number: %w", opts[1], err)
+					return DomainPorts{}, fmt.Errorf("convert '%s' to number: %w", opts[1], err)
 				}
 
-				ports["spice"] = i
+				ports.spice = i
 
 			case "tls-port":
 				i, err := strconv.Atoi(opts[1])
 				if err != nil {
-					return nil, fmt.Errorf("convert '%s' to number: %w", opts[1], err)
+					return DomainPorts{}, fmt.Errorf("convert '%s' to number: %w", opts[1], err)
 				}
 
-				ports["spice_tls"] = i
+				ports.spiceTls = i
 
 			case "websocket":
 				i, err := strconv.Atoi(opts[1])
 				if err != nil {
-					return nil, fmt.Errorf("convert '%s' to number: %w", opts[1], err)
+					return DomainPorts{}, fmt.Errorf("convert '%s' to number: %w", opts[1], err)
 				}
 
-				ports["vnc_websocket"] = i
+				ports.vncWebsocket = i
 			default:
 			}
 		}
@@ -864,19 +983,41 @@ func (d *Domain) collectDomainPorts(id string) (map[string]int, error) {
 		if strings.HasPrefix(s, "-vnc ") {
 			_, port, err := net.SplitHostPort(strings.TrimPrefix(s, "-vnc "))
 			if err != nil {
-				return nil, fmt.Errorf("parse VNC port: %w", err)
+				return DomainPorts{}, fmt.Errorf("parse VNC port: %w", err)
 			}
 
 			i, err := strconv.Atoi(port)
 			if err != nil {
-				return nil, fmt.Errorf("convert '%s' to number: %w", port, err)
+				return DomainPorts{}, fmt.Errorf("convert '%s' to number: %w", port, err)
 			}
 
-			ports["vnc"] = viewersBasePort + i
+			ports.vnc = i
 		}
 	}
 
 	return ports, nil
+}
+
+func (c *Domain) collectDomainMetadata(d *libvirt.Domain) (*libvirtxml.Domain, *IsardMetadata, error) {
+	c.libvirtMux.Lock()
+	defer c.libvirtMux.Unlock()
+
+	raw, err := d.GetXMLDesc(0)
+	if err != nil {
+		return nil, nil, fmt.Errorf("get domain XML: %w", err)
+	}
+
+	domXML := &libvirtxml.Domain{}
+	if err := xml.Unmarshal([]byte(raw), &domXML); err != nil {
+		return nil, nil, fmt.Errorf("unmarshal domain XML: %w", err)
+	}
+
+	metadata, err := parseIsardMetadata(domXML.Metadata)
+	if err != nil {
+		return domXML, nil, err
+	}
+
+	return domXML, metadata, nil
 }
 
 func parseIsardMetadata(m *libvirtxml.DomainMetadata) (*IsardMetadata, error) {
@@ -886,4 +1027,19 @@ func parseIsardMetadata(m *libvirtxml.DomainMetadata) (*IsardMetadata, error) {
 	}
 
 	return res.IsardMetadata, nil
+}
+
+func splitDomainsIntoBatches(doms []*libvirt.Domain) [][]*libvirt.Domain {
+	batches := [][]*libvirt.Domain{}
+	for domainBatchSize < len(doms) {
+		batches = append(batches, doms[0:domainBatchSize])
+		doms = doms[domainBatchSize:]
+	}
+
+	if len(doms) != 0 {
+		// Add the last (incomplete) batch
+		batches = append(batches, doms[0:])
+	}
+
+	return batches
 }
