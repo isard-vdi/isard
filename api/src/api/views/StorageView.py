@@ -446,7 +446,7 @@ def storage_move(payload, storage_id, path):
     :return: Task ID
     :rtype: Set with Flask response values and data in JSON
     """
-    check_storage_exitence_and_permissions(payload, storage_id)
+    check_storage_existence_and_permissions(payload, storage_id)
     path = f"/{path}"
     storage_pool_destination = StoragePool.get_best_for_action("move", path=path)
     if not storage_pool_destination:
