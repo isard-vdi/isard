@@ -12,38 +12,38 @@
         />
       </h4>
     </b-row>
-    <b-row v-if="editDomainId">
-      <b-col
-        cols="12"
-        xl="4"
-      >
-        <b-form-file
-          v-model="imageFile"
-          :browse-text="$t('components.statusbar.select')"
-          placeholder=""
-          size="sm"
-        />
-      </b-col>
-      <b-col
-        cols="12"
-        xl="4"
-      >
-        <b-button
-          :disabled="imageFile === null"
-          :pill="true"
-          variant="outline-primary"
-          size="sm"
-          @click="onClickUploadImageFile()"
-        >
-          {{ `${$t("components.statusbar.upload-file")}` }}
-        </b-button>
-      </b-col>
-    </b-row>
     <b-collapse
       id="collapse-advanced"
       v-model="collapseVisible"
       class="mt-2"
     >
+      <b-row v-if="editDomainId">
+        <b-col
+          cols="12"
+          xl="4"
+        >
+          <b-form-file
+            v-model="imageFile"
+            :browse-text="$t('components.statusbar.select')"
+            placeholder=""
+            size="sm"
+          />
+        </b-col>
+        <b-col
+          cols="12"
+          xl="4"
+        >
+          <b-button
+            :disabled="imageFile === null"
+            :pill="true"
+            variant="outline-primary"
+            size="sm"
+            @click="onClickUploadImageFile()"
+          >
+            {{ `${$t("components.statusbar.upload-file")}` }}
+          </b-button>
+        </b-col>
+      </b-row>
       <b-row align-h="center">
         <b-col
           v-for="image in items"
