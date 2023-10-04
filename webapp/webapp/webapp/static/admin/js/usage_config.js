@@ -494,9 +494,9 @@ function render_table_limits() {
 function render_table_parameters() {
   table_parameters = $('#table_parameters').DataTable({
     "ajax": {
-      "url": "/api/v3/admin/usage/list_parameters",
+      "url": "/api/v3/admin/usage/parameters",
       "contentType": "application/json",
-      "type": 'PUT',
+      "type": 'GET',
       "data": function(d){return JSON.stringify({})}
     },
     "sAjaxDataProp": "",
