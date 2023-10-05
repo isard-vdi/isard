@@ -144,10 +144,12 @@ def isard_user_storage_remove_category(category_id, cascade=True):
     try:
         user_storage_remove_category_th(
             category_id,
-            _get_isard_category_provider_id(category_id),
             cascade,
         )
     except:
+        app.logger.debug(
+            f"USER_STORAGE - Error removing category {category_id} in user_storage provider: {traceback.format_exc()}"
+        )
         app.logger.error(
             f"USER_STORAGE - Error removing category {category_id} in user_storage provider"
         )
@@ -1740,6 +1742,13 @@ def _get_provider_groups(provider_id):
     ]
 
 
+def _get_category_groups(category_id):
+    provider = _get_provider(_get_isard_category_provider_id(category_id))
+    groups = provider["conn"].get_group_members(category_id)
+    groups.remove("admin")
+    return groups
+
+
 def user_storage_add_group_th(group_id, provider_id):
     gevent.spawn(
         user_storage_add_group,
@@ -1996,8 +2005,9 @@ def user_storage_remove_category(category_id, cascade=False):
         )
         _get_provider_users_array.cache_clear()
 
+        ## Should only be groups in category_id!!
         process_user_storage_remove_group_batches(
-            data_batch=_get_provider_groups(provider_id), provider_id=provider_id
+            data_batch=_get_category_groups(category_id), provider_id=provider_id
         )
     provider["conn"].remove_group(category_id)
 
@@ -2026,7 +2036,7 @@ def user_storage_update_category(category_id, new_category_name, provider_id):
         )
     )
 
-    groups = _get_provider_groups(provider_id)
+    groups = _get_category_groups(category_id)
     groups_batch = []
     for group_id in groups:
         new_group_name = _get_isard_group_provider_name(group_id).replace(
