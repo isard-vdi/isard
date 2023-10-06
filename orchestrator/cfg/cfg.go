@@ -31,14 +31,18 @@ type DirectorRata struct {
 	MinCPUHourly map[time.Weekday]map[time.Time]int `mapstructure:"min_cpu_hourly"`
 	MinRAMHourly map[time.Weekday]map[time.Time]int `mapstructure:"min_ram_hourly"`
 
-	MinRAMLimitPercent      int                                `mapstructure:"min_ram_limit_percent"` // 150%
+	MinRAMLimitPercent      int                                `mapstructure:"min_ram_limit_percent"`
 	MinRAMLimitMargin       int                                `mapstructure:"min_ram_limit_margin"`
-	MinRAMLimitMarginHourly map[time.Weekday]map[time.Time]int `mapstructure:"min_ram_limit_margin_hourly"` // Pujada 150, Baixada 75
+	MinRAMLimitMarginHourly map[time.Weekday]map[time.Time]int `mapstructure:"min_ram_limit_margin_hourly"`
 
 	MaxCPU       int                                `mapstructure:"max_cpu"`
 	MaxRAM       int                                `mapstructure:"max_ram"`
 	MaxCPUHourly map[time.Weekday]map[time.Time]int `mapstructure:"max_cpu_hourly"`
-	MaxRAMHourly map[time.Weekday]map[time.Time]int `mapstructure:"max_ram_hourly"` // 350
+	MaxRAMHourly map[time.Weekday]map[time.Time]int `mapstructure:"max_ram_hourly"`
+
+	MaxRAMLimitPercent      int                                `mapstructure:"max_ram_limit_percent"`
+	MaxRAMLimitMargin       int                                `mapstructure:"max_ram_limit_margin"`
+	MaxRAMLimitMarginHourly map[time.Weekday]map[time.Time]int `mapstructure:"max_ram_limit_margin_hourly"`
 
 	HyperMinCPU int `mapstructure:"hyper_min_cpu"`
 	HyperMinRAM int `mapstructure:"hyper_min_ram"`
@@ -85,6 +89,9 @@ func setDefaults() {
 			"max_ram":                     0,
 			"max_cpu_hourly":              nil,
 			"max_ram_hourly":              nil,
+			"max_ram_limit_percent":       0,
+			"max_ram_limit_margin":        0,
+			"max_ram_limit_margin_hourly": nil,
 			"hyper_min_cpu":               0,
 			"hyper_min_ram":               0,
 			"hyper_max_cpu":               0,
