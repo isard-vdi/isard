@@ -15,8 +15,8 @@ services:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.23
     ports:
-      - published: ${WG_USERS_PORT}
-        target: 443
+      - published: ${WG_USERS_PORT:-443}
+        target: ${WG_USERS_PORT:-443}
         protocol: udp
       - published: ${WG_HYPERS_PORT}
         target: 4443
