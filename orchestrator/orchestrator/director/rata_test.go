@@ -420,7 +420,7 @@ func TestRataExtraOperations(t *testing.T) {
 		},
 		"if there's not enough RAM, it should set the hypervisor to only forced": {
 			PrepareAPI: func(c *apiMock.Client) {
-				c.Mock.On("AdminHypervisorOnlyForced", mock.AnythingOfType("*context.emptyCtx"), "second", true).Return(nil)
+				c.Mock.On("AdminHypervisorOnlyForced", mock.AnythingOfType("context.backgroundCtx"), "second", true).Return(nil)
 			},
 			Hypers: []*isardvdi.OrchestratorHypervisor{{
 				ID:                  "first",
@@ -441,7 +441,7 @@ func TestRataExtraOperations(t *testing.T) {
 		},
 		"if there's too much free RAM, it should remove the hypervisor from only forced": {
 			PrepareAPI: func(c *apiMock.Client) {
-				c.Mock.On("AdminHypervisorOnlyForced", mock.AnythingOfType("*context.emptyCtx"), "second", false).Return(nil)
+				c.Mock.On("AdminHypervisorOnlyForced", mock.AnythingOfType("context.backgroundCtx"), "second", false).Return(nil)
 			},
 			Hypers: []*isardvdi.OrchestratorHypervisor{{
 				ID:                  "first",

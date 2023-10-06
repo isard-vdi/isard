@@ -28,7 +28,7 @@ func TestOrchestratorOpenBufferingHypervisor(t *testing.T) {
 		// 		t := true
 		// 		id := "theHyper"
 
-		// 		c.On("HypervisorList", mock.AnythingOfType("*context.emptyCtx")).Return([]*isardvdi.Hypervisor{{
+		// 		c.On("HypervisorList", mock.AnythingOfType("context.backgroundCtx")).Return([]*isardvdi.Hypervisor{{
 		// 			Buffering: &f,
 		// 		}, {
 		// 			ID:         &id,
@@ -36,7 +36,7 @@ func TestOrchestratorOpenBufferingHypervisor(t *testing.T) {
 		// 			OnlyForced: &t,
 		// 		}}, nil)
 
-		// 		c.On("AdminHypervisorOnlyForced", mock.AnythingOfType("*context.emptyCtx"), "theHyper", false).Return(nil)
+		// 		c.On("AdminHypervisorOnlyForced", mock.AnythingOfType("context.backgroundCtx"), "theHyper", false).Return(nil)
 		// 	},
 		// },
 		"should not do anything if there are no operations to do": {
@@ -44,7 +44,7 @@ func TestOrchestratorOpenBufferingHypervisor(t *testing.T) {
 				f := false
 				t := true
 
-				c.On("HypervisorList", mock.AnythingOfType("*context.emptyCtx")).Return([]*isardvdi.Hypervisor{{
+				c.On("HypervisorList", mock.AnythingOfType("context.backgroundCtx")).Return([]*isardvdi.Hypervisor{{
 					Buffering: &f,
 				}, {
 					Buffering:  &t,
@@ -90,7 +90,7 @@ func TestOrchestratorCloseBufferingHypervisor(t *testing.T) {
 		// 		t := true
 		// 		id := "theHyper"
 
-		// 		c.On("HypervisorList", mock.AnythingOfType("*context.emptyCtx")).Return([]*isardvdi.Hypervisor{{
+		// 		c.On("HypervisorList", mock.AnythingOfType("context.backgroundCtx")).Return([]*isardvdi.Hypervisor{{
 		// 			Buffering: &f,
 		// 		}, {
 		// 			ID:         &id,
@@ -98,7 +98,7 @@ func TestOrchestratorCloseBufferingHypervisor(t *testing.T) {
 		// 			OnlyForced: &f,
 		// 		}}, nil)
 
-		// 		c.On("AdminHypervisorOnlyForced", mock.AnythingOfType("*context.emptyCtx"), "theHyper", true).Return(nil)
+		// 		c.On("AdminHypervisorOnlyForced", mock.AnythingOfType("context.backgroundCtx"), "theHyper", true).Return(nil)
 		// 	},
 		// },
 		"should not do anything if there are no operations to do": {
@@ -106,7 +106,7 @@ func TestOrchestratorCloseBufferingHypervisor(t *testing.T) {
 				f := false
 				t := true
 
-				c.On("HypervisorList", mock.AnythingOfType("*context.emptyCtx")).Return([]*isardvdi.Hypervisor{{
+				c.On("HypervisorList", mock.AnythingOfType("context.backgroundCtx")).Return([]*isardvdi.Hypervisor{{
 					Buffering: &f,
 				}, {
 					Buffering:  &t,

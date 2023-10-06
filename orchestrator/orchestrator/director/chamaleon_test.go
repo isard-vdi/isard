@@ -44,7 +44,7 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 				}},
 			}},
 			PrepareAPI: func(api *apiMock.Client) {
-				api.On("OrchestratorGPUBookingList", mock.AnythingOfType("*context.emptyCtx")).Return([]*isardvdi.OrchestratorGPUBooking{{
+				api.On("OrchestratorGPUBookingList", mock.AnythingOfType("context.backgroundCtx")).Return([]*isardvdi.OrchestratorGPUBooking{{
 					Brand:   "NVIDIA",
 					Model:   "A10",
 					Profile: "4Q",
@@ -119,7 +119,7 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 				OnlyForced: false,
 			}},
 			PrepareAPI: func(api *apiMock.Client) {
-				api.On("OrchestratorGPUBookingList", mock.AnythingOfType("*context.emptyCtx")).Return([]*isardvdi.OrchestratorGPUBooking{{
+				api.On("OrchestratorGPUBookingList", mock.AnythingOfType("context.backgroundCtx")).Return([]*isardvdi.OrchestratorGPUBooking{{
 					Brand:   "NVIDIA",
 					Model:   "A10",
 					Profile: "4Q",
@@ -202,7 +202,7 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 				OnlyForced: false,
 			}},
 			PrepareAPI: func(api *apiMock.Client) {
-				api.On("OrchestratorGPUBookingList", mock.AnythingOfType("*context.emptyCtx")).Return([]*isardvdi.OrchestratorGPUBooking{{
+				api.On("OrchestratorGPUBookingList", mock.AnythingOfType("context.backgroundCtx")).Return([]*isardvdi.OrchestratorGPUBooking{{
 					Brand:   "NVIDIA",
 					Model:   "A10",
 					Profile: "4Q",
@@ -266,7 +266,7 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 				}},
 			}},
 			PrepareAPI: func(api *apiMock.Client) {
-				api.On("OrchestratorGPUBookingList", mock.AnythingOfType("*context.emptyCtx")).Return([]*isardvdi.OrchestratorGPUBooking{{
+				api.On("OrchestratorGPUBookingList", mock.AnythingOfType("context.backgroundCtx")).Return([]*isardvdi.OrchestratorGPUBooking{{
 					Brand:   "NVIDIA",
 					Model:   "A10",
 					Profile: "4Q",
@@ -326,7 +326,7 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 				}},
 			}},
 			PrepareAPI: func(api *apiMock.Client) {
-				api.On("OrchestratorGPUBookingList", mock.AnythingOfType("*context.emptyCtx")).Return([]*isardvdi.OrchestratorGPUBooking{{
+				api.On("OrchestratorGPUBookingList", mock.AnythingOfType("context.backgroundCtx")).Return([]*isardvdi.OrchestratorGPUBooking{{
 					Brand:   "NVIDIA",
 					Model:   "A10",
 					Profile: "4Q",
@@ -385,7 +385,7 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 				}},
 			}},
 			PrepareAPI: func(api *apiMock.Client) {
-				api.On("OrchestratorGPUBookingList", mock.AnythingOfType("*context.emptyCtx")).Return([]*isardvdi.OrchestratorGPUBooking{{
+				api.On("OrchestratorGPUBookingList", mock.AnythingOfType("context.backgroundCtx")).Return([]*isardvdi.OrchestratorGPUBooking{{
 					Brand:   "NVIDIA",
 					Model:   "A10",
 					Profile: "4Q",
@@ -471,7 +471,7 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 				}},
 			}},
 			PrepareAPI: func(api *apiMock.Client) {
-				api.On("OrchestratorGPUBookingList", mock.AnythingOfType("*context.emptyCtx")).Return([]*isardvdi.OrchestratorGPUBooking{}, nil)
+				api.On("OrchestratorGPUBookingList", mock.AnythingOfType("context.backgroundCtx")).Return([]*isardvdi.OrchestratorGPUBooking{}, nil)
 			},
 			ExpectedDestroyHypervisor: &operationsv1.DestroyHypervisorsRequest{
 				Ids: []string{"destroy 1", "destroy 2", "destroy 3"},
@@ -497,7 +497,7 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 			}},
 			Hypers: []*isardvdi.OrchestratorHypervisor{{}},
 			PrepareAPI: func(api *apiMock.Client) {
-				api.On("OrchestratorGPUBookingList", mock.AnythingOfType("*context.emptyCtx")).Return([]*isardvdi.OrchestratorGPUBooking{{
+				api.On("OrchestratorGPUBookingList", mock.AnythingOfType("context.backgroundCtx")).Return([]*isardvdi.OrchestratorGPUBooking{{
 					Brand:   "NVIDIA",
 					Model:   "A10",
 					Profile: "24Q",
@@ -535,7 +535,7 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 			}},
 			Hypers: []*isardvdi.OrchestratorHypervisor{{}},
 			PrepareAPI: func(api *apiMock.Client) {
-				api.On("OrchestratorGPUBookingList", mock.AnythingOfType("*context.emptyCtx")).Return([]*isardvdi.OrchestratorGPUBooking{{
+				api.On("OrchestratorGPUBookingList", mock.AnythingOfType("context.backgroundCtx")).Return([]*isardvdi.OrchestratorGPUBooking{{
 					Brand:   "NVIDIA",
 					Model:   "A10",
 					Profile: "24Q",
@@ -784,7 +784,7 @@ func TestChamaleonNeedToScaleHypervisors(t *testing.T) {
 				}},
 			}},
 			PrepareAPI: func(api *apiMock.Client) {
-				api.On("OrchestratorGPUBookingList", mock.AnythingOfType("*context.emptyCtx")).Return([]*isardvdi.OrchestratorGPUBooking{{
+				api.On("OrchestratorGPUBookingList", mock.AnythingOfType("context.backgroundCtx")).Return([]*isardvdi.OrchestratorGPUBooking{{
 					Brand:   "NVIDIA",
 					Model:   "A10",
 					Profile: "4Q",

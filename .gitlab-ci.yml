@@ -131,7 +131,7 @@ gen-protobuf:
 
 unit-test-go:
   stage: unit-test
-  image: golang:1.20
+  image: golang:1.21
   before_script:
     - apt-get update && apt-get install -y libvirt-dev
     - go install github.com/boumenot/gocover-cobertura@latest
