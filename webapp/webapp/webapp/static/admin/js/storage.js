@@ -78,7 +78,13 @@ $(document).ready(function() {
             }
             return "-"
           }
-        }
+        },
+        {
+          "targets": 11,
+          "render": function ( data, type, full, meta ) {
+            return '<button type="button" class="btn btn-pill-right btn-success btn-xs btn-check-qemu-img-info"><i class="fa fa-refresh"></i></button>';
+          }
+        },
       ],
       footerCallback: function () {
         var api = this.api();
@@ -195,7 +201,7 @@ $(document).ready(function() {
       populateDiskTree();
     });
 
-    var storage_other=$('#storage_other').DataTable( {
+    $('#storage_other').DataTable( {
       "ajax": {
         "url": "/api/v3/admin/storage/other",
         "contentType": "application/json",
@@ -242,7 +248,13 @@ $(document).ready(function() {
           "render": function ( data, type, full, meta ) {
             return moment.unix(full["status_logs"][full["status_logs"].length -1]["time"]).fromNow()
           }
-        }
+        },
+        {
+          "targets": 7,
+          "render": function ( data, type, full, meta ) {
+            return '<button type="button" class="btn btn-pill-right btn-success btn-xs btn-check-qemu-img-info"><i class="fa fa-refresh"></i></button>';
+          }
+        },
       ],
       footerCallback: function () {
         var api = this.api();
@@ -267,6 +279,38 @@ $(document).ready(function() {
       }
     });
 
+    $(document).on('click', '.btn-check-qemu-img-info', function () {
+      var data = storage_ready.row($(this).closest("tr")).data();
+      $.ajax({
+        type: 'PUT',
+        url: '/api/v3/storage/' + data.id + '/check_backing_chain',
+        contentType: 'application/json',
+        success: function (result) {
+          new PNotify({
+            title: 'Updated',
+            text: 'Storage backing chain succesfully',
+            hide: true,
+            delay: 2000,
+            icon: '',
+            opacity: 1,
+            type: 'success'
+        })
+        },
+        error: function (xhr, ajaxOptions, thrownError) {
+          if (xhr.status == 428) {
+            new PNotify({
+              title: 'Error',
+              text: xhr.responseJSON.description,
+              hide: true,
+              delay: 3000,
+              icon: 'fa fa-warning',
+              opacity: 1,
+              type: 'error'
+            });
+          }
+        }
+      });
+    })
 
     var storage_deleted=$('#storage_deleted').DataTable( {
       "ajax": {
