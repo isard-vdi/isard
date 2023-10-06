@@ -607,22 +607,8 @@ class ApiDesktopsPersistent:
             data = copy.deepcopy(desktop_data)
             desktop = parse_domain_update(d, data, admin_or_manager)
 
-        query = (
-            (r.table("domains").get_all(*desktop_id).update(desktop))
-            if bulk
-            else (r.table("domains").get(desktop_id).update(desktop))
-        )
-        with app.app_context():
-            if not _check(
-                query.run(db.conn),
-                "replaced",
-            ):
-                raise Error(
-                    "internal_server",
-                    "Unable to update desktop(s) in database",
-                    traceback.format_exc(),
-                    description_code="unable_to_update" + str(desktop["status"]),
-                )
+            with app.app_context():
+                r.table("domains").get(d).update(desktop).run(db.conn)
 
     def UpdateReservables(self, desktop_id, reservables):
         if not _check(
