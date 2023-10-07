@@ -55,6 +55,7 @@ from ..libv2.api_user_storage import (
     isard_user_storage_remove_user,
     isard_user_storage_update_user,
     isard_user_storage_update_user_quota,
+    user_storage_quota,
 )
 from .api_admin import (
     change_category_items_owner,
@@ -846,29 +847,20 @@ class ApiUsers:
                 )
 
         domains = desktops + templates + derivated + users + groups
-        domains = [i for n, i in enumerate(domains) if i not in domains[n + 1 :]]
-        if table == "user":
-            with app.app_context():
-                user_storage = (
-                    r.table("users")
-                    .get(item_id)
-                    .pluck("name", "user_storage")
-                    .run(db.conn)
-                )
-                if user_storage.get("user_storage"):
-                    domains.append(
-                        {
-                            "id": None,
-                            "kind": "user_storage",
-                            "user_name": user_storage.get("name"),
-                            "name": r.table("user_storage")
-                            .get(user_storage["user_storage"].get("provider_id"))
-                            .pluck("name")
-                            .run(db.conn)
-                            .get("name"),
-                        }
-                    )
-        return domains
+        return [i for n, i in enumerate(domains) if i not in domains[n + 1 :]]
+
+    def _user_storage_delete_checks(self, user_id):
+        with app.app_context():
+            user_storage = (
+                r.table("users").get(user_id).pluck("name", "user_storage").run(db.conn)
+            )
+            if user_storage.get("user_storage"):
+                return {
+                    "id": None,
+                    "kind": "user_storage",
+                    "user_name": user_storage.get("name"),
+                    "name": str(user_storage_quota(user_id).get("used", 0)) + " MB",
+                }
 
     @cached(TTLCache(maxsize=10, ttl=5))
     def OwnsDesktopViewerIP(self, user_id, category_id, role_id, guess_ip):

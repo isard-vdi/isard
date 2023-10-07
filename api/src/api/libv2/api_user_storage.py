@@ -44,10 +44,6 @@ db.init_app(app)
 ISARD_SHARE_FOLDER = "IsardVDI"
 
 
-def _clear_caches():
-    None
-
-
 ########################
 # IsardVDI Interface   #
 ########################
@@ -55,7 +51,7 @@ def _clear_caches():
 ## GET
 
 
-@cached(cache=TTLCache(maxsize=10, ttl=10))
+@cached(cache=TTLCache(maxsize=10, ttl=5))
 def isard_user_storage_get_users():
     with app.app_context():
         provider_users = list(
@@ -375,7 +371,6 @@ def isard_user_storage_provider_delete(provider_id):
         pass
     with app.app_context():
         r.table("user_storage").get(provider_id).delete().run(db.conn).get("deleted")
-    _clear_caches()
 
 
 def isard_user_storage_reset_all():
@@ -491,7 +486,6 @@ def isard_user_storage_provider_basic_auth_add(
             )
             .run(db.conn)["changes"][0]["new_val"]["id"]
         )
-    _clear_caches()
     return provider_id
 
 
@@ -585,10 +579,7 @@ def _get_isard_user_category_id(user_id):
     return _get_isard_user_info(user_id)["category"]
 
 
-isard_users_cache = TTLCache(maxsize=10, ttl=10)
-
-
-@cached(isard_users_cache)
+@cached(TTLCache(maxsize=10, ttl=5))
 def _get_isard_users_array(provider_id=None):
     provider = _get_provider(provider_id)
     if provider["cfg"]["access"] != []:
@@ -605,7 +596,7 @@ def _get_isard_users_array(provider_id=None):
             return r.table("users").pluck("id")["id"].coerce_to("array").run(db.conn)
 
 
-@cached(TTLCache(maxsize=10, ttl=10))
+@cached(TTLCache(maxsize=10, ttl=5))
 def _get_provider_users_array(provider_id):
     provider = _get_provider(provider_id)
     if not provider:
@@ -622,26 +613,17 @@ def _get_provider_users_array(provider_id):
 ## Groups generic queries
 
 
-@cached(TTLCache(maxsize=50, ttl=5))
+@cached(TTLCache(maxsize=10, ttl=5))
 def _get_isard_group_info(group_id):
     with app.app_context():
         group = r.table("groups").get(group_id).run(db.conn)
-        category = r.table("categories").get(group_id).run(db.conn)
-        if group:
-            return {
-                "id": group["id"],
-                "name": group["name"],
-                "parent_category": group["parent_category"],
-                "category_name": r.table("categories")
-                .get(group["parent_category"])["name"]
-                .run(db.conn),
-            }
-    if category:
         return {
-            "id": category["id"],
-            "name": category["name"],
-            "parent_category": category["id"],
-            "category_name": category["name"],
+            "id": group["id"],
+            "name": group["name"],
+            "parent_category": group["parent_category"],
+            "category_name": r.table("categories")
+            .get(group["parent_category"])["name"]
+            .run(db.conn),
         }
 
 
@@ -726,7 +708,7 @@ def _get_provider(provider_id, user_id=None):
     return None
 
 
-@cached(TTLCache(maxsize=10, ttl=10))
+@cached(TTLCache(maxsize=10, ttl=5))
 def _get_isard_category_provider_id(category_id):
     with app.app_context():
         # Get provider that has category_id in access field array
@@ -1561,7 +1543,7 @@ def user_storage_update_user_subadmin(user_id, role, provider_id):
 ## Users quota
 
 
-@cached(TTLCache(maxsize=10, ttl=10))
+@cached(TTLCache(maxsize=10, ttl=5))
 def user_storage_quota(user_id):
     provider = _get_provider(_get_isard_user_provider_id(user_id))
     if not provider:
@@ -1719,9 +1701,6 @@ def user_storage_add_user_share_folder(user_id, folder=ISARD_SHARE_FOLDER):
 ########################
 #   GROUPS MANAGEMENT  #
 ########################
-
-
-# provider_list_groups = TTLCache(maxsize=10, ttl=60)
 
 
 @cached(TTLCache(maxsize=10, ttl=5))
