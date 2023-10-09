@@ -71,8 +71,7 @@ def get_disks(user_id=None, status=None, pluck=None, category_id=None):
                     "domains": r.table("domains")
                     .get_all(disk["id"], index="storage_ids")
                     .filter({"user": user_id})
-                    .pluck("id", "name")
-                    .coerce_to("array"),
+                    .count(),
                 }
             )
         else:
@@ -86,8 +85,7 @@ def get_disks(user_id=None, status=None, pluck=None, category_id=None):
                     .default({"category": "[DELETED]"})["category"],
                     "domains": r.table("domains")
                     .get_all(disk["id"], index="storage_ids")
-                    .pluck("id", "name")
-                    .coerce_to("array"),
+                    .count(),
                 }
             )
     else:

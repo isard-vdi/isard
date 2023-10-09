@@ -71,12 +71,6 @@ $(document).ready(function() {
           }
         },
         {
-          "targets": 9,
-          "render": function ( data, type, full, meta ) {
-            return full['domains'].length
-          }
-        },
-        {
           "targets": 10,
           "render": function ( data, type, full, meta ) {
             if( "status_logs" in full ){
