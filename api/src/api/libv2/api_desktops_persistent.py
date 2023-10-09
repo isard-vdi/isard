@@ -854,6 +854,14 @@ class ApiDesktopsPersistent:
                 "Servers can not have a bookable item",
                 traceback.format_exc(),
             )
+        if data.get("hardware", {}).get("reservables", {}).get("vgpus") and data[
+            "hardware"
+        ]["reservables"] != desktop.get("hardware", {}).get("reservables"):
+            with app.app_context():
+                vgpu_profiles = list(r.table("reservables_vgpus")["id"].run(db.conn))
+            for desktop_profile in data["hardware"]["reservables"].get("vgpus"):
+                if desktop_profile not in vgpu_profiles:
+                    raise Error("not_found", "vGPU not found: " + desktop_profile)
 
 
 def check_template_status(template_id=None, template=None):

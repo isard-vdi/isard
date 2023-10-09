@@ -2,18 +2,39 @@ virtualization_nested:
   type: boolean
 boot_order:
   type: list
+  empty: false
+  allowed:
+    - iso
+    - floppy
+    - disk
+    - pxe
 vcpus:
   type: integer
+  empty: false
 memory:
   type: float
+  empty: false
 graphics:
   type: list
+  empty: false
 videos:
   type: list
+  empty: false
+  allowed:
+    - default
+    - none
+    - qxl32
+    - vga
 interfaces:
   type: list
 disk_bus:
   type: string
+  empty: false
+  allowed:
+  - default
+  - ide
+  - sata
+  - virtio
 isos:
   type: list
 floppies:
