@@ -991,7 +991,7 @@ func (c *Domain) collectDomainPorts(id string) (DomainPorts, error) {
 				return DomainPorts{}, fmt.Errorf("convert '%s' to number: %w", port, err)
 			}
 
-			ports.vnc = i
+			ports.vnc = viewersBasePort + i
 		}
 	}
 
