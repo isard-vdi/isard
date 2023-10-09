@@ -4,3 +4,5 @@ services:
     depends_on:
       isard-db:
         condition: service_healthy
+      isard-redis:
+        condition: service_healthy
