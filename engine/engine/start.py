@@ -14,7 +14,6 @@ from flask import Flask
 
 ## Moved populate & upgrade from webapp
 from initdb.populate import Populate
-from initdb.upgrade import Upgrade
 from pid import PidFile, PidFileAlreadyLockedError, PidFileAlreadyRunningError
 
 check_output(("/isard/generate_certs.sh"), text=True).strip()
@@ -25,6 +24,8 @@ except Exception as e:
     print(traceback.format_exc())
     print("Error populating...")
     exit(1)
+
+from initdb.upgrade import Upgrade
 
 try:
     u = Upgrade()
