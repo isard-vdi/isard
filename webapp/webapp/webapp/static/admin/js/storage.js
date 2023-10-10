@@ -11,7 +11,7 @@ function getGroupParam() {
 
 $(document).ready(function() {
     $template = $(".template-storage-detail");
-    var storage_ready=$('#storage').DataTable({
+    storage_ready=$('#storage').DataTable({
       "initComplete": function (settings, json) {
         let searchStorageId = getGroupParam()
         if (searchStorageId) {
@@ -43,11 +43,12 @@ $(document).ready(function() {
         { "data": "type",},
         { "data": null},
         { "data": null},
-        { "data": "parent",},
+        { "data": "parent", "defaultContent": ""},
         { "data": "user_name",},
         { "data": "category",},
         { "data": "domains",},
-        { "data": "status_logs",}
+        { "data": "status_logs",},
+        { "data": "task",}
       ],
       "columnDefs": [
         {
@@ -82,7 +83,17 @@ $(document).ready(function() {
         {
           "targets": 11,
           "render": function ( data, type, full, meta ) {
-            return '<button type="button" class="btn btn-pill-right btn-success btn-xs btn-check-qemu-img-info"><i class="fa fa-refresh"></i></button>';
+            if( "task" in full ){
+              return '<button type="button" data-task="'+full.task+'" class="btn btn-pill-right btn-info btn-xs btn-task-info" title="Show last task info"><i class="fa fa-tasks"></i></button>';
+            }else{
+              return "-"
+            }
+          }
+        },
+        {
+          "targets": 12,
+          "render": function ( data, type, full, meta ) {
+            return '<button type="button" data-id="'+full.id+'" class="btn btn-pill-right btn-success btn-xs btn-check-qemu-img-info" title="Check disk info"><i class="fa fa-refresh"></i></button>';
           }
         },
       ],
@@ -201,7 +212,7 @@ $(document).ready(function() {
       populateDiskTree();
     });
 
-    $('#storage_other').DataTable( {
+    storage_other = $('#storage_other').DataTable( {
       "ajax": {
         "url": "/api/v3/admin/storage/other",
         "contentType": "application/json",
@@ -220,7 +231,8 @@ $(document).ready(function() {
           { "data": null},
           { "data": null},
           { "data": "user_id"},
-          { "data": "status_logs"}
+          { "data": "status_logs"},
+          { "data": "task"}
         ],
       "columnDefs": [
         {
@@ -252,7 +264,17 @@ $(document).ready(function() {
         {
           "targets": 7,
           "render": function ( data, type, full, meta ) {
-            return '<button type="button" class="btn btn-pill-right btn-success btn-xs btn-check-qemu-img-info"><i class="fa fa-refresh"></i></button>';
+            if( "task" in full ){
+              return '<button type="button" data-task="'+full.task+'" class="btn btn-pill-right btn-info btn-xs btn-task-info" title="Show last task info"><i class="fa fa-tasks"></i></button>';
+            }else{
+              return "-"
+            }
+          }
+        },
+        {
+          "targets": 8,
+          "render": function ( data, type, full, meta ) {
+            return '<button type="button" data-id="'+full.id+'" class="btn btn-pill-right btn-success btn-xs btn-check-qemu-img-info" title="Check disk info"><i class="fa fa-refresh"></i></button>';
           }
         },
       ],
@@ -279,13 +301,72 @@ $(document).ready(function() {
       }
     });
 
-    $(document).on('click', '.btn-check-qemu-img-info', function () {
-      var data = storage_ready.row($(this).closest("tr")).data();
+    $(document).on('click', '.btn-task-info', function () {
+      var element = $(this);
+      var task = element.data("task");
+      element.html('<i class="fa fa-spinner fa-pulse"></i>')
       $.ajax({
-        type: 'PUT',
-        url: '/api/v3/storage/' + data.id + '/check_backing_chain',
+        type: 'GET',
+        url: '/api/v3/task/' + task,
         contentType: 'application/json',
         success: function (result) {
+          element.html('<i class="fa fa-tasks"></i>')
+          new PNotify({
+            title: 'Last task info',
+            text: '<pre><li><b>TASK ID</b>: '+result.id+'</li><li><b>TASK</b>: '+result.task+'</li><li><b>USER ID</b>: '+result.user_id+'</li><li><b>TASK STATUS</b>: '+result.status+'</li><li><b>RESULT</b>: '+pretty_print_json(result.result)+'</li></pre>',
+            hide: false,
+            icon: '',
+            opacity: 1,
+            type: 'info',
+            addclass: 'pnotify-center-large',
+        })
+        },
+        error: function (xhr, ajaxOptions, thrownError) {
+          element.html('<i class="fa fa-tasks" style="color:red" title="Task not found!"></i>')
+          new PNotify({
+            title: 'Error',
+            text: xhr.responseJSON.description,
+            hide: true,
+            delay: 3000,
+            icon: 'fa fa-warning',
+            opacity: 1,
+            type: 'error'
+          });
+        }
+      });
+    })
+
+    function pretty_print_json(json){
+      if (typeof json != 'string') {
+            json = JSON.stringify(json, undefined, 2);
+      }
+      json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+          var cls = 'number';
+          if (/^"/.test(match)) {
+              if (/:$/.test(match)) {
+                  cls = 'key';
+              } else {
+                  cls = 'string';
+              }
+          } else if (/true|false/.test(match)) {
+              cls = 'boolean';
+          } else if (/null/.test(match)) {
+              cls = 'null';
+          }
+          return '<span class="' + cls + '">' + match + '</span>';
+      });
+    }
+    $(document).on('click', '.btn-check-qemu-img-info', function () {
+      element = $(this);
+      var id = element.data("id");
+      element.html('<i class="fa fa-spinner fa-pulse"></i>')
+      $.ajax({
+        type: 'PUT',
+        url: '/api/v3/storage/' + id + '/check_backing_chain',
+        contentType: 'application/json',
+        success: function (result) {
+          element.html('<i class="fa fa-refresh"></i>')
           new PNotify({
             title: 'Updated',
             text: 'Storage backing chain succesfully',
@@ -297,22 +378,21 @@ $(document).ready(function() {
         })
         },
         error: function (xhr, ajaxOptions, thrownError) {
-          if (xhr.status == 428) {
-            new PNotify({
-              title: 'Error',
-              text: xhr.responseJSON.description,
-              hide: true,
-              delay: 3000,
-              icon: 'fa fa-warning',
-              opacity: 1,
-              type: 'error'
-            });
-          }
+          element.html('<i class="fa fa-refresh" style="color:red" title="Error checking backing chain!"></i>')
+          new PNotify({
+            title: 'Error',
+            text: xhr.responseJSON.description,
+            hide: true,
+            delay: 3000,
+            icon: 'fa fa-warning',
+            opacity: 1,
+            type: 'error'
+          });
         }
       });
     })
 
-    var storage_deleted=$('#storage_deleted').DataTable( {
+    storage_deleted=$('#storage_deleted').DataTable( {
       "ajax": {
         "url": "/api/v3/admin/storage/deleted",
         "contentType": "application/json",
@@ -330,7 +410,8 @@ $(document).ready(function() {
           { "data": null},
           { "data": null},
           { "data": "user_id"},
-          { "data": "status_logs"}
+          { "data": "status_logs"},
+          { "data": "task", "defaultContent": "-"}
         ],
       "columnDefs": [
         {
@@ -358,7 +439,17 @@ $(document).ready(function() {
           "render": function ( data, type, full, meta ) {
             return moment.unix(full["status_logs"][full["status_logs"].length -1]["time"]).fromNow()
           }
-        }
+        },
+        {
+          "targets": 6,
+          "render": function ( data, type, full, meta ) {
+            if( "task" in full ){
+              return '<button type="button" data-task="'+full.task+'" class="btn btn-pill-right btn-info btn-xs btn-task-info" title="Show last task info"><i class="fa fa-tasks"></i></button>';
+            }else{
+              return "-"
+            }
+          }
+        },
       ],
       footerCallback: function () {
         var api = this.api();
@@ -693,41 +784,79 @@ $(document).ready(function() {
         });
       });
     }
-    // $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
+    $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
 })
 
-// function socketio_on(){
-//     var storage_migration_progress = null
-//     socket.on('storage_migration_progress', function(data) {
-//         var data = JSON.parse(data);
-//         if (storage_migration_progress == null){
-//           storage_migration_progress = new PNotify({
-//             title: "Migrating disks. Maintenance mode active.",
-//               text: data.description+ "\nProgress: "+data.current+"/"+data.total,
-//               hide: false,
-//               icon: 'fa fa-'+data.type,
-//               opacity: 1,
-//               type: data.type,
-//           });
-//         }else{
-//           storage_migration_progress.update({
-//             title: "Migrating disks. Maintenance mode active.",
-//               text: data.description+ "\nProgress: "+data.current+"/"+data.total+"\nPLEASE WAIT!",
-//               hide: false,
-//               icon: 'fa fa-'+data.type,
-//               opacity: 1,
-//               type: data.type,
-//           });
-//         }
-//         if ("id" in data){
-//           storage_physical.row('#'+data.id).remove().draw();
-//         }
+function socketio_on(){
+  socket.on('storage', function(data) {
+    var data = JSON.parse(data);
+    if( typeof(storage_ready.row('#'+data.id).id())!='undefined' ){
+      actual_data=storage_ready.row("#"+data.id).data()
+      if( "status" in data && data.status != 'ready' ){
+        storage_ready.row('#'+data.id).remove().draw();
+        add_to_status_table(data.status, {...actual_data,...data})
+      }else{
+        storage_ready.row('#'+data.id).data({...actual_data,...data}).invalidate();
+      }
+    }else if( typeof(storage_deleted.row('#'+data.id).id())!='undefined' ){
+      actual_data=storage_deleted.row("#"+data.id).data()
+      if( "status" in data && data.status != 'deleted' ){
+        storage_deleted.row('#'+data.id).remove().draw();
+        add_to_status_table(data.status, {...actual_data,...data})
+      }else{
+        storage_deleted.row('#'+data.id).data({...actual_data,...data}).invalidate();
+      }
+    }else if( typeof(storage_other.row('#'+data.id).id())!='undefined' ){
+      actual_data=storage_other.row("#"+data.id).data()
+      if( "status" in data && data.status != 'ready' ){
+        storage_other.row('#'+data.id).remove().draw();
+        add_to_status_table(data.status, {...actual_data,...data})
+      }else{
+        storage_other.row('#'+data.id).data({...actual_data,...data}).invalidate();
+      }
+    }
+  });
+}
 
-//         if(data.current >= data.total){
-//           PNotify.removeAll()
-//           storage_ready.ajax.reload()}
-//     });
-// }
+function add_to_status_table(status, data){
+  switch(status){
+    case 'ready':
+      new PNotify({
+        title: 'Disk status changed to ready',
+        text: 'Disk is now ready and moved to the ready disks table',
+        hide: true,
+        delay: 5000,
+        icon: '',
+        opacity: 1,
+        type: 'warning'
+      })
+      storage_ready.row.add(data).draw();
+      break;
+    case 'deleted':
+      new PNotify({
+        title: 'Disk status changed to deleted',
+        text: 'Disk is now deleted and moved to the deleted disks table',
+        hide: true,
+        delay: 5000,
+        icon: '',
+        opacity: 1,
+        type: 'warning'
+      })
+      storage_deleted.row.add(data).draw();
+      break;
+    default:
+      new PNotify({
+        title: 'Disk status changed to '+status,
+        text: 'Disk is now '+status+' and moved to the other status disks table',
+        hide: true,
+        delay: 5000,
+        icon: '',
+        opacity: 1,
+        type: 'warning'
+      })
+      storage_other.row.add(data).draw();
+  }
+}
 
 function format(rowData) {
     var childTable =
