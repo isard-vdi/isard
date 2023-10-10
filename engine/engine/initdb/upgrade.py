@@ -10,6 +10,8 @@ from uuid import uuid4
 import humanfriendly as hf
 import rethinkdb as r
 from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
+from isardvdi_common.storage import Storage
+from redis import Redis
 
 from .lib import *
 from .log import *
@@ -17,7 +19,9 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 105
+release_version = 107
+# release 107: Upgrade old domains with old storage to new storage
+# release 106: Add parent index to storage
 # release 105: Remove units from str_created in usage limits
 # release 104: Remove existing user_storages and it's entries in users
 # release 103: Add logs_desktops tables indexes
@@ -1990,6 +1994,88 @@ class Upgrade(object):
                 )
             except Exception as e:
                 print(e)
+
+        if version == 107:
+            try:
+                domains_with_file_path = list(
+                    r.table("domains")
+                    .pluck(
+                        {
+                            "id": True,
+                            "user": True,
+                            "parents": True,
+                            "create_dict": {"hardware": {"disks": True}},
+                        }
+                    )
+                    .filter(
+                        r.row["create_dict"]["hardware"]["disks"][0].has_fields("file")
+                    )
+                    .run(self.conn)
+                )
+                domains_to_update = []
+                storages_to_insert = []
+                storages = {}
+                for domain in domains_with_file_path:
+                    old_disk = domain["create_dict"]["hardware"]["disks"][0]
+                    base_name = os.path.splitext(old_disk["file"])
+                    fmt = base_name[1][1:]
+                    directory_path = old_disk.get("path_selected", "")
+
+                    if storages.get(old_disk["file"]):
+                        uuid = storages[old_disk["file"]]
+                    else:
+                        uuid = str(uuid4())
+                        storages[old_disk["file"]] = uuid
+                        storages_to_insert.append(
+                            {
+                                "id": uuid,
+                                "directory_path": directory_path,
+                                "status": "migrating",
+                                "type": fmt,
+                                "user_id": domain["user"],
+                                "status_logs": [
+                                    {"status": "created", "time": int(time.time())}
+                                ],
+                            }
+                        )
+                    domains_to_update.append(
+                        {
+                            "id": domain["id"],
+                            "create_dict": {
+                                "hardware": {
+                                    "disks": [
+                                        {
+                                            "storage_id": uuid,
+                                        }
+                                    ]
+                                }
+                            },
+                        }
+                    )
+
+                if len(storages_to_insert):
+                    print(
+                        "Inserting %s new storages from old domains..."
+                        % len(storages_to_insert)
+                    )
+                    r.table("storage").insert(storages_to_insert).run(self.conn)
+                    print(
+                        "Updating %s domains disks from old domains..."
+                        % len(domains_to_update)
+                    )
+                    r.table("domains").insert(domains_to_update, conflict="update").run(
+                        self.conn
+                    )
+                    print(
+                        "WARNING: storages need to be updated. Adding tasks to do it in the next minutes."
+                    )
+                    for storage_to_insert in storages_to_insert:
+                        storage = Storage(storage_to_insert["id"])
+                        storage.check_backing_chain(user_id="local-default-admin-admin")
+
+            except Exception as e:
+                print(e)
+
         return True
 
     """
@@ -2980,6 +3066,13 @@ class Upgrade(object):
                 r.table(table).index_create(
                     "user_status", [r.row["user_id"], r.row["status"]]
                 ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 106:
+            try:
+                r.table(table).index_create("parent", r.row["parent"]).run(self.conn)
+                r.table(table).index_wait("parent").run(self.conn)
             except Exception as e:
                 print(e)
 
