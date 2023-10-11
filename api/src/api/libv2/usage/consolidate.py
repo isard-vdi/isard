@@ -453,7 +453,7 @@ def gen_pk(item_id, item_type, consumer, consolidation_day):
             )
         ).hexdigest()
     except:
-        app.logger.info(
+        app.logger.error(
             "--> Error generating pk for %s %s %s %s",
             item_id,
             item_type,
