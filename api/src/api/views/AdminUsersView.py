@@ -356,6 +356,7 @@ def api_v3_admin_users_delete_check(payload):
 
     desktops = []
     for user in data:
+        desktops.append(users._user_storage_delete_checks(user["id"]))
         for desktop in users._delete_checks(user["id"], "user"):
             ownsDomainId(payload, desktop["id"])
             desktops.append(desktop)
@@ -628,6 +629,7 @@ def api_v3_admin_delete_check(payload):
         ownsUserId(payload, data["id"])
 
     desktops = []
+    desktops.append(users._user_storage_delete_checks(data["id"]))
     for desktop in users._delete_checks(data["id"], data["table"]):
         desktops.append(desktop)
 

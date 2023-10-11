@@ -53,7 +53,9 @@ from ..libv2.api_user_storage import (
     isard_user_storage_remove_category,
     isard_user_storage_remove_group,
     isard_user_storage_remove_user,
+    isard_user_storage_update_user,
     isard_user_storage_update_user_quota,
+    user_storage_quota,
 )
 from .api_admin import (
     change_category_items_owner,
@@ -218,6 +220,7 @@ class ApiUsers:
             "email",
             "accessed",
             {"vpn": {"wireguard": {"connected": True}}},
+            {"user_storage": {"provider_quota": {"used": True, "relative": True}}},
         )
         if nav == "management":
             query = query.merge(
@@ -240,6 +243,7 @@ class ApiUsers:
                 "role",
                 "category",
                 "group",
+                {"user_storage": {"provider_quota": {"used": True, "relative": True}}},
             ).merge(
                 lambda user: {
                     "group_name": r.table("groups").get(user["group"])["name"],
@@ -591,7 +595,6 @@ class ApiUsers:
                     "Unable to insert in database user_id " + user_id,
                     traceback.format_exc(),
                 )
-
         isard_user_storage_add_user(user_id)
         return user_id
 
@@ -602,6 +605,14 @@ class ApiUsers:
 
         with app.app_context():
             r.table("users").get_all(r.args(user_ids)).update(data).run(db.conn)
+        for user_id in user_ids:
+            isard_user_storage_update_user(
+                user_id=user_id,
+                email=data.get("email"),
+                displayname=data.get("name"),
+                role=data.get("role"),
+                enabled=data.get("active"),
+            )
 
     def Templates(self, payload):
         try:
@@ -837,6 +848,19 @@ class ApiUsers:
 
         domains = desktops + templates + derivated + users + groups
         return [i for n, i in enumerate(domains) if i not in domains[n + 1 :]]
+
+    def _user_storage_delete_checks(self, user_id):
+        with app.app_context():
+            user_storage = (
+                r.table("users").get(user_id).pluck("name", "user_storage").run(db.conn)
+            )
+            if user_storage.get("user_storage"):
+                return {
+                    "id": None,
+                    "kind": "user_storage",
+                    "user_name": user_storage.get("name"),
+                    "name": str(user_storage_quota(user_id).get("used", 0)) + " MB",
+                }
 
     @cached(TTLCache(maxsize=10, ttl=5))
     def OwnsDesktopViewerIP(self, user_id, category_id, role_id, guess_ip):

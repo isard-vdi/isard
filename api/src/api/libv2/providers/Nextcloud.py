@@ -171,8 +171,8 @@ def start_login_auth(provider_id):
         # Nextcloud allows for 20 minutes, we are not that patient
         # We will wait 5 minutes. Thread will be started in 5 seconds...
         # https://docs.nextcloud.com/server/latest/developer_manual/client_apis/LoginFlow/index.html#login-flow-v2
-        login_thread = gevent.spawn_later(
-            5, get_login_auth_callback, data["poll"]["token"], login_url, provider_id
+        login_thread = gevent.spawn(
+            get_login_auth_callback, data["poll"]["token"], login_url, provider_id
         )
         # gevent.joinall([login_thread], timeout=5 * 60, raise_error=False)
     # Should be opened in a new window
@@ -184,25 +184,35 @@ def get_login_auth_callback(token, login_url, provider_id):
     # updating login credentials into database
     # How will notify the user that registration was completed?
     # socket.emit to the client and form close and table reload with connection status
-    while True:
-        time.sleep(1)
-        result = json.loads(
-            _request(
-                "POST",
-                login_url + "/login/v2/poll",
-                data={"token": token},
-                headers={"OCS-APIRequest": "true"},
+    app.logger.info(
+        f"Starting login auth callback. Waiting for admin to authorize user storage provider {provider_id}"
+    )
+    timeout = 5 * 60
+    t = 0
+    while t <= timeout:
+        time.sleep(2)
+        try:
+            result = json.loads(
+                _request(
+                    "POST",
+                    login_url + "/login/v2/poll",
+                    data={"token": token},
+                    headers={"OCS-APIRequest": "true"},
+                )
             )
-        )
-        if "loginName" in result and "appPassword" in result:
-            with app.app_context():
-                r.table("user_storage").get(provider_id).update(
-                    {
-                        "user": result["loginName"],
-                        "password": result["appPassword"],
-                    }
-                ).run(db.conn)
-            break
+            if "loginName" in result and "appPassword" in result:
+                with app.app_context():
+                    r.table("user_storage").get(provider_id).update(
+                        {
+                            "user": result["loginName"],
+                            "password": result["appPassword"],
+                        }
+                    ).run(db.conn)
+                break
+        except:
+            # Do nothing as we are waiting for the user to login and authorize
+            pass
+        t += 2
 
 
 class NextcloudApi:
@@ -339,13 +349,13 @@ class NextcloudApi:
                 )
             return resp.text
 
-    def check_connection(self, timeout=2):
+    def check_connection(self, timeout=5):
         url = self.apiurl + "users/" + self.user + "?format=json"
-        self._request("GET", url)
+        self._request("GET", url, timeout=timeout)
         return True
 
     def get_user(self, user_id):
-        if user_id == "admin":
+        if user_id == self.user:
             raise Error("bad_request", "user_id cannot be admin")
         url = self.apiurl + "users/" + user_id + "?format=json"
         result = json.loads(self._request("GET", url))
@@ -363,7 +373,7 @@ class NextcloudApi:
         result = json.loads(self._request("GET", url))
         if result["ocs"]["meta"]["statuscode"] == 100:
             try:
-                result["ocs"]["data"]["users"].remove("admin")
+                result["ocs"]["data"]["users"].remove(self.user)
             except ValueError:
                 pass
             return result["ocs"]["data"]["users"]
@@ -375,25 +385,33 @@ class NextcloudApi:
         )
 
     def get_user_quota(self, user_id):
-        if user_id == "admin":
-            raise Error("bad_request", "user_id cannot be admin")
+        if user_id == self.user:
+            raise Error(f"bad_request", "user_id cannot be admin {self.user}")
         url = self.apiurl + "users/" + user_id + "?format=json"
         result = json.loads(self._request("GET", url))
         if result["ocs"]["meta"]["statuscode"] == 100:
             if "free" not in result["ocs"]["data"]["quota"]:
                 return {
                     "free": 0.0,
-                    "quota": result["ocs"]["data"]["quota"]["quota"] / 1024 / 1024,
+                    "quota": round(
+                        result["ocs"]["data"]["quota"]["quota"] / 1024 / 1024, 1
+                    ),
                     "relative": 0.0,
                     "total": 0.0,
-                    "used": result["ocs"]["data"]["quota"]["used"] / 1024 / 1024,
+                    "used": round(
+                        result["ocs"]["data"]["quota"]["used"] / 1024 / 1024, 1
+                    ),
                 }
             return {
-                "free": result["ocs"]["data"]["quota"]["free"] / 1024 / 1024,
-                "quota": result["ocs"]["data"]["quota"]["quota"] / 1024 / 1024,
-                "relative": result["ocs"]["data"]["quota"]["relative"],
-                "total": result["ocs"]["data"]["quota"]["total"] / 1024 / 1024,
-                "used": result["ocs"]["data"]["quota"]["used"] / 1024 / 1024,
+                "free": round(result["ocs"]["data"]["quota"]["free"] / 1024 / 1024, 1),
+                "quota": round(
+                    result["ocs"]["data"]["quota"]["quota"] / 1024 / 1024, 1
+                ),
+                "relative": round(result["ocs"]["data"]["quota"]["relative"], 1),
+                "total": round(
+                    result["ocs"]["data"]["quota"]["total"] / 1024 / 1024, 1
+                ),
+                "used": round(result["ocs"]["data"]["quota"]["used"] / 1024 / 1024, 1),
             }
         raise Error(
             "not_found",
@@ -486,8 +504,8 @@ class NextcloudApi:
         )
 
     def remove_user(self, user_id):
-        if user_id == "admin":
-            app.logger.debug("Nextcloud admin user cannot be removed")
+        if user_id == self.user:
+            app.logger.debug(f"Nextcloud {self.user} admin user cannot be removed")
             return
         url = self.apiurl + "users/" + user_id + "?format=json"
         result = json.loads(self._request("DELETE", url))
@@ -688,8 +706,8 @@ class NextcloudApi:
         )
 
     def enable_user(self, user_id):
-        if user_id == "admin":
-            app.logger.debug("Nextcloud admin user cannot be enabled")
+        if user_id == self.user:
+            app.logger.debug(f"Nextcloud {self.user} admin user cannot be enabled")
             return
         url = self.apiurl + "users/" + user_id + "/enable?format=json"
         headers = {
@@ -719,8 +737,8 @@ class NextcloudApi:
         )
 
     def disable_user(self, user_id):
-        if user_id == "admin":
-            app.logger.debug("Nextcloud admin user cannot be disabled")
+        if user_id == self.user:
+            app.logger.debug(f"Nextcloud {self.user} admin user cannot be disabled")
             return
         url = self.apiurl + "users/" + user_id + "/disable?format=json"
         headers = {
@@ -888,7 +906,7 @@ class NextcloudApi:
         url = self.apiurl + "groups?format=json"
         result = json.loads(self._request("GET", url))
         try:
-            result["ocs"]["data"]["groups"].remove("admin")
+            result["ocs"]["data"]["groups"].remove(self.user)
         except ValueError:
             pass
         return result["ocs"]["data"]["groups"]
@@ -899,7 +917,7 @@ class NextcloudApi:
         if not len(result["ocs"]["data"]):
             return []
         try:
-            result["ocs"]["data"]["users"].remove("admin")
+            result["ocs"]["data"]["users"].remove(self.user)
         except ValueError:
             pass
         return result["ocs"]["data"]["users"]
@@ -918,6 +936,7 @@ class NextcloudApi:
             return True
         if result["ocs"]["meta"]["statuscode"] == 102:
             if not skip_if_exists:
+                app.logger.error("Group " + group_id + " already exists")
                 raise Error(
                     "conflict",
                     "Group " + group_id + " already exists",
@@ -925,7 +944,6 @@ class NextcloudApi:
                         "POST", url, data=data, auth=self.auth, headers=headers
                     ),
                 )
-            app.logger.error("Group " + group_id + " already exists")
             return True
         raise Error(
             "internal_server",

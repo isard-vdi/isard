@@ -27,7 +27,7 @@ from api import app
 
 from ..libv2.api_user_storage import (
     isard_user_storage_get_provider,
-    isard_user_storage_get_providers,
+    isard_user_storage_get_providers_ws,
     isard_user_storage_get_users,
     isard_user_storage_provider_auto_register_auth,
     isard_user_storage_provider_basic_auth_add,
@@ -84,7 +84,7 @@ def admin_user_storage_login_auth(payload, provider_id):
 @app.route("/api/v3/admin/user_storage", methods=["GET"])
 @is_admin
 def admin_user_storage_list(payload):
-    return json.dumps(isard_user_storage_get_providers(check_connection=True))
+    return json.dumps(isard_user_storage_get_providers_ws())
 
 
 @app.route("/api/v3/admin/user_storage/<provider_id>", methods=["GET"])

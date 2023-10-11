@@ -44,10 +44,6 @@ db.init_app(app)
 ISARD_SHARE_FOLDER = "IsardVDI"
 
 
-def _clear_caches():
-    None
-
-
 ########################
 # IsardVDI Interface   #
 ########################
@@ -55,7 +51,7 @@ def _clear_caches():
 ## GET
 
 
-@cached(cache=TTLCache(maxsize=10, ttl=10))
+@cached(cache=TTLCache(maxsize=10, ttl=5))
 def isard_user_storage_get_users():
     with app.app_context():
         provider_users = list(
@@ -81,7 +77,7 @@ def isard_user_storage_get_users():
 ## ADD
 def isard_user_storage_add_user(user_id):
     try:
-        user_storage_add_user_th(
+        user_storage_add_user_th_later(
             user_id,
             provider_id=_get_isard_user_provider_id(user_id),
             create_groups=False,
@@ -144,10 +140,12 @@ def isard_user_storage_remove_category(category_id, cascade=True):
     try:
         user_storage_remove_category_th(
             category_id,
-            _get_isard_category_provider_id(category_id),
             cascade,
         )
     except:
+        app.logger.debug(
+            f"USER_STORAGE - Error removing category {category_id} in user_storage provider: {traceback.format_exc()}"
+        )
         app.logger.error(
             f"USER_STORAGE - Error removing category {category_id} in user_storage provider"
         )
@@ -155,17 +153,32 @@ def isard_user_storage_remove_category(category_id, cascade=True):
 
 ## UPDATE
 def isard_user_storage_update_user(
-    user_id, password=None, quota_MB=None, email=None, displayname=None, role=None
+    user_id,
+    password=None,
+    quota_MB=None,
+    email=None,
+    displayname=None,
+    role=None,
+    enabled=None,
 ):
     try:
-        user_storage_update_user_th(
-            user_id,
-            password=password,
-            quota_MB=quota_MB,
-            email=email,
-            displayname=displayname,
-            role=role,
-        )
+        if (
+            password != None
+            or quota_MB != None
+            or email != None
+            or displayname != None
+            or role != None
+        ):
+            user_storage_update_user_th(
+                user_id,
+                password=password,
+                quota_MB=quota_MB,
+                email=email,
+                displayname=displayname,
+                role=role,
+            )
+        if enabled != None:
+            user_storage_enable_user_th(user_id, enabled)
     except:
         app.logger.error(
             f"USER_STORAGE - Error updating user {user_id} in user_storage provider"
@@ -187,7 +200,7 @@ def isard_user_storage_update_group(group_id, group_name):
 
 def isard_user_storage_update_category(category_id, category_name):
     try:
-        user_storage_update_category(
+        user_storage_update_category_th(
             category_id,
             category_name,
             _get_isard_category_provider_id(category_id),
@@ -200,7 +213,7 @@ def isard_user_storage_update_category(category_id, category_name):
 
 def isard_user_storage_update_user_quota(user_id):
     try:
-        user_storage_update_user_quota(user_id)
+        user_storage_update_user_quota_th(user_id)
     except:
         app.logger.error(
             f"USER_STORAGE - Error updating user {user_id} quota in user_storage provider"
@@ -230,38 +243,96 @@ def isard_user_storage_get_provider(provider_id):
 
 
 @cached(TTLCache(maxsize=1, ttl=3))
-def isard_user_storage_get_providers(check_connection=False):
+def isard_user_storage_get_providers():
     with app.app_context():
-        providers = list(
-            r.table("user_storage")
-            .merge(
-                lambda user_storage: {
-                    "category_name": r.table("categories")
-                    .get(user_storage["access"])["name"]
-                    .default("*")
-                }
-            )
-            .run(db.conn)
-        )
+        providers = list(r.table("user_storage").run(db.conn))
     new_providers = []
     for provider in providers:
         if not provider.get("password"):
             provider["authorization"] = False
         else:
             provider["authorization"] = True
-            if check_connection:
-                try:
-                    isard_user_storage_provider_basic_auth_test(
-                        provider["provider"],
-                        "pepito",
-                        provider["urlprefix"],
-                        provider["user"],
-                        provider["password"],
-                        provider["verify_cert"],
-                    )
-                    provider["connection"] = True
-                except:
-                    provider["connection"] = False
+        provider.pop("password", None)
+        new_providers.append(provider)
+    return new_providers
+
+
+#### Get isard_user_storage_get_providers_th gevent delayed connection status
+def get_ws_connection_status(provider):
+    try:
+        isard_user_storage_provider_basic_auth_test(
+            provider["provider"],
+            "pepito",
+            provider["urlprefix"],
+            provider["user"],
+            provider["password"],
+            provider["verify_cert"],
+        )
+        provider["connection"] = True
+    except Exception as e:
+        app.logger.debug(
+            f"USER_STORAGE - Error testing connection to provider {provider['id']}: {e}"
+        )
+        app.logger.error(
+            f"USER_STORAGE - Error testing connection to provider {provider['id']}"
+        )
+        provider["connection"] = False
+    socketio.emit(
+        "user_storage_provider",
+        json.dumps(
+            {
+                "id": provider["id"],
+                "connection": provider["connection"],
+            }
+        ),
+        namespace="/administrators",
+        room="admins",
+    )
+    if provider["connection"]:
+        new_users, deleted_users = get_users_inconsistency(provider["id"])
+        new_groups, deleted_groups = get_groups_inconsistency(provider["id"])
+        new_categories, deleted_categories = get_categories_inconsistency(
+            provider["id"]
+        )
+        new_groups = new_groups + new_categories
+        deleted_groups = deleted_groups + deleted_categories
+        socketio.emit(
+            "user_storage_provider",
+            json.dumps(
+                {
+                    "id": provider["id"],
+                    "new_users": len(new_users),
+                    "deleted_users": len(deleted_users),
+                    "new_groups": len(new_groups),
+                    "deleted_groups": len(deleted_groups),
+                }
+            ),
+            namespace="/administrators",
+            room="admins",
+        )
+
+
+def isard_user_storage_get_providers_ws():
+    with app.app_context():
+        providers = list(r.table("user_storage").run(db.conn))
+    new_providers = []
+    for provider in providers:
+        if provider["access"] == []:
+            provider["category_names"] = []
+        else:
+            provider["category_names"] = (
+                r.table("categories")
+                .get_all(r.args(provider["access"]))["name"]
+                .coerce_to("array")
+                .run(db.conn)
+            )
+        if not provider.get("password"):
+            provider["authorization"] = False
+            provider["connection"] = False
+        else:
+            provider["authorization"] = True
+            # Check connection Thread
+            gevent.spawn_later(0.5, get_ws_connection_status, provider.copy())
         provider.pop("password", None)
         new_providers.append(provider)
     return new_providers
@@ -271,22 +342,24 @@ def isard_user_storage_provider_reset(provider_id):
     provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Provider reset. No user_storage provider defined in system."
-        )
         return
     process_user_storage_remove_user_batches(
         data_batch=_get_provider_users_array(provider_id), provider_id=provider_id
     )
-    process_user_storage_remove_group_batches(
-        data_batch=_get_provider_groups(provider_id), provider_id=provider_id
+    provider_groups = _get_provider_groups(provider_id) + _get_provider_categories(
+        provider_id
     )
-    provider["conn"].remove_group(provider["cfg"]["access"])
+    process_user_storage_remove_group_batches(
+        data_batch=provider_groups, provider_id=provider_id
+    )
+
+    for category_id in provider["cfg"]["access"]:
+        provider["conn"].remove_group(category_id)
 
     # Get users from db that matches this provider access
     query = r.table("users")
-    if provider["cfg"]["access"] != "*":
-        query = query.get_all(provider["cfg"]["access"], index="category")
+    if provider["cfg"]["access"] != []:
+        query = query.get_all(r.args(provider["cfg"]["access"]), index="category")
     with app.app_context():
         query.replace(r.row.without("user_storage")).run(db.conn)
 
@@ -298,7 +371,6 @@ def isard_user_storage_provider_delete(provider_id):
         pass
     with app.app_context():
         r.table("user_storage").get(provider_id).delete().run(db.conn).get("deleted")
-    _clear_caches()
 
 
 def isard_user_storage_reset_all():
@@ -354,7 +426,7 @@ def isard_user_storage_provider_auto_register_auth(
                     "description": "Connection to Nextcloud instance inside IsardVDI containers",
                     "url": domain,
                     "urlprefix": "/isard-nc",
-                    "access": "*",
+                    "access": [],
                     "quota": {
                         "admin": 500,
                         "advanced": 300,
@@ -396,7 +468,11 @@ def isard_user_storage_provider_basic_auth_add(
                     "description": description,
                     "url": domain,
                     "urlprefix": urlprefix,
-                    "access": access,
+                    "access": access
+                    if type(access) == list
+                    else [access]
+                    if access != "*"
+                    else [],
                     "quota": quota,
                     "user": False,
                     "password": False,
@@ -404,20 +480,64 @@ def isard_user_storage_provider_basic_auth_add(
                     "verify_cert": verify_cert,
                     "auth_protocol": "basic",
                     "intra_docker": False,
-                    "connection": False,
                     "enabled": True,
                 },
                 return_changes=True,
             )
             .run(db.conn)["changes"][0]["new_val"]["id"]
         )
-    _clear_caches()
     return provider_id
+
+
+def isard_user_storage_provider_login_auth_socketio(
+    provider_id,
+):
+    with app.app_context():
+        try:
+            # Wait for admin to authorize provider
+            app.logger.info("USER_STORAGE - Waiting for admin to authorize provider")
+            with gevent.Timeout(5 * 60):
+                for data in (
+                    r.table("user_storage")
+                    .get(provider_id)
+                    .changes()
+                    .pluck({"new_val": {"password": True}})
+                    .run(db.conn)
+                ):
+                    socketio.emit(
+                        "user_storage_provider",
+                        json.dumps(
+                            {
+                                "id": provider_id,
+                                "authorization": True,
+                                "connection": True,
+                            }
+                        ),
+                        namespace="/administrators",
+                        room="admins",
+                    )
+                    app.logger.info(
+                        f"USER_STORAGE - Admin authorized provider {provider_id}"
+                    )
+                    return
+        except:
+            app.logger.warning(
+                f"USER_STORAGE - Timeout when waiting for admin to authorize provider {provider_id}"
+            )
+
+
+login_thread = None
 
 
 def isard_user_storage_provider_login_auth(
     provider_id,
 ):
+    global login_thread
+    if login_thread:
+        login_thread.kill()
+    login_thread = gevent.spawn(
+        isard_user_storage_provider_login_auth_socketio, provider_id
+    )
     return start_login_auth(provider_id)
 
 
@@ -426,35 +546,17 @@ def isard_user_storage_provider_login_auth(
 ####################
 
 ## Users generic queries
-isard_users_info_cache = TTLCache(maxsize=10, ttl=240)
 
 
-@cached(isard_users_info_cache)
-def _get_isard_users_info(provider_id=None):
-    provider = _get_provider(provider_id)
-    if not provider or provider.get("cfg", {}).get("access") == "*":
-        with app.app_context():
-            return (
-                r.table("users")
-                .pluck(
-                    "id", "name", "role", "group", "category", "user_storage", "email"
-                )
-                .group("id")
-                .run(db.conn)
-            )
-
+@cached(TTLCache(maxsize=50, ttl=5))
+def _get_isard_user_info(user_id):
     with app.app_context():
         return (
             r.table("users")
-            .get_all(provider["cfg"]["access"], index="category")
+            .get(user_id)
             .pluck("id", "name", "role", "group", "category", "user_storage", "email")
-            .group("id")
             .run(db.conn)
         )
-
-
-def _get_isard_user_info(user_id):
-    return _get_isard_users_info(_get_isard_user_provider_id(user_id))[user_id][0]
 
 
 def _get_isard_user_name(user_id):
@@ -477,17 +579,14 @@ def _get_isard_user_category_id(user_id):
     return _get_isard_user_info(user_id)["category"]
 
 
-isard_users_cache = TTLCache(maxsize=10, ttl=10)
-
-
-@cached(isard_users_cache)
+@cached(TTLCache(maxsize=10, ttl=5))
 def _get_isard_users_array(provider_id=None):
     provider = _get_provider(provider_id)
-    if provider["cfg"]["access"] != "*":
+    if provider["cfg"]["access"] != []:
         with app.app_context():
             return (
                 r.table("users")
-                .get_all(provider["cfg"]["access"], index="category")
+                .get_all(r.args(provider["cfg"]["access"]), index="category")
                 .pluck("id")["id"]
                 .coerce_to("array")
                 .run(db.conn)
@@ -497,77 +596,35 @@ def _get_isard_users_array(provider_id=None):
             return r.table("users").pluck("id")["id"].coerce_to("array").run(db.conn)
 
 
-@cached(TTLCache(maxsize=10, ttl=10))
+@cached(TTLCache(maxsize=10, ttl=5))
 def _get_provider_users_array(provider_id):
     provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Users array. No user_storage provider defined in system."
-        )
         return
-    if provider["cfg"]["access"] == "*":
-        return provider["conn"].get_groups()
-    return provider["conn"].get_group_members(provider["cfg"]["access"])
+    if provider["cfg"]["access"] == []:
+        return provider["conn"].get_users()
+    group_members = []
+    for category_id in provider["cfg"]["access"]:
+        group_members += provider["conn"].get_group_members(category_id)
+    return group_members
 
 
 ## Groups generic queries
 
-isard_groups_info_cache = TTLCache(maxsize=100, ttl=10)
 
-
-@cached(isard_groups_info_cache)
-def _get_isard_groups_info(provider_id=None):
-    if not provider_id:
-        with app.app_context():
-            return (
-                r.table("groups")
-                .pluck("id", "name", "parent_category")
-                .merge(
-                    lambda group: {
-                        "category_name": r.table("categories").get(
-                            group["parent_category"]
-                        )["name"],
-                    }
-                )
-                .group("id")
-                .run(db.conn)
-            )
-    provider = _get_provider(provider_id)
-    if provider["cfg"]["access"] != "*":
-        with app.app_context():
-            return (
-                r.table("groups")
-                .get_all(provider["cfg"]["access"], index="parent_category")
-                .pluck("id", "name", "parent_category")
-                .merge(
-                    lambda group: {
-                        "category_name": r.table("categories").get(
-                            group["parent_category"]
-                        )["name"],
-                    }
-                )
-                .group("id")
-                .run(db.conn)
-            )
-    with app.app_context():
-        return (
-            r.table("groups")
-            .pluck("id", "name", "parent_category")
-            .merge(
-                lambda group: {
-                    "category_name": r.table("categories").get(
-                        group["parent_category"]
-                    )["name"],
-                }
-            )
-            .group("id")
-            .run(db.conn)
-        )
-
-
+@cached(TTLCache(maxsize=10, ttl=5))
 def _get_isard_group_info(group_id):
-    return _get_isard_groups_info(_get_isard_group_provider_id(group_id))[group_id][0]
+    with app.app_context():
+        group = r.table("groups").get(group_id).run(db.conn)
+        return {
+            "id": group["id"],
+            "name": group["name"],
+            "parent_category": group["parent_category"],
+            "category_name": r.table("categories")
+            .get(group["parent_category"])["name"]
+            .run(db.conn),
+        }
 
 
 def _get_isard_group_category_name(group_id):
@@ -582,67 +639,35 @@ def _get_isard_group_provider_name(group_id):
     )
 
 
-isard_groups_cache = TTLCache(maxsize=10, ttl=10)
+isard_groups_cache = TTLCache(maxsize=10, ttl=5)
 
 
 @cached(isard_groups_cache)
-def _get_isard_groups_array(provider_id=None):
-    if not provider_id:
-        with app.app_context():
-            return r.table("groups").pluck("id")["id"].coerce_to("array").run(db.conn)
+def _get_isard_groups_array(provider_id):
     provider = _get_provider(provider_id)
-    if provider["cfg"]["access"] != "*":
-        with app.app_context():
-            return (
-                r.table("groups")
-                .get_all(provider["cfg"]["access"], index="parent_category")
-                .pluck("id")["id"]
-                .coerce_to("array")
-                .run(db.conn)
-            )
-    else:
-        with app.app_context():
-            return r.table("groups").pluck("id")["id"].coerce_to("array").run(db.conn)
+    query = r.table("groups")
+    if provider["cfg"]["access"] != []:
+        query = query.get_all(
+            r.args(provider["cfg"]["access"]), index="parent_category"
+        )
+    with app.app_context():
+        return list(query.pluck("id")["id"].coerce_to("array").run(db.conn))
 
 
 ## Categories generic queries
 
-isard_categories_info_cache = TTLCache(maxsize=10, ttl=10)
 
-
-@cached(isard_categories_info_cache)
-def _get_isard_categories_info(provider_id=None):
-    provider = _get_provider(provider_id)
-    if provider["cfg"]["access"] != "*":
-        with app.app_context():
-            return (
-                r.table("categories")
-                .get_all(provider["cfg"]["access"])
-                .pluck("id", "name")
-                .group("id")
-                .run(db.conn)
-            )
-    with app.app_context():
-        return r.table("categories").pluck("id", "name").group("id").run(db.conn)
-
-
+@cached(TTLCache(maxsize=10, ttl=5))
 def _get_isard_category_name(category_id):
-    return _get_isard_categories_info(_get_isard_category_provider_id(category_id))[
-        category_id
-    ][0]["name"]
+    with app.app_context():
+        return r.table("categories").get(category_id)["name"].run(db.conn)
 
 
-def _get_isard_categories_array(provider_id=None):
+@cached(TTLCache(maxsize=10, ttl=5))
+def _get_isard_categories_array(provider_id):
     provider = _get_provider(provider_id)
-    if provider["cfg"]["access"] != "*":
-        with app.app_context():
-            return (
-                r.table("categories")
-                .get_all(provider["cfg"]["access"])
-                .pluck("id")
-                .coerce_to("array")
-                .run(db.conn)
-            )
+    if provider["cfg"]["access"] != []:
+        return provider["cfg"]["access"]
     with app.app_context():
         return r.table("categories").pluck("id")["id"].coerce_to("array").run(db.conn)
 
@@ -658,15 +683,13 @@ cache_provider = TTLCache(maxsize=10, ttl=5)
 def _get_provider(provider_id, user_id=None):
     provider_cfg = isard_user_storage_get_provider(provider_id)
     if not provider_cfg:
-        app.logger.debug(
-            "USER_STORAGE - Get provider. No user_storage provider defined in system."
-        )
         return None
-        # raise Error("not_found", "Provider not found")
     if not provider_cfg.get("enabled"):
         app.logger.debug("USER_STORAGE - User storage provider not enabled in system.")
         return None
-        # raise Error("not_found", "Provider not enabled")
+    if not provider_cfg.get("password"):
+        app.logger.debug("USER_STORAGE - User storage provider not authorized yet.")
+        return None
     if provider_cfg["provider"] == "nextcloud":
         provider = NextcloudApi(
             provider_cfg["url"] + provider_cfg["urlprefix"],
@@ -682,59 +705,50 @@ def _get_provider(provider_id, user_id=None):
                     user["user_storage"]["user_id"], user["user_storage"]["password"]
                 )
         return {"cfg": provider_cfg, "conn": provider}
-    app.logger.debug(
-        "USER_STORAGE - Get provider after check. No user_storage provider defined in system."
-    )
     return None
 
 
-@cached(TTLCache(maxsize=10, ttl=10))
+@cached(TTLCache(maxsize=10, ttl=5))
 def _get_isard_category_provider_id(category_id):
     with app.app_context():
+        # Get provider that has category_id in access field array
         providers_cfgs = list(
-            r.table("user_storage").filter({"access": category_id}).run(db.conn)
+            r.table("user_storage")
+            .filter(lambda doc: doc["access"].contains(category_id))
+            .run(db.conn)
         )
     if len(providers_cfgs):
+        # Should be only one, and should be controlled in the UI
         provider_cfg = providers_cfgs[0]
     else:
         provider_cfg = None
         with app.app_context():
-            provider = list(
-                r.table("user_storage").filter({"access": "*"}).run(db.conn)
-            )
+            provider = list(r.table("user_storage").filter({"access": []}).run(db.conn))
         if len(provider):
             provider_cfg = provider[0]
 
     if not provider_cfg:
-        app.logger.debug(
-            "USER_STORAGE - Category provider id. No user_storage provider defined in system."
-        )
         return None
     return provider_cfg["id"]
 
 
 def _get_isard_group_provider_id(group_id):
     return _get_isard_category_provider_id(
-        _get_isard_groups_info()[group_id][0]["parent_category"]
+        _get_isard_group_info(group_id)["parent_category"]
     )
 
 
 def _get_isard_user_provider_id(user_id):
-    return _get_isard_category_provider_id(
-        _get_isard_users_info()[user_id][0]["category"]
-    )
+    return _get_isard_category_provider_id(_get_isard_user_info(user_id)["category"])
 
 
 ### BATCH Add/Remove Users in batches with greenlets threads
 
 
-def _users_inconsistency(provider_id):
+def get_users_inconsistency(provider_id):
     provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Users inconsistency. No user_storage provider defined in system."
-        )
         return
 
     isard_users = _get_isard_users_array(provider_id)
@@ -767,7 +781,9 @@ def process_user_storage_add_user_batches(
     if create_groups:
         user_storage_add_provider_categories_th(provider_id)
         process_user_storage_add_group_batches(
-            data_batch=_get_isard_groups_array(provider_id), provider_id=provider_id
+            data_batch=_get_isard_groups_array(provider_id),
+            provider_id=provider_id,
+            skip_if_exists=True,
         )
 
     # Number of simultaneous users that can be created
@@ -936,7 +952,7 @@ def process_user_storage_delete_subadmin_batches(data_batch, provider_id):
 
 
 def user_storage_provider_users_sync(provider_id):
-    new_users, removed_users = _users_inconsistency(provider_id)
+    new_users, removed_users = get_users_inconsistency(provider_id)
     process_user_storage_add_user_batches(
         data_batch=new_users,
         provider_id=provider_id,
@@ -951,33 +967,54 @@ def user_storage_provider_users_sync(provider_id):
 ### BATCH Add/Update/Remove Groups in batches with greenlets threads
 
 
-def _groups_inconsistency(provider_id):
+def get_groups_inconsistency(provider_id):
     # Get groups from provider
     provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Groups inconsistency. No user_storage provider defined in system."
-        )
         return
 
     provider_groups = _get_provider_groups(provider_id)
     isard_groups = _get_isard_groups_array(provider_id)
-
     new_groups = [ig for ig in isard_groups if ig not in provider_groups]
     removed_groups = [pg for pg in provider_groups if pg not in isard_groups]
+    app.logger.debug(
+        f"USER_STORAGE - GET GROUPS INCONSISTENDY - NEW GROUPS {new_groups} - REMOVED GROUPS {removed_groups}"
+    )
     return new_groups, removed_groups
 
 
-def process_user_storage_add_group_batch(data_batch, provider_id):
+def get_categories_inconsistency(provider_id):
+    # Get groups from provider
+    provider = _get_provider(provider_id)
+    if not provider:
+        # We will return as there are no providers defined in system
+        return
+
+    provider_categories = _get_provider_categories(provider_id)
+    isard_categories = _get_isard_categories_array(provider_id)
+    new_categories = [ig for ig in isard_categories if ig not in provider_categories]
+    removed_categories = [
+        pg for pg in provider_categories if pg not in isard_categories
+    ]
+    app.logger.debug(
+        f"USER_STORAGE - GET CATEGORIES INCONSISTENDY - NEW CATEGORIES {new_categories} - REMOVED CATEGORIES {removed_categories}"
+    )
+    return new_categories, removed_categories
+
+
+def process_user_storage_add_group_batch(data_batch, provider_id, skip_if_exists=False):
     for item_id in data_batch:
         user_storage_add_group(
             group_id=item_id,
             provider_id=provider_id,
+            skip_if_exists=skip_if_exists,
         )
 
 
-def process_user_storage_add_group_batches(data_batch, provider_id):
+def process_user_storage_add_group_batches(
+    data_batch, provider_id, skip_if_exists=False
+):
     if not len(data_batch):
         app.logger.debug("USER_STORAGE - No groups to add to provider")
         return
@@ -998,7 +1035,12 @@ def process_user_storage_add_group_batches(data_batch, provider_id):
     jobs = []
     for batch in batches:
         jobs.append(
-            gevent.spawn(process_user_storage_add_group_batch, batch, provider_id)
+            gevent.spawn(
+                process_user_storage_add_group_batch,
+                batch,
+                provider_id,
+                skip_if_exists=skip_if_exists,
+            )
         )
     gevent.joinall(jobs)
 
@@ -1070,7 +1112,8 @@ def process_user_storage_remove_group_batches(data_batch, provider_id):
 
 
 def user_storage_provider_groups_sync(provider_id):
-    new_groups, removed_groups = _groups_inconsistency(provider_id)
+    user_storage_add_provider_categories_th(provider_id)
+    new_groups, removed_groups = get_groups_inconsistency(provider_id)
     process_user_storage_add_group_batches(
         data_batch=new_groups, provider_id=provider_id
     )
@@ -1078,7 +1121,6 @@ def user_storage_provider_groups_sync(provider_id):
     process_user_storage_remove_group_batches(
         data_batch=removed_groups, provider_id=provider_id
     )
-    user_storage_add_provider_categories_th(provider_id)
 
 
 ### BATCH Add Categories in batches with greenlets threads
@@ -1125,6 +1167,20 @@ def process_user_storage_add_category_batches(data_batch, provider_id):
 ## Add/Update/Remove users
 
 
+def user_storage_add_user_th_later(
+    user_id, provider_id=None, create_groups=False, webdav_folder=True
+):
+    # Wait 1 second before adding to let user be in database for sure
+    gevent.spawn_later(
+        1,
+        user_storage_add_user,
+        user_id,
+        provider_id,
+        create_groups,
+        webdav_folder,
+    )
+
+
 def user_storage_add_user_th(
     user_id, provider_id=None, create_groups=False, webdav_folder=True
 ):
@@ -1145,14 +1201,13 @@ def user_storage_add_user(
     provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Add user. No user_storage provider defined/available in system."
-        )
         return
 
     if create_groups:
         user_storage_add_group(
-            group_id=_get_isard_user_group_id(user_id), provider_id=provider_id
+            group_id=_get_isard_user_group_id(user_id),
+            provider_id=provider_id,
+            skip_if_exists=True,
         )
 
     password = secrets.token_urlsafe(20)
@@ -1264,9 +1319,6 @@ def user_storage_remove_user(user_id, provider_id=None):
         provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Remove user. No user_storage provider defined in system."
-        )
         return
 
     try:
@@ -1332,9 +1384,6 @@ def user_storage_update_user(
     provider = _get_provider(_get_isard_user_provider_id(user_id))
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Update user. No user_storage provider defined in system. Not updating user"
-        )
         return
     # Update user
     try:
@@ -1395,69 +1444,110 @@ def user_storage_update_user(
         )
 
 
+def user_storage_enable_user_th(user_id, enabled):
+    gevent.spawn(user_storage_enable_user, user_id, enabled)
+
+
+def user_storage_enable_user(user_id, enabled):
+    provider = _get_provider(_get_isard_user_provider_id(user_id))
+    if not provider:
+        # We will return as there are no providers defined in system
+        return
+    try:
+        if enabled == False:
+            provider["conn"].disable_user(user_id)
+        if enabled == True:
+            provider["conn"].enable_user(user_id)
+    except Exception as e:
+        app.logger.debug(f"USER_STORAGE - Error enabling user: {e}")
+        app.logger.error(
+            f"USER_STORAGE - Error enabling user: {user_id} in user_storage provider",
+        )
+        socketio.emit(
+            "personal_unit",
+            json.dumps(
+                {
+                    "action": "Enable user",
+                    "name": user_id,
+                    "status": False,
+                    "msg": "Error enabling user",
+                }
+            ),
+            namespace="/administrators",
+            room="admins",
+        )
+
+    socketio.emit(
+        "personal_unit",
+        json.dumps(
+            {
+                "action": "Enable user",
+                "name": user_id,
+                "status": True,
+                "msg": "Enabled user",
+            }
+        ),
+        namespace="/administrators",
+        room="admins",
+    )
+
+
 def user_storage_update_user_subadmin(user_id, role, provider_id):
     provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Update subadmin. No user_storage provider defined in system."
-        )
         return
     user_subadmin_groups = provider["conn"].get_user(user_id).get("subadmin", [])
     groups_add = []
     groups_delete = []
     if role == "admin":
-        # Now we are doing the same for admins and managers
-        # TODO: admins should be added to all providers with all providers groups
+        # We should add user to all groups and categories
+        for group_id in _get_provider_categories(provider_id):
+            if group_id not in user_subadmin_groups:
+                groups_add.append([user_id, group_id])
         for group_id in _get_provider_groups(provider_id):
             if group_id not in user_subadmin_groups:
                 groups_add.append([user_id, group_id])
-        try:
-            gevent.spawn(
-                provider["conn"].add_subadmin,
-                user_id,
-                _get_isard_user_category_id(user_id),
-            )
-        except:
-            pass
     if role == "manager":
-        for group_id in _get_provider_groups(provider_id):
-            if group_id not in user_subadmin_groups:
-                groups_add.append([user_id, group_id])
-        try:
-            gevent.spawn(
-                provider["conn"].add_subadmin,
-                user_id,
-                _get_isard_user_category_id(user_id),
-            )
-        except:
-            pass
-
+        category_id = _get_isard_user_category_id(user_id)
+        # We should remove user from groups and categories if his category does not match
+        # the user_subadmin_groups
+        if category_id not in user_subadmin_groups:
+            for group_id in user_subadmin_groups:
+                groups_delete.append([user_id, group_id])
+        # We should add user to his category and and to this category groups
+        if provider["cfg"]["access"] == [] or category_id in provider["cfg"]["access"]:
+            groups_add.append([user_id, category_id])
+            for group_id in _get_provider_groups(provider_id):
+                if group_id not in user_subadmin_groups:
+                    groups_add.append([user_id, group_id])
     if role not in ["admin", "manager"]:
         for group_id in user_subadmin_groups:
             try:
                 groups_delete.append([user_id, group_id])
-                provider["conn"].delete_subadmin(user_id, group_id)
             except:
                 pass
 
-    if len(groups_add) > 0:
-        process_user_storage_add_user_subadmin_batches(groups_add, provider_id)
     if len(groups_delete) > 0:
+        app.logger.debug(
+            f"USER_STORAGE - DELETING SUBADMINS: {groups_delete} for user {user_id}"
+        )
         process_user_storage_delete_subadmin_batches(groups_delete, provider_id)
+    if len(groups_add) > 0:
+        app.logger.debug(
+            f"USER_STORAGE - ADDING SUBADMINS: {groups_add} for user {user_id}"
+        )
+        process_user_storage_add_user_subadmin_batches(groups_add, provider_id)
 
 
 ## Users quota
 
 
-@cached(TTLCache(maxsize=10, ttl=10))
+@cached(TTLCache(maxsize=10, ttl=5))
 def user_storage_quota(user_id):
     provider = _get_provider(_get_isard_user_provider_id(user_id))
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Storage quota. No user_storage provider defined in system."
-        )
         return
 
     return provider["conn"].get_user_quota(user_id)
@@ -1471,9 +1561,6 @@ def user_storage_update_user_quota(user_id):
     provider = _get_provider(_get_isard_user_provider_id(user_id))
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Update user quota. No user_storage provider defined in system. Not updating user"
-        )
         return
     provider_quota = provider["conn"].get_user_quota(user_id)
     with app.app_context():
@@ -1502,9 +1589,6 @@ def user_storage_add_user_folder(user_id, folder=ISARD_SHARE_FOLDER):
     user = _get_isard_user_info(user_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Add user folder. No user_storage provider defined in system."
-        )
         return
     # Add user folder
     try:
@@ -1545,9 +1629,6 @@ def user_storage_add_user_share_folder(user_id, folder=ISARD_SHARE_FOLDER):
     user = _get_isard_user_info(user_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Add user share folder. No user_storage provider defined in system."
-        )
         return
     try:
         data = provider["conn"].add_user_share_folder(
@@ -1622,22 +1703,42 @@ def user_storage_add_user_share_folder(user_id, folder=ISARD_SHARE_FOLDER):
 ########################
 
 
-# provider_list_groups = TTLCache(maxsize=10, ttl=60)
-
-
-# @cached(provider_list_groups)
-def _get_provider_groups(provider_id):
+@cached(TTLCache(maxsize=10, ttl=5))
+def _provider_groups(provider_id):
     provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Provider groups. No user_storage provider defined in system."
-        )
         return
+    # In provider get_groups we have all groups, including categories nextcloud has only groups)
     groups = provider["conn"].get_groups()
-    if provider["cfg"]["access"] == "*":
-        return groups
-    return [g for g in groups if g in _get_isard_groups_array(provider_id)]
+    if provider["cfg"]["access"] == []:
+        groups.remove("admin")
+    return groups
+
+
+def _get_provider_groups(provider_id):
+    # Remove categories (as they won't be in isard groups)
+    return [
+        g
+        for g in _provider_groups(provider_id)
+        if g in _get_isard_groups_array(provider_id) and g != "admin"
+    ]
+
+
+def _get_provider_categories(provider_id):
+    # Remove categories (as they won't be in isard groups)
+    return [
+        g
+        for g in _provider_groups(provider_id)
+        if g in _get_isard_categories_array(provider_id)
+    ]
+
+
+def _get_category_groups(category_id):
+    provider = _get_provider(_get_isard_category_provider_id(category_id))
+    groups = provider["conn"].get_group_members(category_id)
+    groups.remove("admin")
+    return groups
 
 
 def user_storage_add_group_th(group_id, provider_id):
@@ -1648,16 +1749,13 @@ def user_storage_add_group_th(group_id, provider_id):
     )
 
 
-def user_storage_add_group(group_id, provider_id=None):
+def user_storage_add_group(group_id, provider_id=None, skip_if_exists=False):
     provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Add group. No user_storage provider defined in system."
-        )
         return
     try:
-        provider["conn"].add_group(group_id)
+        provider["conn"].add_group(group_id, skip_if_exists=skip_if_exists)
         provider["conn"].update_group(
             group_id, _get_isard_group_provider_name(group_id)
         )
@@ -1674,7 +1772,10 @@ def user_storage_add_group(group_id, provider_id=None):
             namespace="/administrators",
             room="admins",
         )
-    except:
+    except Exception as e:
+        app.logger.debug(
+            f"USER_STORAGE - Error adding group {group_id} in user_storage provider: {traceback.format_exc()}"
+        )
         app.logger.error(
             "USER_STORAGE - Add group. Error adding group {}".format(group_id)
         )
@@ -1713,9 +1814,6 @@ def user_storage_update_group(group_id, new_group_name, provider_id):
     provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Update group. No user_storage provider defined in system."
-        )
         return
     app.logger.debug(
         "USER_STORAGE - Renaming group {} to {}".format(group_id, new_group_name)
@@ -1763,9 +1861,6 @@ def user_storage_remove_group(group_id, provider_id, cascade=False):
     provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Remove group. No user_storage provider defined in system."
-        )
         return
 
     if cascade:
@@ -1809,9 +1904,6 @@ def _provider_group_members(group_id, provider_id):
     provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Group members. No user_storage provider defined in system."
-        )
         return
     return provider["conn"].get_group_members(group_id)
 
@@ -1833,9 +1925,6 @@ def user_storage_add_category(category_id, provider_id=None):
     provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Add category. No user_storage provider defined in system."
-        )
         return
     try:
         provider["conn"].add_group(category_id)
@@ -1875,25 +1964,26 @@ def user_storage_add_category(category_id, provider_id=None):
 
 
 def user_storage_add_provider_categories_th(provider_id):
+    gevent.spawn(user_storage_add_provider_categories, provider_id)
+
+
+def user_storage_add_provider_categories(provider_id):
     provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Add provider categories. No user_storage provider defined in system."
-        )
         return
-
+    if provider["cfg"]["access"] == []:
+        categories = _get_isard_categories_array(provider_id)
+    else:
+        categories = provider["cfg"]["access"]
     app.logger.info(
         "USER_STORAGE - Adding categories %s for provider %s"
-        % (provider["cfg"]["access"], provider_id)
+        % (categories, provider_id)
     )
-    if provider["cfg"]["access"] != "*":
-        gevent.spawn(user_storage_add_category, provider["cfg"]["access"], provider_id)
-    else:
-        process_user_storage_add_category_batches(
-            _get_isard_categories_array(provider_id=provider_id),
-            provider_id=provider_id,
-        )
+    process_user_storage_add_category_batches(
+        categories,
+        provider_id=provider_id,
+    )
 
 
 def user_storage_remove_category_th(category_id, cascade=False):
@@ -1910,8 +2000,9 @@ def user_storage_remove_category(category_id, cascade=False):
         )
         _get_provider_users_array.cache_clear()
 
+        ## Should only be groups in category_id!!
         process_user_storage_remove_group_batches(
-            data_batch=_get_provider_groups(provider_id), provider_id=provider_id
+            data_batch=_get_category_groups(category_id), provider_id=provider_id
         )
     provider["conn"].remove_group(category_id)
 
@@ -1923,31 +2014,30 @@ def user_storage_update_category_th(category_id, new_category_name, provider_id)
 
 
 def user_storage_update_category(category_id, new_category_name, provider_id):
-    if _get_isard_category_name(category_id) == new_category_name:
+    _get_isard_category_name.cache_clear()
+    category_name = _get_isard_category_name(category_id)
+    if category_name == new_category_name:
         app.logger.debug(
             "USER_STORAGE - Category name is the same, nothing to do: {} {}".format(
-                _get_isard_category_name(category_id), new_category_name
+                category_name, new_category_name
             )
         )
         return
     provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
-        app.logger.debug(
-            "USER_STORAGE - Update category. No user_storage provider defined in system."
-        )
         return
     app.logger.debug(
         "USER_STORAGE - Renaming category {} to {}".format(
-            _get_isard_category_name(category_id), new_category_name
+            category_name, new_category_name
         )
     )
 
-    groups = _get_provider_groups(provider_id)
+    groups = _get_category_groups(category_id)
     groups_batch = []
     for group_id in groups:
         new_group_name = _get_isard_group_provider_name(group_id).replace(
-            _get_isard_category_name(category_id), new_category_name
+            category_name, new_category_name
         )
         groups_batch.append([group_id, new_group_name])
     process_user_storage_update_group_batches(groups_batch, provider_id)

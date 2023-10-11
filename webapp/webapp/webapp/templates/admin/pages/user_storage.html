@@ -31,9 +31,6 @@
             <a class="add-new-personalunit"><span style="color: #5499c7; "><i class="fa fa-plus"></i> Add new</span></a>
           </li>
           <li>
-            <a class="reset-all-personalunit"><span style="color: #c7545e; "><i class="fa fa-close"></i> Reset all data</span></a>
-          </li>
-          <li>
             <a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
           </li>
           <li>
@@ -55,6 +52,7 @@
               <th>Authorization</th>
               <th>Connection</th>
               <th>Verify SSL</th>
+              <th>Integrity</th>
               <th></th>
               <th>Id</th>
             </tr>
@@ -74,6 +72,9 @@
       <div class="x_title">
         <h3><i class="fa fa-user"></i> Users</h3>
         <ul class="nav navbar-right panel_toolbox">
+          <li>
+            <a class="btn-users-inconsistency" style="display:none"><span style="color: #5499c7; "><i class="fa fa-refresh"></i> Synchronize</span></a>
+          </li>
           <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a>
           </li>
           <li><a class="close-link"><i class="fa fa-close"></i></a>
@@ -95,11 +96,11 @@
               <th></th>
             </tr>
             <tr>
-              <th>Quota</th>
-              <th>Total</th>
-              <th>Used</th>
-              <th>Relative</th>
-              <th>Free</th>
+              <th>Quota (MB)</th>
+              <th>Total (MB)</th>
+              <th>Used (MB)</th>
+              <th>Relative (%)</th>
+              <th>Free (MB)</th>
               <!-- <th></th> -->
               <th>Id</th>
             </tr>

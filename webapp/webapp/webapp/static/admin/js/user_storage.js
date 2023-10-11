@@ -42,18 +42,12 @@ $(document).ready(function () {
             { "data": "provider" },
             { "data": "name" },
             { "data": "description" },
-            { "data": "category_name" },
+            { "data": "category_names" },
             { "data": "authorization" },
             { "data": "connection" },
             { "data": "verify_cert" },
-            {
-                "className": 'actions-control',
-                "orderable": false,
-                "data": null,
-                "defaultContent": '<button id="btn-delete" class="btn btn-xs" type="button" data-placement="top"><i class="fa fa-times" style="color:darkred"></i></button> \
-                                   <button id="btn-sync" class="btn btn-xs btn-sync" type="button" data-placement="top"><i class="fa fa-refresh" style="color:green"></i></button> \
-                                   <button id="btn-reset-data" class="btn btn-xs btn-reset-data" type="button" data-placement="top"><i class="fa fa-users" style="color:red"></i></button>'
-            },
+            { "data": null, "width": "100px","orderable": false, "defaultContent": '<i class="fa fa-spinner fa-pulse fa-fw"></i><span class="sr-only">...</span>'},
+            { "data": null, "width": "75px" },
             { "data": "id", "visible": false },
         ],
         "order": [[1, 'asc']],
@@ -66,6 +60,12 @@ $(document).ready(function () {
                     } else {
                         return '<i class="fa fa-circle" aria-hidden="true" style="color:darkgray"></i>'
                     }
+                }
+            },
+            {
+                "targets": 5,
+                "render": function ( data, type, full, meta ) {
+                    return full.category_names == [] ? "Everyone" : full.category_names.join(", ");
                 }
             },
             {
@@ -82,6 +82,9 @@ $(document).ready(function () {
             {
                 "targets": 7,
                 "render": function ( data, type, full, meta ) {
+                    if ( ! full.hasOwnProperty('connection') ) {
+                        return '<i class="fa fa-spinner fa-pulse fa-fw"></i><span class="sr-only">...</span>'
+                    }
                     if (full.connection) {
                         return '<i class="fa fa-circle" aria-hidden="true" style="color:green" title="Can reach and authorize clien"></i>'
                     } else {
@@ -105,8 +108,49 @@ $(document).ready(function () {
                     }
                 }
             },
+            {
+                "targets": 9,
+                "render": function ( data, type, full, meta ) {
+                    if ( full.hasOwnProperty('new_users') ) {
+                        toshow = ""
+                        if ( full.new_users > 0 ) {
+                            toshow += '<i class="fa fa-user-plus" aria-hidden="true" style="color:orange" title="New users"></i> '+full.new_users+' New<br>'
+                        }
+                        if ( full.deleted_users > 0 ) {
+                            toshow += '<i class="fa fa-user-times" aria-hidden="true" style="color:orange" title="Deleted users"></i> '+full.deleted_users+' Deleted<br>'
+                        }
+                        if ( full.new_groups > 0 ) {
+                            toshow += '<i class="fa fa-users" aria-hidden="true" style="color:orange" title="New groups"></i> '+full.new_groups+' New<br>'
+                        }
+                        if ( full.deleted_groups > 0 ) {
+                            toshow += '<i class="fa fa-users" aria-hidden="true" style="color:orange" title="Deleted groups"></i> '+full.deleted_groups+' Deleted<br>'
+                        }
+                        if ( toshow == "" ) {
+                            toshow = '<i class="fa fa-check" aria-hidden="true" style="color:green" title="Everything is ok"></i>'
+                        }else{
+                            // Add red warning icon inside button
+                            toshow += '<button id="btn-sync" class="btn btn-xs" type="button" data-placement="top"><i class="fa fa-refresh" style="color:darkred" title="Synchronize"></i></button>'
+                        }
+                        return toshow
+                    }
+                }
+            },
+            {
+                "targets": 10,
+                "render": function ( data, type, full, meta ) {
+                    if (full.enabled && full.connection && full.authorization) {
+                        buttons = '<button id="btn-reset-data" class="btn btn-xs" type="button" data-placement="top"><i class="fa fa-users" style="color:darkred" title="Reset users"></i></button> \
+                        <button id="btn-delete" class="btn btn-xs" type="button" data-placement="top"><i class="fa fa-trash" style="color:darkred" title="Delete"></i></button>'
+                    } else {
+                        buttons = '<button id="btn-delete" class="btn btn-xs" type="button" data-placement="top"><i class="fa fa-trash" style="color:darkred" title="Delete"></i></button>'
+                    }
+                    return buttons
+                }
+            }
         ]
     });
+
+
 
     function init_personalunits_table() {
         $('#personalunits-progress-log').DataTable().clear().destroy();
@@ -162,7 +206,7 @@ $(document).ready(function () {
                 new PNotify({
                     title: '<b>WARNING</b>',
                     type: "error",
-                    text: "<b>All users and groups in your Nextcloud (not only in Isard ones) will be deleted.\nAre you sure you want to delete provider '"+data['name']+"'?</b>",
+                    text: "<b>All users and their current data in storage provider will be lost.\nAre you sure you want to delete provider '"+data['name']+"'?</b>",
                     hide: false,
                     opacity: 0.9,
                     confirm: {
@@ -217,7 +261,7 @@ $(document).ready(function () {
                 new PNotify({
                     title: '<b>WARNING: RESET PROVIDER DATA</b>',
                     type: "error",
-                    text: "<b>All users and groups in your Nextcloud (not only in Isard ones) will be deleted.\nAre you sure you want to delete provider '"+data['name']+"'?</b>",
+                    text: "<b>All users and their current data in storage provider will be lost.\nAre you sure you want to delete users and groups in '"+data['name']+"'?</b>",
                     hide: false,
                     opacity: 0.9,
                     confirm: {
@@ -401,57 +445,6 @@ $(document).ready(function () {
         $('#modalPersonalunits #modalPersonalunitsForm').parsley();
     });
 
-    $('.reset-all-personalunit').on( 'click', function () {
-        new PNotify({
-            title: "Reset all providers",
-            text: "<b>All users and groups in your Nextcloud (not only in Isard ones) will be deleted.\nAre you sure you want to reset all providers?</b>",
-            hide: false,
-            confirm: {
-                confirm: true
-            },
-            buttons: {
-                closer: false,
-                sticker: false
-            },
-            history: {
-                history: false
-            },
-            addclass: 'pnotify-center-large',
-            width: '550'
-        }).get().on('pnotify.confirm', function() {
-            $.ajax({
-                type: "DELETE",
-                url: "/api/v3/admin/user_storage/reset/all",
-                success: function (data) {
-                    new PNotify({
-                        title: "Reset all providers",
-                        text: "All providers data are being reset",
-                        hide: true,
-                        delay: 4000,
-                        icon: 'fa fa-info',
-                        opacity: 1,
-                        type: 'info'
-                    });
-                    personalunits_table.ajax.reload();
-                },
-                error: function (xhr, ajaxOptions, thrownError) {
-                    new PNotify({
-                        title: "Reset all providers",
-                        text: xhr.responseJSON.description,
-                        hide: true,
-                        delay: 4000,
-                        icon: 'fa fa-alert',
-                        opacity: 1,
-                        type: 'error'
-                    });
-                }
-            });
-        }).on('pnotify.cancel', function() {
-            //Do Nothing
-        });
-    });
-
-
     $("#modalPersonalunits #send").on('click', function(e){
         var form = $('#modalPersonalunitsForm');
         data = form.serializeObject()
@@ -569,9 +562,17 @@ $(document).ready(function () {
     $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
 
     function socketio_on(){
+        socket.on('user_storage_provider', function(data){
+            var data = JSON.parse(data);
+            data = {...personalunits_table.row("#"+data.id).data(),...data}
+            dtUpdateInsert(personalunits_table,data,false);
+        });
+
         socket.on('personal_unit', function(data){
             var data = JSON.parse(data);
-            dtUpdateInsert(personalunits_progress,data,false);
+            if (typeof personalunits_progress !== 'undefined') {
+                dtUpdateInsert(personalunits_progress,data,false);
+            }
         });
     
         socket.on('result', function (data) {
