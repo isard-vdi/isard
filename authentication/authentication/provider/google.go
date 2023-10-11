@@ -2,11 +2,7 @@ package provider
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"net/url"
 	"strings"
 
 	"gitlab.com/isard/isardvdi/authentication/cfg"
@@ -14,6 +10,8 @@ import (
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	gAPI "google.golang.org/api/oauth2/v2"
+	"google.golang.org/api/option"
 )
 
 const GoogleString = "google"
@@ -51,52 +49,30 @@ func (g *Google) Login(ctx context.Context, categoryID string, args map[string]s
 	return nil, nil, redirect, nil
 }
 
-type googleAPIUsr struct {
-	UID   string `json:"id,omitempty"`
-	Name  string `json:"name,omitempty"`
-	Email string `json:"email,omitempty"`
-	Photo string `json:"picture,omitempty"`
-}
-
 func (g *Google) Callback(ctx context.Context, claims *CallbackClaims, args map[string]string) (*model.Group, *model.User, string, error) {
 	oTkn, err := g.provider.callback(ctx, args)
 	if err != nil {
 		return nil, nil, "", err
 	}
 
-	q := url.Values{"access_token": {oTkn}}
-	url := url.URL{
-		Scheme:   "https",
-		Host:     "www.googleapis.com",
-		Path:     "oauth2/v2/userinfo",
-		RawQuery: q.Encode(),
-	}
-
-	rsp, err := http.Get(url.String())
+	svc, err := gAPI.NewService(ctx, option.WithTokenSource(oauth2.StaticTokenSource(oTkn)))
 	if err != nil {
-		return nil, nil, "", fmt.Errorf("call Google API: %w", err)
-	}
-	defer rsp.Body.Close()
-
-	if rsp.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(rsp.Body)
-
-		return nil, nil, "", fmt.Errorf("call Google API: HTTP Code %d: %s", rsp.StatusCode, b)
+		return nil, nil, "", fmt.Errorf("create Google API client: %w", err)
 	}
 
-	gUsr := &googleAPIUsr{}
-	if err := json.NewDecoder(rsp.Body).Decode(&gUsr); err != nil {
-		return nil, nil, "", fmt.Errorf("unmarshal Google API json response: %w", err)
+	gUsr, err := svc.Userinfo.Get().Do()
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("get user information from Google: %w", err)
 	}
 
 	u := &model.User{
-		UID:      gUsr.UID,
+		UID:      gUsr.Id,
 		Username: strings.Split(gUsr.Email, "@")[0],
 		Provider: claims.Provider,
 		Category: claims.CategoryID,
 		Name:     gUsr.Name,
 		Email:    gUsr.Email,
-		Photo:    gUsr.Photo,
+		Photo:    gUsr.Picture,
 	}
 
 	return nil, u, "", nil
