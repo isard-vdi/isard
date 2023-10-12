@@ -1562,7 +1562,12 @@ def user_storage_update_user_quota(user_id):
     if not provider:
         # We will return as there are no providers defined in system
         return
-    provider_quota = provider["conn"].get_user_quota(user_id)
+    try:
+        provider_quota = provider["conn"].get_user_quota(user_id)
+    except Exception as e:
+        if e.args[0] == "not_found":
+            ## TODO: User does not exist yet in provider, we should add it here?
+            return
     with app.app_context():
         r.table("users").get(user_id).update(
             {"user_storage": {"provider_quota": provider_quota}}
