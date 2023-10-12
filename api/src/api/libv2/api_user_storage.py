@@ -212,6 +212,8 @@ def isard_user_storage_update_category(category_id, category_name):
 
 
 def isard_user_storage_update_user_quota(user_id):
+    # Now it is only updated when user logins (frontend gets Config)
+    # TODO: Think where we can also update it...
     try:
         user_storage_update_user_quota_th(user_id)
     except:

@@ -153,7 +153,7 @@ class ApiUsers:
             if os.environ.get("FRONTEND_SHOW_TEMPORAL") == None
             else os.environ.get("FRONTEND_SHOW_TEMPORAL") == "True"
         )
-
+        isard_user_storage_update_user_quota(payload["user_id"])
         return {
             **{
                 "show_bookings_button": show_bookings_button,
@@ -165,7 +165,6 @@ class ApiUsers:
         }
 
     def Get(self, user_id, get_quota=False):
-        isard_user_storage_update_user_quota(user_id)
         with app.app_context():
             user = (
                 r.table("users")
