@@ -143,13 +143,16 @@ class Error(Exception):
             + ":"
             + inspect.stack()[1][3]
         )
-        self.error["function_call"] = (
-            inspect.stack()[2][1].split(os.sep)[-1]
-            + ":"
-            + str(inspect.stack()[2][2])
-            + ":"
-            + inspect.stack()[2][3]
-        )
+        try:
+            self.error["function_call"] = (
+                inspect.stack()[2][1].split(os.sep)[-1]
+                + ":"
+                + str(inspect.stack()[2][2])
+                + ":"
+                + inspect.stack()[2][3]
+            )
+        except:
+            self.error["function_call"] = "-"
         self.error["description"] = str(description)
         self.error["debug"] = (
             "{}\n\r{}{}".format(
