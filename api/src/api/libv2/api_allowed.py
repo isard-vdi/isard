@@ -21,36 +21,35 @@ db = RDB(app)
 db.init_app(app)
 
 
-@cached(
-    cache=TTLCache(maxsize=50, ttl=5),
-    key=lambda user_id, user_group_id, item_allowed_groups: hashkey(
-        user_id + user_group_id + str(item_allowed_groups)
-    ),
-)
+@cached(cache=TTLCache(maxsize=100, ttl=5))
+def get_user(user_id):
+    with app.app_context():
+        return r.table("users").get(user_id).run(db.conn)
+
+
+@cached(cache=TTLCache(maxsize=100, ttl=5))
+def get_group(group_id):
+    with app.app_context():
+        return r.table("groups").get(group_id).run(db.conn)
+
+
+def get_group_linked_groups(group_id):
+    return get_group(group_id).get("linked_groups", [])
+
+
 def check_secondary_groups(user_id, user_group_id, item_allowed_groups):
-    secondary_groups = (
-        r.table("users").get(user_id).pluck("secondary_groups").run(db.conn)
-    )
-    for group in get_all_linked_groups(
-        [user_group_id] + secondary_groups.get("secondary_groups", [])
-    ):
+    secondary_groups = get_user(user_id).get("secondary_groups", [])
+    for group in get_all_linked_groups([user_group_id] + secondary_groups):
         if group in item_allowed_groups:
             return True
     return False
 
 
-@cached(cache=TTLCache(maxsize=50, ttl=5), key=lambda groups: hashkey(str(groups)))
 def get_all_linked_groups(groups):
-    with app.app_context():
-        linked_groups = list(
-            r.table("groups")
-            .get_all(r.args(groups), index="id")
-            .pluck("linked_groups")
-            .run(db.conn)
-        )
-    for lg in linked_groups:
-        groups += lg.get("linked_groups", [])
-    return list(dict.fromkeys(groups))
+    linked_groups = groups
+    for group in groups:
+        linked_groups += get_group_linked_groups(group)
+    return list(dict.fromkeys(linked_groups))
 
 
 class ApiAllowed:
