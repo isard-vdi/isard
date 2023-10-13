@@ -115,9 +115,8 @@ class Storage(RethinkCustomBase):
         """
         Create Task for a Storage.
         """
-        if self.task:
-            if Task(self.task).pending:
-                raise Exception(f"Storage {self.id} have the pending task {self.task}")
+        if self.task and Task.exists(self.task) and Task(self.task).pending:
+            raise Exception(f"Storage {self.id} have the pending task {self.task}")
         self.task = Task(*args, **kwargs).id
 
     def check_backing_chain(self, user_id):
