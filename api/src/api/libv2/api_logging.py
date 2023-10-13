@@ -23,6 +23,7 @@ import traceback
 from time import time
 from uuid import uuid4
 
+import gevent
 from rethinkdb import RethinkDB
 
 from api import app
@@ -92,13 +93,21 @@ def parse_user_request(user_request=None):
 
 # START DESKTOP
 def logs_domain_start_api(dom_id, action_user=None, user_request=None):
-    _logs_domain_start(
-        dom_id, user_request=parse_user_request(user_request), action_user=action_user
+    gevent.spawn(
+        _logs_domain_start,
+        dom_id,
+        user_request=parse_user_request(user_request),
+        action_user=action_user,
     )
 
 
 def logs_domain_start_directviewer(dom_id, user_request=None):
-    _logs_domain_start(dom_id, parse_user_request(user_request), direct_viewer=True)
+    gevent.spawn(
+        _logs_domain_start,
+        dom_id,
+        user_request=parse_user_request(user_request),
+        direct_viewer=True,
+    )
 
 
 def _logs_domain_start(
@@ -112,8 +121,8 @@ def _logs_domain_start(
     # - User: desktop-owner|deployment-owner|system-admins
     # - Desktop direct viewer access: desktop-directviewer
     start_logs_id = str(uuid4())
-    with app.app_context():
-        try:
+    try:
+        with app.app_context():
             domain = (
                 r.table("domains")
                 .get(dom_id)
@@ -124,10 +133,10 @@ def _logs_domain_start(
                 )
                 .run(db.conn)["changes"][0]["old_val"]
             )
-        except:
-            log.warning("Unable to update domain with start log id")
-            log.debug(traceback.format_exc())
-            return
+    except:
+        log.warning("Unable to update domain with start log id")
+        log.debug(traceback.format_exc())
+        return
     if domain.get("tag"):
         action_by, deployment_name = action_owner_deploy(
             action_user, domain["user"], domain.get("tag"), direct_viewer
@@ -136,8 +145,8 @@ def _logs_domain_start(
             return
     else:
         action_by = action_owner(action_user, domain["user"], direct_viewer)
-    with app.app_context():
-        try:
+    try:
+        with app.app_context():
             user = (
                 r.table("users")
                 .get(domain["user"])
@@ -152,10 +161,10 @@ def _logs_domain_start(
                 )
                 .run(db.conn)
             )
-        except:
-            log.warning("Unable to fetch user data for start logs id")
-            log.debug(traceback.format_exc())
-            return
+    except:
+        log.warning("Unable to fetch user data for start logs id")
+        log.debug(traceback.format_exc())
+        return
     try:
         data = {
             "id": start_logs_id,
@@ -193,21 +202,21 @@ def _logs_domain_start(
         return
     if domain.get("create_dict", {}).get("reservables", {}).get("vgpus"):
         data["hardware_bookables_vgpus"]: domain["create_dict"]["reservables"]["vgpus"]
-        try:
-            if domain.get("booking_id"):
-                with app.app_context():
+        if domain.get("booking_id"):
+            with app.app_context():
+                try:
                     booking = (
                         r.table("bookings")
                         .get(domain.get("booking_id"))
                         .pluck("start", "end")
                         .run(db.conn)
                     )
-                data["booking_id"] = domain["booking_id"]
-                data["booking_start"] = booking["start"]
-                data["booking_end"] = booking["end"]
-        except:
-            log.warning("Unable to fetch booking data for start logs id")
-            log.debug(traceback.format_exc())
+                    data["booking_id"] = domain["booking_id"]
+                    data["booking_start"] = booking["start"]
+                    data["booking_end"] = booking["end"]
+                except:
+                    log.warning("Unable to fetch booking data for start logs id")
+                    log.debug(traceback.format_exc())
     if domain.get("forced_hyp"):
         data["hyp_forced"] = domain["forced_hyp"]
     if domain.get("favourite_hyp"):
@@ -217,6 +226,15 @@ def _logs_domain_start(
 
 
 def logs_domain_start_engine(start_logs_id, dom_id, hyp_started=None):
+    gevent.spawn(
+        _logs_domain_start_engine,
+        start_logs_id,
+        dom_id,
+        hyp_started=hyp_started,
+    )
+
+
+def _logs_domain_start_engine(start_logs_id, dom_id, hyp_started=None):
     if not start_logs_id:
         # It could be a server desktop started by engine
         _logs_domain_start(dom_id, parse_user_request(), server_hyp_started=hyp_started)
@@ -226,8 +244,9 @@ def logs_domain_start_engine(start_logs_id, dom_id, hyp_started=None):
     # When engine started, it could fail because of old id. There is no way to know
     # if it is and old id or a current id. So we try to update it and if it fails
     # we add it as a new log
-    try:
-        with app.app_context():
+    result = {}
+    with app.app_context():
+        try:
             result = (
                 r.table("logs_desktops")
                 .get(start_logs_id)
@@ -237,27 +256,31 @@ def logs_domain_start_engine(start_logs_id, dom_id, hyp_started=None):
                 )
                 .run(db.conn)
             )
-        if result.get("skipped"):
-            _logs_domain_start(
-                dom_id, parse_user_request(), server_hyp_started=hyp_started
-            )
-    except:
-        pass
+        except:
+            log.warning("Unable to update start time in logs")
+            log.debug(traceback.format_exc())
+    if result.get("skipped"):
+        _logs_domain_start(dom_id, parse_user_request(), server_hyp_started=hyp_started)
 
 
 # STOP DESKTOP
-def logs_domain_stop_api(desktop_id, action_user):
-    try:
-        domain = (
-            r.table("domains")
-            .get(desktop_id)
-            .pluck("start_logs_id", "tag", "user")
-            .run(db.conn)
-        )
-    except:
-        log.warning("Unable to get desktop start_logs_id")
-        log.debug(traceback.format_exc())
-        return
+def logs_domain_stop_api(dom_id, action_user=None):
+    gevent.spawn(_logs_domain_stop_api, dom_id, action_user=action_user)
+
+
+def _logs_domain_stop_api(desktop_id, action_user):
+    with app.app_context():
+        try:
+            domain = (
+                r.table("domains")
+                .get(desktop_id)
+                .pluck("start_logs_id", "tag", "user")
+                .run(db.conn)
+            )
+        except:
+            log.warning("Unable to get desktop start_logs_id")
+            log.debug(traceback.format_exc())
+            return
     if not domain.get("start_logs_id"):
         log.warning("User stop domain without start_logs_id")
         return
@@ -269,8 +292,8 @@ def logs_domain_stop_api(desktop_id, action_user):
             return
     else:
         action_by = action_owner(action_user, domain["user"])
-    try:
-        with app.app_context():
+    with app.app_context():
+        try:
             r.table("logs_desktops").get(domain.get("start_logs_id")).update(
                 {
                     "stopping_time": r.epoch_time(time()),
@@ -279,17 +302,21 @@ def logs_domain_stop_api(desktop_id, action_user):
                 },
                 durability="soft",
             ).run(db.conn)
-    except:
-        log.warning("Unable to update event stop in logs")
-        log.debug(traceback.format_exc())
+        except:
+            log.warning("Unable to update event stop in logs")
+            log.debug(traceback.format_exc())
 
 
 def logs_domain_stop_engine(start_logs_id, new_status=""):
+    gevent.spawn(_logs_domain_stop_engine, start_logs_id, new_status=new_status)
+
+
+def _logs_domain_stop_engine(start_logs_id, new_status=""):
     if not start_logs_id:
         log.warning("Engine stop domain without start_logs_id")
         return
-    try:
-        with app.app_context():
+    with app.app_context():
+        try:
             desktop = (
                 r.table("logs_desktops")
                 .get(start_logs_id)
@@ -311,69 +338,95 @@ def logs_domain_stop_engine(start_logs_id, new_status=""):
                 )
                 .run(db.conn)
             )
-        if not desktop:
-            log.warning(
-                "Unable to update stopped time at desktop: "
-                + str(desktop_id)
-                + " as it does not exist anymore"
-            )
+            if not desktop:
+                log.warning(
+                    "Unable to update stopped time at desktop: "
+                    + str(desktop_id)
+                    + " as it does not exist anymore"
+                )
+                return
+            desktop_id = desktop["changes"][0]["new_val"]["desktop_id"]
+        except:
+            log.warning("Unable to update stopped time for desktop")
+            log.debug(traceback.format_exc())
             return
-        desktop_id = desktop["changes"][0]["new_val"]["desktop_id"]
-    except:
-        log.warning("Unable to update stopped time for desktop")
-        log.debug(traceback.format_exc())
-        return
-    try:
-        with app.app_context():
+    with app.app_context():
+        try:
             r.table("domains").get(desktop_id).update(
                 {"start_logs_id": None}, durability="soft"
             ).run(db.conn)
-    except:
-        log.warning("Unable to remove start_logs_id from domain")
-        log.debug(traceback.format_exc())
+        except:
+            log.warning("Unable to remove start_logs_id from domain")
+            log.debug(traceback.format_exc())
 
 
 # UPDATE EVENTS (unused now)
 
 
 def logs_domain_event_viewer(domain_id, action_user, viewer_type, user_request=None):
-    try:
-        with app.app_context():
+    gevent.spawn(
+        _logs_domain_event_viewer,
+        domain_id,
+        action_user,
+        viewer_type,
+        user_request=user_request,
+    )
+
+
+def _logs_domain_event_viewer(domain_id, action_user, viewer_type, user_request=None):
+    with app.app_context():
+        try:
             start_logs_id = (
                 r.table("domains").get(domain_id).pluck("start_logs_id").run(db.conn)
             )["start_logs_id"]
-        _logs_domain_event(
-            start_logs_id,
-            "viewer",
-            action_user,
-            viewer_type=viewer_type,
-            user_request=parse_user_request(user_request),
-        )
-    except:
-        log.warning("Unable to update viewer event logs for domain: " + str(domain_id))
-        log.debug(traceback.format_exc())
+        except:
+            log.warning(
+                "Unable to update viewer event logs for domain: " + str(domain_id)
+            )
+            log.debug(traceback.format_exc())
+            return
+    _logs_domain_event(
+        start_logs_id,
+        "viewer",
+        action_user,
+        viewer_type=viewer_type,
+        user_request=parse_user_request(user_request),
+    )
 
 
 def logs_domain_event_directviewer(
     domain_id, action_user, viewer_type=None, user_request=None
 ):
-    try:
-        with app.app_context():
+    gevent.spawn(
+        _logs_domain_event_directviewer,
+        domain_id,
+        action_user,
+        viewer_type,
+        user_request=user_request,
+    )
+
+
+def _logs_domain_event_directviewer(
+    domain_id, action_user, viewer_type=None, user_request=None
+):
+    with app.app_context():
+        try:
             start_logs_id = (
                 r.table("domains").get(domain_id).pluck("start_logs_id").run(db.conn)
             )["start_logs_id"]
-        _logs_domain_event(
-            start_logs_id,
-            "directviewer",
-            action_user,
-            viewer_type=viewer_type,
-            user_request=parse_user_request(user_request),
-        )
-    except:
-        log.warning(
-            "Unable to update directviewer event logs for domain: " + str(domain_id)
-        )
-        log.debug(traceback.format_exc())
+        except:
+            log.warning(
+                "Unable to update directviewer event logs for domain: " + str(domain_id)
+            )
+            log.debug(traceback.format_exc())
+            return
+    _logs_domain_event(
+        start_logs_id,
+        "directviewer",
+        action_user,
+        viewer_type=viewer_type,
+        user_request=parse_user_request(user_request),
+    )
 
 
 def _logs_domain_event(
@@ -383,8 +436,8 @@ def _logs_domain_event(
     viewer_type="",
     user_request=None,
 ):
-    try:
-        with app.app_context():
+    with app.app_context():
+        try:
             r.table("logs_desktops").get(start_logs_id).update(
                 {
                     "events": r.row["events"].append(
@@ -401,6 +454,6 @@ def _logs_domain_event(
                 },
                 durability="soft",
             ).run(db.conn)
-    except:
-        log.warning("Unable to update " + str(event) + " event logs")
-        log.debug(traceback.format_exc())
+        except:
+            log.warning("Unable to update " + str(event) + " event logs")
+            log.debug(traceback.format_exc())
