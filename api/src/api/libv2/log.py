@@ -74,9 +74,13 @@ def start_timer():
 
 @app.after_request
 def log_request(response):
-    if LOG_LEVEL == "DEBUG" and os.environ.get("DEBUG_STATS", "") != "true":
-        if request.path.startswith("/api/v3/stats") or request.path == "/api/v3":
-            return response
+    if LOG_LEVEL == "DEBUG":
+        if os.environ.get("DEBUG_STATS", "") != "true":
+            if request.path.startswith("/api/v3/stats") or request.path == "/api/v3":
+                return response
+        if os.environ.get("DEBUG_WEBSOCKETS", "") != "true":
+            if request.path.startswith("/api/v3/socketio"):
+                return response
 
     now = time.time()
     duration = round(now - g.start, 4)
