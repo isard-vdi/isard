@@ -128,8 +128,9 @@ class Scheduler:
             raise Error("bad_request", "Minute range must be within 0-60")
         if not id:
             id = str(uuid4())
-        if r.table("scheduler_jobs").get(id).run(db.conn):
-            raise Error("conflict", "Same job id already exists")
+        with app.app_context():
+            if r.table("scheduler_jobs").get(id).run(db.conn):
+                raise Error("conflict", "Same job id already exists")
         try:
             function = getattr(Actions, action)
         except:
@@ -260,11 +261,12 @@ class Scheduler:
             )
 
     def remove_job_startswith(self, job_id):
-        jobs = (
-            r.table("scheduler_jobs")
-            .filter(lambda job: job["id"].match("^" + job_id))
-            .run(db.conn)
-        )
+        with app.app_context():
+            jobs = (
+                r.table("scheduler_jobs")
+                .filter(lambda job: job["id"].match("^" + job_id))
+                .run(db.conn)
+            )
         for job in jobs:
             try:
                 self.remove_job(job["id"])

@@ -228,18 +228,22 @@ class Actions:
         ]
 
     def deployment_qmp_notification(**kwargs):
-        deployment = r.table("deployments").get(kwargs["deployment_id"]).run(db.conn)
+        with app.app_context():
+            deployment = (
+                r.table("deployments").get(kwargs["deployment_id"]).run(db.conn)
+            )
         if not deployment:
             log.error("Deployment id " + kwargs["deployment_id"] + " not found")
             raise Error(
                 "not_found", "Deployment id " + kwargs["deployment_id"] + " not found"
             )
-        domains_ids = (
-            r.table("domains")
-            .get_all(kwargs["deployment_id"], index="tag")["id"]
-            .coerce_to("array")
-            .run(db.conn)
-        )
+        with app.app_context():
+            domains_ids = (
+                r.table("domains")
+                .get_all(kwargs["deployment_id"], index="tag")["id"]
+                .coerce_to("array")
+                .run(db.conn)
+            )
         for domain_id in domains_ids:
             engine_client.put(
                 "/engine/qmp/" + domain_id,
