@@ -48,12 +48,13 @@ class RethinkCustomBase(RethinkBase, ABC):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        socketio.emit(
-            self._rdb_table,
-            json.dumps(kwargs),
-            namespace="/administrators",
-            room="admins",
-        )
+        if len(kwargs):
+            socketio.emit(
+                self._rdb_table,
+                json.dumps(kwargs),
+                namespace="/administrators",
+                room="admins",
+            )
 
     def __setattr__(self, name, value):
         super().__setattr__(name, value)
