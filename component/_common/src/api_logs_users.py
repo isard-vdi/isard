@@ -32,7 +32,7 @@ def gen_id(user_id, exp):
         return user_id + "_" + str(exp)
 
 
-users_cache = TTLCache(maxsize=200, ttl=60)
+users_cache = TTLCache(maxsize=1000, ttl=60)
 
 
 def user_key(_, user_id):

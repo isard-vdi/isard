@@ -21,6 +21,7 @@
 import logging as log
 import os
 
+import gevent
 from flask import request
 from jose import jwt
 from rethinkdb import r
@@ -151,7 +152,7 @@ def get_token_payload(token):
         )
     if payload.get("data", False):
         try:
-            LogsUsers(payload)
+            gevent.spawn(LogsUsers, payload)
         except Exception as e:
             log.warning("Unable to update user logs")
         return payload["data"]
