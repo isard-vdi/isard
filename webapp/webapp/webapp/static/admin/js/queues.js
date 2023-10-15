@@ -19,9 +19,45 @@
  */
 
 $(document).ready(function () {
-    table = $('#queues').DataTable({
+
+    queues_table = $('#queues').DataTable({
         "ajax": {
             "url": "/api/v3/queues",
+            "dataSrc": ""
+        },
+        "language": {
+            "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+        },
+        "rowId": "id",
+        "columns": [
+            {
+                "data": "id",
+            },
+            {
+                "data": "started",
+            },
+            {
+                "data": "finished",
+            },
+            {
+                "data": "failed",
+            },
+            {
+                "data": "deferred",
+            },
+            {
+                "data": "scheduled",
+            },
+            {
+                "data": "canceled",
+            }
+        ],
+        "order": [[1, "asc"], [2, "desc"]],
+    });
+
+    consumerstable = $('#consumers').DataTable({
+        "ajax": {
+            "url": "/api/v3/queues/consumers",
             "dataSrc": ""
         },
         "language": {
@@ -33,7 +69,7 @@ $(document).ready(function () {
                 "data": "id"
             },
             {
-                "data": "type",
+                "data": "queue",
             },
             {
                 "data": "priority",
@@ -50,5 +86,5 @@ $(document).ready(function () {
         ],
         "order": [[1, "asc"], [2, "desc"]],
     });
-    $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
+    // $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
 })

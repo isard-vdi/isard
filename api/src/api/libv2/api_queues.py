@@ -35,6 +35,7 @@ from cachetools import TTLCache, cached
 from isardvdi_common.api_rest import ApiRest
 from isardvdi_common.storage_node import StorageNode
 from redis import Redis
+from rq import Queue
 
 
 def _connect_redis():
@@ -46,6 +47,26 @@ def _connect_redis():
 
 
 @cached(TTLCache(maxsize=1, ttl=5))
+def get_queues():
+    with _connect_redis() as r:
+        return Queue.all(connection=r)
+
+
+@cached(TTLCache(maxsize=1, ttl=5))
+def get_queue_jobs(queue_name):
+    with _connect_redis() as r:
+        queue = Queue(queue_name, connection=r)
+    return {
+        "started": queue.started_job_registry.count,
+        "finished": queue.finished_job_registry.count,
+        "failed": queue.failed_job_registry.count,
+        "deferred": queue.deferred_job_registry.count,
+        "scheduled": queue.scheduled_job_registry.count,
+        "canceled": queue.canceled_job_registry.count,
+    }
+
+
+@cached(TTLCache(maxsize=1, ttl=5))
 def subscribers():
     with _connect_redis() as r:
         subscribers = r.pubsub_channels()
@@ -54,7 +75,7 @@ def subscribers():
         s.append(
             {
                 "id": str(subscriber).split(":")[3].split("'")[0],
-                "type": str(subscriber).split(":")[2],
+                "queue": str(subscriber).split(":")[2],
             }
         )
     return s
@@ -76,7 +97,7 @@ def workers():
         w.append(
             {
                 "id": str(worker).split(":")[2].split("'")[0],
-                "type": str(worker).split(":")[2].split(".")[0].split("'")[0],
+                "queue": str(worker).split(":")[2].split(".")[0].split("'")[0],
                 "queue_id": str(worker).split(":")[2].split(".")[1]
                 if len(str(worker).split(":")[2].split(".")) > 1
                 else None,
@@ -103,7 +124,7 @@ def workers_with_subscribers():
     s = subscribers()
     for worker in w:
         worker["subscribers"] = [
-            subs["id"] for subs in s if subs["type"] == worker["type"]
+            subs["id"] for subs in s if subs["queue"] == worker["queue"]
         ]
         if not len(worker["subscribers"]):
             worker["status"] = "error"
@@ -118,6 +139,6 @@ def subscribers_with_workers():
     w = workers()
     for subscriber in s:
         subscriber["workers"] = [
-            worker["id"] for worker in w if subscriber["type"] == worker["type"]
+            worker["id"] for worker in w if subscriber["queue"] == worker["queue"]
         ]
     return s
