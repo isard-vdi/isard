@@ -25,11 +25,13 @@ body {
 
 .pnotify-center {
    right: calc(50% - 150px) !important;
+   width: 300px !important;
 }
 
 .pnotify-center-large {
   font-size: large;
   right: calc(50% - 350px) !important;
+  width: 700px !important;
 }
 
 .ui-select-match-text{

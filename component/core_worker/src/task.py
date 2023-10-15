@@ -71,6 +71,32 @@ def feedback(task_id=None):
         }
     )
 
+    # Task queue ws result
+    socketio(
+        {
+            "event": task.queue.split(".")[0],
+            "data": json.dumps(task.result),
+            "namespace": "/administrators",
+            "room": "admins",
+        }
+    )
+    socketio(
+        {
+            "event": task.queue.split(".")[0],
+            "data": json.dumps(task.result),
+            "namespace": "/administrators",
+            "room": user.get("category"),
+        }
+    )
+    socketio(
+        {
+            "event": task.queue.split(".")[0],
+            "data": json.dumps(task.result),
+            "namespace": "/administrators",
+            "room": task.user_id,
+        }
+    )
+
 
 def update_status(statuses={}):
     """

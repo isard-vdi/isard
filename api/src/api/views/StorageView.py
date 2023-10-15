@@ -333,7 +333,7 @@ def storage_check_check_backing_chain(payload, storage_id):
     """
     check_storage_existence_and_permissions(payload, storage_id)
     storage = Storage(storage_id)
-    if storage.task and Task(storage.task).pending:
+    if storage.task and Task.exists(storage.task) and Task(storage.task).pending:
         raise Error(
             error="precondition_required", description="Storage with a pending task"
         )
