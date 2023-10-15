@@ -22,13 +22,28 @@ import json
 
 from api import app
 
-from ..libv2.api_queues import workers_with_subscribers
+from ..libv2.api_queues import get_queue_jobs, get_queues, workers_with_subscribers
 from .decorators import is_admin
 
 
 @app.route("/api/v3/queues", methods=["GET"])
 @is_admin
-def storage_nodes(payload):
+def queues_jobs(payload):
+    data = []
+    for queue in get_queues():
+        q = get_queue_jobs(queue.name)
+        q["id"] = queue.name
+        data.append(q)
+    return (
+        json.dumps(data),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/queues/consumers", methods=["GET"])
+@is_admin
+def queues(payload):
     return (
         json.dumps(workers_with_subscribers()),
         200,
