@@ -772,7 +772,6 @@ def socketio_admins_connect(nothing_should_be_here=None):
 
     try:
         if payload["role_id"] == "admin":
-            join_room(payload["user_id"])
             join_room("admins")
             if os.environ.get("DEBUG_WEBSOCKETS", "") == "true":
                 app.logger.debug(
@@ -784,7 +783,6 @@ def socketio_admins_connect(nothing_should_be_here=None):
                 print(sc.green("join_room_admins", "reverse"))
                 print(sc.magenta(pformat(payload), "reverse"))
         elif payload["role_id"] == "manager":
-            join_room(payload["user_id"])
             join_room(payload["category_id"])
             if os.environ.get("DEBUG_WEBSOCKETS", "") == "true":
                 app.logger.debug(
