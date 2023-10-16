@@ -100,63 +100,63 @@ function socketio_on(){
     $('.btn-bulk-edit-users').on('click', function () {
         let usersToEdit = getSelectedUserList();
         if (usersToEdit.length != 0) {
- var modal = '#modalBulkEditUser';
-        $(modal + "Form")[0].reset();
-        $(modal + "Form #active").empty();
-        $(modal + 'Form #id').val(JSON.stringify(usersToEdit));
-        $(modal).modal({
-            backdrop: 'static',
-            keyboard: false
-        }).modal('show');
-        $(modal + ' #users-list').empty()
-        $(modal + ' #users-number').text(usersToEdit.length + " user(s) will be updated")
-        $.each(usersToEdit, function (key, value) {
-            $(modal + ' #users-list').append(
-                '<p style="font-size:smaller; margin: 0px">' + value['username'] + '</p>'
-            );
-        });
-        $(modal + " #active").append(`<option value="true">True</option><option value="false">False</option>`);
+            var modal = '#modalBulkEditUser';
+            $(modal + "Form")[0].reset();
+            $(modal + " .alert").empty();
+            $(modal + " .alert").hide();
+            $(modal + "Form #active").empty();
+            $(modal + 'Form #id').val(JSON.stringify(usersToEdit));
+            $(modal).modal({
+                backdrop: 'static',
+                keyboard: false
+            }).modal('show');
+            $(modal + ' #users-list').empty();
+            render_users_to_edit_table(usersToEdit);
+            $(modal + " #active").append(`<option value="true">True</option><option value="false">False</option>`);
 
-        $(modal + ' :checkbox').iCheck('uncheck').iCheck('update');
+            $(modal + ' :checkbox').iCheck('uncheck').iCheck('update');
+            $(modal + ' :radio').iCheck('uncheck').iCheck('update');
+            $(modal + ' #active').iCheck('check').iCheck('update');
+            $(modal + ' #overwrite-secondary-group-checkbox').iCheck('check').iCheck('update');
 
-        $(modal + ' #secondary_groups').select2({
-            minimumInputLength: 2,
-            multiple: true,
-            ajax: {
-                type: "POST",
-                url: '/api/v3/admin/allowed/term/groups/',
-                dataType: 'json',
-                contentType: "application/json",
-                delay: 250,
-                data: function (params) {
-                    return JSON.stringify({
-                        term: params.term,
-                        category: current_category,
-                    });
+            $(modal + ' #secondary_groups').select2({
+                minimumInputLength: 2,
+                multiple: true,
+                ajax: {
+                    type: "POST",
+                    url: '/api/v3/admin/allowed/term/groups/',
+                    dataType: 'json',
+                    contentType: "application/json",
+                    delay: 250,
+                    data: function (params) {
+                        return JSON.stringify({
+                            term: params.term,
+                            category: current_category,
+                        });
+                    },
+                    processResults: function (data) {
+                        return {
+                            results: $.map(data, function (item, i) {
+                                return {
+                                    text: item.name + " [" + item.category_name + "]",
+                                    id: item.id
+                                }
+                            })
+                        };
+                    }
                 },
-                processResults: function (data) {
-                    return {
-                        results: $.map(data, function (item, i) {
-                            return {
-                                text: item.name,
-                                id: item.id
-                            }
-                        })
-                    };
-                }
-            },
-        });
+            });
 
-        disableFirstOption(modal);
-        showAndHideByCheckbox($(modal + " #edit-secondary-group-checkbox"), $(modal + " #secondary-groups-panel"));
+            showAndHideByCheckbox($(modal + " #edit-secondary-group-checkbox"), $(modal + " #secondary-groups-panel"));
+            showAndHideByCheckbox($(modal + " #edit-active-inactive-checkbox"), $(modal + " #active-inactive-panel"));
 
-        var ids = [];
-        $.each(usersToEdit, function (key, value) {
-            ids.push(value.id);
-        })
-        $(modal + ' #ids').val(ids.join(','));
+            var ids = [];
+            $.each(usersToEdit, function (key, value) {
+                ids.push(value.id);
+            })
+            $(modal + ' #ids').val(ids.join(','));
 
-        $(modal + ' #secondary_groups option:first').remove();
+            $(modal + ' #secondary_groups option:first').remove();
         } else {
             new PNotify({
                 title: 'Please select at least one user',
@@ -167,63 +167,76 @@ function socketio_on(){
                 opacity: 1,
             })
         }
-       
     });
 
 
     $("#modalBulkEditUser #send").on('click', function (e) {
         var form = $('#modalBulkEditUserForm');
-        formdata = form.serializeObject();
+        var formdata = form.serializeObject();
         form.parsley().validate();
-        data = formdata;
+        var data = formdata;
+        var update_data = {};
+        var hideModal = true;
 
         if (form.parsley().isValid()) {
-            data['ids'] = data['ids'].split(',')
-            if (data['role'] == '--') {
-                delete data['role'];
-            }
-            if (data['active'] == '--') {
-                delete data['active'];
-            } else {
-                data['active'] = (data['active'] === 'true')
-            }
-            if (!data["edit-secondary-group"] === 'on') {
-                delete data['secondary_group'];
-            }
-        }
+            data['ids'] = update_data['ids'] = data['ids'].split(',');
 
-        $.ajax({
-            type: 'PUT',
-            url: '/api/v3/admin/users/bulk',
-            data: JSON.stringify(data),
-            contentType: 'application/json',
-            success: function () {
-                $('form').each(function () {
-                    this.reset()
-                })
-                $('.modal').modal('hide')
-                new PNotify({
-                    title: 'Updated',
-                    text: ids.length + ' user(s) updated successfully',
-                    hide: true,
-                    icon: 'fa fa-success',
-                    delay: 4000,
-                    opacity: 1,
-                    type: 'success'
-                })
-            },
-            error: function (data) {
-                new PNotify({
-                    title: 'ERROR updating multiple users',
-                    text: data.responseJSON.description,
-                    type: 'error',
-                    hide: true,
-                    icon: 'fa fa-warning',
-                    delay: 5000,
-                    opacity: 1
+            if (data["edit-active-inactive"] === 'on') {
+                update_data['active'] = (data['active'] === 'on');
+            }
+
+            if (['active'] in update_data) {
+                $.ajax({
+                    type: 'PUT',
+                    url: '/api/v3/admin/users/bulk',
+                    data: JSON.stringify(update_data),
+                    contentType: 'application/json',
+                    async: false,
+                    success: function () {
+                        showAlert(form.find("#general-alert"), "Updated successfully", "success");
+                    },
+                    error: function (data) {
+                        hideModal = false;
+                        showAlert(form.find("#general-alert"), data.responseJSON.description, "error");
+                    }
+                });
+            }
+
+            if (data["edit-secondary-group"] === 'on') {
+                $.ajax({
+                    type: 'PUT',
+                    url: `/api/v3/admin/user/secondary-groups/${data['action-secondary-group']}`,
+                    data: JSON.stringify({
+                        "secondary_groups": data['secondary_groups'] ? data['secondary_groups'] : [],
+                        "ids": data['ids']
+                    }),
+                    async: false,
+                    contentType: 'application/json',
+                    success: function () {
+                        showAlert(form.find(".edit-secondary-groups .alert"), "Updated successfully", "success");
+                    },
+                    error: function (data) {
+                        hideModal = false;
+                        showAlert(form.find(".edit-secondary-groups .alert"), data.responseJSON.description, "error");
+                    }
                 })
             }
-        });
+
+            if (hideModal) {
+                $('.modal').modal('hide');
+                if (data["edit-active-inactive"] === 'on' || data["edit-secondary-group"] === 'on') {
+                    new PNotify({
+                        title: 'Updated',
+                        text: data['ids'].length + ' user(s) updated successfully',
+                        hide: true,
+                        icon: 'fa fa-success',
+                        delay: 4000,
+                        opacity: 1,
+                        type: 'success'
+                    });
+                }
+            };
+        }
     });
 
 
@@ -783,6 +796,7 @@ function socketio_on(){
 function initUsersSockets () {
     socket.on('users_data', function(data) {
         var data = JSON.parse(data);
+        data['secondary_groups_names'] = data['secondary_groups_data'].map(group => group['name']);
         data = {...users_table.row("#"+data.id).data(),...data}
         dtUpdateInsert(users_table,data,false);
         users_table.draw(false)
@@ -1223,4 +1237,31 @@ function getSelectedUserList() {
         }
     });
     return userList;
+}
+
+function showAlert(alertSelector, msg, type) {
+    alertSelector.empty();
+    alertSelector.html(msg);
+    alertSelector.addClass('alert-' + type);
+    alertSelector.removeClass('alert-' + type == 'error' ? 'success' : 'error')
+    alertSelector.show();
+}
+
+function render_users_to_edit_table(usersToEdit) {
+    $("#users-to-edit tbody").empty();
+
+    $.each(usersToEdit, function (key, user) {
+        $("#users-to-edit tbody").append(`
+        <tr>
+            <td>${user.active == true ?
+                '<i class="fa fa-check" style="color:lightgreen"></i>'
+                :
+                '<i class="fa fa-close" style="color:darkgray"></i>'}
+            <td>${user.username}</td>
+            <td>${user.name}</td>
+            <td>${user.group_name}</td>
+            <td>${user["secondary_groups_names"].join(",")}</td>
+        </tr>
+        `)
+    });
 }

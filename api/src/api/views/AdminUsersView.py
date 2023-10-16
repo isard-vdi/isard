@@ -171,7 +171,7 @@ def api_v3_admin_user_update(payload, user_id=None):
         ownsUserId(payload, user_id)
         ownsCategoryId(payload, user["category"])
 
-        if data.get("secondary_groups"):
+        if data.get("secondary_groups") is not None:
             if len(data["secondary_groups"]) > 0:
                 users.check_secondary_groups_category(
                     user["category"], data["secondary_groups"]
@@ -191,6 +191,63 @@ def api_v3_admin_user_update(payload, user_id=None):
         data = _validate_item("user_update", data)
 
     users.Update(data["ids"], data)
+    return json.dumps({}), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/admin/user/secondary-groups/add", methods=["PUT"])
+@is_admin_or_manager
+def api_v3_update_secondary_groups_add(payload):
+    try:
+        data = request.get_json()
+    except:
+        raise Error(
+            "bad_request",
+            "Unable to parse body data.",
+            traceback.format_exc(),
+        )
+    for user in data["ids"]:
+        ownsUserId(payload, user)
+    for group in data["secondary_groups"]:
+        ownsCategoryId(payload, users.GroupGet(group)["parent_category"])
+    users.UpdateSecondaryGroups("add", data)
+    return json.dumps({}), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/admin/user/secondary-groups/overwrite", methods=["PUT"])
+@is_admin_or_manager
+def api_v3_update_secondary_groups_overwrite(payload):
+    try:
+        data = request.get_json()
+    except:
+        raise Error(
+            "bad_request",
+            "Unable to parse body data.",
+            traceback.format_exc(),
+        )
+    for user in data["ids"]:
+        ownsUserId(payload, user)
+    for group in data["secondary_groups"]:
+        ownsCategoryId(payload, users.GroupGet(group)["parent_category"])
+    users.UpdateSecondaryGroups("overwrite", data)
+    return json.dumps({}), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/admin/user/secondary-groups/delete", methods=["PUT"])
+@is_admin_or_manager
+def api_v3_update_secondary_groups_delete(payload):
+    try:
+        data = request.get_json()
+    except:
+        raise Error(
+            "bad_request",
+            "Unable to parse body data.",
+            traceback.format_exc(),
+        )
+    for user in data["ids"]:
+        ownsUserId(payload, user)
+    for group in data["secondary_groups"]:
+        ownsCategoryId(payload, users.GroupGet(group)["parent_category"])
+    users.UpdateSecondaryGroups("delete", data)
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 

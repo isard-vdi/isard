@@ -454,84 +454,154 @@
                 <form id="modalBulkEditUserForm" class="form-horizontal form-label-left">
                     <input type="hidden" name="ids" id="ids" />
                     <div class="x_content">
-
-                            <div class="x_panel">
-                                <div class="x_panel" style="padding: 5px; margin-bottom: 0px">
-                                    <div class="x_title">
-                                        <h4><i class="fa fa-user"></i> Users to edit</h4>
-                                        <div class="clearfix"></div>
-                                    </div>
-                                </div>
-
-                                <div class="clearfix" style="margin-left: 5px; margin-bottom: 10px;">
-                                    <div class="" style="margin-bottom:5px; color: red; font-size: 18px"
-                                        id="users-number"></div>
-                                    <div class="table-responsive" id="users-list"
-                                        style="max-height: 169px; overflow-y: scroll; margin-left: 5px;">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="x_panel">
-
+            
+                        <div class="x_panel">
+                            <div class="x_panel" style="padding: 5px; margin-bottom: 0px">
                                 <div class="x_title">
-                                    <h4>Values
-                                    </h4>
+                                    <h4><i class="fa fa-user"></i> Users to edit</h4>
                                     <div class="clearfix"></div>
                                 </div>
-
-                                <div class="x_panel">
-                                    <div class="x_content">
-
-                                        <!-- <div class="item form-group">
-                                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="role">Role:</label>
-                                        <div class="col-md-6 col-sm-6 col-xs-12">
-                                            <select id="role" name="role" class="form-control role"
-                                                required>
-                                            </select>
+                            </div>
+                            <div style="overflow-y:scroll;max-height:338px">
+                                <table id="users-to-edit" class="table">
+                                    <thead>
+                                        <tr>
+                                          <th>Active</th>
+                                          <th>Username</th>
+                                          <th>Name</th>
+                                          <th>Group</th>
+                                          <th>Secondary Groups</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+            
+                        <div class="x_panel">
+            
+                            <div class="x_title">
+                                <h4>Fields
+                                </h4>
+                                <div class="clearfix"></div>
+                            </div>
+            
+                            <div class="x_panel">
+                                <div class="x_content">
+                                    <div class="edit-active">
+                                        <div class="checkbox" id="edit-active-inactive-checkbox">
+                                            <label>
+                                                <h4>
+                                                    <div class="icheckbox_flat-green" style="position: relative;">
+                                                        <input type="checkbox" id="edit-active-inactive" name="edit-active-inactive"
+                                                            style="position: absolute; opacity: 0;">
+                                                        <ins class="iCheck-helper"
+                                                            style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                                        </ins>
+                                                    </div> Update Active/Inactive
+                                                </h4>
+            
+                                            </label>
                                         </div>
-                                    </div> -->
-                                        <div class="item form-group">
-                                            <label class="control-label col-md-3 col-sm-3 col-xs-12"
-                                                for="active">Active:</label>
-                                            <div class="col-md-6 col-sm-6 col-xs-12">
-                                                <select id="active" name="active" class="form-control role" required>  
-                                                </select>
-                                            </div>
-                                        </div>
-
-                                        <div class="checkbox" id="edit-secondary-group-checkbox" style="margin-left:23%; margin-bottom:12px;">
-                                            <label class="">
+            
+                                        <div class="form-group" id="active-inactive-panel">
+                                            <div class="checkbox">
+                                                <label class="control-label col-md-3 col-sm-3 col-xs-12" />
                                                 <div class="icheckbox_flat-green" style="position: relative;">
-                                                    <input type="checkbox" id="edit-secondary-group"
-                                                        name="edit-secondary-group"
-                                                        style="position: absolute; opacity: 0;">
+                                                    <input type="checkbox" id="active" checked name="active" style="position: absolute; opacity: 0;">
                                                     <ins class="iCheck-helper"
                                                         style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
                                                     </ins>
                                                 </div>
-                                                <b>Update secondary group</b>
-                                            </label>
+                                                <b>Active</b>
+                                            </div>
+                                            <div style="display:none; margin-top:20px;" id="general-alert" class="alert alert-dismissible" role="alert">
+                                            </div>
                                         </div>
-
-                                        <div class="item form-group" id="secondary-groups-panel">
-                                            <label class="control-label col-md-3 col-sm-3 col-xs-12"
-                                                for="group">Secondary group:
+                                    </div>
+            
+                                    <div class="edit-secondary-groups" style="margin-top:40px;">
+                                        <div class="checkbox" id="edit-secondary-group-checkbox" style="margin-bottom:12px;">
+                                            <label class="">
+                                                <h4>
+                                                    <div class="icheckbox_flat-green" style="position: relative;">
+                                                        <input type="checkbox" id="edit-secondary-group" name="edit-secondary-group"
+                                                            style="position: absolute; opacity: 0;">
+                                                        <ins class="iCheck-helper"
+                                                            style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                                        </ins>
+                                                    </div> Update secondary groups   
+                                                </h4>
+                                            </label>
+                                            <i class="fa fa-lg fa-info-circle"
+                                                style="color:rgb(60, 127, 186);"
+                                                title="- Will inherit access to resources (templates/media/...) shared with these secondary groups.&#10;- Will be added to deployments done to these groups."></i>
+                                        </div>
+            
+                                        <div class="form-group" id="secondary-groups-panel">
+                                            <label class="control-label col-md-3 col-sm-3 col-xs-12" for="group">Secondary groups:
                                             </label>
                                             <div class="col-md-6 col-sm-6 col-xs-12">
-                                                <select id="secondary_groups" name="secondary_groups[]"
-                                                    class="tags-select roundbox" multiple="multiple"
-                                                    style="width: 100%;">
+                                                <select id="secondary_groups" name="secondary_groups[]" class="tags-select roundbox"
+                                                    multiple="multiple" style="width: 100%;">
                                                 </select>
                                             </div>
-                                            <p class="fa fa-info-circle"
-                                                style="color:rgb(60, 127, 186); margin-left: 215px; margin-top: 10px;">
-                                                It will influence both shared items and deployments creation.</p>
+                                            <div class="radio-panel col-md-12" style="margin-top:7px;">
+                                                <div class="radio" id="overwrite-secondary-group-checkbox"
+                                                    title="Remove the users' current secondary groups and add the ones selected"
+                                                    style="margin-left:23%; margin-bottom:12px; display:inline;">
+                                                    <label class="">
+                                                        <div class="iradio_flat-green" style="position: relative;">
+                                                            <input type="radio" id="overwrite-secondary-group" value="overwrite"
+                                                                checked name="action-secondary-group"
+                                                                style="position: absolute; opacity: 0;">
+                                                            <ins class="iCheck-helper"
+                                                                style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                                            </ins>
+                                                        </div>
+                                                        <b>Overwrite</b>
+                                                    </label>
+                                                </div>
+                                                <div class="radio" id="add-secondary-group-checkbox"
+                                                    title="Append the selected groups to current secondary groups"
+                                                    style="margin-left:5%; margin-bottom:12px; display:inline;">
+                                                    <label class="">
+                                                        <div class="iradio_flat-green" style="position: relative;">
+                                                            <input type="radio" id="add-secondary-group"
+                                                                name="action-secondary-group" value="add"
+                                                                style="position: absolute; opacity: 0;">
+                                                            <ins class="iCheck-helper"
+                                                                style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                                            </ins>
+                                                        </div>
+                                                        <b>Add</b>
+                                                    </label>
+                                                </div>
+                                                <div class="radio" id="delete-secondary-group-checkbox"
+                                                    title="Remove current secondary groups that match the selected ones"
+                                                    style="margin-left:5%; margin-bottom:12px; display:inline;">
+                                                    <label class="">
+                                                        <div class="iradio_flat-green" style="position: relative;">
+                                                            <input type="radio" id="delete-secondary-group"
+                                                                name="action-secondary-group" value="delete"
+                                                                style="position: absolute; opacity: 0;">
+                                                            <ins class="iCheck-helper"
+                                                                style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                                            </ins>
+                                                        </div>
+                                                        <b>Delete</b>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div style="display:none; margin-top:15px;"
+                                                class="alert alert-dismissible col-md-12" role="alert">
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-
                             </div>
+            
+                        </div>
                     </div>
                 </form>
             </div>
