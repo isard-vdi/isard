@@ -530,15 +530,42 @@ func TestBestHyperToMoveInDeadRow(t *testing.T) {
 	assert := assert.New(t)
 
 	cases := map[string]struct {
-		Hypers   []*isardvdi.OrchestratorHypervisor
-		RAMAvail int
-		MinCPU   int
-		MinRAM   int
-		MaxRAM   int
-		Expected *isardvdi.OrchestratorHypervisor
+		HypersToAcknowledge []*isardvdi.OrchestratorHypervisor
+		HypersToManage      []*isardvdi.OrchestratorHypervisor
+		RAMAvail            int
+		MinRAM              int
+		MaxRAM              int
+		MinRAMLimitPercent  int
+		MinRAMLimitMargin   int
+		MaxRAMLimitPercent  int
+		MaxRAMLimitMargin   int
+		Expected            *isardvdi.OrchestratorHypervisor
 	}{
 		"should work correctly": {
-			Hypers: []*isardvdi.OrchestratorHypervisor{
+			HypersToAcknowledge: []*isardvdi.OrchestratorHypervisor{
+				{
+					ID: "smol :3",
+					RAM: isardvdi.OrchestratorResourceLoad{
+						Total: 1,
+						Free:  1,
+					},
+				},
+				{
+					ID: "to sentence",
+					RAM: isardvdi.OrchestratorResourceLoad{
+						Total: 2,
+						Free:  2,
+					},
+				},
+				{
+					ID: "GIGANTIC",
+					RAM: isardvdi.OrchestratorResourceLoad{
+						Total: 10,
+						Free:  10,
+					},
+				},
+			},
+			HypersToManage: []*isardvdi.OrchestratorHypervisor{
 				{
 					ID: "smol :3",
 					RAM: isardvdi.OrchestratorResourceLoad{
@@ -573,7 +600,31 @@ func TestBestHyperToMoveInDeadRow(t *testing.T) {
 			},
 		},
 		"should work correctly with only forced hypevisors": {
-			Hypers: []*isardvdi.OrchestratorHypervisor{
+			HypersToAcknowledge: []*isardvdi.OrchestratorHypervisor{
+				{
+					ID: "smol :3",
+					RAM: isardvdi.OrchestratorResourceLoad{
+						Total: 1,
+						Free:  1,
+					},
+				},
+				{
+					ID: "normal",
+					RAM: isardvdi.OrchestratorResourceLoad{
+						Total: 2,
+						Free:  2,
+					},
+				},
+				{
+					ID:         "GIGANTIC",
+					OnlyForced: true,
+					RAM: isardvdi.OrchestratorResourceLoad{
+						Total: 10,
+						Free:  10,
+					},
+				},
+			},
+			HypersToManage: []*isardvdi.OrchestratorHypervisor{
 				{
 					ID: "smol :3",
 					RAM: isardvdi.OrchestratorResourceLoad{
@@ -610,7 +661,23 @@ func TestBestHyperToMoveInDeadRow(t *testing.T) {
 			},
 		},
 		"should not return any hypervisor if by removing it we don't meet the minRAM requirement": {
-			Hypers: []*isardvdi.OrchestratorHypervisor{
+			HypersToAcknowledge: []*isardvdi.OrchestratorHypervisor{
+				{
+					ID: "smol :3",
+					RAM: isardvdi.OrchestratorResourceLoad{
+						Total: 1,
+						Free:  1,
+					},
+				},
+				{
+					ID: "can't sentence",
+					RAM: isardvdi.OrchestratorResourceLoad{
+						Total: 2,
+						Free:  2,
+					},
+				},
+			},
+			HypersToManage: []*isardvdi.OrchestratorHypervisor{
 				{
 					ID: "smol :3",
 					RAM: isardvdi.OrchestratorResourceLoad{
@@ -631,7 +698,24 @@ func TestBestHyperToMoveInDeadRow(t *testing.T) {
 			RAMAvail: 3,
 		},
 		"should ignore hypervisors already in the dead row": {
-			Hypers: []*isardvdi.OrchestratorHypervisor{
+			HypersToAcknowledge: []*isardvdi.OrchestratorHypervisor{
+				{
+					ID: "smol :3",
+					RAM: isardvdi.OrchestratorResourceLoad{
+						Total: 1,
+						Free:  1,
+					},
+				},
+				{
+					ID:          "to ignore",
+					DestroyTime: time.Now(),
+					RAM: isardvdi.OrchestratorResourceLoad{
+						Total: 2,
+						Free:  2,
+					},
+				},
+			},
+			HypersToManage: []*isardvdi.OrchestratorHypervisor{
 				{
 					ID: "smol :3",
 					RAM: isardvdi.OrchestratorResourceLoad{
@@ -652,14 +736,79 @@ func TestBestHyperToMoveInDeadRow(t *testing.T) {
 			MaxRAM:   1,
 			RAMAvail: 1,
 		},
+		"regression test #1": {
+			HypersToAcknowledge: []*isardvdi.OrchestratorHypervisor{{
+				ID:                  "bm-e4-01",
+				Status:              isardvdi.HypervisorStatusOnline,
+				OnlyForced:          false,
+				OrchestratorManaged: true,
+				DesktopsStarted:     10,
+				MinFreeMemGB:        190,
+				RAM: isardvdi.OrchestratorResourceLoad{
+					Total: 2051961,
+					Used:  67556,
+					Free:  1984404,
+				},
+			}, {
+				ID:                  "bm-e2-02",
+				Status:              isardvdi.HypervisorStatusOnline,
+				DesktopsStarted:     2,
+				OnlyForced:          false,
+				OrchestratorManaged: false,
+				MinFreeMemGB:        47,
+				RAM: isardvdi.OrchestratorResourceLoad{
+					Total: 515855,
+					Used:  65620,
+					Free:  450234,
+				},
+			}},
+			HypersToManage: []*isardvdi.OrchestratorHypervisor{{
+				ID:                  "bm-e4-01",
+				Status:              isardvdi.HypervisorStatusOnline,
+				OnlyForced:          false,
+				OrchestratorManaged: true,
+				DesktopsStarted:     10,
+				MinFreeMemGB:        190,
+				RAM: isardvdi.OrchestratorResourceLoad{
+					Total: 2051961,
+					Used:  67556,
+					Free:  1984404,
+				},
+			}},
+			RAMAvail:           2191950,
+			MinRAMLimitPercent: 150,
+			MinRAMLimitMargin:  1,
+			MaxRAMLimitPercent: 150,
+			MaxRAMLimitMargin:  112640,
+			Expected: &isardvdi.OrchestratorHypervisor{
+				ID:                  "bm-e4-01",
+				Status:              isardvdi.HypervisorStatusOnline,
+				OnlyForced:          false,
+				OrchestratorManaged: true,
+				DesktopsStarted:     10,
+				MinFreeMemGB:        190,
+				RAM: isardvdi.OrchestratorResourceLoad{
+					Total: 2051961,
+					Used:  67556,
+					Free:  1984404,
+				},
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			log := zerolog.New(os.Stdout)
 
-			rata := NewRata(cfg.DirectorRata{}, false, &log, nil)
+			rata := NewRata(cfg.DirectorRata{
+				MinRAM:             tc.MinRAM,
+				MaxRAM:             tc.MaxRAM,
+				MinRAMLimitPercent: tc.MinRAMLimitPercent,
+				MinRAMLimitMargin:  tc.MinRAMLimitMargin,
+				MaxRAMLimitPercent: tc.MaxRAMLimitPercent,
+				MaxRAMLimitMargin:  tc.MaxRAMLimitMargin,
+			}, false, &log, nil)
 
-			assert.Equal(tc.Expected, rata.bestHyperToMoveInDeadRow(tc.Hypers, tc.RAMAvail, tc.MinCPU, tc.MinRAM, tc.MaxRAM))
+			assert.Equal(tc.Expected, rata.bestHyperToMoveInDeadRow(tc.HypersToAcknowledge, tc.HypersToManage, tc.RAMAvail))
 		})
 	}
 }
