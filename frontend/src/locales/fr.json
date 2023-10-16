@@ -518,7 +518,9 @@
             "visible": "Visible aux utilisateurs",
             "section-title-template": "Sélectionner un modèle :",
             "error": {
-                "groups": "Au moins un groupe doit être sélectionné"
+                "groups": "Au moins un groupe doit être sélectionné",
+                "users": "Au moins un utilisateur doit être sélectionné",
+                "groups-users": "Au moins un utilisateur ou un groupe doit être sélectionné"
             }
         },
         "password": {
@@ -543,6 +545,12 @@
             "description": "Description",
             "enabled": "Actif",
             "disabled": "Désactivé"
+        },
+        "new-media": {
+            "url": "URL",
+            "title": "Créer un nouveau média :",
+            "description": "Description",
+            "name": "Nom du média"
         }
     },
     "messages": {
