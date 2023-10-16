@@ -37,7 +37,7 @@ def api_v3_admin_storage(payload, status=None):
     )
 
 
-@app.route("/api/v3/admin/storage/domains/<storage_id>", methods=["GET"])
+@app.route("/api/v3/admin/storage/domains/<path:storage_id>", methods=["GET"])
 @is_admin_or_manager
 def api_v3_admin_storage_domains(payload, storage_id):
     ownsStorageId(payload, storage_id)
@@ -48,7 +48,7 @@ def api_v3_admin_storage_domains(payload, storage_id):
     )
 
 
-@app.route("/api/v3/admin/media/domains/<storage_id>", methods=["GET"])
+@app.route("/api/v3/admin/media/domains/<path:storage_id>", methods=["GET"])
 @is_admin_or_manager
 def api_v3_admin_media_domains(payload, storage_id):
     ownsMediaId(payload, storage_id)
@@ -59,7 +59,6 @@ def api_v3_admin_media_domains(payload, storage_id):
     )
 
 
-@app.route("/api/v3/admin/storage/<disk_id>/tree_list", methods=["GET"])
 @app.route("/api/v3/admin/storage/tree_list", methods=["GET"])
 @is_admin_or_manager
 def api_v3_admin_storage_disk_tree(payload):

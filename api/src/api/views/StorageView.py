@@ -151,7 +151,7 @@ def create_storage(payload):
     return jsonify(storage.id)
 
 
-@app.route("/api/v3/storage/<storage_id>/parents", methods=["GET"])
+@app.route("/api/v3/storage/<path:storage_id>/parents", methods=["GET"])
 @has_token
 def storage_parents(payload, storage_id):
     return jsonify(
@@ -170,7 +170,7 @@ def storage_parents(payload, storage_id):
     )
 
 
-@app.route("/api/v3/storage/<storage_id>/task", methods=["GET"])
+@app.route("/api/v3/storage/<path:storage_id>/task", methods=["GET"])
 @has_token
 def storage_task(payload, storage_id):
     """
@@ -215,7 +215,7 @@ def api_v3_storage(payload, status):
     )
 
 
-@app.route("/api/v3/storage/<storage_id>", methods=["DELETE"])
+@app.route("/api/v3/storage/<path:storage_id>", methods=["DELETE"])
 @has_token
 def storage_delete(payload, storage_id):
     """
@@ -265,7 +265,7 @@ def storage_delete(payload, storage_id):
 
 
 @app.route(
-    "/api/v3/storage/<storage_id>/update_qemu_img_info",
+    "/api/v3/storage/<path:storage_id>/update_qemu_img_info",
     methods=["PUT"],
 )
 @has_token
@@ -318,7 +318,7 @@ def storage_update_qemu_img_info(payload, storage_id):
     return jsonify(storage.task)
 
 
-@app.route("/api/v3/storage/<storage_id>/check_backing_chain", methods=["PUT"])
+@app.route("/api/v3/storage/<path:storage_id>/check_backing_chain", methods=["PUT"])
 @has_token
 def storage_check_check_backing_chain(payload, storage_id):
     """
@@ -341,7 +341,7 @@ def storage_check_check_backing_chain(payload, storage_id):
 
 
 @app.route(
-    "/api/v3/storage/<storage_id>/check_existence",
+    "/api/v3/storage/<path:storage_id>/check_existence",
     methods=["PUT"],
 )
 @has_token
@@ -378,7 +378,7 @@ def storage_check_existence(payload, storage_id):
 
 
 @app.route(
-    "/api/v3/storage/<storage_id>/update_parent",
+    "/api/v3/storage/<path:storage_id>/update_parent",
     methods=["PUT"],
 )
 @has_token
@@ -431,7 +431,7 @@ def storage_update_parent(payload, storage_id):
     return jsonify(storage.task)
 
 
-@app.route("/api/v3/storage/<storage_id>/path/<path:path>", methods=["PUT"])
+@app.route("/api/v3/storage/<path:storage_id>/path/<path:path>", methods=["PUT"])
 @has_token
 def storage_move(payload, storage_id, path):
     """
@@ -521,11 +521,11 @@ def storage_move(payload, storage_id, path):
 
 
 @app.route(
-    "/api/v3/storage/<storage_id>/convert/<new_storage_type>",
+    "/api/v3/storage/<path:storage_id>/convert/<new_storage_type>",
     methods=["POST"],
 )
 @app.route(
-    "/api/v3/storage/<storage_id>/convert/<new_storage_type>/compress",
+    "/api/v3/storage/<path:storage_id>/convert/<new_storage_type>/compress",
     methods=["POST"],
 )
 @has_token
