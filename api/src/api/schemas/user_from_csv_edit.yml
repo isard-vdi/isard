@@ -1,0 +1,32 @@
+username:
+  empty: false
+  type: string
+name:
+  type: string
+  empty: false
+email:
+  type: string
+password:
+  type: string
+  empty: false
+group:
+  type: string
+  empty: false
+category:
+  type: string
+  required: true
+  empty: false
+secondary_groups:
+  type: list
+active:
+  type: boolean
+uid:
+  type: string
+  required: true
+  empty: false
+provider:
+  type: string
+  required: true
+  empty: false
+id:
+  type: string

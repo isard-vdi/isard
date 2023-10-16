@@ -341,7 +341,7 @@
                                             <li>Where <b>role</b> must be <i>manager, advanced</i> or <i>user</i></li>
                                         </ul>
                                     </small>
-                                    <button id="btn-download-bulkusers" type="button" class="btn btn-success"
+                                    <button type="button" class="btn btn-success btn-download-bulkusers" id="download-create"
                                         data-dismiss="modal">Download sample in CSV format</button>
                                 </div>
                             </div>
@@ -431,6 +431,104 @@
         </div>
     </div>
 </div>
+</div>
+
+<div class="modal fade" id="modalUpdateFromCSV" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title">
+                    <i class="fa fa-pencil"></i> <i class="fa fa-table"></i> Edit users from CSV
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <form id="modalUpdateFromCSVForm" class="form-horizontal form-label-left">
+                    <input type="hidden" name="ids" id="ids" />
+                    <div class="x_panel">
+                        <div class="x_content">
+                            <div class="item form-group">
+                                <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Import CSV <span
+                                        class="required">*</span>
+                                </label>
+                                <div class="col-md-9 col-sm-9 col-xs-12">
+                                    <input type="file" id="csv-edit" name="csv" enctype="multipart/form-data" />
+                                    <br>
+                                    <small>CSV file should have these columns:
+                                        <ul>
+                                            <li>active / name / provider / category / uid / username / group / 
+                                                secondary_groups / password</li>
+                                            <li>Where <b>category</b> and <b>group</b> are their <i>names</i></li>
+                                            <li>UID, category and provider's contents are <b>mandatory</b></li>
+                                            <li>Secondary groups must be separated by "<b>/</b>"</li>
+                                            <li>Leave the parameters you don't want to update <b>blank</b></li>
+                                            <li>'Active' column must have as value either "<b>true</b>" or "<b>false</b>"</li>
+                                            <li>You can download a CSV file with the current users data using "<b>CSV with import format</b>"</li>
+                                        </ul>
+                                    </small>
+                                    <button type="button" class="btn btn-success btn-download-bulkusers" id="download-edit"
+                                    data-dismiss="modal">Download sample in CSV format</button>
+                                </div>
+                            </div>
+                            <div class="x_content">
+                                <div id="csv_error" style="display:none" class="alert alert-danger alert-dismissible "
+                                    role="alert">
+                                    <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span
+                                            aria-hidden="true">×</span>
+                                    </button>
+                                    <div id="csv_error_html"></div>
+                                </div>
+                            </div>
+                            <div id="csv_correct" class="x_content" style="display:none">
+                                <div class="x_title">
+                                    <h4><i class="fa fa-check" style="color:lightgreen"></i> Imported data was
+                                        validated
+                                    </h4>
+                                    <br>
+                                    <div class="clearfix"></div>
+                                </div>
+                                <table id="csv_preview" class="table cell-border hover stripe">
+                                    <thead>
+                                        <tr>
+                                            <th>active</th>
+                                            <th>name</th>
+                                            <th>provider</th>
+                                            <th>category</th>
+                                            <th>uid</th>
+                                            <th>username</th>
+                                            <th>group</th>
+                                            <th>secondary_groups</th>
+                                            <th>password</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><button id="send" type="button" class="btn btn-success">Update users</button></li>
+                </ul>
+            </div>
+        </div>
+    </div>
 </div>
 
 <div class="modal fade" id="modalBulkEditUser" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
