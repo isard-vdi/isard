@@ -521,7 +521,8 @@
                 "groups": "Au moins un groupe doit être sélectionné",
                 "users": "Au moins un utilisateur doit être sélectionné",
                 "groups-users": "Au moins un utilisateur ou un groupe doit être sélectionné"
-            }
+            },
+            "filter-placeholder": "Rechercher"
         },
         "password": {
             "modal": {
