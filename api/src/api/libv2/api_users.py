@@ -1467,6 +1467,33 @@ class ApiUsers:
         with app.app_context():
             r.table("groups").get(group["id"]).update({"limits": limits}).run(db.conn)
 
+    def UpdateSecondaryGroups(self, action, data):
+        query = r.table("users").get_all(r.args(data["ids"]))
+
+        if action == "add":
+            query = query.update(
+                lambda user: {
+                    "secondary_groups": user["secondary_groups"].set_union(
+                        data["secondary_groups"]
+                    )
+                }
+            )
+        elif action == "delete":
+            query = query.update(
+                lambda user: {
+                    "secondary_groups": user["secondary_groups"].difference(
+                        data["secondary_groups"]
+                    )
+                }
+            )
+        elif action == "overwrite":
+            query = query.update({"secondary_groups": data["secondary_groups"]})
+        else:
+            raise Error("bad_request", "Action: " + action + " not allowed")
+
+        with app.app_context():
+            query.run(db.conn)
+
     def UpdateCategoryLimits(self, category_id, limits, propagate):
         with app.app_context():
             r.table("categories").get(category_id).update({"limits": limits}).run(
