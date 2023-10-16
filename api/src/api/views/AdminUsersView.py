@@ -139,6 +139,25 @@ def api_v3_admin_categories_nav(payload, nav):
 
 
 # Update user
+@app.route("/api/v3/admin/users/csv", methods=["PUT"])
+@is_admin_or_manager
+def api_v3_admin_user_csv(payload):
+    try:
+        data = request.get_json()
+    except:
+        raise Error(
+            "bad_request",
+            "Unable to parse body data.",
+            traceback.format_exc(),
+        )
+    for user_data in data["users"]:
+        user_data = _validate_item("user_from_csv_edit", user_data)
+        ownsUserId(payload, user_data["id"])
+
+        users.Update([user_data["id"]], user_data)
+    return json.dumps({}), 200, {"Content-Type": "application/json"}
+
+
 @app.route("/api/v3/admin/user/<user_id>", methods=["PUT"])
 @app.route("/api/v3/admin/users/bulk", methods=["PUT"])
 @has_token
@@ -849,6 +868,40 @@ def admin_users_validate(payload):
                 raise
         else:
             user_list[i]["exists"] = False
+
+    return json.dumps(user_list), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/admin/users/csv/validate", methods=["POST"])
+@is_admin_or_manager
+def admin_users_validate_edit(payload):
+    user_list = request.get_json()
+    for i, user in enumerate(user_list):
+        user = _validate_item("user_from_csv_edit", user)
+
+        cg_data = CategoryNameGroupNameMatch(user["category"], user["group"])
+        if user.get("secondary_groups"):
+            secondary_groups = []
+            for sg_name in user["secondary_groups"]:
+                sg = users.GroupGetByNameCategory(sg_name, cg_data["category_id"])
+                secondary_groups.append(sg["id"])
+            user_list[i]["secondary_groups"] = secondary_groups
+            user_list[i]["secondary_groups_names"] = user["secondary_groups"]
+        if user.get("name"):
+            user_list[i]["name"] = user_list[i]["name"].strip('"')
+
+        try:
+            user_list[i]["id"] = users.GetByProviderCategoryUID(
+                user["provider"], cg_data["category_id"], user["uid"]
+            )[0]["id"]
+            ownsUserId(payload, user_list[i]["id"])
+        except:
+            raise Error(
+                "not_found", "User with username " + user["username"] + " not found"
+            )
+
+        user_list[i]["category_id"] = cg_data["category_id"]
+        user_list[i]["group_id"] = cg_data["group_id"]
 
     return json.dumps(user_list), 200, {"Content-Type": "application/json"}
 

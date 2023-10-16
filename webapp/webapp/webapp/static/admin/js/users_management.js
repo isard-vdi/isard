@@ -53,6 +53,69 @@ function socketio_on(){
         setModalUser();
 	});
 
+    $('.btn-update-from-csv').on('click', function () {
+        var modal = '#modalUpdateFromCSV';
+        $(modal + "Form")[0].reset();
+        $(modal + " #csv_correct").hide();
+        $(modal + " #csv_error").hide();
+        $(modal).modal({
+            backdrop: 'static',
+            keyboard: false
+        }).modal('show');
+    });
+
+    $("#modalUpdateFromCSV #send").on('click', function(e) {
+        var data = {};
+        data['users'] = csv_preview.data().toArray()
+        data['bulk'] = true;
+        data['csv'] = true;
+        $.each(data['users'], function(index, user) {
+            if (user.secondary_groups
+                && user.secondary_groups.length === 1
+                && user.secondary_groups[0] === "") {
+              delete user.secondary_groups;
+            }
+            user.category = user.category_id
+            delete user.category_id
+            
+            user.group = user.group_id
+            delete user.group_id
+        });
+
+        $.ajax({
+            type: 'PUT',
+            url: '/api/v3/admin/users/csv',
+            data: JSON.stringify(data),
+            contentType: 'application/json',
+            success: function (xhr) {
+                $('form').each(function () {
+                    this.reset()
+                })
+                $('.modal').modal('hide')
+                new PNotify({
+                    title: 'Updated',
+                    text: data.users.length + ' user(s) updated successfully',
+                    hide: true,
+                    icon: 'fa fa-success',
+                    delay: 4000,
+                    opacity: 1,
+                    type: 'success'
+                })
+            },
+            error: function (xhr) {
+                new PNotify({
+                    title: 'ERROR updating multiple users',
+                    text: xhr.responseJSON.description,
+                    type: 'error',
+                    hide: true,
+                    icon: 'fa fa-warning',
+                    delay: 5000,
+                    opacity: 1
+                })
+            }
+        });
+    });
+
 	$('.btn-new-bulkusers').on('click', function () {
         $("#csv_error").hide()
         $('#bulk-allow-update').iCheck('uncheck').iCheck('update');
@@ -282,8 +345,20 @@ function socketio_on(){
         }
     });
 
-	$('#btn-download-bulkusers').on('click', function () {
-        var viewerFile = new Blob(["username,name,email,password,group,category,role\njdoe,John Doe,jdoe@isardvdi.com,sup3rs3cr3t,Default,Default,advanced\nauser,Another User,auser@domain.com,a1sera1ser,Default,Default,user"], {type: "text/csv"});
+    $('.btn-download-bulkusers').on('click', function () {
+        var kind = $(this)[0].id;
+        var viewerFile;
+
+        if (kind === 'download-edit') {
+            viewerFile = new Blob(
+                [`active,name,provider,category,uid,username,group,secondary_groups,password\ntrue,John Doe,local,Default,jdoe,jdoe,Default,Default,sup3rs3cr3t\n,Another User,local,Default,auser,auser,Default,`
+                ], { type: "text/csv" });
+
+        } else if (kind === 'download-create') {
+            viewerFile = new Blob(
+                [`username,name,email,password,group,category,role\njdoe,John Doe,jdoe@isardvdi.com,sup3rs3cr3t,Default,Default,advanced\nauser,Another User,auser@domain.com,a1sera1ser,Default,Default,user`
+                ], { type: "text/csv" });
+        }
         var a = document.createElement('a');
             a.download = 'bulk-users-template.csv';
             a.href = window.URL.createObjectURL(viewerFile);
@@ -375,6 +450,7 @@ function socketio_on(){
         form.parsley().validate();
         if (form.parsley().isValid()){
             data=formdata;
+            data['secondary_groups'] = data['secondary_groups'] || [];
             delete data['unlimited']
             var notice = new PNotify({
                 text: 'Updating user...',
@@ -481,18 +557,33 @@ function socketio_on(){
         })
     });
 
-       document.getElementById('csv').addEventListener('change', readFile, false);
-       var filecontents=''
-       function readFile (evt) {
-           var files = evt.target.files;
-           var file = files[0];
-           var reader = new FileReader();
-           reader.onload = function(event) {
-             filecontents=event.target.result;
-             csv2datatables(filecontents)
-           }
-           reader.readAsText(file, 'UTF-8')
+    document.getElementById('csv').addEventListener('change', readFile, false);
+    var filecontents=''
+    function readFile(evt) {
+        var files = evt.target.files;
+        var file = files[0];
+        var reader = new FileReader();
+        var modal = '#modalAddBulkUsers';
+        reader.onload = function (event) {
+            filecontents = event.target.result;
+            csv2datatables(filecontents, modal)
         }
+        reader.readAsText(file, 'UTF-8')
+    }
+
+    document.getElementById('csv-edit').addEventListener('change', readFileEdit, false);
+    var filecontents = ''
+    function readFileEdit(evt) {
+        var files = evt.target.files;
+        var file = files[0];
+        var reader = new FileReader();
+        var modal = '#modalUpdateFromCSV';
+        reader.onload = function (event) {
+            filecontents = event.target.result;
+            csv2datatables(filecontents, modal)
+        }
+        reader.readAsText(file, 'UTF-8')
+    }
 
     $("#modalAddBulkUsers #send").on('click', function(e){
         var form = $('#modalAddBulkUsersForm');
@@ -1080,63 +1171,102 @@ function setModalUser(){
     });
 }
 
-function csv2datatables(csv){
-    var exists = false
-    $('#bulk-allow-update').iCheck('uncheck').iCheck('update');
+
+function csv2datatables(csv, modal){
+    var csv_data = parseCSV(csv)
+    if (modal=="#modalUpdateFromCSV") {
+        $.each(csv_data, function(key, user) {
+            if (user.active !== undefined) {
+                switch(user['active'].toLowerCase()) {
+                    case "true":
+                        user["active"] = true
+                        break;
+                    case "false":
+                        user["active"] = false
+                        break;
+                    case "":
+                        delete user["active"]
+                        break;
+                    }
+            }
+            if (user.name == "") { delete user.name; }
+            if (user.password == "") { delete user.password; }
+            if (user.secondary_groups) { user.secondary_groups = user.secondary_groups.split("/"); } else {
+                delete user.secondary_groups
+            }
+        });
+    } else {
+        $(modal + ' #bulk-allow-update').iCheck('uncheck').iCheck('update');
+    }
     $.ajax({
         type: "POST",
-        url: "/api/v3/admin/users/validate/allow_update",
-        data: JSON.stringify(parseCSV(csv)),
+        url: modal == "#modalUpdateFromCSV" ?
+            "/api/v3/admin/users/csv/validate" :
+            "/api/v3/admin/users/validate/allow_update",
+        data: JSON.stringify(csv_data),
         contentType: "application/json",
-        async: false
+        async: false,
     }).done(function (data) {
-        $("#csv_correct").show()
-        $("#csv_error").hide()
-        $("#modalAddBulkUsers #send").attr("disabled", false);
-        if ( $.fn.dataTable.isDataTable( '#csv_preview' ) ) {
+        $(modal + " #csv_correct").show()
+        $(modal + " #csv_error").hide()
+        $(modal + " #send").attr("disabled", false);
+        if ( $.fn.dataTable.isDataTable(modal +  ' #csv_preview' ) ) {
             $.each( data, function( index, value ){
                 if(value.exists){exists=true; return false}
             });
             csv_preview.clear().rows.add(data).draw()
         }else{
-            csv_preview=$("#csv_preview").DataTable( {
+            csv_preview = $(modal + " #csv_preview").DataTable( {
                 data: data,
                 rowId: 'username',
-                columns: [
-                    { "data": "exists", "width": "88px"},
-                    { "data": "username", "width": "88px", "className": "no-update"},
-                    { "data": "name", "width": "88px"},
-                    { "data": "email", "width": "88px"},
-                    { "data": "password", "width": "88px"},
-                    { "data": "group", "width": "88px", "defaultContent": "", "className": "no-update"},
-                    { "data": "category", "width": "88px", "defaultContent": "", "className": "no-update"},
-                    { "data": "role", "width": "88px", "defaultContent": ""},
-                    ],
-                "order": [[0, 'asc']],
-                "columnDefs": [
-                    {
-                    "targets": 0,
-                    "render": function ( data, type, full, meta ) {
-                        if(full.exists){
-                            exists = true
+                columns: modal == "#modalUpdateFromCSV" ? [
+                    { "data": "active", "width": "50px", "render": function (data, type, full, meta) {
+                        if (full.active) {
+                            active = true
                             return '<i class="fa fa-check" style="color:lightgreen"></i>';
-                        }else{
+                        } else if (full.active===false) {
                             return '<i class="fa fa-close" style="color:darkgray"></i>';
                         }
-                    }},
-                ]
+                    } },
+                    { "data": "name", "width": "88px", },
+                    { "data": "provider", "width": "50px", "className": "no-update" },
+                    { "data": "category", "width": "88px", "defaultContent": "", "className": "no-update" },
+                    { "data": "uid", "width": "88px", "className": "no-update" },
+                    { "data": "username", "width": "88px", "className": "no-update" },
+                    { "data": "group", "width": "88px", "defaultContent": "", "className": "no-update" },
+                    { "data": "secondary_groups_names", "width": "88px", "defaultContent": "", },
+                    { "data": "password", "width": "88px" },
+                ] : [
+                    { "data": "exists", "width": "88px", "render": function (data, type, full, meta) {
+                        if (full.exists) {
+                            exists = true
+                            return '<i class="fa fa-check" style="color:lightgreen"></i>';
+                        } else {
+                            return '<i class="fa fa-close" style="color:darkgray"></i>';
+                        }
+                    } },
+                    { "data": "username", "width": "88px", "className": "no-update" },
+                    { "data": "name", "width": "88px" },
+                    { "data": "email", "width": "88px" },
+                    { "data": "password", "width": "88px" },
+                    { "data": "group", "width": "88px", "defaultContent": "", "className": "no-update" },
+                    { "data": "category", "width": "88px", "defaultContent": "", "className": "no-update" },
+                    { "data": "role", "width": "88px", "defaultContent": "" },
+                ] ,
+                "order": [[0, 'asc']],
             } );
         }
-    }).fail(function(data) {
-        $("#csv_correct").hide()
-        $("#modalAddBulkUsers #send").attr("disabled", true);
-        $("#csv_error #csv_error_html").html(data.responseJSON.description)
-        $("#csv_error").show()
-        if ( $.fn.dataTable.isDataTable( '#csv_preview' ) ) {
+    }).fail(function (data) {
+        $(modal + " #csv_correct").hide()
+        $(modal + " #send").attr("disabled", true);
+        $(modal + " #csv_error #csv_error_html").html(data.responseJSON.description)
+        $(modal + " #csv_error").show()
+        if ($.fn.dataTable.isDataTable(modal + ' #csv_preview')) {
             csv_preview.clear()
         }
     });
 }
+
 
 function parseCSV(csv){
     lines=csv.split(/\r?\n/)
@@ -1144,7 +1274,8 @@ function parseCSV(csv){
     users=[]
     $.each(lines, function(n, l){
         if(n!=0 && l.length > 10){
-            usr=toObject(header,l.split(','))
+            var regex = /("[^"]*"|[^,]+)(?=,|$)/g;
+            usr = toObject(header,l.match(regex));
             usr['id']=usr['username']
             users.push(usr)
         }
@@ -1188,20 +1319,22 @@ function showUserExportButtons(table, buttonsRowClass) {
             },
             'excel',
             'print',
-            { 
+            {
                 extend: 'csv',
                 text: 'CSV with import format',
                 exportOptions: {
                     columns: [13] // ID column
                 },
+                title: "csv_with_import_format",
+                titleAttr: "Generate a CSV file from the current displayed data, to use in the \"Update from CSV\" feature.",
                 customize: function (csv) {
-                    var csv_data = ['username,name,email,password,group,category,role\n']
+                    var csv_data = ['active,name,provider,category,uid,username,group,secondary_groups,password\n']
                     var split_csv = csv.split("\n");
                     $.each(split_csv.slice(1), function (index, csv_row) {
                         var csv_cell_array = csv_row.split('","');
                         csv_cell_array[0] = csv_cell_array[0].replace(/"/g, '');
                         var rowData = table.row('#' + csv_cell_array[0]).data();
-                        csv_data = csv_data + (`${rowData.username},${rowData.name},${rowData.email},,${rowData.group_name},${rowData.category_name},${rowData.role}\n`);
+                        csv_data = csv_data + (`${rowData.active},\"${rowData.name}\",${rowData.provider},${rowData.category_name},${rowData.uid},${rowData.username},${rowData.group_name},${rowData.secondary_groups_names.join("/")},\n`);
                     });
                     return csv_data
                 }
