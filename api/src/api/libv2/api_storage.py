@@ -155,10 +155,12 @@ def get_disk_tree():
         r.table("storage")
         .merge(
             lambda disk: {
-                "user_name": r.table("users").get(disk["user_id"])["name"],
-                "category_name": r.table("categories").get(
-                    r.table("users").get(disk["user_id"])["category"]
-                )["name"],
+                "user_name": r.table("users")
+                .get(disk["user_id"])["name"]
+                .default("[DELETED]"),
+                "category_name": r.table("categories")
+                .get(r.table("users").get(disk["user_id"])["category"])["name"]
+                .default("[DELETED]"),
                 "title": disk["id"],
                 "icon": "fa fa-folder-open",
                 "domains": r.table("domains")
@@ -183,7 +185,7 @@ def get_disk_tree():
     def recursive(query, parent):
         parent["children"] = []
         for item in query:
-            if item["parent"] == parent["id"]:
+            if item.get("parent") == parent["id"]:
                 parent["children"].append(item)
                 recursive(query, item)
 

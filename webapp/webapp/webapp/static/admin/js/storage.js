@@ -1,9 +1,21 @@
-/*
-* Copyright 2017 the Isard-vdi project authors:
-*      Josep Maria Viñolas Auquer
-*      Alberto Larraz Dalmases
-* License: AGPLv3
-*/
+//   Copyright © 2017-2023 Josep Maria Viñolas Auquer, Alberto Larraz Dalmases
+//
+//   This file is part of IsardVDI.
+//
+//   IsardVDI is free software: you can redistribute it and/or modify
+//   it under the terms of the GNU Affero General Public License as published by
+//   the Free Software Foundation, either version 3 of the License, or (at your
+//   option) any later version.
+//
+//   IsardVDI is distributed in the hope that it will be useful, but WITHOUT ANY
+//   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+//   FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+//   details.
+//
+//   You should have received a copy of the GNU Affero General Public License
+//   along with IsardVDI. If not, see <https://www.gnu.org/licenses/>.
+//
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 function getGroupParam() {
   return window.location.href.slice(window.location.href.indexOf('?') + 1).split('searchStorageId=')[1];
@@ -11,6 +23,8 @@ function getGroupParam() {
 
 $(document).ready(function() {
     $template = $(".template-storage-detail");
+
+    // STORAGES READY
     storage_ready=$('#storage').DataTable({
       "initComplete": function (settings, json) {
         let searchStorageId = getGroupParam()
@@ -212,7 +226,15 @@ $(document).ready(function() {
       populateDiskTree();
     });
 
-    storage_other = $('#storage_other').DataTable( {
+    // STORAGES IN OTHER STATUSES
+    storage_other=$('#storage_other').DataTable({
+      "initComplete": function (settings, json) {
+        let searchStorageId = getGroupParam()
+        if (searchStorageId) {
+          this.api().column(3).search(searchStorageId).draw();
+          storage_other.column(3).footer(3).firstChild.value = searchStorageId;
+        }
+      },
       "ajax": {
         "url": "/api/v3/admin/storage/other",
         "contentType": "application/json",
@@ -224,19 +246,30 @@ $(document).ready(function() {
       },
       "rowId": "id",
       "deferRender": true,
-        "columns": [
-          { "data": "id",},
-          { "data": "status",},
-          { "data": "type",},
-          { "data": null},
-          { "data": null},
-          { "data": "user_id"},
-          { "data": "status_logs"},
-          { "data": "task"}
-        ],
+      "columns": [
+        {
+          "className": 'details-control',
+          "orderable": false,
+          "data": null,
+          "width": "10px",
+          "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
+        },
+        { "data": "status",},
+        { "data": "directory_path",},
+        { "data": "id",},
+        { "data": "type",},
+        { "data": null},
+        { "data": null},
+        { "data": "parent", "defaultContent": ""},
+        { "data": "user_name",},
+        { "data": "category",},
+        { "data": "domains",},
+        { "data": "status_logs",},
+        { "data": "task",}
+      ],
       "columnDefs": [
         {
-          "targets": 3,
+          "targets": 5,
           "render": function ( data, type, full, meta ) {
             if( 'qemu-img-info' in full){
               return Math.round(full["qemu-img-info"]["virtual-size"]/1024/1024/1024)+" GB"
@@ -246,7 +279,7 @@ $(document).ready(function() {
           }
         },
         {
-          "targets": 4,
+          "targets": 6,
           "render": function ( data, type, full, meta ) {
             if( 'qemu-img-info' in full){
               return Math.round(full["qemu-img-info"]["actual-size"]/1024/1024/1024)+' GB ('+Math.round(full["qemu-img-info"]["actual-size"]*100/full["qemu-img-info"]["virtual-size"])+'%)'
@@ -256,13 +289,16 @@ $(document).ready(function() {
           }
         },
         {
-          "targets": 6,
+          "targets": 11,
           "render": function ( data, type, full, meta ) {
-            return moment.unix(full["status_logs"][full["status_logs"].length -1]["time"]).fromNow()
+            if( "status_logs" in full ){
+              return moment.unix(full["status_logs"][full["status_logs"].length -1]["time"]).fromNow()
+            }
+            return "-"
           }
         },
         {
-          "targets": 7,
+          "targets": 12,
           "render": function ( data, type, full, meta ) {
             if( "task" in full ){
               return '<button type="button" data-task="'+full.task+'" class="btn btn-pill-right btn-info btn-xs btn-task-info" title="Show last task info"><i class="fa fa-tasks"></i></button>';
@@ -272,7 +308,7 @@ $(document).ready(function() {
           }
         },
         {
-          "targets": 8,
+          "targets": 13,
           "render": function ( data, type, full, meta ) {
             return '<button type="button" data-id="'+full.id+'" class="btn btn-pill-right btn-success btn-xs btn-check-qemu-img-info" title="Check disk info"><i class="fa fa-refresh"></i></button>';
           }
@@ -281,7 +317,7 @@ $(document).ready(function() {
       footerCallback: function () {
         var api = this.api();
         // Current page
-        pageTotal = api.column(3, {search: 'applied'}).data().reduce(function (a, b) {
+        pageTotal = api.column(5, {search: 'applied'}).data().reduce(function (a, b) {
           if( 'qemu-img-info' in b){
             return a + b["qemu-img-info"]["actual-size"]/1024/1024/1024
           } else {
@@ -289,7 +325,7 @@ $(document).ready(function() {
           }
         }, 0);
         // All pages
-        total = api.column(3).data().reduce(function(a, b) {
+        total = api.column(5).data().reduce(function(a, b) {
           if( 'qemu-img-info' in b){
             return a + b["qemu-img-info"]["actual-size"]/1024/1024/1024
           } else {
@@ -297,101 +333,90 @@ $(document).ready(function() {
           }
         }, 0);
 
-        $('.storage_other-total-size').html('Applied  filter storage size: ' + pageTotal.toFixed(1) + ' GB ( Total storage size: ' + total.toFixed(1) + ' GB )');
+        $('.storage-other-total-size').html('Applied  filter storage size: ' + pageTotal.toFixed(1) + ' GB ( Total storage size: ' + total.toFixed(1) + ' GB )');
       }
     });
 
-    $(document).on('click', '.btn-task-info', function () {
-      var element = $(this);
-      var task = element.data("task");
-      element.html('<i class="fa fa-spinner fa-pulse"></i>')
-      $.ajax({
-        type: 'GET',
-        url: '/api/v3/task/' + task,
-        contentType: 'application/json',
-        success: function (result) {
-          element.html('<i class="fa fa-tasks"></i>')
-          new PNotify({
-            title: 'Last task info',
-            text: '<pre><li><b>TASK ID</b>: '+result.id+'</li><li><b>TASK</b>: '+result.task+'</li><li><b>USER ID</b>: '+result.user_id+'</li><li><b>TASK STATUS</b>: '+result.status+'</li><li><b>RESULT</b>: '+pretty_print_json(result.result)+'</li></pre>',
-            hide: false,
-            icon: '',
-            opacity: 1,
-            type: 'info',
-            addclass: 'pnotify-center-large',
-        })
-        },
-        error: function (xhr, ajaxOptions, thrownError) {
-          element.html('<i class="fa fa-tasks" style="color:red" title="Task not found!"></i>')
-          new PNotify({
-            title: 'Error',
-            text: xhr.responseJSON.description,
-            hide: true,
-            delay: 3000,
-            icon: 'fa fa-warning',
-            opacity: 1,
-            type: 'error'
-          });
-        }
-      });
-    })
-
-    function pretty_print_json(json){
-      if (typeof json != 'string') {
-            json = JSON.stringify(json, undefined, 2);
+    $('#storage_other tfoot tr:first th').each( function () {
+      var title = $(this).text();
+      if ([''].indexOf(title) == -1){
+        $(this).html( '<input type="text" placeholder="Search '+title+'" />' );
       }
-      json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
-          var cls = 'number';
-          if (/^"/.test(match)) {
-              if (/:$/.test(match)) {
-                  cls = 'key';
-              } else {
-                  cls = 'string';
-              }
-          } else if (/true|false/.test(match)) {
-              cls = 'boolean';
-          } else if (/null/.test(match)) {
-              cls = 'null';
-          }
-          return '<span class="' + cls + '">' + match + '</span>';
-      });
-    }
-    $(document).on('click', '.btn-check-qemu-img-info', function () {
-      element = $(this);
-      var id = element.data("id");
-      element.html('<i class="fa fa-spinner fa-pulse"></i>')
-      $.ajax({
-        type: 'PUT',
-        url: '/api/v3/storage/' + id + '/check_backing_chain',
-        contentType: 'application/json',
-        success: function (result) {
-          element.html('<i class="fa fa-refresh"></i>')
-          new PNotify({
-            title: 'Updated',
-            text: 'Storage backing chain succesfully',
-            hide: true,
-            delay: 2000,
-            icon: '',
-            opacity: 1,
-            type: 'success'
-        })
-        },
-        error: function (xhr, ajaxOptions, thrownError) {
-          element.html('<i class="fa fa-refresh" style="color:red" title="Error checking backing chain!"></i>')
-          new PNotify({
-            title: 'Error',
-            text: xhr.responseJSON.description,
-            hide: true,
-            delay: 3000,
-            icon: 'fa fa-warning',
-            opacity: 1,
-            type: 'error'
-          });
-        }
-      });
-    })
+    } );
 
+    storage_other.columns().every( function () {
+      var that = this;
+      $( 'input', this.footer() ).on( 'keyup change', function () {
+        if ( that.search() !== this.value ) {
+          that.search( this.value ).draw();
+        }
+      } );
+    } );
+
+    $('#storage_other tbody').on('click', 'td.details-control', function () {
+        var tr = $(this).closest("tr");
+        var row = storage_other.row(tr);
+        var rowData = row.data();
+
+        if (row.child.isShown()) {
+          // This row is already open - close it
+          row.child.hide();
+          tr.removeClass("shown");
+
+          // Destroy the Child Datatable
+          $("#cl" + rowData.clientID)
+            .DataTable()
+            .destroy();
+        } else {
+
+          // Close other rows
+          if (storage_other.row('.shown').length) {
+            $('.details-control', storage_other.row('.shown').node()).click();
+          }
+
+            // Open this row
+            row.child(format(rowData)).show();
+            var id = rowData.id;
+
+            childTable = $("#cl" + id).DataTable({
+              dom: "t",
+              ajax: {
+                url: "/api/v3/storage/" + id+"/parents",
+                contentType: "application/json",
+                type: "GET",
+              },
+              sAjaxDataProp: "",
+              language: {
+                loadingRecords:
+                  '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>',
+              },
+              columns: [
+                { data: null, title: "#", render: function (data, type, full, meta) { return meta.row + 1; } },
+                { data: "id", title: "storage id", render: function (data, type, full, meta) { if (meta.row == 0) { return '<b>'+data+'</b>' } else { return data } } },
+                { data: "status", title: "storage status" },
+                { data: "parent_id", title: "parent storage id" },
+                { data: "domains", title: "domains",
+                  render: function (data, type, full, meta) {
+                    links = []
+                    $(data).each(function (index, value) {
+                      let kind = value.kind.charAt(0).toUpperCase() + value.kind.slice(1).replace(/_/g, ' ')
+                      links[index] = '<a href="/isard-admin/admin/domains/render/'+kind+'s?searchDomainId='+value.id+'"><b>'+kind[0]+': </b>'+value.name+'</a>'
+                    });
+                    return links.join(', ')
+                  }
+                },
+              ],
+              columnDefs: [
+              ],
+              order: [],
+              select: false,
+            });
+
+            tr.addClass("shown");
+          }
+    } );
+
+    // STORAGES DELETED
     storage_deleted=$('#storage_deleted').DataTable( {
       "ajax": {
         "url": "/api/v3/admin/storage/deleted",
@@ -490,6 +515,7 @@ $(document).ready(function() {
       } );
     } );
 
+    // STORAGES READED FROM STORAGE POOL
     if( $("#storage_physical").length != 0){
       var storage_physical=$('#storage_physical').DataTable( {
         "ajax": {
@@ -784,7 +810,82 @@ $(document).ready(function() {
         });
       });
     }
+
+    // WS
     $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
+})
+
+// FUNCTIONS
+
+//// TABLE BUTTON EVENTS
+$(document).on('click', '.btn-task-info', function () {
+  var element = $(this);
+  var task = element.data("task");
+  element.html('<i class="fa fa-spinner fa-pulse"></i>')
+  $.ajax({
+    type: 'GET',
+    url: '/api/v3/task/' + task,
+    contentType: 'application/json',
+    success: function (result) {
+      element.html('<i class="fa fa-tasks"></i>')
+      new PNotify({
+        title: 'Last task info',
+        text: '<pre><li><b>TASK ID</b>: '+result.id+'</li><li><b>TASK</b>: '+result.task+'</li><li><b>USER ID</b>: '+result.user_id+'</li><li><b>TASK STATUS</b>: '+result.status+'</li><li><b>RESULT</b>: '+JSON.stringify(result.result, undefined, 2)+'</li></pre>',
+        hide: false,
+        icon: '',
+        opacity: 1,
+        type: 'info',
+        addclass: 'pnotify-center-large',
+    })
+    },
+    error: function (xhr, ajaxOptions, thrownError) {
+      element.html('<i class="fa fa-tasks" style="color:red" title="Task not found!"></i>')
+      new PNotify({
+        title: 'Error',
+        text: xhr.responseJSON.description,
+        hide: true,
+        delay: 3000,
+        icon: 'fa fa-warning',
+        opacity: 1,
+        type: 'error'
+      });
+    }
+  });
+})
+
+$(document).on('click', '.btn-check-qemu-img-info', function () {
+  element = $(this);
+  var id = element.data("id");
+  element.html('<i class="fa fa-spinner fa-pulse"></i>')
+  $.ajax({
+    type: 'PUT',
+    url: '/api/v3/storage/' + id + '/check_backing_chain',
+    contentType: 'application/json',
+    success: function (result) {
+      element.html('<i class="fa fa-refresh"></i>')
+      new PNotify({
+        title: 'Updated',
+        text: 'Storage backing chain succesfully',
+        hide: true,
+        delay: 2000,
+        icon: '',
+        opacity: 1,
+        type: 'success'
+    })
+    },
+    error: function (xhr, ajaxOptions, thrownError) {
+      element.html('<i class="fa fa-refresh" style="color:red" title="Error checking backing chain!"></i>')
+      new PNotify({
+        title: 'Error',
+        text: xhr.responseJSON.description,
+        hide: true,
+        delay: 3000,
+        icon: 'fa fa-warning',
+        opacity: 1,
+        type: 'error'
+      });
+    }
+  });
 })
 
 function socketio_on(){
