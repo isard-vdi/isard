@@ -475,6 +475,12 @@ $(document).ready(function() {
             }
           }
         },
+        {
+          "targets": 7,
+          "render": function ( data, type, full, meta ) {
+            return '<button type="button" data-id="'+full.id+'" class="btn btn-pill-right btn-success btn-xs btn-check-qemu-img-info" title="Check disk info"><i class="fa fa-refresh"></i></button>';
+          }
+        },
       ],
       footerCallback: function () {
         var api = this.api();
