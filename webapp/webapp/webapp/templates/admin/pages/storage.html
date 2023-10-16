@@ -1,6 +1,8 @@
 <!-- extend base layout -->
 {% extends "base.html" %}
 {% block css %}
+   <!-- FancyTree -->
+   <link href="/isard-admin/static/vendor/fancytree/dist/skin-win8/ui.fancytree.css" rel="stylesheet">
 {% endblock %}
 {% block content %}
 <div class="row">
@@ -75,12 +77,17 @@
       <table id="storage_other" class="table" width="100%">
         <thead>
           <tr>
-            <th>Id</th>
+            <th></th>
             <th>Status</th>
+            <th>Path</th>
+            <th>Id</th>
             <th>Format</th>
             <th>Size</th>
             <th>Used</th>
+            <th>Parent</th>
             <th>User</th>
+            <th>Category</th>
+            <th>Domains</th>
             <th>Last</th>
             <th>Task</th>
             <th></th>
@@ -90,23 +97,26 @@
         </tbody>
         <tfoot>
           <tr>
-            <th>Id</th>
+            <th></th>
             <th>Status</th>
+            <th>Path</th>
+            <th>Id</th>
             <th>Format</th>
             <th>Size</th>
             <th>Used</th>
+            <th>Parent</th>
             <th>User</th>
+            <th>Category</th>
+            <th>Domains</th>
             <th>Last</th>
-            <th></th>
             <th></th>
           </tr>
           <tr>
-            <th colspan="9" style="text-align:right" class="storage_other-total-size"></th>
+            <th colspan="13" style="text-align:right" class="storage-other-total-size"></th>
           </tr>
         </tfoot>
       </table>
     </div>
-
   </div>
 </div>
 
@@ -229,5 +239,9 @@
 {% include '/admin/pages/storage_detail.html' %}
 {% endblock %}
 {% block pagescript %}
+   <!-- FancyTree -->
+   <script src="/isard-admin/static/vendor/fancytree/src/jquery-ui-dependencies/jquery-ui.min.js"></script>
+   <script src="/isard-admin/static/vendor/fancytree/dist/jquery.fancytree.min.js"></script>
+   <script src="/isard-admin/static/vendor/fancytree/src/jquery.fancytree.table.js"></script>
     <script src="/isard-admin/static/admin/js/storage.js"></script>
 {% endblock %}
