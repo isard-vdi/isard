@@ -32,12 +32,15 @@ services:
     restart: "no"
     command:
       - '--path.rootfs=/host'
+      - '--collector.textfile.directory=/var/lib/prometheus'
       - '--collector.disable-defaults'
+      - '--collector.cgroups'
       - '--collector.cpu'
       - '--collector.diskstats'
       - '--collector.filesystem'
       - '--collector.loadavg'
       - '--collector.meminfo'
+      - '--collector.mountstats'
       - '--collector.netclass'
       - '--collector.netdev'
       - '--collector.netstat'
@@ -46,10 +49,12 @@ services:
       - '--collector.os'
       - '--collector.schedstat'
       - '--collector.stat'
+      - '--collector.textfile'
     network_mode: host
     pid: host
     volumes:
       - '/:/host:ro,rslave'
+      - /opt/isard-local/stats/prometheus:/var/lib/prometheus:rw
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
 
