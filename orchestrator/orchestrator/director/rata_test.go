@@ -27,6 +27,12 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 		RataMinRAM                int
 		RataMaxCPU                int
 		RataMaxRAM                int
+		RataMinRAMLimitPercent    int
+		RataMinRAMLimitMargin     int
+		RataMaxRAMLimitPercent    int
+		RataMaxRAMLimitMargin     int
+		RataHyperMinRAM           int
+		RataHyperMaxRAM           int
 		ExpectedErr               string
 		ExpectedRemoveDeadRow     []string
 		ExpectedCreateHypervisor  *operationsv1.CreateHypervisorsRequest
@@ -361,6 +367,41 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 			RataMinRAM:            700,
 			ExpectedRemoveDeadRow: []string{"1"},
 		},
+		"regression test #1": {
+			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
+			Hypers: []*isardvdi.OrchestratorHypervisor{{
+				ID:                  "bm-e4-01",
+				Status:              isardvdi.HypervisorStatusOnline,
+				OnlyForced:          false,
+				OrchestratorManaged: true,
+				DesktopsStarted:     10,
+				MinFreeMemGB:        190,
+				RAM: isardvdi.OrchestratorResourceLoad{
+					Total: 2051961,
+					Used:  67556,
+					Free:  1984404,
+				},
+			}, {
+				ID:                  "bm-e2-02",
+				Status:              isardvdi.HypervisorStatusOnline,
+				DesktopsStarted:     2,
+				OnlyForced:          false,
+				OrchestratorManaged: false,
+				MinFreeMemGB:        47,
+				RAM: isardvdi.OrchestratorResourceLoad{
+					Total: 515855,
+					Used:  65620,
+					Free:  450234,
+				},
+			}},
+			RataMinRAMLimitPercent: 150,
+			RataMinRAMLimitMargin:  1,
+			RataMaxRAMLimitPercent: 150,
+			RataMaxRAMLimitMargin:  112640,
+			RataHyperMinRAM:        51200,
+			RataHyperMaxRAM:        10240,
+			ExpectedAddDeadRow:     []string{"bm-e4-01"},
+		},
 	}
 
 	for name, tc := range cases {
@@ -368,10 +409,14 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 			log := zerolog.New(os.Stdout)
 
 			rata := director.NewRata(cfg.DirectorRata{
-				MinCPU: tc.RataMinCPU,
-				MinRAM: tc.RataMinRAM,
-				MaxCPU: tc.RataMaxCPU,
-				MaxRAM: tc.RataMaxRAM,
+				MinCPU:             tc.RataMinCPU,
+				MinRAM:             tc.RataMinRAM,
+				MaxCPU:             tc.RataMaxCPU,
+				MaxRAM:             tc.RataMaxRAM,
+				MinRAMLimitPercent: tc.RataMinRAMLimitPercent,
+				MinRAMLimitMargin:  tc.RataMinRAMLimitMargin,
+				MaxRAMLimitPercent: tc.RataMaxRAMLimitPercent,
+				MaxRAMLimitMargin:  tc.RataMaxRAMLimitMargin,
 			}, false, &log, nil)
 
 			create, destroy, removeDeadRow, addDeadRow, err := rata.NeedToScaleHypervisors(context.Background(), tc.AvailHypers, tc.Hypers)

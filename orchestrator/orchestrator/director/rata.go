@@ -225,10 +225,23 @@ func (r *Rata) bestHyperToDestroy(hypersToHandle []*isardvdi.OrchestratorHypervi
 
 // TODO: CPU
 // TODO: Capabilities
-func (r *Rata) bestHyperToMoveInDeadRow(hypersToHandle []*isardvdi.OrchestratorHypervisor, ramAvail, minCPU, minRAM, maxRAM int) *isardvdi.OrchestratorHypervisor {
+func (r *Rata) bestHyperToMoveInDeadRow(hypersToAcknowledge, hypersToHandle []*isardvdi.OrchestratorHypervisor, ramAvail int) *isardvdi.OrchestratorHypervisor {
 	var deadRow *isardvdi.OrchestratorHypervisor
 
 	for _, h := range hypersToHandle {
+		// Calc limits as if the hypervisor was removed
+		reducedHypersToAcknowledge := make([]*isardvdi.OrchestratorHypervisor, len(hypersToAcknowledge))
+		copy(reducedHypersToAcknowledge, hypersToAcknowledge)
+
+		for i, hyp := range reducedHypersToAcknowledge {
+			if h.ID == hyp.ID {
+				reducedHypersToAcknowledge = append(reducedHypersToAcknowledge[:i], reducedHypersToAcknowledge[i+1:]...)
+			}
+		}
+
+		minRAM := r.minRAM(reducedHypersToAcknowledge)
+		maxRAM := r.maxRAM(reducedHypersToAcknowledge)
+
 		// Ensure the hypervisor is not on the dead row
 		canBeSentenced := h.DestroyTime.IsZero() &&
 			(
@@ -331,7 +344,7 @@ availHypersLoop:
 	}
 
 	// Check if we need to move the hypervisor to the dead row
-	deadRow := r.bestHyperToMoveInDeadRow(hypersToHandle, ramAvail, minCPU, minRAM, maxRAM)
+	deadRow := r.bestHyperToMoveInDeadRow(hypersToAcknowledge, hypersToHandle, ramAvail)
 	if deadRow != nil {
 		r.log.Info().Str("id", deadRow.ID).Int("avail_cpu", cpuAvail).Int("avail_ram", ramAvail).Int("req_cpu", reqHypersCPU).Int("req_ram", reqHypersRAM).Str("scaling", "down").Msg("set hypervisor to destroy")
 		return nil, nil, nil, []string{deadRow.ID}, nil
