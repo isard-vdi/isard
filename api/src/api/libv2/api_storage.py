@@ -98,6 +98,9 @@ def get_disks(user_id=None, status=None, pluck=None, category_id=None):
                 "category": r.table("users")
                 .get(disk["user_id"])
                 .default({"category": "[DELETED]"})["category"],
+                "domains": r.table("domains")
+                .get_all(disk["id"], index="storage_ids")
+                .count(),
             }
         )
 
