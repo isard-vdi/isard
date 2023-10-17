@@ -2166,7 +2166,9 @@ class Upgrade(object):
                     )
                     for storage_to_insert in storages_to_insert:
                         storage = Storage(storage_to_insert["id"])
-                        storage.check_backing_chain(user_id="local-default-admin-admin")
+                        storage.check_backing_chain(
+                            user_id="local-default-admin-admin", blocking=False
+                        )
 
                 r.table("storage").get_all(r.args(storages_ids_to_remove)).delete().run(
                     self.conn
