@@ -436,6 +436,7 @@ $(document).ready(function() {
           { "data": null},
           { "data": "user_id"},
           { "data": "status_logs"},
+          { "data": "domains"},
           { "data": "task", "defaultContent": "-"}
         ],
       "columnDefs": [
@@ -466,7 +467,7 @@ $(document).ready(function() {
           }
         },
         {
-          "targets": 6,
+          "targets": 7,
           "render": function ( data, type, full, meta ) {
             if( "task" in full ){
               return '<button type="button" data-task="'+full.task+'" class="btn btn-pill-right btn-info btn-xs btn-task-info" title="Show last task info"><i class="fa fa-tasks"></i></button>';
@@ -476,7 +477,7 @@ $(document).ready(function() {
           }
         },
         {
-          "targets": 7,
+          "targets": 8,
           "render": function ( data, type, full, meta ) {
             return '<button type="button" data-id="'+full.id+'" class="btn btn-pill-right btn-success btn-xs btn-check-qemu-img-info" title="Check disk info"><i class="fa fa-refresh"></i></button>';
           }
