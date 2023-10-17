@@ -176,6 +176,8 @@ function generate_events(divId) {
       // Get the filters id to get its value
       let filterId = $(divId).children(':visible')[i].getAttribute('filterId')
       let key = $('#' + filterId).attr("index");
+      $("#other-filters #join-checkbox").iCheck('uncheck').iCheck('update');
+      
       if ($(divId).children(':visible')[i].getAttribute('always-shown') !== 'true') {
         key = 'items_ids'
       }

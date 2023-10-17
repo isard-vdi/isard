@@ -1011,4 +1011,4 @@ def unify_item_name(item_id):
             lambda uc: uc["item_name"] != current_name
         ).update({"item_name": current_name}).run(db.conn)
     get_start_end_consumption.cache_clear()
-    return True
+    return current_name

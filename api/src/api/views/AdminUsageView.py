@@ -569,9 +569,8 @@ def api_v3_admin_usage_credits_delete(payload, credit_id):
 @app.route("/api/v3/admin/usage/unify/<item_id>/item_name", methods=["PUT"])
 @is_admin
 def api_v3_admin_usage_unify_item_name(payload, item_id):
-    unify_item_name(item_id)
     return (
-        json.dumps({}),
+        json.dumps({"name": unify_item_name(item_id)}),
         200,
         {"Content-Type": "application/json"},
     )
