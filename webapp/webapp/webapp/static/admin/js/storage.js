@@ -42,7 +42,9 @@ $(document).ready(function() {
       "language": {
         "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
       },
-      "rowId": "id",
+      "rowId": function ( row ) {
+        return row.id.replaceAll("/", "_");
+      },
       "deferRender": true,
       "columns": [
         {
@@ -161,7 +163,7 @@ $(document).ready(function() {
           tr.removeClass("shown");
 
           // Destroy the Child Datatable
-          $("#cl" + rowData.clientID)
+          $('#cl' + tr.attr("id"))
             .DataTable()
             .destroy();
         } else {
@@ -175,7 +177,7 @@ $(document).ready(function() {
             row.child(format(rowData)).show();
             var id = rowData.id;
 
-            childTable = $("#cl" + id).DataTable({
+            childTable = $('#cl' + tr.attr("id")).DataTable({
               dom: "t",
               ajax: {
                 url: "/api/v3/storage/" + id+"/parents",
@@ -244,7 +246,9 @@ $(document).ready(function() {
       "language": {
         "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
       },
-      "rowId": "id",
+      "rowId": function ( row ) {
+        return row.id.replaceAll("/", "_");
+      },
       "deferRender": true,
       "columns": [
         {
@@ -364,7 +368,7 @@ $(document).ready(function() {
           tr.removeClass("shown");
 
           // Destroy the Child Datatable
-          $("#cl" + rowData.clientID)
+          $('#cl' + tr.attr("id"))
             .DataTable()
             .destroy();
         } else {
@@ -378,10 +382,10 @@ $(document).ready(function() {
             row.child(format(rowData)).show();
             var id = rowData.id;
 
-            childTable = $("#cl" + id).DataTable({
+            childTable = $('#cl' + tr.attr("id")).DataTable({
               dom: "t",
               ajax: {
-                url: "/api/v3/storage/" + id+"/parents",
+                url: "/api/v3/storage/" + id + "/parents",
                 contentType: "application/json",
                 type: "GET",
               },
@@ -427,7 +431,9 @@ $(document).ready(function() {
       "language": {
         "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
       },
-      "rowId": "id",
+      "rowId": function ( row ) {
+        return row.id.replaceAll("/", "_");
+      },
       "deferRender": true,
         "columns": [
           { "data": "id",},
@@ -527,7 +533,9 @@ $(document).ready(function() {
         "language": {
           "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
         },
-        "rowId": "id",
+        "rowId": function ( row ) {
+          return row.id.replaceAll("/", "_");
+        },
         "deferRender": true,
         "columns": [
           { "data": ""},
@@ -891,6 +899,7 @@ $(document).on('click', '.btn-check-qemu-img-info', function () {
 function socketio_on(){
   socket.on('storage', function(data) {
     var data = JSON.parse(data);
+    data.id = data.id.replaceAll("/", "_")
     if( typeof(storage_ready.row('#'+data.id).id())!='undefined' ){
       actual_data=storage_ready.row("#"+data.id).data()
       if( "status" in data && data.status != 'ready' ){
@@ -962,7 +971,7 @@ function add_to_status_table(status, data){
 function format(rowData) {
     var childTable =
       '<table id="cl' +
-      rowData.id +
+      rowData.id.replaceAll("/", "_") +
       '" class="display compact nowrap w-100" width="100%">' +
       "</table>";
     return $(childTable).toArray();
