@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 107
+release_version = 108
+# release 108: Fixed upgrade old domains with old storage to new storage
 # release 107: Upgrade old domains with old storage to new storage
 # release 106: Add parent index to storage
 # release 105: Remove units from str_created in usage limits
@@ -2072,6 +2073,108 @@ class Upgrade(object):
                     for storage_to_insert in storages_to_insert:
                         storage = Storage(storage_to_insert["id"])
                         storage.check_backing_chain(user_id="local-default-admin-admin")
+
+            except Exception as e:
+                print(e)
+
+        if version == 108:
+            try:
+                storages_ids_to_remove = list(
+                    r.table("domains")
+                    .eq_join(
+                        r.row["create_dict"]["hardware"]["disks"][0]["storage_id"],
+                        r.table("storage"),
+                    )
+                    .filter(
+                        lambda storage: r.expr(["migrating", "deleted"]).contains(
+                            storage["right"]["status"]
+                        )
+                    )
+                    .pluck("right")["right"]["id"]
+                    .run(self.conn)
+                )
+
+                domains_with_file_path = list(
+                    r.table("domains")
+                    .get_all(r.args(storages_ids_to_remove), index="storage_ids")
+                    .pluck(
+                        {
+                            "id": True,
+                            "user": True,
+                            "parents": True,
+                            "hardware": {"disks": True},
+                        }
+                    )
+                    .run(self.conn)
+                )
+
+                domains_to_update = []
+                storages_to_insert = []
+                storages = {}
+
+                for domain in domains_with_file_path:
+                    old_disk = domain["hardware"]["disks"][0]
+                    base_name = os.path.splitext(old_disk["file"])
+                    fmt = base_name[1][1:]
+                    directory_path = "/".join(old_disk["file"].split("/")[:3])
+                    uuid = "/".join(old_disk["file"].split("/")[3:]).split(".")[0]
+
+                    if not storages.get(old_disk["file"]):
+                        storages[old_disk["file"]] = uuid
+                        storages_to_insert.append(
+                            {
+                                "id": uuid,
+                                "directory_path": directory_path,
+                                "status": "migrating",
+                                "type": fmt,
+                                "user_id": domain["user"],
+                                "status_logs": [
+                                    {"status": "created", "time": int(time.time())}
+                                ],
+                            }
+                        )
+                    domains_to_update.append(
+                        {
+                            "id": domain["id"],
+                            "create_dict": {
+                                "hardware": {
+                                    "disks": [
+                                        {
+                                            "storage_id": uuid,
+                                        }
+                                    ]
+                                }
+                            },
+                        }
+                    )
+
+                if len(storages_to_insert):
+                    print(
+                        "Inserting %s new storages from old domains..."
+                        % len(storages_to_insert)
+                    )
+                    r.table("storage").insert(storages_to_insert).run(self.conn)
+                    print(
+                        "Updating %s domains disks from old domains..."
+                        % len(domains_to_update)
+                    )
+                    r.table("domains").insert(domains_to_update, conflict="update").run(
+                        self.conn
+                    )
+                    print(
+                        "WARNING: storages need to be updated. Adding tasks to do it in the next minutes."
+                    )
+
+                r.table("storage").get_all(r.args(storages_ids_to_remove)).delete().run(
+                    self.conn
+                )
+
+                if len(storages_to_insert):
+                    for storage_to_insert in storages_to_insert:
+                        storage = Storage(storage_to_insert["id"])
+                        storage.check_backing_chain(
+                            user_id="local-default-admin-admin", blocking=False
+                        )
 
             except Exception as e:
                 print(e)

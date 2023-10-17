@@ -115,11 +115,23 @@ class Storage(RethinkCustomBase):
         """
         Create Task for a Storage.
         """
-        if self.task and Task.exists(self.task) and Task(self.task).pending:
-            raise Exception(f"Storage {self.id} have the pending task {self.task}")
+        if "blocking" in kwargs:
+            blocking = kwargs.pop("blocking")
+        else:
+            blocking = True
+        if (
+            blocking
+            and self.task
+            and Task.exists(self.task)
+            and Task(self.task).pending
+        ):
+            raise Exception(
+                "precondition_required",
+                f"Storage {self.id} have the pending task {self.task}",
+            )
         self.task = Task(*args, **kwargs).id
 
-    def check_backing_chain(self, user_id):
+    def check_backing_chain(self, user_id, blocking=True):
         """
         Create a task to check the storage.
 
@@ -130,6 +142,7 @@ class Storage(RethinkCustomBase):
         """
 
         self.create_task(
+            blocking=blocking,
             user_id=user_id,
             queue=f"storage.{StoragePool.get_best_for_action('qemu_img_info', path=self.directory_path).id}.default",
             task="qemu_img_info_backing_chain",
