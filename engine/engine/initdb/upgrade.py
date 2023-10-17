@@ -2164,15 +2164,17 @@ class Upgrade(object):
                     print(
                         "WARNING: storages need to be updated. Adding tasks to do it in the next minutes."
                     )
+
+                r.table("storage").get_all(r.args(storages_ids_to_remove)).delete().run(
+                    self.conn
+                )
+
+                if len(storages_to_insert):
                     for storage_to_insert in storages_to_insert:
                         storage = Storage(storage_to_insert["id"])
                         storage.check_backing_chain(
                             user_id="local-default-admin-admin", blocking=False
                         )
-
-                r.table("storage").get_all(r.args(storages_ids_to_remove)).delete().run(
-                    self.conn
-                )
 
             except Exception as e:
                 print(e)

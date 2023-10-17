@@ -17,6 +17,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+from isardvdi_common.api_exceptions import Error
 from isardvdi_common.storage_pool import StoragePool
 from rq.job import JobStatus
 
@@ -121,7 +122,10 @@ class Storage(RethinkCustomBase):
             and Task.exists(self.task)
             and Task(self.task).pending
         ):
-            raise Exception(f"Storage {self.id} have the pending task {self.task}")
+            raise Error(
+                "precondition_required",
+                f"Storage {self.id} have the pending task {self.task}",
+            )
         self.task = Task(*args, **kwargs).id
 
     def check_backing_chain(self, user_id, blocking=True):
