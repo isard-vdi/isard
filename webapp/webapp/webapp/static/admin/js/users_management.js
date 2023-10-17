@@ -1274,8 +1274,8 @@ function parseCSV(csv){
     users=[]
     $.each(lines, function(n, l){
         if(n!=0 && l.length > 10){
-            var regex = /("[^"]*"|[^,]+)(?=,|$)/g;
-            usr = toObject(header,l.match(regex));
+            // var regex = /("[^"]*"|[^,]+)(?=,|$)/g;
+            usr = toObject(header,l.split(","));
             usr['id']=usr['username']
             users.push(usr)
         }
