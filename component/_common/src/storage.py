@@ -17,7 +17,6 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from isardvdi_common.api_exceptions import Error
 from isardvdi_common.storage_pool import StoragePool
 from rq.job import JobStatus
 
@@ -116,13 +115,17 @@ class Storage(RethinkCustomBase):
         """
         Create Task for a Storage.
         """
+        if "blocking" in kwargs:
+            blocking = kwargs.pop("blocking")
+        else:
+            blocking = True
         if (
-            args.get("blocking", True)
+            blocking
             and self.task
             and Task.exists(self.task)
             and Task(self.task).pending
         ):
-            raise Error(
+            raise Exception(
                 "precondition_required",
                 f"Storage {self.id} have the pending task {self.task}",
             )

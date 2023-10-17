@@ -118,36 +118,47 @@ def create_storage(payload):
             request_json.get("usage_type")
         ),
     )
-    storage.create_task(
-        user_id=payload.get("user_id"),
-        queue=f"storage.{storage_pool.id}.{priority}",
-        task="create",
-        job_kwargs={
-            "kwargs": {
-                "storage_path": f"{storage.directory_path}/{storage.id}.{storage.type}",
-                "storage_type": storage.type,
-                "size": request_json.get("size"),
-                **parent_args,
+    try:
+        storage.create_task(
+            user_id=payload.get("user_id"),
+            queue=f"storage.{storage_pool.id}.{priority}",
+            task="create",
+            job_kwargs={
+                "kwargs": {
+                    "storage_path": f"{storage.directory_path}/{storage.id}.{storage.type}",
+                    "storage_type": storage.type,
+                    "size": request_json.get("size"),
+                    **parent_args,
+                },
             },
-        },
-        dependents=[
-            {
-                "queue": "core",
-                "task": "update_status",
-                "job_kwargs": {
-                    "kwargs": {
-                        "statuses": {
-                            "finished": {
-                                "ready": {
-                                    "storage": [storage.id],
+            dependents=[
+                {
+                    "queue": "core",
+                    "task": "update_status",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "statuses": {
+                                "finished": {
+                                    "ready": {
+                                        "storage": [storage.id],
+                                    },
                                 },
                             },
                         },
                     },
-                },
-            }
-        ],
-    )
+                }
+            ],
+        )
+    except Exception as e:
+        if e.args[0] == "precondition_required":
+            raise Error(
+                "precondition_required",
+                f"Storage {storage.id} already has a pending task.",
+            )
+        raise Error(
+            "internal_server_error",
+            "Error creating storage",
+        )
     return jsonify(storage.id)
 
 
@@ -229,38 +240,49 @@ def storage_delete(payload, storage_id):
     :rtype: Set with Flask response values and data in JSON
     """
     storage = set_storage_maintenance(payload, storage_id)
-    storage.create_task(
-        user_id=payload.get("user_id"),
-        queue=f"storage.{StoragePool.get_best_for_action('delete', path=storage.directory_path).id}.default",
-        task="delete",
-        job_kwargs={
-            "kwargs": {
-                "path": f"{storage.directory_path}/{storage.id}.{storage.type}",
+    try:
+        storage.create_task(
+            user_id=payload.get("user_id"),
+            queue=f"storage.{StoragePool.get_best_for_action('delete', path=storage.directory_path).id}.default",
+            task="delete",
+            job_kwargs={
+                "kwargs": {
+                    "path": f"{storage.directory_path}/{storage.id}.{storage.type}",
+                },
             },
-        },
-        dependents=[
-            {
-                "queue": "core",
-                "task": "update_status",
-                "job_kwargs": {
-                    "kwargs": {
-                        "statuses": {
-                            "finished": {
-                                "deleted": {
-                                    "storage": [storage.id],
+            dependents=[
+                {
+                    "queue": "core",
+                    "task": "update_status",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "statuses": {
+                                "finished": {
+                                    "deleted": {
+                                        "storage": [storage.id],
+                                    },
                                 },
-                            },
-                            "canceled": {
-                                "ready": {
-                                    "storage": [storage.id],
+                                "canceled": {
+                                    "ready": {
+                                        "storage": [storage.id],
+                                    },
                                 },
                             },
                         },
                     },
-                },
-            }
-        ],
-    )
+                }
+            ],
+        )
+    except Exception as e:
+        if e.args[0] == "precondition_required":
+            raise Error(
+                "precondition_required",
+                f"Storage {storage.id} already has a pending task.",
+            )
+        raise Error(
+            "internal_server_error",
+            "Error deleting storage",
+        )
     return jsonify(storage.task)
 
 
@@ -281,40 +303,51 @@ def storage_update_qemu_img_info(payload, storage_id):
     :rtype: Set with Flask response values and data in JSON
     """
     storage = set_storage_maintenance(payload, storage_id)
-    storage.create_task(
-        user_id=payload.get("user_id"),
-        queue=f"storage.{StoragePool.get_best_for_action('qemu_img_info', path=storage.directory_path).id}.default",
-        task="qemu_img_info",
-        job_kwargs={
-            "kwargs": {
-                "storage_id": storage.id,
-                "storage_path": f"{storage.directory_path}/{storage.id}.{storage.type}",
-            }
-        },
-        dependents=[
-            {
-                "queue": "core",
-                "task": "storage_update",
-                "dependents": [
-                    {
-                        "queue": "core",
-                        "task": "update_status",
-                        "job_kwargs": {
-                            "kwargs": {
-                                "statuses": {
-                                    "finished": {
-                                        "ready": {
-                                            "storage": [storage.id],
+    try:
+        storage.create_task(
+            user_id=payload.get("user_id"),
+            queue=f"storage.{StoragePool.get_best_for_action('qemu_img_info', path=storage.directory_path).id}.default",
+            task="qemu_img_info",
+            job_kwargs={
+                "kwargs": {
+                    "storage_id": storage.id,
+                    "storage_path": f"{storage.directory_path}/{storage.id}.{storage.type}",
+                }
+            },
+            dependents=[
+                {
+                    "queue": "core",
+                    "task": "storage_update",
+                    "dependents": [
+                        {
+                            "queue": "core",
+                            "task": "update_status",
+                            "job_kwargs": {
+                                "kwargs": {
+                                    "statuses": {
+                                        "finished": {
+                                            "ready": {
+                                                "storage": [storage.id],
+                                            },
                                         },
-                                    },
+                                    }
                                 }
-                            }
-                        },
-                    }
-                ],
-            }
-        ],
-    )
+                            },
+                        }
+                    ],
+                }
+            ],
+        )
+    except Exception as e:
+        if e.args[0] == "precondition_required":
+            raise Error(
+                "precondition_required",
+                f"Storage {storage.id} already has a pending task.",
+            )
+        raise Error(
+            "internal_server_error",
+            "Error updating qemu img info for storage",
+        )
     return jsonify(storage.task)
 
 
@@ -353,23 +386,34 @@ def storage_check_existence(payload, storage_id):
     :rtype: Set with Flask response values and data in JSON
     """
     storage = set_storage_maintenance(payload, storage_id)
-    storage.create_task(
-        user_id=payload.get("user_id"),
-        queue=f"storage.{StoragePool.get_best_for_action('check_existence', path=storage.directory_path).id}.default",
-        task="check_existence",
-        job_kwargs={
-            "kwargs": {
-                "storage_id": storage.id,
-                "storage_path": f"{storage.directory_path}/{storage.id}.{storage.type}",
-            }
-        },
-        dependents=[
-            {
-                "queue": "core",
-                "task": "storage_update",
-            }
-        ],
-    )
+    try:
+        storage.create_task(
+            user_id=payload.get("user_id"),
+            queue=f"storage.{StoragePool.get_best_for_action('check_existence', path=storage.directory_path).id}.default",
+            task="check_existence",
+            job_kwargs={
+                "kwargs": {
+                    "storage_id": storage.id,
+                    "storage_path": f"{storage.directory_path}/{storage.id}.{storage.type}",
+                }
+            },
+            dependents=[
+                {
+                    "queue": "core",
+                    "task": "storage_update",
+                }
+            ],
+        )
+    except Exception as e:
+        if e.args[0] == "precondition_required":
+            raise Error(
+                "precondition_required",
+                f"Storage {storage.id} already has a pending task.",
+            )
+        raise Error(
+            "internal_server_error",
+            "Error checking storage existence",
+        )
     return jsonify(storage.task)
 
 
@@ -390,40 +434,51 @@ def storage_update_parent(payload, storage_id):
     :rtype: Set with Flask response values and data in JSON
     """
     storage = set_storage_maintenance(payload, storage_id)
-    storage.create_task(
-        user_id=payload.get("user_id"),
-        queue="core",
-        task="storage_update_parent",
-        job_kwargs={
-            "kwargs": {
-                "storage_id": storage.id,
-            }
-        },
-        dependencies=[
-            {
-                "queue": "core",
-                "task": "storage_update",
-                "dependencies": [
-                    {
-                        "queue": f"storage.{StoragePool.get_best_for_action('check_backing_filename', path=storage.directory_path).id}.default",
-                        "task": "check_backing_filename",
-                        "dependencies": [
-                            {
-                                "queue": f"storage.{StoragePool.get_best_for_action('qemu_img_info', path=storage.directory_path).id}.default",
-                                "task": "qemu_img_info",
-                                "job_kwargs": {
-                                    "kwargs": {
-                                        "storage_id": storage.id,
-                                        "storage_path": f"{storage.directory_path}/{storage.id}.{storage.type}",
-                                    }
-                                },
-                            }
-                        ],
-                    }
-                ],
-            }
-        ],
-    )
+    try:
+        storage.create_task(
+            user_id=payload.get("user_id"),
+            queue="core",
+            task="storage_update_parent",
+            job_kwargs={
+                "kwargs": {
+                    "storage_id": storage.id,
+                }
+            },
+            dependencies=[
+                {
+                    "queue": "core",
+                    "task": "storage_update",
+                    "dependencies": [
+                        {
+                            "queue": f"storage.{StoragePool.get_best_for_action('check_backing_filename', path=storage.directory_path).id}.default",
+                            "task": "check_backing_filename",
+                            "dependencies": [
+                                {
+                                    "queue": f"storage.{StoragePool.get_best_for_action('qemu_img_info', path=storage.directory_path).id}.default",
+                                    "task": "qemu_img_info",
+                                    "job_kwargs": {
+                                        "kwargs": {
+                                            "storage_id": storage.id,
+                                            "storage_path": f"{storage.directory_path}/{storage.id}.{storage.type}",
+                                        }
+                                    },
+                                }
+                            ],
+                        }
+                    ],
+                }
+            ],
+        )
+    except Exception as e:
+        if e.args[0] == "precondition_required":
+            raise Error(
+                "precondition_required",
+                f"Storage {storage.id} already has a pending task.",
+            )
+        raise Error(
+            "internal_server_error",
+            "Error updating storage parent",
+        )
     return jsonify(storage.task)
 
 
@@ -473,46 +528,59 @@ def storage_move(payload, storage_id, path):
         storage_pool_ids = [storage_pool_origin.id, storage_pool_destination.id]
         storage_pool_ids.sort()
         queue = ":".join(storage_pool_ids)
-    storage.create_task(
-        user_id=payload.get("user_id"),
-        queue=f"storage.{queue}.default",
-        task="move",
-        job_kwargs={
-            "kwargs": {
-                "origin_path": f"{storage.directory_path}/{storage.id}.{storage.type}",
-                "destination_path": f"{path}/{storage.id}.{storage.type}",
+    try:
+        storage.create_task(
+            user_id=payload.get("user_id"),
+            queue=f"storage.{queue}.default",
+            task="move",
+            job_kwargs={
+                "kwargs": {
+                    "origin_path": f"{storage.directory_path}/{storage.id}.{storage.type}",
+                    "destination_path": f"{path}/{storage.id}.{storage.type}",
+                },
             },
-        },
-        dependents=[
-            {
-                "queue": "core",
-                "task": "storage_update",
-                "job_kwargs": {"kwargs": {"id": storage.id, "directory_path": path}},
-                "dependents": [
-                    {
-                        "queue": "core",
-                        "task": "update_status",
-                        "job_kwargs": {
-                            "kwargs": {
-                                "statuses": {
-                                    "finished": {
-                                        "ready": {
-                                            "storage": [storage.id],
+            dependents=[
+                {
+                    "queue": "core",
+                    "task": "storage_update",
+                    "job_kwargs": {
+                        "kwargs": {"id": storage.id, "directory_path": path}
+                    },
+                    "dependents": [
+                        {
+                            "queue": "core",
+                            "task": "update_status",
+                            "job_kwargs": {
+                                "kwargs": {
+                                    "statuses": {
+                                        "finished": {
+                                            "ready": {
+                                                "storage": [storage.id],
+                                            },
                                         },
-                                    },
-                                    "canceled": {
-                                        "ready": {
-                                            "storage": [storage.id],
+                                        "canceled": {
+                                            "ready": {
+                                                "storage": [storage.id],
+                                            },
                                         },
                                     },
                                 },
                             },
                         },
-                    },
-                ],
-            },
-        ],
-    )
+                    ],
+                },
+            ],
+        )
+    except Exception as e:
+        if e.args[0] == "precondition_required":
+            raise Error(
+                "precondition_required",
+                f"Storage {storage.id} already has a pending task.",
+            )
+        raise Error(
+            "internal_server_error",
+            "Error moving storage",
+        )
     return jsonify(storage.task)
 
 
@@ -555,47 +623,58 @@ def storage_convert(payload, storage_id, new_storage_type, compress=None):
         type=new_storage_type.lower(),
         directory_path=origin_storage.directory_path,
     )
-    origin_storage.create_task(
-        user_id=payload.get("user_id"),
-        queue=f"storage.{StoragePool.get_best_for_action('convert', path=origin_storage.directory_path).id}.default",
-        task="convert",
-        job_kwargs={
-            "timeout": 4096,
-            "args": [
-                ConvertRequest(
-                    source_disk_path=f"{origin_storage.directory_path}/{origin_storage.id}.{origin_storage.type}",
-                    dest_disk_path=f"{new_storage.directory_path}/{new_storage.id}.{new_storage.type}",
-                    format=getattr(DiskFormat, disk_format),
-                    compression=compress,
-                )
-            ],
-        },
-        dependents=[
-            {
-                "queue": "core",
-                "task": "update_status",
-                "job_kwargs": {
-                    "kwargs": {
-                        "statuses": {
-                            "_all": {
-                                "ready": {
-                                    "storage": [origin_storage.id],
+    try:
+        origin_storage.create_task(
+            user_id=payload.get("user_id"),
+            queue=f"storage.{StoragePool.get_best_for_action('convert', path=origin_storage.directory_path).id}.default",
+            task="convert",
+            job_kwargs={
+                "timeout": 4096,
+                "args": [
+                    ConvertRequest(
+                        source_disk_path=f"{origin_storage.directory_path}/{origin_storage.id}.{origin_storage.type}",
+                        dest_disk_path=f"{new_storage.directory_path}/{new_storage.id}.{new_storage.type}",
+                        format=getattr(DiskFormat, disk_format),
+                        compression=compress,
+                    )
+                ],
+            },
+            dependents=[
+                {
+                    "queue": "core",
+                    "task": "update_status",
+                    "job_kwargs": {
+                        "kwargs": {
+                            "statuses": {
+                                "_all": {
+                                    "ready": {
+                                        "storage": [origin_storage.id],
+                                    },
                                 },
-                            },
-                            "finished": {
-                                "ready": {
-                                    "storage": [new_storage.id],
+                                "finished": {
+                                    "ready": {
+                                        "storage": [new_storage.id],
+                                    },
                                 },
-                            },
-                            "canceled": {
-                                "deleted": {
-                                    "storage": [new_storage.id],
+                                "canceled": {
+                                    "deleted": {
+                                        "storage": [new_storage.id],
+                                    },
                                 },
-                            },
+                            }
                         }
-                    }
-                },
-            }
-        ],
-    )
+                    },
+                }
+            ],
+        )
+    except Exception as e:
+        if e.args[0] == "precondition_required":
+            raise Error(
+                "precondition_required",
+                f"Storage {origin_storage.id} already has a pending task.",
+            )
+        raise Error(
+            "internal_server_error",
+            "Error converting storage",
+        )
     return jsonify(new_storage.id)
