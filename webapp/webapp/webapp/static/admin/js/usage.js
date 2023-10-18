@@ -108,6 +108,14 @@ function showHideIncremental (tableId, show) {
   }
 }
 
+$('#other-filters #join-checkbox').on('ifChecked', function(event){
+  $("#usageTable").DataTable().column( 2 ).visible( true );
+});
+
+$('#other-filters #join-checkbox').on('ifUnchecked', function(event){
+  $("#usageTable").DataTable().column( 2 ).visible( false );
+});
+
 $('#btn-view-graph').on('click', function (e) {
   $('#canvas-holder').html('')
   $('#usageGraphs').html('')
@@ -180,6 +188,26 @@ function createUsageTable(data) {
         'visible': false
       },
       {
+        'data': null, // Will render link to Join duplicated item_id
+        'className': 'always-shown toggle-vis',
+        'visible': false,
+        'render': function (data, type, row) {
+          if (row.duplicated_item_id === true ) {
+            return `<button
+                type="button"
+                class="btn btn-pill-right btn-info btn-xs join-button"
+                data-item_id="${row.item_id}"
+                title="Join all items with same id with the latest computed name"
+              >
+                <i class="fa fa-link"></i>
+                ${row.item_id}
+              </button>`
+          } else {
+            return ''
+          }
+        }
+      },
+      {
         'data': 'item_name',
         'className': 'always-shown',
         'defaultContent': ''
@@ -203,7 +231,7 @@ function createUsageTable(data) {
       }),
       success: function (parameters) {
         // Add the header
-        $(tableId + ' thead tr').first().append('<th rowspan="2">Selected</th><th rowspan="2">Item id</th><th rowspan="2">Name</th><th rowspan="2">Consumer</th>')
+        $(tableId + ' thead tr').first().append('<th rowspan="2">Selected</th><th rowspan="2">Item id</th><th rowspan="2">Join duplicates</th><th rowspan="2">Name</th><th rowspan="2">Consumer</th>')
         $.each(parameters, function (pos, parameter) {
           // Add header dynamically
           $(tableId + ' thead tr').first().append(`<th colspan="3" title="${parameter.desc}\n${parameter.formula ? 'Applied formula: ' + parameter.formula : ''}">${parameter.name} <i class="fa fa-info-circle" aria-hidden="true"></i></th>`)
@@ -307,8 +335,58 @@ function createUsageTable(data) {
       </div>
     `);
   }
-
 }
+
+
+$('tbody').on('click', 'button', function (e) {
+  if ($(this).hasClass('join-button')) {
+    consumer_id = $(this).data("item_id")
+
+    new PNotify({
+      title: `Join items with ID ${consumer_id}?`,
+      text: "This action is irreversible and will unify all consumers under the most recent name.",
+      hide: false,
+      opacity: 0.9,
+      confirm: { confirm: true },
+      buttons: { closer: false, sticker: false },
+      history: { history: false },
+      addclass: "pnotify-center",
+    })
+      .get()
+      .on("pnotify.confirm", function () {
+        $.ajax({
+          type: "PUT",
+          url: `/api/v3/admin/usage/unify/${consumer_id}/item_name`,
+          dataType: 'json',
+          contentType: "application/json",
+          success: function (data) {
+            new PNotify({
+              title: 'Joined duplicated consumers',
+              text: `All items have been grouped under the name: ${data.name}`,
+              hide: true,
+              delay: 2000,
+              opacity: 1,
+              type: 'success'
+            })
+            $("#usageTable").DataTable().ajax.reload();
+          },
+          error: function ({responseJSON: {description} = {}}) {
+            const msg = description ? description : 'Something went wrong';
+            new PNotify({
+              title: "ERROR joining duplicates",
+              text: msg,
+              type: 'error',
+              icon: 'fa fa-warning',
+              hide: true,
+              delay: 15000,
+              opacity: 1
+            });
+          }
+        })
+      })
+      .on("pnotify.cancel", function () {});
+  }
+});
 
 function addChart(data, itemId, graphTitle, graphSubtitle, limits, kind) {
   $(`#canvas-holder-${itemId}`).html(`<div id="canvas-${itemId}" (window:resize)="onResize($event)"></div>`)

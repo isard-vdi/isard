@@ -224,6 +224,10 @@ def get_start_end_consumption(
         if reset_dates[0] < end_date:
             reset_end_date = reset_dates[0]
 
+    items_ids = [d["item_id"] for d in items]
+    duplicated_items_ids = list(
+        set([d["item_id"] for d in items if items_ids.count(d["item_id"]) > 1])
+    )
     for item in items:
         start_data = get_item_date_consumption(
             start_date,
@@ -266,6 +270,7 @@ def get_start_end_consumption(
                 "item_consumer": item_consumer,
                 "start": start_data,
                 "end": end_data,
+                "duplicated_item_id": item["item_id"] in duplicated_items_ids,
             }
         )
     return data
@@ -992,3 +997,18 @@ def cut_existing_usage_credits(item_id, item_type, grouping_id, start_date, end_
             r.table("usage_credit").get(after[0]["id"]).update(after[0]).run(db.conn)
             cache_usage_credits.clear()
     return
+
+
+def unify_item_name(item_id):
+    with app.app_context():
+        current_name = (
+            r.table("usage_consumption")
+            .get_all(item_id, index="item_id")
+            .order_by("date")
+            .run(db.conn)
+        )[-1]["item_name"]
+        r.table("usage_consumption").get_all(item_id, index="item_id").filter(
+            lambda uc: uc["item_name"] != current_name
+        ).update({"item_name": current_name}).run(db.conn)
+    get_start_end_consumption.cache_clear()
+    return current_name
