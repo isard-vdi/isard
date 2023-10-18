@@ -305,6 +305,11 @@
             "info": {
                 "description": "Beschreibung",
                 "name": "Name"
+            },
+            "viewers": {
+                "guest": {
+                    "username": "Benutzername"
+                }
             }
         },
         "create": "Erstellen",
