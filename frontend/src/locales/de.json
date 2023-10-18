@@ -272,6 +272,13 @@
         },
         "select-search": {
             "empty": "Keine Optionen verfügbar"
+        },
+        "bookings": {
+            "item": {
+                "split-labels": {
+                    "bookings": "Buchungen"
+                }
+            }
         }
     },
     "forms": {
