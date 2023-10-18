@@ -41,7 +41,7 @@ function socketio_on(){
                     return {
                         results: $.map(data, function (item, i) {
                             return {
-                                text: item.name,
+                                text: item.name + " [" + item.category_name + "]",
                                 id: item.id
                             }
                         })
@@ -150,7 +150,7 @@ function socketio_on(){
                     return {
                         results: $.map(data, function (item, i) {
                             return {
-                                text: item.name,
+                                text: item.name + " [" + item.category_name + "]",
                                 id: item.id
                             }
                         })
@@ -960,7 +960,7 @@ function actionsUserDetail(){
                     return {
                         results: $.map(data, function (item, i) {
                             return {
-                                text: item.name + ' [' + item.category_name + ']',
+                                text: item.name + " [" + item.category_name + "]",
                                 id: item.id
                             }
                         })
