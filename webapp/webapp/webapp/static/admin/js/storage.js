@@ -143,14 +143,14 @@ $(document).ready(function() {
       }
     } );
 
-    storage_ready.columns().every( function () {
-      var that = this;
-      $( 'input', this.footer() ).on( 'keyup change', function () {
-        if ( that.search() !== this.value ) {
-          that.search( this.value ).draw();
-        }
-      } );
-    } );
+    // storage_ready.columns().every( function () {
+    //   var that = this;
+    //   $( 'input', this.footer() ).on( 'keyup change', function () {
+    //     if ( that.search() !== this.value ) {
+    //       that.search( this.value ).draw();
+    //     }
+    //   } );
+    // } );
 
     $('#storage tbody').on('click', 'td.details-control', function () {
         var tr = $(this).closest("tr");
@@ -348,14 +348,15 @@ $(document).ready(function() {
       }
     } );
 
-    storage_other.columns().every( function () {
-      var that = this;
-      $( 'input', this.footer() ).on( 'keyup change', function () {
-        if ( that.search() !== this.value ) {
-          that.search( this.value ).draw();
-        }
-      } );
-    } );
+    // TODO: Check why it breaks the global search
+    // storage_other.columns().every( function () {
+    //   var that = this;
+    //   $( 'input', this.footer() ).on( 'keyup change', function () {
+    //     if ( that.search() !== this.value ) {
+    //       that.search( this.value ).draw();
+    //     }
+    //   } );
+    // } );
 
     $('#storage_other tbody').on('click', 'td.details-control', function () {
         var tr = $(this).closest("tr");
@@ -419,6 +420,154 @@ $(document).ready(function() {
             tr.addClass("shown");
           }
     } );
+
+  $('.mactionsStorage').on('change', function () {
+    let action = $(this).val();
+    let actionText = $(this).find('option:selected').text();
+    let status = $(this).attr('status')
+    let tableId = '#' + $(this).attr('selectedTableId')
+    let appliedFilter = $(tableId).DataTable().search();
+
+    if (appliedFilter) {
+      let ids = []
+      $(tableId).DataTable().rows({ filter: 'applied' }).every(function () {
+        ids.push(this.data().id);
+      })
+      new PNotify({
+        title: "Confirmation Needed",
+        text: "The action '" + actionText + "' will be performed in " + ids.length + " storages. Are you sure?",
+        hide: false,
+        opacity: 0.9,
+        type: "error",
+        confirm: {
+          confirm: true
+        },
+        buttons: {
+          closer: false,
+          sticker: false
+        },
+        history: {
+          history: false
+        },
+        addclass: 'pnotify-center-large',
+        width: '550'
+      }).get().on('pnotify.confirm', function () {
+        document.body.classList.add('loading-cursor')
+        $.ajax({
+          type: "PUT",
+          url: '/api/v3/storages/status',
+          data: JSON.stringify({
+            ids: ids
+          }),
+          contentType: "application/json",
+          success: function (data) {
+            document.body.classList.remove('loading-cursor')
+            $('.mactionsStorage option[value="none"]').prop("selected", true);
+            $('thead #select-all').prop("checked", false);
+            new PNotify({
+              title: 'Success',
+              text: ' Storages ' + action + ' performed successfully',
+              hide: true,
+              delay: 2000,
+              icon: 'fa fa-' + data.icon,
+              opacity: 1,
+              type: 'success'
+            });
+          },
+          error: function (xhr) {
+            document.body.classList.remove('loading-cursor')
+            $('.mactionsStorage option[value="none"]').prop("selected", true);
+            new PNotify({
+              title: 'Error',
+              text: 'Couldn\'t perform the action \'' + actionText + '\' correctly',
+              type: 'error',
+              hide: true,
+              icon: 'fa fa-warning',
+              delay: 5000,
+              opacity: 1
+            })
+          }
+        })
+      }).on('pnotify.cancel', function () {
+        $('.mactionsStorage option[value="none"]').prop("selected", true);
+      })
+      // No rows selected will perform the action over all table data
+    } else {
+      new PNotify({
+        title: 'Warning!',
+        text: "You are about to perform the action '" + actionText + "' in all the storages in the table!\nPlease write <b>\"I'm aware\"</b> in order to confirm the action",
+        hide: false,
+        opacity: 0.9,
+        type: 'error',
+        confirm: {
+          confirm: true,
+          prompt: true,
+          prompt_multi_line: false,
+          buttons: [
+            {
+              text: "Ok",
+              addClass: "",
+              promptTrigger: true,
+              click: function (notice, value) {
+                if (value == "I'm aware") {
+                  notice.remove();
+                  document.body.classList.add('loading-cursor')
+                  $.ajax({
+                    type: "PUT",
+                    url: '/api/v3/storages/status/' + status,
+                    contentType: "application/json",
+                    success: function (data) {
+                      document.body.classList.remove('loading-cursor')
+                      $('.mactionsStorage option[value="none"]').prop("selected", true);
+                      $('thead #select-all').prop("checked", false);
+                      new PNotify({
+                        title: 'Success',
+                        text: ' Storages ' + action + ' performed successfully',
+                        hide: true,
+                        delay: 2000,
+                        icon: 'fa fa-' + data.icon,
+                        opacity: 1,
+                        type: 'success'
+                      });
+                    },
+                    error: function (xhr) {
+                      document.body.classList.remove('loading-cursor')
+                      $('.mactionsStorage option[value="none"]').prop("selected", true);
+                      new PNotify({
+                        title: 'Error',
+                        text: 'Couldn\'t perform the action \'' + actionText + '\' correctly',
+                        type: 'error',
+                        hide: true,
+                        icon: 'fa fa-warning',
+                        delay: 5000,
+                        opacity: 1
+                      })
+                    }
+                  })
+                }
+              }
+            },
+            {
+              text: "Cancel",
+              addClass: "",
+              click: function (notice) {
+                notice.remove();
+                $('.mactionsStorage option[value="none"]').prop("selected", true);
+              }
+            }]
+        },
+        buttons: {
+          closer: false,
+          sticker: false
+        },
+        history: {
+          history: false
+        },
+        addclass: 'pnotify-center-large',
+        width: '550'
+      })
+    }
+  });
 
     // STORAGES DELETED
     storage_deleted=$('#storage_deleted').DataTable( {
@@ -519,14 +668,14 @@ $(document).ready(function() {
       }
     } );
 
-    storage_deleted.columns().every( function () {
-      var that = this;
-      $( 'input', this.footer() ).on( 'keyup change', function () {
-        if ( that.search() !== this.value ) {
-          that.search( this.value ).draw();
-        }
-      } );
-    } );
+    // storage_deleted.columns().every( function () {
+    //   var that = this;
+    //   $( 'input', this.footer() ).on( 'keyup change', function () {
+    //     if ( that.search() !== this.value ) {
+    //       that.search( this.value ).draw();
+    //     }
+    //   } );
+    // } );
 
     // STORAGES READED FROM STORAGE POOL
     if( $("#storage_physical").length != 0){

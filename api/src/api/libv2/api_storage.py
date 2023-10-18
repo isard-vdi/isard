@@ -26,6 +26,22 @@ import logging as log
 from isardvdi_common.api_exceptions import Error
 
 
+def get_disks_ids_by_status(status=None):
+    query = r.table("storage")
+    if status:
+        if status == "other":
+            query = query.filter(
+                lambda disk: r.expr(["ready", "deleted"])
+                .contains(disk["status"])
+                .not_()
+            )
+        else:
+            query = query.get_all(status, index="status")
+
+    with app.app_context():
+        return list(query.pluck("id")["id"].run(db.conn))
+
+
 def get_disks(user_id=None, status=None, pluck=None, category_id=None):
     query = r.table("storage")
     if user_id:
