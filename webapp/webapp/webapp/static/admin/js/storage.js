@@ -906,30 +906,29 @@ $(document).on('click', '.btn-check-qemu-img-info', function () {
 function socketio_on(){
   socket.on('storage', function(data) {
     var data = JSON.parse(data);
-    data.id = data.id.replaceAll("/", "_")
-    if( typeof(storage_ready.row('#'+data.id).id())!='undefined' ){
-      actual_data=storage_ready.row("#"+data.id).data()
+    if( typeof(storage_ready.row('#'+data.id.replaceAll("/", "_")).id())!='undefined' ){
+      actual_data=storage_ready.row("#"+data.id.replaceAll("/", "_")).data()
       if( "status" in data && data.status != 'ready' ){
-        storage_ready.row('#'+data.id).remove().draw();
+        storage_ready.row('#'+data.id.replaceAll("/", "_")).remove().draw();
         add_to_status_table(data.status, {...actual_data,...data})
       }else{
-        storage_ready.row('#'+data.id).data({...actual_data,...data}).invalidate();
+        storage_ready.row('#'+data.id.replaceAll("/", "_")).data({...actual_data,...data}).invalidate();
       }
-    }else if( typeof(storage_deleted.row('#'+data.id).id())!='undefined' ){
-      actual_data=storage_deleted.row("#"+data.id).data()
+    }else if( typeof(storage_deleted.row('#'+data.id.replaceAll("/", "_")).id())!='undefined' ){
+      actual_data=storage_deleted.row("#"+data.id.replaceAll("/", "_")).data()
       if( "status" in data && data.status != 'deleted' ){
-        storage_deleted.row('#'+data.id).remove().draw();
+        storage_deleted.row('#'+data.id.replaceAll("/", "_")).remove().draw();
         add_to_status_table(data.status, {...actual_data,...data})
       }else{
-        storage_deleted.row('#'+data.id).data({...actual_data,...data}).invalidate();
+        storage_deleted.row('#'+data.id.replaceAll("/", "_")).data({...actual_data,...data}).invalidate();
       }
-    }else if( typeof(storage_other.row('#'+data.id).id())!='undefined' ){
-      actual_data=storage_other.row("#"+data.id).data()
+    }else if( typeof(storage_other.row('#'+data.id.replaceAll("/", "_")).id())!='undefined' ){
+      actual_data=storage_other.row("#"+data.id.replaceAll("/", "_")).data()
       if( "status" in data && data.status != 'ready' ){
-        storage_other.row('#'+data.id).remove().draw();
+        storage_other.row('#'+data.id.replaceAll("/", "_")).remove().draw();
         add_to_status_table(data.status, {...actual_data,...data})
       }else{
-        storage_other.row('#'+data.id).data({...actual_data,...data}).invalidate();
+        storage_other.row('#'+data.id.replaceAll("/", "_")).data({...actual_data,...data}).invalidate();
       }
     }
   });
