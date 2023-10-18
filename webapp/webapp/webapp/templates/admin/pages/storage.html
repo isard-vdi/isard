@@ -18,6 +18,26 @@
       </ul>
       <div class="clearfix"></div>
     </div>
+    {% if current_user.role == 'admin' %}
+    <div class="x_content">
+      <p class="text-muted font-13 m-b-30"></p>
+      <div style="display:inline-flex;">
+        <div style="display:block; width: 15cm;">
+          <label class="control-label col-md-3 col-sm-3 col-xs-12 pull-left" for="mactions">
+            <h4>
+              Global actions:
+            </h4>
+          </label>
+          <div class="col-md-5 col-sm-5 col-xs-12" style="margin-bottom: 20px;">
+            <select class="form-control mactionsStorage" name="mactions" selectedTableId="storage" status="ready">
+              <option value="none">Select action</option>
+              <option value="status">Check disk info</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
     <div class="x_content">
       <table id="storage" class="table" width="100%">
         <thead>
@@ -73,6 +93,26 @@
       </ul>
       <div class="clearfix"></div>
     </div>
+    {% if current_user.role == 'admin' %}
+    <div class="x_content">
+      <p class="text-muted font-13 m-b-30"></p>
+      <div style="display:inline-flex;">
+        <div style="display:block; width: 15cm;">
+          <label class="control-label col-md-3 col-sm-3 col-xs-12 pull-left" for="mactions">
+            <h4>
+              Global actions:
+            </h4>
+          </label>
+          <div class="col-md-5 col-sm-5 col-xs-12" style="margin-bottom: 20px;">
+            <select class="form-control mactionsStorage" name="mactions" selectedTableId="storage_other" status="other">
+              <option value="none">Select action</option>
+              <option value="status">Check disk info</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
     <div class="x_content">
       <table id="storage_other" class="table" width="100%">
         <thead>
@@ -130,6 +170,26 @@
       </ul>
       <div class="clearfix"></div>
     </div>
+    {% if current_user.role == 'admin' %}
+    <div class="x_content">
+      <p class="text-muted font-13 m-b-30"></p>
+      <div style="display:inline-flex;">
+        <div style="display:block; width: 15cm;">
+          <label class="control-label col-md-3 col-sm-3 col-xs-12 pull-left" for="mactions">
+            <h4>
+              Global actions:
+            </h4>
+          </label>
+          <div class="col-md-5 col-sm-5 col-xs-12" style="margin-bottom: 20px;">
+            <select class="form-control mactionsStorage" name="mactions" selectedTableId="storage_deleted" status="deleted">
+              <option value="none">Select action</option>
+              <option value="status">Check disk info</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
     <div class="x_content">
       <table id="storage_deleted" class="table" width="100%">
         <thead>

@@ -16,7 +16,7 @@ from isardvdi_protobuf.queue.storage.v1 import ConvertRequest, DiskFormat
 
 from api import app
 
-from ..libv2.api_storage import get_disks, parse_disks
+from ..libv2.api_storage import get_disks, get_disks_ids_by_status, parse_disks
 from .decorators import has_token, is_admin, ownsStorageId
 
 
@@ -678,3 +678,35 @@ def storage_convert(payload, storage_id, new_storage_type, compress=None):
             "Error converting storage",
         )
     return jsonify(new_storage.id)
+
+
+@app.route("/api/v3/storages/status", methods=["PUT"])
+@is_admin
+def storage_update_status(payload):
+    if not request.is_json:
+        raise Error(
+            description="No JSON in body request with storage ids",
+        )
+    request_json = request.get_json()
+    storages_ids = request_json.get("ids")
+    if not storages_ids:
+        raise Error(
+            description="Storage ids required",
+        )
+    for storage_id in storages_ids:
+        check_storage_existence_and_permissions(payload, storage_id)
+        storage = Storage(storage_id)
+        storage.check_backing_chain(user_id=payload.get("user_id"))
+
+    return jsonify({})
+
+
+@app.route("/api/v3/storages/status/<status>", methods=["PUT"])
+@is_admin
+def storage_update_by_status(payload, status):
+    storages_ids = get_disks_ids_by_status(status=status)
+    for storage_id in storages_ids:
+        storage = Storage(storage_id)
+        storage.check_backing_chain(user_id=payload.get("user_id"))
+
+    return jsonify({})
