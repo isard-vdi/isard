@@ -878,3 +878,73 @@
        </div>
    </div>
 </div>
+
+
+<div class="modal fade" id="modalChangeOwnerDomain" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
+   aria-hidden="true">
+   <div class="modal-dialog">
+      <div class="modal-content">
+         <!-- Modal Header -->
+         <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal">
+               <span aria-hidden="true">&times;</span>
+               <span class="sr-only">Close</span>
+            </button>
+            <h4 class="modal-title" id="myModalLabel">
+               <i class="fa fa-exchange fa-1x"> </i> Change Owner
+            </h4>
+         </div>
+         <!-- Modal Body -->
+         <div class="modal-body" style="padding-top: 7px;">
+            <form id="modalChangeOwnerDomainForm" class="form-horizontal form-label-left">
+               <input id="id" type="hidden" required>
+               <div class="x_panel">
+                  <h4><i class="fa fa-user aria-hidden=" true"></i> Change this domain's user</h4>
+                  <div class="alert alert-danger">
+                     <ul>
+                        <li>
+                           {% if current_user.role == 'manager' %}
+                           If the new owner is in a different group the domain's group will be changed too!
+                     
+                           {% elif current_user.role == 'admin' %}
+                           If the new owner belongs to a different group or category, the domain's group or category will also be
+                           updated!<br>
+                           {% endif %}
+                        </li>
+                        <li>
+                           If there are media items in this domain that are not shared with the new user, they will be removed from the
+                           domain.
+                           </div>
+                        </li>
+                     </ul>
+                  <div class="x_content" style="padding: 0px;">
+                     <div class="x_panel">
+                        <div class="row">
+                           <div>
+                              <label class="col-md-3 col-sm-3 col-xs-6" for="name">New owner <span
+                                    class="required">*</span>
+                              </label>
+                              <div class="col-md-6 col-sm-6 col-xs-12">
+                                 <select id="new_owner" name="new_owner" class="tags-select roundbox"
+                                    placeholder="New owner" required style="width: 100%;">
+                                 </select>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </form>
+         </div>
+         <!-- Modal Footer -->
+         <div class="modal-footer">
+            <ul class="nav navbar-left panel_toolbox">
+               <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+            </ul>
+            <ul class="nav navbar-right panel_toolbox">
+               <button id="send" type="button" class="btn btn-success">Change owner</button>
+            </ul>
+         </div>
+      </div>
+   </div>
+</div>

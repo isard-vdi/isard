@@ -27,8 +27,19 @@ from ..libv2.api_allowed import ApiAllowed
 
 allowed = ApiAllowed()
 
-from ..libv2.helpers import _get_domain_reservables
-from .decorators import has_token, ownsDomainId
+from ..libv2.helpers import (
+    _get_domain_reservables,
+    change_owner_desktop,
+    change_owner_media,
+    change_owner_template,
+)
+from .decorators import (
+    has_token,
+    is_admin_or_manager,
+    ownsDomainId,
+    ownsMediaId,
+    ownsUserId,
+)
 
 
 @app.route("/api/v3/desktop/<desktop_id>/viewer/<protocol>", methods=["GET"])
@@ -152,6 +163,48 @@ def api_v3_desktop_info(payload, domain_id):
     domain = quotas.limit_user_hardware_allowed(payload, domain)
     return (
         json.dumps(domain),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/desktop/owner/<desktop_id>/<user_id>", methods=["PUT"])
+@is_admin_or_manager
+def api_v3_desktop_change_owner(payload, desktop_id, user_id):
+    ownsUserId(payload, user_id)
+    ownsDomainId(payload, desktop_id)
+
+    user = change_owner_desktop(user_id, desktop_id)
+    return (
+        json.dumps(user),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/template/owner/<template_id>/<user_id>", methods=["PUT"])
+@is_admin_or_manager
+def api_v3_template_change_owner(payload, template_id, user_id):
+    ownsUserId(payload, user_id)
+    ownsDomainId(payload, template_id)
+
+    user = change_owner_template(user_id, template_id)
+    return (
+        json.dumps(user),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/media/owner/<media_id>/<user_id>", methods=["PUT"])
+@is_admin_or_manager
+def api_v3_media_change_owner(payload, media_id, user_id):
+    ownsUserId(payload, user_id)
+    ownsMediaId(payload, media_id)
+
+    user = change_owner_media(user_id, media_id)
+    return (
+        json.dumps(user),
         200,
         {"Content-Type": "application/json"},
     )

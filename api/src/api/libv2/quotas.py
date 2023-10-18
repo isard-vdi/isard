@@ -319,18 +319,18 @@ class Quotas:
             )
         quota_error = {
             "error_description": user["name"]
-            + " quota exceeded for creating new desktop",
+            + " quota exceeded for creating new template",
             "error_description_code": "template_new_user_quota_exceeded",
         }
         limits_error = {
             "group": {
                 "error_description": user["group_name"]
-                + " group limits exceeded for creating new desktop",
+                + " group limits exceeded for creating new template",
                 "error_description_code": "template_new_group_limit_exceeded",
             },
             "category": {
                 "error_description": user["name"]
-                + " category limits exceeded for creating new desktop",
+                + " category limits exceeded for creating new template",
                 "error_description_code": "template_new_category_limit_exceeded",
             },
         }
@@ -391,7 +391,7 @@ class Quotas:
             )
         quota_error = {
             "error_description": user["name"]
-            + " quota exceeded for creating new desktop",
+            + " quota exceeded for creating new media",
             "error_description_code": "media_new_user_quota_exceeded",
         }
         limits_error = {
@@ -448,7 +448,7 @@ class Quotas:
             ) / 1073741824
             quota_error = {
                 "error_description": user["name"]
-                + " disk size quota exceeded for creating new desktop",
+                + " disk size quota exceeded for creating new media",
                 "error_description_code": "total_size_quota_exceeded",
             }
             limits_error = {
