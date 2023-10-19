@@ -354,13 +354,42 @@ def get_item_date_consumption(
 def get_usage_distinct_items(item_consumer, start_date, end_date, item_category=None):
     start_date = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=pytz.utc)
     end_date = datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=pytz.utc)
-    query = r.table("usage_consumption").get_all(item_consumer, index="item_consumer")
-    if item_category:
-        query = query.pluck("item_id", "item_name", "item_consumer_category_id").filter(
-            {"item_consumer_category_id": item_category}
+    query = (
+        r.table("usage_consumption")
+        .get_all(item_consumer, index="item_consumer")
+        .merge(
+            lambda doc: {
+                "category_name": r.branch(
+                    doc["item_consumer_category_id"].ne(None)
+                    and (
+                        doc["item_consumer"] in ["desktop", "template", "user", "group"]
+                    ),
+                    r.table("categories")
+                    .get(doc["item_consumer_category_id"])
+                    .default({"name": None})["name"],
+                    None,
+                ),
+                "username": r.branch(
+                    doc["item_consumer"] in ["desktop", "template"]
+                    and doc["item_id"] != "_total_",
+                    r.table("domains")
+                    .get(doc["item_id"])
+                    .default({"username": None})["username"],
+                    None,
+                ),
+            }
         )
+    )
+    if item_category:
+        query = query.pluck(
+            "item_id",
+            "item_name",
+            "item_consumer_category_id",
+            "category_name",
+            "username",
+        ).filter({"item_consumer_category_id": item_category})
     else:
-        query = query.pluck("item_id", "item_name")
+        query = query.pluck("item_id", "item_name", "category_name", "username")
     with app.app_context():
         data = list(query.distinct().run(db.conn))
     return data
