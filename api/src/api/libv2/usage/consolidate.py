@@ -237,6 +237,8 @@ class ConsolidateConsumption:
         gevent.joinall(jobs)
         batches_processed = [job.value for job in jobs]
         for result in batches_processed:
+            if result == None:
+                continue
             data = data + result
         self.times["get_" + self.name + "_batches"] = time()
         data.append(self.compute_consumer_totals(consumer, data))
