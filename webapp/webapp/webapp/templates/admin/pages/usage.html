@@ -8,11 +8,19 @@
     <div class="x_panel">
       <div class="x_title">
         <h3><i class="fa fa-rocket"></i> Consumptions<small> Until today</small></h3>
+        <ul class="nav navbar-right panel_toolbox">
+          <li><a id="btn-edit-reset-date"><span style="color: #5499c7; "><i class="fa fa-pencil"></i> Edit reset dates</span></a>
+          </li>
+        </ul>
         <div class="clearfix"></div>
       </div>
       <div class="x_content">
         {% include '/snippets/filters.html' %}
         <div class="row">
+          <div class="x_panel" id="reset_date" title="All data resets to zero from this date onwards">
+            <b>Reset date:</b>
+            <span class="reset_date_value"></span>
+          </div>
           <div class="col-md-12 col-sm-12 col-xs-12">
             <div class="row usage-buttons-row"></div>
             <table id="usageTable" class="table">
@@ -58,6 +66,64 @@
       <div class="modal-body text-center">
         <div id="usageGraphs">
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalEditResetDates" tabindex="-1" role="dialog" aria-labelledby="modalEditResetDate"
+  aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+
+      <!-- Modal Header -->
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">
+          <span aria-hidden="true">&times;</span>
+          <span class="sr-only">Close</span>
+        </button>
+        <h4 class="modal-title" id="myModalLabel">
+          <i class="fa fa-calendar fa-1x"></i> Edit Reset dates
+        </h4>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="modal-body">
+        <form id="modalEditResetDatesForm" class="form-inline form-label-top">
+          <input hidden name="date-list" id="date-list">
+          <div class="x_title">
+            <h4><i class="fa fa-info-calendar" aria-hidden="true"></i> List of reset dates
+            </h4>
+            <div class="clearfix"></div>
+          </div>
+          <div class="x_content">
+            <ul id="reset-date-list" class="list-group">
+            </ul>
+          </div>
+
+          <div class="x_content col-md-12">
+            <label class="control-label" for="add_date-calendar">New date</label>
+            <input type="text" name="add_date" value="" id="add_date-calendar" />
+            <button id="add-date" type="button" class="btn btn-secondary">Add date</button>
+          </div>
+
+        </form>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="modal-footer">
+        <ul class="nav navbar-left panel_toolbox">
+          <li>
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+          </li>
+          </li>
+        </ul>
+        <ul class="nav navbar-right panel_toolbox">
+          <li>
+            <button id="send" type="button" class="btn btn-success">Edit Reset Dates</button>
+          </li>
+          </li>
+        </ul>
       </div>
     </div>
   </div>

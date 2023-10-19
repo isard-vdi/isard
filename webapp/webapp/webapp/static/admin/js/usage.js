@@ -116,6 +116,107 @@ $('#other-filters #join-checkbox').on('ifUnchecked', function(event){
   $("#usageTable").DataTable().column( 2 ).visible( false );
 });
 
+$('#btn-edit-reset-date').on('click', function () {
+  var modal = '#modalEditResetDates';
+  $(modal).modal({ backdrop: 'static', keyboard: false }).modal('show');
+  $(`${modal}Form`)[0].reset();
+
+  $(modal + " option").each(function () {
+    $(this).remove();
+  });
+  $(modal + ' #reset-date-list').empty();
+  $('#modalEditResetDates #send').prop("disabled", true);
+  $('#modalEditResetDates #send').prop("title", "Must add or delete a date first");
+
+
+  $.ajax({
+    url: `/api/v3/admin/usage/reset_date`,
+    type: 'GET'
+  }).done(function (data) {
+    $.each(data, function (key, value) {
+      $(modal + ' #reset-date-list').append(
+        `<a class="list-group-item list-group-item-action" value=${value}>
+            ${value}  <button style="float:right;" class="btn btn-delete btn-xs" type="button"><i class="fa fa-times" style="color:darkred"></i></button>
+          </a>`
+      );
+    });
+
+    $(modal + ' #add_date-calendar').daterangepicker({
+      value: parseInt(moment().format('YYYY-MM-DD')),
+      singleDatePicker: true,
+      showDropdowns: true,
+      minYear: parseInt(moment().format('YYYY')) - 5,
+      maxYear: parseInt(moment().format('YYYY')) + 5
+    }, function (start, end, label) { });
+
+  });
+})
+
+$('#modalEditResetDates #add-date').on('click', function () {
+  var modal = "#modalEditResetDates";
+  var value = $(modal + " #add_date-calendar").val();
+  var dateList = $("#reset-date-list a").map(function () {
+    return $(this).attr('value');
+  }).get();
+
+  if (!dateList.includes(value)) {
+    $(modal + ' #reset-date-list').append(
+      `<a class="list-group-item list-group-item-action" value=${value}>
+        ${value} <button style="float:right;" class="btn-delete btn btn-xs" type="button"><i class="fa fa-times" style="color:darkred"></i></button>
+      </a>`
+    );
+    dateList.push(value)
+    $(modal + " #date-list").val(dateList.join(','))
+  }
+  $('#reset-date-list').trigger('change')
+})
+
+$('#modalEditResetDates ul').on('click', 'button', function (e) {
+  if ($(this).hasClass('btn-delete')) {
+    $(this).closest('a').remove();
+  }
+  $('#reset-date-list').trigger('change')
+});
+
+if ($('meta[id=user_data]').attr('data-role') != 'admin') {
+  $('#btn-edit-reset-date').hide();
+}
+
+$('#modalEditResetDates #send').on('click', function (e) {
+  var form = $('#modalEditResetDatesForm');
+  data = form.serializeObject();
+  var dateList = $("#reset-date-list a").map(function () {
+    return $(this).attr('value');
+  }).get();
+
+  $.ajax({
+    type: 'PUT',
+    url: "/api/v3/admin/usage/reset_dates",
+    dataType: "json",
+    async: false,
+    contentType: "Application/json",
+    data: JSON.stringify({ "date_list": dateList })
+  }).success(function (data) {
+    $('form').each(function () { this.reset() });
+    $('.modal').modal('hide');
+    showResetDate();
+  }).error( function (data) {
+    new PNotify({
+      title: `ERROR`,
+      text: data.responseJSON.description,
+      hide: false,
+      opacity: 0.9,
+      type: 'error'
+    })
+  });
+})
+
+$('#modalEditResetDates #reset-date-list').on('change', function () {
+  $('#modalEditResetDates #send').prop("disabled", false);
+  $('#modalEditResetDates #send').prop("title", "Set all reset dates to match the list")
+})
+
+
 $('#btn-view-graph').on('click', function (e) {
   $('#canvas-holder').html('')
   $('#usageGraphs').html('')
@@ -162,6 +263,7 @@ function createUsageTable(data) {
   }
   data.grouping = data.grouping ? { parameters: JSON.parse(data.grouping).parameters.split(','), id: JSON.parse(data.grouping).id, itemType: JSON.parse(data.grouping).itemType } : { parameters: null, id: '_all' }
   selectedRows = data
+  showResetDate();
   var tableId = "#usageTable";
   // clear first
   if ($.fn.dataTable.isDataTable(tableId)) {
@@ -622,6 +724,10 @@ function addChartTable(data, itemId, itemName, itemConsumer, limits, kind) {
           <input type="checkbox" ${kind === 'inc' ? 'checked' : ''} id="incremental-${itemId}" title="Will show the difference between the end date value and the start date value">
           View incremental values
         </label>
+        <div class="x_panel" id="reset_date_graph" title="All data resets to zero from this date onwards">
+          <b>Reset date:</b>
+          <span class="reset_date_value"></span>
+        </div>
       </div>
     </div>
     <div class="row ${itemId}-buttons-row">
@@ -698,5 +804,16 @@ function addChartTable(data, itemId, itemName, itemConsumer, limits, kind) {
 
       showExportButtons(table, itemId + '-buttons-row')
     }
+  })
+  $('#reset_date_graph .reset_date_value').html($('#reset_date .reset_date_value').html());
+}
+
+function showResetDate() {
+  $('.reset_date_value').empty()
+  $.ajax({
+    url: `/api/v3/admin/usage/reset_date/${selectedRows.startDate}/${selectedRows.endDate}`,
+    type: 'GET'
+  }).done(function (data) {
+    $('.reset_date_value').html(data.join(', '));
   })
 }
