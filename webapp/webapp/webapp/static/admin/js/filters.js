@@ -256,8 +256,21 @@ function fetchConsumerItems (divId) {
   }).then(function (items) {
     $(divId + " #" + consumer).find('option').remove();
     $.each(items, function (pos, it) {
-      $(divId + " #" + consumer).append('<option value=' + it.item_id + '>' + it.item_name + '</option>');
-    })
+      $(divId + " #" + consumer).append(`<option value=${it.item_id}>
+        ${it.item_name}${it.category_name && ["desktop", "template", "user", "group"].includes(consumer) ? " ["+it.category_name+"]" : ''}
+        ${it.username ? " ["+it.username+"]" : ''}
+      </option>`);
+    });
+    $(divId + " #" + consumer).children('option').sort(function (a, b) {
+
+      if (a.value === 'null') {
+        return -1;
+      } else if (b.value === 'null') {
+        return 1;
+      } else {
+        return a.text.localeCompare(b.text);
+      }
+    }).appendTo($(divId + " #" + consumer));
   });
 }
 
