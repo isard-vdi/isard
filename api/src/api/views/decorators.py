@@ -253,7 +253,7 @@ def CategoryNameGroupNameMatch(category_name, group_name):
     if not len(group):
         raise Error(
             "bad_request",
-            "Group name " + group_name + " not found",
+            "Group name " + group_name + " not found in category " + category_name,
             traceback.format_exc(),
         )
 
