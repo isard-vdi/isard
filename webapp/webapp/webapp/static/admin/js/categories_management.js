@@ -194,7 +194,7 @@ $(document).ready(function () {
         form.parsley().validate();
         if (form.parsley().isValid()) {
             data = form.serializeObject();
-            if ('frontend' in data) data['frontend'] = true;
+            data['frontend'] = 'frontend' in data;
             if (!('ephimeral-enabled' in data)) {
                 delete data['ephimeral-minutes'];
                 delete data['ephimeral-action'];
@@ -297,9 +297,7 @@ function actionsCategoryDetail() {
                 data = form.serializeObject();
                 data['id'] = $('#modalEditCategoryForm #id').val();
                 data['name'] = $('#modalEditCategoryForm #name').val();
-                if ('frontend' in data) {
-                    data['frontend'] = true
-                }
+                data['frontend'] = 'frontend' in data;
                 if (!('ephimeral-enabled' in data)) {
                     delete data['ephimeral-minutes'];
                     delete data['ephimeral-action'];
