@@ -89,15 +89,13 @@ func (o *Orchestrator) Start(ctx context.Context) {
 			return
 
 		default:
-			time.Sleep(o.pollingInterval)
-
-			hypers, err := o.apiCli.OrchestratorHypervisorList(ctx)
-			if err != nil {
-				o.log.Error().Err(err).Msg("get hypervisors")
-				continue
-			}
-
 			if !o.scaling {
+				hypers, err := o.apiCli.OrchestratorHypervisorList(ctx)
+				if err != nil {
+					o.log.Error().Err(err).Msg("get hypervisors")
+					continue
+				}
+
 				operationsHypers, err := o.operationsCli.ListHypervisors(ctx, &operationsv1.ListHypervisorsRequest{})
 				if err != nil {
 					o.log.Error().Err(err).Msg("list the hypervisors of the operations service")
@@ -152,7 +150,7 @@ func (o *Orchestrator) Start(ctx context.Context) {
 				}
 			}
 
-			hypers, err = o.apiCli.OrchestratorHypervisorList(ctx)
+			hypers, err := o.apiCli.OrchestratorHypervisorList(ctx)
 			if err != nil {
 				o.log.Error().Err(err).Msg("get hypervisors")
 				continue
@@ -163,6 +161,7 @@ func (o *Orchestrator) Start(ctx context.Context) {
 				continue
 			}
 
+			time.Sleep(o.pollingInterval)
 		}
 	}
 }

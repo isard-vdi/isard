@@ -399,8 +399,102 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 			RataMaxRAMLimitPercent: 150,
 			RataMaxRAMLimitMargin:  112640,
 			RataHyperMinRAM:        51200,
-			RataHyperMaxRAM:        10240,
+			RataHyperMaxRAM:        102400,
 			ExpectedAddDeadRow:     []string{"bm-e4-01"},
+		},
+		"regression test #2": {
+			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
+			Hypers: []*isardvdi.OrchestratorHypervisor{{
+				ID:                  "bm-e4-04",
+				Status:              isardvdi.HypervisorStatusOnline,
+				OnlyForced:          false,
+				OrchestratorManaged: true,
+				DesktopsStarted:     46,
+				MinFreeMemGB:        180,
+				RAM: isardvdi.OrchestratorResourceLoad{
+					Total: 2051975,
+					Used:  232253,
+					Free:  1819722,
+				},
+			}, {
+				ID:                  "bm-e2-02",
+				Status:              isardvdi.HypervisorStatusOnline,
+				DesktopsStarted:     18,
+				OnlyForced:          false,
+				OrchestratorManaged: false,
+				MinFreeMemGB:        47,
+				RAM: isardvdi.OrchestratorResourceLoad{
+					Total: 515855,
+					Used:  125714,
+					Free:  390140,
+				},
+			}},
+			RataMinRAMLimitPercent: 150,
+			RataMinRAMLimitMargin:  1,
+
+			RataMaxRAMLimitPercent: 150,
+			RataMaxRAMLimitMargin:  112640,
+
+			RataHyperMinRAM: 51200,
+			RataHyperMaxRAM: 102400,
+
+			ExpectedAddDeadRow: []string{"bm-e4-04"},
+		},
+		"regression test #3": {
+			AvailHypers: []*operationsv1.ListHypervisorsResponseHypervisor{},
+			Hypers: []*isardvdi.OrchestratorHypervisor{{
+				ID:                  "bm-e4-01",
+				Status:              isardvdi.HypervisorStatusOnline,
+				OnlyForced:          false,
+				Buffering:           false,
+				DestroyTime:         time.Time{},
+				BookingsEndTime:     time.Time{},
+				OrchestratorManaged: true,
+				GPUOnly:             false,
+				DesktopsStarted:     57,
+				MinFreeMemGB:        190,
+				CPU: isardvdi.OrchestratorResourceLoad{
+					Total: 100,
+					Used:  6,
+					Free:  94,
+				},
+				RAM: isardvdi.OrchestratorResourceLoad{
+					Total: 2051961,
+					Used:  305801,
+					Free:  1746160,
+				},
+			}, {
+				ID:                  "bm-e2-02",
+				Status:              isardvdi.HypervisorStatusOnline,
+				OnlyForced:          false,
+				Buffering:           false,
+				DestroyTime:         time.Time{},
+				BookingsEndTime:     time.Time{},
+				OrchestratorManaged: false,
+				GPUOnly:             false,
+				DesktopsStarted:     23,
+				MinFreeMemGB:        47,
+				CPU: isardvdi.OrchestratorResourceLoad{
+					Total: 100,
+					Used:  7,
+					Free:  93,
+				},
+				RAM: isardvdi.OrchestratorResourceLoad{
+					Total: 515855,
+					Used:  160998,
+					Free:  354856,
+				},
+			}},
+			RataMinRAMLimitPercent: 150,
+			RataMinRAMLimitMargin:  1,
+
+			RataMaxRAMLimitPercent: 150,
+			RataMaxRAMLimitMargin:  112640,
+
+			RataHyperMinRAM: 51200,
+			RataHyperMaxRAM: 102400,
+
+			ExpectedAddDeadRow: []string{"bm-e4-01"},
 		},
 	}
 
@@ -417,6 +511,8 @@ func TestRataNeedToScaleHypervisors(t *testing.T) {
 				MinRAMLimitMargin:  tc.RataMinRAMLimitMargin,
 				MaxRAMLimitPercent: tc.RataMaxRAMLimitPercent,
 				MaxRAMLimitMargin:  tc.RataMaxRAMLimitMargin,
+				HyperMinRAM:        tc.RataHyperMinRAM,
+				HyperMaxRAM:        tc.RataHyperMaxRAM,
 			}, false, &log, nil)
 
 			create, destroy, removeDeadRow, addDeadRow, err := rata.NeedToScaleHypervisors(context.Background(), tc.AvailHypers, tc.Hypers)

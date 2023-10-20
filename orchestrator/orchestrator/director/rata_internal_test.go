@@ -22,6 +22,8 @@ func TestMinRAM(t *testing.T) {
 		MinRAMLimitPercent      int
 		MinRAMLimitMargin       int
 		MinRAMLimitMarginHourly map[time.Weekday]map[time.Time]int
+		HyperMinRAM             int
+		HyperMaxRAM             int
 		Expected                int
 	}{
 		"should return 0 if it's not configured": {
@@ -73,6 +75,87 @@ func TestMinRAM(t *testing.T) {
 			},
 			Expected: (3*1024)*1.5 + (2*1024)*1.5 + 1312,
 		},
+		"regression test #1": {
+			Hypers: []*isardvdi.OrchestratorHypervisor{{
+				ID:                  "bm-e4-01",
+				Status:              isardvdi.HypervisorStatusOnline,
+				OnlyForced:          false,
+				Buffering:           false,
+				DestroyTime:         time.Time{},
+				BookingsEndTime:     time.Time{},
+				OrchestratorManaged: true,
+				GPUOnly:             false,
+				DesktopsStarted:     57,
+				MinFreeMemGB:        190,
+				CPU: isardvdi.OrchestratorResourceLoad{
+					Total: 100,
+					Used:  6,
+					Free:  94,
+				},
+				RAM: isardvdi.OrchestratorResourceLoad{
+					Total: 2051961,
+					Used:  305801,
+					Free:  1746160,
+				},
+			}, {
+				ID:                  "bm-e2-02",
+				Status:              isardvdi.HypervisorStatusOnline,
+				OnlyForced:          false,
+				Buffering:           false,
+				DestroyTime:         time.Time{},
+				BookingsEndTime:     time.Time{},
+				OrchestratorManaged: false,
+				GPUOnly:             false,
+				DesktopsStarted:     23,
+				MinFreeMemGB:        47,
+				CPU: isardvdi.OrchestratorResourceLoad{
+					Total: 100,
+					Used:  7,
+					Free:  93,
+				},
+				RAM: isardvdi.OrchestratorResourceLoad{
+					Total: 515855,
+					Used:  160998,
+					Free:  354856,
+				},
+			}},
+			MinRAMLimitPercent: 150,
+			MinRAMLimitMargin:  1,
+			HyperMinRAM:        51200,
+			HyperMaxRAM:        102400,
+
+			Expected: ((47*1024 + 51200) * 1.5) + ((190*1024 + 51200) * 1.5) + 1,
+		},
+		"regression test #2": {
+			Hypers: []*isardvdi.OrchestratorHypervisor{{
+				ID:                  "bm-e2-02",
+				Status:              isardvdi.HypervisorStatusOnline,
+				OnlyForced:          false,
+				Buffering:           false,
+				DestroyTime:         time.Time{},
+				BookingsEndTime:     time.Time{},
+				OrchestratorManaged: false,
+				GPUOnly:             false,
+				DesktopsStarted:     23,
+				MinFreeMemGB:        47,
+				CPU: isardvdi.OrchestratorResourceLoad{
+					Total: 100,
+					Used:  7,
+					Free:  93,
+				},
+				RAM: isardvdi.OrchestratorResourceLoad{
+					Total: 515855,
+					Used:  160998,
+					Free:  354856,
+				},
+			}},
+			MinRAMLimitPercent: 150,
+			MinRAMLimitMargin:  1,
+			HyperMinRAM:        51200,
+			HyperMaxRAM:        102400,
+
+			Expected: ((47*1024 + 51200) * 1.5) + 1,
+		},
 	}
 
 	for name, tc := range cases {
@@ -85,6 +168,8 @@ func TestMinRAM(t *testing.T) {
 				MinRAMLimitPercent:      tc.MinRAMLimitPercent,
 				MinRAMLimitMargin:       tc.MinRAMLimitMargin,
 				MinRAMLimitMarginHourly: tc.MinRAMLimitMarginHourly,
+				HyperMinRAM:             tc.HyperMinRAM,
+				HyperMaxRAM:             tc.HyperMaxRAM,
 			}, false, &log, nil)
 
 			assert.Equal(tc.Expected, rata.minRAM(tc.Hypers))
@@ -304,48 +389,6 @@ func TestClassifyHypervisors(t *testing.T) {
 			assert.Equal(tc.ExpectedToAcknowledge, hypersToAcknowledge)
 			assert.Equal(tc.ExpectedToHandle, hypersToHandle)
 			assert.Equal(tc.ExpectedOnDeadRow, hypersOnDeadRow)
-		})
-	}
-}
-
-func TestHyperResourcesAvail(t *testing.T) {
-	assert := assert.New(t)
-
-	cases := map[string]struct {
-		Hyper       *isardvdi.OrchestratorHypervisor
-		HyperMinRAM int
-		ExpectedCPU int
-		ExpectedRAM int
-	}{
-		"should work as expected": {
-			Hyper: &isardvdi.OrchestratorHypervisor{
-				ID: "hello :D",
-				CPU: isardvdi.OrchestratorResourceLoad{
-					Free: 1,
-				},
-				RAM: isardvdi.OrchestratorResourceLoad{
-					Free: 1312,
-				},
-				MinFreeMemGB: 1,
-			},
-			HyperMinRAM: 10,
-			ExpectedCPU: 1,
-			ExpectedRAM: 278,
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			log := zerolog.New(os.Stdout)
-
-			rata := NewRata(cfg.DirectorRata{
-				HyperMinRAM: tc.HyperMinRAM,
-			}, false, &log, nil)
-
-			cpu, ram := rata.hyperResourcesAvail(tc.Hyper)
-
-			assert.Equal(tc.ExpectedCPU, cpu)
-			assert.Equal(tc.ExpectedRAM, ram)
 		})
 	}
 }
