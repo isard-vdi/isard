@@ -53,6 +53,10 @@ func (r *Rata) minCPU() int {
 	return getCurrentHourlyLimit(r.cfg.MinCPUHourly, time.Now())
 }
 
+func (r *Rata) hyperMinRAM(h *isardvdi.OrchestratorHypervisor) int {
+	return r.cfg.HyperMinRAM + (h.MinFreeMemGB * 1024) // we want it as MB, not GB
+}
+
 // minRAM is the minimum MB of RAM that need to be free in the pool. If it's zero, it's not going to use it
 func (r *Rata) minRAM(hypers []*isardvdi.OrchestratorHypervisor) int {
 	if r.cfg.MinRAMHourly != nil {
@@ -73,7 +77,7 @@ func (r *Rata) minRAM(hypers []*isardvdi.OrchestratorHypervisor) int {
 
 		minRAM := 0
 		for _, h := range hypers {
-			minRAM += (h.MinFreeMemGB * 1024) // we want it as MB, not GB
+			minRAM += r.hyperMinRAM(h)
 		}
 
 		// Apply the limit percentage
@@ -85,6 +89,10 @@ func (r *Rata) minRAM(hypers []*isardvdi.OrchestratorHypervisor) int {
 	}
 
 	return 0
+}
+
+func (r *Rata) hyperMaxRAM(h *isardvdi.OrchestratorHypervisor) int {
+	return r.cfg.HyperMaxRAM + (h.MinFreeMemGB * 1024) // we want it as MB, not GB
 }
 
 // maxRAM is the maximum MB of RAM that can to be free in the pool. If it's zero, it's not going to use it
@@ -107,7 +115,8 @@ func (r *Rata) maxRAM(hypers []*isardvdi.OrchestratorHypervisor) int {
 
 		maxRAM := 0
 		for _, h := range hypers {
-			maxRAM += (h.MinFreeMemGB * 1024) // we want it as MB, not GB
+			// Take into account the hypervisor minimum RAM and the Orchestrator maximum RAM requirement
+			maxRAM += r.hyperMaxRAM(h)
 		}
 
 		maxRAM = int(math.Round((float64(r.cfg.MaxRAMLimitPercent) / 100.0) * float64(maxRAM)))
@@ -152,15 +161,6 @@ func (r *Rata) classifyHypervisors(hypers []*isardvdi.OrchestratorHypervisor) ([
 	return hypersToAcknowledge, hypersToHandle, hypersOnDeadRow
 }
 
-func (r *Rata) hyperResourcesAvail(hyper *isardvdi.OrchestratorHypervisor) (int, int) {
-	cpuAvail := hyper.CPU.Free
-	// Don't take into account the memory that's reserved by the hypervisors (we want it in MB)
-	// and neither take into account the extra orchestrator memory reservation
-	ramAvail := hyper.RAM.Free - (hyper.MinFreeMemGB * 1024) - r.cfg.HyperMinRAM
-
-	return cpuAvail, ramAvail
-}
-
 // TODO: CPU
 // TODO: Capabilities
 func (r *Rata) bestHyperToCreate(hypersAvail []*operationsv1.ListHypervisorsResponseHypervisor, minCPU, minRAM int) (string, error) {
@@ -198,14 +198,16 @@ func (r *Rata) bestHyperToPardon(hypersOnDeadRow []*isardvdi.OrchestratorHypervi
 	for _, h := range hypersOnDeadRow {
 		enoughRAM := ramAvail+h.RAM.Free > minRAM
 
-		if hyperToPardon != nil {
-			// Get the hypervisor that has the furthest destroy time
-			if enoughRAM && h.DestroyTime.Compare(hyperToPardon.DestroyTime) == 1 {
+		if enoughRAM {
+			if hyperToPardon != nil {
+				// Get the hypervisor that has the furthest destroy time
+				if enoughRAM && h.DestroyTime.Compare(hyperToPardon.DestroyTime) == 1 {
+					hyperToPardon = h
+				}
+
+			} else {
 				hyperToPardon = h
 			}
-
-		} else if enoughRAM {
-			hyperToPardon = h
 		}
 	}
 
@@ -251,14 +253,16 @@ func (r *Rata) bestHyperToMoveInDeadRow(hypersToAcknowledge, hypersToHandle []*i
 				// If the maxRAM limit is set and if we remove it, we'll have enough RAM to meet the minRAM limit
 				(maxRAM > 0 && ramAvail > maxRAM && ramAvail-h.RAM.Free > minRAM))
 
-		if canBeSentenced && deadRow != nil {
-			// Pick the biggest hypervisor to kill
-			if h.RAM.Total > deadRow.RAM.Total {
+		if canBeSentenced {
+			if deadRow != nil {
+				// Pick the biggest hypervisor to kill
+				if h.RAM.Total > deadRow.RAM.Total {
+					deadRow = h
+				}
+
+			} else {
 				deadRow = h
 			}
-
-		} else if canBeSentenced {
-			deadRow = h
 		}
 	}
 
@@ -289,10 +293,8 @@ availHypersLoop:
 	cpuAvail := 0
 	ramAvail := 0
 	for _, h := range hypersToAcknowledge {
-		cpu, ram := r.hyperResourcesAvail(h)
-
-		cpuAvail += cpu
-		ramAvail += ram
+		cpuAvail += h.CPU.Free
+		ramAvail += h.RAM.Free
 	}
 
 	r.log.Debug().Int("cpu_avail", cpuAvail).Int("ram_avail", ramAvail).Int("min_ram", minRAM).Int("max_ram", maxRAM).Msg("available resources")
@@ -358,23 +360,21 @@ func (r *Rata) ExtraOperations(ctx context.Context, hypers []*isardvdi.Orchestra
 	for _, h := range hypersToManage {
 		// Don't run extra operations on hypervisors on the dead row
 		if h.DestroyTime.IsZero() {
-			_, freeRAM := r.hyperResourcesAvail(h)
-
 			switch h.OnlyForced {
 			// Set the hypervisors to only forced if there's too much load
 			case false:
 				if r.cfg.HyperMinCPU != 0 && (h.CPU.Free <= r.cfg.HyperMinCPU) ||
-					r.cfg.HyperMinRAM != 0 && (freeRAM <= r.cfg.HyperMinRAM) {
+					r.cfg.HyperMinRAM != 0 && (h.RAM.Free <= r.hyperMinRAM(h)) {
 
 					if r.dryRun {
-						r.log.Info().Bool("DRY_RUN", true).Int("free_cpu", h.CPU.Free).Int("free_ram", freeRAM).Int("hyper_min_cpu", r.cfg.HyperMinCPU).Int("hyper_min_ram", r.cfg.HyperMinRAM).Msg("set hypervisor to only_forced")
+						r.log.Info().Bool("DRY_RUN", true).Int("free_cpu", h.CPU.Free).Int("free_ram", h.RAM.Free).Int("hyper_min_cpu", r.cfg.HyperMinCPU).Int("hyper_min_ram", r.hyperMinRAM(h)).Msg("set hypervisor to only_forced")
 
 					} else {
 						if err := r.apiCli.AdminHypervisorOnlyForced(ctx, h.ID, true); err != nil {
 							return fmt.Errorf("set hypervisor '%s' to only_forced: %w", h.ID, err)
 						}
 
-						r.log.Info().Str("id", h.ID).Int("free_cpu", h.CPU.Free).Int("free_ram", freeRAM).Int("hyper_min_cpu", r.cfg.HyperMinCPU).Int("hyper_min_ram", r.cfg.HyperMinRAM).Msg("set hypervisor to only_forced")
+						r.log.Info().Str("id", h.ID).Int("free_cpu", h.CPU.Free).Int("free_ram", h.RAM.Free).Int("hyper_min_cpu", r.cfg.HyperMinCPU).Int("hyper_min_ram", r.hyperMinRAM(h)).Msg("set hypervisor to only_forced")
 					}
 
 				}
@@ -382,17 +382,17 @@ func (r *Rata) ExtraOperations(ctx context.Context, hypers []*isardvdi.Orchestra
 				// Remove the hypervisor from only forced if the hypervisor has availiable resources
 			case true:
 				if r.cfg.HyperMaxCPU != 0 && (h.CPU.Free > r.cfg.HyperMaxCPU) ||
-					r.cfg.HyperMaxRAM != 0 && (freeRAM > r.cfg.HyperMaxRAM) {
+					r.cfg.HyperMaxRAM != 0 && (h.RAM.Free > r.hyperMaxRAM(h)) {
 
 					if r.dryRun {
-						r.log.Info().Bool("DRY_RUN", true).Int("free_cpu", h.CPU.Free).Int("free_ram", freeRAM).Int("hyper_max_cpu", r.cfg.HyperMaxCPU).Int("hyper_max_ram", r.cfg.HyperMaxRAM).Msg("remove hypervisor from only_forced")
+						r.log.Info().Bool("DRY_RUN", true).Int("free_cpu", h.CPU.Free).Int("free_ram", h.RAM.Free).Int("hyper_max_cpu", r.cfg.HyperMaxCPU).Int("hyper_max_ram", r.hyperMaxRAM(h)).Msg("remove hypervisor from only_forced")
 
 					} else {
 						if err := r.apiCli.AdminHypervisorOnlyForced(ctx, h.ID, false); err != nil {
 							return fmt.Errorf("set hypervisor '%s' to only_forced: %w", h.ID, err)
 						}
 
-						r.log.Info().Str("id", h.ID).Int("free_cpu", h.CPU.Free).Int("free_ram", freeRAM).Int("hyper_max_cpu", r.cfg.HyperMaxCPU).Int("hyper_max_ram", r.cfg.HyperMaxRAM).Msg("remove hypervisor from only_forced")
+						r.log.Info().Str("id", h.ID).Int("free_cpu", h.CPU.Free).Int("free_ram", h.RAM.Free).Int("hyper_max_cpu", r.cfg.HyperMaxCPU).Int("hyper_max_ram", r.hyperMaxRAM(h)).Msg("remove hypervisor from only_forced")
 					}
 
 				}

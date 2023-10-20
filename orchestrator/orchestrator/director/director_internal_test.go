@@ -103,6 +103,24 @@ func TestGetCurrentHourlyLimit(t *testing.T) {
 			},
 			Expected: 1,
 		},
+		"regression test #1": {
+			Limit: map[time.Weekday]map[time.Time]int{
+				time.Monday: {
+					time.Date(0, time.January, 1, 0, 0, 0, 0, time.UTC):   1,
+					time.Date(0, time.January, 1, 7, 45, 0, 0, time.UTC):  614400,
+					time.Date(0, time.January, 1, 10, 00, 0, 0, time.UTC): 307200,
+					time.Date(0, time.January, 1, 12, 0, 0, 0, time.UTC):  614400,
+					time.Date(0, time.January, 1, 13, 30, 0, 0, time.UTC): 102400,
+					time.Date(0, time.January, 1, 15, 00, 0, 0, time.UTC): 614400,
+					time.Date(0, time.January, 1, 20, 15, 0, 0, time.UTC): 1,
+				},
+				time.Saturday: {
+					time.Date(0, time.January, 1, 0, 0, 0, 0, time.UTC): 1,
+				},
+			},
+			Now:      time.Date(0, time.January, 5, 22, 45, 0, 0, time.UTC),
+			Expected: 1,
+		},
 	}
 
 	for name, tc := range cases {
