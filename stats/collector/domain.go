@@ -687,7 +687,7 @@ func (c *Domain) Collect(ch chan<- prometheus.Metric) {
 			}
 		}
 
-		if s.Net != nil {
+		if s.Net != nil && stats.xml != nil && stats.xml.Devices != nil {
 			for _, n := range s.Net {
 				mac := ""
 				for _, i := range stats.xml.Devices.Interfaces {
