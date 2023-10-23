@@ -199,7 +199,8 @@ def storage_update(**storage_dict):
                 domain.force_update = True
             if storage_dict.get("status") == "deleted":
                 for child in storage_object.children:
-                    child.status = "orphan"
+                    if child.status != "deleted":
+                        child.status = "orphan"
         else:
             for dependency in task.dependencies:
                 if dependency.task in (
