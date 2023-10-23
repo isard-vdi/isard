@@ -186,54 +186,53 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 	// Check if the user sends a token
 	if args[provider.TokenArgsKey] != "" {
 		tkn, tknType, err := a.verifyToken(args[provider.TokenArgsKey])
-		if err == nil {
-			switch tknType {
-			case tokenTypeRegister:
-				register := tkn.Claims.(*RegisterClaims)
-
-				u := &model.User{
-					Provider: register.Provider,
-					Category: register.CategoryID,
-					UID:      register.UserID,
-				}
-				if err := u.LoadWithoutID(ctx, a.DB); err != nil {
-					if errors.Is(err, db.ErrNotFound) {
-						return "", "", errors.New("user not registered")
-					}
-
-					return "", "", fmt.Errorf("load user from db: %w", err)
-				}
-
-				ss, err := a.signLoginToken(u)
-				if err != nil {
-					return "", "", err
-				}
-
-				a.Log.Info().Str("usr", u.ID).Str("tkn", ss).Msg("register succeeded")
-
-				return ss, args[provider.RedirectArgsKey], nil
-
-			case tokenTypeExternal:
-				claims := tkn.Claims.(*ExternalClaims)
-
-				args["category_id"] = claims.CategoryID
-				args["external_app_id"] = claims.KeyID
-				args["external_group_id"] = claims.GroupID
-				args["user_id"] = claims.UserID
-				args["username"] = claims.Username
-				args["kid"] = claims.KeyID
-				args["role"] = claims.Role
-				args["name"] = claims.Name
-				args["email"] = claims.Email
-				args["photo"] = claims.Photo
-			}
-		} else {
+		if err != nil {
 			return "", "", fmt.Errorf("verify the JWT token: %w", err)
+		}
+
+		switch tknType {
+		case tokenTypeRegister:
+			register := tkn.Claims.(*RegisterClaims)
+
+			u := &model.User{
+				Provider: register.Provider,
+				Category: register.CategoryID,
+				UID:      register.UserID,
+			}
+			if err := u.LoadWithoutID(ctx, a.DB); err != nil {
+				if errors.Is(err, db.ErrNotFound) {
+					return "", "", errors.New("user not registered")
+				}
+
+				return "", "", fmt.Errorf("load user from db: %w", err)
+			}
+
+			ss, err := a.signLoginToken(u)
+			if err != nil {
+				return "", "", err
+			}
+
+			a.Log.Info().Str("usr", u.ID).Str("tkn", ss).Msg("register succeeded")
+
+			return ss, args[provider.RedirectArgsKey], nil
+
+		case tokenTypeExternal:
+			claims := tkn.Claims.(*ExternalClaims)
+
+			args["category_id"] = claims.CategoryID
+			args["external_app_id"] = claims.KeyID
+			args["external_group_id"] = claims.GroupID
+			args["user_id"] = claims.UserID
+			args["username"] = claims.Username
+			args["kid"] = claims.KeyID
+			args["role"] = claims.Role
+			args["name"] = claims.Name
+			args["email"] = claims.Email
+			args["photo"] = claims.Photo
 		}
 
 	} else {
 		// There are some login providers that require a token
-
 		if prv == provider.ExternalString {
 			return "", "", errors.New("missing JWT token")
 		}
@@ -250,6 +249,8 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 	if redirect != "" {
 		return "", redirect, nil
 	}
+
+	normalizeIdentity(g, u)
 
 	uExists, err := u.Exists(ctx, a.DB)
 	if err != nil {
@@ -305,6 +306,8 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 		return "", "", fmt.Errorf("update user in the DB: %w", err)
 	}
 
+	normalizeIdentity(g, u)
+
 	ss, err := a.signLoginToken(u)
 	if err != nil {
 		return "", "", err
@@ -343,6 +346,8 @@ func (a *Authentication) Callback(ctx context.Context, args map[string]string) (
 		return "", "", fmt.Errorf("callback: %w", err)
 	}
 
+	normalizeIdentity(nil, u)
+
 	exists, err := u.Exists(ctx, a.DB)
 	if err != nil {
 		return "", "", fmt.Errorf("check if user exists: %w", err)
@@ -365,6 +370,8 @@ func (a *Authentication) Callback(ctx context.Context, args map[string]string) (
 		if err := u.Update(ctx, a.DB); err != nil {
 			return "", "", fmt.Errorf("update user in the DB: %w", err)
 		}
+
+		normalizeIdentity(nil, u)
 
 		ss, err = a.signLoginToken(u)
 		if err != nil {
