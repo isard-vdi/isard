@@ -431,9 +431,12 @@ def api_v3_admin_users_delete_check(payload):
     data = request.get_json()
 
     desktops = []
-    for user in data:
-        desktops.append(users._user_storage_delete_checks(user["id"]))
-        for desktop in users._delete_checks(user["id"], "user"):
+    for user_id in data:
+        ownsUserId(payload, user_id)
+        user_storage = users._user_storage_delete_checks(user_id)
+        if user_storage:
+            desktops.append(user_storage)
+        for desktop in users._delete_checks(user_id, "user"):
             ownsDomainId(payload, desktop["id"])
             desktops.append(desktop)
 
@@ -692,21 +695,51 @@ def api_v3_admin_group_delete(group_id, payload):
     )
 
 
-@app.route("/api/v3/admin/delete/check", methods=["POST"])
+@app.route("/api/v3/admin/user/delete/check", methods=["POST"])
 @is_admin_or_manager
-def api_v3_admin_delete_check(payload):
+def api_v3_admin_user_delete_check(payload):
     data = request.get_json()
-
-    if data["table"] == "category":
-        ownsCategoryId(payload, data["id"])
-    elif data["table"] == "groups":
-        ownsCategoryId(payload, users.GroupGet(data["id"])["parent_category"])
-    elif data["table"] == "users":
-        ownsUserId(payload, data["id"])
+    ownsUserId(payload, data["id"])
 
     desktops = []
-    desktops.append(users._user_storage_delete_checks(data["id"]))
-    for desktop in users._delete_checks(data["id"], data["table"]):
+    user_storage = users._user_storage_delete_checks(data["id"])
+    if user_storage:
+        desktops.append(user_storage)
+    for desktop in users._delete_checks(data["id"], "user"):
+        desktops.append(desktop)
+
+    return (
+        json.dumps(desktops),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/group/delete/check", methods=["POST"])
+@is_admin_or_manager
+def api_v3_admin_group_delete_check(payload):
+    data = request.get_json()
+    ownsCategoryId(payload, users.GroupGet(data["id"])["parent_category"])
+
+    desktops = []
+    for desktop in users._delete_checks(data["id"], "group"):
+        desktops.append(desktop)
+
+    return (
+        json.dumps(desktops),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/category/delete/check", methods=["POST"])
+@is_admin
+def api_v3_admin_category_delete_check(payload):
+    data = request.get_json()
+    ownsCategoryId(payload, data["id"])
+
+    desktops = []
+    for desktop in users._delete_checks(data["id"], "category"):
         desktops.append(desktop)
 
     return (
