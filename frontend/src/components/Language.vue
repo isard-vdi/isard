@@ -17,9 +17,13 @@
 </template>
 
 <script>
+import { mapActions } from 'vuex'
 import moment from 'moment'
 
 export default {
+  props: {
+    saveLanguage: Boolean
+  },
   data () {
     return {
       langs: {
@@ -35,7 +39,14 @@ export default {
     }
   },
   methods: {
+    ...mapActions([
+      'saveNewLanguage'
+    ]),
     changeLanguage (lang) {
+      this.$store.commit('setLang', lang)
+      if (this.saveLanguage) {
+        this.saveNewLanguage()
+      }
       localStorage.language = lang
       this.$i18n.locale = lang
       moment.locale(lang)

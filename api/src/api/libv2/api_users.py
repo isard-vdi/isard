@@ -1573,6 +1573,10 @@ class ApiUsers:
                 .run(db.conn)
             )
 
+    def change_user_language(self, user_id, lang):
+        with app.app_context():
+            r.table("users").get(user_id).update({"lang": lang}).run(db.conn)
+
 
 """
 PASSWORDS MANAGER

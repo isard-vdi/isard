@@ -45,6 +45,7 @@ export default {
       localStorage.token = token
       context.dispatch('openSocket', {})
       context.dispatch('fetchConfig')
+      context.dispatch('saveNewLanguage')
       store.dispatch('removeAuthorizationCookie')
       router.push({ name: 'desktops' })
     },
