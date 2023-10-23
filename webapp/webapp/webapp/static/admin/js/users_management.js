@@ -323,18 +323,34 @@ function socketio_on(){
                 </tr>
             `);
             $('#modalDeleteUser #send').prop('disabled', true);
+            console.log(usersToDelete)
+            data = []
+            $.each(usersToDelete, function(index, user) {
+                data.push(user['id'])
+            })
+            console.log(data)
             $.ajax({
                 type: "POST",
                 url: "/api/v3/admin/users/delete/check",
-                data: JSON.stringify(usersToDelete),
+                data: JSON.stringify(data),
                 contentType: "application/json"
             }).done(function (domains) {
-                $('#table_modal_delete tbody #loading-warn').remove();
                 $('#modalDeleteUser #send').prop('disabled', false)
                 $.each(domains, function (key, value) {
                     infoDomains(value, $('#table_modal_delete tbody'));
                 });
-            });
+                $('#table_modal_delete tbody #loading-warn').remove();
+                if (domains.length==0) {
+                    $('#table_modal_delete tbody').append(`
+                        <tr class="active" id="loading-warn">
+                            <td colspan="3" style="text-align:center;">
+                                <i class="fa fa-fw">
+                                </i> These users have no items
+                            </td>
+                        </tr>
+                    `);
+                }
+            })
         } else {
             new PNotify({
                 text: "Please select the users you want to delete",
@@ -1020,7 +1036,7 @@ function actionsUserDetail(){
         }).modal('show');
         $.ajax({
             type: "POST",
-            url: "/api/v3/admin/delete/check",
+            url: "/api/v3/admin/user/delete/check",
             data: JSON.stringify(data),
             contentType: "application/json"
         }).done(function(domains) {
@@ -1028,6 +1044,17 @@ function actionsUserDetail(){
             $.each(domains, function(key, value) {
                 infoDomains(value, $('#table_modal_delete tbody'));
             });
+            $('#table_modal_delete tbody #loading-warn').remove();
+            if (domains.length==0) {
+                $('#table_modal_delete tbody').append(`
+                    <tr class="active" id="loading-warn">
+                        <td colspan="3" style="text-align:center;">
+                            <i class="fa fa-fw">
+                            </i> This user has no items
+                        </td>
+                    </tr>
+                `);
+            }
         });
 	});
 

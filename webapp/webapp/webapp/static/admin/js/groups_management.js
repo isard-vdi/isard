@@ -432,7 +432,7 @@ function actionsGroupDetail(){
         // setQuotaTableDefaults('#edit-users-quota','users',pk)
         $.ajax({
             type: "POST",
-            url: "/api/v3/admin/delete/check",
+            url: "/api/v3/admin/group/delete/check",
             data: JSON.stringify(data),
             contentType: "application/json"
         }).done(function(domains) {

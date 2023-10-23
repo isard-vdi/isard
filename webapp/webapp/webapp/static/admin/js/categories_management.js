@@ -354,8 +354,7 @@ function actionsCategoryDetail() {
     $('#categories .btn-delete').off('click').on('click', function () {
         var pk = $(this).closest("div").attr("data-pk");
         var data = {
-            'id': pk,
-            'table': 'category'
+            'id': pk
         }
         $("#modalDeleteCategoryForm")[0].reset();
         $('#modalDeleteCategoryForm #id').val(pk);
@@ -365,7 +364,7 @@ function actionsCategoryDetail() {
         }).modal('show');
         $.ajax({
             type: "POST",
-            url: "/api/v3/admin/delete/check",
+            url: "/api/v3/admin/category/delete/check",
             data: JSON.stringify(data),
             contentType: "application/json"
         }).done(function (domains) {
