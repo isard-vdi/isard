@@ -424,19 +424,15 @@ class HypWorkerThread(threading.Thread):
                                     vnc_websocket,
                                 ) = vm.get_graphics_port()
                                 dom_id = action["id_domain"]
-                                update_domain_status(
-                                    id_domain=dom_id,
-                                    status="Started",
-                                    hyp_id=hyp_id,
-                                    detail="Domain started by worker",
-                                )
                                 update_domain_viewer_started_values(
                                     dom_id,
-                                    hyp_id=self.hyp_id,
+                                    hyp_id=hyp_id,
                                     spice=spice,
                                     spice_tls=spice_tls,
                                     vnc=vnc,
                                     vnc_websocket=vnc_websocket,
+                                    status="Started",
+                                    detail="Domain started by worker",
                                 )
 
                                 if action.get("nvidia_uid", False) is not False:

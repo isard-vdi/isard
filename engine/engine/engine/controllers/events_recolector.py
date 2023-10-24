@@ -30,7 +30,6 @@ from engine.services.db import (
     get_id_hyp_from_uri,
     remove_domain_viewer_values,
     update_domain_status,
-    update_domain_viewer_started_values,
     update_uri_hyp,
     update_vgpu_info_if_stopped,
     update_vgpu_uuid_domain_action,

@@ -3,6 +3,7 @@
 #      Josep Maria Viñolas Auquer
 # License: AGPLv3
 
+import json
 import time
 from functools import wraps
 
@@ -69,83 +70,67 @@ def get_ferrary(id):
 
 
 def update_domain_viewer_started_values(
-    id,
+    domain_id,
     hyp_id=False,
     spice=False,
     spice_tls=False,
     vnc=False,
     vnc_websocket=False,
     passwd=False,
+    status=None,
+    detail=None,
 ):
-    #
-    # dict_event = {'domain':dom.name(),
-    #               'hyp_id':hyp_id,
-    #                'event':domEventToString(event),
-    #               'detail':domDetailToString(event, detail),
-    #                 'when':now}
-
     r_conn = new_rethink_connection()
-    hostname_external = False
 
-    if hyp_id is False:
-        dict_viewer = {
-            "static": False,
-            "proxy_video": False,
-            "proxy_hyper_host": False,
-            "base_port": spice if spice is not False else False,
-            "ports": [],
-            "passwd": passwd if passwd is not False else False,
-            "client_addr": False,
-            "client_since": False,
-            "tls": False,
-        }
-        # ~ dict_viewer = { 'base_port':    spice if spice is not False else False,
-        # ~ 'passwd':       passwd if passwd is not False else False,
-        # ~ }
-    else:
-        rtable = r.table("hypervisors")
+    update_dict = {}
+
+    if hyp_id is not False:
         try:
             h = (
-                rtable.get(hyp_id)
+                r.table("hypervisors")
+                .get(hyp_id)
                 .pluck("hypervisors_pools", "viewer", "id")
                 .run(r_conn)
             )
-
-            rtable = r.table("hypervisors_pools")
-            hp = rtable.get(h["hypervisors_pools"][0]).pluck("viewer").run(r_conn)
-            dict_viewer = {
-                "static": h["viewer"]["static"],
-                "proxy_video": h["viewer"]["proxy_video"],
-                "html5_ext_port": h["viewer"]["html5_ext_port"],
-                "spice_ext_port": h["viewer"]["spice_ext_port"],
-                "proxy_hyper_host": h["viewer"]["proxy_hyper_host"],
-                "base_port": int(spice),
-                "ports": [int(spice), int(spice_tls), int(vnc), int(vnc_websocket)],
-                # ~ 'passwd':       passwd,
-                "client_addr": False,
-                "client_since": False,
-                "tls": hp["viewer"],
+            hp = (
+                r.table("hypervisors_pools")
+                .get(h["hypervisors_pools"][0])
+                .pluck("viewer")
+                .run(r_conn)
+            )
+            update_dict = {
+                "viewer": {
+                    "static": h["viewer"]["static"],
+                    "proxy_video": h["viewer"]["proxy_video"],
+                    "html5_ext_port": h["viewer"]["html5_ext_port"],
+                    "spice_ext_port": h["viewer"]["spice_ext_port"],
+                    "proxy_hyper_host": h["viewer"]["proxy_hyper_host"],
+                    "base_port": int(spice),
+                    "ports": [int(spice), int(spice_tls), int(vnc), int(vnc_websocket)],
+                    "client_addr": False,
+                    "client_since": False,
+                    "tls": hp["viewer"],
+                }
             }
+            if status is not None:
+                log.info(f"status: {status}")
+                update_dict["status"] = status
+                update_dict["detail"] = json.dumps(detail)
+                update_dict["hyp_started"] = hyp_id
         except Exception as e:
             logs.exception_id.debug("0040")
             log.error("hypervisor withouth viewer dict or pool withough viewer dict")
             log.error(e)
-            dict_viewer = {
-                "static": False,
-                "proxy_video": False,
-                "proxy_hyper_host": False,
-                "base_port": spice if spice is not False else False,
-                "passwd": passwd if passwd is not False else False,
-                "client_addr": False,
-                "client_since": False,
-                "tls": False,
-            }
+            close_rethink_connection(r_conn)
+            return
     if passwd is not False:
-        dict_viewer["passwd"] = passwd
-    results = r.table("domains").get(id).update({"viewer": dict_viewer}).run(r_conn)
-
+        if update_dict.get("viewer") is None:
+            update_dict["viewer"] = {}
+        update_dict["viewer"]["passwd"] = passwd
+    if len(update_dict):
+        results = r.table("domains").get(domain_id).update(update_dict).run(r_conn)
+        return results
     close_rethink_connection(r_conn)
-    return results
 
 
 #
