@@ -89,6 +89,8 @@ func (o *Orchestrator) Start(ctx context.Context) {
 			return
 
 		default:
+			time.Sleep(o.pollingInterval)
+
 			if !o.scaling {
 				hypers, err := o.apiCli.OrchestratorHypervisorList(ctx)
 				if err != nil {
@@ -160,8 +162,6 @@ func (o *Orchestrator) Start(ctx context.Context) {
 				o.log.Error().Err(err).Msg("execute extra orchestrator operations")
 				continue
 			}
-
-			time.Sleep(o.pollingInterval)
 		}
 	}
 }
