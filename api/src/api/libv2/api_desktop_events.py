@@ -123,17 +123,13 @@ def desktop_start(desktop_id, wait_seconds=0, paused=False):
             r.table("domains")
             .get(desktop_id)
             .update(
-                {"status": "Starting", "accessed": int(time.time())},
+                {"status": "Starting", "viewer": {}, "accessed": int(time.time())},
                 return_changes=True,
             )
             .run(db.conn)
         )
         if not len(domain.get("changes", [])):
             return "Starting"
-        if domain.get("changes", [{}])[0].get("new_val", {}).get("viewer"):
-            r.table("domains").get(desktop_id).replace(r.row.without("viewer")).run(
-                db.conn
-            )
 
     return wait_status(desktop_id, "Starting", wait_seconds=wait_seconds)
 
@@ -154,7 +150,7 @@ def desktops_start(desktops_ids, wait_seconds=0, paused=False):
         with app.app_context():
             new_status = "Starting" if not paused else "StartingPaused"
             r.table("domains").get_all(r.args(desktops_ok)).update(
-                {"status": new_status, "accessed": int(time.time())}
+                {"status": new_status, "viewer": {}, "accessed": int(time.time())}
             ).run(db.conn)
 
 
