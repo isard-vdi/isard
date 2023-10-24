@@ -1,6 +1,6 @@
 // @ts-check
 import { fixture as baseFixture } from '../navbar'
-import { test, expect } from '@playwright/test'
+import { test as base, expect } from '@playwright/test'
 
 export class PageAdminResources {
   /**
@@ -74,4 +74,4 @@ export const fixture = {
   ...baseFixture
 }
 
-exports.test = test.extend(fixture)
+export const test = base.extend(fixture)

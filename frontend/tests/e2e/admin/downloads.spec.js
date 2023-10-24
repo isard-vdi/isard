@@ -1,6 +1,6 @@
 // @ts-check
-const { test } = require('../navbar')
-const { PageAdminDownloads } = require('./downloads-page')
+import { test } from '../navbar'
+import { PageAdminDownloads } from './downloads-page'
 
 test.describe('Downloads', () => {
   test('should download slax correctly', async ({ page, administration }) => {

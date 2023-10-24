@@ -1,11 +1,11 @@
 // @ts-check
 import { fixture as baseFixture } from '../navbar'
-import { test, expect } from '@playwright/test'
+import { test as base, expect } from '@playwright/test'
 
 export class PageAdminDownloads {
   /**
-     * @param {import('@playwright/test').Page} page
-     */
+   * @param {import('@playwright/test').Page} page
+   */
   constructor (page) {
     this.page = page
     this.title = page.getByRole('heading', { name: 'Not registered' }).or(page.getByRole('heading', { name: 'Domains' }))
@@ -57,4 +57,4 @@ export const fixture = {
   ...baseFixture
 }
 
-exports.test = test.extend(fixture)
+export const test = base.extend(fixture)

@@ -1,7 +1,7 @@
 import { PageTemplates } from './templates-page'
 
 // @ts-check
-const { expect } = require('@playwright/test')
+import { expect } from '@playwright/test'
 
 export class PageDesktops {
   /**
@@ -62,6 +62,8 @@ export class PageDesktops {
       await interfaces.fill(network)
       await this.page.getByRole('option', { name: network }).click()
     }
+
+    await this.page.getByText('Hardware').click()
 
     await this.page.getByRole('button', { name: 'Create' }).click()
 

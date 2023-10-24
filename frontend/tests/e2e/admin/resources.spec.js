@@ -1,6 +1,6 @@
 // @ts-check
-const { test } = require('../navbar')
-const { PageAdminResources } = require('./resources-page')
+import { test } from '../navbar'
+import { PageAdminResources } from './resources-page'
 
 test.describe('ResourcesInterfaces', () => {
   test('should be able to create an interface correctly', async ({ page, administration }) => {

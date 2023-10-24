@@ -44,5 +44,5 @@ test-e2e:
 	--network=host \
 	-v "${ISARDVDI_SRC}/frontend:/frontend" \
 	-w "/frontend" \
-	mcr.microsoft.com/playwright:v1.36.0-jammy yarn playwright test
+	mcr.microsoft.com/playwright:v1.38.0-jammy yarn playwright test
 
