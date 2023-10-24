@@ -366,7 +366,9 @@ def storage_check_check_backing_chain(payload, storage_id):
     """
     check_storage_existence_and_permissions(payload, storage_id)
     storage = Storage(storage_id)
-    return jsonify(storage.check_backing_chain(user_id=payload.get("user_id")))
+    return jsonify(
+        storage.check_backing_chain(user_id=payload.get("user_id"), blocking=False)
+    )
 
 
 @app.route(
