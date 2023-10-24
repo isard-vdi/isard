@@ -177,6 +177,7 @@ class Task(RedisBase):
         return self.job.exc_info
 
     @property
+    @cached(TTLCache(maxsize=10, ttl=0.01))
     def dependencies(self):
         """
         Get a list of tasks that should be done before this Task.
@@ -187,6 +188,7 @@ class Task(RedisBase):
         return tasks_from_ids(self.job.meta.get("dependency_ids", []))
 
     @property
+    @cached(TTLCache(maxsize=10, ttl=0.01))
     def dependents(self):
         """
         List of tasks that should be done after this Task.
