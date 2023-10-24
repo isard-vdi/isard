@@ -19,9 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 108
-# release 108: Fixed upgrade old domains with old storage to new storage
-# release 107: Upgrade old domains with old storage to new storage
+release_version = 109
+# release 109: Upgrade old domains with old storage to new storage
 # release 106: Add parent index to storage
 # release 105: Remove units from str_created in usage limits
 # release 104: Remove existing user_storages and it's entries in users
@@ -1996,8 +1995,160 @@ class Upgrade(object):
             except Exception as e:
                 print(e)
 
-        if version == 107:
+        if version == 109:
+            storages_to_check = []
+
+            incorrect_storages_ids = list(
+                r.table("storage")
+                .filter(~r.row.has_fields("user_id"))["id"]
+                .run(self.conn)
+            )
+
+            print(
+                "--- Deleted {} storages created incorrectly in previous upgrades ---".format(
+                    len(incorrect_storages_ids)
+                )
+            )
+            r.table("storage").get_all(incorrect_storages_ids).delete().run(self.conn)
+
             try:
+                print(
+                    "--- Getting nonpersistent domains with old file path in [create_dict][hardware][disks] ---"
+                )
+                nonpersistent_with_old_file = list(
+                    r.table("domains")
+                    .pluck(
+                        {
+                            "id": True,
+                            "user": True,
+                            "parents": True,
+                            "create_dict": {"hardware": {"disks": True}},
+                            "persistent": True,
+                        }
+                    )
+                    .filter(
+                        (r.row.has_fields("persistent"))
+                        & (r.row["persistent"] == False)
+                        & (
+                            r.row["create_dict"]["hardware"]["disks"][0].has_fields(
+                                "file"
+                            )
+                        )
+                    )["id"]
+                    .run(self.conn)
+                )
+
+                print(
+                    "Found {} nonpersistent desktops with old file path, deleting them".format(
+                        len(nonpersistent_with_old_file)
+                    )
+                )
+
+                r.table("domains").get_all(
+                    r.args(nonpersistent_with_old_file)
+                ).delete().run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                print(
+                    "--- Getting nonpersistent domains with storages migrating or deleted ---"
+                )
+                nonpersistent_storage_migrating_or_deleted = list(
+                    r.table("domains")
+                    .filter(
+                        (r.row.has_fields("persistent"))
+                        & (r.row["persistent"] == False)
+                    )
+                    .eq_join(
+                        r.row["create_dict"]["hardware"]["disks"][0]["storage_id"],
+                        r.table("storage"),
+                    )
+                    .filter(
+                        lambda storage: r.expr(["migrating", "deleted"]).contains(
+                            storage["right"]["status"]
+                        )
+                    )
+                    .pluck("right")["right"]["id"]
+                    .distinct()
+                    .run(self.conn)
+                )
+
+                nonpersistent_domains_migrating_or_deleted = list(
+                    r.table("domains")
+                    .get_all(
+                        r.args(nonpersistent_storage_migrating_or_deleted),
+                        index="storage_ids",
+                    )["id"]
+                    .run(self.conn)
+                )
+
+                print(
+                    "Deleting %s nonpersistent domains with storage migrating or deleted"
+                    % len(nonpersistent_domains_migrating_or_deleted)
+                )
+
+                r.table("domains").get_all(
+                    r.args(nonpersistent_domains_migrating_or_deleted)
+                ).delete().run(self.conn)
+
+                print(
+                    "Generating tasks for %s incorrectly created storages to set them as deleted"
+                    % len(nonpersistent_storage_migrating_or_deleted)
+                )
+                storages_to_check = (
+                    storages_to_check + nonpersistent_storage_migrating_or_deleted
+                )
+            except Exception as e:
+                print(e)
+
+            try:
+                print(
+                    "--- Nonpersistent domains with storage_id in [create_dict][hardware][disks] that don't exist in the db ---"
+                )
+                nonpersistent_without_storage = list(
+                    r.table("domains")
+                    .pluck(
+                        {
+                            "id": True,
+                            "user": True,
+                            "parents": True,
+                            "kind": True,
+                            "persistent": True,
+                            "create_dict": {"hardware": {"disks": True}},
+                        }
+                    )
+                    .filter(
+                        lambda domain: r.table("storage")
+                        .get_all(
+                            domain["create_dict"]["hardware"]["disks"][0]["storage_id"]
+                        )
+                        .count()
+                        .eq(0)
+                    )
+                    .filter(
+                        (r.row.has_fields("persistent"))
+                        & (r.row["persistent"] == False)
+                    )["id"]
+                    .run(self.conn)
+                )
+
+                print(
+                    "Deleting {} nonpersistent desktop without storage".format(
+                        len(nonpersistent_without_storage)
+                    )
+                )
+
+                r.table("domains").get_all(
+                    r.args(nonpersistent_without_storage)
+                ).delete().run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                print(
+                    "--- Getting persistent domains with old file path in [create_dict][hardware][disks] ---"
+                )
                 domains_with_file_path = list(
                     r.table("domains")
                     .pluck(
@@ -2013,112 +2164,18 @@ class Upgrade(object):
                     )
                     .run(self.conn)
                 )
+
                 domains_to_update = []
                 storages_to_insert = []
                 storages = {}
+
+                # Extract the data from the file to insert the new storage onto the db.
                 for domain in domains_with_file_path:
                     old_disk = domain["create_dict"]["hardware"]["disks"][0]
                     base_name = os.path.splitext(old_disk["file"])
                     fmt = base_name[1][1:]
-                    directory_path = old_disk.get("path_selected", "")
-
-                    if storages.get(old_disk["file"]):
-                        uuid = storages[old_disk["file"]]
-                    else:
-                        uuid = str(uuid4())
-                        storages[old_disk["file"]] = uuid
-                        storages_to_insert.append(
-                            {
-                                "id": uuid,
-                                "directory_path": directory_path,
-                                "status": "migrating",
-                                "type": fmt,
-                                "user_id": domain["user"],
-                                "status_logs": [
-                                    {"status": "created", "time": int(time.time())}
-                                ],
-                            }
-                        )
-                    domains_to_update.append(
-                        {
-                            "id": domain["id"],
-                            "create_dict": {
-                                "hardware": {
-                                    "disks": [
-                                        {
-                                            "storage_id": uuid,
-                                        }
-                                    ]
-                                }
-                            },
-                        }
-                    )
-
-                if len(storages_to_insert):
-                    print(
-                        "Inserting %s new storages from old domains..."
-                        % len(storages_to_insert)
-                    )
-                    r.table("storage").insert(storages_to_insert).run(self.conn)
-                    print(
-                        "Updating %s domains disks from old domains..."
-                        % len(domains_to_update)
-                    )
-                    r.table("domains").insert(domains_to_update, conflict="update").run(
-                        self.conn
-                    )
-                    print(
-                        "WARNING: storages need to be updated. Adding tasks to do it in the next minutes."
-                    )
-                    for storage_to_insert in storages_to_insert:
-                        storage = Storage(storage_to_insert["id"])
-                        storage.check_backing_chain(user_id="local-default-admin-admin")
-
-            except Exception as e:
-                print(e)
-
-        if version == 108:
-            try:
-                storages_ids_to_remove = list(
-                    r.table("domains")
-                    .eq_join(
-                        r.row["create_dict"]["hardware"]["disks"][0]["storage_id"],
-                        r.table("storage"),
-                    )
-                    .filter(
-                        lambda storage: r.expr(["migrating", "deleted"]).contains(
-                            storage["right"]["status"]
-                        )
-                    )
-                    .pluck("right")["right"]["id"]
-                    .run(self.conn)
-                )
-
-                domains_with_file_path = list(
-                    r.table("domains")
-                    .get_all(r.args(storages_ids_to_remove), index="storage_ids")
-                    .pluck(
-                        {
-                            "id": True,
-                            "user": True,
-                            "parents": True,
-                            "hardware": {"disks": True},
-                        }
-                    )
-                    .run(self.conn)
-                )
-
-                domains_to_update = []
-                storages_to_insert = []
-                storages = {}
-
-                for domain in domains_with_file_path:
-                    old_disk = domain["hardware"]["disks"][0]
-                    base_name = os.path.splitext(old_disk["file"])
-                    fmt = base_name[1][1:]
                     directory_path = "/".join(old_disk["file"].split("/")[:3])
-                    uuid = "/".join(old_disk["file"].split("/")[3:]).split(".")[0]
-
+                    uuid = os.path.relpath(base_name[0], directory_path + "/")
                     if not storages.get(old_disk["file"]):
                         storages[old_disk["file"]] = uuid
                         storages_to_insert.append(
@@ -2133,6 +2190,7 @@ class Upgrade(object):
                                 ],
                             }
                         )
+                    # Update the domain with the new storage_id
                     domains_to_update.append(
                         {
                             "id": domain["id"],
@@ -2148,34 +2206,281 @@ class Upgrade(object):
                         }
                     )
 
-                if len(storages_to_insert):
-                    print(
-                        "Inserting %s new storages from old domains..."
-                        % len(storages_to_insert)
-                    )
-                    r.table("storage").insert(storages_to_insert).run(self.conn)
-                    print(
-                        "Updating %s domains disks from old domains..."
-                        % len(domains_to_update)
-                    )
-                    r.table("domains").insert(domains_to_update, conflict="update").run(
-                        self.conn
-                    )
-                    print(
-                        "WARNING: storages need to be updated. Adding tasks to do it in the next minutes."
-                    )
-
-                r.table("storage").get_all(r.args(storages_ids_to_remove)).delete().run(
+                print(
+                    "Inserting %s new storages with the data retrieved from [hardware][disks] file info"
+                    % len(storages_to_insert)
+                )
+                r.table("storage").insert(storages_to_insert).run(self.conn)
+                print(
+                    "Updating %s domains setting their new generated storage_id in [create_dict][hardware][disks]"
+                    % len(domains_to_update)
+                )
+                r.table("domains").insert(domains_to_update, conflict="update").run(
                     self.conn
                 )
 
-                if len(storages_to_insert):
-                    for storage_to_insert in storages_to_insert:
-                        storage = Storage(storage_to_insert["id"])
-                        storage.check_backing_chain(
-                            user_id="local-default-admin-admin", blocking=False
-                        )
+                print(
+                    "WARNING: Adding tasks to check %s storages in the next minutes."
+                    % len(storages_to_insert)
+                )
 
+                # Generate check task
+                for storage_to_insert in storages_to_insert:
+                    storages_to_check.append(storage_to_insert["id"])
+            except Exception as e:
+                print(e)
+
+            try:
+                print(
+                    "--- Getting domains with storages migrating or deleted with file in [hardware][disks] ---"
+                )
+                storages_ids_to_remove = list(
+                    r.table("domains")
+                    .filter(
+                        (r.row["hardware"]["disks"][0].has_fields("file"))
+                        & (~r.row["hardware"]["disks"][0].has_fields("storage_id"))
+                    )
+                    .eq_join(
+                        r.row["create_dict"]["hardware"]["disks"][0]["storage_id"],
+                        r.table("storage"),
+                    )
+                    .filter(
+                        lambda storage: r.expr(["migrating", "deleted"]).contains(
+                            storage["right"]["status"]
+                        )
+                    )
+                    .pluck("right")["right"]["id"]
+                    .distinct()
+                    .run(self.conn)
+                )
+
+                # Exclude storages migrating from first insert in the upgrade
+                storages_ids_to_remove = [
+                    i for i in storages_ids_to_remove if i not in storages.values()
+                ]
+
+                domains_with_file_path = list(
+                    r.table("domains")
+                    .get_all(r.args(storages_ids_to_remove), index="storage_ids")
+                    .pluck(
+                        {
+                            "id": True,
+                            "user": True,
+                            "kind": True,
+                            "parents": True,
+                            "hardware": {"disks": True},
+                        }
+                    )
+                    .run(self.conn)
+                )
+
+                domains_to_update = []
+                storages_to_insert = []
+                storages = {}
+
+                # Extract the data from the file to insert the new storage onto the db.
+                for domain in domains_with_file_path:
+                    old_disk = domain["hardware"]["disks"][0]
+                    base_name = os.path.splitext(old_disk["file"])
+                    fmt = base_name[1][1:]
+                    directory_path = "/".join(old_disk["file"].split("/")[:3])
+                    uuid = os.path.relpath(base_name[0], directory_path + "/")
+
+                    if not storages.get(old_disk["file"]):
+                        storages[old_disk["file"]] = uuid
+                        existing_storage = r.table("storage").get(uuid).run(self.conn)
+                        if (
+                            existing_storage
+                            and existing_storage["directory_path"] == directory_path
+                        ):
+                            continue
+                        else:
+                            storages_to_insert.append(
+                                {
+                                    "id": uuid,
+                                    "directory_path": directory_path,
+                                    "status": "migrating",
+                                    "type": fmt,
+                                    "user_id": domain["user"],
+                                    "status_logs": [
+                                        {"status": "created", "time": int(time.time())}
+                                    ],
+                                }
+                            )
+                    # Update the domain with the new storage_id
+                    domains_to_update.append(
+                        {
+                            "id": domain["id"],
+                            "create_dict": {
+                                "hardware": {
+                                    "disks": [
+                                        {
+                                            "storage_id": uuid,
+                                        }
+                                    ]
+                                }
+                            },
+                        }
+                    )
+
+                print(
+                    "Generating tasks for %s incorrectly created storages to set them as deleted"
+                    % len(storages_ids_to_remove)
+                )
+
+                # Generate check task
+                storages_to_check = storages_to_check + storages_ids_to_remove
+
+                print(
+                    "Inserting %s new storages with the data retrieved from [hardware][disks] file info"
+                    % len(storages_to_insert)
+                )
+                r.table("storage").insert(storages_to_insert).run(self.conn)
+                print(
+                    "Updating %s domains setting their new generated storage_id in [create_dict][hardware][disks]"
+                    % len(domains_to_update)
+                )
+                r.table("domains").insert(domains_to_update, conflict="update").run(
+                    self.conn
+                )
+
+                print(
+                    "WARNING: Adding tasks to check %s storages in the next minutes."
+                    % len(storages_to_insert)
+                )
+
+                # Generate check task
+                for storage_to_insert in storages_to_insert:
+                    storages_to_check.append(storage_to_insert["id"])
+            except Exception as e:
+                print(e)
+
+            try:
+                print(
+                    "--- Getting domains with storages migrating or deleted with 'storage_id' in [hardware][disks] ---"
+                )
+                storages_to_generate_task = list(
+                    r.table("domains")
+                    .filter(
+                        (r.row["hardware"]["disks"][0].has_fields("storage_id"))
+                        & (~r.row["hardware"]["disks"][0].has_fields("file"))
+                    )
+                    .eq_join(
+                        r.row["create_dict"]["hardware"]["disks"][0]["storage_id"],
+                        r.table("storage"),
+                    )
+                    .filter(
+                        lambda storage: r.expr(["migrating", "deleted"]).contains(
+                            storage["right"]["status"]
+                        )
+                    )
+                    .pluck("right")["right"]["id"]
+                    .run(self.conn)
+                )
+
+                print(
+                    "WARNING: Adding tasks to check %s storages in the next minutes."
+                    % len(storages_to_generate_task)
+                )
+
+                # Generate check task
+                storages_to_check = storages_to_check + storages_to_generate_task
+            except Exception as e:
+                print(e)
+
+            try:
+                print(
+                    "--- Persistent domains with storage_id in [create_dict][hardware][disks] that don't exist in the db ---"
+                )
+                domains_without_storage = list(
+                    r.table("domains")
+                    .pluck(
+                        {
+                            "id": True,
+                            "user": True,
+                            "parents": True,
+                            "kind": True,
+                            "create_dict": {"hardware": {"disks": True}},
+                        }
+                    )
+                    .filter(
+                        lambda domain: r.table("storage")
+                        .get_all(
+                            domain["create_dict"]["hardware"]["disks"][0]["storage_id"]
+                        )
+                        .count()
+                        .eq(0)
+                    )
+                    .run(self.conn)
+                )
+
+                storages_to_insert = []
+
+                # Extract the data from the file to insert the new storage onto the db.
+                for domain in domains_without_storage:
+                    storages_to_insert.append(
+                        {
+                            "id": domain["create_dict"]["hardware"]["disks"][0][
+                                "storage_id"
+                            ],
+                            "directory_path": "/isard/groups"
+                            if domain["kind"] == "desktop"
+                            else "/isard/templates",
+                            "status": "migrating",
+                            "type": "qcow2",
+                            "user_id": domain["user"],
+                            "status_logs": [
+                                {"status": "created", "time": int(time.time())}
+                            ],
+                        }
+                    )
+
+                print(
+                    "Inserting %s new storages with the id from [create_disk][hardware][disks]"
+                    % len(storages_to_insert)
+                )
+                r.table("storage").insert(storages_to_insert).run(self.conn)
+
+                print(
+                    "WARNING: Adding tasks to check %s storages in the next minutes."
+                    % len(storages_to_insert)
+                )
+
+                # Generate check task
+                for storage_to_insert in storages_to_insert:
+                    storages_to_check.append(storage_to_insert["id"])
+            except Exception as e:
+                print(e)
+
+            try:
+                other_status_disks = list(
+                    r.table("storage")
+                    .filter(
+                        lambda storage: r.expr(["ready", "deleted"])
+                        .contains(storage["status"])
+                        .not_()
+                    )
+                    .pluck("id")["id"]
+                    .run(self.conn)
+                )
+                print(
+                    f"Got {len(other_status_disks)} storages not in ready nor deleted status to check"
+                )
+                storages_to_check = list(set(storages_to_check + other_status_disks))
+                print(
+                    f"Total storages to check after removing duplicates: {len(storages_to_check)}"
+                )
+            except Exception as e:
+                print(e)
+
+            try:
+                print(f"Generating {len(storages_to_check)} tasks...")
+                for storage_to_remove in storages_to_check:
+                    # print(f"Generating task for storage {storage_to_remove}")
+                    storage = Storage(storage_to_remove)
+                    storage.check_backing_chain(
+                        user_id="local-default-admin-admin", blocking=False
+                    )
             except Exception as e:
                 print(e)
 
