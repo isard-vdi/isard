@@ -1,6 +1,6 @@
 // @ts-check
-const { test } = require('./login-page')
-const { Navbar } = require('./navbar')
+import { test } from './login-page'
+import { Navbar } from './navbar'
 
 test.describe('Navbar', () => {
   test('the profile should work correctly', async ({ page, login }) => {

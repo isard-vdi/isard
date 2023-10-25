@@ -1,7 +1,7 @@
 // @ts-check
 import { PageDesktops } from './desktops-page'
 import { fixture as baseFixture } from './admin/downloads-page'
-import { test, expect } from '@playwright/test'
+import { test as base, expect } from '@playwright/test'
 
 export class PageTemplates {
   /**
@@ -63,4 +63,4 @@ export const fixture = {
   ...baseFixture
 }
 
-exports.test = test.extend(fixture)
+export const test = base.extend(fixture)
