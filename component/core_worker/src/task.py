@@ -19,6 +19,7 @@
 
 import json
 
+from cachetools import TTLCache, cached
 from isardvdi_common.api_rest import ApiRest
 from isardvdi_common.domain import Domain
 from isardvdi_common.media import Media
@@ -29,6 +30,18 @@ from rq import get_current_job
 
 def socketio(data):
     ApiRest().post("/socketio", data=data)
+
+
+@cached(TTLCache(maxsize=10, ttl=60))
+def user_info(user_id):
+    """Get cached user info form isard-api.
+
+    :param user_id: User ID
+    :type user_id: str
+    :return: User info
+    :rtype: dict
+    """
+    return ApiRest().get(f"/admin/user/{user_id}")
 
 
 def feedback(task_id=None):
@@ -45,7 +58,7 @@ def feedback(task_id=None):
         task_id = get_current_job().dependency.id
     task = Task(task_id)
     task_as_json = json.dumps(task.to_dict())
-    user = ApiRest().get(f"/admin/user/{task.user_id}")
+    user = user_info(task.user_id)
     socketio(
         [
             {
