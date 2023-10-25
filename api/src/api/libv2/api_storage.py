@@ -127,6 +127,40 @@ def get_disks(user_id=None, status=None, pluck=None, category_id=None):
         return list(query.run(db.conn))
 
 
+def get_user_ready_disks(user_id):
+    query = (
+        r.table("storage")
+        .get_all("ready", index="status")
+        .pluck(
+            [
+                "id",
+                "user_id",
+                "user_name",
+                {"qemu-img-info": {"virtual-size": True, "actual-size": True}},
+                "status_logs",
+            ],
+        )
+        .merge(
+            lambda disk: {
+                "user_name": r.table("users")
+                .get(disk["user_id"])
+                .default({"name": "[DELETED] " + disk["user_id"]})["name"],
+                "category": r.table("users")
+                .get(disk["user_id"])
+                .default({"category": "[DELETED]"})["category"],
+                "domains": r.table("domains")
+                .get_all(disk["id"], index="storage_ids")
+                .filter({"user": user_id})
+                .pluck("id", "name")
+                .coerce_to("array"),
+            }
+        )
+    )
+
+    with app.app_context():
+        return list(query.run(db.conn))
+
+
 def get_storage_domains(storage_id):
     with app.app_context():
         return list(
