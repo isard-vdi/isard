@@ -273,7 +273,8 @@
                 "planning": "Planning"
             },
             "templates": "Modèles",
-            "desktops": "Bureaux"
+            "desktops": "Bureaux",
+            "media": "Média"
         },
         "not-found": {
             "home": "Retour",
@@ -374,7 +375,8 @@
                 "email": "E-mail",
                 "authentication": "Authentification"
             },
-            "change-password": "Changer le mot de passe"
+            "change-password": "Changer le mot de passe",
+            "language": "Langage"
         },
         "bookings": {
             "item": {
@@ -382,7 +384,8 @@
                     "available": "Disponible"
                 },
                 "split-labels": {
-                    "availability": "Disponibilité"
+                    "availability": "Disponibilité",
+                    "bookings": "Réservations"
                 },
                 "modal": {
                     "edit": {
@@ -396,10 +399,19 @@
                     "delete": {
                         "button": "Supprimer"
                     },
-                    "title": "Titre"
+                    "title": "Titre",
+                    "create": {
+                        "modal-title": "Ajouter une réservation",
+                        "button": "Ajouter une réservation"
+                    }
                 },
                 "enough-units": "Suffisant unités",
-                "units": "unités"
+                "units": "unités",
+                "status-bar": {
+                    "buttons": {
+                        "add-booking": "Ajouter une réservation"
+                    }
+                }
             }
         },
         "select-search": {
@@ -476,6 +488,13 @@
             "info": {
                 "name": "Nom",
                 "description": "Description"
+            },
+            "hardware": {
+                "memory": "Mémoire (GB)",
+                "videos": "Vidéos"
+            },
+            "media": {
+                "title": "Média"
             }
         },
         "clear": "Effacer",
