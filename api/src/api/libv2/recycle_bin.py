@@ -17,6 +17,17 @@ from isardvdi_common.task import Task
 
 from api import socketio
 
+from ..libv2.api_user_storage import (
+    isard_user_storage_disable_categories,
+    isard_user_storage_disable_groups,
+    isard_user_storage_disable_users,
+    isard_user_storage_enable_categories,
+    isard_user_storage_enable_groups,
+    isard_user_storage_enable_users,
+    isard_user_storage_remove_categories,
+    isard_user_storage_remove_groups,
+    isard_user_storage_remove_users,
+)
 from ..libv2.quotas import Quotas
 from .bookings.api_booking import Bookings
 from .flask_rethink import RDB
@@ -358,6 +369,12 @@ class RecycleBin(object):
             self._add_log("restored")
             r.table("domains").insert(self.desktops + self.templates).run(db.conn)
             r.table("deployments").insert(self.deployments).run(db.conn)
+        if self.categories:
+            isard_user_storage_enable_categories(self.categories)
+        elif self.groups:
+            isard_user_storage_enable_groups(self.groups)
+        elif self.users:
+            isard_user_storage_enable_users(self.users)
         self.send_socket_user(
             "update_recycle_bin", {"id": self.id, "status": "restored"}
         )
@@ -372,6 +389,14 @@ class RecycleBin(object):
         :param user_id: User ID of who is performing the action
         :type user_id: str
         """
+
+        if self.categories:
+            groups = [group["id"] for group in self.groups]
+            isard_user_storage_remove_categories(self.categories, groups)
+        elif self.groups:
+            isard_user_storage_remove_groups(self.groups)
+        elif self.users:
+            isard_user_storage_remove_users(self.users)
 
         tasks = []
         if self.status in ["restored", "deleted"]:
@@ -574,12 +599,21 @@ class RecycleBin(object):
 
             with app.app_context():
                 for user in result["users"]:
-                    user["category"] = (
-                        r.table("categories").get(user["category"])["name"].run(db.conn)
-                    )
-                    user["group"] = (
-                        r.table("groups").get(user["group"])["name"].run(db.conn)
-                    )
+                    try:
+                        user["category"] = (
+                            r.table("categories")
+                            .get(user["category"])["name"]
+                            .run(db.conn)
+                        )
+                    except:
+                        user["category"] = "[DELETED]"
+
+                    try:
+                        user["group"] = (
+                            r.table("groups").get(user["group"])["name"].run(db.conn)
+                        )
+                    except:
+                        user["group"] = "[DELETED]"
 
         return result
 
@@ -1042,6 +1076,7 @@ class RecycleBinUser(RecycleBin):
                         "users": r.row["users"].append(user),
                     }
                 ).run(db.conn)
+                isard_user_storage_disable_users([user])
 
 
 class RecycleBinGroup(RecycleBin):
@@ -1112,6 +1147,7 @@ class RecycleBinGroup(RecycleBin):
                 }
             ).run(db.conn)
             r.table("users").get_all(group["id"], index="group").delete().run(db.conn)
+        isard_user_storage_disable_groups([group])
 
 
 class RecycleBinCategory(RecycleBin):
@@ -1193,3 +1229,4 @@ class RecycleBinCategory(RecycleBin):
             r.table("groups").get_all(
                 category["id"], index="parent_category"
             ).delete().run(db.conn)
+        isard_user_storage_disable_categories([category])

@@ -63,6 +63,7 @@ def api_v3_admin_recycle_bin_restore(payload, recycle_bin_id):
     rb = RecycleBin(id=recycle_bin_id)
     rb._update_agent(payload["user_id"])
     rb.restore()
+
     return (
         json.dumps({"recycle_bin_id": recycle_bin_id}),
         200,

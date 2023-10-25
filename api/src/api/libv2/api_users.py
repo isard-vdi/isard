@@ -54,9 +54,6 @@ db.init_app(app)
 
 from ..libv2.api_user_storage import (
     isard_user_storage_add_user,
-    isard_user_storage_remove_category,
-    isard_user_storage_remove_group,
-    isard_user_storage_remove_user,
     isard_user_storage_update_user,
     isard_user_storage_update_user_quota,
     user_storage_quota,
@@ -768,7 +765,6 @@ class ApiUsers:
             )
 
     def Delete(self, user_id, agent_id, delete_user):
-        isard_user_storage_remove_user(user_id)
         self.Get(user_id)
         change_user_items_owner("media", user_id)
         user_delete(agent_id, user_id, delete_user)
@@ -1186,7 +1182,6 @@ class ApiUsers:
             )
 
     def CategoryDelete(self, category_id, agent_id):
-        isard_user_storage_remove_category(category_id)
         change_category_items_owner("media", category_id)
         category_delete(agent_id, category_id)
 
@@ -1236,8 +1231,6 @@ class ApiUsers:
     def GroupDelete(self, group_id, agent_id):
         # Check the group exists
         self.GroupGet(group_id)
-        isard_user_storage_remove_group(group_id)
-
         change_group_items_owner("media", group_id)
         group_delete(agent_id, group_id)
 
