@@ -38,5 +38,6 @@ def emit_socketio(payload):
     """
     if not request.is_json:
         raise Error(description="JSON expected")
-    socketio.emit(**request.json)
+    for event in request.json:
+        socketio.emit(**event)
     return jsonify(True)
