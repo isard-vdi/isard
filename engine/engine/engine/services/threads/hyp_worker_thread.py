@@ -42,6 +42,7 @@ from engine.services.threads.threads import (
 from libvirt import (
     VIR_DOMAIN_SHUTDOWN_ACPI_POWER_BTN,
     VIR_DOMAIN_START_PAUSED,
+    VIR_ERR_NO_DOMAIN,
     libvirtError,
 )
 
@@ -519,6 +520,30 @@ class HypWorkerThread(threading.Thread):
                     try:
                         domain_handler = self.h.conn.lookupByName(action["id_domain"])
                         domain_handler.destroy()
+                    except libvirtError as e:
+                        if e.get_error_code() == VIR_ERR_NO_DOMAIN:
+                            # already undefined
+                            pass
+                        else:
+                            logs.exception_id.debug(
+                                "0065: Libvirt error code: {}".format(
+                                    e.get_error_code()
+                                )
+                            )
+                            if action.get("not_change_status", False) is False:
+                                update_domain_status(
+                                    "Failed",
+                                    action["id_domain"],
+                                    hyp_id=self.hyp_id,
+                                    detail=str(e),
+                                )
+                            logs.workers.info(
+                                "exception in stopping domain {}: ".format(
+                                    e.get_error_code()
+                                )
+                            )
+                            continue
+                    try:
                         # nvidia info updated in events_recolector
 
                         logs.workers.info(
