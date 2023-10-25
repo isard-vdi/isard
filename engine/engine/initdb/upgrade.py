@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 109
+release_version = 110
+# release 110: Remove storages without field user_id
 # release 109: Upgrade old domains with old storage to new storage
 # release 106: Add parent index to storage
 # release 105: Remove units from str_created in usage limits
@@ -3483,6 +3484,22 @@ class Upgrade(object):
                 r.table(table).index_wait("parent").run(self.conn)
             except Exception as e:
                 print(e)
+
+        if version == 110:
+            incorrect_storages_ids = list(
+                r.table("storage")
+                .filter(~r.row.has_fields("user_id"))["id"]
+                .run(self.conn)
+            )
+
+            print(
+                "--- Deleted {} storages created incorrectly in previous upgrades ---".format(
+                    len(incorrect_storages_ids)
+                )
+            )
+            r.table("storage").get_all(r.args(incorrect_storages_ids)).delete().run(
+                self.conn
+            )
 
         return True
 
