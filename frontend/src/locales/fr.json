@@ -381,7 +381,8 @@
         "bookings": {
             "item": {
                 "event-titles": {
-                    "available": "Disponible"
+                    "available": "Disponible",
+                    "unavailable": "Non disponible"
                 },
                 "split-labels": {
                     "availability": "Disponibilité",
