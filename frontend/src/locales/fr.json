@@ -465,7 +465,8 @@
         "required": "{property} est requis.",
         "minLengthValue": "Le champ {property} a {model} caractères, mais sa longueur minimale doit être de {min}.",
         "url": "Le champ {property} doit être une URL.",
-        "sameAs": "Le champ {property} doit avoir la même valeur que le champ {property2}."
+        "sameAs": "Le champ {property} doit avoir la même valeur que le champ {property2}.",
+        "undefined": "Non défini"
     },
     "forms": {
         "new-desktop": {
@@ -576,7 +577,8 @@
             "url": "URL",
             "title": "Créer un nouveau média :",
             "description": "Description",
-            "name": "Nom du média"
+            "name": "Nom du média",
+            "select-type": "Sélectionnez une option s'il vous plaît"
         }
     },
     "messages": {
