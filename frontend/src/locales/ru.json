@@ -407,6 +407,9 @@
         },
         "duplicate-template": {
             "title": "Дубликат шаблона"
+        },
+        "new-media": {
+            "title": "Создание нового носителя:"
         }
     },
     "messages": {
