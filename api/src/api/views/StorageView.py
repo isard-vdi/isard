@@ -16,7 +16,11 @@ from isardvdi_protobuf.queue.storage.v1 import ConvertRequest, DiskFormat
 
 from api import app
 
-from ..libv2.api_storage import get_disks, get_disks_ids_by_status, parse_disks
+from ..libv2.api_storage import (
+    get_disks_ids_by_status,
+    get_user_ready_disks,
+    parse_disks,
+)
 from .decorators import has_token, is_admin, ownsStorageId
 
 
@@ -202,20 +206,10 @@ def storage_task(payload, storage_id):
     return jsonify(task_dict)
 
 
-@app.route("/api/v3/storage/<status>", methods=["GET"])
+@app.route("/api/v3/storage/ready", methods=["GET"])
 @has_token
-def api_v3_storage(payload, status):
-    disks = get_disks(
-        payload["user_id"],
-        pluck=[
-            "id",
-            "user_id",
-            "user_name",
-            {"qemu-img-info": {"virtual-size": True, "actual-size": True}},
-            "status_logs",
-        ],
-        status=status,
-    )
+def api_v3_storage(payload):
+    disks = get_user_ready_disks(payload["user_id"])
 
     disks = parse_disks(disks)
 
