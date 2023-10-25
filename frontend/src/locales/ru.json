@@ -306,7 +306,8 @@
         "maxLengthValue": "Поле {property} содержит {model} символов, но оно должно иметь максимальную длину {max}.",
         "minLengthValue": "Поле {property} содержит {model} символов, но оно должно иметь минимальную длину {min}.",
         "sameAs": "Поле {property} должно иметь то же значение, что и {property2}.",
-        "url": "Поле {property} должно быть ссылкой."
+        "url": "Поле {property} должно быть ссылкой.",
+        "undefined": "Не определено"
     },
     "forms": {
         "new-desktop": {
