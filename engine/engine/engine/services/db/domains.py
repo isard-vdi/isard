@@ -7,6 +7,7 @@ from copy import deepcopy
 from pathlib import PurePath
 from typing import TypedDict
 
+from cachetools import TTLCache
 from engine.config import TRANSITIONAL_STATUS
 from engine.services.db import (
     close_rethink_connection,
@@ -1368,6 +1369,9 @@ def remove_domain(id):
     return result
 
 
+failed_servers_cache = TTLCache(maxsize=100, ttl=60)
+
+
 def get_domains_flag_server_to_starting():
     r_conn = new_rethink_connection()
     rtable = r.table("domains")
@@ -1377,13 +1381,29 @@ def get_domains_flag_server_to_starting():
             .pluck("id")["id"]
             .run(r_conn)
         )
+        ids_servers_failed_retries = list(
+            rtable.get_all(["desktop", True, "Failed"], index="serverstostart")
+            .pluck("id")["id"]
+            .run(r_conn)
+        )
+        ids_failed_to_be_retried = ids_servers_failed_retries.copy()
+        for server_id in ids_servers_failed_retries:
+            try:
+                failed_servers_cache[server_id]
+                ids_failed_to_be_retried.remove(server_id)
+            except Exception as e:
+                failed_servers_cache[server_id] = "1"
+        if len(ids_failed_to_be_retried) > 0:
+            logs.main.error(
+                f"We've got {len(ids_failed_to_be_retried)} FAILED SERVERS to start"
+            )
     except Exception as e:
         logs.exception_id.debug("0040")
         logs.main.error(e)
         close_rethink_connection(r_conn)
         return []
     close_rethink_connection(r_conn)
-    return ids_servers_must_start
+    return ids_servers_must_start + ids_failed_to_be_retried
 
 
 def update_domain_history_from_id_domain(domain_id, new_status, new_detail, date_now):
