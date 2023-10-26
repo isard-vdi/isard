@@ -102,57 +102,58 @@ def get_usage_consumption_between_dates(
     return data
 
 
+cache_usage_reset_date = TTLCache(maxsize=10, ttl=60)
+
+
 @cached(
-    TTLCache(maxsize=10, ttl=60),
-    key=lambda start_date, end_date: f"{start_date}-{end_date}",
+    cache_usage_reset_date, key=lambda start_date, end_date: f"{start_date}-{end_date}"
 )
-def get_reset_dates(start_date, end_date):
+def get_reset_dates(start_date=None, end_date=None):
     # TODO: Check that it is doing what is supposed to do
     # Must return first reset date before start_date and all dates
     # between start_date and end_date in descending order (newest first)
     # If none found, return empty list
-    return [
-        (
-            datetime(2023, 9, 1)
-            .astimezone()
-            .replace(minute=0, hour=0, second=0, microsecond=0, tzinfo=pytz.utc)
-        )
-        + timedelta(days=-1)
-    ]
-    # with app.app_context():
-    #     previous = list(
-    #         r.table("usage_reset_dates")
-    #         .filter(r.row["date"] <= start_date)
-    #         .order_by(r.desc("date"))
-    #         .limit(1)["date"]
-    #         .run(db.conn)
+    # return [
+    #     (
+    #         datetime(2023, 9, 1)
+    #         .astimezone()
+    #         .replace(minute=0, hour=0, second=0, microsecond=0, tzinfo=pytz.utc)
     #     )
-    #     within = list(
-    #         r.table("usage_reset_dates")
-    #         .filter(r.row["date"] <= end_date & r.row["date"] >= start_date)
-    #         .order_by(r.desc("date"))["date"]
-    #         .run(db.conn)
-    #     )
-    # return within + previous
+    #     + timedelta(days=-1)
+    # ]
+    within = []
 
-    # TODO: Remove this when we've got dates in DB
-    # reset_date1 = (
-    #     datetime(2023, 8, 16)
-    #     .astimezone()
-    #     .replace(minute=0, hour=0, second=0, microsecond=0, tzinfo=pytz.utc)
-    # ) + timedelta(days=-1)
-    # reset_date2 = (
-    #     datetime(2023, 8, 31)
-    #     .astimezone()
-    #     .replace(minute=0, hour=0, second=0, microsecond=0, tzinfo=pytz.utc)
-    # ) + timedelta(days=-1)
-    # reset_date3 = (
-    #     datetime(2023, 9, 13)
-    #     .astimezone()
-    #     .replace(minute=0, hour=0, second=0, microsecond=0, tzinfo=pytz.utc)
-    # ) + timedelta(days=-1)
-    # return [reset_date3, reset_date2, reset_date1]
-    # END TODO
+    if start_date and end_date:
+        with app.app_context():
+            within = list(
+                r.table("usage_reset_dates")
+                .filter((r.row["date"] <= end_date) & (r.row["date"] >= start_date))
+                .order_by(r.desc("date"))["date"]
+                .run(db.conn)
+            )
+
+    else:
+        with app.app_context():
+            within = list(
+                r.table("usage_reset_dates")
+                .order_by(r.desc("date"))["date"]
+                .run(db.conn)
+            )
+    if len(within):
+        result = within
+        result.reverse()
+        return result
+    else:
+        return []
+
+
+def add_reset_date(reset_dates):
+    with app.app_context():
+        r.table("usage_reset_dates").delete().run(db.conn)
+        for date in set(reset_dates):
+            date = date.replace(tzinfo=pytz.timezone("UTC"))
+            r.table("usage_reset_dates").insert({"date": date}).run(db.conn)
+    cache_usage_reset_date.clear()
 
 
 # Define a custom key function

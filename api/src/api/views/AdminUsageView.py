@@ -30,6 +30,7 @@ from api import app
 
 from ..libv2.api_admin import admin_table_list
 from ..libv2.api_usage import (
+    add_reset_date,
     add_usage_credit,
     add_usage_grouping,
     add_usage_limits,
@@ -41,6 +42,7 @@ from ..libv2.api_usage import (
     delete_usage_limits,
     delete_usage_parameters,
     get_all_usage_credits,
+    get_reset_dates,
     get_start_end_consumption,
     get_usage_consumers,
     get_usage_consumption_between_dates,
@@ -571,6 +573,55 @@ def api_v3_admin_usage_credits_delete(payload, credit_id):
 def api_v3_admin_usage_unify_item_name(payload, item_id):
     return (
         json.dumps({"name": unify_item_name(item_id)}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/usage/reset_date", methods=["GET"])
+@app.route("/api/v3/admin/usage/reset_date/<start_date>/<end_date>", methods=["GET"])
+@is_admin_or_manager
+def api_v3_admin_usage_reset_day(payload, start_date=None, end_date=None):
+    if start_date and end_date:
+        start_date = datetime.strptime(start_date, "%Y-%m-%d").replace(
+            tzinfo=pytz.timezone("UTC")
+        )
+        end_date = datetime.strptime(end_date, "%Y-%m-%d").replace(
+            tzinfo=pytz.timezone("UTC")
+        )
+    reset_dates = get_reset_dates(start_date, end_date)
+    result = []
+    if len(reset_dates):
+        for date in reset_dates:
+            result.append(date.strftime("%m/%d/%Y"))
+    else:
+        result = []
+
+    return (
+        json.dumps(result),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/usage/reset_dates", methods=["PUT"])
+@is_admin
+def api_v3_admin_usage_reset_add(payload):
+    try:
+        data = request.get_json()
+    except:
+        raise Error("bad_request")
+
+    try:
+        parsed_dates = [
+            datetime.strptime(date, "%m/%d/%Y") for date in data["date_list"]
+        ]
+    except:
+        parsed_dates = []
+    add_reset_date(parsed_dates)
+
+    return (
+        json.dumps(data["date_list"]),
         200,
         {"Content-Type": "application/json"},
     )
