@@ -8,6 +8,16 @@
         </div>
         <div class="clearfix"></div>
       </div>
+      <span id="allowed-warning" class="text-danger" hidden>
+        <h5>
+            <i class="fa fa-warning"></i>
+            It will be unassigned from desktops whose user permissions are revoked
+            <ul>
+                <li>Revoking permissions could led unusable desktops/templates without modifying their hardware again.</li>
+                <li>This action is not reversible!</li>
+            </ul>
+        </h5>
+      </span>
       <div id="alloweds_panel" class="x_content" style="display: none;">
                     {% if current_user.role == 'admin' %}
                         <div class="row" id="roles_pannel">

@@ -42,12 +42,18 @@ from ..libv2.isardViewer import isardViewer
 
 isardviewer = isardViewer()
 
+from ..libv2.api_allowed import ApiAllowed
 from ..libv2.api_cards import ApiCards, get_domain_stock_card
 from ..libv2.bookings.api_booking import Bookings
 
 apib = Bookings()
 api_cards = ApiCards()
 common = ApiDesktopsCommon()
+from ..libv2.api_storage import get_media_domains
+from ..libv2.bookings.api_reservables import Reservables
+
+api_ri = Reservables()
+api_allowed = ApiAllowed()
 
 from .api_desktop_events import (
     desktop_delete,
@@ -796,7 +802,6 @@ class ApiDesktopsPersistent:
             max_booking_time = min(max_time, available_time)
         else:
             max_booking_time = min(forbid_time, max_time, available_time)
-
         if max_booking_time >= MIN_AUTOBOOKING_TIME:
             max_booking_time = min(max_booking_time, MAX_BOOKING_TIME)
 
@@ -919,3 +924,214 @@ def domain_template_tree(domain_id):
     domain_tree["children"] = [parents[-1]]
 
     return domain_tree
+
+
+def get_desktops_with_resource(table, item):
+    if table == "media":
+        return get_media_domains(item["id"])
+    elif table == "reservables_vgpus":
+        return api_ri.check_desktops_with_profile("gpus", item["id"])
+    elif table in ["interfaces", "boots", "videos"]:
+        return list(
+            r.table("domains")
+            .get_all(item["id"], index="boot_order" if table == "boots" else table)
+            .eq_join("user", r.table("users"))
+            .pluck(
+                {
+                    "left": {"id": True},
+                    "right": {
+                        "id": True,
+                        "group": True,
+                        "category": True,
+                        "role": True,
+                    },
+                }
+            )
+            .map(
+                lambda doc: {
+                    "id": doc["left"]["id"],
+                    "user_data": {
+                        "role_id": doc["right"]["role"],
+                        "category_id": doc["right"]["category"],
+                        "group_id": doc["right"]["group"],
+                        "user_id": doc["right"]["id"],
+                    },
+                }
+            )
+            .run(db.conn)
+        )
+
+
+def unassign_resource_from_desktops_and_deployments(table, item):
+    domains = get_desktops_with_resource(table, item)
+    not_allowed_desktops = []
+    deployments = get_deployments_with_resource(table, item)
+    not_allowed_deployments = []
+
+    if item.get("allowed"):
+        for domain in domains:
+            isAllowed = api_allowed.is_allowed(domain.pop("user_data"), item, table)
+            if not isAllowed:
+                not_allowed_desktops.append(domain["id"])
+        for deployment in deployments:
+            isAllowed = api_allowed.is_allowed(deployment.pop("user_data"), item, table)
+            if not isAllowed:
+                not_allowed_deployments.append(deployment["id"])
+    else:
+        not_allowed_desktops = [domain.get("id") for domain in domains]
+        not_allowed_deployments = [deployment["id"] for deployment in deployments]
+
+    if table == "media":
+        with app.app_context():
+            r.table("domains").get_all(r.args(not_allowed_desktops)).update(
+                {
+                    "create_dict": {
+                        "hardware": {
+                            "isos": r.row["create_dict"]["hardware"]["isos"].filter(
+                                lambda media: media["id"].ne(item["id"])
+                            )
+                        }
+                    }
+                }
+            ).run(db.conn)
+            r.table("deployments").get_all(r.args(not_allowed_deployments)).update(
+                {
+                    "create_dict": {
+                        "hardware": {
+                            "isos": r.row["create_dict"]["hardware"]["isos"].filter(
+                                lambda media: media["id"].ne(item["id"])
+                            )
+                        }
+                    }
+                }
+            ).run(db.conn)
+
+    elif table == "reservables_vgpus":
+        api_ri.deassign_desktops_with_gpu(
+            "gpus", item["id"], desktops=not_allowed_desktops
+        )
+    elif table == "interfaces":
+        if item["id"] == "wireguard":
+            r.table("domains").get_all(r.args(not_allowed_desktops)).replace(
+                r.row.without(
+                    {
+                        "guest_properties": {
+                            "viewers": {
+                                "browser_rdp": True,
+                                "file_rdpgw": True,
+                                "file_rdpvpn": True,
+                            }
+                        },
+                    }
+                )
+            ).run(db.conn)
+            r.table("deployments").get_all(r.args(not_allowed_deployments)).replace(
+                r.row.without(
+                    {
+                        "create_dict": {
+                            "guest_properties": {
+                                "viewers": {
+                                    "browser_rdp": True,
+                                    "file_rdpgw": True,
+                                    "file_rdpvpn": True,
+                                }
+                            },
+                        }
+                    }
+                )
+            ).run(db.conn)
+        r.table("domains").get_all(r.args(not_allowed_desktops)).update(
+            {
+                "create_dict": {
+                    "hardware": {
+                        "interfaces": r.row["create_dict"]["hardware"][
+                            "interfaces"
+                        ].filter(lambda interface: interface["id"].ne(item["id"]))
+                    }
+                }
+            }
+        ).run(db.conn)
+        r.table("deployments").get_all(r.args(not_allowed_deployments)).update(
+            {
+                "create_dict": {
+                    "hardware": {
+                        "interfaces": r.row["create_dict"]["hardware"][
+                            "interfaces"
+                        ].difference([item["id"]])
+                    }
+                }
+            }
+        ).run(db.conn)
+    elif table in ["boots", "videos"]:
+        fields = {
+            "boots": "boot_order",
+            "videos": "videos",
+        }
+        r.table("domains").get_all(r.args(not_allowed_desktops)).update(
+            {
+                "create_dict": {
+                    "hardware": {
+                        fields[table]: r.row["create_dict"]["hardware"][
+                            fields[table]
+                        ].difference([item["id"]])
+                    }
+                }
+            }
+        ).run(db.conn)
+        r.table("deployments").get_all(r.args(not_allowed_desktops)).update(
+            {
+                "create_dict": {
+                    "hardware": {
+                        fields[table]: r.row["create_dict"]["hardware"][
+                            fields[table]
+                        ].difference([item["id"]])
+                    }
+                }
+            }
+        ).run(db.conn)
+    return not_allowed_desktops
+
+
+def get_deployments_with_resource(table, item):
+    if table in ["media", "reservables_vgpus", "interfaces", "boots", "videos"]:
+        indexes = {
+            "media": "isos",
+            "reservables_vgpus": "vgpus",
+            "interfaces": "interfaces",
+            "boots": "boot_order",
+            "videos": "videos",
+        }
+        return list(
+            r.table("deployments")
+            .get_all(item["id"], index=indexes[table])
+            .eq_join("user", r.table("users"))
+            .pluck(
+                {
+                    "left": {"id": True},
+                    "right": {
+                        "id": True,
+                        "group": True,
+                        "category": True,
+                        "role": True,
+                    },
+                }
+            )
+            .map(
+                lambda doc: {
+                    "id": doc["left"]["id"],
+                    "user_data": {
+                        "role_id": doc["right"]["role"],
+                        "category_id": doc["right"]["category"],
+                        "group_id": doc["right"]["group"],
+                        "user_id": doc["right"]["id"],
+                    },
+                }
+            )
+            .run(db.conn)
+        )
+    else:
+        raise Error(
+            "forbidden",
+            "Table without deployments",
+            traceback.format_exc(),
+        )

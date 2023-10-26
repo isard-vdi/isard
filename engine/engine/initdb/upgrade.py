@@ -19,7 +19,9 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 110
+release_version = 111
+# release 111: Added interfaces, videos, boot_order and reservables index to domains
+#              Remove deleted resources from domains
 # release 110: Remove storages without field user_id
 # release 109: Upgrade old domains with old storage to new storage
 # release 106: Add parent index to storage
@@ -1791,6 +1793,7 @@ class Upgrade(object):
                     r.table("domains").get_all(*domains_to_update).update(
                         {"create_dict": {"hardware": {"interfaces": {}}}}
                     ).run(self.conn)
+
             except Exception as e:
                 print(e)
 
@@ -1967,7 +1970,6 @@ class Upgrade(object):
                     ].concat_map(lambda data: [data["mac"]]),
                     multi=True,
                 ).run(self.conn)
-
             except Exception as e:
                 print(e)
 
@@ -2482,6 +2484,135 @@ class Upgrade(object):
                     storage.check_backing_chain(
                         user_id="local-default-admin-admin", blocking=False
                     )
+                if len(storages_to_insert):
+                    for storage_to_insert in storages_to_insert:
+                        storage = Storage(storage_to_insert["id"])
+                        storage.check_backing_chain(
+                            user_id="local-default-admin-admin", blocking=False
+                        )
+            except Exception as e:
+                print(e)
+
+        if version == 111:
+            try:
+                r.table(table).index_create(
+                    "interfaces",
+                    r.row["create_dict"]["hardware"]["interfaces"].concat_map(
+                        lambda data: [data["id"]]
+                    ),
+                    multi=True,
+                ).run(self.conn)
+                r.table(table).index_wait("interfaces").run(self.conn)
+            except Exception as e:
+                pass
+            try:
+                r.table(table).index_create(
+                    "videos",
+                    r.row["create_dict"]["hardware"]["videos"],
+                    multi=True,
+                ).run(self.conn)
+                r.table(table).index_wait("videos").run(self.conn)
+            except Exception as e:
+                pass
+            try:
+                r.table(table).index_create(
+                    "boot_order",
+                    r.row["create_dict"]["hardware"]["boot_order"],
+                    multi=True,
+                ).run(self.conn)
+                r.table(table).index_wait("boot_order").run(self.conn)
+            except Exception as e:
+                pass
+            try:
+                r.table(table).index_create(
+                    "vgpus", r.row["create_dict"]["reservables"]["vgpus"], multi=True
+                ).run(self.conn)
+                r.table(table).index_wait("vgpus").run(self.conn)
+            except Exception as e:
+                pass
+            try:
+                all_media = list(r.table("media").pluck("id")["id"].run(self.conn))
+                domains_medias = list(
+                    r.table("domains")
+                    .pluck({"create_dict": {"hardware": {"isos": True}}})[
+                        "create_dict"
+                    ]["hardware"]["isos"]
+                    .map(lambda x: x["id"])
+                    .reduce(lambda left, right: left.add(right))
+                    .distinct()
+                    .run(self.conn)
+                )
+                for media_id in domains_medias:
+                    if media_id not in all_media:
+                        r.table("domains").get_all(media_id, index="media_ids").update(
+                            {
+                                "create_dict": {
+                                    "hardware": {
+                                        "isos": r.row["create_dict"]["hardware"][
+                                            "isos"
+                                        ].filter(lambda media: media["id"].ne(media_id))
+                                    }
+                                }
+                            }
+                        ).run(self.conn)
+            except r.ReqlNonExistenceError:
+                pass
+            except Exception as e:
+                print(e)
+            try:
+                all_interfaces = list(
+                    r.table("interfaces").pluck("id")["id"].run(self.conn)
+                )
+                domains_interfaces = list(
+                    r.table("domains")
+                    .pluck({"create_dict": {"hardware": {"interfaces": True}}})[
+                        "create_dict"
+                    ]["hardware"]["interfaces"]
+                    .map(lambda x: x["id"])
+                    .reduce(lambda left, right: left.add(right))
+                    .distinct()
+                    .run(self.conn)
+                )
+                for i in domains_interfaces:
+                    if i not in all_interfaces:
+                        r.table("domains").get_all(i, index="interfaces").update(
+                            {
+                                "create_dict": {
+                                    "hardware": {
+                                        "interfaces": r.row["create_dict"]["hardware"][
+                                            "interfaces"
+                                        ].filter(
+                                            lambda interface: interface["id"].ne(i)
+                                        )
+                                    }
+                                }
+                            }
+                        ).run(self.conn)
+            except r.ReqlNonExistenceError:
+                pass
+            except Exception as e:
+                print(e)
+            try:
+                all_reservables = list(
+                    r.table("reservables_vgpus").pluck("id")["id"].run(self.conn)
+                )
+                domains_reservables = list(
+                    r.table("domains")
+                    .filter(r.row["create_dict"]["reservables"].has_fields("vgpus"))
+                    .pluck({"create_dict": {"reservables": True}})["create_dict"][
+                        "reservables"
+                    ]["vgpus"]
+                    .reduce(lambda left, right: left.add(right))
+                    .distinct()
+                    .run(self.conn)
+                )
+                for reservable in domains_reservables:
+                    if reservable not in all_reservables:
+                        r.table("domains").get_all(reservable, index="vgpus").update(
+                            {"create_dict": {"reservables": {"vgpus": None}}}
+                        ).run(self.conn)
+            except r.ReqlNonExistenceError:
+                pass
             except Exception as e:
                 print(e)
 
@@ -2527,6 +2658,157 @@ class Upgrade(object):
                     .run(self.conn)
                 )
                 r.table(table).get_all(r.args(deployments)).delete().run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 111:
+            try:
+                r.table("deployments").filter(
+                    lambda d: d["create_dict"]["hardware"]["interfaces"]
+                    .type_of()
+                    .eq("OBJECT")
+                ).update(
+                    {
+                        "create_dict": {
+                            "hardware": {
+                                "interfaces": r.row["create_dict"]["hardware"][
+                                    "interfaces"
+                                ].keys()
+                            }
+                        }
+                    }
+                ).run(
+                    self.conn
+                )
+            except Exception as e:
+                pass
+            try:
+                r.table(table).index_create(
+                    "interfaces",
+                    r.row["create_dict"]["hardware"]["interfaces"],
+                    multi=True,
+                ).run(self.conn)
+                r.table(table).index_wait("interfaces").run(self.conn)
+            except Exception as e:
+                pass
+            try:
+                r.table(table).index_create(
+                    "videos",
+                    r.row["create_dict"]["hardware"]["videos"],
+                    multi=True,
+                ).run(self.conn)
+                r.table(table).index_wait("videos").run(self.conn)
+            except Exception as e:
+                pass
+            try:
+                r.table(table).index_create(
+                    "boot_order",
+                    r.row["create_dict"]["hardware"]["boot_order"],
+                    multi=True,
+                ).run(self.conn)
+                r.table(table).index_wait("boot_order").run(self.conn)
+            except Exception as e:
+                pass
+            try:
+                r.table(table).index_create(
+                    "isos",
+                    lambda domain: domain["create_dict"]["hardware"]["isos"].concat_map(
+                        lambda data: [data["id"]]
+                    ),
+                    multi=True,
+                ).run(self.conn)
+                r.table(table).index_wait("isos").run(self.conn)
+            except Exception as e:
+                pass
+            try:
+                r.table(table).index_create(
+                    "vgpus", r.row["create_dict"]["reservables"]["vgpus"], multi=True
+                ).run(self.conn)
+                r.table(table).index_wait("vgpus").run(self.conn)
+            except Exception as e:
+                pass
+            try:
+                all_media = list(r.table("media").pluck("id")["id"].run(self.conn))
+                deployments_medias = list(
+                    r.table("deployments")
+                    .pluck({"create_dict": {"hardware": {"isos": True}}})[
+                        "create_dict"
+                    ]["hardware"]["isos"]
+                    .map(lambda x: x["id"])
+                    .reduce(lambda left, right: left.add(right))
+                    .distinct()
+                    .run(self.conn)
+                )
+                for media_id in deployments_medias:
+                    if media_id not in all_media:
+                        r.table("deployments").get_all(media_id, index="isos").update(
+                            {
+                                "create_dict": {
+                                    "hardware": {
+                                        "isos": r.row["create_dict"]["hardware"][
+                                            "isos"
+                                        ].filter(lambda media: media["id"].ne(media_id))
+                                    }
+                                }
+                            }
+                        ).run(self.conn)
+            except r.ReqlNonExistenceError:
+                pass
+            except Exception as e:
+                print(e)
+            try:
+                all_interfaces = list(
+                    r.table("interfaces").pluck("id")["id"].run(self.conn)
+                )
+                deployments_interfaces = list(
+                    r.table("deployments")
+                    .pluck({"create_dict": {"hardware": {"interfaces": True}}})[
+                        "create_dict"
+                    ]["hardware"]["interfaces"]
+                    .reduce(lambda left, right: left.add(right))
+                    .distinct()
+                    .run(self.conn)
+                )
+                for i in deployments_interfaces:
+                    if i not in all_interfaces:
+                        r.table("deployments").get_all(i, index="interfaces").update(
+                            {
+                                "create_dict": {
+                                    "hardware": {
+                                        "interfaces": r.row["create_dict"]["hardware"][
+                                            "interfaces"
+                                        ].filter(lambda interface: interface.ne(i))
+                                    }
+                                }
+                            }
+                        ).run(self.conn)
+            except r.ReqlNonExistenceError:
+                pass
+            except Exception as e:
+                print(e)
+            try:
+                all_reservables = list(
+                    r.table("reservables_vgpus").pluck("id")["id"].run(self.conn)
+                )
+                deployments_reservables = list(
+                    r.table("deployments")
+                    .filter(r.row["create_dict"]["reservables"].has_fields("vgpus"))
+                    .pluck({"create_dict": {"reservables": True}})["create_dict"][
+                        "reservables"
+                    ]["vgpus"]
+                    .reduce(lambda left, right: left.add(right))
+                    .distinct()
+                    .run(self.conn)
+                )
+                for reservable in deployments_reservables:
+                    if reservable not in all_reservables:
+                        r.table("deployments").get_all(
+                            reservable, index="vgpus"
+                        ).update({"create_dict": {"reservables": {"vgpus": None}}}).run(
+                            self.conn
+                        )
+            except r.ReqlNonExistenceError:
+                pass
             except Exception as e:
                 print(e)
 

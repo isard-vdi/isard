@@ -378,20 +378,6 @@ def admin_table_get(table, id, pluck=None):
 
 def admin_table_delete(table, item_id):
     _validate_table(table)
-    if table in ["interfaces"]:
-        query = r.table("domains")
-        desktops = query.pluck("id", "create_dict").run(db.conn)
-        for desktop in desktops:
-            if any(
-                interface["id"] == item_id
-                for interface in desktop["create_dict"]["hardware"]["interfaces"]
-            ):
-                desktop["create_dict"]["hardware"]["interfaces"] = [
-                    interface
-                    for interface in desktop["create_dict"]["hardware"]["interfaces"]
-                    if interface["id"] != item_id
-                ]
-                admin_table_update("domains", desktop)
     with app.app_context():
         if r.table(table).get(item_id).run(db.conn):
             if not _check(

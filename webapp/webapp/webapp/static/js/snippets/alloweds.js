@@ -180,6 +180,11 @@
         //~ $('#modalAllowedsForm').parsley();
         setAlloweds_add('#modalAlloweds #alloweds-add');
         api.ajax('/api/v3/allowed/table/'+table,'POST',{'id':data.id}).done(function(alloweds) {
+            if (['interfaces', 'media', 'reservables_vgpus', 'boots', 'videos'].includes(table)) {
+                $('#modalAllowedsForm #allowed-warning').show()
+            } else {
+                $('#modalAllowedsForm #allowed-warning').hide()
+            }
             $.each(alloweds,function(key, value)
             {
                 $("#modalAllowedsForm #alloweds-add #a-"+key).empty().trigger('change')
@@ -221,7 +226,6 @@
                 var form = $('#modalAllowedsForm');
 
                 form.parsley().validate();
-
                 if (form.parsley().isValid()){
                     data=$('#modalAllowedsForm').serializeObject();
                     data=replaceAlloweds_arrays('#modalAllowedsForm #alloweds-add',data)
@@ -234,6 +238,7 @@
                         data: JSON.stringify(data),
                         success: function () {
                             $('form').each(function() { this.reset() });
+                            $('#modalAllowedsForm #warning-icon').hide()
                             $('.modal').modal('hide');
                         }
                     })

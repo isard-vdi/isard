@@ -23,7 +23,10 @@ api_cards = ApiCards()
 from isardvdi_common.api_exceptions import Error
 
 from ..libv2.api_admin import admin_table_update
-from ..libv2.api_desktops_persistent import ApiDesktopsPersistent
+from ..libv2.api_desktops_persistent import (
+    ApiDesktopsPersistent,
+    unassign_resource_from_desktops_and_deployments,
+)
 from .api_allowed import ApiAllowed
 from .flask_rethink import RDB
 from .helpers import _check, _parse_string
@@ -131,19 +134,7 @@ class ApiMedia:
             if desktop["status"] in ["Starting", "Started", "Shutting-down"]:
                 persistent.Stop(desktop["id"])
 
-        for desktop in self.DesktopList(media_id):
-            desktop["create_dict"]["hardware"]["isos"][:] = [
-                iso
-                for iso in desktop["create_dict"]["hardware"]["isos"]
-                if iso.get("id") != media_id
-            ]
-
-            desktop.pop("name", None)
-            desktop.pop("kind", None)
-            desktop["status"] = "Updating"
-            desktop["accessed"] = int(time.time())
-
-            admin_table_update("domains", desktop)
+        unassign_resource_from_desktops_and_deployments("media", {"id": media_id})
 
     def count(self, user_id):
         return r.table("media").get_all(user_id, index="user").count().run(db.conn)

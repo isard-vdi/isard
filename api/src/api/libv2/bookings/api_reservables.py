@@ -360,35 +360,68 @@ class ResourceItemsGpus:
         return True
 
     def check_desktops_with_profile(self, subitem_id):
-        query = r.table("domains").filter(
-            lambda domain: domain["create_dict"]["reservables"]["vgpus"].contains(
-                subitem_id
-            )
-        )
         with app.app_context():
-            desktops = list(query.pluck("name", "username", "kind", "id").run(db.conn))
+            desktops = list(
+                r.table("domains")
+                .get_all(subitem_id, index="vgpus")
+                .eq_join("user", r.table("users"))
+                .pluck(
+                    {
+                        "left": {
+                            "name": True,
+                            "username": True,
+                            "kind": True,
+                            "id": True,
+                            "user": True,
+                        },
+                        "right": {
+                            "id": True,
+                            "group": True,
+                            "category": True,
+                            "role": True,
+                        },
+                    }
+                )
+                .map(
+                    lambda doc: {
+                        "id": doc["left"]["id"],
+                        "name": doc["left"]["name"],
+                        "username": doc["left"]["username"],
+                        "kind": doc["left"]["kind"],
+                        "user": doc["left"]["user"],
+                        "user_data": {
+                            "role_id": doc["right"]["role"],
+                            "category_id": doc["right"]["category"],
+                            "group_id": doc["right"]["group"],
+                            "user_id": doc["right"]["id"],
+                        },
+                    }
+                )
+                .run(db.conn)
+            )
         return desktops
 
     def deassign_desktops_with_gpu(self, item_id, desktops=None):
         query = r.table("domains")
-        if not desktops:
-            query = query.filter(
-                lambda domain: domain["create_dict"]["reservables"]["vgpus"].contains(
-                    item_id
-                )
-            )
+        if desktops is None:
+            query = query.get_all(item_id, index="vgpus")
         else:
             query = query.get_all(r.args(desktops))
 
-        if not _check(
-            query.update({"create_dict": {"reservables": {"vgpus": []}}}).run(db.conn),
-            "replaced",
-        ):
-            raise Error(
-                "internal_server",
-                "Internal server error ",
-                traceback.format_exc(),
-            )
+        query.filter(
+            (r.row.has_fields({"create_dict": {"reservables": {"vgpus": True}}}))
+        ).update(
+            {
+                "create_dict": {
+                    "reservables": {"vgpus": None},
+                    "hardware": {
+                        "videos": ["default"],
+                    },
+                }
+            }
+        ).run(
+            db.conn
+        )
         return desktops
 
     def get_subitem_parent_item(self, subitem):
