@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	desktopTimeout = 60
+	desktopTimeout = 90
 	sshUser        = "executor"
 )
 
