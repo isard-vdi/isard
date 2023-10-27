@@ -20,7 +20,7 @@ from ..libv2.api_desktop_events import templates_delete
 from ..libv2.api_desktops_persistent import ApiDesktopsPersistent, domain_template_tree
 from ..libv2.api_domains import ApiDomains
 from ..libv2.api_storage import get_domains_delete_pending
-from ..libv2.datatables import LogsDesktopsQuery
+from ..libv2.datatables import LogsDesktopsQuery, LogsUsersQuery
 from .decorators import is_admin, is_admin_or_manager, ownsDomainId
 
 admins = ApiAdmin()
@@ -209,6 +209,20 @@ def api_v3_domain_hardware(payload, domain_id):
     )
 
 
+@app.route("/api/v3/desktops/<current_status>/<target_status>", methods=["PUT"])
+@is_admin
+def api_v3_desktops_status(payload, current_status, target_status):
+    if not (target_status in ["Shutting-down", "Stopping", "StartingPaused", "Failed"]):
+        raise Error("bad_request", "Invalid target status")
+    desktops_persistent.change_status(current_status, target_status)
+
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
 @cached(TTLCache(maxsize=10, ttl=60))
 @app.route("/api/v3/admin/logs_desktops", methods=["POST"])
 @app.route("/api/v3/admin/logs_desktops/<view>", methods=["POST"])
@@ -240,15 +254,32 @@ def api_v3_logs_desktops(payload, view="raw"):
         )
 
 
-@app.route("/api/v3/desktops/<current_status>/<target_status>", methods=["PUT"])
+@cached(TTLCache(maxsize=10, ttl=60))
+@app.route("/api/v3/admin/logs_users", methods=["POST"])
+@app.route("/api/v3/admin/logs_users/<view>", methods=["POST"])
 @is_admin
-def api_v3_desktops_status(payload, current_status, target_status):
-    if not (target_status in ["Shutting-down", "Stopping", "StartingPaused", "Failed"]):
-        raise Error("bad_request", "Invalid target status")
-    desktops_persistent.change_status(current_status, target_status)
-
-    return (
-        json.dumps({}),
-        200,
-        {"Content-Type": "application/json"},
-    )
+def api_v3_logs_users(payload, view="raw"):
+    if view == "raw":
+        return (
+            json.dumps(
+                LogsUsersQuery(request.form).data,
+                indent=4,
+                sort_keys=True,
+                default=str,
+            ),
+            200,
+            {"Content-Type": "application/json"},
+        )
+    if view == "users_view":
+        ld = LogsUsersQuery(request.form)
+        ld.user_view
+        return (
+            json.dumps(
+                ld.data,
+                indent=4,
+                sort_keys=True,
+                default=str,
+            ),
+            200,
+            {"Content-Type": "application/json"},
+        )

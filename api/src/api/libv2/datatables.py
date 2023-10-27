@@ -307,3 +307,48 @@ class LogsDesktopsQuery(DatatablesQuery):
 
 class LogsUsersQuery(DatatablesQuery):
     _table = "logs_users"
+
+    def __init__(self, form_data):
+        super().__init__(form_data)
+
+    @property
+    def user_view(self):
+        self.group_by_user_name()
+
+    def group_by_user_name(self):
+        query = r.table(self._table)
+        # query = self.add_range_filters(query)
+        query = (
+            query.group(index="owner_user_id")
+            .map(
+                lambda log: {
+                    "count": 1,
+                    "owner_user_name": log["owner_user_name"],
+                    "owner_user_id": log["owner_user_id"],
+                    "owner_group_name": log["owner_group_name"],
+                    "owner_group_id": log["owner_group_id"],
+                    "owner_category_name": log["owner_category_name"],
+                    "owner_category_id": log["owner_category_id"],
+                    "started_time": log["started_time"],
+                }
+            )
+            .reduce(
+                lambda left, right: {
+                    "count": left["count"] + right["count"],
+                    "owner_user_name": left["owner_user_name"],
+                    "owner_user_id": left["owner_user_id"],
+                    "owner_group_name": left["owner_group_name"],
+                    "owner_group_id": left["owner_group_id"],
+                    "owner_category_name": left["owner_category_name"],
+                    "owner_category_id": left["owner_category_id"],
+                    "started_time": right["started_time"],
+                }
+            )
+            .ungroup()["reduction"]
+        )
+
+        query = self.add_order(query, skip_indexs=True)
+        query = self.add_range_filters(query, skip_indexs=True)
+        query = self.add_search_filters(query)
+        query = self.add_pluck(query)
+        self.query = query
