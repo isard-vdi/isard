@@ -618,6 +618,27 @@
                 },
                 "duplicate": {
                     "title": "Duplicar plantilla"
+                },
+                "delete": {
+                    "title": "Esborrar plantilla"
+                }
+            },
+            "modal": {
+                "delete": {
+                    "title": "Avís de dependència",
+                    "warning": {
+                        "pending": "AVÍS! Algunes plantilles i escriptoris depenen d'aquesta plantilla, els quals NO són propietat teva.",
+                        "delete": "AVÍS! Aquestes plantilles i escriptoris depenen d'aquesta plantilla i també seran esborrats.",
+                        "footer": "No pots esborrar aquesta plantilla. Contacta amb el teu administrador."
+                    },
+                    "button": {
+                        "delete": "Esborrar plantilla"
+                    },
+                    "table-header": {
+                        "kind": "Tipus",
+                        "name": "Nom",
+                        "user": "Usuari"
+                    }
                 }
             }
         },
@@ -1042,7 +1063,8 @@
             "wireguard-network-added": "S'ha afegit la xarxa Wireguard, atès que és requerida per tal de fer servir els visors RDP",
             "wireguard-viewers-removed": "Els visors RDP s'han eliminat, atès que requereixen la xarxa wireguard",
             "wireguard-network-required": "No es poden seleccionar els visors RDP, atès que la xarxa Wireguard és requerida. Contacta amb l'administrador per poder fer servir la xarxa Wireguard",
-            "image-uploaded": "Imatge penjada correctament"
+            "image-uploaded": "Imatge penjada correctament",
+            "deleting-template": "Esborrant plantilla"
         },
         "loading": "Carregant"
     },

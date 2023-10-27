@@ -18,7 +18,6 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-
 from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
 

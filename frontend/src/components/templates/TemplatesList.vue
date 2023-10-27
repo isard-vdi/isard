@@ -165,7 +165,17 @@
                         scale="0.75"
                       />
                     </b-button>
-                  <!-- Pagination -->
+                    <b-button
+                      class="rounded-circle px-2 mr-2 btn-red"
+                      :title="$t('views.templates.buttons.delete.title')"
+                      @click="showDeleteModal(data.item.id)"
+                    >
+                      <b-icon
+                        icon="trash-fill"
+                        scale="0.75"
+                      />
+                    <!-- Pagination -->
+                    </b-button>
                   </template>
                 </div>
               </template>
@@ -284,6 +294,14 @@ export default {
       $store.dispatch('goToEditDomain', templateId)
     }
 
+    const deleteTemplate = (templateId) => {
+      $store.dispatch('deleteTemplate', templateId.value)
+    }
+
+    const showDeleteModal = (templateId) => {
+      $store.dispatch('fetchTemplateDerivatives', { id: templateId })
+    }
+
     watch(() => props.templates, (newVal, prevVal) => {
       totalRows.value = newVal.length
     })
@@ -307,6 +325,8 @@ export default {
       pageOptions,
       currentPage,
       totalRows,
+      showDeleteModal,
+      deleteTemplate,
       desktopStates,
       rowClass
     }

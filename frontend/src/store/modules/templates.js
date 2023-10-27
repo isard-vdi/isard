@@ -10,7 +10,10 @@ const getDefaultState = () => {
     templates: [],
     templates_loaded: false,
     sharedTemplates: [],
-    sharedTemplates_loaded: false
+    sharedTemplates_loaded: false,
+    templateDerivatives: {},
+    templateId: '',
+    modalDerivativesShow: false
   }
 }
 
@@ -30,6 +33,15 @@ export default {
     },
     getSharedTemplatesLoaded: state => {
       return state.sharedTemplates_loaded
+    },
+    getTemplateDerivatives: state => {
+      return state.templateDerivatives
+    },
+    getShowDeleteTemplateModal: state => {
+      return state.modalDerivativesShow
+    },
+    getTemplateId: state => {
+      return state.templateId
     }
   },
   mutations: {
@@ -52,6 +64,21 @@ export default {
     },
     setTemplatesLoaded: (state, templatesLoaded) => {
       state.templates_loaded = templatesLoaded
+    },
+    setTemplateDerivatives: (state, templateDerivatives) => {
+      state.templateDerivatives = templateDerivatives
+    },
+    setShowDeleteTemplateModal: (state, modalShow) => {
+      state.modalDerivativesShow = modalShow
+    },
+    setTemplateId: (state, templateId) => {
+      state.templateId = templateId
+    },
+    remove_template: (state, template) => {
+      const templateIndex = state.templates.findIndex(d => d.id === template.id)
+      if (templateIndex !== -1) {
+        state.templates.splice(templateIndex, 1)
+      }
     }
   },
   actions: {
@@ -84,6 +111,29 @@ export default {
     },
     setTemplatesLoaded (context, templatesLoaded) {
       context.commit('setTemplatesLoaded', templatesLoaded)
+    },
+    deleteTemplate (_, data) {
+      ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deleting-template'))
+      axios.delete(`${apiV3Segment}/template/${state.templateId}`).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    fetchTemplateDerivatives (context, data) {
+      axios.get(`${apiV3Segment}/template/tree/${data.id}`).then(response => {
+        context.commit('setTemplateDerivatives', response.data)
+        context.commit('setTemplateId', data.id)
+        context.dispatch('showDeleteTemplateModal', true)
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+        throw e
+      })
+    },
+    showDeleteTemplateModal (context, show) {
+      context.commit('setShowDeleteTemplateModal', show)
+    },
+    socket_templateDelete (context, data) {
+      const template = JSON.parse(data)
+      context.commit('remove_template', template)
     }
   }
 }

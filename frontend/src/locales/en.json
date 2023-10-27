@@ -787,6 +787,27 @@
                 },
                 "duplicate": {
                     "title": "Duplicate template"
+                },
+                "delete": {
+                    "title": "Delete template"
+                }
+            },
+            "modal": {
+                "delete": {
+                    "title": "Dependency warning",
+                    "warning": {
+                        "pending": "WARNING! Some domains depend on this template, which you do NOT own.",
+                        "delete": "WARNING! These templates and desktops depend on this template and they will also be deleted.",
+                        "footer": "You can not delete this template. Please contact the administrator"
+                    },
+                    "button": {
+                        "delete": "Delete template"
+                    },
+                    "table-header": {
+                        "kind": "Kind",
+                        "name": "Name",
+                        "user": "User"
+                    }
                 }
             }
         },
@@ -930,7 +951,8 @@
             "delete-desktop-stop": "To delete a desktop it must be stopped",
             "wireguard-network-added": "The wireguard network was added since it's required to use RDP viewers",
             "wireguard-viewers-removed": "The RDP viewers were removed since the wireguard network is required",
-            "wireguard-network-required": "Can't select RDP viewers since the wireguard network is required. Contact with the admin in order to use the wireguard network"
+            "wireguard-network-required": "Can't select RDP viewers since the wireguard network is required. Contact with the admin in order to use the wireguard network",
+            "deleting-template": "Deleting template"
         },
         "loading": "Loading"
     },
