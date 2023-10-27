@@ -16,6 +16,7 @@ secondary_groups:
   type: list
 password:
   type: string
+  minlength: 8
 active:
   type: boolean
 ids:

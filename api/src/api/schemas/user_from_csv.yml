@@ -9,6 +9,7 @@ email:
 password:
   required: true
   empty: false
+  minlength: 8
 group:
   required: true
   empty: false
