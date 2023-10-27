@@ -137,7 +137,7 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 
 	usr, err := a.cli.StatsUsers(ctx)
 	if err != nil {
-		a.Log.Info().Str("collector", a.String()).Err(err).Msg("list users")
+		a.Log.Error().Str("collector", a.String()).Err(err).Msg("list users")
 		success = 0
 	}
 
@@ -147,7 +147,7 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 
 	dom, err := a.cli.StatsDomainsStatus(ctx)
 	if err != nil {
-		a.Log.Info().Str("collector", a.String()).Err(err).Msg("get domains status")
+		a.Log.Error().Str("collector", a.String()).Err(err).Msg("get domains status")
 		success = 0
 	}
 	if dom != nil {
@@ -161,7 +161,7 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 
 	dsk, err := a.cli.StatsDesktops(ctx)
 	if err != nil {
-		a.Log.Info().Str("collector", a.String()).Err(err).Msg("list desktops")
+		a.Log.Error().Str("collector", a.String()).Err(err).Msg("list desktops")
 		success = 0
 	}
 
@@ -172,7 +172,7 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 
 	cat, err := a.cli.StatsCategoryList(ctx)
 	if err != nil {
-		a.Log.Info().Str("collector", a.String()).Err(err).Msg("get category statistics")
+		a.Log.Error().Str("collector", a.String()).Err(err).Msg("get category statistics")
 		success = 0
 	}
 
@@ -183,14 +183,14 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 
 	tmpl, err := a.cli.StatsTemplates(ctx)
 	if err != nil {
-		a.Log.Info().Str("collector", a.String()).Err(err).Msg("list templates")
+		a.Log.Error().Str("collector", a.String()).Err(err).Msg("list templates")
 		success = 0
 	}
 	ch <- prometheus.MustNewConstMetric(a.descTemplateNumber, prometheus.GaugeValue, float64(len(tmpl)))
 
 	hyp, err := a.cli.StatsHypervisors(ctx)
 	if err != nil {
-		a.Log.Info().Str("collector", a.String()).Err(err).Msg("list hypervisors")
+		a.Log.Error().Str("collector", a.String()).Err(err).Msg("list hypervisors")
 		success = 0
 	}
 
@@ -200,7 +200,7 @@ func (a *IsardVDIAPI) Collect(ch chan<- prometheus.Metric) {
 
 	dply, err := a.cli.StatsDeploymentByCategory(ctx)
 	if err != nil {
-		a.Log.Info().Str("collector", a.String()).Err(err).Msg("get deployments statistics")
+		a.Log.Error().Str("collector", a.String()).Err(err).Msg("get deployments statistics")
 		success = 0
 	}
 
