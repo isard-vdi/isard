@@ -14,11 +14,11 @@ from rethinkdb import RethinkDB
 from api import app
 
 from ..libv2.validators import _validate_item
+from ..views.decorators import ownsDomainId
 from .api_cards import ApiCards
 from .api_desktop_events import template_delete, templates_delete
 
 r = RethinkDB()
-import logging as log
 
 from isardvdi_common.api_exceptions import Error
 
@@ -275,3 +275,35 @@ class ApiTemplates:
             .count()
             .run(db.conn)
         )
+
+    def check_children(self, payload, domain_tree):
+        domains = [
+            {
+                "id": domain_tree["id"],
+                "kind": domain_tree["kind"],
+                "name": domain_tree["title"],
+                "user": domain_tree["user"],
+            }
+        ]
+        pending = False
+
+        for domain in domain_tree["children"]:
+            domain_result = {
+                "id": domain["id"],
+                "kind": domain["kind"],
+                "name": domain["title"],
+                "user": domain["user"],
+            }
+
+            if domain.get("children"):
+                child_result = self.check_children(payload, domain)
+                domains.extend(child_result["domains"])
+                pending = pending or child_result["pending"]
+            try:
+                ownsDomainId(payload, domain["id"])
+                domains.append(domain_result)
+            except:
+                pending = True
+                domains.append({})
+
+        return {"domains": domains, "pending": pending}

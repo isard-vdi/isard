@@ -57,18 +57,20 @@
       </b-tab>
     </b-tabs>
     <AllowedModal @updateAllowed="updateAllowed" />
+    <DeleteTemplateModal @deleteTemplate="deleteTemplate" />
   </b-container>
 </template>
 <script>
 // @ is an alias to /src
 import TemplatesList from '@/components/templates/TemplatesList.vue'
 import AllowedModal from '@/components/AllowedModal.vue'
+import DeleteTemplateModal from '@/components/templates/DeleteTemplateModal.vue'
 import { mapGetters } from 'vuex'
 import { computed } from '@vue/composition-api'
 
 export default {
   components: {
-    TemplatesList, AllowedModal
+    TemplatesList, AllowedModal, DeleteTemplateModal
   },
   setup (props, context) {
     const $store = context.root.$store

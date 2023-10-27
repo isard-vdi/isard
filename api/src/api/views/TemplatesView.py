@@ -39,14 +39,16 @@ from ..libv2.api_allowed import ApiAllowed
 
 allowed = ApiAllowed()
 
+from ..libv2.api_admin import ApiAdmin, admin_domains_delete
+
+admin = ApiAdmin()
+
+from ..libv2.api_desktops_persistent import ApiDesktopsPersistent
+
+desktops = ApiDesktopsPersistent()
+
 from ..libv2.validators import _validate_item, check_user_duplicated_domain_name
-from .decorators import (
-    allowedTemplateId,
-    checkDuplicate,
-    has_token,
-    itemExists,
-    ownsDomainId,
-)
+from .decorators import allowedTemplateId, has_token, ownsDomainId
 
 
 @app.route("/api/v3/templates/new/check_quota", methods=["GET"])
@@ -141,9 +143,24 @@ def api_v3_template(payload, template_id):
 @app.route("/api/v3/template/<template_id>", methods=["DELETE"])
 @has_token
 def api_v3_template_delete(payload, template_id):
-    ownsDomainId(payload, template_id)
-    templates.Delete(template_id)
-    return json.dumps({}), 200, {"Content-Type": "application/json"}
+    template = templates.Get(template_id)
+    tree = admin.GetTemplateTreeList(template["id"], payload["user_id"])[0]
+
+    derivates = templates.check_children(payload, tree)
+
+    if not derivates["pending"]:
+        admin_domains_delete(derivates["domains"])
+    else:
+        raise Error(
+            "forbidden",
+            "Not enough rights to delete this template and its derivatives",
+        )
+
+    return (
+        json.dumps(template_id),
+        200,
+        {"Content-Type": "application/json"},
+    )
 
 
 # Disable or enable template
@@ -237,6 +254,21 @@ def api_v3_user_templates_allowed(payload, kind):
     )
     return (
         json.dumps(templates),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/template/tree/<template_id>", methods=["GET"])
+@has_token
+def api_v3_template_delete_tree(payload, template_id):
+    template = templates.Get(template_id)
+    tree = admin.GetTemplateTreeList(template["id"], payload["user_id"])[0]
+
+    derivates = templates.check_children(payload, tree)
+
+    return (
+        json.dumps(derivates),
         200,
         {"Content-Type": "application/json"},
     )

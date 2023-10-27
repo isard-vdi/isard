@@ -801,6 +801,27 @@
                 },
                 "duplicate": {
                     "title": "Duplicar plantilla"
+                },
+                "delete": {
+                    "title": "Eliminar plantilla"
+                }
+            },
+            "modal": {
+                "delete": {
+                    "title": "Aviso de dependencia",
+                    "warning": {
+                        "pending": "AVISO! Algunas plantillas y escritorios dependen de esta plantilla, los cuales NO son de tu propiedad.",
+                        "delete": "AVISO! Estes plantillas y escritorios dependen de esta plantilla y también serán eliminados.",
+                        "footer": "No puedes eliminar esta plantilla. Contacta con tu administrador."
+                    },
+                    "button": {
+                        "delete": "Eliminar plantilla"
+                    },
+                    "table-header": {
+                        "kind": "Tipo",
+                        "name": "Nombre",
+                        "user": "Usuario"
+                    }
                 }
             }
         },
@@ -945,7 +966,8 @@
             "delete-desktop-stop": "Para eliminar un escritorio es necesario que esté parado",
             "wireguard-network-added": "Se ha añadido la red wireguard ya que es necesaria para los visores RDP",
             "wireguard-viewers-removed": "Los visores RDP se han eliminado ya que requieren la red wireguard",
-            "wireguard-network-required": "No se pueden seleccionar visores RDP ya que la red wireguard es necesaria. Contacta con el administrador para utilizar la red wireguard"
+            "wireguard-network-required": "No se pueden seleccionar visores RDP ya que la red wireguard es necesaria. Contacta con el administrador para utilizar la red wireguard",
+            "deleting-template": "Eliminando plantilla"
         },
         "loading": "Cargando"
     },
