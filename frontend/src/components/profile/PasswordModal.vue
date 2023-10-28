@@ -22,7 +22,7 @@
           v-if="v$.password.$error"
           id="passwordError"
         >
-          {{ $t(`validations.${v$.password.$errors[0].$validator}`, { property: $t('forms.password.modal.password.label'), model: password.length, min: 4 }) }}
+          {{ $t(`validations.${v$.password.$errors[0].$validator}`, { property: $t('forms.password.modal.password.label'), model: password.length, min: 8 }) }}
         </b-form-invalid-feedback>
       </b-col>
       <b-col
@@ -64,8 +64,6 @@ import { computed } from '@vue/composition-api'
 import useVuelidate from '@vuelidate/core'
 import { required, minLength, sameAs } from '@vuelidate/validators'
 
-const inputFormat = value => /^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$/.test(value)
-
 export default {
   setup (_, context) {
     const $store = context.root.$store
@@ -83,8 +81,7 @@ export default {
     const v$ = useVuelidate({
       password: {
         required,
-        minLengthValue: minLength(4),
-        inputFormat
+        minLengthValue: minLength(8)
       },
       passwordConfirmation: {
         required,
