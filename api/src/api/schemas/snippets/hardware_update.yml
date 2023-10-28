@@ -20,11 +20,6 @@ graphics:
 videos:
   type: list
   empty: false
-  allowed:
-    - default
-    - none
-    - qxl32
-    - vga
 interfaces:
   type: list
 disk_bus:

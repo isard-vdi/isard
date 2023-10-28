@@ -834,8 +834,8 @@ class DomainXML(object):
         xpath_next = "/domain/devices/memballoon"
         self.add_device(xpath_same, element, xpath_next, xpath_previous)
 
-    def set_video_type(self, type_video):
-        if type_video == "none":
+    def set_video_type(self, video):
+        if video.get("type", "none") == "none":
             # remove all attributes like vram that have no sense if type_video is none
             # libvirt xml parser launch an exception if these keys exists
             for key in self.tree.xpath("/domain/devices/video/model")[0].keys():
@@ -855,7 +855,21 @@ class DomainXML(object):
                     self.tree.xpath("//domain/devices/video/alias")[-1]
                 )
 
-        self.tree.xpath("/domain/devices/video/model")[0].set("type", type_video)
+        self.tree.xpath("/domain/devices/video/model")[0].set(
+            "type", str(video["type"])
+        )
+        if video.get("heads"):
+            self.tree.xpath("/domain/devices/video/model")[0].set(
+                "heads", str(video["heads"])
+            )
+        if video.get("ram"):
+            self.tree.xpath("/domain/devices/video/model")[0].set(
+                "ram", str(video["ram"])
+            )
+        if video.get("vram"):
+            self.tree.xpath("/domain/devices/video/model")[0].set(
+                "vram", str(video["vram"])
+            )
 
     def add_metadata_isard(self, user_id, group_id, category_id, parent_id):
         xpath_same = "/domain/metadata"
@@ -1456,7 +1470,7 @@ def update_xml_from_dict_domain(id_domain, xml=None):
     recreate_xml_interfaces(d, v)
 
     v.set_vcpu(hw["vcpus"])
-    v.set_video_type(hw["video"]["type"])
+    v.set_video_type(hw["video"])
     # INFO TO DEVELOPER, falta hacer un v.set_network_id (para ver contra que red hace bridge o se conecta
     # INFO TO DEVELOPER, falta hacer un v.set_netowk_type (para seleccionar si quiere virtio o realtek por ejemplo)
 
