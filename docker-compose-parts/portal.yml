@@ -28,5 +28,6 @@ services:
       - /opt/isard/certs/default:/certs:rw
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
+      - /opt/isard-local/ipsec-fw/lists:/usr/local/etc/haproxy/lists
     env_file:
       - .env
