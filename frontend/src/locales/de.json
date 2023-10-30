@@ -314,7 +314,9 @@
                     "warning": "WARNUNG: Das Gast-Passwort wird im Klartext gespeichert!",
                     "title": "RDP-Anmeldung"
                 },
-                "title": "Betrachter"
+                "title": "Betrachter",
+                "fullscreen-enabled": "Vollbild aktiviert",
+                "fullscreen-disabled": "Vollbild deaktiviert"
             },
             "hardware": {
                 "memory": "Speicher (GB)",
@@ -416,7 +418,8 @@
         "required": "{property} ist erforderlich.",
         "minLengthValue": "Das Feld {property} hat {model} Zeichen, muss aber eine Mindestlänge von {min} haben.",
         "sameAs": "Das Feld {property} muss den gleichen Wert wie {property2} haben.",
-        "url": "Das Feld {property} muss eine URL sein."
+        "url": "Das Feld {property} muss eine URL sein.",
+        "undefined": "Nicht definiert"
     },
     "messages": {
         "no": "Nein",
