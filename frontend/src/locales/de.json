@@ -355,7 +355,10 @@
             "visible": "Sichtbar für Nutzer",
             "filter-placeholder": "Zum Suchen Text eintippen",
             "title": "Neue Verteilung erstellen:",
-            "name": "Name der Verteilung"
+            "name": "Name der Verteilung",
+            "error": {
+                "groups": "Mindestens eine Gruppe muss selektiert sein"
+            }
         },
         "filter-placeholder": "Tippe zum suchen",
         "allowed": {
