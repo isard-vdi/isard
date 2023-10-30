@@ -79,7 +79,7 @@ def load_validators(purge_unknown=True):
     for snippets_filename in os.listdir(snippets_path):
         with open(os.path.join(snippets_path, snippets_filename)) as file:
             snippet_schema_yml = file.read()
-            snippet_schema = yaml.load(snippet_schema_yml, Loader=yaml.FullLoader)
+            snippet_schema = yaml.safe_load(snippet_schema_yml)
             schema_registry.add(snippets_filename.split(".")[0], snippet_schema)
 
     validators = {}
@@ -88,7 +88,7 @@ def load_validators(purge_unknown=True):
         try:
             with open(os.path.join(schema_path, schema_filename)) as file:
                 schema_yml = file.read()
-                schema = yaml.load(schema_yml, Loader=yaml.FullLoader)
+                schema = yaml.safe_load(schema_yml)
                 validators[schema_filename.split(".")[0]] = IsardValidator(
                     schema, purge_unknown=purge_unknown
                 )
