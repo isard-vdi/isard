@@ -304,12 +304,24 @@
         "domain": {
             "info": {
                 "description": "Beschreibung",
-                "name": "Name"
+                "name": "Name",
+                "title": "Information"
             },
             "viewers": {
                 "guest": {
-                    "username": "Benutzername"
-                }
+                    "username": "Benutzername",
+                    "password": "Passwort",
+                    "warning": "WARNUNG: Das Gast-Passwort wird im Klartext gespeichert!",
+                    "title": "RDP-Anmeldung"
+                },
+                "title": "Betrachter"
+            },
+            "hardware": {
+                "memory": "Speicher (GB)",
+                "title": "Hardware",
+                "videos": "Videos",
+                "vcpus": "vCPUS",
+                "warning": "WARNUNG: Diese Hardware wurde aufgrund von Benutzerberechtigungen geändert:"
             }
         },
         "create": "Erstellen",
@@ -339,7 +351,9 @@
                 "description": "Beschreibung"
             },
             "visible": "Sichtbar für Nutzer",
-            "filter-placeholder": "Zum Suchen Text eintippen"
+            "filter-placeholder": "Zum Suchen Text eintippen",
+            "title": "Neue Verteilung erstellen:",
+            "name": "Name der Verteilung"
         },
         "filter-placeholder": "Tippe zum suchen",
         "allowed": {
@@ -352,7 +366,8 @@
             },
             "groups": "Gruppen:",
             "users": "Benutzer:",
-            "placeholder": "Gib zum Suchen mindestens 2 Buchstaben ein."
+            "placeholder": "Gib zum Suchen mindestens 2 Buchstaben ein.",
+            "empty": "Überprüft und leer wird an alle weitergegeben."
         },
         "new-template": {
             "title": "Neue Vorlage erstellen",
@@ -384,6 +399,9 @@
             "name": "Medienname",
             "description": "Beschreibung",
             "select-type": "Bitte eine Option auswählen"
+        },
+        "edit": {
+            "title": "'{name}' bearbeiten"
         }
     },
     "errors": {
