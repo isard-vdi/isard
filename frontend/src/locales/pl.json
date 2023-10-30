@@ -962,15 +962,6 @@
                     "spice-help": "Instrukcje instalacji SPICE",
                     "local-client": "Skorzystaj z klienta lokalnego (zalecane)",
                     "best-performance": "Jest to opcja o najlepszej wydajności",
-                    "install": "Instalacja",
-                    "text": {
-                        "linux": "W systemie operacyjnym Linux należy uruchomić następujące polecenia:",
-                        "macos": "macOS jest nieobsługiwaną platformą. Należy użyć opcji przeglądarki",
-                        "ios": "W systemie operacyjnym iOS należy zainstalować następującą aplikację:",
-                        "windows": "W systemie operacyjnym Windows należy pobrać i zainstalować jeden z poniższych plików wykonywalnych:",
-                        "android": "W systemie operacyjnym Android należy zainstalować następującą aplikację:"
-                    },
-                    "other-windows-versions": "inne wersje systemu Windows",
                     "once-installed": "Po zainstalowaniu kliknij przycisk \"SPICE\", co spowoduje pobranie pliku wirtualnego pulpitu.",
                     "spice-client-required": "ale wymagana jest zewnętrzna aplikacja.",
                     "close-guide": "Zamknij przewodnik"
@@ -978,10 +969,8 @@
                 "rdp": {
                     "once-installed": "Po zainstalowaniu kliknij przycisk \"Pulpit Zdalny (RDP)\", który pobierze plik wirtualnego pulpitu.",
                     "local-client": "Użyj klienta Pulpitu Zdalnego (RDP) (zalecane)",
-                    "here": "tutaj.",
                     "rdp-help": "Instrukcje instalacji Pulpitu Zdalnego (RDP)",
                     "included": "System Windows zawiera oprogramowanie wymagane do korzystania z niego,",
-                    "require-update": "ale może być wymagana aktualizacja (szczególnie w wersjach Windows 7 i Windows 8). Zaleca się korzystanie z najnowszej dostępnej wersji ",
                     "close-guide": "Zamknij przewodnik"
                 }
             },

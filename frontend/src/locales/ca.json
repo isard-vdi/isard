@@ -546,29 +546,24 @@
             "help": {
                 "spice": {
                     "spice-help": "Instruccions d'instal·lació de SPICE",
-                    "close-guide": "Tancar la guia",
                     "local-client": "Utilitzar el client local (recomanat)",
-                    "best-performance": "És la versió amb el millor rendiment",
-                    "install": "Instal·lar",
-                    "other-windows-versions": "altres versions de Windows",
-                    "once-installed": "Un cop instal·lat, s'ha de clicar al botó de «SPICE», i es descarregarà el fitxer per a fer servir l'escriptori virtual.",
+                    "best-performance": "És l'opció amb el millor rendiment",
                     "spice-client-required": "però requereix instal·lar un aplicatiu extern.",
-                    "text": {
-                        "macos": "macOS és una plataforma sense suport, cal fer servir el navegador",
-                        "ios": "En el sistema operatiu iOS cal instal·lar l'aplicatiu següent:",
-                        "windows": "En el sistema operatiu Windows cal descarregar i executar un dels següents instal·ladors:",
-                        "android": "En el sistema operatiu Android cal instal·lar l'aplicatiu següent:",
-                        "linux": "En el sistema operatiu Linux cal executar les ordres següents:"
-                    }
+                    "generic-text": "A l'enllaç següent pots trobar enllaços de descàrrega i instruccions d'instal·lació:",
+                    "download-install": "Descarregar el programari del visor",
+                    "download-link": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers.ca/",
+                    "once-installed": "Un cop instal·lat, fes clic al botó SPICE, que descarregarà el fitxer de l'escriptori virtual.",
+                    "close-guide": "Tancar la guia"
                 },
                 "rdp": {
                     "rdp-help": "Instruccions d'instal·lació de RDP",
                     "local-client": "Utilitzar el client RDP (recomanat)",
-                    "close-guide": "Tancar la guia",
-                    "included": "Windows incorpora l'aplicació necessaria pel seu ús,",
-                    "require-update": "però és possible que requereixi una actualització (sobretot a les versions windows 7 i windows 8). Recomanem que instal·lis l'última versió disponible ",
-                    "here": "aqui.",
-                    "once-installed": "Un cop instal·lat, s'ha de clicar al botó de «RDP», i es descarregarà el fitxer per a fer servir l'escriptori virtual."
+                    "included": "Windows incorpora l'aplicació necessària pel seu ús,",
+                    "client-required": "però altres sistemes operatius podrian requerir la instal·lació d'un aplicatiu extern. Consulta les instruccions d'instal·lació:",
+                    "download-install": "Descarregar el programari del visor",
+                    "download-link": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers.ca/",
+                    "once-installed": "Un cop instal·lat, fes clic al botó «RDP», que descarregarà el fitxer de l'escriptori virtual.",
+                    "close-guide": "Tancar la guia"
                 }
             },
             "reset-modal": {

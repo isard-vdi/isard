@@ -730,29 +730,24 @@
             "help": {
                 "spice": {
                     "spice-help": "Instrucciones de instalación de SPICE",
-                    "close-guide": "Cerrar la guía",
                     "local-client": "Utilizar el cliente local (recomendado)",
                     "best-performance": "Es la opción con el mejor rendimiento",
-                    "install": "Instalar",
-                    "other-windows-versions": "otras versiones de Windows",
-                    "once-installed": "Una vez instalado, se tiene que clicar en el botón de «SPICE», y se descargará el fichero para utilizar el escritorio virtual.",
                     "spice-client-required": "pero requiere instalar un aplicativo externo.",
-                    "text": {
-                        "macos": "macOS es una plataforma sin soporte, se tiene que utilizar el navegador",
-                        "ios": "En el sistema operativo iOS se tiene que instalar el aplicativo siguiente:",
-                        "windows": "En el sistema operativo Windows se tiene que descargar y ejecutar uno los siguientes instaladores:",
-                        "android": "En el sistema operativo Android se tiene que instalar el siguiente aplicativo:",
-                        "linux": "En el sistema operativo Linux se tienen que ejecutar las siguientes órdenes:"
-                    }
+                    "generic-text": "En el siguiente enlace se puede consultar enlaces de descarga e instrucciones para instalarlo:",
+                    "download-install": "Descarga de software de visores",
+                    "download-link":"https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers.es/",
+                    "once-installed": "Después de la instalación, haz clic en el botón «SPICE», y se descargará el archivo del escritorio virtual.",
+                    "close-guide": "Cerrar la guía"
                 },
                 "rdp": {
                     "rdp-help": "Instrucciones de instalación de RDP",
                     "local-client": "Utilizar el cliente RDP (recomendado)",
-                    "close-guide": "Cerrar la guía",
-                    "included": "Windows incorpora la aplicación necesaria para utilzarlo,",
-                    "require-update": "pero es posible que requiera una actualización (sobretodo en versiones windows 7 y windows 8). Recomendamos que instales la última versión disponible ",
-                    "here": "aqui.",
-                    "once-installed": "Una vez instalado, se tiene que clicar en el botón de «RDP», y se descargará el fichero del escritorio virtual."
+                    "included": "Windows incorpora la aplicación necesaria para utilizarlo,",
+                    "client-required": "pero otros sistemas operativos podrían requerir la instalación de un aplicativo externo. Consulta las instrucciones de instalación:",
+                    "download-install": "Descarga de software de visores",
+                    "download-link": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers.es/",
+                    "once-installed": "Después de la instalación,  haz clic en el botón «RDP», y se descargará el archivo del escritorio virtual.",
+                    "close-guide": "Cerrar la guía"
                 }
             },
             "reset-modal": {
