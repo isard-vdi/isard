@@ -67,50 +67,60 @@
               >
                 {{ errorMessage }}
               </b-alert>
-              <!-- Category selection -->
-              <v-select
-                v-if="!categoryByPath && categories.length > 1"
-                v-model="category"
-                class="mb-3"
-                size="md"
-                :options="categoriesSelect"
-                :reduce="category => category.value"
-                :placeholder="$t('views.login.form.select-category')"
+              <b-overlay
+                :show="loading"
+                rounded
+                opacity="0"
+                spinner-small
+                spinner-variant="success"
               >
-                <template #search="{attributes, events}">
-                  <input
-                    id="category"
-                    class="vs__search"
-                    style="margin-bottom: 0px"
-                    v-bind="attributes"
-                    v-on="events"
-                  >
-                </template>
-              </v-select>
-              <b-form-input
-                id="usr"
-                v-model="usr"
-                type="text"
-                :placeholder="$t('views.login.form.usr')"
-                :state="v$.usr.$error ? false : null"
-                @blur="v$.usr.$touch"
-              />
-              <b-form-input
-                id="pwd"
-                v-model="pwd"
-                type="password"
-                :placeholder="$t('views.login.form.pwd')"
-                :state="v$.pwd.$error ? false : null"
-                @blur="v$.pwd.$touch"
-              />
-              <b-button
-                type="submit"
-                :disabled="loading"
-                size="lg"
-                class="btn-green w-100 rounded-pill mt-2 mt-md-5"
-              >
-                {{ $t('views.login.form.login') }}
-              </b-button>
+                <!-- Category selection -->
+                <v-select
+                  v-if="!categoryByPath && categories.length > 1"
+                  v-model="category"
+                  class="mb-3"
+                  size="md"
+                  :options="categoriesSelect"
+                  :reduce="category => category.value"
+                  :placeholder="$t('views.login.form.select-category')"
+                >
+                  <template #search="{attributes, events}">
+                    <input
+                      id="category"
+                      class="vs__search"
+                      style="margin-bottom: 0px"
+                      v-bind="attributes"
+                      v-on="events"
+                    >
+                  </template>
+                </v-select>
+                <b-form-input
+                  id="usr"
+                  v-model="usr"
+                  type="text"
+                  :placeholder="$t('views.login.form.usr')"
+                  :state="v$.usr.$error ? false : null"
+                  :disabled="loading"
+                  @blur="v$.usr.$touch"
+                />
+                <b-form-input
+                  id="pwd"
+                  v-model="pwd"
+                  type="password"
+                  :placeholder="$t('views.login.form.pwd')"
+                  :state="v$.pwd.$error ? false : null"
+                  :disabled="loading"
+                  @blur="v$.pwd.$touch"
+                />
+                <b-button
+                  type="submit"
+                  :disabled="loading"
+                  size="lg"
+                  class="btn-green w-100 rounded-pill mt-2 mt-md-5"
+                >
+                  {{ $t('views.login.form.login') }}
+                </b-button>
+              </b-overlay>
             </b-form>
             <div v-if="showLoginProviders">
               <hr
@@ -149,7 +159,6 @@
                 >
                   <p ref="version">isard_display_version</p>
                 </a>
-                <b-spinner v-if="loading" />
               </b-col>
             </b-row>
           </b-col>
