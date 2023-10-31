@@ -140,11 +140,12 @@ $(document).ready(function() {
                                         if(full.kind.startsWith('qcow')){
                                             return '<button id="btn-createfromiso" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-desktop" style="color:darkgreen"></i></button> \
                                                     <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
-                                    }else{
-                                        return '<button id="btn-createfromiso" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-desktop" style="color:darkgreen"></i></button> \
-                                        <button id="btn-alloweds" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button> \
-                                        <button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
-                                    }
+                                        }else{
+                                            return '<button id="btn-createfromiso" title="Create desktop from media" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-desktop" style="color:darkgreen"></i></button> \
+                                            <button id="btn-alloweds" title="Change allowed users" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-users" style="color:darkblue"></i></button> \
+                                            <button id="btn-owner" title="Change owner" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-exchange" style="color:darkblue"></i></button> \
+                                            <button id="btn-delete" title="Delete media" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button> '
+                                        }
                                 }
                                 }}],
     } );
@@ -198,7 +199,7 @@ $(document).ready(function() {
     $('#media').find(' tbody').on( 'click', 'button', function () {
         data = table.row( $(this).parents('tr') ).data();
         switch($(this).attr('id')){
-            case 'btn-delete':
+             case 'btn-delete':
                 $("#modalDeleteMediaForm")[0];
                 $('#modalDeleteMediaForm #id').val(data['id']);
                 $('#modalDeleteMedia').modal({
@@ -268,7 +269,7 @@ $(document).ready(function() {
              case 'btn-alloweds':
                     modalAllowedsFormShow('media',data)
                 break;
-            case 'btn-createfromiso':
+             case 'btn-createfromiso':
                 if($('.quota-desktops .perc').text() >=100){
                     new PNotify({
                         title: "Quota for creating desktops full.",
@@ -310,8 +311,88 @@ $(document).ready(function() {
                     modal_add_install_datatables();
                 }
             break;
+             case 'btn-owner':
+                var pk = data.id
+                $("#modalChangeOwnerMediaForm")[0].reset();
+                $('#modalChangeOwnerMedia').modal({
+                    backdrop: 'static',
+                    keyboard: false
+                }).modal('show');
+                $('#modalChangeOwnerMediaForm #id').val(pk);
+                $("#new_owner").val("");
+                if($("#new_owner").data('select2')){
+                    $("#new_owner").select2('destroy');
+                }
+                $('#new_owner').select2({
+                    placeholder:"Type at least 2 letters to search.",
+                    minimumInputLength: 2,
+                    dropdownParent: $('#modalChangeOwnerMedia'),
+                    ajax: {
+                        type: "POST",
+                        url: '/admin/allowed/term/users',
+                        dataType: 'json',
+                        contentType: "application/json",
+                        delay: 250,
+                        data: function (params) {
+                            return  JSON.stringify({
+                                term: params.term,
+                                pluck: ['id','name']
+                            });
+                        },
+                        processResults: function (data) {
+                            return {
+                                results: $.map(data, function (item, i) {
+                                    return {
+                                        text: item.name + '['+item['uid']+'] ',
+                                        id: item.id
+                                    }
+                                })
+                            };
+                        }
+                    },
+                });
+            break;
         };
     });
+
+    $("#modalChangeOwnerMedia #send").off('click').on('click', function (e) {
+        var form = $('#modalChangeOwnerMediaForm');
+        data = form.serializeObject();
+        let pk = $('#modalChangeOwnerMediaForm #id').val()
+        $.ajax({
+            type: "PUT",
+            url:`/api/v3/media/owner/${pk}/${data['new_owner']}`,
+            contentType: 'application/json',
+            success: function(data)
+            {
+                $('form').each(function () { this.reset() });
+                $('.modal').modal('hide');
+                new PNotify({
+                    title: "Owner changed succesfully",
+                    text: "",
+                    hide: true,
+                    delay: 4000,
+                    icon: 'fa fa-success',
+                    opacity: 1,
+                    type: "success"
+                });
+                table.ajax.reload();
+            },
+            error: function (data) {
+                new PNotify({
+                    title: "ERROR",
+                    text: data.responseJSON.description,
+                    type: 'error',
+                    hide: true,
+                    icon: 'fa fa-warning',
+                    delay: 15000,
+                    opacity: 1
+                });
+            }
+        });
+    });
+
+
 
     $("#modalAddMedia #send").on('click', function(e){
             var form = $('#modalAddMediaForm');

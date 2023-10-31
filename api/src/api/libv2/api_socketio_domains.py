@@ -152,6 +152,14 @@ class DomainsThread(threading.Thread):
                                         scheduler.remove_desktop_timeouts(
                                             c["new_val"]["id"]
                                         )
+                                    if c["old_val"]["user"] != c["new_val"]["user"]:
+                                        socketio.emit(
+                                            item + "_delete",
+                                            json.dumps({"id": c["old_val"]["id"]}),
+                                            namespace="/userspace",
+                                            room=c["old_val"]["user"],
+                                        )
+                                    event = "add"
                             data = c["new_val"]
 
                         socketio.emit(

@@ -3,7 +3,7 @@
 		<div class="col-md-1 col-sm-1 col-xs-12">
       <div class="row">
         <div class="col-md-12 col-md-12 col-xs-12" id="actions-d.id" data-pk="d.id" data-name="d.name">
-          {% if(current_user.role!='user') %}
+          {% if(current_user.role in ['admin', 'manager']) %}
             <div class="row">
               <button class="btn btn-success btn-xs pull-right btn-jumperurl" type="button"  data-placement="top"><i class="fa fa-eye m-right-xs"></i> Viewer</button>
             </div>
@@ -22,20 +22,21 @@
             <div class="row">
               <button class="btn btn-danger btn-xs pull-right btn-delete-template" type="button"  data-placement="top"><i class="fa fa-remove m-right-xs"></i> Delete</button>
             </div>
-          {% endif %}
-          <div class="row">
-            <button class="btn btn-info btn-xs pull-right btn-edit" type="button"  data-placement="top"><i class="fa fa-pencil m-right-xs"></i> Edit</button>
-          </div>
-          <div class="row">
-            <button class="btn btn-danger btn-xs pull-right btn-delete" type="button"  data-placement="top"><i class="fa fa-remove m-right-xs"></i> Delete</button>
-          </div>
-          {% if(current_user.role in ['admin', 'manager']) %}
-            <hr>
             <div class="row">
               <button class="btn btn-success btn-xs pull-right btn-server" type="button"  data-placement="top"><i class="fa fa-plug m-right-xs"></i> Server</button>
             </div>
+            <hr>
             <div class="row">
-              <button class="btn btn-info btn-xs pull-right btn-xml" type="button"  data-placement="top"><i class="fa fa-file-code-o m-right-xs"></i> XML</button>
+              <button class="btn btn-info btn-xs pull-right btn-edit" type="button"  data-placement="top" ><i class="fa fa-pencil m-right-xs"></i>Edit</button>
+            </div>
+            <div class="row">
+              <button class="btn btn-info btn-xs pull-right btn-xml" type="button"  data-placement="top" ><i class="fa fa-file-code-o m-right-xs"></i>XML</button>
+            </div>
+            <div class="row">
+              <button class="btn btn-info btn-xs pull-right btn-owner" type="button"  data-placement="top" ><i class="fa fa-exchange m-right-xs"></i>Change owner</button>
+            </div>
+            <div class="row">
+              <button class="btn btn-danger btn-xs pull-right btn-delete" type="button"  data-placement="top" ><i class="fa fa-remove m-right-xs"></i>Delete</button>
             </div>
           {% endif %} 
         </div>

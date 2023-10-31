@@ -481,7 +481,8 @@ def checkDuplicate(item_table, item_name, category=False, user=False, item_id=No
     elif user:
         query = query.filter({"user": user})
 
-    item = list(query.run(db.conn))
+    with app.app_context():
+        item = list(query.run(db.conn))
 
     if item:
         raise Error(
