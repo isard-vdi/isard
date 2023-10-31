@@ -133,7 +133,7 @@ function load_data(){
             "initComplete": function(settings, json){
                 socket.on('desktop_data', function(data){
                     var data = JSON.parse(data);
-                    dtUpdateInsert(table['domains'],data,false);
+                    dtUpdateOnly(table['domains'],data);
                 });
 
                 socket.on('desktop_delete', function(data){
