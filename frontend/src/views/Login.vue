@@ -105,6 +105,7 @@
               />
               <b-button
                 type="submit"
+                :disabled="loading"
                 size="lg"
                 class="btn-green w-100 rounded-pill mt-2 mt-md-5"
               >

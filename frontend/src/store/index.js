@@ -142,6 +142,8 @@ export default new Vuex.Store({
         commit('setPageErrorMessage', i18n.t('views.login.errors.401'))
       } else if (e.response.status === 403 && e.response.data === 'disabled user') {
         commit('setPageErrorMessage', i18n.t('errors.user_disabled'))
+      } else if (e.response.status === 429) {
+        commit('setPageErrorMessage', i18n.t('views.login.errors.429'))
       } else if (e.response.status === 500) {
         commit('setPageErrorMessage', i18n.t('views.login.errors.500'))
       } else {
@@ -150,7 +152,7 @@ export default new Vuex.Store({
     },
     login ({ commit }, data, version) {
       return new Promise((resolve, reject) => {
-        axios.create().post(`${authenticationSegment}/login`, data, { timeout: 25000 }).then(response => {
+        axios.create().post(`${authenticationSegment}/login?category_id=${data.get('category_id')}&username=${data.get('username')}`, data, { timeout: 25000 }).then(response => {
           const jwt = JSON.parse(atob(response.data.split('.')[1]))
           if (jwt.type === 'register') {
             router.push({ name: 'Register' })
