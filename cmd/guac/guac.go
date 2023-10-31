@@ -13,8 +13,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/wwt/guac"
-	"gitlab.com/isard/isardvdi-cli/pkg/cfg"
-	"gitlab.com/isard/isardvdi-cli/pkg/client"
+	isardvdi "gitlab.com/isard/isardvdi-sdk-go"
 )
 
 var (
@@ -44,7 +43,7 @@ func isAuthenticated(handler http.Handler) http.HandlerFunc {
 			return
 		}
 
-		cli, err := client.NewClient(&cfg.Cfg{
+		cli, err := isardvdi.NewClient(&isardvdi.Cfg{
 			Host:  fmt.Sprintf("http://%s", apiAddr),
 			Token: tkn,
 		})
@@ -54,10 +53,10 @@ func isAuthenticated(handler http.Handler) http.HandlerFunc {
 			return
 		}
 
-		if err := cli.UserOwnsDesktop(r.Context(), &client.UserOwnsDesktopOpts{
+		if err := cli.UserOwnsDesktop(r.Context(), &isardvdi.UserOwnsDesktopOpts{
 			IP: r.URL.Query().Get("hostname"),
 		}); err != nil {
-			if errors.Is(err, client.ErrForbidden) {
+			if errors.Is(err, isardvdi.ErrForbidden) {
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}

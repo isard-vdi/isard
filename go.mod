@@ -1,12 +1,15 @@
 module github.com/wwt/guac
 
-go 1.13
-
-replace github.com/Sirupsen/logrus v1.4.2 => github.com/sirupsen/logrus v1.4.2
+go 1.18
 
 require (
-	github.com/google/uuid v1.1.2
-	github.com/gorilla/websocket v1.4.1
-	github.com/sirupsen/logrus v1.4.2
-	gitlab.com/isard/isardvdi-cli v0.33.3
+	github.com/google/uuid v1.4.0
+	github.com/gorilla/websocket v1.5.0
+	github.com/sirupsen/logrus v1.9.3
+	gitlab.com/isard/isardvdi-sdk-go v1.5.1
+)
+
+require (
+	github.com/google/go-querystring v1.1.0 // indirect
+	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8 // indirect
 )
