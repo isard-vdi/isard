@@ -924,53 +924,27 @@ class ApiAdmin:
 
         fancyd = []
         for d in derivated:
-            if user_id["role"] == "manager" or user_id["role"] == "admin":
-                fancyd.append(
-                    {
-                        "id": d["id"],
-                        "title": d["name"],
-                        "expanded": True,
-                        "unselectable": False,
-                        "selected": True if user_id["id"] == d["user"] else False,
-                        "parent": d["parents"][-1]
-                        if d.get("parents")
-                        else d["duplicate_parent_template"],
-                        "user": d["username"],
-                        "category": d["category_name"],
-                        "group": d["group_name"],
-                        "kind": d["kind"] if d["kind"] == "desktop" else "template",
-                        "status": d["status"],
-                        "icon": "fa fa-desktop"
-                        if d["kind"] == "desktop"
-                        else "fa fa-cube",
-                        "duplicate_parent_template": d.get(
-                            "duplicate_parent_template", False
-                        ),
-                    }
-                )
-            else:
-                ## It can only be an advanced user
-                fancyd.append(
-                    {
-                        "id": d["id"],
-                        "title": d["name"],
-                        "expanded": True,
-                        "unselectable": False if user_id["id"] == d["user"] else True,
-                        "selected": True if user_id["id"] == d["user"] else False,
-                        "parent": d["parents"][-1],
-                        "user": d["username"],
-                        "category": d["category_name"],
-                        "group": d["group_name"],
-                        "kind": d["kind"] if d["kind"] == "desktop" else "template",
-                        "status": d["status"],
-                        "icon": "fa fa-desktop"
-                        if d["kind"] == "desktop"
-                        else "fa fa-cube",
-                        "duplicate_parent_template": d.get(
-                            "duplicate_parent_template", False
-                        ),
-                    }
-                )
+            fancyd.append(
+                {
+                    "id": d["id"],
+                    "title": d["name"],
+                    "expanded": True,
+                    "unselectable": False,
+                    "selected": True if user_id["id"] == d["user"] else False,
+                    "parent": d["parents"][-1]
+                    if d.get("parents")
+                    else d["duplicate_parent_template"],
+                    "user": d["username"],
+                    "category": d["category_name"],
+                    "group": d["group_name"],
+                    "kind": d["kind"] if d["kind"] == "desktop" else "template",
+                    "status": d["status"],
+                    "icon": "fa fa-desktop" if d["kind"] == "desktop" else "fa fa-cube",
+                    "duplicate_parent_template": d.get(
+                        "duplicate_parent_template", False
+                    ),
+                }
+            )
         return fancyd
 
     def TemplatesByTerm(self, term):
