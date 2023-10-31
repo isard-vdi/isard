@@ -862,11 +862,11 @@ class DomainXML(object):
             self.tree.xpath("/domain/devices/video/model")[0].set(
                 "heads", str(video["heads"])
             )
-        if video.get("ram"):
+        if video["type"] == "qxl" and video.get("ram"):
             self.tree.xpath("/domain/devices/video/model")[0].set(
                 "ram", str(video["ram"])
             )
-        if video.get("vram"):
+        if video["type"] == "qxl" and video.get("vram"):
             self.tree.xpath("/domain/devices/video/model")[0].set(
                 "vram", str(video["vram"])
             )
