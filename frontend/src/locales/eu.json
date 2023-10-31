@@ -301,8 +301,9 @@
             "isard-logo-alt": "IsardVDIren logotipoa sarrio baten burua da.",
             "powered-by": "Egilea {isardvdi}",
             "errors": {
-                "500": "Zerbitzariaren errorea",
                 "401": "Erabiltzailea edo pasahitza ez dira zuzenak",
+                "429": "Saialdi gehiegi, itxaron pixka bat eta saiatu berriro",
+                "500": "Zerbitzariaren errorea",
                 "generic": "Akats bat gertatu da"
             }
         },

@@ -474,6 +474,7 @@
             },
             "errors": {
                 "401": "Incorrect user or password",
+                "429": "Too many login attempts, please try again later",
                 "500": "Server error",
                 "generic": "An error occurred"
             },

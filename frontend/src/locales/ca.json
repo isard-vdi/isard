@@ -306,8 +306,9 @@
             "powered-by": "Funciona amb {isardvdi}",
             "isard-logo-alt": "El logotip de IsardVDI és el cap d'un isard.",
             "errors": {
-                "500": "Error del servidor",
                 "401": "Usuari o contrasenya incorrecta",
+                "429": "S'han produït massa intents d'inici de sessió. Esperi uns minuts i torni-ho a provar",
+                "500": "Error del servidor",
                 "generic": "S'ha produït un error"
             }
         },
