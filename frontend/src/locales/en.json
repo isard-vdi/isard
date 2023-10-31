@@ -716,29 +716,24 @@
             "help": {
                 "spice": {
                     "spice-help": "SPICE installation instructions",
-                    "close-guide": "Close guide",
                     "local-client": "Use the local client (recommended)",
                     "best-performance": "It's the option with the best performance",
-                    "install": "Install",
-                    "other-windows-versions": "other Windows versions",
-                    "once-installed": "Once installed, click the 'SPICE' button, that will download the virtual desktop file.",
                     "spice-client-required": "but an external application is required.",
-                    "text": {
-                        "macos": "macOS is an unsupported platform. You need to use the browser option",
-                        "ios": "On the operative system iOS, you need to install the following application:",
-                        "windows": "On the operative system Windows, you need to download and install one of the following executable:",
-                        "android": "On the operative system Android, you need to install the following application:",
-                        "linux": "On the operative system Linux, you need to run the following commands:"
-                    }
+                    "generic-text": "Click the following link to find download links and instructions for installation:",
+                    "download-install": "Download viewer software",
+                    "download-link": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/",
+                    "once-installed": "Once installed, click the 'SPICE' button, that will download the virtual desktop file.",
+                    "close-guide": "Close guide"
                 },
                 "rdp": {
                     "rdp-help": "RDP installation instructions",
                     "local-client": "Use RDP client (recommended)",
-                    "close-guide": "Close guide",
                     "included": "Windows includes the required software for its use,",
-                    "require-update": "but it may be required an update (specially in windows 7 and windows 8 versions). It's recommended using the latest available version ",
-                    "here": "here.",
-                    "once-installed": "Once installed, click the 'RDP' button, that will download the virtual desktop file."
+                    "client-required": "but on other operating systems, it may require the installation of an external application. Consult the installation instructions:",
+                    "download-install":"Download viewer software",
+                    "download-link": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers/",
+                    "once-installed": "Once installed, click the 'RDP' button, that will download the virtual desktop file.",
+                    "close-guide": "Close guide"
                 }
             },
             "reset-modal": {

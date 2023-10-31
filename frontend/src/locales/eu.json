@@ -539,8 +539,6 @@
                     "included": "Windowsek hura erabiltzeko behar den aplikazioa du,",
                     "rdp-help": "RDP instalatzeko argibideak",
                     "close-guide": "Gida itxi",
-                    "require-update": "baina baliteke eguneraketa bat behar izatea (bereziki Windows 7 eta Windows 8 bertsioetan). Eskuragarri dagoen azken bertsioa erabiltzea gomendatzen da ",
-                    "here": "hemen.",
                     "local-client": "RDP bezeroa erabili (gomendatua)",
                     "once-installed": "Instalatu ondoren, egin klik 'RDP' botoian, zeinak mahaigain birtualaren fitxategia deskargatuko duen."
                 },
@@ -554,8 +552,6 @@
                         "ios": "iOS sistema eragilean, aplikazio hau instalatu behar duzu:",
                         "android": "Android sistema eragilean, aplikazio hau instalatu behar duzu:"
                     },
-                    "install": "Instalatu",
-                    "other-windows-versions": "beste Windows bertsio batzuk",
                     "spice-help": "SPICE instalatzeko jarraibideak",
                     "best-performance": "Errendimendu oneneko aukera da",
                     "once-installed": "Instalatu ondoren, egin klik \"SPICE\" botoian, zeinak mahaigain birtualeko fitxategia deskargatuko baitu.",

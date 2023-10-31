@@ -20,74 +20,17 @@
         </h3>
         <hr>
         <b>{{ $t('views.direct-viewer.help.spice.best-performance') }}</b>
-        {{ $t('views.direct-viewer.help.spice.spice-client-required') }}
-        <div v-if="os=='Windows' || os==null">
-          {{ $t('views.direct-viewer.help.spice.text.windows') }}
-          <ul @click.stop>
-            <li>
-              <b>Windows 64bits (Windows 10):</b>
-              <b-button
-                variant="outline-primary"
-                href="https://virt-manager.org/download/sources/virt-viewer/virt-viewer-x64-7.0.msi"
-              >
-                {{ $t('views.direct-viewer.help.spice.install') }}
-              </b-button>
-            </li>
-            <li>
-              <b>Windows 32bits ({{ $t('views.direct-viewer.help.spice.other-windows-versions') }}):</b>
-              <b-button
-                variant="outline-primary"
-                href="https://virt-manager.org/download/sources/virt-viewer/virt-viewer-x86-7.0.msi"
-              >
-                {{ $t('views.direct-viewer.help.spice.install') }}
-              </b-button>
-            </li>
-          </ul>
-        </div>
-        <div v-if="os=='Linux' || os==null">
-          {{ $t('views.direct-viewer.help.spice.text.linux') }}
-          <ul @click.stop>
-            <li>
-              <b>Debian / Ubuntu:</b>
-              <code>sudo apt install virt-viewer -y</code>
-            </li>
-            <li>
-              <b>RedHat / CentOS / Fedora:</b>
-              <code>sudo dnf install remote-viewer -y</code>
-            </li>
-          </ul>
-        </div>
-        <div v-if="os=='Android' || os==null">
-          {{ $t('views.direct-viewer.help.spice.text.android') }}
-          <ul @click.stop>
-            <li>
-              <b>Android:</b>
-              <b-button
-                variant="outline-primary"
-                href="https://play.google.com/store/apps/details?id=com.iiordanov.freeaSPICE"
-              >
-                {{ $t('views.direct-viewer.help.spice.install') }}
-              </b-button>
-            </li>
-          </ul>
-        </div>
-        <div v-if="os=='iOS' || os==null">
-          {{ $t('views.direct-viewer.help.spice.text.ios') }}
-          <ul @click.stop>
-            <li>
-              <b>iOS:</b>
-              <b-button
-                variant="outline-primary"
-                href="https://itunes.apple.com/us/app/flexvdi-client/id1051361263"
-              >
-                {{ $t('views.direct-viewer.help.spice.install') }}
-              </b-button>
-            </li>
-          </ul>
-        </div>
-        <div v-if="os=='MacOS' || os==null">
-          {{ $t('views.direct-viewer.help.spice.text.macos') }}
-        </div>
+        {{ $t('views.direct-viewer.help.spice.spice-client-required') }} <br>
+        {{ $t('views.direct-viewer.help.spice.generic-text') }}
+        <b-row class="justify-content-md-center">
+          <b-button
+            variant="outline-primary"
+            class="my-4"
+            :href="$t('views.direct-viewer.help.spice.download-link')"
+          >
+            {{ $t('views.direct-viewer.help.spice.download-install') }}
+          </b-button>
+        </b-row>
         <div
           v-if="os!='MacOS'"
           class="mb-4"

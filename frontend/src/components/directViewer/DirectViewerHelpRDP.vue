@@ -16,10 +16,18 @@
         </h3>
         <hr>
         <b>{{ $t('views.direct-viewer.help.rdp.included') }}</b>
-        {{ $t('views.direct-viewer.help.rdp.require-update') }}<a
-          target="_blank"
-          href="https://docs.microsoft.com/es-es/windows-server/remote/remote-desktop-services/clients/remote-desktop-clients"
-        >{{ $t('views.direct-viewer.help.rdp.here') }}</a>
+        {{ $t('views.direct-viewer.help.rdp.client-required') }}
+
+        <b-row class="justify-content-md-center">
+          <b-button
+            variant="outline-primary"
+            class="my-4"
+            :href="$t('views.direct-viewer.help.rdp.download-link')"
+          >
+            {{ $t('views.direct-viewer.help.rdp.download-install') }}
+          </b-button>
+        </b-row>
+
         <div class="mb-4">
           {{ $t('views.direct-viewer.help.rdp.once-installed') }}
         </div>
