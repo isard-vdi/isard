@@ -272,6 +272,13 @@
         },
         "select-search": {
             "empty": "Keine Optionen verfügbar"
+        },
+        "bookings": {
+            "item": {
+                "split-labels": {
+                    "bookings": "Buchungen"
+                }
+            }
         }
     },
     "forms": {
@@ -297,7 +304,26 @@
         "domain": {
             "info": {
                 "description": "Beschreibung",
-                "name": "Name"
+                "name": "Name",
+                "title": "Information"
+            },
+            "viewers": {
+                "guest": {
+                    "username": "Benutzername",
+                    "password": "Passwort",
+                    "warning": "WARNUNG: Das Gast-Passwort wird im Klartext gespeichert!",
+                    "title": "RDP-Anmeldung"
+                },
+                "title": "Betrachter",
+                "fullscreen-enabled": "Vollbild aktiviert",
+                "fullscreen-disabled": "Vollbild deaktiviert"
+            },
+            "hardware": {
+                "memory": "Speicher (GB)",
+                "title": "Hardware",
+                "videos": "Videos",
+                "vcpus": "vCPUS",
+                "warning": "WARNUNG: Diese Hardware wurde aufgrund von Benutzerberechtigungen geändert:"
             }
         },
         "create": "Erstellen",
@@ -327,7 +353,12 @@
                 "description": "Beschreibung"
             },
             "visible": "Sichtbar für Nutzer",
-            "filter-placeholder": "Zum Suchen Text eintippen"
+            "filter-placeholder": "Zum Suchen Text eintippen",
+            "title": "Neue Verteilung erstellen:",
+            "name": "Name der Verteilung",
+            "error": {
+                "groups": "Mindestens eine Gruppe muss selektiert sein"
+            }
         },
         "filter-placeholder": "Tippe zum suchen",
         "allowed": {
@@ -340,7 +371,8 @@
             },
             "groups": "Gruppen:",
             "users": "Benutzer:",
-            "placeholder": "Gib zum Suchen mindestens 2 Buchstaben ein."
+            "placeholder": "Gib zum Suchen mindestens 2 Buchstaben ein.",
+            "empty": "Überprüft und leer wird an alle weitergegeben."
         },
         "new-template": {
             "title": "Neue Vorlage erstellen",
@@ -372,6 +404,9 @@
             "name": "Medienname",
             "description": "Beschreibung",
             "select-type": "Bitte eine Option auswählen"
+        },
+        "edit": {
+            "title": "'{name}' bearbeiten"
         }
     },
     "errors": {
@@ -386,7 +421,8 @@
         "required": "{property} ist erforderlich.",
         "minLengthValue": "Das Feld {property} hat {model} Zeichen, muss aber eine Mindestlänge von {min} haben.",
         "sameAs": "Das Feld {property} muss den gleichen Wert wie {property2} haben.",
-        "url": "Das Feld {property} muss eine URL sein."
+        "url": "Das Feld {property} muss eine URL sein.",
+        "undefined": "Nicht definiert"
     },
     "messages": {
         "no": "Nein",

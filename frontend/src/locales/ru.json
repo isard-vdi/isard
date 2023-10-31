@@ -197,7 +197,16 @@
                 "download": "VPN"
             },
             "help": "Помощь",
-            "deployments": "Развертывания"
+            "deployments": "Развертывания",
+            "bookings": {
+                "text": "Бронирование",
+                "planning": "Планирование",
+                "summary": "Резюме"
+            },
+            "templates": "Шаблоны",
+            "logout": "Выход",
+            "desktops": "Рабочие столы",
+            "profile": "Профиль"
         },
         "not-found": {
             "title": "Запрошенный адрес не был найден",
@@ -261,7 +270,34 @@
             "checkbox-text-short": "Запущено",
             "cancel": "Отменить",
             "select": "Выбрать",
-            "upload-file": "Загрузить файл"
+            "upload-file": "Загрузить файл",
+            "deployment": {
+                "buttons": {
+                    "videowall": {
+                        "title": "Перейти к видеостене"
+                    },
+                    "delete": {
+                        "title": "Удалить развертывание"
+                    },
+                    "recreate": {
+                        "title": "Восстановить развертывание"
+                    },
+                    "make-visible": {
+                        "title": "Сделать видимым"
+                    },
+                    "make-not-visible": {
+                        "title": "Сделать невидимым"
+                    },
+                    "download-direct-viewer": {
+                        "title": "Скачать файл прямого просмотра"
+                    }
+                },
+                "back": "Возвращаясь к развертыванию"
+            },
+            "new-deployment": "Новое развертывание"
+        },
+        "select-search": {
+            "empty": "Опции отсутствуют"
         }
     },
     "validations": {
@@ -270,7 +306,8 @@
         "maxLengthValue": "Поле {property} содержит {model} символов, но оно должно иметь максимальную длину {max}.",
         "minLengthValue": "Поле {property} содержит {model} символов, но оно должно иметь минимальную длину {min}.",
         "sameAs": "Поле {property} должно иметь то же значение, что и {property2}.",
-        "url": "Поле {property} должно быть ссылкой."
+        "url": "Поле {property} должно быть ссылкой.",
+        "undefined": "Не определено"
     },
     "forms": {
         "new-desktop": {
@@ -313,7 +350,8 @@
                     "update": "Обновление"
                 }
             },
-            "title": "Разрешено"
+            "title": "Разрешено",
+            "empty": "Выбранные и пустые будут доступны для всех."
         },
         "new-deployment": {
             "filter": "Фильтр",
@@ -340,14 +378,15 @@
             "filter-placeholder": "Введите для поиска",
             "error": {
                 "groups-users": "Должен быть выбран хотя бы один пользователь или одна группа",
-                "groups": "Должна быть выбрана хотя бы одна группа"
+                "groups": "Должна быть выбрана хотя бы одна группа",
+                "users": "Должен быть выбран хотя бы один пользователь"
             }
         },
         "new-template": {
             "description": "Описание",
             "enabled": "Включено",
             "title": "Создайте новый шаблон",
-            "name": "Название",
+            "name": "Имя",
             "disabled": "Выключено"
         },
         "password": {
@@ -362,12 +401,15 @@
                     "placeholder": "Подтверждение пароля"
                 },
                 "buttons": {
-                    "update": "Обновить"
+                    "update": "Обновление"
                 }
             }
         },
         "duplicate-template": {
             "title": "Дубликат шаблона"
+        },
+        "new-media": {
+            "title": "Создание нового носителя:"
         }
     },
     "messages": {
