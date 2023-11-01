@@ -67,6 +67,7 @@ func (a *AuthenticationServer) login(w http.ResponseWriter, r *http.Request) {
 		if err := requiredArgs([]string{provider.ProviderArgsKey, provider.CategoryIDArgsKey}, args); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(err.Error()))
+			time.Sleep(2 * time.Second)
 			return
 		}
 	}
@@ -84,10 +85,12 @@ func (a *AuthenticationServer) login(w http.ResponseWriter, r *http.Request) {
 				r.URL.Path = "/authentication/login"
 
 				a.Authentication.SAML().HandleStartAuthFlow(w, r)
+				time.Sleep(2 * time.Second)
 				return
 			}
 
 			a.Authentication.SAML().OnError(w, r, err)
+			time.Sleep(2 * time.Second)
 			return
 		}
 	}
@@ -97,18 +100,21 @@ func (a *AuthenticationServer) login(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, provider.ErrInvalidCredentials) {
 			w.WriteHeader(http.StatusUnauthorized)
 			w.Write([]byte(err.Error()))
+			time.Sleep(2 * time.Second)
 			return
 		}
 
 		if errors.Is(err, provider.ErrUserDisabled) {
 			w.WriteHeader(http.StatusForbidden)
 			w.Write([]byte(err.Error()))
+			time.Sleep(2 * time.Second)
 			return
 		}
 
 		// TODO: Better error handling!
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
+		time.Sleep(2 * time.Second)
 		return
 	}
 
