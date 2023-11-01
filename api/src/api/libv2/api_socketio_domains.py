@@ -159,7 +159,6 @@ class DomainsThread(threading.Thread):
                                             namespace="/userspace",
                                             room=c["old_val"]["user"],
                                         )
-                                    event = "add"
                             data = c["new_val"]
 
                         socketio.emit(
