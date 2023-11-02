@@ -152,7 +152,7 @@ export default new Vuex.Store({
     },
     login ({ commit }, data, version) {
       return new Promise((resolve, reject) => {
-        axios.create().post(`${authenticationSegment}/login?category_id=${data.get('category_id')}&username=${data.get('username')}`, data, { timeout: 25000 }).then(response => {
+        axios.create().post(`${authenticationSegment}/login?provider=${data.get('provider')}&category_id=${data.get('category_id')}&username=${data.get('username')}`, data, { timeout: 25000 }).then(response => {
           const jwt = JSON.parse(atob(response.data.split('.')[1]))
           if (jwt.type === 'register') {
             router.push({ name: 'Register' })
@@ -176,9 +176,10 @@ export default new Vuex.Store({
         config.headers.Authorization = `Bearer ${getCookie('authorization')}`
         return config
       })
+      const provider = JSON.parse(atob(getCookie('authorization').split('.')[1])).provider
       await registerAxios.post(`${apiV3Segment}/user/register`, data).then(response => {
         return new Promise((resolve, reject) => {
-          registerAxios.post(`${authenticationSegment}/login`, data, { timeout: 25000 }).then(response => {
+          registerAxios.post(`${authenticationSegment}/login?provider=${provider}`, data, { timeout: 25000 }).then(response => {
             store.dispatch('loginSuccess', response.data)
             resolve()
           }).catch(e => {
