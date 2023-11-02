@@ -729,6 +729,7 @@ def filter_outofmem_hypers(hypers_online):
             "No hypers left with ram available to start desktops from %s active."
             % len(hypers_online)
         )
+        return []
     logs.workers.debug("--------------------------------------")
     logs.workers.debug(
         "hypers_with_ram: %s"
