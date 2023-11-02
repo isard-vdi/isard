@@ -101,7 +101,7 @@ def api_v3_admin_desktop_storage(payload, domain_id):
 
 
 @app.route("/api/v3/admin/domains/xml/<domain_id>", methods=["POST", "GET"])
-@is_admin_or_manager
+@is_admin
 def api_v3_admin_domains_xml(payload, domain_id):
     if request.method == "POST":
         data = request.get_json(force=True)
