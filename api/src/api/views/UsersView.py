@@ -35,6 +35,7 @@ from ..libv2.isardVpn import isardVpn
 vpn = isardVpn()
 
 from .decorators import (
+    checkDuplicateUser,
     has_token,
     is_auto_register,
     is_not_user,
@@ -97,6 +98,8 @@ def api_v3_user_register(payload):
             "Requested register code not in the category selected",
             traceback.format_exc(),
         )
+
+    checkDuplicateUser(payload["user_id"], payload["category_id"], payload["provider"])
 
     check_category_domain(data.get("category"), payload["email"].split("@")[-1])
 
