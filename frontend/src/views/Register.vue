@@ -59,52 +59,61 @@
               {{ pageErrorMessage }}
             </b-alert>
           </b-row>
-          <b-row
-            align-h="center"
-            class="justify-content-center"
+          <b-overlay
+            :show="loading"
+            rounded
+            opacity="0"
+            spinner-small
+            spinner-variant="success"
           >
-            <b-form-input
-              id="code"
-              v-model="code"
-              type="text"
-              class="py-4 mt-3 mb-2"
-              :state="v$.code.$error ? false : null"
-              :placeholder="$t('views.register.code')"
-              @blur="v$.code.$touch"
-            />
-            <b-form-invalid-feedback
-              v-if="v$.code.$error"
-              id="codeError"
+            <b-row
+              align-h="center"
+              class="justify-content-center"
             >
-              {{
-                $t(`validations.${v$.code.$errors[0].$validator}`, {
-                  property: `${$t("forms.registration.code")}`,
-                })
-              }}
-            </b-form-invalid-feedback>
-          </b-row>
-          <b-row
-            align-h="center"
-            class="justify-content-center mt-2 mb-3"
-          >
-            <b-button
-              type="submit"
-              class="rounded-pill w-100 btn-green"
+              <b-form-input
+                id="code"
+                v-model="code"
+                type="text"
+                class="py-4 mt-3 mb-2"
+                :state="v$.code.$error ? false : null"
+                :placeholder="$t('views.register.code')"
+                @blur="v$.code.$touch"
+              />
+              <b-form-invalid-feedback
+                v-if="v$.code.$error"
+                id="codeError"
+              >
+                {{
+                  $t(`validations.${v$.code.$errors[0].$validator}`, {
+                    property: `${$t("forms.registration.code")}`,
+                  })
+                }}
+              </b-form-invalid-feedback>
+            </b-row>
+            <b-row
+              align-h="center"
+              class="justify-content-center mt-2 mb-3"
             >
-              {{ $t("views.register.register") }}
-            </b-button>
-          </b-row>
-          <b-row
-            align-h="center"
-            class="justify-content-center mt-3"
-          >
-            <b-button
-              class="rounded-pill w-100 btn-red"
-              @click="deleteSessionAndGoToLogin()"
+              <b-button
+                type="submit"
+                :disabled="loading"
+                class="rounded-pill w-100 btn-green"
+              >
+                {{ $t("views.register.register") }}
+              </b-button>
+            </b-row>
+            <b-row
+              align-h="center"
+              class="justify-content-center mt-3"
             >
-              {{ $t("views.cancel") }}
-            </b-button>
-          </b-row>
+              <b-button
+                class="rounded-pill w-100 btn-red"
+                @click="deleteSessionAndGoToLogin()"
+              >
+                {{ $t("views.cancel") }}
+              </b-button>
+            </b-row>
+          </b-overlay>
         </b-form>
       </b-col>
     </b-row>
@@ -135,6 +144,7 @@ export default {
   setup (props, context) {
     const $store = context.root.$store
     const pageErrorMessage = computed(() => $store.getters.getPageErrorMessage)
+    const loading = ref(false)
     const deleteSessionAndGoToLogin = () => {
       $store.dispatch('deleteSessionAndGoToLogin')
     }
@@ -155,14 +165,18 @@ export default {
         document.getElementById(v$.value.$errors[0].$property).focus()
         return
       }
-      $store.dispatch('register', code.value)
+      loading.value = true
+      $store.dispatch('register', code.value).then(() => {
+        loading.value = false
+      })
     }
     return {
       v$,
       submitForm,
       code,
       deleteSessionAndGoToLogin,
-      pageErrorMessage
+      pageErrorMessage,
+      loading
     }
   },
   computed: {
