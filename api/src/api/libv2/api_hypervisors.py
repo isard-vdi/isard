@@ -568,20 +568,41 @@ class ApiHypervisors:
                 )
 
     def update_wg_address(self, mac, data):
-        with app.app_context():
-            try:
-                domain_id = list(
+        try:
+            with app.app_context():
+                domains = list(
                     r.table("domains")
                     .get_all(mac, index="wg_mac")
                     .filter({"kind": "desktop"})
+                    .filter(
+                        lambda domain: r.expr(["Started", "Shutting-down"]).contains(
+                            domain["status"]
+                        )
+                    )
                     .run(db.conn)
-                )[0]["id"]
-                app.logger.info("Updating wg_address for domain " + domain_id)
-                r.table("domains").get(domain_id).update(data).run(db.conn)
-                return domain_id
-            except:
-                app.logger.error("Error updating wg_address: " + traceback.format_exc())
+                )
+            if not len(domains):
+                app.logger.error(
+                    f"UPDATE_WG_ADDR: Domain with mac {mac} not found or not started"
+                )
                 return False
+            if len(domains) > 1:
+                app.logger.error(
+                    f"UPDATE_WG_ADDR: More than one started domain {' '.join([d['id'] for d in domains])} with mac {mac} found! This should not happen!"
+                )
+                return False
+
+            app.logger.info(
+                f"UPDATE_WG_ADDR: Updating wg_address {data.get('viewer',{}).get('guest_ip')} for domain {domains[0]['id']}"
+            )
+            with app.app_context():
+                r.table("domains").get(domains[0]["id"]).update(data).run(db.conn)
+            return domains[0]["id"]
+        except:
+            app.logger.error(
+                f"UPDATE_WG_ADDR: Error updating wg_address for domain {domains[0]['id']}: {traceback.format_exc()}"
+            )
+            return False
 
     def get_hypervisor_vpn(self, hyper_id):
         return isardVpn.vpn_data("hypers", "config", "", hyper_id)
