@@ -65,6 +65,7 @@ def api_v3_user_exists(payload):
 @app.route("/api/v3/user/auto-register", methods=["POST"])
 @is_auto_register
 def api_v3_user_auto_register(payload):
+    checkDuplicateUser(payload["user_id"], payload["category_id"], payload["provider"])
     user_id = users.Create(
         payload["provider"],
         payload["category_id"],
