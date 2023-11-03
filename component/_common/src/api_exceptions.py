@@ -213,31 +213,31 @@ class Error(Exception):
                     },
                 )
             else:
+                extra = {
+                    "status": self.status_code,
+                    "error": self.error.get("description"),
+                    "error_type": error,
+                    "function_call": "[%s -> %s]"
+                    % (self.error.get("function_call"), self.error.get("function")),
+                    "request": {
+                        "url": self.request.url if hasattr(self.request, "url") else "",
+                    },
+                }
+                if os.environ.get("LOG_LEVEL", "INFO") == "DEBUG":
+                    if hasattr(self.request, "headers"):
+                        extra["request"]["headers"] = self.request.headers
+                    if debug:
+                        extra["debug"] = debug
+
+                if hasattr(self.request, "method"):
+                    extra["request"]["method"] = self.request.method
+                if hasattr(self.request, "body"):
+                    extra["request"]["body"] = self.request.body
+                if data:
+                    extra["data"] = data
                 app.logger.error(
                     error,
-                    extra={
-                        "status": self.status_code,
-                        "error": self.error.get("description"),
-                        "error_type": error,
-                        "function_call": "[%s -> %s]"
-                        % (self.error.get("function_call"), self.error.get("function")),
-                        "request": {
-                            "method": self.request.method
-                            if hasattr(self.request, "method")
-                            else "",
-                            "url": self.request.url
-                            if hasattr(self.request, "url")
-                            else "",
-                            "headers": self.request.headers
-                            if hasattr(self.request, "headers")
-                            else "",
-                            "body": self.request.body
-                            if hasattr(self.request, "body")
-                            else "",
-                        },
-                        "data": data if data else "",
-                        "debug": debug,
-                    },
+                    extra=extra,
                 )
 
 
