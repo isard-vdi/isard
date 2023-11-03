@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 111
+release_version = 112
+# release 112: Merge duplicated users into one unique user
 # release 111: Added interfaces, videos, boot_order and reservables index to domains
 #              Remove deleted resources from domains
 # release 110: Remove storages without field user_id
@@ -3433,6 +3434,165 @@ class Upgrade(object):
                 r.table(table).replace(r.row.without("user_storage")).run(self.conn)
             except Exception as e:
                 None
+
+        if version == 112:
+            try:
+                # Move duplicated users domains to the most recently used user
+                duplicated_users_items = list(
+                    r.db("isard")
+                    .table("users")
+                    .group("uid", "category", "provider")
+                    .count()
+                    .ungroup()
+                    .filter(lambda u: u["reduction"].gt(1))
+                    .merge(
+                        lambda user: {
+                            "oldest_users": r.db("isard")
+                            .table("users")
+                            .get_all(user["group"][0], index="uid")
+                            .order_by("accessed")
+                            .coerce_to("array")[:-1]
+                            .pluck("id")
+                            .merge(
+                                lambda u: {
+                                    "domains": r.db("isard")
+                                    .table("domains")
+                                    .get_all(u["id"], index="user")
+                                    .pluck(
+                                        "id",
+                                    )["id"]
+                                    .coerce_to("array"),
+                                    "media": r.db("isard")
+                                    .table("media")
+                                    .get_all(u["id"], index="user")
+                                    .pluck(
+                                        "id",
+                                    )["id"]
+                                    .coerce_to("array"),
+                                    "deployments": r.db("isard")
+                                    .table("deployments")
+                                    .get_all(u["id"], index="user")
+                                    .pluck(
+                                        "id",
+                                    )["id"]
+                                    .coerce_to("array"),
+                                }
+                            ),
+                            "newest_user": r.db("isard")
+                            .table("users")
+                            .get_all(user["group"][0], index="uid")
+                            .order_by("accessed")
+                            .coerce_to("array")[-1]
+                            .pluck("id")["id"],
+                        }
+                    )
+                    .run(self.conn)
+                )
+                print("### MOVE DUPLICATED USERS ITEMS TO LATEST ACESSED USER")
+                for user in duplicated_users_items:
+                    for idx, old_user in enumerate(user["oldest_users"]):
+                        if len(old_user["domains"]) > 0:
+                            r.db("isard").table("domains").get_all(
+                                r.args(old_user["domains"])
+                            ).update(
+                                {
+                                    "user": user["newest_user"],
+                                    "name": "d" + str(idx) + "_" + r.row["name"],
+                                }
+                            ).run(
+                                self.conn
+                            )
+                            print(
+                                "Reassigning "
+                                + str(len(old_user["domains"]))
+                                + " domains with ids "
+                                + ", ".join(old_user["domains"])
+                                + " from duplicated user with id "
+                                + old_user["id"]
+                                + " to user with id "
+                                + user["newest_user"]
+                            )
+                        if len(old_user["media"]) > 0:
+                            r.db("isard").table("media").get_all(
+                                r.args(old_user["media"])
+                            ).update(
+                                {
+                                    "user": user["newest_user"],
+                                    "name": "d" + str(idx) + "_" + r.row["name"],
+                                }
+                            ).run(
+                                self.conn
+                            )
+                            print(
+                                "Reassigning "
+                                + str(len(old_user["media"]))
+                                + " media with ids "
+                                + ", ".join(old_user["media"])
+                                + " from duplicated user with id "
+                                + old_user["id"]
+                                + " to user with id "
+                                + user["newest_user"]
+                            )
+                        if len(old_user["deployments"]) > 0:
+                            r.db("isard").table("deployments").get_all(
+                                r.args(old_user["deployments"])
+                            ).update(
+                                {
+                                    "user": user["newest_user"],
+                                    "name": "d" + str(idx) + "_" + r.row["name"],
+                                }
+                            ).run(
+                                self.conn
+                            )
+                            print(
+                                "Reassigning "
+                                + str(len(old_user["deployments"]))
+                                + " deployments with ids "
+                                + ", ".join(old_user["deployments"])
+                                + " from duplicated user with id "
+                                + old_user["id"]
+                                + " to user with id "
+                                + user["newest_user"]
+                            )
+                # Delete duplicated users and keep the one that has the latest access
+                duplicated_users = list(
+                    r.db("isard")
+                    .table("users")
+                    .group("uid", "category", "provider")
+                    .count()
+                    .ungroup()
+                    .filter(lambda u: u["reduction"].gt(1))
+                    .merge(
+                        lambda user: {
+                            "oldest_users": r.db("isard")
+                            .table("users")
+                            .get_all(user["group"][0], index="uid")
+                            .order_by("accessed")
+                            .coerce_to("array")[:-1]["id"],
+                            "newest_user": r.db("isard")
+                            .table("users")
+                            .get_all(user["group"][0], index="uid")
+                            .order_by("accessed")
+                            .coerce_to("array")[-1]["id"],
+                        }
+                    )
+                    .run(self.conn)
+                )
+                print("### DELETE DUPLICATED USERS")
+                for user in duplicated_users:
+                    print(
+                        "Removing "
+                        + str(len(user["oldest_users"]))
+                        + " duplicated users with ids "
+                        + ", ".join(user["oldest_users"])
+                        + " keeping user with id "
+                        + user["newest_user"]
+                    )
+                    r.db("isard").table("users").get_all(
+                        r.args(user["oldest_users"])
+                    ).delete().run(self.conn)
+            except Exception as e:
+                print(e)
 
         return True
 
