@@ -186,8 +186,7 @@ def desktop_stop(desktop_id, force=False, wait_seconds=0):
 
     raise Error(
         "precondition_required",
-        "Desktop can't be stopped from " + status,
-        traceback.format_exc(),
+        f"Desktop {desktop_id} can't be stopped from {status}",
         description_code="unable_to_stop_desktop_from",
     )
 
