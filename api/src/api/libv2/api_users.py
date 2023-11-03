@@ -747,14 +747,13 @@ class ApiUsers:
             else:
                 raise Error(
                     "forbidden",
-                    "Desktop is not visible to this user now.",
+                    f"Desktop {desktop_id} is not visible to this user now.",
                     description_code="desktop_is_not_visible",
                 )
         except:
             raise Error(
                 "not_found",
-                "Desktop not found",
-                traceback.format_exc(),
+                f"Desktop {desktop_id} not found",
                 description_code="desktop_not_found",
             )
 
