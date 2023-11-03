@@ -101,18 +101,14 @@ class isardViewer:
             except ReqlNonExistenceError:
                 raise Error(
                     "not_found",
-                    "Unable to get viewer for inexistent desktop",
+                    f"Unable to get viewer for inexistent desktop {id}",
                     description_code="unable_to_get_viewer_inexistent",
                 )
 
         if not domain.get("viewer", {}).get("base_port"):
             raise Error(
                 "bad_request",
-                "Desktop "
-                + id
-                + " does not have a viewer. Is it really started? Actual status: "
-                + str(domain.get("status")),
-                traceback.format_exc(),
+                f"Desktop {id} does not have a viewer (base_port). Is it really started? Actual status: {domain.get('status')}",
                 description_code="unable_to_get_viewer",
             )
         if not protocol in ["file-spice", "browser-vnc"] and not domain["status"] in [
@@ -121,8 +117,7 @@ class isardViewer:
         ]:
             raise Error(
                 "precondition_required",
-                "Unable to get viewer for non started desktop",
-                traceback.format_exc(),
+                f"Unable to get {protocol} viewer for non started desktop {id}",
                 description_code="unable_to_get_viewer",
             )
 
@@ -143,12 +138,17 @@ class isardViewer:
         if protocol == "file-vnc":
             raise Error(
                 "not_found",
-                "Viewer protocol not implemented",
-                traceback.format_exc(),
+                "Viewer protocol file-vnc not implemented",
                 description_code="viewer_protocol_not_implemented",
             )
 
         if protocol == "file-rdpvpn":
+            if not domain.get("viewer", {}).get("guest_ip"):
+                raise Error(
+                    "not_found",
+                    f"Viewer file-rdpvpn not ready for desktop {id} as it does not have a guest ip",
+                    description_code="unable_to_get_viewer_inexistent",
+                )
             return {
                 "kind": "file",
                 "protocol": "rdpvpn",
@@ -159,6 +159,12 @@ class isardViewer:
             }
 
         if protocol == "file-rdpgw":
+            if not domain.get("viewer", {}).get("guest_ip"):
+                raise Error(
+                    "not_found",
+                    f"Viewer file-rdpgw not ready for desktop {id} as it does not have a guest ip",
+                    description_code="unable_to_get_viewer_inexistent",
+                )
             return {
                 "kind": "file",
                 "protocol": "rdpgw",
@@ -266,6 +272,12 @@ class isardViewer:
             }
 
         if protocol == "browser-rdp":
+            if not domain.get("viewer", {}).get("guest_ip"):
+                raise Error(
+                    "not_found",
+                    f"Viewer browser-rdp not ready for desktop {id} as it does not have a guest ip",
+                    description_code="unable_to_get_viewer_inexistent",
+                )
             data = {
                 "vmName": domain["name"],
                 "vmHost": domain["viewer"]["guest_ip"],
@@ -312,14 +324,13 @@ class isardViewer:
         if protocol == "vnc-client-macos":
             raise Error(
                 "not_found",
-                "Viewer protocol not implemented",
+                "Viewer protocol vnc-client-macos not implemented",
                 description_code="viewer_protocol_not_implemented",
             )
 
         raise Error(
             "not_found",
-            "Viewer protocol not found",
-            traceback.format_exc(),
+            f"Viewer protocol {protocol} not found",
             description_code="not_found",
         )
 
