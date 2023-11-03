@@ -134,11 +134,14 @@ function setViewerButtonData(desktop_id,data){
         }else{
             html+=prehtml+'<div id="vpn-ip-'+desktop_id+'" style="width:50% height:2000px"><i class="fa fa-lock"></i> <i class="fa fa-link"></i> Desktop IP (via VPN): <i class="fa fa-spinner fa-pulse fa-1x fa-fw"></i></div>'+posthtml
             loading='<i class="fa fa-spinner fa-pulse fa-1x fa-fw"></i>'
-            $('#viewer-buttons button[data-type^="rdp"]').prop("disabled", true).append(loading);
-            $('#vpn-ip-'+desktop_id).append(loading);
         }
     }
     $('#viewer-buttons').html(html);
+    if (data.create_dict.hardware.interfaces.includes("wireguard")) {
+        if(!('viewer' in data && 'guest_ip' in data['viewer'])){
+            $('#viewer-buttons button[data-type^="rdp"]').prop("disabled", true).append(loading);
+        }
+    }
     $('#viewer-buttons .btn-viewers').on('click', function () {
         if($('#chk-viewers').iCheck('update')[0].checked){
             preferred=true
