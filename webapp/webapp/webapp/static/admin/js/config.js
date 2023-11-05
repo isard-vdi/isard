@@ -136,7 +136,10 @@ $(document).ready(function() {
             $('#maintenance_wrapper').show()
         })
     }
-    api.ajax('/api/v3/maintenance', 'GET').done((data) => {
+    $.ajax({
+        type: 'GET',
+        url: '/api/v3/maintenance',
+    }).done((data) => {
         maintenance_update_checkbox(data)
         maintenance_bind_checkbox()
         $('#maintenance_spinner').hide()
