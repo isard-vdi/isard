@@ -429,19 +429,19 @@ $(document).ready(function () {
         }).modal('show');
         $('#modalPersonalunitsForm #verify_cert').iCheck('check').iCheck('update')
         $.ajax({
-            type: "POST",
-            url: "/api/v3/admin/userschema",
-            contentType: "application/json"
-        }).done(function (data) {
-            $('#modalPersonalunitsForm #access').find('option').remove().end();
-            $('#modalPersonalunitsForm #access').append('<option value="">Choose</option>');
-            $('#modalPersonalunitsForm #access').append('<option value="*">[All users]</option>');
-            $('#table_modal_delete tbody').empty()
+            type: "GET",
+            url:"/api/v3/admin/userschema",
+            success: function (data) {
+                $('#modalPersonalunitsForm #access').find('option').remove().end();
+                $('#modalPersonalunitsForm #access').append('<option value="">Choose</option>');
+                $('#modalPersonalunitsForm #access').append('<option value="*">[All users]</option>');
+                $('#table_modal_delete tbody').empty()
 
-            $.each(data.category, function (key, value) {
-                $('#modalPersonalunitsForm #access').append('<option value=' + value.id + '> Only ' + value.name + ' category</option>');
-            });
-        });
+                $.each(data.category, function (key, value) {
+                    $('#modalPersonalunitsForm #access').append('<option value=' + value.id + '> Only ' + value.name + ' category</option>');
+                });
+            },
+        })
         $('#modalPersonalunits #modalPersonalunitsForm').parsley();
     });
 

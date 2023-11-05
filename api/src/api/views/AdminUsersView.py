@@ -797,7 +797,7 @@ def api_v3_admin_secret_delete(payload, kid):
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
-@app.route("/api/v3/admin/userschema", methods=["POST"])
+@app.route("/api/v3/admin/userschema", methods=["GET"])
 @is_admin_or_manager
 def admin_userschema(payload):
     dict = {}

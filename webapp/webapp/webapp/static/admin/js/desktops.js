@@ -2041,9 +2041,13 @@ function populate_tree_template_delete(id){
         }
 
         function fetchCategories() {
-            api.ajax_async('/api/v3/admin/userschema','POST','').then(function(d) {
-                return d.category
-            });
+            $.ajax({
+                type: "GET",
+                url:"/api/v3/admin/userschema",
+                success: function (data) {
+                    return data.category
+                }
+            })
         } 
     
         function populateSelect(item) {
@@ -2053,14 +2057,17 @@ function populate_tree_template_delete(id){
             switch (item) {
                 case ("category"):
                 case ("group"):
-                    api.ajax_async('/api/v3/admin/userschema', 'POST', '')
-                    .then(function(d) {
-                        $.each(d[item], function(pos, it) {
-                            if (item=='category') { var value = it.id } else { var value = it.name }
-                            if ($("#" + item + " option:contains(" + it.name + ")").length == 0) {
-                                elem.append('<option value=' + value + '>' + it.name + '</option>');
-                            }
-                        });
+                    $.ajax({
+                        type: "GET",
+                        url:"/api/v3/admin/userschema",
+                        success: function (d) {
+                            $.each(d[item], function(pos, it) {
+                                if (item=='category') { var value = it.id } else { var value = it.name }
+                                if ($("#" + item + " option:contains(" + it.name + ")").length == 0) {
+                                    elem.append('<option value=' + value + '>' + it.name + '</option>');
+                                }
+                            });
+                        }
                     });
                     if (item=='category') { elem.val([$('meta[id=user_data]').attr('data-categoryid')]); }
                     break;

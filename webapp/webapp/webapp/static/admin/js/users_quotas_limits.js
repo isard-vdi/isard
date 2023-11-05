@@ -363,25 +363,22 @@ function renderUsersDetailPannel ( d ) {
 
 function setModalUser(){
     $.ajax({
-        type: "POST",
-        url: "/api/v3/admin/userschema",
-        data: '',
-        contentType: "application/json",
-        async: false,
-        cache: false,
-    }).done(function (d) {
-        $.each(d, function (key, value) {
-            $("." + key).find('option').remove().end();
-            for(var i in d[key]){
-                if (key == 'group') {
-                    $("."+key).append('<option value=' + value[i].id + ' parent-category=' + value[i].parent_category + '>' + value[i].name + '</option>');
-                } else {
-                    $("."+key).append('<option value=' + value[i].id + '>' + value[i].name + '</option>');
+        type: "GET",
+        url:"/api/v3/admin/userschema",
+        success: function (d) {
+            $.each(d, function (key, value) {
+                $("." + key).find('option').remove().end();
+                for(var i in d[key]){
+                    if (key == 'group') {
+                        $("."+key).append('<option value=' + value[i].id + ' parent-category=' + value[i].parent_category + '>' + value[i].name + '</option>');
+                    } else {
+                        $("."+key).append('<option value=' + value[i].id + '>' + value[i].name + '</option>');
+                    }
                 }
-            }
-        });
-        $('#add-category').trigger("change")
-        $('#bulk-category').trigger("change")
-        current_category = ($('#add-category').val())
+            });
+            $('#add-category').trigger("change")
+            $('#bulk-category').trigger("change")
+            current_category = ($('#add-category').val())
+        }
     });
 }
