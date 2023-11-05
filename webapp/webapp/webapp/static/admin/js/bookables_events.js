@@ -9,10 +9,8 @@ $(document).ready(function() {
 
     booking_scheduler_table=$('#table-booking-scheduler').DataTable({
         "ajax": {
-            "url": "/admin/table/scheduler_jobs",
-            "data": function(d){return JSON.stringify({'order_by':'date','pluck':['id','name','kind','next_run_time','kwargs'],'id':'bookings','index':'type'})},
-            "contentType": "application/json",
-            "type": 'POST',
+            "type": "GET",
+            "url": "/api/v3/admin/scheduler/jobs/bookings",
         },
         "sAjaxDataProp": "",
         "language": {
@@ -27,14 +25,6 @@ $(document).ready(function() {
             { "data": "kind"},
             { "data": "next_run_time"},
             { "data": "kwargs"},
-            // {
-            // "className":      'actions-control',
-            // "orderable":      false,
-            // "data":           null,
-            // "width": "58px",
-            // "defaultContent": '<button id="btn-scheduler-delete" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-times" style="color:darkred"></i></button>'
-            // },
-            ],
          "order": [[2, 'asc']],
          "columnDefs": [ {
                         "targets": 2,
