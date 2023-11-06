@@ -5,7 +5,8 @@ RUN apk add --no-cache \
     yarn \
     py3-openssl \
     py3-pip \
-    py3-cachetools
+    py3-cachetools \
+    curl
 
 RUN apk add --no-cache --virtual .build_deps \
     build-base \
