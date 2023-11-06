@@ -160,6 +160,7 @@ def api_v3_user_media_allowed(payload):
         order="name",
         query_filter=lambda media: media["user"] != payload["user_id"],
         query_merge=True,
+        only_in_allowed=True,
     )
     return (
         json.dumps(media),
