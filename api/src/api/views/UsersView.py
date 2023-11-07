@@ -273,3 +273,15 @@ def get_user_applied_quota(payload):
     applied_quota = quotas.get_applied_quota(payload["user_id"])
 
     return json.dumps(applied_quota), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/user/language/<lang>", methods=["PUT"])
+@has_token
+def api_v3_user_language(payload, lang):
+    users.change_user_language(payload["user_id"], lang)
+
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )

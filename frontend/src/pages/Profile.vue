@@ -165,7 +165,10 @@
                           </h5>
                           <b-row class="justify-content-center text-center">
                             <b-col cols="12">
-                              <Language class="mt-2 mt-md-4 mb-3" />
+                              <Language
+                                class="mt-2 mt-md-4 mb-3"
+                                :save-language="true"
+                              />
                             </b-col>
                           </b-row>
                           <h5 class="font-weight-bold mt-4">

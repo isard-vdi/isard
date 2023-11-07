@@ -12,7 +12,8 @@ const getDefaultState = () => {
     modalShow: false,
     password: '',
     passwordConfirmation: '',
-    profile_loaded: false
+    profile_loaded: false,
+    lang: ''
   }
 }
 
@@ -35,6 +36,9 @@ export default {
     },
     getShowPasswordModal: state => {
       return state.modalShow
+    },
+    getLang: state => {
+      return state.lang
     }
   },
   mutations: {
@@ -57,6 +61,9 @@ export default {
     },
     setShowPasswordModal: (state, modalShow) => {
       state.modalShow = modalShow
+    },
+    setLang (state, lang) {
+      state.lang = lang
     }
   },
   actions: {
@@ -83,6 +90,14 @@ export default {
     },
     resetPasswordState (context) {
       context.commit('resetPasswordState')
+    },
+    saveNewLanguage (context) {
+      const lang = context.getters.getLang
+      if (lang) {
+        axios.put(`${apiV3Segment}/user/language/${lang}`, {}, { timeout: 25000 }).catch(e => {
+          console.error(e)
+        })
+      }
     }
   }
 }
