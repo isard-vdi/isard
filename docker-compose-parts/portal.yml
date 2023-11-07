@@ -29,5 +29,7 @@ services:
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
       - /opt/isard-local/ipsec-fw/lists:/usr/local/etc/haproxy/lists
+      - /opt/isard-local/haproxy/cfg:/usr/local/etc/haproxy/cfg/customs
+      - /opt/isard-local/haproxy/spoe:/usr/local/etc/haproxy/spoe
     env_file:
       - .env
