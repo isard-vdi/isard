@@ -140,22 +140,19 @@ $(document).ready(function(){
 
 function setRoleCategory(){
     $.ajax({
-        type: "POST",
-        url: "/api/v3/admin/userschema",
-        data: '',
-        contentType: "application/json",
-        async: false,
-        cache: false
-    }).done(function (d) {
-        $.each(d, function (key, value) {
-            $("." + key).find('option').remove().end();
-            for(var i in d[key]){
-                if(value[i].id!='disposables' && value[i].id!='eval'){
-                    $("."+key).append('<option value=' + value[i].id + '>' + value[i].name + '</option>');
+        type: "GET",
+        url:"/api/v3/admin/userschema",
+        success: function (d) {
+            $.each(d, function (key, value) {
+                $("." + key).find('option').remove().end();
+                for(var i in d[key]){
+                    if(value[i].id!='disposables' && value[i].id!='eval'){
+                        $("."+key).append('<option value=' + value[i].id + '>' + value[i].name + '</option>');
+                    }
                 }
-            }
-            $("."+key+' option[value="local"]').prop("selected",true);
-        });
-        $('#add-category').trigger("change")
+                $("."+key+' option[value="local"]').prop("selected",true);
+            });
+            $('#add-category').trigger("change")
+        }
     });
 }

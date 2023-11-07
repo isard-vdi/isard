@@ -9,10 +9,8 @@ $(document).ready(function() {
     // Scheduler
     scheduler_table=$('#table-scheduler').DataTable({
         "ajax": {
-            "url": "/admin/table/scheduler_jobs",
-            "data": function(d){return JSON.stringify({'order_by':'date','pluck':['id','name','kind','next_run_time'],'id':'system','index':'type'})},
-            "contentType": "application/json",
-            "type": 'POST',
+            "type": "GET",
+            "url": "/api/v3/admin/scheduler/jobs/system",
         },
         "sAjaxDataProp": "",
         "language": {
@@ -34,7 +32,7 @@ $(document).ready(function() {
             "defaultContent": '<button id="btn-scheduler-delete" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-times" style="color:darkred"></i></button>'
             },
             ],
-         "order": [[1, 'asc']],
+         "order": [[2, 'asc']],
          "columnDefs": [ {
                         "targets": 2,
                         "render": function ( data, type, full, meta ) {
@@ -138,7 +136,10 @@ $(document).ready(function() {
             $('#maintenance_wrapper').show()
         })
     }
-    api.ajax('/api/v3/maintenance', 'GET').done((data) => {
+    $.ajax({
+        type: 'GET',
+        url: '/api/v3/maintenance',
+    }).done((data) => {
         maintenance_update_checkbox(data)
         maintenance_bind_checkbox()
         $('#maintenance_spinner').hide()

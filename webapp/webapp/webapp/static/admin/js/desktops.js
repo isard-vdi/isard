@@ -893,12 +893,23 @@ $(document).ready(function() {
                 }
                 break;
             case 'btn-stop':
-                // When desktop is 'Shutting-down' and click on 'Force stop' button
-                if(data['status']=='Shutting-down'){
-                    api.ajax('/api/v3/desktop/stop/' + data["id"], 'GET',{'pk':data['id'],'name':'status','value':'Stopping'}).done(function(data) {});
-                }else{
-                    api.ajax('/api/v3/desktop/stop/' + data["id"], 'GET',{'pk':data['id'],'name':'status','value':'Shutting-down'}).done(function(data) {});
-                }
+                $.ajax({
+                    type: "GET",
+                    url: '/api/v3/desktop/stop/' + data["id"],
+                    contentType: "application/json",
+                    cache: false,
+                    error: function(data) {
+                        new PNotify({
+                            title: 'ERROR stopping desktop',
+                            text: data.responseJSON.description,
+                            type: 'error',
+                            hide: true,
+                            icon: 'fa fa-warning',
+                            delay: 5000,
+                            opacity: 1
+                        })
+                    },
+                })
                 break;
             case 'btn-display':
                 new PNotify({
@@ -1957,7 +1968,6 @@ function populate_tree_template_delete(id){
             $.ajax({
                 type: "GET",
                 url: '/api/v3/desktop/start/' + domain_id,
-                data: {'pk':domain_id,'name':'status','value':'Starting'},
                 contentType: "application/json",
                 cache: false,
                 error: function(data) {
@@ -2031,9 +2041,13 @@ function populate_tree_template_delete(id){
         }
 
         function fetchCategories() {
-            api.ajax_async('/api/v3/admin/userschema','POST','').then(function(d) {
-                return d.category
-            });
+            $.ajax({
+                type: "GET",
+                url:"/api/v3/admin/userschema",
+                success: function (data) {
+                    return data.category
+                }
+            })
         } 
     
         function populateSelect(item) {
@@ -2043,14 +2057,17 @@ function populate_tree_template_delete(id){
             switch (item) {
                 case ("category"):
                 case ("group"):
-                    api.ajax_async('/api/v3/admin/userschema', 'POST', '')
-                    .then(function(d) {
-                        $.each(d[item], function(pos, it) {
-                            if (item=='category') { var value = it.id } else { var value = it.name }
-                            if ($("#" + item + " option:contains(" + it.name + ")").length == 0) {
-                                elem.append('<option value=' + value + '>' + it.name + '</option>');
-                            }
-                        });
+                    $.ajax({
+                        type: "GET",
+                        url:"/api/v3/admin/userschema",
+                        success: function (d) {
+                            $.each(d[item], function(pos, it) {
+                                if (item=='category') { var value = it.id } else { var value = it.name }
+                                if ($("#" + item + " option:contains(" + it.name + ")").length == 0) {
+                                    elem.append('<option value=' + value + '>' + it.name + '</option>');
+                                }
+                            });
+                        }
                     });
                     if (item=='category') { elem.val([$('meta[id=user_data]').attr('data-categoryid')]); }
                     break;

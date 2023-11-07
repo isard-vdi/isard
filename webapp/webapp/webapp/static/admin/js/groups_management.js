@@ -211,15 +211,19 @@ $(document).ready(function() {
                 }
             },
         });
-        api.ajax_async('/api/v3/admin/userschema','POST','').done(function(d) {
-            $.each(d, function(key, value) {
-                if(key == 'category'){
-                    $("#parent_category").find('option').remove().end();
-                    for(var i in d[key]){
-                        $("#parent_category").append('<option value=' + value[i].id + '>' + value[i].name + ' - ' + value[i].description + '</option>');
+        $.ajax({
+            type: "GET",
+            url:"/api/v3/admin/userschema",
+            success: function (d) {
+                $.each(d, function(key, value) {
+                    if(key == 'category'){
+                        $("#parent_category").find('option').remove().end();
+                        for(var i in d[key]){
+                            $("#parent_category").append('<option value=' + value[i].id + '>' + value[i].name + ' - ' + value[i].description + '</option>');
+                        }
                     }
-                }
-            });
+                });
+            }
         });
         ephemeralDesktopsShow('#modalAddGroupForm', {})
         // autoDesktopsShow('#modalAddGroupForm', {})
