@@ -222,11 +222,13 @@ def api_v3_user_templates(payload):
 @app.route("/api/v3/user/templates/allowed/<kind>", methods=["GET"])
 @has_token
 def api_v3_user_templates_allowed(payload, kind):
+    only_in_allowed = False
     if kind == "shared":
         query_filter = (
             lambda templates: r.not_(templates["user"] == payload["user_id"])
             & templates["enabled"]
         )
+        only_in_allowed = True
     elif kind == "all":
         query_filter = {"enabled": True}
     templates = allowed.get_items_allowed(
@@ -251,6 +253,7 @@ def api_v3_user_templates_allowed(payload, kind):
         index_value="template",
         order="name",
         query_merge=True,
+        only_in_allowed=only_in_allowed,
     )
     return (
         json.dumps(templates),

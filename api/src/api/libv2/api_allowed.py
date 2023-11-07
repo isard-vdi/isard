@@ -124,6 +124,7 @@ class ApiAllowed:
         order=None,
         query_merge=True,
         extra_ids_allowed=[],
+        only_in_allowed=False,
     ):
         try:
             query = r.table(table)
@@ -181,7 +182,7 @@ class ApiAllowed:
                 else:
                     item["editable"] = False
                 if item["id"] in extra_ids_allowed or self.is_allowed(
-                    payload, item, table
+                    payload, item, table, ignore_role=only_in_allowed
                 ):
                     allowed.append(item)
 
@@ -194,10 +195,10 @@ class ApiAllowed:
                 description_code="generic_error",
             )
 
-    def is_allowed(self, payload, item, table):
+    def is_allowed(self, payload, item, table, ignore_role=False):
         if not payload.get("user_id", False):
             return False
-        if (
+        if not ignore_role and (
             payload["role_id"] == "admin"
             or item.get("user") == payload["user_id"]
             or (
