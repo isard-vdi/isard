@@ -430,12 +430,52 @@ function actionsHyperDetail() {
       width: '550'
 
     }).get().on('pnotify.confirm', function() {
-      api.ajax('/admin/table/update/hypervisors', 'PUT', { 'id': pk, 'enabled': !data.enabled }).done(function(hyp) {});
-      if (data["enabled"] && data["orchestrator_managed"]) {
-        api.ajax("/api/v3/orchestrator/hypervisor/" + pk + "/manage", 'DELETE', "").done(function(hyp) {});
-      }
-    }).on('pnotify.cancel', function() {});
-  });
+      $.ajax({
+        url: "/admin/table/update/hypervisors",
+        type: "PUT",
+        accept: "application/json",
+        data: JSON.stringify({ 'id': pk, 'enabled': !data.enabled }),
+        contentType: "application/json",
+        success: function(hyp) {
+          if (data["enabled"] && data["orchestrator_managed"]) {
+            $.ajax({
+              url: "/api/v3/orchestrator/hypervisor/" + pk + "/manage",
+              type: "DELETE",
+              accept: "application/json",
+              contentType: "application/json",
+              success: function(data) {
+                new PNotify({
+                  title: 'Updated',
+                  text: 'Hypervisor updated successfully',
+                  hide: true,
+                  delay: 2000,
+                  opacity: 1,
+                  type: 'success'
+                })
+              },
+              error: function(data) {
+                new PNotify({
+                  title: 'ERROR updating hypervisor',
+                  text: data.responseJSON.description,
+                  type: 'error',
+                  hide: true,
+                  icon: 'fa fa-warning',
+                  delay: 2000,
+                  opacity: 1
+                })
+              },
+            });
+            $.ajax({
+              url: "/api/v3/orchestrator/hypervisor/" + pk + "/manage",
+              type: "DELETE",
+              accept: "application/json",
+              contentType: "application/json",
+            })
+          }
+        },
+      });
+  }).on('pnotify.cancel', function() {});
+});
 
   $('.btn-delete').on('click', function() {
     var pk = $(this).closest("div").attr("data-pk");
@@ -459,7 +499,33 @@ function actionsHyperDetail() {
       width: '550'
 
     }).get().on('pnotify.confirm', function() {
-      api.ajax('/api/v3/hypervisor/' + pk, 'DELETE').done(function(hyp) {});
+      $.ajax({
+        url: "/api/v3/hypervisor/" + pk,
+        type: "DELETE",
+        accept: "application/json",
+        contentType: "application/json",
+        success: function(data) {
+          new PNotify({
+            title: 'Deleted',
+            text: 'Hypervisor deleted successfully',
+            hide: true,
+            delay: 2000,
+            opacity: 1,
+            type: 'success'
+          })
+        },
+        error: function(data) {
+          new PNotify({
+            title: 'ERROR deleting hypervisor',
+            text: data.responseJSON.description,
+            type: 'error',
+            hide: true,
+            icon: 'fa fa-warning',
+            delay: 2000,
+            opacity: 1
+          })
+        },
+      });
     }).on('pnotify.cancel', function() {});
   });
 
@@ -485,7 +551,33 @@ function actionsHyperDetail() {
       width: '550'
 
     }).get().on('pnotify.confirm', function() {
-      api.ajax('/api/v3/hypervisor/stop/' + pk, 'PUT').done(function(hyp) {});
+      $.ajax({
+        url: "/api/v3/hypervisor/stop/" + pk,
+        type: "PUT",
+        accept: "application/json",
+        contentType: "application/json",
+        success: function(data) {
+          new PNotify({
+            title: 'Updated',
+            text: 'Hypervisor desktops stopped successfully',
+            hide: true,
+            delay: 2000,
+            opacity: 1,
+            type: 'success'
+          })
+        },
+        error: function(data) {
+          new PNotify({
+            title: 'ERROR stopping hypervisor desktops',
+            text: data.responseJSON.description,
+            type: 'error',
+            hide: true,
+            icon: 'fa fa-warning',
+            delay: 2000,
+            opacity: 1
+          })
+        },
+      });
     }).on('pnotify.cancel', function() {});
   });
 
@@ -500,26 +592,35 @@ function actionsHyperDetail() {
       keyboard: false
     }).modal('show');
 
-    api.ajax('/admin/table/hypervisors', 'POST', { 'id': pk }).done(function(hyp) {
-      $('#modalEditHyper #modalEdit #id').val(pk);
-      $('#modalEditHyper #modalEdit #fake_id').val(pk);
-      $('#modalEditHyper #modalEdit #description').val(hyp.description);
-      $('#modalEditHyper #modalEdit #hostname').val(hyp.hostname);
-      $('#modalEditHyper #modalEdit #user').val(hyp.user);
-      $('#modalEditHyper #modalEdit #port').val(hyp.port);
-      if (hyp.capabilities.disk_operations) {
-        $('#modalEditHyper #modalEdit #capabilities-disk_operations').iCheck('check');
+    $.ajax({
+      url: "/admin/table/hypervisors",
+      type: "POST",
+      data: JSON.stringify({ 'order_by': 'id' }),
+      contentType: "application/json",
+      success: function(hyp) {
+        hyp=hyp[0]
+        $('#modalEditHyper #modalEdit #id').val(pk);
+        $('#modalEditHyper #modalEdit #fake_id').val(pk);
+        $('#modalEditHyper #modalEdit #description').val(hyp.description);
+        $('#modalEditHyper #modalEdit #hostname').val(hyp.hostname);
+        $('#modalEditHyper #modalEdit #user').val(hyp.user);
+        $('#modalEditHyper #modalEdit #port').val(hyp.port);
+        if (hyp.capabilities.disk_operations) {
+          $('#modalEditHyper #modalEdit #capabilities-disk_operations').iCheck('check');
+        }
+        if (hyp.capabilities.hypervisor) {
+          $('#modalEditHyper #modalEdit #capabilities-hypervisor').iCheck('check');
+        }
+        $('#modalEditHyper #modalEdit #viewer-static').val(hyp.viewer.static);
+        $('#modalEditHyper #modalEdit #viewer-proxy_video').val(hyp.viewer.proxy_video);
+        $('#modalEditHyper #modalEdit #viewer-spice_ext_port').val(hyp.viewer.spice_ext_port);
+        $('#modalEditHyper #modalEdit #viewer-html5_ext_port').val(hyp.viewer.html5_ext_port);
+        $('#modalEditHyper #modalEdit #viewer-hyper_vpn_host').val(hyp.isard_hyper_vpn_host);
+        $('#modalEditHyper #modalEdit #viewer-proxy_hyper_host').val(hyp.viewer.proxy_hyper_host);
+      },
+      error: function(jqXHR, exception) {
+        processError(jqXHR, form)
       }
-      if (hyp.capabilities.hypervisor) {
-        $('#modalEditHyper #modalEdit #capabilities-hypervisor').iCheck('check');
-      }
-      $('#modalEditHyper #modalEdit #viewer-static').val(hyp.viewer.static);
-      $('#modalEditHyper #modalEdit #viewer-proxy_video').val(hyp.viewer.proxy_video);
-      $('#modalEditHyper #modalEdit #viewer-spice_ext_port').val(hyp.viewer.spice_ext_port);
-      $('#modalEditHyper #modalEdit #viewer-html5_ext_port').val(hyp.viewer.html5_ext_port);
-      $('#modalEditHyper #modalEdit #viewer-hyper_vpn_host').val(hyp.isard_hyper_vpn_host);
-      $('#modalEditHyper #modalEdit #viewer-proxy_hyper_host').val(hyp.viewer.proxy_hyper_host);
-
     });
 
     $.ajax({
