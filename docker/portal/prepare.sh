@@ -1,4 +1,11 @@
 #!/bin/sh
+rm -rf /tmp/cfg
+mkdir -p /tmp/cfg
+for i in `find /usr/local/etc/haproxy/cfg -iname '*.cfg'`; do cp $i /tmp/cfg; done
+echo "Contatenating cfg files for haproxy.cfg:"
+ls -l /tmp/cfg
+cat /tmp/cfg/* > /usr/local/etc/haproxy/haproxy.cfg
+
 # Set debug path password
 PASSWD=$(python3 -c 'import os,crypt,getpass; print(crypt.crypt(os.environ["WEBAPP_ADMIN_PWD"], crypt.mksalt(crypt.METHOD_SHA512)))')
 sed -i "/^    user admin password/c\    user admin password $PASSWD" /usr/local/etc/haproxy/haproxy.cfg

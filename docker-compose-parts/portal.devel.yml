@@ -4,4 +4,4 @@ services:
     environment:
       DEVELOPMENT: "true"
     volumes:
-    - ${BUILD_ROOT_PATH}/docker/portal/haproxy.conf:/usr/local/etc/haproxy/haproxy.cfg
+    - ${BUILD_ROOT_PATH}/docker/portal/cfg/base:/usr/local/etc/haproxy/cfg/base
