@@ -24,7 +24,8 @@ $(document).ready(function() {
             { "data": "name"},
             { "data": "kind"},
             { "data": "next_run_time"},
-            { "data": "kwargs"},
+            { "data": "kwargs"}
+        ],
          "order": [[2, 'asc']],
          "columnDefs": [ {
                         "targets": 2,
