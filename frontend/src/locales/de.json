@@ -323,7 +323,9 @@
                 "title": "Hardware",
                 "videos": "Videos",
                 "vcpus": "vCPUS",
-                "warning": "WARNUNG: Diese Hardware wurde aufgrund von Benutzerberechtigungen geändert:"
+                "warning": "WARNUNG: Diese Hardware wurde aufgrund von Benutzerberechtigungen geändert:",
+                "interfaces": "Netzwerke",
+                "disk-size": "Festplattengröße (GB)"
             }
         },
         "create": "Erstellen",
