@@ -2043,6 +2043,7 @@ function populate_tree_template_delete(id){
         function fetchCategories() {
             $.ajax({
                 type: "GET",
+                async: false,
                 url:"/api/v3/admin/userschema",
                 success: function (data) {
                     return data.category
@@ -2059,6 +2060,7 @@ function populate_tree_template_delete(id){
                 case ("group"):
                     $.ajax({
                         type: "GET",
+                        async: false,
                         url:"/api/v3/admin/userschema",
                         success: function (d) {
                             $.each(d[item], function(pos, it) {
