@@ -28,8 +28,10 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
         }else{
             url='/api/v3/quota/'+kind+'/'+id;
         }
-
-        api.ajax(url,'GET','').done(function(usrquota) {
+        $.ajax({
+            url: url,
+            type: 'GET',
+        }).done(function(usrquota) {
             parentid=parentid+' ';
             $(parentid+"#quota-desktops").removeAttr("max");
             $(parentid+"#quota-templates").removeAttr("max");
@@ -104,7 +106,10 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
         }else{
             url='/api/v3/quota/'+kind+'/'+id;
         }
-        api.ajax(url,'GET','').done(function(usrquota) {
+        $.ajax({
+            url: url,
+            type: 'GET',
+        }).done(function(usrquota) {
             parentid=parentid+' ';
 
             if((kind != 'group'  && usrquota.limits != false) || (kind == 'group' && usrquota.grouplimits !=false)){

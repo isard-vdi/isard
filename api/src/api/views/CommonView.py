@@ -133,15 +133,27 @@ def user_quota_max(payload, kind, item_id=None):
     if kind == "user":
         if not item_id:
             item_id = payload["user_id"]
-        return json.dumps(quotas.GetUserQuota(item_id))
+        return (
+            json.dumps(quotas.GetUserQuota(item_id)),
+            200,
+            {"Content-Type": "application/json"},
+        )
     if kind == "category":
         if not item_id:
             item_id = payload["category_id"]
-        return json.dumps(quotas.GetCategoryQuota(item_id))
+        return (
+            json.dumps(quotas.GetCategoryQuota(item_id)),
+            200,
+            {"Content-Type": "application/json"},
+        )
     if kind == "group":
         if not item_id:
             item_id = payload["group_id"]
-        return json.dumps(quotas.GetGroupQuota(item_id))
+        return (
+            json.dumps(quotas.GetGroupQuota(item_id)),
+            200,
+            {"Content-Type": "application/json"},
+        )
 
 
 @app.route("/api/v3/domain/info/<domain_id>", methods=["GET"])
