@@ -365,6 +365,7 @@ function setModalUser(){
     $.ajax({
         type: "GET",
         url:"/api/v3/admin/userschema",
+        async: false,
         success: function (d) {
             $.each(d, function (key, value) {
                 $("." + key).find('option').remove().end();

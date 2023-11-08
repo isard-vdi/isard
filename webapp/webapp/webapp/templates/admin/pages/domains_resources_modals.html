@@ -24,7 +24,7 @@
                                 <div class="col-md-4 col-xs-12">
                                     <label class="control-label" for="name">Name <span class="required">*</span>
                                     </label>
-                                    <input id="name" class="roundbox" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New video name" data-parsley-trigger="change" required type="text">
+                                    <input id="name" class="roundbox" maxlength="40" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New video name" data-parsley-trigger="change" required type="text">
                                 </div>
                                 <div class="col-md-8 col-xs-12">
                                     <label class="control-label" for="description">Description 
@@ -111,7 +111,7 @@
                                 <div class="col-md-4 col-xs-12">
                                     <label class="control-label" for="name">Name <span class="required">*</span>
                                     </label>
-                                        <input id="name" class="roundbox" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New interface name" data-parsley-trigger="change" required type="text">
+                                        <input id="name" class="roundbox" maxlength="40" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New interface name" data-parsley-trigger="change" required type="text">
                                 </div>
                                 <div class="col-md-8 col-xs-12">
                                     <label class="control-label" for="description">Description 
@@ -202,7 +202,7 @@
                     <div class="col-md-4 col-xs-12">
                         <label class="control-label" for="name">Name <span class="required">*</span>
                         </label>
-                          <input id="name" class="roundbox" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text">
+                          <input id="name" class="roundbox" maxlength="40" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text">
                     </div>
                     <div class="col-md-8 col-xs-12">
                         <label class="control-label" for="description">Description 
@@ -216,19 +216,19 @@
                         <p style="font-size: 16px;margin-bottom:0px;">Inbound (KBytes/s)</p>
                         <div class="col-xs-3 form-group">
                             <label>Average</label>
-                            <input id="qos-bandwidth-inbound-average" name="qos-bandwidth-inbound-average" class="form-control"  value="10000" min="0" max="999999999" class="roundbox" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+                            <input id="qos-bandwidth-inbound-average" name="qos-bandwidth-inbound-average" class="form-control"  value="10000" min="0" max="999999999" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
                         </div>
                         <div class="col-xs-3 form-group">
                             <label>Peak</label>
-                            <input id="qos-bandwidth-inbound-peak" name="qos-bandwidth-inbound-peak" class="form-control" value="15000" min="0" max="999999999" class="roundbox" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+                            <input id="qos-bandwidth-inbound-peak" name="qos-bandwidth-inbound-peak" class="form-control" value="15000" min="0" max="999999999" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
                         </div>
                         <div class="col-xs-3 form-group">
                             <label>Floor</label>
-                            <input id="qos-bandwidth-inbound-floor" name="qos-bandwidth-inbound-floor" class="form-control col-md-7 col-xs-12" value="5000" min="0" max="999999999" class="roundbox" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+                            <input id="qos-bandwidth-inbound-floor" name="qos-bandwidth-inbound-floor" class="form-control col-md-7 col-xs-12" value="5000" min="0" max="999999999" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
                         </div>
                         <div class="col-xs-3 form-group">
                             <label>Burst</label>
-                            <input id="qos-bandwidth-inbound-burst" name="qos-bandwidth-inbound-burst" class="form-control col-md-7 col-xs-12" value="20000" min="0" max="999999999" class="roundbox" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+                            <input id="qos-bandwidth-inbound-burst" name="qos-bandwidth-inbound-burst" class="form-control col-md-7 col-xs-12" value="20000" min="0" max="999999999" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
                         </div>                  
                     </div>
        
@@ -236,15 +236,15 @@
                         <p style="font-size: 16px;margin-bottom:0px;">Outbound (KBytes/s)</p>
                         <div class="col-xs-3 form-group">
                             <label>Average</label>
-                            <input id="qos-bandwidth-outbound-average" name="qos-bandwidth-outbound-average" class="form-control" value="10000" min="0" max="999999999" class="roundbox" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+                            <input id="qos-bandwidth-outbound-average" name="qos-bandwidth-outbound-average" class="form-control" value="10000" min="0" max="999999999" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
                         </div>
                         <div class="col-xs-3 form-group">
                             <label>Peak</label>
-                            <input id="qos-bandwidth-outbound-peak" name="qos-bandwidth-outbound-peak" class="form-control" value="15000" min="0" max="999999999" class="roundbox" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+                            <input id="qos-bandwidth-outbound-peak" name="qos-bandwidth-outbound-peak" class="form-control" value="15000" min="0" max="999999999" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
                         </div>
                         <div class="col-xs-3 form-group">
                             <label>Burst</label>
-                            <input id="qos-bandwidth-outbound-burst" name="qos-bandwidth-outbound-burst" class="form-control col-md-7 col-xs-12" value="20000" min="0" max="999999999" class="roundbox" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+                            <input id="qos-bandwidth-outbound-burst" name="qos-bandwidth-outbound-burst" class="form-control col-md-7 col-xs-12" value="20000" min="0" max="999999999" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
                         </div>                
                     </div>    
                 </div>   
@@ -289,7 +289,7 @@
                     <div class="col-md-4 col-xs-12">
                         <label class="control-label" for="name">Name <span class="required">*</span>
                         </label>
-                          <input id="name" class="roundbox" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text" style="width: 100%;">
+                          <input id="name" class="roundbox" maxlength="40" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text" style="width: 100%;">
                     </div>
                     <div class="col-md-8 col-xs-12">
                         <label class="control-label" for="description">Description 
@@ -304,11 +304,11 @@
                             <p style="font-size: 16px;margin-bottom:0px;">Limit (bytes per second)</p>
                             <div class="col-xs-6 form-group">
                                 <label>read_bytes_sec</label>
-                                <input id="iotune-read_bytes_sec" name="iotune-read_bytes_sec" class="form-control" value="50000000" min="0" max="9999999999" class="roundbox" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+                                <input id="iotune-read_bytes_sec" name="iotune-read_bytes_sec" class="form-control" value="50000000" min="0" max="9999999999" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
                             </div>
                             <div class="col-xs-6 form-group">
                                 <label>write_bytes_sec</label>
-                                <input id="iotune-write_bytes_sec" name="iotune-write_bytes_sec" class="form-control" value="10000000" min="0" max="9999999999" class="roundbox" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+                                <input id="iotune-write_bytes_sec" name="iotune-write_bytes_sec" class="form-control" value="10000000" min="0" max="9999999999" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
                             </div>                 
                         </div>
                         
@@ -316,11 +316,11 @@
                             <p style="font-size: 16px;margin-bottom:0px;">Maximum limit (bytes per second)</p> 
                             <div class="col-xs-6 form-group">
                                 <label>read_bytes_sec_max</label>
-                                <input id="iotune-read_bytes_sec_max" name="iotune-read_bytes_sec_max" class="form-control" value="90000000" min="0" max="999999999" class="roundbox" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+                                <input id="iotune-read_bytes_sec_max" name="iotune-read_bytes_sec_max" class="form-control" value="90000000" min="0" max="999999999" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
                             </div>
                             <div class="col-xs-6 form-group">
                                 <label>write_bytes_sec_max</label>
-                                <input id="iotune-write_bytes_sec_max" name="iotune-write_bytes_sec_max" class="form-control" value="50000000" min="0" max="999999999" class="roundbox"pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+                                <input id="iotune-write_bytes_sec_max" name="iotune-write_bytes_sec_max" class="form-control" value="50000000" min="0" max="999999999" class="roundbox"pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
                             </div>             
                         </div> 
 
@@ -328,11 +328,11 @@
                             <p style="font-size: 16px;margin-bottom:0px;">Maximum write burst per second</p>
                             <div class="col-xs-6 form-group">
                                 <label>read_bytes_sec_max_length</label>
-                                <input id="iotune-read_bytes_sec_max_length" name="iotune-read_bytes_sec_max_length" class="form-control" value="1" min="0" max="120" class="roundbox" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+                                <input id="iotune-read_bytes_sec_max_length" name="iotune-read_bytes_sec_max_length" class="form-control" value="1" min="0" max="120" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
                             </div>
                             <div class="col-xs-6 form-group">
                                 <label>write_bytes_sec_max_length</label>
-                                <input id="iotune-write_bytes_sec_max_length" name="iotune-write_bytes_sec_max_length" class="form-control" value="1" min="0" max="120" class="roundbox" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+                                <input id="iotune-write_bytes_sec_max_length" name="iotune-write_bytes_sec_max_length" class="form-control" value="1" min="0" max="120" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
                             </div> 
                             <p style="font-size: 12px;margin-bottom:0px;">
                                 Maximum duration for write_bytes_sec_max burst period (seconds)                     
@@ -350,11 +350,11 @@
                             <p style="font-size: 16px;margin-bottom:0px;">I/O operations per second.</p>
                             <div class="col-xs-6 form-group">
                                 <label>read_iops_sec</label>
-                                <input id="iotune-read_iops_sec" name="iotune-read_iops_sec" class="form-control" value="20000" min="0" max="500000" class="roundbox" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+                                <input id="iotune-read_iops_sec" name="iotune-read_iops_sec" class="form-control" value="20000" min="0" max="500000" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
                             </div>
                             <div class="col-xs-6 form-group">
                                 <label>write_iops_sec</label>
-                                <input id="iotune-write_iops_sec" name="iotune-write_iops_sec" class="form-control" value="10000" min="0" max="500000" class="roundbox" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+                                <input id="iotune-write_iops_sec" name="iotune-write_iops_sec" class="form-control" value="10000" min="0" max="500000" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
                             </div>              
                         </div> 
 
@@ -363,15 +363,15 @@
                             <p style="font-size: 16px;margin-bottom:0px;">Maximum read I/O operations per second.</p> 
                             <div class="col-xs-6 form-group">
                                 <label>read_iops_sec_max</label>
-                                <input id="iotune-read_iops_sec_max" name="iotune-read_iops_sec_max" class="form-control" value="15000" min="0" max="500000" class="roundbox" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+                                <input id="iotune-read_iops_sec_max" name="iotune-read_iops_sec_max" class="form-control" value="15000" min="0" max="500000" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
                             </div>
                             <div class="col-xs-6 form-group">
                                 <label>write_iops_sec_max</label>
-                                <input id="iotune-write_iops_sec_max" name="iotune-write_iops_sec_max" class="form-control" value="25000" min="0" max="500000" class="roundbox" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+                                <input id="iotune-write_iops_sec_max" name="iotune-write_iops_sec_max" class="form-control" value="25000" min="0" max="500000" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
                             </div>
                             <div class="col-xs-6 form-group">
                                 <label>size_iops_sec</label>
-                                <input id="iotune-size_iops_sec" name="iotune-size_iops_sec" class="form-control" value="15000" min="0" max="500000" class="roundbox" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+                                <input id="iotune-size_iops_sec" name="iotune-size_iops_sec" class="form-control" value="15000" min="0" max="500000" class="roundbox" pattern="^[[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
                             </div>               
                         </div> 
 
@@ -380,11 +380,11 @@
                             <p style="font-size: 16px;margin-bottom:0px;">Maximum duration for read burst period.</p>
                             <div class="col-xs-6 form-group">
                                 <label>read_iops_sec_max_length</label>
-                                <input id="iotune-read_iops_sec_max_length" name="iotune-read_iops_sec_max_length" class="form-control" value="1" min="0" max="120" class="roundbox"pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+                                <input id="iotune-read_iops_sec_max_length" name="iotune-read_iops_sec_max_length" class="form-control" value="1" min="0" max="120" class="roundbox"pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
                             </div>
                             <div class="col-xs-6 form-group">
                                 <label>write_iops_sec_max_length</label>
-                                <input id="iotune-write_iops_sec_max_length" name="iotune-write_iops_sec_max_length" class="form-control" value="1" min="0" max="120" class="roundbox" pattern="[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
+                                <input id="iotune-write_iops_sec_max_length" name="iotune-write_iops_sec_max_length" class="form-control" value="1" min="0" max="120" class="roundbox" pattern="^[0-9@]+$"  placeholder="" data-parsley-trigger="change" required type="number"/>
                             </div>  
                             <p style="font-size: 12px;margin-bottom:0px;">
                                 Maximum duration for read_iops_sec_max burst period. (seconds)                   
@@ -439,7 +439,7 @@
                             <div class="col-md-4 col-xs-12">
                                 <label class="control-label" for="name">Name <span class="required">*</span>
                                 </label>
-                                  <input id="name" class="roundbox" maxlength="40" pattern="[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text">
+                                  <input id="name" class="roundbox" maxlength="40" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text">
                             </div>
                             <div class="col-md-8 col-xs-12">
                                 <label class="control-label" for="description">Description 
@@ -452,7 +452,7 @@
                            <div class="col-md-12 col-xs-12">
                               <label class="control-label" for="type">Optional extra Routed Hosts/Networks 
                               </label>
-                              <input id="interfaces" class="roundbox" maxlength="80" pattern="[/.,0-9]+$" data-parsley-length="[4, 40]" name="interfaces" placeholder="Comma-separated nets" data-parsley-trigger="change" type="text">
+                              <input id="interfaces" class="roundbox" maxlength="80" pattern="^[/.,0-9]+$" data-parsley-length="[4, 40]" name="interfaces" placeholder="Comma-separated nets" data-parsley-trigger="change" type="text">
                            </div>
                         </div>
 				</div>
