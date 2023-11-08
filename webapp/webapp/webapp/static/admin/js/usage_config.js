@@ -628,7 +628,6 @@ function fetchAvailableParameters(modal) {
   $.ajax({
     type: 'GET',
     url: '/api/v3/admin/table/usage_parameter',
-    contentType: "application/json",
     success: function (parameter) {
       $(modal + ' #item_type').on("change", function () {
         $(modal + ' #available-parameters').empty();
@@ -736,7 +735,6 @@ function selectParameterList(modal, row) {
   $.ajax({
     type: 'GET',
     url: '/api/v3/admin/table/usage_parameter',
-    contentType: "application/json",
     success: function (parameter) {
       $.each(parameter, function (key, value) {
         $(modal + ' #parameters').append(`<option title="${value.desc}" value="${value.id}">${value.name}</option>`)
