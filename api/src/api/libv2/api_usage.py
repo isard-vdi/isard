@@ -413,7 +413,7 @@ def count_usage_consumers():
         return r.table("usage_consumption").count().run(db.conn)
 
 
-def consolidate_consumptions(item_type=None, total_days=1):
+def consolidate_consumptions(item_type=None, total_days=2):
     if total_days == "all":
         with app.app_context():
             beggining_time = (
