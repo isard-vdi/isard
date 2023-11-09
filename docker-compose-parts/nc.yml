@@ -29,7 +29,7 @@ services:
       - NC_PASS=${NEXTCLOUD_ADMIN_PASSWORD:-$WEBAPP_ADMIN_PWD}
       - OC_PASS=${NEXTCLOUD_ADMIN_PASSWORD:-$WEBAPP_ADMIN_PWD}
       - POSTGRES_DB=isard_nc
-      - POSTGRES_USER=${NEXTCLOUD_ADMIN_USER:-admin}
+      - POSTGRES_USER=admin
       - POSTGRES_PASSWORD=${NEXTCLOUD_ADMIN_PASSWORD:-$WEBAPP_ADMIN_PWD}
       - POSTGRES_HOST=isard-postgres
       - REDIS_HOST=isard-nc-redis # Note, this is not configurable in cfg. The one in cfg is the isard redis.
