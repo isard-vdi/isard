@@ -79,7 +79,7 @@ class ApiClient:
     def header_auth(self):
         token = jwt.encode(
             {
-                "exp": datetime.utcnow() + timedelta(seconds=20),
+                "exp": datetime.utcnow() + timedelta(seconds=90),
                 "kid": "isardvdi-hypervisors",
                 "data": {
                     "role_id": "hypervisor",
