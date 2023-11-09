@@ -214,6 +214,9 @@ export default new Vuex.Store({
       if (error.response.status === 404) {
         commit('setPageErrorMessage', i18n.t('views.register.errors.404'))
         return
+      } else if (error.response.status === 429) {
+        commit('setPageErrorMessage', i18n.t('views.login.errors.429'))
+        return
       } else if (error.response.status === 401) {
         if (error.response.data.error === 'authorization_header_missing') { // jwt header not sent
           commit('setPageErrorMessage', i18n.t('views.register.errors.401'))
