@@ -671,14 +671,31 @@ $(document).ready(function() {
                 addclass: 'pnotify-center-large',
                 width: '550'
             }).get().on('pnotify.confirm', function() {
-                api.ajax('/api/v3/admin/multiple_actions', 'POST', {'ids':ids, 'action':action}).done(function(data) {
-                    notify(data)
-                }).fail(function(jqXHR) {
-                    notify(jqXHR.responseJSON)
-                }).always(function() {
-                    $('#mactions option[value="none"]').prop("selected", true);
-                    $('#domains tr.active .form-check-input').prop("checked", true);
-                })
+                $.ajax({
+                    type: "POST",
+                    url:"/api/v3/admin/multiple_actions",
+                    data: JSON.stringify({'ids':ids, 'action':action}),
+                    contentType: "application/json",
+                    accept: "application/json",
+                    error: function(data) {
+                        new PNotify({
+                            title: "ERROR " + action + " desktops",
+                            text: data.responseJSON.description,
+                            hide: true,
+                            delay: 3000,
+                            icon: 'fa fa-alert-sign',
+                            opacity: 1,
+                            type: 'error'
+                        })
+                    },
+                    success: function(data) {
+                        notify(data)
+                    },
+                    always: function() {
+                        $('#mactions option[value="none"]').prop("selected", true);
+                        $('#domains tr.active .form-check-input').prop("checked", true);
+                    }
+                });
             }).on('pnotify.cancel', function() {
                 $('#mactions option[value="none"]').prop("selected",true);
             })
@@ -705,13 +722,30 @@ $(document).ready(function() {
                             click: function(notice, value){
                                 if (value == "I'm aware") {
                                     notice.remove();
-                                    api.ajax('/api/v3/admin/multiple_actions', 'POST', {'ids':ids, 'action':action}).done(function(data) {
-                                        notify(data)
-                                    }).fail(function(jqXHR) {
-                                        notify(jqXHR.responseJSON)
-                                    }).always(function() {
-                                        $('#mactions option[value="none"]').prop("selected", true);
-                                    })
+                                    $.ajax({
+                                        type: "POST",
+                                        url:"/api/v3/admin/multiple_actions",
+                                        data: JSON.stringify({'ids':ids, 'action':action}),
+                                        contentType: "application/json",
+                                        accept: "application/json",
+                                        error: function(data) {
+                                            new PNotify({
+                                                title: "ERROR " + action + " desktops",
+                                                text: data.responseJSON.description,
+                                                hide: true,
+                                                delay: 3000,
+                                                icon: 'fa fa-alert-sign',
+                                                opacity: 1,
+                                                type: 'error'
+                                            })
+                                        },
+                                        success: function(data) {
+                                            notify(data)
+                                        },
+                                        always: function() {
+                                            $('#mactions option[value="none"]').prop("selected", true);
+                                        }
+                                    });
                                 }
                             }
                         },
@@ -794,33 +828,36 @@ $(document).ready(function() {
                         },
                         addclass: 'pnotify-center'
                     }).get().on('pnotify.confirm', function() {
-                        api.ajax('/api/v3/template/update',
-                        'PUT',
-                        {'id':pk,
-                        'enabled':enabled})
-                        .fail(function(jqXHR) {
-                            new PNotify({
-                                title: "ERROR enabling/disabling template",
-                                text: jqXHR.responseJSON.description,
-                                hide: true,
-                                delay: 3000,
-                                icon: 'fa fa-alert-sign',
-                                opacity: 1,
-                                type: 'error'
-                            })
-                            domains_table.ajax.reload()
-                        })
-                        .success(function(data){
-                            new PNotify({
-                                title: "Template " + (data.enabled? 'enabled': 'disabled'),
-                                text: "",
-                                hide: true,
-                                delay: 1000,
-                                icon: 'fa fa-success',
-                                opacity: 1,
-                                type: 'success'
-                            });
-                            domains_table.ajax.reload()
+                        $.ajax({
+                            type: "PUT",
+                            url:"/api/v3/template/update",
+                            data: JSON.stringify({id:pk, enabled:enabled}),
+                            contentType: "application/json",
+                            accept: "application/json",
+                            error: function(data) {
+                                new PNotify({
+                                    title: "ERROR enabling/disabling template",
+                                    text: data.responseJSON.description,
+                                    hide: true,
+                                    delay: 3000,
+                                    icon: 'fa fa-alert-sign',
+                                    opacity: 1,
+                                    type: 'error'
+                                })
+                                domains_table.ajax.reload()
+                            },
+                            success: function(data) {
+                                new PNotify({
+                                    title: "Template " + (data.enabled? 'enabled': 'disabled'),
+                                    text: "",
+                                    hide: true,
+                                    delay: 1000,
+                                    icon: 'fa fa-success',
+                                    opacity: 1,
+                                    type: 'success'
+                                });
+                                domains_table.ajax.reload()
+                            }
                         });
                     }).on('pnotify.cancel', function() {
                         checkbox.prop("checked", template_enabled)
@@ -1162,18 +1199,38 @@ function actionsDomainDetail(){
             backdrop: 'static',
             keyboard: false
         }).modal('show');
-        api.ajax('/api/v3/admin/table/domains','POST',{'id':pk,'pluck':['id','forced_hyp']}).done(function(data) {
-            if('forced_hyp' in data && data.forced_hyp != false && data.forced_hyp != []){
-                HypervisorsDropdown(data.forced_hyp[0]);
-                $('#modalForcedhypForm #forced_hyp').show();
-                //NOTE: With this it will fire ifChecked event, and generate new key
-                // and we don't want it now as we are just setting de initial state
-                // and don't want to reset de key again if already exists!
-                //$('#jumperurl-check').iCheck('check');
-                $('#forcedhyp-check').prop('checked',true).iCheck('update');
-            }else{
-                $('#forcedhyp-check').iCheck('update')[0].unchecked;
-                $('#modalForcedhypForm #forced_hyp').hide();
+        $.ajax({
+            type: "POST",
+            url:"/api/v3/admin/table/domains",
+            data: JSON.stringify({'id':pk,'pluck':['id','forced_hyp']}),
+            contentType: 'application/json',
+            accept: "application/json",
+            success: function(data)
+            {
+                if('forced_hyp' in data && data.forced_hyp != false && data.forced_hyp != []){
+                    HypervisorsDropdown(data.forced_hyp[0]);
+                    $('#modalForcedhypForm #forced_hyp').show();
+                    //NOTE: With this it will fire ifChecked event, and generate new key
+                    // and we don't want it now as we are just setting de initial state
+                    // and don't want to reset de key again if already exists!
+                    //$('#jumperurl-check').iCheck('check');
+                    $('#forcedhyp-check').prop('checked',true).iCheck('update');
+                }else{
+                    $('#forcedhyp-check').iCheck('update')[0].unchecked;
+                    $('#modalForcedhypForm #forced_hyp').hide();
+                }
+            },
+            error: function(data)
+            {
+                new PNotify({
+                    title: "ERROR",
+                    text: data.responseJSON.description,
+                    type: 'error',
+                    hide: true,
+                    icon: 'fa fa-warning',
+                    delay: 15000,
+                    opacity: 1
+                });
             }
         });
     });
@@ -1181,12 +1238,31 @@ function actionsDomainDetail(){
     $('#forcedhyp-check').unbind('ifChecked').on('ifChecked', function(event){
         if($('#forced_hyp').val()==''){
             pk=$('#modalForcedhypForm #id').val();
-            api.ajax('/api/v3/admin/table/domains','POST',{'id':pk,'pluck':['id','forced_hyp']}).done(function(data) {
-
-                if('forced_hyp' in data && data.forced_hyp != false && data.forced_hyp != []){
-                    HypervisorsDropdown(data.forced_hyp[0]);
-                }else{
-                    HypervisorsDropdown('');
+            $.ajax({
+                type: "POST",
+                url:"/api/v3/admin/table/domains",
+                data: JSON.stringify({'id':pk,'pluck':['id','forced_hyp']}),
+                contentType: 'application/json',
+                accept: "application/json",
+                success: function(data)
+                {
+                    if('forced_hyp' in data && data.forced_hyp != false && data.forced_hyp != []){
+                        HypervisorsDropdown(data.forced_hyp[0]);
+                    }else{
+                        HypervisorsDropdown('');
+                    }
+                },
+                error: function(data)
+                {
+                    new PNotify({
+                        title: "ERROR",
+                        text: data.responseJSON.description,
+                        type: 'error',
+                        hide: true,
+                        icon: 'fa fa-warning',
+                        delay: 15000,
+                        opacity: 1
+                    });
                 }
             });
             $('#modalForcedhypForm #forced_hyp').show();
@@ -1250,14 +1326,38 @@ function actionsDomainDetail(){
             backdrop: 'static',
             keyboard: false
         }).modal('show');
-        api.ajax('/api/v3/admin/table/domains','POST',{'id':pk,'pluck':['id','favourite_hyp']}).done(function(data) {
-            if('favourite_hyp' in data && data.favourite_hyp != false && data.favourite_hyp != []){
-                HypervisorsFavDropdown(data.favourite_hyp[0]);
-                $('#modalFavouriteHypForm #favourite_hyp').show();
-                $('#favouritehyp-check').prop('checked',true).iCheck('update');
-            }else{
-                $('#favouritehyp-check').iCheck('update')[0].unchecked;
-                $('#modalFavouriteHypForm #favourite_hyp').hide();
+        $.ajax({
+            type: "POST",
+            url:"/api/v3/admin/table/domains",
+            data: JSON.stringify({'id':pk,'pluck':['id','favourite_hyp']}),
+            contentType: 'application/json',
+            accept: "application/json",
+            success: function(data)
+            {
+                if('favourite_hyp' in data && data.favourite_hyp != false && data.favourite_hyp != []){
+                    HypervisorsFavDropdown(data.favourite_hyp[0]);
+                    $('#modalFavouriteHypForm #favourite_hyp').show();
+                    //NOTE: With this it will fire ifChecked event, and generate new key
+                    // and we don't want it now as we are just setting de initial state
+                    // and don't want to reset de key again if already exists!
+                    //$('#jumperurl-check').iCheck('check');
+                    $('#favouritehyp-check').prop('checked',true).iCheck('update');
+                }else{
+                    $('#favouritehyp-check').iCheck('update')[0].unchecked;
+                    $('#modalFavouriteHypForm #favourite_hyp').hide();
+                }
+            },
+            error: function(data)
+            {
+                new PNotify({
+                    title: "ERROR",
+                    text: data.responseJSON.description,
+                    type: 'error',
+                    hide: true,
+                    icon: 'fa fa-warning',
+                    delay: 15000,
+                    opacity: 1
+                });
             }
         });
     });
@@ -1265,11 +1365,19 @@ function actionsDomainDetail(){
     $('#favouritehyp-check').unbind('ifChecked').on('ifChecked', function(event){
         if($('#favourite_hyp').val() == ''){
             pk=$('#modalFavouriteHypForm #id').val();
-            api.ajax('/api/v3/admin/table/domains','POST',{'id':pk,'pluck':['id','favourite_hyp']}).done(function(data) {
-                if('favourite_hyp' in data && data.favourite_hyp != false && data.favourite_hyp != []){
-                    HypervisorsFavDropdown(data.favourite_hyp[0]);
-                }else{
-                    HypervisorsFavDropdown('');
+            $.ajax({
+                type: "POST",
+                url:"/api/v3/admin/table/domains",
+                data: JSON.stringify({'id':pk,'pluck':['id','favourite_hyp']}),
+                contentType: 'application/json',
+                accept: "application/json",
+                success: function(data)
+                {
+                    if('favourite_hyp' in data && data.favourite_hyp != false && data.favourite_hyp != []){
+                        HypervisorsFavDropdown(data.favourite_hyp[0]);
+                    }else{
+                        HypervisorsFavDropdown('');
+                    }
                 }
             });
             $('#modalFavouriteHypForm #favourite_hyp').show();
@@ -1328,25 +1436,45 @@ function actionsDomainDetail(){
 
 function HypervisorsDropdown(selected) {
     $("#modalForcedhypForm #forced_hyp").empty();
-    api.ajax('/api/v3/admin/table/hypervisors','POST',{'pluck':['id','hostname']}).done(function(data) {
-        data.forEach(function(hypervisor){
-            $("#modalForcedhypForm #forced_hyp").append('<option value=' + hypervisor.id + '>' + hypervisor.id+' ('+hypervisor.hostname+')' + '</option>');
-            if(hypervisor.id == selected){
-                $('#modalForcedhypForm #forced_hyp option[value="'+hypervisor.id+'"]').prop("selected",true);
-            }
-        });
+    $.ajax({
+        type: "POST",
+        url:"/api/v3/admin/table/hypervisors",
+        data: JSON.stringify({
+            'pluck': ['id','hostname']
+        }),
+        contentType: 'application/json',
+        accept: "application/json",
+        success: function(data)
+        {
+            data.forEach(function(hypervisor){
+                $("#modalForcedhypForm #forced_hyp").append('<option value=' + hypervisor.id + '>' + hypervisor.id+' ('+hypervisor.hostname+')' + '</option>');
+                if(hypervisor.id == selected){
+                    $('#modalForcedhypForm #forced_hyp option[value="'+hypervisor.id+'"]').prop("selected",true);
+                }
+            });
+        }
     });
 }
 
 function HypervisorsFavDropdown(selected) {
     $("#modalFavouriteHypForm #favourite_hyp").empty();
-    api.ajax('/api/v3/admin/table/hypervisors','POST',{'pluck':['id','hostname']}).done(function(data) {
-        data.forEach(function(hypervisor){
-            $("#modalFavouriteHypForm #favourite_hyp").append('<option value=' + hypervisor.id + '>' + hypervisor.id+' ('+hypervisor.hostname+')' + '</option>');
-            if(hypervisor.id == selected){
-                $('#modalFavouriteHypForm #favourite_hyp option[value="'+hypervisor.id+'"]').prop("selected",true);
-            }
-        });
+    $.ajax({
+        type: "POST",
+        url:"/api/v3/admin/table/hypervisors",
+        data: JSON.stringify({
+            'pluck': ['id','hostname']
+        }),
+        contentType: 'application/json',
+        accept: "application/json",
+        success: function(data)
+        {
+            data.forEach(function(hypervisor){
+                $("#modalFavouriteHypForm #favourite_hyp").append('<option value=' + hypervisor.id + '>' + hypervisor.id+' ('+hypervisor.hostname+')' + '</option>');
+                if(hypervisor.id == selected){
+                    $('#modalFavouriteHypForm #favourite_hyp option[value="'+hypervisor.id+'"]').prop("selected",true);
+                }
+            });
+        }
     });
 }
 

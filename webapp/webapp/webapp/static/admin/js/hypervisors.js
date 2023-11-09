@@ -766,7 +766,32 @@ function actionsHyperDetail() {
         },
       });
       if (!data["only_forced"] && data["orchestrator_managed"]) {
-        api.ajax("/api/v3/orchestrator/hypervisor/" + pk + "/manage", 'DELETE', "").done(function(hyp) {});
+        $.ajax({
+          url: "/api/v3/orchestrator/hypervisor/" + pk + "/manage",
+          type: "DELETE",
+          accept: "application/json",
+          success: function(data) {
+            new PNotify({
+              title: 'Updated',
+              text: 'Hypervisor updated successfully',
+              hide: true,
+              delay: 2000,
+              opacity: 1,
+              type: 'success'
+            })
+          },
+          error: function(data) {
+            new PNotify({
+              title: 'ERROR updating hypervisor',
+              text: data.responseJSON.description,
+              type: 'error',
+              hide: true,
+              icon: 'fa fa-warning',
+              delay: 2000,
+              opacity: 1
+            })
+          },
+        });
       }
     }).on('pnotify.cancel', function() {});
   });

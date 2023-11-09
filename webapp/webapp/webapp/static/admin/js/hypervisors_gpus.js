@@ -555,7 +555,14 @@ function enableProfile(reservable_type, item_id, subitem_id, enabled, desktops, 
 
 function GpuEnabledProfilesDropdown(gpu_id) {
   $("#modalForcedProfileForm #forced_active_profile").empty();
-  api.ajax('/api/v3/admin/table/gpus','POST',{"id":gpu_id}).done(function(data) {
+  $.ajax({
+    method: "POST",
+    async: false,
+    url: "/api/v3/admin/table/gpus",
+    data: JSON.stringify({"id": gpu_id}),
+    contentType: "application/json",
+    accept: "application/json",
+  }).done(function (data) {
     data.profiles_enabled.forEach(function(profile){
       $("#modalForcedProfileForm #forced_active_profile").append('<option value=' + profile + '>' + profile+'</option>');
     });

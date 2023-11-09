@@ -274,7 +274,13 @@ function actionsCategoryDetail() {
             backdrop: 'static',
             keyboard: false
         }).modal('show');
-        api.ajax('/api/v3/admin/table/categories', 'POST', { 'id': pk }).done(function (category) {
+        $.ajax({
+            type: "POST",
+            url: "/api/v3/admin/table/categories",
+            data: JSON.stringify({ 'id': pk }),
+            contentType: "application/json",
+            accept: "application/json"
+        }).done(function (category) {
             $('#modalEditCategoryForm #name').val(category.name);
             $('#modalEditCategoryForm #custom-url').val(category.custom_url_name);
             $('#modalEditCategoryForm #description').val(category.description);
