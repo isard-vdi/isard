@@ -1,13 +1,19 @@
     function setDomainGenealogy(id){
-            api.ajax('/domains/genealogy','POST',{'pk':id}).done(function(gen) {
-                var wasted=0
-                //~ $.each(gen['genealogy'],function(index,disk){
-                $.each(gen['gen_ids'],function(index,val){
-                    $("#table-genealogy-"+id).append('<tr><td>'+index+'</td><td>'+val.name+'</td></tr>');
-                    //~ $("#table-genealogy-"+id).append('<tr><td>'+index+'</td><td>'+disk.filename+'</td></tr>');
-                });
-                renderDiskDonut(gen['free'],gen['wasted'],gen['free_hs'],gen['wasted_hs']);
+        $.ajax({
+            type: 'POST',
+            url: '/domains/genealogy',
+            data: JSON.stringify(id),
+            contentType: "application/json",
+            accept: "application/json",
+        }).done(function(gen) {
+            var wasted=0
+            //~ $.each(gen['genealogy'],function(index,disk){
+            $.each(gen['gen_ids'],function(index,val){
+                $("#table-genealogy-"+id).append('<tr><td>'+index+'</td><td>'+val.name+'</td></tr>');
+                //~ $("#table-genealogy-"+id).append('<tr><td>'+index+'</td><td>'+disk.filename+'</td></tr>');
             });
+            renderDiskDonut(gen['free'],gen['wasted'],gen['free_hs'],gen['wasted_hs']);
+        });
 
     }
 

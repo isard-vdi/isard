@@ -305,6 +305,7 @@ function socketio_on() {
   socket.on('hyper_deleted', function(data) {
     var data = JSON.parse(data);
     table.row('#' + data.id).remove().draw();
+    orchestrator_hypers_table.ajax.reload()
     new PNotify({
       title: "Hypervisor deleted",
       text: "Hypervisor " + data.id + " has been deleted",
@@ -335,6 +336,7 @@ function socketio_on() {
       type: data.type
     });
     table.ajax.reload()
+    orchestrator_hypers_table.ajax.reload()
     tablepools.ajax.reload()
   });
 
@@ -766,7 +768,32 @@ function actionsHyperDetail() {
         },
       });
       if (!data["only_forced"] && data["orchestrator_managed"]) {
-        api.ajax("/api/v3/orchestrator/hypervisor/" + pk + "/manage", 'DELETE', "").done(function(hyp) {});
+        $.ajax({
+          url: "/api/v3/orchestrator/hypervisor/" + pk + "/manage",
+          type: "DELETE",
+          accept: "application/json",
+          success: function(data) {
+            new PNotify({
+              title: 'Updated',
+              text: 'Hypervisor updated successfully',
+              hide: true,
+              delay: 2000,
+              opacity: 1,
+              type: 'success'
+            })
+          },
+          error: function(data) {
+            new PNotify({
+              title: 'ERROR updating hypervisor',
+              text: data.responseJSON.description,
+              type: 'error',
+              hide: true,
+              icon: 'fa fa-warning',
+              delay: 2000,
+              opacity: 1
+            })
+          },
+        });
       }
     }).on('pnotify.cancel', function() {});
   });
@@ -802,6 +829,7 @@ function actionsHyperDetail() {
         data: JSON.stringify({ 'id': pk, 'gpu_only': !gpu_only }),
         contentType: "application/json",
         success: function(data) {
+          table.ajax.reload()
           new PNotify({
             title: 'Updated',
             text: 'Hypervisor updated successfully',

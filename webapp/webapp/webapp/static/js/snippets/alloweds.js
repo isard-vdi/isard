@@ -1,5 +1,11 @@
     function setAlloweds_viewer(div_id,id, table = 'domains'){
-        api.ajax('/api/v3/allowed/table/' + table, 'POST', {'id':id}).done(function(alloweds) {
+        $.ajax({
+            type: "POST",
+            url: '/api/v3/allowed/table/' + table,
+            contentType: "application/json",
+            data: JSON.stringify({'id':id}),
+            accept: "application/json",
+            success: function (alloweds) {
                 div_id = div_id.replaceAll('=', '\\=')
                 id = id.replaceAll('=', '\\=')
                 var all=false;
@@ -23,7 +29,8 @@
 
                     });
                 }
-            });
+            }
+        });
     }
 
     function replaceAlloweds_arrays(parent_id,data){
@@ -177,34 +184,39 @@
             backdrop: 'static',
             keyboard: false
         }).modal('show');
-        //~ $('#modalAllowedsForm').parsley();
         setAlloweds_add('#modalAlloweds #alloweds-add');
-        api.ajax('/api/v3/allowed/table/'+table,'POST',{'id':data.id}).done(function(alloweds) {
-            if (['interfaces', 'media', 'reservables_vgpus', 'boots', 'videos'].includes(table)) {
-                $('#modalAllowedsForm #allowed-warning').show()
-            } else {
-                $('#modalAllowedsForm #allowed-warning').hide()
-            }
-            $.each(alloweds,function(key, value)
-            {
-                $("#modalAllowedsForm #alloweds-add #a-"+key).empty().trigger('change')
-                if(value){
-                    $("#modalAllowedsForm #alloweds-add #a-"+key).attr('disabled',false)
-                    $('#modalAllowedsForm #alloweds-add #a-'+key+'-cb').iCheck('check');
-                    value.forEach(function(data)
-                    {
-                        if('parent_category' in data){
-                            var newOption = new Option('['+data['category_name']+'] '+data.name, data.id, true, true);
-                        }else{
-                            var newOption = new Option(data.name, data.id, true, true);
-                        }
-                        $("#modalAllowedsForm #alloweds-add #a-"+key).append(newOption).trigger('change');
-                    });
+        $.ajax({
+            type: "POST",
+            url: '/api/v3/allowed/table/'+table,
+            accept: "application/json",
+            contentType: "application/json",
+            data: JSON.stringify({'id':data.id}),
+            success: function (alloweds) {
+                if (['interfaces', 'media', 'reservables_vgpus', 'boots', 'videos'].includes(table)) {
+                    $('#modalAllowedsForm #allowed-warning').show()
+                } else {
+                    $('#modalAllowedsForm #allowed-warning').hide()
                 }
+                $.each(alloweds,function(key, value)
+                {
+                    $("#modalAllowedsForm #alloweds-add #a-"+key).empty().trigger('change')
+                    if(value){
+                        $("#modalAllowedsForm #alloweds-add #a-"+key).attr('disabled',false)
+                        $('#modalAllowedsForm #alloweds-add #a-'+key+'-cb').iCheck('check');
+                        value.forEach(function(data)
+                        {
+                            if('parent_category' in data){
+                                var newOption = new Option('['+data['category_name']+'] '+data.name, data.id, true, true);
+                            }else{
+                                var newOption = new Option(data.name, data.id, true, true);
+                            }
+                            $("#modalAllowedsForm #alloweds-add #a-"+key).append(newOption).trigger('change');
+                        });
+                    }
 
-            });
+                });
+            }
         });
-
 
         socket.off('allowed_result').on('allowed_result', function (data) {
             var data = JSON.parse(data);

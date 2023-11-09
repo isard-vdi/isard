@@ -53,7 +53,11 @@ $(document).ready(function() {
                             history: {history: false},
                             addclass: 'pnotify-center'
                         }).get().on('pnotify.confirm', function() {
-                            api.ajax('/scheduler/'+data["id"],'DELETE',{}).done(function(resp) {
+                            $.ajax({
+                                type: 'DELETE',
+                                url: '/scheduler/'+data["id"],
+                                accept: "application/json",
+                            }).done(function(resp) {
                                 scheduler_table.row('#'+data["id"]).remove().draw();
                             });
                         }).on('pnotify.cancel', function() {
@@ -96,7 +100,7 @@ $(document).ready(function() {
             url: url,
             data: JSON.stringify(data),
             contentType: "application/json",
-
+            accept: "application/json",
         }).done(function(data) {scheduler_table.ajax.reload();});
         $("#modalAddScheduler")[0].reset();
         $("#modalScheduler").modal('hide');
@@ -125,11 +129,13 @@ $(document).ready(function() {
         $('#maintenance_spinner').show()
         $('#maintenance_checkbox').unbind('ifChecked')
         $('#maintenance_checkbox').unbind('ifUnchecked')
-        api.ajax(
-            '/api/v3/maintenance',
-            'PUT',
-            enabled
-        ).done((data) => {
+        $.ajax({
+            type: 'PUT',
+            url: '/api/v3/maintenance',
+            data: JSON.stringify(enabled),
+            contentType: "application/json",
+            accept: "application/json",
+        }).done((data) => {
             maintenance_update_checkbox(data)
             maintenance_bind_checkbox()
             $('#maintenance_spinner').hide()
@@ -139,6 +145,7 @@ $(document).ready(function() {
     $.ajax({
         type: 'GET',
         url: '/api/v3/maintenance',
+        accept: "application/json",
     }).done((data) => {
         maintenance_update_checkbox(data)
         maintenance_bind_checkbox()
@@ -159,6 +166,7 @@ function scheduler_init(){
     $.ajax({
         type: 'GET',
         url: '/scheduler/actions',
+        accept: "application/json",
     }).done(function(response) {
         response.forEach(function(action) {
             $("#modalScheduler #action").append(
@@ -196,7 +204,7 @@ function scheduler_init(){
         $.ajax({
             type: "GET",
             url: "/scheduler/action/"+selectedAction,
-            contentType: "application/json",
+            accept: "application/json",
             success: function(data)
             {
                 // If the action requires to introduce data

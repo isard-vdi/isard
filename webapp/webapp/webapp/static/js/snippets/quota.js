@@ -200,27 +200,30 @@ function unlimited_show_hide(parentid, selector, editable, unlimited){
 
     //~ Used in users.js
     function setQuotaTableDefaults(div_id,table,id){
-            api.ajax('/api/v3/admin/table/'+table,'POST',{'id':id}).done(function(domain) {
-                $(div_id+" #quota-desktops").data("ionRangeSlider").update({
-                          from: domain['quota-desktops']
-                });
-                $(div_id+" #quota-running").data("ionRangeSlider").update({
-                          from: domain['quota-running']
-                });
-                $(div_id+" #quota-templates").data("ionRangeSlider").update({
-                          from: domain['quota-templates']
-                });
-                $(div_id+" #quota-isos").data("ionRangeSlider").update({
-                          from: domain['quota-isos']
-                });
-
-                $(div_id+" #quota-memory").data("ionRangeSlider").update({
-                          from: domain['quota-memory']/1000
-                });
-                $(div_id+" #quota-vcpus").data("ionRangeSlider").update({
-                          from: domain['quota-vcpus']
-                });
+        $.ajax({
+            url: '/api/v3/admin/table/'+table,
+            type: 'POST',
+            data: {'id':id},
+        }).done(function(domain) {
+            $(div_id+" #quota-desktops").data("ionRangeSlider").update({
+                        from: domain['quota-desktops']
+            });
+            $(div_id+" #quota-running").data("ionRangeSlider").update({
+                        from: domain['quota-running']
+            });
+            $(div_id+" #quota-templates").data("ionRangeSlider").update({
+                        from: domain['quota-templates']
+            });
+            $(div_id+" #quota-isos").data("ionRangeSlider").update({
+                        from: domain['quota-isos']
             });
 
+            $(div_id+" #quota-memory").data("ionRangeSlider").update({
+                        from: domain['quota-memory']/1000
+            });
+            $(div_id+" #quota-vcpus").data("ionRangeSlider").update({
+                        from: domain['quota-vcpus']
+            });
+        });
     }
 

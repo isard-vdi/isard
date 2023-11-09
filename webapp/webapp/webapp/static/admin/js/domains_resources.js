@@ -90,13 +90,20 @@ $(document).ready(function () {
                     keyboard: false
                 }).modal('show');
                 $('#modalRemotevpn #modalRemotevpnForm').parsley();
-                api.ajax('/api/v3/admin/table/remotevpn', 'POST', { 'id': data.id }).done(function (remotevpn) {
-                    $('#modalRemotevpnForm #name').val(remotevpn.name).attr("disabled", true);
-                    $('#modalRemotevpnForm #id').val(remotevpn.id);
-                    $('#modalRemotevpnForm #description').val(remotevpn.description);
-                    $.each(remotevpn, function (key, value) {
-                        $('#modalRemotevpnForm #' + key).val(value)
-                    });
+                $.ajax({
+                    type: "POST",
+                    url: "/api/v3/admin/table/remotevpn",
+                    data: JSON.stringify({ 'id': data.id }),
+                    contentType: "application/json",
+                    accept: "application/json",
+                    success: function (remotevpn) {
+                        $('#modalRemotevpnForm #name').val(remotevpn.name).attr("disabled", true);
+                        $('#modalRemotevpnForm #id').val(remotevpn.id);
+                        $('#modalRemotevpnForm #description').val(remotevpn.description);
+                        $.each(remotevpn, function (key, value) {
+                            $('#modalRemotevpnForm #' + key).val(value)
+                        });
+                    }
                 });
                 break;
             case 'btn-delete':
@@ -269,18 +276,25 @@ $(document).ready(function () {
                     keyboard: false
                 }).modal('show');
                 $('#modalQosNet #modalQosNetForm').parsley();
-                api.ajax('/api/v3/admin/table/qos_net', 'POST', { 'id': data.id }).done(function (qos) {
-                    $('#modalQosNetForm #name').val(qos.name);
-                    $('#modalQosNetForm #id').val(qos.id);
-                    $('#modalQosNetForm #description').val(qos.description);
-                    qos['bandwidth']['inbound'] = removeQosAd(data.bandwidth.inbound)
-                    qos['bandwidth']['outbound'] = removeQosAd(data.bandwidth.outbound)
-                    $.each(qos.bandwidth.inbound, function (key, value) {
-                        $('#modalQosNetForm #qos-bandwidth-inbound-' + key).val(value)
-                    });
-                    $.each(qos.bandwidth.outbound, function (key, value) {
-                        $('#modalQosNetForm #qos-bandwidth-outbound-' + key).val(value)
-                    });
+                $.ajax({
+                    type: "POST",
+                    url: "/api/v3/admin/table/qos_net",
+                    data: JSON.stringify({ 'id': data.id }),
+                    contentType: "application/json",
+                    accept: "application/json",
+                    success: function (qos) {
+                        $('#modalQosNetForm #name').val(qos.name).attr("disabled", true);
+                        $('#modalQosNetForm #id').val(qos.id);
+                        $('#modalQosNetForm #description').val(qos.description);
+                        qos['bandwidth']['inbound'] = removeQosAd(data.bandwidth.inbound)
+                        qos['bandwidth']['outbound'] = removeQosAd(data.bandwidth.outbound)
+                        $.each(qos.bandwidth.inbound, function (key, value) {
+                            $('#modalQosNetForm #qos-bandwidth-inbound-' + key).val(value)
+                        });
+                        $.each(qos.bandwidth.outbound, function (key, value) {
+                            $('#modalQosNetForm #qos-bandwidth-outbound-' + key).val(value)
+                        });
+                    }
                 });
                 break;
         }
@@ -439,13 +453,20 @@ $(document).ready(function () {
                     keyboard: false
                 }).modal('show');
                 $('#modalQosDisk #modalQosDiskForm').parsley();
-                api.ajax('/api/v3/admin/table/qos_disk', 'POST', { 'id': data.id }).done(function (qos) {
-                    $('#modalQosDiskForm #name').val(qos.name);
-                    $('#modalQosDiskForm #id').val(qos.id);
-                    $('#modalQosDiskForm #description').val(qos.description);
-                    $.each(data.iotune, function (key, value) {
-                        $('#modalQosDiskForm #iotune-' + key).val(value)
-                    });
+                $.ajax({
+                    type: "POST",
+                    url: "/api/v3/admin/table/qos_disk",
+                    data: JSON.stringify({ 'id': data.id }),
+                    contentType: "application/json",
+                    accept: "application/json",
+                    success: function (qos) {
+                        $('#modalQosDiskForm #name').val(qos.name).attr("disabled", true);
+                        $('#modalQosDiskForm #id').val(qos.id);
+                        $('#modalQosDiskForm #description').val(qos.description);
+                        $.each(qos.iotune, function (key, value) {
+                            $('#modalQosDiskForm #iotune-' + key).val(value)
+                        });
+                    }
                 });
                 break;
 
@@ -632,29 +653,36 @@ $(document).ready(function () {
                     keyboard: false
                 }).modal('show');
                 $('#modalInterfaces #modalInterfacesForm').parsley();
-                api.ajax('/api/v3/admin/table/interfaces', 'POST', { 'id': data.id }).done(function (interface) {
-                    if (interface.id === "wireguard") {
-                        $('#kind').attr('style', 'pointer-events: none;')
-                        $('#ifname').prop('readonly', true)
-                    } else {
-                        $('#kind').removeAttr('style')
-                        $('#ifname').prop('readonly', false)
-                    }
-                    if ('qos_id' in data) {
-                        if (data['qos_id'] == false) {
-                            qos_id = 'unlimited'
+                $.ajax({
+                    type: "POST",
+                    url: "/api/v3/admin/table/interfaces",
+                    data: JSON.stringify({ 'id': data.id }),
+                    contentType: "application/json",
+                    accept: "application/json",
+                    success: function (interface) {
+                        if (interface.id === "wireguard") {
+                            $('#kind').attr('style', 'pointer-events: none;')
+                            $('#ifname').prop('readonly', true)
                         } else {
-                            qos_id = data['qos_id']
+                            $('#kind').removeAttr('style')
+                            $('#ifname').prop('readonly', false)
                         }
-                    } else { qos_id = 'unlimited' }
-                    populateDropdown('qos_net', '#qos_id', qos_id, false)
-                    $('#modalInterfacesForm #id').val(interface.id);
-                    $('#modalInterfacesForm #description').val(interface.description);
-                    $('#modalInterfacesForm #kind').val(interface.kind)
-                    $('#modalInterfacesForm #kind').trigger('change')
-                    $.each(interface, function (key, value) {
-                        $('#modalInterfacesForm #' + key).val(value)
-                    });
+                        if ('qos_id' in data) {
+                            if (data['qos_id'] == false) {
+                                qos_id = 'unlimited'
+                            } else {
+                                qos_id = data['qos_id']
+                            }
+                        } else { qos_id = 'unlimited' }
+                        populateDropdown('qos_net', '#qos_id', qos_id, false)
+                        $('#modalInterfacesForm #id').val(interface.id);
+                        $('#modalInterfacesForm #description').val(interface.description);
+                        $('#modalInterfacesForm #kind').val(interface.kind)
+                        $('#modalInterfacesForm #kind').trigger('change')
+                        $.each(interface, function (key, value) {
+                            $('#modalInterfacesForm #' + key).val(value)
+                        });
+                    }
                 });
                 break;
             case 'btn-delete':
@@ -1112,15 +1140,22 @@ function QosNetParse(data) {
 function populateDropdown(table, dropdown_id, selected_id, custom) {
     $(dropdown_id).find('option').remove().end();
     pluck = ['id', 'name', 'description']
-    api.ajax('/api/v3/admin/table/' + table, 'POST', { 'pluck': pluck }).done(function (data) {
-        if (!(custom == false)) {
-            $(dropdown_id).append('<option value=' + custom.id + '>' + custom.name + '</option>');
-        }
-        data.forEach(function (item) {
-            $(dropdown_id).append('<option title="' + item.description + '" value=' + item.id + '>' + item.name + '</option>');
-        });
-        if (selected_id != false) {
-            $(dropdown_id + ' option[value="' + selected_id + '"]').prop("selected", true);
+    $.ajax({
+        type: "POST",
+        url: "/api/v3/admin/table/" + table,
+        data: JSON.stringify({ 'pluck': pluck }),
+        contentType: "application/json",
+        accept: "application/json",
+        success: function (data) {
+            if (!(custom == false)) {
+                $(dropdown_id).append('<option value=' + custom.id + '>' + custom.name + '</option>');
+            }
+            data.forEach(function (item) {
+                $(dropdown_id).append('<option title="' + item.description + '" value=' + item.id + '>' + item.name + '</option>');
+            });
+            if (selected_id != false) {
+                $(dropdown_id + ' option[value="' + selected_id + '"]').prop("selected", true);
+            }
         }
     });
 }

@@ -322,7 +322,14 @@ function actionsUserDetail(){
             },
         });
         setModalUser();
-        api.ajax('/api/v3/admin/table/users','POST',{'id':pk}).done(function(user) {
+        $.ajax({
+            type: "POST",
+            url: '/api/v3/admin/table/users',
+            data: JSON.stringify({'id':pk}),
+            contentType: "application/json",
+            accept: "application/json",
+            async: false
+        }).done(function(user) {
             $('#modalEditUserForm #name').val(user.name);
             $('#modalEditUserForm #id').val(user.id);
             $('#modalEditUserForm #uid').val(user.uid);
