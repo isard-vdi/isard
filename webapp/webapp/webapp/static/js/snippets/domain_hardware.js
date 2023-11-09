@@ -14,7 +14,11 @@ function setHardwareOptions(id,default_boot,domain_id){
         }else{
             url = '/api/v3/user/hardware/allowed'
         }
-        api.ajax_async(url,'GET','').done(function(hardware) {
+        $.ajax({
+            type: 'GET',
+            url: url,
+            accept: 'application/json',
+        }).done(function(hardware) {
             if (hardware.virtualization_nested == true) {
                 $(id+"hardware-virtualization_nested").iCheck('check').iCheck('update');
             } else {
@@ -97,7 +101,11 @@ function setHardwareOptions(id,default_boot,domain_id){
 }
 
 function setHardwareDomainIdDefaults(div_id,domain_id){
-    api.ajax('/api/v3/domain/info/'+domain_id,'GET','').done(function(domain) {
+    $.ajax({
+        type: 'GET',
+        url: '/api/v3/domain/info/'+domain_id,
+        accept: 'application/json',
+    }).done(function(domain) {
         setHardwareDomainDefaults(div_id,domain)
     })
 }
