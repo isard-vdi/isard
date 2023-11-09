@@ -867,62 +867,6 @@ $(document).ready(function() {
     $('#domains tbody').on( 'click', 'button', function () {
         var data = domains_table.row( $(this).parents('tr') ).data();
         switch($(this).attr('id')){
-            case 'btn-play':
-                if($('.quota-play .perc').text() >=100){
-                    new PNotify({
-                        title: "Quota for running desktops full.",
-                            text: "Can't start another desktop, quota full.",
-                            hide: true,
-                            delay: 3000,
-                            icon: 'fa fa-alert-sign',
-                            opacity: 1,
-                            type: 'error'
-                        });
-                }else{
-                    $.ajax({
-                        type: "GET",
-                        url:"/api/v3/admin/domain/" + data['id'] + "/viewer_data",
-                        success: function (resp) {
-                            checkReservablesAndStart(resp.create_dict.reservables, data['id'], data['booking_id'])
-                        }
-                    });
-                }
-                break;
-            case 'btn-stop':
-                // When desktop is 'Shutting-down' and click on 'Force stop' button
-                if(data['status']=='Shutting-down'){
-                    api.ajax('/api/v3/desktop/stop/' + data["id"], 'GET',{'pk':data['id'],'name':'status','value':'Stopping'}).done(function(data) {});
-                }else{
-                    api.ajax('/api/v3/desktop/stop/' + data["id"], 'GET',{'pk':data['id'],'name':'status','value':'Shutting-down'}).done(function(data) {});
-                }
-                break;
-            case 'btn-display':
-                new PNotify({
-                        title: 'Connect to user viewer!',
-                            text: "By connecting to desktop "+ data["name"]+" you will disconnect and gain access to that user current desktop.\n\n \
-                                   Please, think twice before doing this as it could be illegal depending on your relation with the user. \n\n ",
-                            hide: false,
-                            opacity: 0.9,
-                            confirm: {
-                                confirm: true
-                            },
-                            buttons: {
-                                closer: false,
-                                sticker: false
-                            },
-                            history: {
-                                history: false
-                            },
-                            addclass: 'pnotify-center'
-                        }).get().on('pnotify.confirm', function() {
-                            setViewerButtons(data.id)
-                            $('#modalOpenViewer').modal({
-                                backdrop: 'static',
-                                keyboard: false
-                            }).modal('show');
-                        }).on('pnotify.cancel', function() {
-                });
-                break;
             case 'btn-alloweds':
                 modalAllowedsFormShow('domains',data)
                 break;
@@ -1174,70 +1118,18 @@ function actionsDomainDetail(){
         };
     });
 
-    if(kind=="desktop"){
-        $('.btn-delete-template').remove()
+    // TEMPLATE DETAIL ACTIONS
+    $('.btn-delete').remove()
+    $('.btn-template').remove()
 
-    $('.btn-template').on('click', function () {
-        if($('.quota-templates .perc').text() >=100){
-            new PNotify({
-                title: "Quota for creating templates full.",
-                text: "Can't create another template, quota full.",
-                hide: true,
-                delay: 3000,
-                icon: 'fa fa-alert-sign',
-                opacity: 1,
-                type: 'error'
-            });
-        }else{
-            var pk=$(this).closest("[data-pk]").attr("data-pk");
-
-            setDefaultsTemplate(pk);
-
-            $('#modalTemplateDesktop').modal({
-                backdrop: 'static',
-                keyboard: false
-            }).modal('show');
-
-            setAlloweds_add('#modalTemplateDesktop #alloweds-add');
-        }
+    $('.btn-delete-template').on('click', function () {
+        var pk = $(this).closest("[data-pk]").attr("data-pk")
+        $('#modalDeleteTemplate').modal({
+            backdrop: 'static',
+            keyboard: false
+        }).modal('show');
+        populate_tree_template_delete(pk);
     });
-
-    $('.btn-delete').on('click', function () {
-                    var pk=$(this).closest("[data-pk]").attr("data-pk");
-                    var name=$(this).closest("[data-pk]").attr("data-name");
-                    new PNotify({
-                            title: 'Confirmation Needed',
-                                text: "Are you sure you want to delete virtual machine: "+name+"?",
-                                hide: false,
-                                opacity: 0.9,
-                                confirm: {
-                                    confirm: true
-                                },
-                                buttons: {
-                                    closer: false,
-                                    sticker: false
-                                },
-                                history: {
-                                    history: false
-                                },
-                                addclass: 'pnotify-center'
-                            }).get().on('pnotify.confirm', function() {
-                                api.ajax('/api/v3/desktop/' + pk, 'DELETE').done(function() {});
-                            }).on('pnotify.cancel', function() {
-                    });
-        });
-    }else{
-        $('.btn-delete').remove()
-        $('.btn-template').remove()
-
-        $('.btn-delete-template').on('click', function () {
-            var pk = $(this).closest("[data-pk]").attr("data-pk")
-            $('#modalDeleteTemplate').modal({
-                backdrop: 'static',
-                keyboard: false
-            }).modal('show');
-            populate_tree_template_delete(pk);
-        });
 
     $('.btn-duplicate-template').on('click', function () {
         if($('.quota-templates .perc').text() >=100){
@@ -1260,96 +1152,6 @@ function actionsDomainDetail(){
             }).modal('show');
             setAlloweds_add('#modalDuplicateTemplate #alloweds-add');
         }
-    });
-    }
-
-
-    $('.btn-jumperurl').on('click', function () {
-        var pk=$(this).closest("[data-pk]").attr("data-pk");
-        $("#modalJumperurlForm")[0].reset();
-        $('#modalJumperurlForm #id').val(pk);
-        $('#modalJumperurl').modal({
-            backdrop: 'static',
-            keyboard: false
-        }).modal('show');
-        // setModalUser()
-        // setQuotaTableDefaults('#edit-users-quota','users',pk)
-        api.ajax('/api/v3/desktop/jumperurl/' + pk,'GET',{}).done(function(data) {
-            if(data.jumperurl != false){
-                $('#jumperurl').show();
-                $('.btn-copy-jumperurl').show();
-                //NOTE: With this it will fire ifChecked event, and generate new key
-                // and we don't want it now as we are just setting de initial state
-                // and don't want to reset de key again if already exists!
-                //$('#jumperurl-check').iCheck('check');
-                $('#jumperurl-check').prop('checked',true).iCheck('update');
-
-                $('#jumperurl').val(location.protocol + '//' + location.host+'/vw/'+data.jumperurl);
-            }else{
-                $('#jumperurl-check').iCheck('update')[0].unchecked;
-                $('#jumperurl').hide();
-                $('.btn-copy-jumperurl').hide();
-            }
-        });
-    });
-
-    $('#jumperurl-check').unbind('ifChecked').on('ifChecked', function(event){
-        if($('#jumperurl').val()==''){
-            pk=$('#modalJumperurlForm #id').val();
-            $.ajax({
-                url: '/api/v3/desktop/jumperurl_reset/' + pk,
-                type: 'PUT',
-                contentType: "application/json",
-                data: JSON.stringify({"disabled" : false}),
-                success: function(data) {
-                    $('#jumperurl').val(location.protocol + '//' + location.host+'/vw/'+data);
-                }
-            })
-            $('#jumperurl').show();
-            $('.btn-copy-jumperurl').show();
-        }
-        });
-    $('#jumperurl-check').unbind('ifUnchecked').on('ifUnchecked', function(event){
-        pk=$('#modalJumperurlForm #id').val();
-        new PNotify({
-            title: 'Confirmation Needed',
-                text: "Are you sure you want to delete direct viewer access url?",
-                hide: false,
-                opacity: 0.9,
-                confirm: {
-                    confirm: true
-                },
-                buttons: {
-                    closer: false,
-                    sticker: false
-                },
-                history: {
-                    history: false
-                },
-                addclass: 'pnotify-center'
-            }).get().on('pnotify.confirm', function() {
-                pk=$('#modalJumperurlForm #id').val();
-                $.ajax({
-                    url: '/api/v3/desktop/jumperurl_reset/' + pk,
-                    type: 'PUT',
-                    contentType: "application/json",
-                    data: JSON.stringify({"disabled" : true}),
-                    success: function(data) {
-                        $('#jumperurl').val('');
-                    }
-                })
-                $('#jumperurl').hide();
-                $('.btn-copy-jumperurl').hide();
-            }).on('pnotify.cancel', function() {
-                $('#jumperurl-check').iCheck('check');
-                $('#jumperurl').show();
-                $('.btn-copy-jumperurl').show();
-            });
-        });
-
-    $('.btn-copy-jumperurl').on('click', function () {
-        $('#jumperurl').prop('disabled',false).select().prop('disabled',true);
-        document.execCommand("copy");
     });
 
     $('.btn-forcedhyp').on('click', function () {
