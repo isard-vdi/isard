@@ -195,7 +195,7 @@
                     button-class="btn-red"
                     :spinner-active="false"
                     :butt-text="$t('views.select-template.remove')"
-                    icon-name="trash"
+                    icon-name="x"
                     @buttonClicked="deleteNonpersistentDesktop(data.item.id)"
                   />
                 </span>
@@ -221,8 +221,8 @@
                     @click="onClickDeleteDesktop(data.item)"
                   >
                     <b-icon
-                      icon="trash-fill"
-                      scale="0.75"
+                      icon="x"
+                      scale="1"
                     />
                   </b-button>
                   <b-button
@@ -480,7 +480,8 @@ export default {
       'goToItemBooking',
       'goToEditDomain',
       'fetchDirectLink',
-      'goToNewTemplate'
+      'goToNewTemplate',
+      'updateDesktopModal'
     ]),
     chooseDesktop (template) {
       this.$snotify.clear()
@@ -574,25 +575,18 @@ export default {
       }
     },
     onClickDeleteDesktop (desktop) {
-      this.$snotify.clear()
-
-      const yesAction = () => {
-        this.$snotify.remove()
-        this.deleteDesktop(desktop.id)
+      if ([desktopStates.failed, desktopStates.stopped].includes(this.getItemState(desktop))) {
+        this.updateDesktopModal({
+          show: true,
+          type: 'delete',
+          item: {
+            id: desktop.id
+          },
+          tag: desktop.tag
+        })
+      } else {
+        ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.delete-desktop-stop'), '', true, 2000)
       }
-
-      const noAction = () => {
-        this.$snotify.remove() // default
-      }
-
-      this.$snotify.prompt(`${i18n.t('messages.confirmation.delete-desktop', { name: desktop.name })}`, {
-        position: 'centerTop',
-        buttons: [
-          { text: `${i18n.t('messages.yes')}`, action: yesAction, bold: true },
-          { text: `${i18n.t('messages.no')}`, action: noAction }
-        ],
-        placeholder: ''
-      })
     },
     onClickBookingDesktop (desktop) {
       const data = { id: desktop.id, type: 'desktop', name: desktop.name }

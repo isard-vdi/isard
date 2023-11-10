@@ -55,7 +55,7 @@ export default function axiosSetUp () {
       //   await store.dispatch("refreshToken");
       //   return axios(originalRequest);
       // }
-      if (error.response.status === 503) {
+      if (!error.config.url.includes('scheduler') && error.response.status === 503) {
         router.replace({ name: 'Maintenance' })
       } else if (error.response.status === 500) {
         router.replace({

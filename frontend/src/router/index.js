@@ -25,6 +25,8 @@ import NotFound from '@/views/NotFound.vue'
 import Rdp from '@/views/Rdp.vue'
 import Register from '@/views/Register.vue'
 import Storage from '@/pages/Storage.vue'
+import RecycleBins from '@/pages/RecycleBins.vue'
+import RecycleBin from '@/pages/RecycleBin.vue'
 import Vue from 'vue'
 import VueRouter from 'vue-router'
 import { appTitle } from '../shared/constants'
@@ -292,6 +294,35 @@ const router = new VueRouter({
       ],
       meta: {
         title: i18n.t('router.titles.storage'),
+        requiresAuth: true
+      }
+    },
+    {
+      path: '/',
+      name: 'RecycleBins',
+      redirect: '/recycleBins',
+      component: MainLayout,
+      children: [
+        {
+          path: 'recycleBins',
+          name: 'recycleBins',
+          component: RecycleBins,
+          meta: {
+            title: i18n.t('router.titles.recycleBin'),
+            allowedRoles: ['admin', 'manager', 'advanced', 'user']
+          }
+        },
+        {
+          path: '/recyclebin/:id',
+          name: 'recycleBin',
+          component: RecycleBin,
+          meta: {
+            title: i18n.t('router.titles.recycleBin'),
+            allowedRoles: ['admin', 'manager', 'advanced', 'user']
+          }
+        }
+      ],
+      meta: {
         requiresAuth: true
       }
     },

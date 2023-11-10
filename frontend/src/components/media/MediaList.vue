@@ -194,8 +194,8 @@
                     @click="showDeleteModal(data.item)"
                   >
                     <b-icon
-                      icon="trash-fill"
-                      scale="0.75"
+                      icon="x"
+                      scale="1"
                     />
                   </b-button>
                 </div>

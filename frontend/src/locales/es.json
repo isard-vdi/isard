@@ -248,6 +248,26 @@
             },
             "videowall": {
                 "back": "Volver al despliegue"
+            },
+            "recycle-bins": {
+                "max-time": "Los elementos de la papelera de reciclaje se eliminarán definitivamente después de {time}.",
+                "immediately": "La papelera de reciclaje se mantendrá vacía, los elementos se eliminan definitivamente de manera inmediata.",
+                "empty-recycle-bin": "Vaciar papelera de reciclaje"
+            },
+            "recycle-bin": {
+                "title": "Papelera de reciclaje",
+                "back": "Volver a la papelera",
+                "buttons": {
+                    "restore": {
+                        "title": "Restaurar"
+                    },
+                    "delete": {
+                        "title": "Eliminar"
+                    },
+                    "info": {
+                        "title": "Más información"
+                    }
+                }
             }
         },
         "desktop-cards": {
@@ -419,7 +439,7 @@
                 "running": "Escritorios arrancados / Total de escritorios arrancados",
                 "templates": "Plantillas creadas / Total de plantillas",
                 "vcpus": "Vcpus utilitzadas / Total de vcpus",
-                "total-disk-size": "Tamaño de disco utilizad / Total de tamaño de disco",
+                "total-disk-size": "Tamaño de disco utilizado / Total de tamaño de disco",
                 "total-media-size": "Tamaño de medios utilizado / Total de tamaño de medios",
                 "total-size": "Tamaño utilizado / Total de tamaño",
                 "unit": "Tamaño unidad personal / Tamaño total unidad personal (MB)"
@@ -680,7 +700,12 @@
                 "title": {
                     "make-visible": "Hacer que el despliegue '{name}' sea visible",
                     "make-invisible": "Hacer que el despliegue '{name}' sea invisible",
-                    "download-csv": "Descargar CSV de visores directos de '{name}'"
+                    "download-csv": "Descargar CSV de visores directos de '{name}'",
+                    "delete": "Eliminar despliegue"
+                },
+                "body": {
+                    "text":  "Esta acción es irreversible y se perderán todos los datos asociados.",
+                    "send-to-recycle-bin": "Enviar despliegue a la papelera de reciclaje (el almacenamiento seguirá considerandose en la cuota de usuario hasta que se elimine definitivamente)"
                 },
                 "option": {
                     "dont-stop-desktops": "Hacer invisible este despliegue para los usuarios y permitir el uso de los escritorios hasta que se paren",
@@ -693,8 +718,9 @@
                     "stop": "Parar escritorios",
                     "dont-stop": "No parar escritorios",
                     "make-visible": "Hacer visible",
-                    "keep-csv": "Mantener enlaces y descargar CSV",
-                    "reset-csv": "Reestablecer enlaces y descargar CSV"
+                    "keep-csv": "Mantener URLs y descargar CSV",
+                    "reset-csv": "Reestablecer URLs y descargar CSV",
+                    "delete": "Eliminar"
                 }
             }
         },
@@ -897,14 +923,133 @@
                 "percentage": "% Cuota",
                 "last": "Último acceso"
             }
+        },
+        "recycle-bin": {
+            "title":{
+                "deployment": "Depliegue '{name}' eliminado en fecha {date}",
+                "desktop": "Escritorio '{name}' eliminado en fecha {date}",
+                "template": "Plantilla '{name}' eliminada en fecha {date}",
+                "bulk": "Varios escritorios eliminados en fecha {date}",
+                "user": "Usuario eliminado en fecha {date}"
+            },
+            "desktops": {
+                "title": "Escritorios",
+                "table-header": {
+                    "id": "Id",
+                    "name": "Nombre del escritorio",
+                    "user": "Propietario",
+                    "category": "Categoría",
+                    "group": "Grupo",
+                    "accessed": "Último acceso"
+                }
+            },
+            "templates": {
+                "title": "Plantillas",
+                "table-header": {
+                    "id": "Id",
+                    "name": "Nombre de la plantilla",
+                    "user": "Propietario",
+                    "category": "Categoría",
+                    "group": "Grupo",
+                    "accessed": "Último acceso"
+                }
+            },
+            "deployments": {
+                "title": "Despliegues",
+                "table-header": {
+                    "id": "Id",
+                    "name": "Nombre del despliegue",
+                    "desktop-name": "Nombre del escritorio",
+                    "user": "Propietario",
+                    "category": "Categoría",
+                    "group": "Grupo"
+                }
+            },
+            "storages": {
+                "title": "Almacenamiento",
+                "table-header": {
+                    "id": "Id",
+                    "path": "Ruta",
+                    "status": "Estado",
+                    "format": "Formato",
+                    "size": "Tamaño",
+                    "used": "Utilizado",
+                    "parent": "Padre",
+                    "user": "Usuario",
+                    "category": "Categoría",
+                    "domains": "Dominios"
+                }
+            },
+            "modal": {
+                "title": {
+                    "delete": "Eliminar entrada definitivamente",
+                    "restore": "Restaurar entrada",
+                    "empty": "Vaciar papelera de reciclaje"
+                },
+                "option": {
+                    "delete": "Esta acción es irreversible y se perderán todos los datos asociados. ¿Seguro que desea eliminarla?",
+                    "restore": "Se recuperarán los datos asociados (afectará en caso de tener cuotas aplicadas). ¿Seguro que desea restaurarla?",
+                    "empty": "Se vaciará la papelera de reciclaje. Esta acción es irreversible y se perderán todos los datos asociados. ¿Seguro que desea eliminarla?"
+                },
+                "confirmation": {
+                    "delete": "Eliminar",
+                    "restore": "Restaurar",
+                    "empty": "Vaciar"
+                }
+            }
+        
+        },
+        "recycle-bins": {
+            "title": "Papelera de reciclaje",
+            "no-recycle-bin": {
+                "title": "No hay elementos eliminados de este usuario",
+                "subtitle": "Mueve los elementos que no necesites a la papelera de reciclaje. Se eliminarán definitivamente después de {time}."
+            },
+            "table-header" : {
+                "id": "Id",
+                "accessed": "Eliminado en fecha",
+                "size": "Tamaño",
+                "type": "Tipo",
+                "name": "Nombre",
+                "agent-name": "Eliminado por",
+                "status": "Estado",
+                "desktops": "Escritorios",
+                "templates":"Plantillas",
+                "deployments":"Despliegues",
+                "actions": "Acciones"
+            },
+            "status": {
+                "recycled": "Reciclado"
+            },
+            "item-type": {
+                "desktop": "Escritorio",
+                "deployment": "Despliegue",
+                "template": "Plantilla",
+                "bulk": "Múltiples eliminaciones",
+                "user": "Usuario"
+            }
+        },
+        "desktop": {
+            "modal": {
+                "title": {
+                    "delete": "Eliminar escritorio"
+                },
+                "body": {
+                    "text": "Esta acción es irreversible y se perderán todos los datos asociados.",
+                    "send-to-recycle-bin": "Enviar escritorio a la papelera de reciclaje (el almacenamiento seguirá considerandose en la cuota de usuario hasta que se elimine definitivamente)."
+                },
+                "confirmation": {
+                    "delete": "Eliminar"
+                }
+            }
         }
+        
     },
     "messages": {
         "title": {
             "delete": "Borrar"
         },
         "confirmation": {
-            "delete-desktop": "'{name}' se borrará, continuar?",
             "create-nonpersistent": "ATENCIÓN! Este escritorio es temporal. Al pararlo se eliminarán todos sus datos. Crear escritorio?",
             "visible-deployment": "Los escritorios serán visibles",
             "recreate-deployment": "Los escritorios eliminados de '{name}' se recrearán, continuar?",
@@ -913,7 +1058,7 @@
             "delete-deployment-desktop": "El escritorio de '{name}' se borrará, continuar?",
             "start-deployment-desktops": "Los escritorios de '{name}' se iniciarán, continuar?",
             "stop-deployment-desktops": "Los escritorios de '{name}' se pararán, continuar?",
-            "delete-event": "La reserva '{name}' se borrará, continuar?",
+            "delete-event": "La reserva '{name}' se borrará, ¿continuar?",
             "disable-template": "'{name}' será invisible para sus usuarios, ¿desea continuar?",
             "enable-template": "'{name}' será visible para sus usuarios, ¿desea continuar?",
             "delete-media": "El medio '{name}' se borrará, continuar?",
@@ -964,7 +1109,9 @@
             "wireguard-viewers-removed": "Los visores RDP se han eliminado ya que requieren la red wireguard",
             "wireguard-network-required": "No se pueden seleccionar visores RDP ya que la red wireguard es necesaria. Contacta con el administrador para utilizar la red wireguard",
             "deleting-template": "Eliminando plantilla",
-            "retry-desktop": "Comprobando el estado del escritorio"
+            "retry-desktop": "Comprobando el estado del escritorio",
+            "restoring-recycle-bin": "Restaurando entrada",
+            "deleting-recycle-bin": "Eliminando entrada"
         },
         "loading": "Cargando"
     },
@@ -1108,7 +1255,8 @@
             "direct_viewer": "Visor directo",
             "edit-domain": "Editar dominio",
             "storage": "Almacenamiento",
-            "edit-deployment": "Editar despliegue"
+            "edit-deployment": "Editar despliegue",
+            "recycleBins": "Papelera de reciclaje"
         }
     },
     "message-modal": {

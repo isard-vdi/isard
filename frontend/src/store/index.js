@@ -18,6 +18,7 @@ import desktops from './modules/desktops'
 import media from './modules/media'
 import planning from './modules/planning'
 import profile from './modules/profile'
+import recycleBin from './modules/recycleBin'
 import snotify from './modules/snotify'
 import sockets from './modules/sockets'
 import storage from './modules/storage'
@@ -277,6 +278,7 @@ export default new Vuex.Store({
     planning,
     profile,
     media,
-    storage
+    storage,
+    recycleBin
   }
 })

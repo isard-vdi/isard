@@ -11,6 +11,7 @@
         <DirectLinkModal />
         <StartNowModal />
         <CantStartNowModal />
+        <DesktopModal />
         <template #title>
           <b-spinner
             v-if="!getDesktopsLoaded"
@@ -106,6 +107,7 @@ import { desktopStates } from '@/shared/constants'
 import DirectLinkModal from '../components/directViewer/DirectLinkModal.vue'
 import StartNowModal from '@/components/booking/StartNowModal.vue'
 import CantStartNowModal from '@/components/booking/CantStartNowModal.vue'
+import DesktopModal from '@/components/desktops/DesktopModal.vue'
 
 export default {
   components: {
@@ -113,7 +115,8 @@ export default {
     TableList,
     DirectLinkModal,
     StartNowModal,
-    CantStartNowModal
+    CantStartNowModal,
+    DesktopModal
   },
   setup (_, context) {
     const $store = context.root.$store

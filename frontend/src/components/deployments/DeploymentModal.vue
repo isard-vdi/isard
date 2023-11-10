@@ -5,7 +5,7 @@
     size="lg"
     :title="title"
     centered
-    hide-footer
+    :hide-footer="modal.type !== 'delete'"
     :header-class="`bg-${modal.color}
     text-white`"
     @hidden="closeModal"
@@ -153,16 +153,69 @@
         </b-col>
       </b-row>
     </span>
+    <span v-else-if="modal.type === 'delete'">
+      <b-row
+        v-if="modal.type === 'delete'"
+        class="ml-2 my-2 pr-3"
+      >
+        {{ $t('views.deployment.modal.body.text') }}
+      </b-row>
+      <b-row
+        v-if="modal.type === 'delete'"
+        class="ml-2 my-2 pr-3"
+      >
+        <b-col
+          v-if="maxTime !== 0"
+          cols="12"
+        >
+          <b-form-checkbox
+            id="sendToRecycleBin"
+            v-model="sendToRecycleBin"
+            name="sendToRecycleBin"
+            :value="true"
+            :unchecked-value="false"
+          >
+            {{ $t('views.deployment.modal.body.send-to-recycle-bin') }}
+            <span
+              v-if="maxTime !== 'null'"
+            >{{ `${$t("components.statusbar.recycle-bins.max-time", { time: maxTime })}` }}</span>
+          </b-form-checkbox>
+        </b-col>
+      </b-row>
+    </span>
+    <template
+      v-if="modal.type === 'delete'"
+      #modal-footer
+    >
+      <b-button
+        squared
+        class="float-right"
+        size="sm"
+        @click="closeModal"
+      >
+        {{ $t('forms.cancel') }}
+      </b-button>
+      <b-button
+        squared
+        variant="outline-danger"
+        size="sm"
+        @click="deleteDeployment"
+      >
+        {{ $t(`views.deployment.modal.confirmation.delete`) }}
+      </b-button>
+    </template>
   </b-modal>
 </template>
 <script>
-import { computed } from '@vue/composition-api'
+import { computed, ref } from '@vue/composition-api'
 import i18n from '@/i18n'
 
 export default {
   setup (_, context) {
     const $store = context.root.$store
     const modal = computed(() => $store.getters.getDeploymentModal)
+    const maxTime = computed(() => $store.getters.getMaxTime)
+    const sendToRecycleBin = ref(false)
 
     const title = computed(() => {
       if (modal.value.type === 'visibility') {
@@ -173,6 +226,8 @@ export default {
         }
       } else if (modal.value.type === 'downloadCSV') {
         return i18n.t('views.deployment.modal.title.download-csv', { name: modal.value.item.name })
+      } else if (modal.value.type === 'delete') {
+        return i18n.t('views.deployment.modal.title.delete', { name: modal.value.item.name })
       }
 
       return ''
@@ -194,6 +249,12 @@ export default {
       })
     }
 
+    const deleteDeployment = () => {
+      $store.dispatch('deleteDeployment', { id: modal.value.item.id, permanent: !sendToRecycleBin.value }).then(() => {
+        closeModal()
+      })
+    }
+
     const closeModal = () => {
       $store.dispatch('resetDeploymentModal')
     }
@@ -202,7 +263,10 @@ export default {
       modal,
       title,
       toggleVisibility,
-      downloadDirectViewerCSV
+      downloadDirectViewerCSV,
+      deleteDeployment,
+      maxTime,
+      sendToRecycleBin
     }
   }
 }

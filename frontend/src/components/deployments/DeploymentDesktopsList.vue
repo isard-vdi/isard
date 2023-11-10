@@ -188,8 +188,8 @@
                   @click="onClickDeleteDesktop(data.item)"
                 >
                   <b-icon
-                    icon="trash-fill"
-                    scale="0.75"
+                    icon="x"
+                    scale="1"
                   />
                 </b-button>
               </template>
@@ -451,7 +451,7 @@ export default {
 
         const yesAction = () => {
           this.$snotify.remove()
-          this.deleteDesktop(desktop.id)
+          this.deleteDesktop({ id: desktop.id })
         }
 
         const noAction = () => {

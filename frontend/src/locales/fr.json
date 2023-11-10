@@ -588,7 +588,6 @@
             "delete": "Supprimer"
         },
         "confirmation": {
-            "delete-desktop": "'{name}' sera supprimé, voulez-vous continuer ?"
         },
         "info": {
             "deleting-desktop": "Suppression du bureau",
