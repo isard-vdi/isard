@@ -951,15 +951,6 @@ function socketio_on(){
             deleted_events.push(data)
         }else{
             domains_table.row('#'+data.id).remove().draw();
-            new PNotify({
-                    title: "Desktop deleted",
-                    text: "Desktop "+data.name+" has been deleted",
-                    hide: true,
-                    delay: 4000,
-                    icon: 'fa fa-success',
-                    opacity: 1,
-                    type: 'success'
-            });
         }
     });
 
@@ -1273,7 +1264,7 @@ function actionsDomainDetail(){
             }).get().on('pnotify.confirm', function() {
                 $.ajax({
                     type: "DELETE",
-                    url:"/api/v3/admin/domain/" + pk,
+                    url:"/api/v3/desktop/" + pk,
                     success: function(data)
                     {
                         new PNotify({
