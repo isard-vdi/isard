@@ -2,6 +2,19 @@
     .no-update {
         background: #e3e4e4
     }
+
+    #modalDeleteUserForm td, #modalDeleteGroupForm td, #modalDeleteCategoryForm td{
+        text-overflow: ellipsis;
+        overflow-x: hidden;
+        max-width: 75px;
+        white-space: nowrap;
+    }
+
+    #modalDeleteUserForm .table-wrapper, #modalDeleteGroupForm .table-wrapper, #modalDeleteCategoryForm .table-wrapper {
+        overflow-y: scroll;
+        overflow-x: hidden;
+        max-height: 443px;
+    }
 </style>
 <div class="modal fade" id="modalAddUser" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
@@ -19,7 +32,7 @@
             </div>
 
             <!-- Modal Body -->
-            <div class="modal-body">
+             <div class="modal-body">
                 <form id="modalAddUserForm" class="form-horizontal form-label-left">
                     <div class="x_panel">
                         <div class="x_content">
@@ -110,7 +123,7 @@
                         </div>
                     </div>
                 </form>
-            </div>
+</div>
 
             <!-- Modal Footer -->
             <div class="modal-footer">
@@ -717,7 +730,7 @@
 
 <div class="modal fade" id="modalDeleteUser" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
     aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog" style="width:75%">
         <div class="modal-content">
 
             <!-- Modal Header -->
@@ -727,30 +740,105 @@
                     <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title">
-                    <i class="fa fa-remove fa-1x"></i> <i class="fa fa-user"></i> Delete User(s)
+                    <i class="fa fa-trash"> </i> Delete User
                 </h4>
             </div>
 
             <!-- Modal Body -->
             <div class="modal-body">
-                <form id="modalDeleteUserForm" class="form-horizontal form-label-left">
+                <form id="modalDeleteUserForm">
                     <input id="id" hidden />
-                    <div class="x_panel">
-                        <div class="x_content">
-                            <h4 style="color: red"><i class="fa fa-warning"> </i> All these items will be deleted!</h4>
-                            <div class="item form-group">
-                                <table id="table_modal_delete" class="table">
-                                    <thead>
-                                        <tr>
-                                            <th>kind</th>
-                                            <th>owner</th>
-                                            <th>name</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                    </tbody>
-                                </table>
+                    <div class="row">
+                        <div class="x_panel">
+                            <div class="item form-group col-md-6">
+                                <h4><i class="fa fa-desktop"></i> Desktops</h4>
+                                <div class="table-wrapper">
+                                    <table id="table_modal_delete_desktops" class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th style="width:35%;">Owner</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
                             </div>
+                            <div class="item form-group col-md-6">
+                                <h4><i class="fa fa-cube"></i> Templates</h4>
+                                <div class="table-wrapper">
+                                    <table id="table_modal_delete_templates" class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th style="width:35%;">Owner</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="x_panel">
+                            <div class="item form-group col-md-6">
+                                <h4><i class="fa fa-tv"></i> Deployments</h4>
+                                <div class="table-wrapper">
+                                    <table id="table_modal_delete_deployments" class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th style="width:35%;">Owner</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="item form-group col-md-6">
+                                <h4> <i class="fa fa-circle-o"></i> Media</h4>
+                                <div class="table-wrapper">
+                                    <table id="table_modal_delete_media" class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th style="width:35%;">Owner</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="x_panel">
+                            <div class="item form-group col-md-6">
+                                <h4> <i class="fa fa-circle-o"></i> Users</h4>
+                                <div class="table-wrapper">
+                                    <table id="table_modal_delete_users" class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th style="width:35%;">Username</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="form-check x_panel" style="padding-left: 80px;padding-right: 80px;">
+                        <div class="col-md-6">
+                            <label class="form-check-label" for="delete-user">
+                                Delete user AND their items
+                            </label>
+                        <input class="form-check-input mx-2" type="radio" name="delete-user" value="true" required id="delete-user">
+                        </div> 
+                        <div class="col-md-6">
+                            <label class="form-check-label" for="keep-user">
+                                Keep user but delete their items
+                            </label>
+                        <input class="form-check-input" type="radio" name="delete-user" value="false" id="keep-user">
                         </div>
                     </div>
                 </form>
@@ -771,7 +859,7 @@
 
 <div class="modal fade" id="modalDeleteCategory" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
     aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog" style="width: 75%">
         <div class="modal-content">
 
             <!-- Modal Header -->
@@ -781,29 +869,102 @@
                     <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title">
-                    <i class="fa fa-remove fa-1x"></i> <i class="fa fa-user"></i> Delete Category
+                    <i class="fa fa-trash"> </i> Delete Category
                 </h4>
             </div>
 
             <!-- Modal Body -->
             <div class="modal-body">
-                <form id="modalDeleteCategoryForm" class="form-horizontal form-label-left">
+                <form id="modalDeleteCategoryForm">
                     <input id="id" hidden />
-                    <div class="x_panel">
-                        <div class="x_content">
-                            <h4 style="color: red"><i class="fa fa-warning"> </i> All these items will be deleted!</h4>
-                            <div class="item form-group">
-                                <table id="table_modal_category_delete" class="table">
-                                    <thead>
-                                        <tr>
-                                            <th>kind</th>
-                                            <th>owner</th>
-                                            <th>name</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                    </tbody>
-                                </table>
+                    <div class="row">
+                        <div class="x_panel">
+                            <div class="item form-group col-md-6">
+                                <h4><i class="fa fa-desktop"></i> Desktops</h4>
+                                <div class="table-wrapper">
+                                    <table id="table_modal_delete_desktops" class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th style="width:35%;">Owner</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="item form-group col-md-6">
+                                <h4><i class="fa fa-cube"></i> Templates</h4>
+                                <div class="table-wrapper">
+                                    <table id="table_modal_delete_templates" class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th style="width:35%;">Owner</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="x_panel">
+                            <div class="item form-group col-md-6">
+                                <h4><i class="fa fa-tv"></i> Deployments</h4>
+                                <div class="table-wrapper">
+                                    <table id="table_modal_delete_deployments" class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th style="width:35%;">Owner</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="item form-group col-md-6">
+                                <h4> <i class="fa fa-circle-o"></i> Media</h4>
+                                <div class="table-wrapper">
+                                    <table id="table_modal_delete_media" class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th style="width:35%;">Owner</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="x_panel">
+                            <div class="item form-group col-md-6">
+                                <h4> <i class="fa fa-circle-o"></i> Users</h4>
+                                <div class="table-wrapper">
+                                    <table id="table_modal_delete_users" class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th style="width:35%;">Username</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="item form-group col-md-6">
+                                <h4> <i class="fa fa-circle-o"></i> Groups</h4>
+                                <div class="table-wrapper">
+                                    <table id="table_modal_delete_groups" class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -825,7 +986,7 @@
 
 <div class="modal fade" id="modalDeleteGroup" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
     aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog" style="width: 75%">
         <div class="modal-content">
 
             <!-- Modal Header -->
@@ -835,29 +996,102 @@
                     <span class="sr-only">Close</span>
                 </button>
                 <h4 class="modal-title">
-                    <i class="fa fa-remove fa-1x"></i> <i class="fa fa-user"></i> Delete Group
+                    <i class="fa fa-trash"> </i> Delete group
                 </h4>
             </div>
 
             <!-- Modal Body -->
             <div class="modal-body">
-                <form id="modalDeleteGroupForm" class="form-horizontal form-label-left">
+                <form id="modalDeleteGroupForm">
                     <input id="id" hidden />
-                    <div class="x_panel">
-                        <div class="x_content">
-                            <h4 style="color: red"><i class="fa fa-warning"> </i> All these items will be deleted!</h4>
-                            <div class="item form-group">
-                                <table id="table_modal_group_delete" class="table">
-                                    <thead>
-                                        <tr>
-                                            <th>kind</th>
-                                            <th>owner</th>
-                                            <th>name</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                    </tbody>
-                                </table>
+                    <div class="row">
+                        <div class="x_panel">
+                            <div class="item form-group col-md-6">
+                                <h4><i class="fa fa-desktop"></i> Desktops</h4>
+                                <div class="table-wrapper">
+                                    <table id="table_modal_delete_desktops" class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th style="width:35%;">Owner</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="item form-group col-md-6">
+                                <h4><i class="fa fa-cube"></i> Templates</h4>
+                                <div class="table-wrapper">
+                                    <table id="table_modal_delete_templates" class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th style="width:35%;">Owner</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="x_panel">
+                            <div class="item form-group col-md-6">
+                                <h4><i class="fa fa-tv"></i> Deployments</h4>
+                                <div class="table-wrapper">
+                                    <table id="table_modal_delete_deployments" class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th style="width:35%;">Owner</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="item form-group col-md-6">
+                                <h4> <i class="fa fa-circle-o"></i> Media</h4>
+                                <div class="table-wrapper">
+                                    <table id="table_modal_delete_media" class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th style="width:35%;">Owner</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="x_panel">
+                            <div class="item form-group col-md-6">
+                                <h4> <i class="fa fa-circle-o"></i> Users</h4>
+                                <div class="table-wrapper">
+                                    <table id="table_modal_delete_users" class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th style="width:35%;">Username</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="item form-group col-md-6">
+                                <h4> <i class="fa fa-circle-o"></i> Groups</h4>
+                                <div class="table-wrapper">
+                                    <table id="table_modal_delete_groups" class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -940,6 +1174,46 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                    <div class="x_panel" id="maxtime_panel">
+                        <div class="row">
+                            <div class="col-md-9 col-sm-9 col-xs-12">
+                                <p style="font-size: 18px;margin-bottom:0px;">Automatic recycle bin delete</p>
+                            </div>
+                            <div class="col-md-3 col-sm-3 col-xs-12">
+                                <label class="control-label" for="max-time-enabled">
+                                    <div class="icheckbox_flat-green" style="position: relative;">
+                                        <input type="checkbox" id="max-time-enabled" name="max-time" class="flat"
+                                            style="position: absolute; opacity: 0;">
+                                        <ins class="iCheck-helper"
+                                            style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                        </ins>
+                                    </div>
+                                    Enabled
+                                </label>
+                            </div>
+                        </div>
+                        <div class="row" id="max-delete-data" style="display:none">
+                            <label class="control-label" for="max_delete">
+                                After
+                            </label>
+                            <select id="max-delete" name="max-delete" class="form-control roundbox">
+                                <option value="0">Immediately</option>
+                                <option selected value="1">1 hour</option>
+                                <option value="6">6 hours</option>
+                                <option value="12">12 hours</option>
+                                <option value="24">1 day</option>
+                                <option value="48">2 days</option>
+                                <option value="120">5 days</option>
+                                <option value="240">10 days</option>
+                                <option value="336">2 weeks</option>
+                                <option value="672">4 weeks</option>
+                                <option value="1008">6 weeks</option>
+                                <option value="1344">8 weeks</option>
+                                <option value="8766">1 year</option>
+                                <option hidden value="null">Never</option>
+                            </select>
                         </div>
                     </div>
                     <div class="x_panel" id="frontend_panel">
@@ -1106,6 +1380,46 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                    <div class="x_panel" id="maxtime_panel">
+                        <div class="row">
+                            <div class="col-md-9 col-sm-9 col-xs-12">
+                                <p style="font-size: 18px;margin-bottom:0px;">Automatic recycle bin delete</p>
+                            </div>
+                            <div class="col-md-3 col-sm-3 col-xs-12">
+                                <label class="control-label" for="max-time-enabled">
+                                    <div class="icheckbox_flat-green" style="position: relative;">
+                                        <input type="checkbox" id="max-time-enabled" name="max-time" class="flat"
+                                            style="position: absolute; opacity: 0;">
+                                        <ins class="iCheck-helper"
+                                            style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px; opacity: 0;">
+                                        </ins>
+                                    </div>
+                                    Enabled
+                                </label>
+                            </div>
+                        </div>
+                        <div class="row" id="max-delete-data" style="display:none">
+                            <label class="control-label" for="max_delete">
+                                After
+                            </label>
+                            <select id="max-delete" name="max-delete" class="form-control roundbox">
+                                <option value="0">Immediately</option>
+                                <option selected value="1">1 hour</option>
+                                <option value="6">6 hours</option>
+                                <option value="12">12 hours</option>
+                                <option value="24">1 day</option>
+                                <option value="48">2 days</option>
+                                <option value="120">5 days</option>
+                                <option value="240">10 days</option>
+                                <option value="336">2 weeks</option>
+                                <option value="672">4 weeks</option>
+                                <option value="1008">6 weeks</option>
+                                <option value="1344">8 weeks</option>
+                                <option value="8766">1 year</option>
+                                <option hidden value="null">Never</option>
+                            </select>
                         </div>
                     </div>
                     <div class="x_panel" id="frontend_panel">

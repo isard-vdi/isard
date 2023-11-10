@@ -183,8 +183,20 @@ $(document).ready(function () {
         $('#modalAddCategoryForm :checkbox').iCheck('uncheck').iCheck('update');
         $('#modalAddCategoryForm #ephimeral-data').hide();
         // $('#modalAddCategoryForm #auto-desktops-data').hide();
-
         // autoDesktopsShow('#modalAddCategoryForm', {})
+        maxTimeEnabledShow('#modalAddCategoryForm')
+        $("#modalAddCategoryForm #max-delete-data").hide();
+        $('#maxtime_panel :checkbox').iCheck('uncheck').iCheck('update');
+        api.ajax('/scheduler/recycle_bin_delete/max_time', 'GET', '').done(function (time) {
+            if (time !== "null") {
+                var maxTime = parseInt(time);
+                $('#modalAddCategoryForm #max-delete option').each(function () {
+                    if (($(this).val() > maxTime || $(this).val() == "null")) {
+                        $(this).remove();
+                    }
+                });
+            };
+        });
         ephemeralDesktopsShow('#modalAddCategoryForm', {})
 
     });
@@ -206,6 +218,10 @@ $(document).ready(function () {
             //     delete data['auto-desktops'];
             // }
             data = JSON.unflatten(data);
+            max_time = false;
+            if (data['max']['time'] == 'on') {
+                max_time = data['max']['delete'];
+            };
             var notice = new PNotify({
                 text: 'Creating...',
                 hide: false,
@@ -220,6 +236,13 @@ $(document).ready(function () {
                 success: function (data) {
                     $('form').each(function () { this.reset() });
                     $('.modal').modal('hide');
+                    if (max_time){
+                        $.ajax({
+                            type: "PUT",
+                            url: "/scheduler/recycle_bin/" + max_time + "/" + data['id'],
+                            contentType: "application/json",
+                        });
+                    }
                     notice.update({
                         title: 'Created',
                         text: 'Category created successfully',
@@ -269,6 +292,8 @@ function actionsCategoryDetail() {
     $('.btn-edit-category').off('click').on('click', function () {
         var pk = $(this).closest("div").attr("data-pk");
         $("#modalEditCategoryForm")[0].reset();
+        $("#modalEditCategoryForm #max-delete-data").hide();
+        $('#maxtime_panel #max-time-enabled').iCheck('uncheck').iCheck('update');
         $('#modalEditCategoryForm #id').val(pk);
         $('#modalEditCategory').modal({
             backdrop: 'static',
@@ -287,12 +312,32 @@ function actionsCategoryDetail() {
             $('#modalEditCategoryForm #id').val(category.id);
             $('#modalEditCategoryForm #allowed_domain').val(category.allowed_domain);
 
+            api.ajax('/scheduler/recycle_bin_delete/max_time_category/' + category.id, 'GET', '').done(function (time) {
+                if (time != null) {
+                    $(("#modalEditCategoryForm #max-time-enabled")).iCheck('check').iCheck('update');
+                    $('#modalEditCategoryForm #max-delete').val(time)
+                } else {
+                    $(("#modalEditCategoryForm #max-time-enabled")).iCheck('uncheck').iCheck('update');
+                }
+            });
+            api.ajax('/scheduler/recycle_bin_delete/max_time', 'GET', '').done(function (time) {
+                if (time !== "null") {
+                    var maxTime = parseInt(time);
+                    $('#modalEditCategoryForm #max-delete option').each(function () {
+                        if (($(this).val() > maxTime || $(this).val() === "null")) {
+                            $("#modalAddCategoryForm #max-delete-data").show();
+                            $(this).remove();
+                        }
+                    });
+                };
+            });
             if (category['frontend'] == true) {
                 $('#modalEditCategoryForm #frontend').iCheck('check').iCheck('update');
             } else {
                 $('#modalEditCategoryForm #frontend').iCheck('unckeck').iCheck('update');
             }
             // autoDesktopsShow('#modalEditCategoryForm', category)
+            maxTimeEnabledShow('#modalAddCategoryForm')
             ephemeralDesktopsShow('#modalEditCategoryForm', category)
         });
 
@@ -328,18 +373,58 @@ function actionsCategoryDetail() {
                     url: "/api/v3/admin/category/" + data['id'],
                     data: JSON.stringify(data),
                     contentType: "application/json",
-                    success: function (data) {
-                        notice.update({
-                            title: 'Updated',
-                            text: 'Category updated successfully',
-                            hide: true,
-                            delay: 1000,
-                            icon: 'fa fa-' + data.icon,
-                            opacity: 1,
-                            type: 'success'
-                        })
-                        $('form').each(function () { this.reset() });
-                        $('.modal').modal('hide');
+                    success: function (response) {
+                        if (data['max']['time'] == 'on') {
+                            max_time = data['max']['delete'];
+                            $.ajax({
+                                type: "PUT",
+                                url: "/scheduler/recycle_bin/" + max_time + "/" + data['id'],
+                                contentType: "application/json",
+                                success: function (data) {
+                                    notice.update({
+                                        title: 'Updated',
+                                        text: 'Category updated successfully',
+                                        hide: true,
+                                        delay: 1000,
+                                        icon: 'fa fa-' + data.icon,
+                                        opacity: 1,
+                                        type: 'success'
+                                    })
+                                    $('form').each(function () { this.reset() });
+                                    $('.modal').modal('hide');
+                                },
+                                error: function (data) {
+                                    new PNotify({
+                                        title: 'ERROR changing automatic delete time',
+                                        text: response.responseJSON.description,
+                                        type: 'error',
+                                        hide: true,
+                                        icon: 'fa fa-warning',
+                                        delay: 2000,
+                                        opacity: 1
+                                    })
+                                }
+                            });
+                        } else {
+                            $.ajax({
+                                type: "DELETE",
+                                url: "/scheduler/delete/recycle_bin/" + data['id'],
+                                contentType: "application/json",
+                                success: function (data) {
+                                    notice.update({
+                                        title: 'Updated',
+                                        text: 'Category updated successfully',
+                                        hide: true,
+                                        delay: 1000,
+                                        icon: '',
+                                        opacity: 1,
+                                        type: 'success'
+                                    })
+                                    $('form').each(function () { this.reset() });
+                                    $('.modal').modal('hide');
+                                }
+                            })
+                        }
                     },
                     error: function (data) {
                         notice.update({
@@ -353,6 +438,7 @@ function actionsCategoryDetail() {
                         })
                     }
                 });
+
             }
         });
     });
@@ -368,16 +454,26 @@ function actionsCategoryDetail() {
             backdrop: 'static',
             keyboard: false
         }).modal('show');
+        showLoadingData('#modalDeleteCategory #table_modal_delete_desktops')
+        showLoadingData('#modalDeleteCategory #table_modal_delete_templates')
+        showLoadingData('#modalDeleteCategory #table_modal_delete_deployments')
+        showLoadingData('#modalDeleteCategory #table_modal_delete_media')
+        showLoadingData('#modalDeleteCategory #table_modal_delete_users')
+        showLoadingData('#modalDeleteCategory #table_modal_delete_groups')
         $.ajax({
             type: "POST",
             url: "/api/v3/admin/category/delete/check",
-            data: JSON.stringify(data),
+            data: JSON.stringify({
+                "ids": [pk]
+            }),
             contentType: "application/json"
-        }).done(function (domains) {
-            $('#table_modal_category_delete tbody').empty()
-            $.each(domains, function (key, value) {
-                infoDomains(value, $('#table_modal_category_delete tbody'));
-            });
+        }).done(function (items) {
+            populateDeleteModalTable(items.desktops, $('#modalDeleteCategory #table_modal_delete_desktops'));
+            populateDeleteModalTable(items.templates, $('#modalDeleteCategory #table_modal_delete_templates'));
+            populateDeleteModalTable(items.deployments, $('#modalDeleteCategory #table_modal_delete_deployments'));
+            populateDeleteModalTable(items.media, $('#modalDeleteCategory #table_modal_delete_media'));
+            populateDeleteModalTable(items.users, $('#modalDeleteCategory #table_modal_delete_users'));
+            populateDeleteModalTable(items.groups, $('#modalDeleteCategory #table_modal_delete_groups'));
         });
     });
 }
@@ -493,3 +589,12 @@ function ephemeralDesktopsShow(form, item) {
 //         $(form + (" #auto-desktops-data")).hide();
 //     });
 // }
+
+function maxTimeEnabledShow (form) {
+    $(form + (" #max-time-enabled")).on('ifChecked', function(event){
+        $(form + (" #max-delete-data")).show();
+    });
+    $(form + (" #max-time-enabled")).on('ifUnchecked', function(event){
+        $(form + (" #max-delete-data")).hide();
+    });
+}

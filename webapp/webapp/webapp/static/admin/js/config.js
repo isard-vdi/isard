@@ -173,6 +173,8 @@ function scheduler_init(){
               "<option value=" + action.id + ">" + action.name + "</option>"
             );
           })
+          $("#modalScheduler #action option[value='recycle_bin_delete_admin']").remove();
+          $("#modalScheduler #action option[value='recycle_bin_delete']").remove();
     });
 
     $('#modalAddScheduler #kind').on('change', function (e) {

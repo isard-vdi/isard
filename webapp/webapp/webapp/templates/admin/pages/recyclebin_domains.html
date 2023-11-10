@@ -1,0 +1,77 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+{% block css %}
+{% endblock %}
+{% block content %}
+{% if current_user.role in ['admin', 'manager'] %}
+<div class="row">
+  <div class="x_panel">
+    <div class="x_title">
+      <h3>
+        <i class="fa fa-trash"></i> 
+        Domains pending to be deleted
+        <small>Domains pending to be deleted and their disk attached</small>
+      </h3>
+      <ul class="nav navbar-right panel_toolbox">
+        <!-- <li><a class="btn-new"><span style="color: #5499c7; "><i class="fa fa-link"></i> Upload from URL</span></a> -->
+        <!-- <li><a class="btn-new-local"><span style="color: #5499c7; "><i class="fa fa-plus"></i><i class="fa fa-hdd-o"></i>  Upload from local</span></a></li>-->
+      </ul>
+      <div class="clearfix"></div>
+    </div>
+    <div class="x_content">
+      <p class="text-muted font-13 m-b-30"></p>
+      <div style="display:inline-flex;">
+        <div id="global_actions" style="display:block; width: 15cm;">
+          <label class="control-label col-md-3 col-sm-3 col-xs-12 pull-left" for="mactions">
+            <h4>
+              Global actions:
+            </h4>
+          </label>
+          <div class="col-md-5 col-sm-5 col-xs-12" style="margin-bottom: 20px;">
+            <select class="form-control" id="mactions" name="mactions">
+              <option value="none">Select action</option>
+              <option value="delete">Delete permanently</option>
+              <option value="restore">Restore disk and domain</option>
+            </select>
+          </div>
+        </div>
+        <div id="automatic-delete" style="display:block; width: 15cm;">
+          <label class="control-label col-md-6 col-sm-6 col-xs-12 pull-left" for="maxtime">
+            <h4>Automatic delete after:</h4>
+          </label>
+          <div class="col-md-5 col-sm-5 col-xs-12" style="margin-bottom: 20px;">
+            <select class="form-control" id="maxtime" name="maxtime">
+              <option value="0">Immediately</option>
+              <option value="1">1 hour</option>
+              <option value="6">6 hours</option>
+              <option value="12">12 hours</option>
+              <option value="24">1 day</option>
+              <option value="48">2 days</option>
+              <option value="120">5 days</option>
+              <option value="240">10 days</option>
+              <option value="336">2 weeks</option>
+              <option value="672">4 weeks</option>
+              <option value="1008">6 weeks</option>
+              <option value="1344">8 weeks</option>
+              <option value="8766">1 year</option>
+              <option hidden value="null">Never</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <table id="recyclebin_domains" class="table" width="100%">
+          <thead>
+          </thead>
+          <tbody>
+          </tbody>
+      </table>
+    </div>
+  </div>
+  {% include '/admin/pages/recyclebin_domains_detail.html' %}
+</div>
+{% endif %}
+{% endblock %}
+{% block pagescript %}
+  <script src="/isard-admin/static/js/restful.js"></script>
+  <script src="/isard-admin/static/admin/js/recyclebin_domains.js"></script>
+{% endblock %}

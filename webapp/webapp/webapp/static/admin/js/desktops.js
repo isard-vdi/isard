@@ -396,54 +396,6 @@ $(document).ready(function() {
             }
         });
 
-    $("#modalDeleteTemplate #send").on('click', function(e){
-
-        selected = $("#modalDeleteTemplate .tree_template_delete").fancytree('getTree').getSelectedNodes();
-        todelete = []
-        selected.forEach(function (item) {
-            todelete.push({"id":item.data.id, "title":item.title, "kind":item.data.kind, "status":item.data.status})
-        });
-        var notice = new PNotify({
-            text: 'Deleting selected item(s)...',
-            hide: false,
-            opacity: 1,
-            icon: 'fa fa-spinner fa-pulse'
-        })
-        $('form').each(function() {
-            this.reset()
-        })
-        $('.modal').modal('hide')
-        $.ajax({
-            type: 'DELETE',
-            url: '/api/v3/admin/domains',
-            data: JSON.stringify(todelete),
-            contentType: 'application/json',
-            error: function(data) {
-                notice.update({
-                    title: 'ERROR deleting items',
-                    text: data.responseJSON.description,
-                    type: 'error',
-                    hide: true,
-                    icon: 'fa fa-warning',
-                    delay: 5000,
-                    opacity: 1
-                })
-            },
-            success: function(data) {
-                domains_table.ajax.reload()
-                notice.update({
-                    title: 'Deleted',
-                    text: 'Item(s) deleted successfully',
-                    hide: true,
-                    delay: 2000,
-                    icon: 'fa fa-' + data.icon,
-                    opacity: 1,
-                    type: 'success'
-                })
-            }
-        })
-    });
-
     // Setup - add a text input to each footer cell
     $('#domains tfoot th').each( function () {
         var title = $(this).text();

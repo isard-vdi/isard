@@ -753,7 +753,7 @@
             <span class="sr-only">Close</span>
             </button>
             <h4 class="modal-title" id="myModalLabel">
-               <i class="fa fa-warning" style="color:red"></i>   Delete template, duplicates and its derivatives
+               <i class="fa fa-warning" style="color:red"></i>   Delete template along with its duplicates and derivatives
             </h4>
          </div>
          <!-- Modal Body -->
@@ -761,20 +761,26 @@
             <div class="row">
                <div class="x_panel">
                   <div class="x_title">
-                     <h4>List of domains to be deleted<small></small></h4>
+                     <h4>List of domains to be deleted<small>These domains depend on this template</small></h4>
                      <div class="clearfix"></div>
                </div>
-               <input  id="id" name="id" type="hidden" required>
+               <form id="modalDeleteTemplateForm">
+                  <input  id="id" name="id" type="hidden" required>
+               </form>
                   {% include '/snippets/template_tree.html' %}
-
                </div>
             </div>
             <div class="row">
                <div class="x_panel">
                      <div class="x_content">
-                        <p style="font-size: 18px;margin-bottom:0px; color: red"> All of these desktops and templates will be deleted!</p><br>
-                        All of them depend on the template you are about to delete, so they must be deleted also.<br>
-                        THIS OPERATION CAN'T BE UNDONE!
+                        <p style="font-size: 18px;margin-bottom:0px; color: red"> All these desktops and templates will be deleted!<br></p>
+                        <p id="warning">These dependencies will also be deleted and moved to the recycle bin. </p>
+                        {% if current_user.role != 'admin' %}
+                        <div class="alert alert-danger" role="alert" id="manager-warning" style="display:none;">
+                           This template has derivatives from categories you do not own.<b>
+                              You cannot delete this item.</b><br>Please, contact your administrator
+                        </div>
+                        {% endif %}
                      </div>
                </div>
             </div>
@@ -785,7 +791,7 @@
                <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
             </ul>                
             <ul class="nav navbar-right panel_toolbox">
-               <li><button id="send" type="button" class="btn btn-danger">Stop and Delete ALL!</button></li>
+               <li><button id="send" type="button" class="btn btn-danger">Stop and Delete</button></li>
             </ul>
          </div>
       </div>

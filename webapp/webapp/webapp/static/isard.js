@@ -412,6 +412,37 @@ function showAndHideByCheckbox (checkboxSelector, divSelector) {
   })
 }
 
+function populateDeleteModalTable(values, table) {
+    var tbody = table.find('tbody');
+    tbody.empty();
+    if (values.length > 0) {
+        $.each(values, function (index, value) {
+            let row = `<tr>
+                <td>${value['name']}</td>`
+            if (value['user_name']) {
+                row += `<td>${value['user_name']} [${value['username']}]</td>`
+            } else if (value['username']) {
+                row += `<td>${value['username']}</td>`
+            }
+            row += '</tr>'
+            return tbody.append(row);
+        });
+    } else {
+        tbody.append(`<tr class="active"><td colspan="2" style="text-align:center;">No items</td></tr>`)
+    }
+}
+
+function showLoadingData(table) {
+    $(table + ' tbody').empty()
+    $(table + ' tbody').append(`
+        <tr class="active" id="loading-warn">
+            <td colspan="3" style="text-align:center;">
+                <i class="fa fa-spinner fa-pulse fa-fw">
+                </i> Loading data...
+            </td>
+        </tr>
+    `);
+}
 
 // Panel toolbox
 $(document).ready(function() {
