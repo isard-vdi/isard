@@ -21,6 +21,16 @@
 import traceback
 from functools import wraps
 
+from rethinkdb import RethinkDB
+
+from scheduler import app
+
+from ..lib.flask_rethink import RDB
+
+r = RethinkDB()
+db = RDB(app)
+db.init_app(app)
+
 from .._common.tokens import Error, get_header_jwt_payload
 from ..lib.exceptions import Error
 
@@ -37,5 +47,54 @@ def is_admin(f):
             "Not enough rights.",
             traceback.format_stack(),
         )
+
+    return decorated
+
+
+def itemExists(item_table, item_id):
+    with app.app_context():
+        item = r.table(item_table).get(item_id).run(db.conn)
+        if not item:
+            raise Error(
+                "not_found",
+                item_table + " not found id: " + item_id,
+                traceback.format_exc(),
+            )
+
+
+def is_admin_or_manager(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        payload = get_header_jwt_payload()
+        if payload["role_id"] == "admin" or payload["role_id"] == "manager":
+            kwargs["payload"] = payload
+            return f(*args, **kwargs)
+        raise Error(
+            "forbidden",
+            "Not enough rights.",
+            traceback.format_exc(),
+        )
+
+    return decorated
+
+
+def ownsCategoryId(payload, category_id):
+    if payload["role_id"] == "admin":
+        return True
+    if payload["role_id"] == "manager" and category_id == payload["category_id"]:
+        return True
+    raise Error(
+        "forbidden",
+        "Not enough access rights for this category_id: " + str(category_id),
+        traceback.format_exc(),
+    )
+
+
+def has_token(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        payload = get_header_jwt_payload()
+        kwargs["payload"] = payload
+        return f(*args, **kwargs)
 
     return decorated
