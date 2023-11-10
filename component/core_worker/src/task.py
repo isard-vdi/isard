@@ -216,3 +216,18 @@ def storage_update(**storage_dict):
                 if dependency.task == "check_backing_filename":
                     for result in dependency.result:
                         storage_update(**result)
+
+
+def recycle_bin_update(**recycle_bin_dict):
+    """
+    Update recycle bin if task success.
+    """
+    task = Task(get_current_job().dependency.dependency.id)
+    ApiRest().put(
+        f"/recycle_bin/update_task",
+        data={
+            "recycle_bin_id": recycle_bin_dict["recycle_bin_id"],
+            "id": task.id,
+            "status": task.status,
+        },
+    )
