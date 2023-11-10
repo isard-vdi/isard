@@ -131,6 +131,7 @@ from .views import (
     NotifyView,
     PublicView,
     QueuesView,
+    RecycleBinView,
     Stats,
     StorageView,
     TemplatesView,

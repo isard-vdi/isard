@@ -27,6 +27,7 @@ from isardvdi_common.api_exceptions import Error
 
 from api import app
 
+from ..libv2.api_admin import ApiAdmin
 from ..libv2.api_storage_physical import (
     phy_storage_delete,
     phy_storage_host,
@@ -34,10 +35,25 @@ from ..libv2.api_storage_physical import (
     phy_storage_reset_domains,
     phy_storage_reset_media,
     phy_storage_update,
+    phy_storage_update_deleted,
     phy_storage_upgrade_to_storage,
 )
-from ..libv2.helpers import get_user_data
-from .decorators import is_admin, ownsStorageId
+from .decorators import is_admin, is_admin_or_manager
+
+admins = ApiAdmin()
+
+
+@app.route("/api/v3/admin/storage/physical/update_deleted/<type>", methods=["GET"])
+@is_admin
+def api_v3_admin_storage_physical_update_deleted(payload, type):
+    if type not in ["disks"]:
+        raise Error("bad_request", "Table should be disks")
+    data = phy_storage_update_deleted(type)
+    return (
+        json.dumps(data),
+        200,
+        {"Content-Type": "application/json"},
+    )
 
 
 @app.route("/api/v3/admin/storage/physical/<table>", methods=["GET"])
@@ -108,6 +124,35 @@ def api_v3_admin_storage_physical_multiple_actions(payload, action_id):
         200,
         {"Content-Type": "application/json"},
     )
+
+
+@app.route("/api/v3/admin/storage/pending/multiple_actions", methods=["POST"])
+@is_admin_or_manager
+def admin_storage_delete_pending_multiple_actions(payload):
+    dict = request.get_json(force=True)
+    selected_disks = admins.CheckField(
+        "storage", "status", "delete_pending", dict["ids"]
+    )
+    res = admins.MultipleActions("domains", dict["action"], selected_disks)
+    if res is True:
+        json_data = json.dumps(
+            {
+                "title": "Processing",
+                "text": "Actions will be processed",
+                "type": "success",
+            }
+        )
+        http_code = 200
+    else:
+        json_data = json.dumps(
+            {
+                "title": "Error",
+                "text": res,
+                "type": "error",
+            }
+        )
+        http_code = 409
+    return json_data, http_code, {"Content-Type": "application/json"}
 
 
 @app.route("/api/v3/admin/storage/physical/storage_host", methods=["GET"])

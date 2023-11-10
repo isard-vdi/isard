@@ -27,7 +27,6 @@ from api import app
 
 from ..libv2.validators import _validate_item
 from .api_cards import ApiCards
-from .api_desktop_events import template_delete, templates_delete
 
 r = RethinkDB()
 import logging as log

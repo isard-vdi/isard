@@ -8,10 +8,9 @@ r = RethinkDB()
 import time
 import traceback
 
-from .bookings.api_booking import Bookings
-from .flask_rethink import RDB
+from api.libv2.recycle_bin import *
 
-apib = Bookings()
+from .flask_rethink import RDB
 
 db = RDB(app)
 db.init_app(app)
@@ -58,29 +57,6 @@ def wait_status(
         else:
             return False
     return status
-
-
-def wait_delete_status(desktop_id, wait_seconds=0, interval_seconds=2):
-    seconds = 0
-    while seconds <= wait_seconds:
-        time.sleep(interval_seconds)
-        seconds += interval_seconds
-        with app.app_context():
-            try:
-                status = (
-                    r.table("domains")
-                    .get(desktop_id)
-                    .pluck("status")["status"]
-                    .run(db.conn)
-                )
-            except:
-                return True
-    raise Error(
-        "internal_server",
-        "Engine could not delete " + desktop_id + " in " + str(wait_seconds),
-        traceback.format_exc(),
-        description_code="generic_error",
-    )
 
 
 def get_desktop_status(desktop_id):
@@ -237,86 +213,97 @@ def desktop_reset(desktop_id):
         ).run(db.conn)
 
 
-def desktop_delete(desktop_id, from_started=False, wait_seconds=0):
-    status = get_desktop_status(desktop_id)
-    if status == "Deleting":
-        return True
-    if from_started:
-        # TODO: Engine should implement StoppingAndDeleting
-        status = desktop_stop(desktop_id, force=True, wait_seconds=60)
+def desktop_delete(desktop_id, agent_id, permanent=False):
+    tag = r.table("domains").get(desktop_id)["tag"].default(False).run(db.conn)
+    rcb = RecycleBinDesktop(user_id=agent_id)
+    rcb.add(desktop_id)
 
-    if status in ["Stopped", "Failed"]:
-        with app.app_context():
-            apib.delete_item_bookings("desktop", desktop_id)
-            r.table("domains").get(desktop_id).update(
-                {"status": "Deleting", "accessed": int(time.time())}
-            ).run(db.conn)
-    else:
-        raise Error(
-            "precondition_required",
-            "Unable to delete desktop " + desktop_id + " in status " + status,
-            traceback.format_exc(),
-            description_code="unable_to_delete_desktop_from",
-        )
-    if wait_seconds:
-        wait_delete_status(desktop_id, wait_seconds=wait_seconds)
-    return True
+    max_time = rcb.get_delete_time()
+    # Checks if recycle bin time is set to be immediately deleted and perform a permanent delete
+    if permanent or tag or max_time == "0":
+        rcb.delete_storage(agent_id)
 
 
-def desktops_delete(desktops_ids, force=False):
-    for desktop_id in desktops_ids:
-        with app.app_context():
-            r.table("bookings").get_all(
-                ["desktop", desktop_id], index="item_type-id"
-            ).delete().run(db.conn)
-    if force:
-        with app.app_context():
-            r.table("domains").get_all(r.args(desktops_ids)).update(
-                {"status": "ForceDeleting"}
-            ).run(db.conn)
-    else:
-        with app.app_context():
-            r.table("domains").get_all(r.args(desktops_ids), index="id").filter(
-                {"status": "Stopped"}
-            ).update({"status": "Deleting", "accessed": int(time.time())}).run(db.conn)
-            r.table("domains").get_all(r.args(desktops_ids), index="id").filter(
-                {"status": "Failed"}
-            ).update({"status": "Deleting", "accessed": int(time.time())}).run(db.conn)
+def desktops_delete(agent_id, desktops_ids):
+    rcb = RecycleBinBulk(user_id=agent_id)
+    rcb.add(desktops_ids)
+
+    max_time = rcb.get_delete_time()
+    # Checks if recycle bin time is set to be immediately deleted and perform a permanent delete
+    if max_time == "0":
+        rcb.delete_storage(agent_id)
 
 
-def template_delete(template_id):
+def deployment_delete(deployment_id, agent_id, permanent=False):
+    rcb = RecycleBinDeployment(user_id=agent_id)
+    rcb.add(deployment_id)
+
+    max_time = rcb.get_delete_time()
+    if max_time == "0" or permanent:
+        rcb.delete_storage(agent_id)
+
+
+def deployment_delete_desktops(agent_id, desktops_ids, permanent=False):
+    rcb = RecycleBinDeploymentDesktops(user_id=agent_id)
+    rcb.add(desktops_ids)
+
+    max_time = rcb.get_delete_time()
+    if max_time == "0" or permanent:
+        rcb.delete_storage(agent_id)
+
+
+def user_delete(agent_id, user_id, delete_user=True):
+    rcb = RecycleBinUser(user_id=agent_id)
+    rcb.add(user_id, delete_user)
+
+    max_time = rcb.get_delete_time()
+    # Checks if recycle bin time is set to be immediately deleted and perform a permanent delete
+    if max_time == "0":
+        rcb.delete_storage(agent_id)
+
+
+def group_delete(agent_id, group_id):
+    rcb = RecycleBinGroup(user_id=agent_id)
+    rcb.add(group_id)
+
+    max_time = rcb.get_delete_time()
+    # Checks if recycle bin time is set to be immediately deleted and perform a permanent delete
+    if max_time == "0":
+        rcb.delete_storage(agent_id)
+
+
+def category_delete(agent_id, category_id):
+    rcb = RecycleBinCategory(user_id=agent_id)
+    rcb.add(category_id)
+
+    max_time = rcb.get_delete_time()
+    # Checks if recycle bin time is set to be immediately deleted and perform a permanent delete
+    if max_time == "0":
+        rcb.delete_storage(agent_id)
+
+
+def templates_delete(template_id, agent_id):
+    rcb = RecycleBinTemplate(user_id=agent_id)
+    rcb.add(template_id=template_id)
+
+    max_time = rcb.get_delete_time()
+    # Checks if recycle bin time is set to be immediately deleted and perform a permanent delete
+    if max_time == "0":
+        rcb.delete_storage(agent_id)
+
+
+def desktops_non_persistent_delete(user_id, template):
     with app.app_context():
-        r.table("domains").get(template_id).update(
-            {"status": "Deleting", "accessed": int(time.time())}
-        ).run(db.conn)
+        r.table("domains").get_all(user_id, index="user").filter(
+            {"from_template": template, "persistent": False}
+        ).update({"status": "ForceDeleting"}).run(db.conn)
 
 
-def templates_delete(templates_ids, force=False):
-    if force:
-        with app.app_context():
-            r.table("domains").get_all(r.args(templates_ids)).filter(
-                {"kind": "template"}
-            ).update({"status": "ForceDeleting", "accessed": int(time.time())}).run(
-                db.conn
-            )
-    else:
-        with app.app_context():
-            r.table("domains").get_all(r.args(templates_ids), index="id").filter(
-                {"kind": "template"}
-            ).update({"status": "Deleting", "accessed": int(time.time())}).run(db.conn)
-
-
-def desktops_non_persistent_delete(user_id, template=False):
-    if template == False:
-        with app.app_context():
-            r.table("domains").get_all(user_id, index="user").filter(
-                {"persistent": False}
-            ).update({"status": "ForceDeleting"}).run(db.conn)
-    else:
-        with app.app_context():
-            r.table("domains").get_all(user_id, index="user").filter(
-                {"from_template": template, "persistent": False}
-            ).update({"status": "ForceDeleting"}).run(db.conn)
+def desktop_non_persistent_delete(desktop_id):
+    with app.app_context():
+        r.table("domains").get(desktop_id).update({"status": "ForceDeleting"}).run(
+            db.conn
+        )
 
 
 def desktop_updating(desktop_id):

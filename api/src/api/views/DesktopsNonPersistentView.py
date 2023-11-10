@@ -53,9 +53,6 @@ def api_v3_desktop_new(payload):
     template = templates.Get(template_id)
     allowed.is_allowed(payload, template, "domains")
 
-    # Leave only one nonpersistent desktop from this template
-    desktops.DeleteOthers(user_id, template_id)
-
     # So now we have checked if desktop exists and if we can create and/or start it
     return (
         json.dumps({"id": desktops.New(user_id, template_id)}),

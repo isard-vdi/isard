@@ -16,7 +16,6 @@ from api import app
 from ..libv2.validators import _validate_item
 from ..views.decorators import ownsDomainId
 from .api_cards import ApiCards
-from .api_desktop_events import template_delete, templates_delete
 
 r = RethinkDB()
 
@@ -238,13 +237,6 @@ class ApiTemplates:
                 raise Error(
                     "not_found", "Template id not found", traceback.format_exc()
                 )
-
-    def Delete(self, template_id):
-        ## TODO: Delete all related desktops!!!
-        template_delete(template_id)
-
-    def DeleteMultiple(self, templates_ids):
-        templates_delete(templates_ids, True)
 
     def UpdateTemplate(self, template_id, data):
         with app.app_context():

@@ -5,7 +5,7 @@
 
 import json
 
-from api.libv2.api_admin import admin_table_get
+from api.libv2.api_desktop_events import deployment_delete
 from api.libv2.api_desktops_common import ApiDesktopsCommon
 from api.libv2.api_desktops_persistent import check_template_status
 from api.libv2.deployments import api_deployments
@@ -73,11 +73,12 @@ def api_v3_deployments_new(payload):
 
 
 @app.route("/api/v3/deployments/<deployment_id>", methods=["DELETE"])
+@app.route("/api/v3/deployments/<deployment_id>/<permanent>", methods=["DELETE"])
 @is_not_user
-def api_v3_deployments_delete(payload, deployment_id):
+def api_v3_deployments_delete(payload, deployment_id, permanent=False):
     ownsDeploymentId(payload, deployment_id)
     api_deployments.checkDesktopsStarted(deployment_id)
-    api_deployments.delete(deployment_id)
+    deployment_delete(deployment_id, payload["user_id"], permanent)
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
