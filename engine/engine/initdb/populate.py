@@ -125,6 +125,7 @@ class Populate(object):
             "usage_limit",
             "usage_reset_dates",
             "user_storage",
+            "recycle_bin",
             # config should be the last table to be created
             # api waits for config table to start
             "config",
@@ -1751,4 +1752,10 @@ class Populate(object):
             r.table_create("usage_reset_dates", primary_key="id").run(self.conn)
         except Exception as e:
             log.error(e)
+
+    def recycle_bin(self):
+        try:
+            log.info("Table recycle_bin not found, creating...")
+            r.table_create("recycle_bin", primary_key="id").run(self.conn)
+        except:
             None
