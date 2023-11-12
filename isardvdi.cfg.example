@@ -1,4 +1,4 @@
-# Isard main config v2.11.1
+# Isard main config v2.12.1
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -245,6 +245,14 @@ HAPROXY_RUN_IMAGE=haproxy:lts-alpine3.17
 
 # ------ Logs ----------------------------------------------------------------
 LOG_LEVEL=INFO
+
+## ------ HAPROXIES
+## Comment/uncomment to deactivate/activate haproxy logging
+## (by default will log only bad response status)
+HAPROXY_LOGGING=.
+## Comment/uncomment to deactivate/activate haproxy success response status
+## (disabled by default)
+#HAPROXY_LOGGING_NORMAL=.
 
 # ------ QCOW2 images --------------------------------------------------------
 ## Cluster size used when creating qcow2 disk images
