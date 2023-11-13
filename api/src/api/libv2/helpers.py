@@ -998,12 +998,17 @@ def GetAllTemplateDerivates(template_id, user_id=None):
     ]
     if user_id:
         with app.app_context():
-            user = r.table("users").get(user_id).pluck("category", "role").run(db.conn)
+            user = (
+                r.table("users")
+                .get(user_id)
+                .pluck("id", "category", "role")
+                .run(db.conn)
+            )
     for t in recursion:
         if not user_id or (
-            user["role"] == "admin"
-            or user["role"] == "manager"
-            and t["category"] == user["category"]
+            (user["role"] == "admin")
+            or (user["role"] == "manager" and t["category"] == user["category"])
+            or (user["role"] == "advanced" and t["user"] == user["id"])
         ):
             all_domains_id.append(
                 {
