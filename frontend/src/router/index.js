@@ -32,6 +32,7 @@ import VueRouter from 'vue-router'
 import { appTitle } from '../shared/constants'
 import { auth } from './auth'
 import i18n from '@/i18n'
+import moment from 'moment'
 
 Vue.use(VueRouter)
 
@@ -379,6 +380,7 @@ const router = new VueRouter({
 })
 
 router.beforeEach((to, from, next) => {
+  moment.locale(localStorage.language)
   document.title = to.meta.title ? `${appTitle} - ${to.meta.title}` : appTitle
 
   if (to.matched.some(record => record.meta.requiresAuth)) {
