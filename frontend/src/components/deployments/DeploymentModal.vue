@@ -250,7 +250,7 @@ export default {
     }
 
     const deleteDeployment = () => {
-      $store.dispatch('deleteDeployment', { id: modal.value.item.id, permanent: !sendToRecycleBin.value }).then(() => {
+      $store.dispatch('deleteDeployment', { id: modal.value.item.id, permanent: !sendToRecycleBin.value, pathName: 'deployments' }).then(() => {
         closeModal()
       })
     }

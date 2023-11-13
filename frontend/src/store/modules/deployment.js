@@ -133,8 +133,8 @@ export default {
         : `${apiV3Segment}/deployments/${payload.id}`
       axios.delete(url).then(response => {
         this._vm.$snotify.clear()
-        if (payload.path) {
-          context.dispatch('navigate', payload.path)
+        if (payload.pathName) {
+          context.dispatch('navigate', payload.pathName)
         }
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
