@@ -405,6 +405,7 @@ class RecycleBin(object):
                 description="Cannot delete entry with status " + str(self.status),
             )
         self._update_agent(user_id)
+        self.deleteTemplatesDependencies()
 
         if not self.storages:
             self._update_status("deleted")
@@ -487,6 +488,19 @@ class RecycleBin(object):
                     {"id": task.id, "storage_id": storage.id, "status": task.status}
                 )
         return tasks
+
+    def deleteTemplatesDependencies(self):
+        for template in self.templates:
+            with app.app_context():
+                dependencies = list(
+                    r.table("recycle_bin")
+                    .get_all(template["id"], index="parents")
+                    .filter(lambda rb: rb["id"].ne(self.id))
+                    .pluck("id")["id"]
+                    .run(db.conn)
+                )
+            for dependency in dependencies:
+                RecycleBin(dependency).delete_storage(self.owner_id)
 
     def get_count(self):
         with app.app_context():

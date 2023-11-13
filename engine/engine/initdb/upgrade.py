@@ -4339,6 +4339,16 @@ class Upgrade(object):
             except Exception as e:
                 print(e)
 
+            try:
+                r.table("recycle_bin").index_create(
+                    "parents",
+                    r.row["desktops"].concat_map(lambda desktop: desktop["parents"]),
+                    multi=True,
+                ).run(self.conn)
+                r.table("recycle_bin").index_wait("parents").run(self.conn)
+            except Exception as e:
+                print(e)
+
         return True
 
     def logs_desktops(self, version):
