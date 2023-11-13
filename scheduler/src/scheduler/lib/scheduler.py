@@ -273,10 +273,7 @@ class Scheduler:
         try:
             self.scheduler.remove_job(job_id)
         except:
-            raise Error(
-                "not_found",
-                "Job id " + str(job_id) + " not found. Probably was already deleted",
-            )
+            return
 
     def remove_job_startswith(self, job_id):
         with app.app_context():
