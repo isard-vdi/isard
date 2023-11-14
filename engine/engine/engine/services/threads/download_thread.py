@@ -286,7 +286,7 @@ class DownloadThread(threading.Thread, object):
                         "-p",
                         self.port,
                         f"{self.user}@{self.hostname}",
-                        f'pkill -f "^{curl_cmd}"',
+                        f'pkill -f "^{re.escape(curl_cmd)}"',
                     ]
 
                     logs.downloads.info(
