@@ -26,5 +26,6 @@ services:
       - /etc/localtime:/etc/localtime:ro
     environment:
       ENV: /usr/local/etc/environment
+      CORS: ${CORS:-*}
     env_file:
       - .env

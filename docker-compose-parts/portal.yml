@@ -31,5 +31,7 @@ services:
       - /opt/isard-local/ipsec-fw/lists:/usr/local/etc/haproxy/lists
       - /opt/isard-local/haproxy/cfg:/usr/local/etc/haproxy/cfg/customs
       - /opt/isard-local/haproxy/spoe:/usr/local/etc/haproxy/spoe
+    environment:
+      CORS: ${CORS:-*}
     env_file:
       - .env
