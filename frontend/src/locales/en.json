@@ -250,7 +250,7 @@
                 "back": "Back to deployment"
             },
             "recycle-bins": {
-                "max-time": "The items in the recycle bin will be permanently deleted after {time}.",
+                "max-time": "The items in the recycle bin will be permanently deleted after: {time}.",
                 "immediately": "The recycle bin will remain empty since items are permanently deleted immediately.",
                 "empty-recycle-bin": "Empty recycle bin"
             },

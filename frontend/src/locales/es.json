@@ -250,7 +250,7 @@
                 "back": "Volver al despliegue"
             },
             "recycle-bins": {
-                "max-time": "Los elementos de la papelera de reciclaje se eliminarán definitivamente después de {time}.",
+                "max-time": "Los elementos de la papelera de reciclaje se eliminarán definitivamente después de: {time}.",
                 "immediately": "La papelera de reciclaje se mantendrá vacía, los elementos se eliminan definitivamente de manera inmediata.",
                 "empty-recycle-bin": "Vaciar papelera de reciclaje"
             },

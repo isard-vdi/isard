@@ -80,7 +80,7 @@
                 "back": "Tornar a desplegaments"
             },
             "recycle-bins": {
-                "max-time": "Els elements de la paperera de reciclatge s'esborraran definitivament després de {time}.",
+                "max-time": "Els elements de la paperera de reciclatge s'esborraran definitivament després de: {time}.",
                 "immediately": "La paperera de reciclatge romandrà buida, els elements s'esborren definitivament de manera immediata.",
                 "empty-recycle-bin": "Buidar paperera de reciclatge"
             },
