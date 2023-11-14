@@ -1096,3 +1096,64 @@ def _duplicated(template_id):
     for d in duplicated_from_original:
         derivated_from_duplicated += _derivated(d["id"])
     return duplicated_from_original + derivated_from_duplicated
+
+
+def wait_status(
+    desktops_ids, current_status, wait_seconds=0, interval_seconds=2, raise_exc=False
+):
+    desktops_status = list(
+        r.table("domains")
+        .get_all(r.args(desktops_ids))
+        .pluck("status")["status"]
+        .run(db.conn)
+    )
+    if wait_seconds == 0:
+        return desktops_status
+    seconds = 0
+    while current_status in desktops_status and seconds <= wait_seconds:
+        time.sleep(interval_seconds)
+        seconds += interval_seconds
+        with app.app_context():
+            try:
+                desktops_status = list(
+                    r.table("domains")
+                    .get_all(r.args(desktops_ids))
+                    .pluck("status")["status"]
+                    .run(db.conn)
+                )
+            except:
+                raise Error(
+                    "not_found",
+                    "Desktop not found",
+                    traceback.format_exc(),
+                    description_code="not_found",
+                )
+    if current_status in desktops_status:
+        if raise_exc:
+            raise Error(
+                "internal_server",
+                "Engine could not change "
+                + desktops_ids
+                + " status from "
+                + current_status
+                + " in "
+                + str(wait_seconds),
+                traceback.format_exc(),
+                description_code="generic_error",
+            )
+        else:
+            return False
+    return desktops_status
+
+
+def desktops_stop(desktops_ids, wait_seconds=30):
+    with app.app_context():
+        r.table("domains").get_all(r.args(desktops_ids), index="id").filter(
+            {"status": "Shutting-down"}
+        ).update({"status": "Stopping", "accessed": int(time.time())}).run(db.conn)
+        r.table("domains").get_all(r.args(desktops_ids), index="id").filter(
+            {"status": "Started"}
+        ).update({"status": "Stopping", "accessed": int(time.time())}).run(db.conn)
+    return wait_status(
+        desktops_ids, current_status="Stopping", wait_seconds=wait_seconds
+    )

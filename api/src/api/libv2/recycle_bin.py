@@ -31,7 +31,7 @@ from ..libv2.api_user_storage import (
 from ..libv2.quotas import Quotas
 from .bookings.api_booking import Bookings
 from .flask_rethink import RDB
-from .helpers import GetAllTemplateDerivates, _check
+from .helpers import GetAllTemplateDerivates, desktops_stop
 
 quotas = Quotas()
 
@@ -802,6 +802,7 @@ class RecycleBinDomain(RecycleBin):
         super().__init__(id, item_type=item_type, user_id=user_id)
 
     def add(self, domain_id):
+        desktops_stop([domain_id], 5)
         # Move desktop to recycle_bin
         with app.app_context():
             domain = r.table("domains").get(domain_id).run(db.conn)
@@ -966,6 +967,13 @@ class RecycleBinDeployment(RecycleBin):
             r.table("recycle_bin").get(self.id).update(
                 {"deployments": r.row["deployments"].append(deployment)}
             ).run(db.conn)
+            desktops_ids = list(
+                r.table("domains")
+                .get_all(deployment["id"], index="tag")
+                .pluck("id")["id"]
+                .run(db.conn)
+            )
+            desktops_stop(desktops_ids, 5)
             # Move deployment desktops to recycle_bin
             desktops = list(
                 r.table("domains").get_all(deployment["id"], index="tag").run(db.conn)
@@ -986,6 +994,13 @@ class RecycleBinDeployment(RecycleBin):
                 {"deployments": r.row["deployments"].add(deployments)}
             ).run(db.conn)
         deployments_ids = [deployment["id"] for deployment in deployments]
+        desktops_ids = list(
+            r.table("domains")
+            .get_all(r.args(deployments_ids), index="tag")
+            .pluck("id")["id"]
+            .run(db.conn)
+        )
+        desktops_stop(desktops_ids, 5)
         # Move deployment desktops to recycle_bin
         with app.app_context():
             desktops = list(
@@ -1010,6 +1025,13 @@ class RecycleBinBulk(RecycleBin):
 
     def add(self, desktops_ids):
         super()._add_owner(self.agent_id)
+        desktops_ids = list(
+            r.table("domains")
+            .get_all(r.args(desktops_ids))
+            .pluck("id")["id"]
+            .run(db.conn)
+        )
+        desktops_stop(desktops_ids, 5)
         # Move desktops to recycle_bin
         with app.app_context():
             desktops = list(
@@ -1033,6 +1055,7 @@ class RecycleBinUser(RecycleBin):
     def __init__(self, id=None, user_id=None):
         super().__init__(id, item_type="user", user_id=user_id)
 
+    # TODO: When removing a user check if there's any dependant recycle bin entry
     def add(self, user_id, delete_user=True):
         # Delete user
         with app.app_context():
@@ -1046,6 +1069,13 @@ class RecycleBinUser(RecycleBin):
         return self._set_data(self.id)
 
     def add_user(self, user, delete_user=True):
+        desktops_ids = list(
+            r.table("domains")
+            .get_all(["desktop", user["id"]], index="kind_user")
+            .pluck("id")["id"]
+            .run(db.conn)
+        )
+        desktops_stop(desktops_ids, 5)
         # Delete desktops
         with app.app_context():
             desktops = list(
@@ -1097,6 +1127,7 @@ class RecycleBinGroup(RecycleBin):
     def __init__(self, id=None, user_id=None):
         super().__init__(id, item_type="group", user_id=user_id)
 
+    # TODO: When removing a group check if there's any dependant recycle bin entry
     def add(self, group_id):
         # Delete group
         with app.app_context():
@@ -1109,6 +1140,13 @@ class RecycleBinGroup(RecycleBin):
         return self._set_data(self.id)
 
     def add_group(self, group):
+        desktops_ids = list(
+            r.table("domains")
+            .get_all(["desktop", group["id"]], index="kind_group")
+            .pluck("id")["id"]
+            .run(db.conn)
+        )
+        desktops_stop(desktops_ids, 5)
         # Delete desktops
         with app.app_context():
             desktops = list(
@@ -1168,6 +1206,7 @@ class RecycleBinCategory(RecycleBin):
     def __init__(self, id=None, user_id=None):
         super().__init__(id, item_type="category", user_id=user_id)
 
+    # TODO: When removing a group check if there's any dependant recycle bin entry
     def add(self, category_id):
         # Delete group
         with app.app_context():
@@ -1180,6 +1219,13 @@ class RecycleBinCategory(RecycleBin):
         return self._set_data(self.id)
 
     def add_category(self, category):
+        desktops_ids = list(
+            r.table("domains")
+            .get_all(["desktop", category["id"]], index="kind_category")
+            .pluck("id")["id"]
+            .run(db.conn)
+        )
+        desktops_stop(desktops_ids, 5)
         # Delete desktops
         with app.app_context():
             desktops = list(
