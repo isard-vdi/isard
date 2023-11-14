@@ -337,7 +337,7 @@ function actionsCategoryDetail() {
                 $('#modalEditCategoryForm #frontend').iCheck('unckeck').iCheck('update');
             }
             // autoDesktopsShow('#modalEditCategoryForm', category)
-            maxTimeEnabledShow('#modalAddCategoryForm')
+            maxTimeEnabledShow('#modalEditCategoryForm')
             ephemeralDesktopsShow('#modalEditCategoryForm', category)
         });
 
