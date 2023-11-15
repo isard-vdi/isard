@@ -1,2 +1,25 @@
 #!/bin/sh
-LETSENCRYPT_DOMAIN="$VIDEO_DOMAIN" LETSENCRYPT_EMAIL="$LETSENCRYPT_EMAIL" letsencrypt.sh
+rm -rf /tmp/cfg
+mkdir -p /tmp/cfg
+for i in `find /usr/local/etc/haproxy/cfg -iname '*.cfg'`; do cp $i /tmp/cfg; done
+echo "Contatenating cfg files for haproxy.cfg:"
+ls -l /tmp/cfg
+cat /tmp/cfg/* > /usr/local/etc/haproxy/haproxy.cfg
+
+if [ -f /certs/custom-monitor-chain.pem ]
+then
+  sed -i 's/\/chain.pem/\/custom-monitor-chain.pem/g' /usr/local/etc/haproxy/haproxy.cfg
+else
+  sed -i 's/\/custom-monitor-chain.pem/\/chain.pem/g' /usr/local/etc/haproxy/haproxy.cfg
+fi
+
+LETSENCRYPT_DOMAIN="$DOMAIN" LETSENCRYPT_EMAIL="$LETSENCRYPT_EMAIL" letsencrypt.sh
+
+if [ ! -f /usr/local/etc/haproxy/lists/black.lst ]
+then
+  mkdir -p /usr/local/etc/haproxy/lists/external
+  touch /usr/local/etc/haproxy/lists/black.lst
+  touch /usr/local/etc/haproxy/lists/white.lst
+  touch /usr/local/etc/haproxy/lists/external/ipsum.block
+  touch /usr/local/etc/haproxy/lists/external/spamhaus.block
+fi
