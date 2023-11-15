@@ -377,6 +377,10 @@ function render_table_credits() {
         }
       },
       {
+        "data": "item_description",
+        "title": "Description"
+      },
+      {
         "data": "item_consumer",
         "title": "Consumer type",
       },
