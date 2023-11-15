@@ -130,7 +130,7 @@ def get_disks(user_id=None, status=None, pluck=None, category_id=None):
 def get_user_ready_disks(user_id):
     query = (
         r.table("storage")
-        .get_all("ready", index="status")
+        .get_all([user_id, "ready"], index="user_status")
         .pluck(
             [
                 "id",
