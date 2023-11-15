@@ -853,7 +853,12 @@ def get_all_usage_credits():
             r.table("usage_credit")
             .merge(
                 lambda row: {
-                    "category_name": r.table("categories").get(row["item_id"])["name"]
+                    "category_name": r.table("categories")
+                    .get(row["item_id"])
+                    .default({"name": ""})["name"],
+                    "item_description": r.table("categories")
+                    .get(row["item_id"])
+                    .default({"description": ""})["description"],
                 }
             )
             .merge(
