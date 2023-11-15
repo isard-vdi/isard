@@ -315,6 +315,12 @@ function createUsageTable(data) {
         'defaultContent': ''
       },
       {
+        'data': 'item_description',
+        'className': 'always-shown',
+        'defaultContent': '',
+        visible: data.consumer === 'category' ? true : false
+      },
+      {
         'data': 'item_consumer',
         'className': 'always-shown',
         'defaultContent': '',
@@ -333,7 +339,7 @@ function createUsageTable(data) {
       }),
       success: function (parameters) {
         // Add the header
-        $(tableId + ' thead tr').first().append('<th rowspan="2">Selected</th><th rowspan="2">Item id</th><th rowspan="2">Join duplicates</th><th rowspan="2">Name</th><th rowspan="2">Consumer</th>')
+        $(tableId + ' thead tr').first().append('<th rowspan="2">Selected</th><th rowspan="2">Item id</th><th rowspan="2">Join duplicates</th><th rowspan="2">Name</th><th rowspan="2">Description</th><th rowspan="2">Consumer</th>')
         $.each(parameters, function (pos, parameter) {
           // Add header dynamically
           $(tableId + ' thead tr').first().append(`<th colspan="3" title="${parameter.desc}\n${parameter.formula ? 'Applied formula: ' + parameter.formula : ''}">${parameter.name} <i class="fa fa-info-circle" aria-hidden="true"></i></th>`)

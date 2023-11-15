@@ -264,10 +264,20 @@ def get_start_end_consumption(
                 grouping_params=grouping_params,
             )
             end_data["abs"] = substract_dicts(end_data["abs"], reset_end_data["abs"])
+        item["item_description"] = ""
+        if item_consumer == "category":
+            with app.app_context():
+                item["item_description"] = (
+                    r.table("categories")
+                    .get(item["item_id"])
+                    .default({"description": ""})["description"]
+                    .run(db.conn)
+                )
         data.append(
             {
                 "item_id": item["item_id"],
                 "item_name": item["item_name"],
+                "item_description": item["item_description"],
                 "item_consumer": item_consumer,
                 "start": start_data,
                 "end": end_data,
