@@ -25,5 +25,6 @@ services:
       - /opt/isard-local/haproxy/spoe:/usr/local/etc/haproxy/spoe
     environment:
       ENV: /usr/local/etc/environment
+      CORS: ${CORS:-*}
     env_file:
       - .env
