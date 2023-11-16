@@ -49,6 +49,8 @@ role:
 username:
   required: true
   type: string
+  regex: "^[A-Za-z0-9._@%+-]+$"
+  maxlength: 40
 uid:
   required: true
   empty: false
