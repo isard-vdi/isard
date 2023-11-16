@@ -1,6 +1,8 @@
 username:
   required: true
   empty: false
+  regex: "^[A-Za-z0-9._@%+-]+$"
+  maxlength: 40
 name:
   required: true
   empty: false
