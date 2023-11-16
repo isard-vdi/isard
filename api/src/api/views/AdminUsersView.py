@@ -893,7 +893,7 @@ def admin_users_validate(payload):
                     raise Error(
                         "bad_request",
                         "Cannot change user "
-                        + user["username"]
+                        + user["name"]
                         + "'s group from "
                         + user_list[i]["group"],
                     )
@@ -930,7 +930,7 @@ def admin_users_validate_edit(payload):
             ownsUserId(payload, user_list[i]["id"])
         except:
             raise Error(
-                "not_found", "User with username " + user["username"] + " not found"
+                "not_found", "User with username " + user["name"] + " not found"
             )
 
         user_list[i]["category_id"] = cg_data["category_id"]
