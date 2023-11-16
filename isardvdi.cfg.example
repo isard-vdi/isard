@@ -1,4 +1,4 @@
-# Isard main config v2.12.1
+# Isard main config v2.12.2
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -40,6 +40,10 @@
 ## NOTE: In infrastructure hypervisors should be the reacheable ip/dns from 
 ##       isard-engine
 DOMAIN=localhost
+
+## Allowed CORS. By default will not restrict (testing/develop)
+## Set it to your main web domain for all your isard servers in production.
+#CORS=*
 
 # ------ Admin password ------------------------------------------------------
 ## Initial WEB admin user password. Used also in grafana, influxdb

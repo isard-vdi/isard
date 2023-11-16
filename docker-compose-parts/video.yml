@@ -16,15 +16,17 @@ services:
         target: 80
       - published: ${VIEWER_BROWSER:-443}
         target: 443
-      # - published: ${VIDEO_STATS_PORT}
-      #   target: 8888
     volumes:
       - /opt/isard/certs/letsencrypt:/etc/letsencrypt:rw
       - /opt/isard/certs/default:/certs:rw
       - /opt/isard-local/environment:/usr/local/etc/environment
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
+      - /opt/isard-local/ipsec-fw/lists:/usr/local/etc/haproxy/lists
+      - /opt/isard-local/haproxy/cfg:/usr/local/etc/haproxy/cfg/customs
+      - /opt/isard-local/haproxy/spoe:/usr/local/etc/haproxy/spoe
     environment:
       ENV: /usr/local/etc/environment
+      CORS: ${CORS:-*}
     env_file:
       - .env
