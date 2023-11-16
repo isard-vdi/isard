@@ -1261,6 +1261,18 @@ class UiActions(object):
         elif xml_from_virt_install is False:
             id_template = domain["create_dict"]["origin"]
             template = get_domain(id_template)
+            if not template:
+                logs.main.error(
+                    "##### Traceback: creating_and_test_xml_start, xml_from...\n{}\n ...template {} not found when creating domain...\n {}\n...\n{}\n...".format(
+                        xml_from, id_template, domain, traceback.format_exc()
+                    )
+                )
+                update_domain_status(
+                    "Failed",
+                    id_domain,
+                    detail=f"Can't create domain from template {id_template}, template not found. Was deleted during domain creation?",
+                )
+                return False
             xml_from = template["xml"]
             parents_chain = template.get("parents", []) + domain.get("parents", [])
             # when creating template from domain, the domain would be inserted as a parent while template is creating
