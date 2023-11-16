@@ -367,7 +367,7 @@ function socketio_on(){
 
         if (kind === 'download-edit') {
             viewerFile = new Blob(
-                [`active,name,provider,category,uid,username,group,secondary_groups,password\ntrue,John Doe,local,Default,jdoe,jdoe,Default,Default,sup3rs3cr3t\n,Another User,local,Default,auser,auser,Default,`
+                [`active,name,provider,category,uid,group,secondary_groups,password\ntrue,John Doe,local,Default,jdoe,Default,Default,sup3rs3cr3t\n,Another User,local,Default,auser,Default,`
                 ], { type: "text/csv" });
 
         } else if (kind === 'download-create') {
@@ -1264,7 +1264,6 @@ function csv2datatables(csv, modal){
                     { "data": "provider", "width": "50px", "className": "no-update" },
                     { "data": "category", "width": "88px", "defaultContent": "", "className": "no-update" },
                     { "data": "uid", "width": "88px", "className": "no-update" },
-                    { "data": "username", "width": "88px", "className": "no-update" },
                     { "data": "group", "width": "88px", "defaultContent": "", "className": "no-update" },
                     { "data": "secondary_groups_names", "width": "88px", "defaultContent": "", },
                     { "data": "password", "width": "88px" },
@@ -1331,18 +1330,18 @@ function showUserExportButtons(table, buttonsRowClass) {
                 },
                 customize: function (csv) {
                     var split_csv = csv.split("\n");
-                    var csv_data = 'Active,Name,Provider,Category,UID,Username,Role,Group,Secondary groups,VPN,Last access,ID\n';
+                    var csv_data = 'Active,Name,Provider,Category,UID,Role,Group,Secondary groups,VPN,Last access,ID\n';
 
                     $.each(split_csv.slice(1), function (index, csv_row) {
                         var csv_cell_array = csv_row.split('","');
                         csv_cell_array.splice(0, 1);
-                        csv_cell_array.splice(11, 1);
+                        csv_cell_array.splice(10, 1);
                         pk = csv_cell_array[csv_cell_array.length - 1].replace(/"/g, '');
 
                         var rowData = table.row('#' + pk).data();
                         csv_cell_array[0] = rowData.active;
-                        csv_cell_array[8] = csv_cell_array[8].replace(/,/g, ' | ');
-                        csv_cell_array[9] = rowData.vpn.wireguard.connected;
+                        csv_cell_array[7] = csv_cell_array[8].replace(/,/g, ' | ');
+                        csv_cell_array[8] = rowData.vpn.wireguard.connected;
 
                         csv_data = csv_data + csv_cell_array + '\n';
                     });
