@@ -7,6 +7,7 @@ import (
 	"net"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -21,6 +22,8 @@ const (
 	desktopTimeout = 90
 	sshUser        = "executor"
 )
+
+var ErrMaintenanceMode = errors.New("maintenance mode is activated")
 
 type Interface interface {
 	CheckIsardVDI(ctx context.Context, authMethod AuthMethod, auth Auth, host, templateID string, failSelfSigned, failMaintenance bool) (CheckResult, error)
@@ -69,27 +72,65 @@ func (c *Check) CheckIsardVDI(ctx context.Context, authMethod AuthMethod, auth A
 
 	maintenance, err := cli.Maintenance(ctx)
 	if err != nil {
-		return CheckResult{}, fmt.Errorf("get maintenance mode: %w", err)
+		return CheckResult{
+			IsardVDIVersion: version,
+		}, fmt.Errorf("get maintenance mode: %w", err)
 	}
 
 	if failMaintenance && maintenance {
-		return CheckResult{}, errors.New("maintenance mode is activated")
+		return CheckResult{
+			IsardVDIVersion: version,
+			MaintenanceMode: maintenance,
+		}, ErrMaintenanceMode
 	}
 
 	h, err := cli.HypervisorList(ctx)
 	if err != nil {
-		return CheckResult{}, fmt.Errorf("list hypervisors: %w", err)
+		return CheckResult{
+			IsardVDIVersion: version,
+			MaintenanceMode: maintenance,
+		}, fmt.Errorf("list hypervisors: %w", err)
 	}
 
-	deps := DependenciesVersions{}
+	var wg sync.WaitGroup
+	errCh := make(chan error, len(h))
+	depsCh := make(chan DependenciesVersions, len(h))
+
 	for _, hyper := range h {
-		c.log.Debug().Str("host", cli.URL().Host).Str("id", *hyper.ID).Msg("checking hypervisor")
+		wg.Add(1)
 
-		deps, err = c.checkHypervisor(ctx, cli, isardvdi.GetString(hyper.ID), templateID, failSelfSigned)
+		go func(hyper *isardvdi.Hypervisor) {
+			defer wg.Done()
+
+			c.log.Debug().Str("host", cli.URL().Host).Str("id", *hyper.ID).Msg("checking hypervisor")
+
+			deps, err := c.checkHypervisor(ctx, cli, isardvdi.GetString(hyper.ID), templateID, failSelfSigned)
+			if err != nil {
+				c.log.Error().Str("host", cli.URL().Host).Str("hypervisor", isardvdi.GetString(hyper.ID)).Str("template_id", templateID).Err(err).Msg("check hypervisor")
+				err = fmt.Errorf("check hypervisor '%s': %w", isardvdi.GetString(hyper.ID), err)
+			}
+
+			depsCh <- deps
+			errCh <- err
+		}(hyper)
+	}
+
+	// Wait for all the checks to be finished
+	wg.Wait()
+
+	// Check if there are errors and retrieve the check dependencies
+	deps := DependenciesVersions{}
+	for range h {
+		deps = <-depsCh
+		err := <-errCh
+
 		if err != nil {
-			c.log.Error().Str("host", cli.URL().Host).Str("hypervisor", isardvdi.GetString(hyper.ID)).Str("template_id", templateID).Err(err).Msg("check hypervisor")
-
-			return CheckResult{}, fmt.Errorf("check hypervisor: %w", err)
+			return CheckResult{
+				IsardVDIVersion:      version,
+				MaintenanceMode:      maintenance,
+				DependenciesVersions: deps,
+				HypervisorNum:        len(h),
+			}, err
 		}
 	}
 
@@ -125,7 +166,7 @@ func (c *Check) CheckHypervisor(ctx context.Context, authMethod AuthMethod, auth
 	}
 
 	if failMaintenance && maintenance {
-		return CheckResult{}, errors.New("maintenance mode is activated")
+		return CheckResult{}, ErrMaintenanceMode
 	}
 
 	deps, err := c.checkHypervisor(ctx, cli, hyperID, templateID, failSelfSigned)

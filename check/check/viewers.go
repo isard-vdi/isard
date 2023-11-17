@@ -21,6 +21,13 @@ import (
 	stdSSH "golang.org/x/crypto/ssh"
 )
 
+var (
+	ErrViewerOutOfAttempts = errors.New("run out of attempts")
+	ErrViewerSpice         = errors.New("viewer spice failed")
+	ErrViewerRDPGW         = errors.New("viewer RDP through GW failed")
+	ErrViewerRDPVPN        = errors.New("viewer RDP through VPN failed")
+)
+
 // TODO: RDP Web, noVNC
 func (c *Check) testViewers(ctx context.Context, log *zerolog.Logger, cli isardvdi.Interface, sshCli *stdSSH.Client, failSelfSigned bool, id string) error {
 	// const port = 9000
@@ -71,18 +78,26 @@ func (c *Check) testSpice(ctx context.Context, cli isardvdi.Interface, sshCli *s
 	}
 
 	if err := testViewerCmd(sshCli, fmt.Sprintf("remote-viewer %s --spice-debug", path), "display-2:0: connect ready", nil); err != nil {
-		return fmt.Errorf("viewer spice failed: %w", err)
+		return fmt.Errorf("%w: %w", ErrViewerSpice, err)
 	}
 
 	return nil
 }
 
 func (c *Check) testRdpGW(ctx context.Context, cli isardvdi.Interface, sshCli *stdSSH.Client, failSelfSigned bool, id string) error {
-	return c.testRDP(ctx, cli, sshCli, isardvdi.DesktopViewerRdpGW, failSelfSigned, id)
+	if err := c.testRDP(ctx, cli, sshCli, isardvdi.DesktopViewerRdpGW, failSelfSigned, id); err != nil {
+		return fmt.Errorf("%w: %w", ErrViewerRDPGW, err)
+	}
+
+	return nil
 }
 
 func (c *Check) testRdpVPN(ctx context.Context, cli isardvdi.Interface, sshCli *stdSSH.Client, failSelfSigned bool, id string) error {
-	return c.testRDP(ctx, cli, sshCli, isardvdi.DesktopViewerRdpVPN, failSelfSigned, id)
+	if err := c.testRDP(ctx, cli, sshCli, isardvdi.DesktopViewerRdpVPN, failSelfSigned, id); err != nil {
+		return fmt.Errorf("%w: %w", ErrViewerRDPVPN, err)
+	}
+
+	return nil
 }
 
 func (c *Check) testRDP(ctx context.Context, cli isardvdi.Interface, sshCli *stdSSH.Client, viewer isardvdi.DesktopViewer, failSelfSigned bool, id string) error {
@@ -241,7 +256,7 @@ attemptsLoop:
 		}
 	}
 
-	return fmt.Errorf("run out of attempts: \n%s", out)
+	return fmt.Errorf("%w: \n%s", ErrViewerOutOfAttempts, out)
 }
 
 // func testWebVNC(ctx context.Context, wd selenium.WebDriver, cli client.Interface, id string) error {
