@@ -11,7 +11,7 @@ rq~=1.13
 betterproto~=1.2
 gunicorn~=20.1
 xmltodict~=0.13
-rethinkdb~=2.4
+rethinkdb==2.4.9
 python-jose~=3.3
 python-iptables==1.0.0
 pythonping==1.0.15
