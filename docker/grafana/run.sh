@@ -9,3 +9,7 @@ if [[ -d "/custom/alerting" ]]; then
 fi
 
 grafana-cli admin reset-admin-password $WEBAPP_ADMIN_PWD
+
+if [[ -x "/custom/entrypoint.sh" ]]; then
+    /custom/entrypoint.sh
+fi

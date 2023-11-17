@@ -1,5 +1,12 @@
 FROM grafana/grafana-oss:9.4.3
 
+USER root
+
+RUN apk add --no-cache \
+    curl
+
+USER grafana
+
 COPY docker/grafana/grafana.ini /etc/grafana/grafana.ini
 COPY docker/grafana/datasources /etc/grafana/provisioning/datasources
 COPY docker/grafana/dashboards /etc/grafana/provisioning/dashboards
