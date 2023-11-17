@@ -416,77 +416,93 @@ class RecycleBin(object):
                 "update_recycle_bin", {"id": self.id, "status": "deleted"}
             )
         else:
-            self._update_status("deleting")
-            self._add_log("deleting")
-            self.send_socket_user(
-                "update_recycle_bin", {"id": self.id, "status": "deleting"}
-            )
-            self.send_socket_admin(
-                "update_recycle_bin", {"id": self.id, "status": "deleting"}
-            )
-            for storage in self.storages:
-                if not Storage.exists(storage["id"]):
-                    raise Error(error="not_found", description="Storage not found")
-                storage = Storage(storage["id"])
-                if storage.status not in [
-                    "ready",
-                    "recycled",
-                    "non-existing",
-                ]:
-                    raise Error(
-                        error="precondition_required",
-                        description="Storage not ready. Status: " + storage.status,
-                    )
-                storage.status = "maintenance"
-                _add_storage_log(storage.id, "maintenance")
-                task = Task(
-                    user_id=user_id,
-                    queue=f"storage.{StoragePool.get_best_for_action('delete', path=storage.directory_path).id}.default",
-                    task="delete",
-                    job_kwargs={
-                        "kwargs": {
-                            "path": f"{storage.directory_path}/{storage.id}.{storage.type}",
+            with app.app_context():
+                storages_status = (
+                    r.table("storage")
+                    .get_all([storage["id"] for storage in self.storages])
+                    .pluck("status")["status"]
+                    .run(db.conn)
+                )
+            if all(x == "deleted" for x in storages_status):
+                self._update_status("deleted")
+                self.send_socket_user(
+                    "delete_recycle_bin", {"id": self.id, "status": "deleted"}
+                )
+                self.send_socket_admin(
+                    "update_recycle_bin", {"id": self.id, "status": "deleted"}
+                )
+            else:
+                self._update_status("deleting")
+                self._add_log("deleting")
+                self.send_socket_user(
+                    "update_recycle_bin", {"id": self.id, "status": "deleting"}
+                )
+                self.send_socket_admin(
+                    "update_recycle_bin", {"id": self.id, "status": "deleting"}
+                )
+                for storage in self.storages:
+                    if not Storage.exists(storage["id"]):
+                        raise Error(error="not_found", description="Storage not found")
+                    storage = Storage(storage["id"])
+                    if storage.status not in [
+                        "ready",
+                        "recycled",
+                        "non-existing",
+                    ]:
+                        raise Error(
+                            error="precondition_required",
+                            description="Storage not ready. Status: " + storage.status,
+                        )
+                    storage.status = "maintenance"
+                    _add_storage_log(storage.id, "maintenance")
+                    task = Task(
+                        user_id=user_id,
+                        queue=f"storage.{StoragePool.get_best_for_action('delete', path=storage.directory_path).id}.default",
+                        task="delete",
+                        job_kwargs={
+                            "kwargs": {
+                                "path": f"{storage.directory_path}/{storage.id}.{storage.type}",
+                            },
                         },
-                    },
-                    dependents=[
-                        {
-                            "queue": "core",
-                            "task": "update_status",
-                            "job_kwargs": {
-                                "kwargs": {
-                                    "statuses": {
-                                        "finished": {
-                                            "deleted": {"storage": [storage.id]},
-                                        },
-                                        "canceled": {
-                                            "recycled": {"storage": [storage.id]},
+                        dependents=[
+                            {
+                                "queue": "core",
+                                "task": "update_status",
+                                "job_kwargs": {
+                                    "kwargs": {
+                                        "statuses": {
+                                            "finished": {
+                                                "deleted": {"storage": [storage.id]},
+                                            },
+                                            "canceled": {
+                                                "recycled": {"storage": [storage.id]},
+                                            },
                                         },
                                     },
                                 },
-                            },
-                            "dependents": [
-                                {
-                                    "queue": "core",
-                                    "task": "recycle_bin_update",
-                                    "job_kwargs": {
-                                        "kwargs": {"recycle_bin_id": self.id}
-                                    },
-                                }
-                            ],
+                                "dependents": [
+                                    {
+                                        "queue": "core",
+                                        "task": "recycle_bin_update",
+                                        "job_kwargs": {
+                                            "kwargs": {"recycle_bin_id": self.id}
+                                        },
+                                    }
+                                ],
+                            }
+                        ],
+                    )
+                    self._add_task(
+                        {
+                            "id": task.id,
+                            "item_id": storage.id,
+                            "item_type": "storage",
+                            "status": task.status,
                         }
-                    ],
-                )
-                self._add_task(
-                    {
-                        "id": task.id,
-                        "item_id": storage.id,
-                        "item_type": "storage",
-                        "status": task.status,
-                    }
-                )
-                tasks.append(
-                    {"id": task.id, "storage_id": storage.id, "status": task.status}
-                )
+                    )
+                    tasks.append(
+                        {"id": task.id, "storage_id": storage.id, "status": task.status}
+                    )
         return tasks
 
     def deleteTemplatesDependencies(self):

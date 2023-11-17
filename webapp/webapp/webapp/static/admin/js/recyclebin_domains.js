@@ -318,6 +318,8 @@ $(document).ready(function () {
           if (!['deleted', 'restored', 'deleting'].includes(row.status) ) {
             return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button> \
                     <button id="btn-restore" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-undo" style="color:darkgreen"></i></button>'
+          } else if (row.status === 'deleting') {
+            return '<button id="btn-delete" class="btn btn-xs" type="button"  data-placement="top" ><i class="fa fa-times" style="color:darkred"></i></button>'
           }
         }
       },
