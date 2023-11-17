@@ -1,5 +1,5 @@
 rq~=1.14
-rethinkdb~=2.4
+rethinkdb==2.4.9
 requests~=2.30
 python-jose~=3.3
 cachetools~=5.3
