@@ -11,6 +11,8 @@ from rethinkdb import RethinkDB
 
 from api import app
 
+from ..libv2.api_desktop_events import desktop_stop, desktop_updating
+
 r = RethinkDB()
 import logging as log
 import time
@@ -128,13 +130,13 @@ class ApiMedia:
     def DeleteDesktops(self, media_id):
         for desktop in self.DesktopList(media_id):
             if desktop["status"] in ["Starting", "Started", "Shutting-down"]:
-                persistent.Stop(desktop["id"])
-        # If was left in Shutting-down and did not shut down, force it.
-        for desktop in self.DesktopList(media_id):
-            if desktop["status"] in ["Starting", "Started", "Shutting-down"]:
-                persistent.Stop(desktop["id"])
+                try:
+                    desktop_stop(desktop["id"], force=True, wait_seconds=30)
+                except:
+                    pass
 
         unassign_resource_from_desktops_and_deployments("media", {"id": media_id})
+        desktop_updating(desktop["id"])
 
     def count(self, user_id):
         return r.table("media").get_all(user_id, index="user").count().run(db.conn)
