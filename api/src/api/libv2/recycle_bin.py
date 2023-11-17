@@ -419,7 +419,7 @@ class RecycleBin(object):
             with app.app_context():
                 storages_status = (
                     r.table("storage")
-                    .get_all([storage["id"] for storage in self.storages])
+                    .get_all(r.args([storage["id"] for storage in self.storages]))
                     .pluck("status")["status"]
                     .run(db.conn)
                 )
