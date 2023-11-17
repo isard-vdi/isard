@@ -24,7 +24,8 @@ export const desktopStates = {
   working: 'working',
   'shutting-down': 'shutting-down',
   downloading: 'downloading',
-  paused: 'paused'
+  paused: 'paused',
+  updating: 'updating'
 }
 
 export const status = {
@@ -48,8 +49,8 @@ export const status = {
     variant: 'success'
   },
   failed: {
-    action: 'start',
-    icon: 'play'
+    action: 'updating',
+    icon: 'arrow-repeat'
   },
   'shutting-down': {
     action: 'stop',

@@ -204,6 +204,7 @@ export default {
       })
     },
     changeDesktopStatus (_, data) {
+      ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.retry-desktop'))
       axios.get(`${apiV3Segment}/desktop/${data.action}/${data.desktopId}`).then(response => {
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)

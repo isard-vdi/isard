@@ -598,7 +598,7 @@
                 },
                 "failed": {
                     "text": "Failed",
-                    "action": "Restart"
+                    "action": "Retry"
                 },
                 "started": {
                     "text": "Started",
@@ -948,7 +948,8 @@
             "wireguard-network-added": "The wireguard network was added since it's required to use RDP viewers",
             "wireguard-viewers-removed": "The RDP viewers were removed since the wireguard network is required",
             "wireguard-network-required": "Can't select RDP viewers since the wireguard network is required. Contact with the admin in order to use the wireguard network",
-            "deleting-template": "Deleting template"
+            "deleting-template": "Deleting template",
+            "retry-desktop": "Checking desktop status"
         },
         "loading": "Loading"
     },

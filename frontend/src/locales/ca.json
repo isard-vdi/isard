@@ -428,7 +428,7 @@
                 },
                 "failed": {
                     "text": "Fallat",
-                    "action": "Reiniciar"
+                    "action": "Reintentar"
                 },
                 "started": {
                     "text": "Iniciat",
@@ -1060,7 +1060,8 @@
             "wireguard-viewers-removed": "Els visors RDP s'han eliminat, atès que requereixen la xarxa wireguard",
             "wireguard-network-required": "No es poden seleccionar els visors RDP, atès que la xarxa Wireguard és requerida. Contacta amb l'administrador per poder fer servir la xarxa Wireguard",
             "image-uploaded": "Imatge penjada correctament",
-            "deleting-template": "Esborrant plantilla"
+            "deleting-template": "Esborrant plantilla",
+            "retry-desktop": "Comprovant l'estat del escriptori"
         },
         "loading": "Carregant"
     },

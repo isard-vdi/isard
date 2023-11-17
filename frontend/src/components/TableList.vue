@@ -527,7 +527,7 @@ export default {
         started: 'btn-red',
         waitingip: 'btn-red',
         error: 'btn-red',
-        failed: 'btn-red'
+        failed: 'btn-orange'
       }
       return stateColors[state]
     },

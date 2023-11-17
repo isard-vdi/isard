@@ -317,3 +317,8 @@ def desktops_non_persistent_delete(user_id, template=False):
             r.table("domains").get_all(user_id, index="user").filter(
                 {"from_template": template, "persistent": False}
             ).update({"status": "ForceDeleting"}).run(db.conn)
+
+
+def desktop_updating(desktop_id):
+    with app.app_context():
+        r.table("domains").get(desktop_id).update({"status": "Updating"}).run(db.conn)
