@@ -19,6 +19,7 @@
 
 import os
 
+from cachetools import TTLCache, cached
 from rq import Queue
 from rq.job import Dependency, Job, JobStatus
 
@@ -63,7 +64,7 @@ def global_status(tasks):
     ]
     for status in status_priority:
         for task in tasks:
-            if task.job.get_status() == status:
+            if task.job_status == status:
                 return status
     return "unknown"
 
@@ -176,6 +177,7 @@ class Task(RedisBase):
         return self.job.exc_info
 
     @property
+    @cached(TTLCache(maxsize=10, ttl=0.01))
     def dependencies(self):
         """
         Get a list of tasks that should be done before this Task.
@@ -186,6 +188,7 @@ class Task(RedisBase):
         return tasks_from_ids(self.job.meta.get("dependency_ids", []))
 
     @property
+    @cached(TTLCache(maxsize=10, ttl=0.01))
     def dependents(self):
         """
         List of tasks that should be done after this Task.
@@ -243,6 +246,12 @@ class Task(RedisBase):
         return False
 
     @property
+    @cached(TTLCache(maxsize=10, ttl=0.01))
+    def job_status(self):
+        """Cached Job status."""
+        return self.job.get_status()
+
+    @property
     def progress(self):
         """
         Get progress of task including the progress of jobs related by dependencies.
@@ -258,7 +267,7 @@ class Task(RedisBase):
             timeout = task.job.timeout if task.job.timeout else Queue.DEFAULT_TIMEOUT
             done += (
                 1
-                if task.job.get_status() == JobStatus.FINISHED
+                if task.job_status == JobStatus.FINISHED
                 else task.job.meta.get("progress", 0)
             ) * timeout
             todo += timeout
