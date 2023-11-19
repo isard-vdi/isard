@@ -599,7 +599,7 @@
                 },
                 "failed": {
                     "text": "Fallido",
-                    "action": "Restart"
+                    "action": "Reintentar"
                 },
                 "started": {
                     "text": "Iniciado",
@@ -963,7 +963,8 @@
             "wireguard-network-added": "Se ha añadido la red wireguard ya que es necesaria para los visores RDP",
             "wireguard-viewers-removed": "Los visores RDP se han eliminado ya que requieren la red wireguard",
             "wireguard-network-required": "No se pueden seleccionar visores RDP ya que la red wireguard es necesaria. Contacta con el administrador para utilizar la red wireguard",
-            "deleting-template": "Eliminando plantilla"
+            "deleting-template": "Eliminando plantilla",
+            "retry-desktop": "Comprobando el estado del escritorio"
         },
         "loading": "Cargando"
     },

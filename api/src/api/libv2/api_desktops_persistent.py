@@ -29,7 +29,7 @@ from rethinkdb import RethinkDB
 from api import app
 
 from ..libv2.validators import _validate_item, check_user_duplicated_domain_name
-from .api_desktop_events import desktop_start
+from .api_desktop_events import desktop_start, desktop_updating
 
 r = RethinkDB()
 
@@ -589,6 +589,10 @@ class ApiDesktopsPersistent:
 
     def Stop(self, desktop_id):
         desktop_stop(desktop_id)
+        return desktop_id
+
+    def Updating(self, desktop_id):
+        desktop_updating(desktop_id)
         return desktop_id
 
     def Reset(self, token, request):

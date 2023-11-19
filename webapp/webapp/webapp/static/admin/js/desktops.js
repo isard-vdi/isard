@@ -922,6 +922,25 @@ $(document).ready(function() {
             case 'btn-alloweds':
                 modalAllowedsFormShow('domains',data)
                 break;
+            case 'btn-update':
+                $.ajax({
+                    type: "GET",
+                    url: '/api/v3/desktop/updating/' + data["id"],
+                    contentType: "application/json",
+                    cache: false,
+                    error: function(data) {
+                        new PNotify({
+                            title: 'ERROR updating desktop status',
+                            text: data.responseJSON.description,
+                            type: 'error',
+                            hide: true,
+                            icon: 'fa fa-warning',
+                            delay: 5000,
+                            opacity: 1
+                        })
+                    },
+                })
+                break;
         }
     });
 
@@ -1762,8 +1781,11 @@ function renderHypStarted(data){
 
 function renderAction(data){
     var status=data.status;
-    if(status=='Stopped' || status=='Failed'){
+    if(status=='Stopped'){
         return '<button type="button" id="btn-play" class="btn btn-pill-right btn-success btn-xs"><i class="fa fa-play"></i> Start</button>';
+    }
+    if(status=='Failed'){
+        return '<button type="button" id="btn-update" class="btn btn-pill btn-warning btn-xs"><i class="fa fa-refresh"></i> Retry</button>'
     }
     if(status=='Started' || status=='Paused'){
         return '<button type="button" id="btn-stop" class="btn btn-pill-left btn-danger btn-xs"><i class="fa fa-stop"></i> Stop</button>';

@@ -347,7 +347,7 @@ export default {
         'shutting-down': 'btn-red',
         started: 'btn-red',
         waitingip: 'btn-red',
-        failed: 'btn-red',
+        failed: 'btn-orange',
         paused: 'btn-red'
       }
       return stateColors[this.desktopState]
