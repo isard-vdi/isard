@@ -146,19 +146,18 @@ def mv_rsync_with_ssh(
     src_path, dst_path, hostname="isard-hypervisor", user="root", port=22, bwlimit=""
 ):
     cmd = create_rsync_cmd(src_path, dst_path, bwlimit=bwlimit)
-    ssh_template = (
-        """ssh -oBatchMode=yes -p {port} {user}@{hostname} """
-        f""" "ls -lh {src_path}; rm -f /isard/random_10MB_copy; """ + cmd + '"'
-    )
-
-    ssh_command = ssh_template.format(
-        port=port, user=user, hostname=hostname, src_path=src_path, dst_path=dst_path
-    )
+    ssh_command = [
+        "ssh",
+        "-oBatchMode=yes",
+        "-p",
+        port,
+        f"{user}@{hostname}",
+        f"ls -lh {src_path}; rm -f /isard/random_10MB_copy; {cmd}",
+    ]
     print(ssh_command)
 
     p = subprocess.Popen(
         ssh_command,
-        shell=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         preexec_fn=os.setsid,

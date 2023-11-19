@@ -184,10 +184,16 @@ class DownloadThread(threading.Thread, object):
                 )
                 path_dir = dirname(self.path)
 
-                ssh_command = (
-                    f'ssh -oBatchMode=yes -p {self.port} {self.user}@{self.hostname} /bin/bash -c "'
-                    f"mkdir -p '{path_dir}' ; {cmds_google}; \""
-                )
+                ssh_command = [
+                    "ssh",
+                    "-oBatchMode=yes",
+                    "-p",
+                    self.port,
+                    f"{self.user}@{self.hostname}",
+                    "/bin/bash",
+                    "-c",
+                    f"mkdir -p '{path_dir}'; {cmds_google}",
+                ]
             else:
                 logs.downloads.error(
                     f"URL check failed for url from google drive: {self.url}"
@@ -221,29 +227,25 @@ class DownloadThread(threading.Thread, object):
 
             curl_template = "curl {insecure_option} -L -o '{path}' {headers} '{url}'"
 
-            ssh_template = (
-                """ssh -oBatchMode=yes -p {port} {user}@{hostname} """
-                """ "mkdir -p '{path_dir}'; """ + curl_template + '"'
-            )
-
-            logs.downloads.debug(ssh_template)
-
-            ssh_command = ssh_template.format(
-                port=self.port,
-                user=self.user,
-                hostname=self.hostname,
+            curl_command = curl_template.format(
                 path=self.path,
-                path_dir=dirname(self.path),
                 headers=headers,
                 url=self.url,
                 insecure_option=insecure_option,
             )
+            ssh_command = [
+                "ssh",
+                "-oBatchMode=yes",
+                "-p",
+                self.port,
+                f"{self.user}@{self.hostname}",
+                f"mkdir -p '{dirname(self.path)}'; {curl_command}",
+            ]
 
         logs.downloads.debug("SSH COMMAND: {}".format(ssh_command))
 
         p = subprocess.Popen(
             ssh_command,
-            shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             preexec_fn=os.setsid,
@@ -289,12 +291,13 @@ class DownloadThread(threading.Thread, object):
                     curl_cmd = curl_cmd.replace("'", "")
                     curl_cmd = curl_cmd.replace("  ", " ")
 
-                    ssh_cmd_kill_curl = """ssh -p {port} {user}@{hostname} "pkill -f \\"^{curl_cmd}\\" " """.format(
-                        port=self.port,
-                        user=self.user,
-                        hostname=self.hostname,
-                        curl_cmd=curl_cmd,
-                    )
+                    ssh_cmd_kill_curl = [
+                        "ssh",
+                        "-p",
+                        self.port,
+                        f"{self.user}@{self.hostname}",
+                        f'pkill -f "^{curl_cmd}"',
+                    ]
 
                     logs.downloads.info(
                         "download {} aborted, ready to send ssh kill to curl in hypervisor {}".format(
@@ -303,7 +306,7 @@ class DownloadThread(threading.Thread, object):
                     )
 
                     # destroy curl in hypervisor
-                    p_kill_curl = subprocess.Popen(ssh_cmd_kill_curl, shell=True)
+                    p_kill_curl = subprocess.Popen(ssh_cmd_kill_curl)
                     p_kill_curl.wait(timeout=5)
                     # destroy ssh command
                     try:
