@@ -76,14 +76,13 @@ export default {
     setItemsInRecycleBin: (state, itemsInRecycleBin) => {
       state.itemsInRecycleBin = itemsInRecycleBin
     },
-    addRecycleBinsItem: (state, recycleBin) => {
-      state.recycleBins = [...state.recycleBins, recycleBin]
-      state.itemsInRecycleBin = state.itemsInRecycleBin + 1
-    },
-    updateRecycleBinsItem: (state, recycleBin) => {
+    insertUpdateRecycleBinsItem: (state, recycleBin) => {
       const item = state.recycleBins.find(d => d.id === recycleBin.id)
       if (item) {
         Object.assign(item, recycleBin)
+      } else {
+        state.recycleBins = [...state.recycleBins, recycleBin]
+        state.itemsInRecycleBin = state.itemsInRecycleBin + 1
       }
     },
     removeRecycleBinsItem: (state, recycleBinsListItem) => {
@@ -97,14 +96,14 @@ export default {
   actions: {
     socket_addRecycleBin (context, data) {
       const recycleBinsListItem = RecycleBinUtils.parseRecycleBinListItem(data)
-      context.commit('addRecycleBinsItem', recycleBinsListItem)
+      context.commit('insertUpdateRecycleBinsItem', recycleBinsListItem)
     },
     socket_updateRecycleBin (context, data) {
       const recycleBinsListItem = RecycleBinUtils.parseRecycleBinListItem(data)
       if (['restored', 'deleting', 'deleted'].includes(data.status)) {
         context.commit('removeRecycleBinsItem', recycleBinsListItem)
       } else {
-        context.commit('updateRecycleBinsItem', recycleBinsListItem)
+        context.commit('insertUpdateRecycleBinsItem', recycleBinsListItem)
       }
     },
     socket_deleteRecycleBin (context, data) {

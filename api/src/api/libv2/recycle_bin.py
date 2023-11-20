@@ -159,8 +159,6 @@ class RecycleBin(object):
                     .run(db.conn)["changes"][0]["new_val"]["id"]
                 )
             self._add_log("recycled")
-            self.send_socket_user("add_recycle_bin", self.get_count())
-            self.send_socket_admin("add_recycle_bin", self.get_count())
 
         else:
             with app.app_context():
@@ -197,6 +195,8 @@ class RecycleBin(object):
         self.owner_group_name = user["group_name"]
         self.owner_role = user["role"]
         self.is_new = False
+        self.send_socket_user("add_recycle_bin", self.get_count())
+        self.send_socket_admin("add_recycle_bin", self.get_count())
 
     def _add_log(self, status):
         """
@@ -511,6 +511,11 @@ class RecycleBin(object):
                 dependencies = list(
                     r.table("recycle_bin")
                     .get_all(template["id"], index="parents")
+                    .filter(
+                        lambda rb: r.expr(["recycled", "deleting"]).contains(
+                            rb["status"]
+                        )
+                    )
                     .filter(lambda rb: rb["id"].ne(self.id))
                     .pluck("id")["id"]
                     .run(db.conn)
