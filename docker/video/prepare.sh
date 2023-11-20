@@ -19,6 +19,5 @@ then
   mkdir -p /usr/local/etc/haproxy/lists/external
   touch /usr/local/etc/haproxy/lists/black.lst
   touch /usr/local/etc/haproxy/lists/white.lst
-  touch /usr/local/etc/haproxy/lists/external/ipsum.block
-  touch /usr/local/etc/haproxy/lists/external/spamhaus.block
+  touch /usr/local/etc/haproxy/lists/external/black.lst
 fi
