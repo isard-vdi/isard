@@ -1,6 +1,13 @@
-FROM grafana/grafana-oss:9.4.3
+FROM grafana/grafana-oss:9.4.3 AS works
+
+FROM grafana/grafana-oss:9.4.17
 
 USER root
+
+RUN rm -rf /usr/share/grafana/bin /usr/share/grafana/public
+
+COPY --from=works /usr/share/grafana/bin /usr/share/grafana/bin
+COPY --from=works /usr/share/grafana/public /usr/share/grafana/public
 
 RUN apk add --no-cache \
     curl
