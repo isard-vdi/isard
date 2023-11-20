@@ -127,7 +127,7 @@ def get_reset_dates(start_date=None, end_date=None):
         with app.app_context():
             within = list(
                 r.table("usage_reset_dates")
-                .filter((r.row["date"] <= end_date) & (r.row["date"] >= start_date))
+                .filter((r.row["date"] <= end_date))
                 .order_by(r.desc("date"))["date"]
                 .run(db.conn)
             )
