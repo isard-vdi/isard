@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -17,13 +18,18 @@ func (c *Client) AuthForm(ctx context.Context, category, usr, pwd string) (strin
 		"provider":    "form",
 		"category_id": category,
 		"username":    usr,
-		"password":    pwd,
 	})
 	if err != nil {
 		return "", err
 	}
 
-	req, err := c.newRequest(http.MethodPost, u, nil)
+	body := url.Values{}
+	body.Add("provider", "form")
+	body.Add("category_id", category)
+	body.Add("username", usr)
+	body.Add("password", pwd)
+
+	req, err := c.newRequest(http.MethodPost, u, body)
 	if err != nil {
 		return "", err
 	}
