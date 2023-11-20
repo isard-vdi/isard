@@ -1,12 +1,9 @@
 package isardvdi
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 )
 
@@ -202,18 +199,10 @@ type DesktopUpdateOptions struct {
 }
 
 func (c *Client) DesktopUpdate(ctx context.Context, id string, opts DesktopUpdateOptions) error {
-	b, err := json.Marshal(opts)
+	req, err := c.newJSONRequest(http.MethodPut, fmt.Sprintf("domain/%s", id), opts)
 	if err != nil {
 		return err
 	}
-
-	req, err := c.newRequest(http.MethodPut, fmt.Sprintf("desktop/%s", id), nil)
-	if err != nil {
-		return err
-	}
-
-	req.Body = io.NopCloser(bytes.NewBuffer(b))
-	req.Header.Set("Content-Type", "application/json")
 
 	if _, err := c.do(ctx, req, nil); err != nil {
 		return fmt.Errorf("update desktop: %w", err)
