@@ -177,9 +177,10 @@ class DownloadThread(threading.Thread, object):
                 confirm = ok
 
                 cookie_file = "./cookie_download_" + str(uuid.uuid4())
+                curl_cmd = f"curl -Lb {cookie_file} 'https://drive.google.com/uc?export=download&{confirm}&id={file_google_drive_id}' -o {self.path}"
                 cmds_google = (
                     f"""curl -c {cookie_file} -s -L '{url_download}' ; """
-                    f"""curl -Lb {cookie_file} 'https://drive.google.com/uc?export=download&{confirm}&id={file_google_drive_id}' -o {self.path} ; """
+                    f"{curl_cmd};"
                     f"""rm -f {cookie_file}"""
                 )
                 path_dir = dirname(self.path)
@@ -225,13 +226,8 @@ class DownloadThread(threading.Thread, object):
                 )
                 return False
 
-            curl_template = "curl {insecure_option} -L -o '{path}' {headers} '{url}'"
-
-            curl_command = curl_template.format(
-                path=self.path,
-                headers=headers,
-                url=self.url,
-                insecure_option=insecure_option,
+            curl_cmd = (
+                f"curl {insecure_option} -L -o '{self.path}' {headers} '{self.url}'"
             )
             ssh_command = [
                 "ssh",
@@ -239,7 +235,7 @@ class DownloadThread(threading.Thread, object):
                 "-p",
                 self.port,
                 f"{self.user}@{self.hostname}",
-                f"mkdir -p '{dirname(self.path)}'; {curl_command}",
+                f"mkdir -p '{dirname(self.path)}'; {curl_cmd}",
             ]
 
         logs.downloads.debug("SSH COMMAND: {}".format(ssh_command))
@@ -281,12 +277,6 @@ class DownloadThread(threading.Thread, object):
             while rc is None:
                 c = p.stderr.read(1).decode("utf8")
                 if self.stop is True:
-                    curl_cmd = curl_template.format(
-                        path=self.path,
-                        headers=headers,
-                        url=self.url,
-                        insecure_option=insecure_option,
-                    )
                     # for pkill curl order is cleaned
                     curl_cmd = curl_cmd.replace("'", "")
                     curl_cmd = curl_cmd.replace("  ", " ")
@@ -296,7 +286,7 @@ class DownloadThread(threading.Thread, object):
                         "-p",
                         self.port,
                         f"{self.user}@{self.hostname}",
-                        f'pkill -f "^{curl_cmd}"',
+                        f'pkill -f "^{re.escape(curl_cmd)}"',
                     ]
 
                     logs.downloads.info(
