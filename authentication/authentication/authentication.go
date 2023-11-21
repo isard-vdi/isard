@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"gitlab.com/isard/isardvdi/authentication/authentication/provider"
+	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/pkg/db"
@@ -104,12 +105,12 @@ type apiRegisterUserRsp struct {
 
 // TODO: Make this use the isardvdi-go-sdk and the pkg/jwt package
 func (a *Authentication) registerUser(u *model.User) error {
-	tkn, err := a.signRegisterToken(u)
+	tkn, err := token.SignRegisterToken(a.Secret, a.Duration, u)
 	if err != nil {
 		return err
 	}
 
-	login, err := a.signLoginToken(u)
+	login, err := token.SignLoginToken(a.Secret, a.Duration, u)
 	if err != nil {
 		return err
 	}
@@ -156,7 +157,7 @@ func (a *Authentication) registerGroup(g *model.Group) error {
 		return fmt.Errorf("load the admin user from the DB: %w", err)
 	}
 
-	tkn, err := a.signLoginToken(u)
+	tkn, err := token.SignLoginToken(a.Secret, a.Duration, u)
 	if err != nil {
 		return fmt.Errorf("sign the admin token to register the group: %w", err)
 	}
@@ -185,50 +186,50 @@ func (a *Authentication) registerGroup(g *model.Group) error {
 func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args map[string]string) (string, string, error) {
 	// Check if the user sends a token
 	if args[provider.TokenArgsKey] != "" {
-		tkn, tknType, err := a.verifyToken(args[provider.TokenArgsKey])
-		if err != nil {
-			return "", "", fmt.Errorf("verify the JWT token: %w", err)
-		}
+		tkn, tknType, err := token.VerifyToken(a.DB, a.Secret, args[provider.TokenArgsKey])
+		if err == nil {
+			switch tknType {
+			case token.TypeRegister:
+				register := tkn.Claims.(*token.RegisterClaims)
 
-		switch tknType {
-		case tokenTypeRegister:
-			register := tkn.Claims.(*RegisterClaims)
+				u := &model.User{
+					Provider: register.Provider,
+					Category: register.CategoryID,
+					UID:      register.UserID,
+				}
+				if err := u.LoadWithoutID(ctx, a.DB); err != nil {
+					if errors.Is(err, db.ErrNotFound) {
+						return "", "", errors.New("user not registered")
+					}
 
-			u := &model.User{
-				Provider: register.Provider,
-				Category: register.CategoryID,
-				UID:      register.UserID,
-			}
-			if err := u.LoadWithoutID(ctx, a.DB); err != nil {
-				if errors.Is(err, db.ErrNotFound) {
-					return "", "", errors.New("user not registered")
+					return "", "", fmt.Errorf("load user from db: %w", err)
 				}
 
-				return "", "", fmt.Errorf("load user from db: %w", err)
+				ss, err := token.SignLoginToken(a.Secret, a.Duration, u)
+				if err != nil {
+					return "", "", err
+				}
+
+				a.Log.Info().Str("usr", u.ID).Str("tkn", ss).Msg("register succeeded")
+
+				return ss, args[provider.RedirectArgsKey], nil
+
+			case token.TypeExternal:
+				claims := tkn.Claims.(*token.ExternalClaims)
+
+				args["category_id"] = claims.CategoryID
+				args["external_app_id"] = claims.KeyID
+				args["external_group_id"] = claims.GroupID
+				args["user_id"] = claims.UserID
+				args["username"] = claims.Username
+				args["kid"] = claims.KeyID
+				args["role"] = claims.Role
+				args["name"] = claims.Name
+				args["email"] = claims.Email
+				args["photo"] = claims.Photo
 			}
-
-			ss, err := a.signLoginToken(u)
-			if err != nil {
-				return "", "", err
-			}
-
-			a.Log.Info().Str("usr", u.ID).Str("tkn", ss).Msg("register succeeded")
-
-			return ss, args[provider.RedirectArgsKey], nil
-
-		case tokenTypeExternal:
-			claims := tkn.Claims.(*ExternalClaims)
-
-			args["category_id"] = claims.CategoryID
-			args["external_app_id"] = claims.KeyID
-			args["external_group_id"] = claims.GroupID
-			args["user_id"] = claims.UserID
-			args["username"] = claims.Username
-			args["kid"] = claims.KeyID
-			args["role"] = claims.Role
-			args["name"] = claims.Name
-			args["email"] = claims.Email
-			args["photo"] = claims.Photo
+		} else {
+			return "", "", fmt.Errorf("verify the JWT token: %w", err)
 		}
 
 	} else {
@@ -261,7 +262,7 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 		// Manual registration
 		if !p.AutoRegister() {
 			// If the user has logged in correctly, but doesn't exist in the DB, they have to register first!
-			ss, err := a.signRegisterToken(u)
+			ss, err := token.SignRegisterToken(a.Secret, a.Duration, u)
 
 			a.Log.Info().Err(err).Str("usr", u.UID).Str("tkn", ss).Msg("register token signed")
 
@@ -308,7 +309,7 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 
 	normalizeIdentity(g, u)
 
-	ss, err := a.signLoginToken(u)
+	ss, err := token.SignLoginToken(a.Secret, a.Duration, u)
 	if err != nil {
 		return "", "", err
 	}
@@ -328,7 +329,7 @@ func (a *Authentication) Callback(ctx context.Context, args map[string]string) (
 		return "", "", errors.New("callback state not provided")
 	}
 
-	tkn, err := a.parseAuthenticationToken(ss, &provider.CallbackClaims{})
+	tkn, err := token.ParseAuthenticationToken(a.Secret, ss, &provider.CallbackClaims{})
 	if err != nil {
 		return "", "", fmt.Errorf("parse callback state: %w", err)
 	}
@@ -373,7 +374,7 @@ func (a *Authentication) Callback(ctx context.Context, args map[string]string) (
 
 		normalizeIdentity(nil, u)
 
-		ss, err = a.signLoginToken(u)
+		ss, err = token.SignLoginToken(a.Secret, a.Duration, u)
 		if err != nil {
 			return "", "", err
 		}
@@ -386,7 +387,7 @@ func (a *Authentication) Callback(ctx context.Context, args map[string]string) (
 		a.Log.Info().Str("usr", u.ID).Str("tkn", ss).Str("redirect", logRedirect).Msg("login succeeded")
 
 	} else {
-		ss, err = a.signRegisterToken(u)
+		ss, err = token.SignRegisterToken(a.Secret, a.Duration, u)
 		if err != nil {
 			return "", "", err
 		}
@@ -402,12 +403,12 @@ func (a *Authentication) Callback(ctx context.Context, args map[string]string) (
 }
 
 func (a *Authentication) Check(ctx context.Context, ss string) error {
-	tkn, err := a.parseAuthenticationToken(ss, &LoginClaims{})
+	tkn, err := token.ParseAuthenticationToken(a.Secret, ss, &token.LoginClaims{})
 	if err != nil {
 		return err
 	}
 
-	_, ok := tkn.Claims.(*LoginClaims)
+	_, ok := tkn.Claims.(*token.LoginClaims)
 	if !ok {
 		return errors.New("unknown JWT claims format")
 	}
