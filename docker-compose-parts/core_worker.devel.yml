@@ -22,3 +22,4 @@ services:
     volumes:
     - ${BUILD_ROOT_PATH}/component/core_worker/src:/opt/isardvdi/isardvdi_core_worker
     - ${BUILD_ROOT_PATH}/component/_common/src:/opt/isardvdi/isardvdi_common
+    - ${BUILD_ROOT_PATH}/pkg/gen/proto/python:/opt/isardvdi/isardvdi_protobuf
