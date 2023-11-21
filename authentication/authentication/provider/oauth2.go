@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"gitlab.com/isard/isardvdi/authentication/authentication/token"
+
 	"golang.org/x/oauth2"
 )
 
@@ -14,7 +16,7 @@ type oauth2Provider struct {
 }
 
 func (o *oauth2Provider) login(categoryID, redirect string) (string, error) {
-	ss, err := signCallbackToken(o.secret, o.provider, categoryID, redirect)
+	ss, err := token.SignCallbackToken(o.secret, o.provider, categoryID, redirect)
 	if err != nil {
 		return "", err
 	}

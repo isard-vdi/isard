@@ -2,10 +2,8 @@ package authentication
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"time"
 
 	"gitlab.com/isard/isardvdi/authentication/authentication/provider"
@@ -16,7 +14,6 @@ import (
 
 	"github.com/crewjam/saml/samlsp"
 	"github.com/rs/zerolog"
-	"gitlab.com/isard/isardvdi-sdk-go"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
@@ -25,9 +22,14 @@ const adminUsr = "local-default-admin-admin"
 type Interface interface {
 	Providers() []string
 	Provider(provider string) provider.Provider
+
 	Login(ctx context.Context, provider string, categoryID string, args map[string]string) (tkn, redirect string, err error)
 	Callback(ctx context.Context, args map[string]string) (tkn, redirect string, err error)
 	Check(ctx context.Context, tkn string) error
+
+	RequestEmailValidation(ctx context.Context, tkn string, email string) error
+	ValidateEmail(ctx context.Context, tkn string) error
+
 	SAML() *samlsp.Middleware
 	// Refresh()
 	// Register()
@@ -99,137 +101,53 @@ func (a *Authentication) Provider(p string) provider.Provider {
 	return prv
 }
 
-type apiRegisterUserRsp struct {
-	ID string `json:"id"`
-}
-
-// TODO: Make this use the isardvdi-go-sdk and the pkg/jwt package
-func (a *Authentication) registerUser(u *model.User) error {
-	tkn, err := token.SignRegisterToken(a.Secret, a.Duration, u)
-	if err != nil {
-		return err
-	}
-
-	login, err := token.SignLoginToken(a.Secret, a.Duration, u)
-	if err != nil {
-		return err
-	}
-
-	req, err := http.NewRequest(http.MethodPost, "http://isard-api:5000/api/v3/user/auto-register", nil)
-	if err != nil {
-		return fmt.Errorf("create http request: %w", err)
-	}
-
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", tkn))
-	req.Header.Set("Login-Claims", fmt.Sprintf("Bearer %s", login))
-
-	rsp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("do http request: %w", err)
-	}
-
-	if rsp.StatusCode != 200 {
-		return fmt.Errorf("http code not 200: %d", rsp.StatusCode)
-	}
-
-	r := &apiRegisterUserRsp{}
-	defer rsp.Body.Close()
-	if err := json.NewDecoder(rsp.Body).Decode(r); err != nil {
-		return fmt.Errorf("parse auto register JSON response: %w", err)
-	}
-	u.ID = r.ID
-	u.Active = true
-
-	return nil
-}
-
-// TODO: Make this use the pkg/jwt package
-func (a *Authentication) registerGroup(g *model.Group) error {
-	cli, err := isardvdi.NewClient(&isardvdi.Cfg{
-		Host: "http://isard-api:5000",
-	})
-	if err != nil {
-		return fmt.Errorf("create API client: %w", err)
-	}
-
-	u := &model.User{ID: adminUsr}
-	if err := u.Load(context.Background(), a.DB); err != nil {
-		return fmt.Errorf("load the admin user from the DB: %w", err)
-	}
-
-	tkn, err := token.SignLoginToken(a.Secret, a.Duration, u)
-	if err != nil {
-		return fmt.Errorf("sign the admin token to register the group: %w", err)
-	}
-	cli.Token = tkn
-
-	grp, err := cli.AdminGroupCreate(
-		context.Background(),
-		g.Category,
-		// TODO: When UUIDs arrive, this g.Name has to be removed and the dependency has to be updated to v0.14.1
-		g.Name,
-		g.Name,
-		g.Description,
-		g.ExternalAppID,
-		g.ExternalGID,
-	)
-	if err != nil {
-		return fmt.Errorf("register the group: %w", err)
-	}
-
-	g.ID = isardvdi.GetString(grp.ID)
-	g.UID = isardvdi.GetString(grp.UID)
-
-	return nil
-}
-
 func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args map[string]string) (string, string, error) {
 	// Check if the user sends a token
 	if args[provider.TokenArgsKey] != "" {
 		tkn, tknType, err := token.VerifyToken(a.DB, a.Secret, args[provider.TokenArgsKey])
-		if err == nil {
-			switch tknType {
-			case token.TypeRegister:
-				register := tkn.Claims.(*token.RegisterClaims)
-
-				u := &model.User{
-					Provider: register.Provider,
-					Category: register.CategoryID,
-					UID:      register.UserID,
-				}
-				if err := u.LoadWithoutID(ctx, a.DB); err != nil {
-					if errors.Is(err, db.ErrNotFound) {
-						return "", "", errors.New("user not registered")
-					}
-
-					return "", "", fmt.Errorf("load user from db: %w", err)
-				}
-
-				ss, err := token.SignLoginToken(a.Secret, a.Duration, u)
-				if err != nil {
-					return "", "", err
-				}
-
-				a.Log.Info().Str("usr", u.ID).Str("tkn", ss).Msg("register succeeded")
-
-				return ss, args[provider.RedirectArgsKey], nil
-
-			case token.TypeExternal:
-				claims := tkn.Claims.(*token.ExternalClaims)
-
-				args["category_id"] = claims.CategoryID
-				args["external_app_id"] = claims.KeyID
-				args["external_group_id"] = claims.GroupID
-				args["user_id"] = claims.UserID
-				args["username"] = claims.Username
-				args["kid"] = claims.KeyID
-				args["role"] = claims.Role
-				args["name"] = claims.Name
-				args["email"] = claims.Email
-				args["photo"] = claims.Photo
-			}
-		} else {
+		if err != nil {
 			return "", "", fmt.Errorf("verify the JWT token: %w", err)
+		}
+
+		switch tknType {
+		case token.TypeRegister:
+			register := tkn.Claims.(*token.RegisterClaims)
+
+			u := &model.User{
+				Provider: register.Provider,
+				Category: register.CategoryID,
+				UID:      register.UserID,
+			}
+			if err := u.LoadWithoutID(ctx, a.DB); err != nil {
+				if errors.Is(err, db.ErrNotFound) {
+					return "", "", errors.New("user not registered")
+				}
+
+				return "", "", fmt.Errorf("load user from db: %w", err)
+			}
+
+			ss, err := token.SignLoginToken(a.Secret, a.Duration, u)
+			if err != nil {
+				return "", "", err
+			}
+
+			a.Log.Info().Str("usr", u.ID).Str("tkn", ss).Msg("register succeeded")
+
+			return ss, args[provider.RedirectArgsKey], nil
+
+		case token.TypeExternal:
+			claims := tkn.Claims.(*token.ExternalClaims)
+
+			args["category_id"] = claims.CategoryID
+			args["external_app_id"] = claims.KeyID
+			args["external_group_id"] = claims.GroupID
+			args["user_id"] = claims.UserID
+			args["username"] = claims.Username
+			args["kid"] = claims.KeyID
+			args["role"] = claims.Role
+			args["name"] = claims.Name
+			args["email"] = claims.Email
+			args["photo"] = claims.Photo
 		}
 
 	} else {
@@ -290,10 +208,67 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 		}
 	}
 
+	return a.finishLogin(ctx, u, args[provider.RedirectArgsKey])
+}
+
+func (a *Authentication) Callback(ctx context.Context, args map[string]string) (string, string, error) {
+	ss := args["state"]
+	if ss == "" {
+		return "", "", errors.New("callback state not provided")
+	}
+
+	tkn, err := token.ParseAuthenticationToken(a.Secret, ss, &token.CallbackClaims{})
+	if err != nil {
+		return "", "", fmt.Errorf("parse callback state: %w", err)
+	}
+
+	claims, ok := tkn.Claims.(*token.CallbackClaims)
+	if !ok {
+		return "", "", errors.New("unknown callback state claims format")
+	}
+
+	p := a.Provider(claims.Provider)
+
+	// TODO: Add autoregister for more providers?
+	_, u, redirect, err := p.Callback(ctx, claims, args)
+	if err != nil {
+		return "", "", fmt.Errorf("callback: %w", err)
+	}
+
+	exists, err := u.Exists(ctx, a.DB)
+	if err != nil {
+		return "", "", fmt.Errorf("check if user exists: %w", err)
+	}
+
+	if redirect == "" {
+		redirect = claims.Redirect
+	}
+
+	if !exists {
+		ss, err = token.SignRegisterToken(a.Secret, a.Duration, u)
+		if err != nil {
+			return "", "", err
+		}
+
+		a.Log.Info().Str("usr", u.UID).Str("tkn", ss).Msg("register token signed")
+
+		return ss, redirect, nil
+	}
+
+	return a.finishLogin(ctx, u, redirect)
+}
+
+func (a *Authentication) finishLogin(ctx context.Context, u *model.User, redirect string) (string, string, error) {
 	// Check if the user is disabled
 	if !u.Active {
 		return "", "", provider.ErrUserDisabled
 	}
+
+	// // Check if the user has the email verified
+	// const validateEmail = true // TODO: This needs to be at the cfg
+	// if validateEmail && !u.EmailVerified {
+	// 	token.SignCallbackToken(secret string, prv string, cat string, redirect string)
+	// }
 
 	u.Accessed = float64(time.Now().Unix())
 
@@ -307,97 +282,14 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 		return "", "", fmt.Errorf("update user in the DB: %w", err)
 	}
 
-	normalizeIdentity(g, u)
+	normalizeIdentity(nil, u)
 
 	ss, err := token.SignLoginToken(a.Secret, a.Duration, u)
 	if err != nil {
 		return "", "", err
 	}
 
-	if redirect == "" {
-		redirect = args[provider.RedirectArgsKey]
-	}
-
 	a.Log.Info().Str("usr", u.ID).Str("tkn", ss).Str("redirect", redirect).Msg("login succeeded")
-
-	return ss, redirect, nil
-}
-
-func (a *Authentication) Callback(ctx context.Context, args map[string]string) (string, string, error) {
-	ss := args["state"]
-	if ss == "" {
-		return "", "", errors.New("callback state not provided")
-	}
-
-	tkn, err := token.ParseAuthenticationToken(a.Secret, ss, &provider.CallbackClaims{})
-	if err != nil {
-		return "", "", fmt.Errorf("parse callback state: %w", err)
-	}
-
-	claims, ok := tkn.Claims.(*provider.CallbackClaims)
-	if !ok {
-		return "", "", errors.New("unknown callback state claims format")
-	}
-
-	p := a.Provider(claims.Provider)
-
-	// TODO: Add autoregister for more providers?
-	_, u, redirect, err := p.Callback(ctx, claims, args)
-	if err != nil {
-		return "", "", fmt.Errorf("callback: %w", err)
-	}
-
-	normalizeIdentity(nil, u)
-
-	exists, err := u.Exists(ctx, a.DB)
-	if err != nil {
-		return "", "", fmt.Errorf("check if user exists: %w", err)
-	}
-
-	if exists {
-		// Check if the user is disabled
-		if !u.Active {
-			return "", "", provider.ErrUserDisabled
-		}
-
-		u.Accessed = float64(time.Now().Unix())
-
-		u2 := &model.User{ID: u.ID}
-		if err := u2.Load(ctx, a.DB); err != nil {
-			return "", "", fmt.Errorf("load user from DB: %w", err)
-		}
-
-		u.LoadWithoutOverride(u2)
-		if err := u.Update(ctx, a.DB); err != nil {
-			return "", "", fmt.Errorf("update user in the DB: %w", err)
-		}
-
-		normalizeIdentity(nil, u)
-
-		ss, err = token.SignLoginToken(a.Secret, a.Duration, u)
-		if err != nil {
-			return "", "", err
-		}
-
-		logRedirect := redirect
-		if logRedirect == "" {
-			logRedirect = claims.Redirect
-		}
-
-		a.Log.Info().Str("usr", u.ID).Str("tkn", ss).Str("redirect", logRedirect).Msg("login succeeded")
-
-	} else {
-		ss, err = token.SignRegisterToken(a.Secret, a.Duration, u)
-		if err != nil {
-			return "", "", err
-		}
-
-		a.Log.Info().Err(err).Str("usr", u.UID).Str("tkn", ss).Msg("register token signed")
-	}
-
-	if redirect == "" {
-		redirect = claims.Redirect
-	}
 
 	return ss, redirect, nil
 }

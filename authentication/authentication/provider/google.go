@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/authentication/model"
 
@@ -49,7 +50,7 @@ func (g *Google) Login(ctx context.Context, categoryID string, args map[string]s
 	return nil, nil, redirect, nil
 }
 
-func (g *Google) Callback(ctx context.Context, claims *CallbackClaims, args map[string]string) (*model.Group, *model.User, string, error) {
+func (g *Google) Callback(ctx context.Context, claims *token.CallbackClaims, args map[string]string) (*model.Group, *model.User, string, error) {
 	oTkn, err := g.provider.callback(ctx, args)
 	if err != nil {
 		return nil, nil, "", err

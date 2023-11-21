@@ -1,6 +1,7 @@
 package token
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/golang-jwt/jwt"
@@ -12,6 +13,7 @@ type Type string
 const (
 	TypeUnknown                 Type = "unknown"
 	TypeLogin                   Type = "login"
+	TypeCallback                Type = "callback"
 	TypeRegister                Type = "register"
 	TypeExternal                Type = "external"
 	TypeEmailValidationRequired Type = "email-validation-required"
@@ -20,7 +22,8 @@ const (
 
 type typeClaims struct {
 	*jwt.StandardClaims
-	Type Type
+	KeyID string `json:"kid"`
+	Type  Type   `json:"type"`
 }
 
 type LoginClaims struct {
@@ -38,10 +41,15 @@ type LoginClaimsData struct {
 	Name       string `json:"name"`
 }
 
+type CallbackClaims struct {
+	typeClaims
+	Provider   string `json:"provider"`
+	CategoryID string `json:"category_id"`
+	Redirect   string `json:"redirect"`
+}
+
 type RegisterClaims struct {
-	*jwt.StandardClaims
-	KeyID      string `json:"kid"`
-	Type       string `json:"type"`
+	typeClaims
 	Provider   string `json:"provider"`
 	UserID     string `json:"user_id"`
 	Username   string `json:"username"`
@@ -52,9 +60,7 @@ type RegisterClaims struct {
 }
 
 type ExternalClaims struct {
-	*jwt.StandardClaims
-	KeyID    string `json:"kid"`
-	Type     string `json:"type"`
+	typeClaims
 	UserID   string `json:"user_id"`
 	GroupID  string `json:"group_id"`
 	Role     string `json:"role"`
@@ -67,16 +73,12 @@ type ExternalClaims struct {
 }
 
 type EmailValidationRequiredClaims struct {
-	*jwt.StandardClaims
-	KeyID  string `json:"kid"`
-	Type   string `json:"type"`
+	typeClaims
 	UserID string `json:"user_id"`
 }
 
 type EmailValidationClaims struct {
-	*jwt.StandardClaims
-	KeyID  string `json:"kid"`
-	Type   string `json:"type"`
+	typeClaims
 	UserID string `json:"user_id"`
 	Email  string `json:"email"`
 }
@@ -89,7 +91,7 @@ func VerifyToken(db rethinkdb.QueryExecutor, secret, ss string) (*jwt.Token, Typ
 
 	claims := tkn.Claims.(*typeClaims)
 
-	switch claims.Type {
+	switch typ := claims.Type; typ {
 	// Register token
 	case TypeRegister:
 		tkn, err := ParseAuthenticationToken(secret, ss, &RegisterClaims{})
@@ -97,7 +99,16 @@ func VerifyToken(db rethinkdb.QueryExecutor, secret, ss string) (*jwt.Token, Typ
 			return nil, TypeUnknown, err
 		}
 
-		return tkn, TypeRegister, nil
+		return tkn, typ, nil
+
+	// Callback token
+	case TypeCallback:
+		tkn, err := ParseAuthenticationToken(secret, ss, &CallbackClaims{})
+		if err != nil {
+			return nil, TypeUnknown, err
+		}
+
+		return tkn, typ, nil
 
 	// External token
 	case TypeExternal:
@@ -106,15 +117,19 @@ func VerifyToken(db rethinkdb.QueryExecutor, secret, ss string) (*jwt.Token, Typ
 			return nil, TypeUnknown, err
 		}
 
-		return tkn, TypeExternal, nil
+		return tkn, typ, nil
 
+	// TODO: This should be replaced by type = "login"
 	// Login token
-	default:
+	case "":
 		tkn, err = ParseAuthenticationToken(secret, ss, &LoginClaims{})
 		if err != nil {
 			return nil, TypeUnknown, err
 		}
 
 		return tkn, TypeLogin, nil
+
+	default:
+		return nil, TypeUnknown, errors.New("unknown token type")
 	}
 }

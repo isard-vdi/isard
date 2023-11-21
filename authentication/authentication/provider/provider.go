@@ -3,13 +3,10 @@ package provider
 import (
 	"context"
 	"errors"
-	"fmt"
 	"regexp"
-	"time"
 
+	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/model"
-
-	"github.com/golang-jwt/jwt"
 )
 
 const (
@@ -23,16 +20,9 @@ const (
 var ErrInvalidCredentials = errors.New("invalid credentials")
 var ErrUserDisabled = errors.New("disabled user")
 
-type CallbackClaims struct {
-	*jwt.StandardClaims
-	Provider   string `json:"provider"`
-	CategoryID string `json:"category_id"`
-	Redirect   string `json:"redirect"`
-}
-
 type Provider interface {
 	Login(ctx context.Context, categoryID string, args map[string]string) (g *model.Group, u *model.User, redirect string, err error)
-	Callback(ctx context.Context, claims *CallbackClaims, args map[string]string) (g *model.Group, u *model.User, redirect string, err error)
+	Callback(ctx context.Context, claims *token.CallbackClaims, args map[string]string) (g *model.Group, u *model.User, redirect string, err error)
 	AutoRegister() bool
 	String() string
 }
@@ -56,31 +46,12 @@ func (Unknown) Login(context.Context, string, map[string]string) (*model.Group, 
 	return nil, nil, "", ErrUnknownIDP
 }
 
-func (Unknown) Callback(context.Context, *CallbackClaims, map[string]string) (*model.Group, *model.User, string, error) {
+func (Unknown) Callback(context.Context, *token.CallbackClaims, map[string]string) (*model.Group, *model.User, string, error) {
 	return nil, nil, "", ErrUnknownIDP
 }
 
 func (Unknown) AutoRegister() bool {
 	return false
-}
-
-func signCallbackToken(secret, prv, cat, redirect string) (string, error) {
-	tkn := jwt.NewWithClaims(jwt.SigningMethodHS256, &CallbackClaims{
-		&jwt.StandardClaims{
-			Issuer:    "isard-authentication",
-			ExpiresAt: time.Now().Add(10 * time.Minute).Unix(),
-		},
-		prv,
-		cat,
-		redirect,
-	})
-
-	ss, err := tkn.SignedString([]byte(secret))
-	if err != nil {
-		return "", fmt.Errorf("sign the token: %w", err)
-	}
-
-	return ss, nil
 }
 
 func matchRegex(re *regexp.Regexp, s string) string {

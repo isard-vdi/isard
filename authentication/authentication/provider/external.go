@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/model"
 
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
@@ -76,7 +77,7 @@ func (e *External) Login(ctx context.Context, categoryID string, args map[string
 	return g, u, "", nil
 }
 
-func (External) Callback(context.Context, *CallbackClaims, map[string]string) (*model.Group, *model.User, string, error) {
+func (External) Callback(context.Context, *token.CallbackClaims, map[string]string) (*model.Group, *model.User, string, error) {
 	return nil, nil, "", errInvalidIDP
 }
 

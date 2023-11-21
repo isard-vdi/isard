@@ -45,6 +45,16 @@ func (m *AuthenticationMock) Provider(prv string) provider.Provider {
 	return m.AuthProvider
 }
 
+func (m *AuthenticationMock) RequestEmailValidation(ctx context.Context, tkn, email string) error {
+	mArgs := m.Called(ctx, tkn, email)
+	return mArgs.Error(0)
+}
+
+func (m *AuthenticationMock) ValidateEmail(ctx context.Context, tkn string) error {
+	mArgs := m.Called(ctx, tkn)
+	return mArgs.Error(0)
+}
+
 func (m *AuthenticationMock) SAML() *samlsp.Middleware {
 	mArgs := m.Called()
 	return mArgs.Get(0).(*samlsp.Middleware)

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/pkg/db"
 
@@ -85,7 +86,7 @@ func (l *Local) Login(ctx context.Context, categoryID string, args map[string]st
 	return nil, u, "", nil
 }
 
-func (l *Local) Callback(context.Context, *CallbackClaims, map[string]string) (*model.Group, *model.User, string, error) {
+func (l *Local) Callback(context.Context, *token.CallbackClaims, map[string]string) (*model.Group, *model.User, string, error) {
 	return nil, nil, "", errInvalidIDP
 }
 

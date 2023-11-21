@@ -23,9 +23,11 @@ type User struct {
 	Role     Role   `rethinkdb:"role"`
 	Group    string `rethinkdb:"group"`
 
-	Name  string `rethinkdb:"name"`
-	Email string `rethinkdb:"email"`
-	Photo string `rethinkdb:"photo"`
+	Name                   string `rethinkdb:"name"`
+	Email                  string `rethinkdb:"email"`
+	EmailVerified          bool   `rethinkdb:"email_verified"`
+	EmailVerificationToken string `rethinkdb:"email_verification_token"`
+	Photo                  string `rethinkdb:"photo"`
 
 	Accessed float64 `rethinkdb:"accessed"`
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/authentication/model"
 
@@ -68,7 +69,7 @@ func (f *Form) Login(ctx context.Context, categoryID string, args map[string]str
 	return nil, nil, "", ErrUnknownIDP
 }
 
-func (f *Form) Callback(context.Context, *CallbackClaims, map[string]string) (*model.Group, *model.User, string, error) {
+func (f *Form) Callback(context.Context, *token.CallbackClaims, map[string]string) (*model.Group, *model.User, string, error) {
 	return nil, nil, "", errInvalidIDP
 }
 

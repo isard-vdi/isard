@@ -9,6 +9,7 @@ import (
 	"regexp"
 
 	"github.com/go-ldap/ldap/v3"
+	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/authentication/model"
 )
@@ -288,7 +289,7 @@ func (l *LDAP) Login(ctx context.Context, categoryID string, args map[string]str
 	return g, u, "", nil
 }
 
-func (l *LDAP) Callback(context.Context, *CallbackClaims, map[string]string) (*model.Group, *model.User, string, error) {
+func (l *LDAP) Callback(context.Context, *token.CallbackClaims, map[string]string) (*model.Group, *model.User, string, error) {
 	return nil, nil, "", errInvalidIDP
 }
 
