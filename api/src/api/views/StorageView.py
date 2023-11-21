@@ -539,7 +539,13 @@ def storage_move(payload, storage_id, path):
                     "queue": "core",
                     "task": "storage_update",
                     "job_kwargs": {
-                        "kwargs": {"id": storage.id, "directory_path": path}
+                        "kwargs": {
+                            "id": storage.id,
+                            "directory_path": path,
+                            "qemu-img-info": {
+                                "filename": f"{path}/{storage.id}.{storage.type}"
+                            },
+                        }
                     },
                     "dependents": [
                         {
