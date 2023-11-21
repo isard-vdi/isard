@@ -19,10 +19,7 @@ fi
 
 LETSENCRYPT_DOMAIN="$DOMAIN" LETSENCRYPT_EMAIL="$LETSENCRYPT_EMAIL" letsencrypt.sh
 
-if [ ! -f /usr/local/etc/haproxy/lists/black.lst ]
-then
-  mkdir -p /usr/local/etc/haproxy/lists/external
-  touch /usr/local/etc/haproxy/lists/black.lst
-  touch /usr/local/etc/haproxy/lists/white.lst
-  touch /usr/local/etc/haproxy/lists/external/black.lst
-fi
+mkdir -p /usr/local/etc/haproxy/lists/external
+touch /usr/local/etc/haproxy/lists/black.lst
+touch /usr/local/etc/haproxy/lists/white.lst
+touch /usr/local/etc/haproxy/lists/external/black.lst
