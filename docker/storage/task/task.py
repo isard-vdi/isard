@@ -43,6 +43,20 @@ def extract_progress_from_qemu_img_convert_output(process):
     )
 
 
+def extract_progress_from_rsync_output(process):
+    """
+    Extract progress from rsync standard output.
+
+    :param process: Process executed
+    :type process: Popen object
+    :return: Progress percentage as decimal
+    :rtype: float
+    """
+    return (
+        float(process.stdout.read1().decode().split("%", 1)[0].rsplit(" ", 1)[-1]) / 100
+    )
+
+
 def run_with_progress(command, extract_progress):
     """
     Run command reporting progress to RQ job metadata.
@@ -233,7 +247,7 @@ def check_backing_filename():
     return result
 
 
-def move(origin_path, destination_path):
+def move(origin_path, destination_path, rsync=False):
     """
     Move disk.
 
@@ -241,9 +255,24 @@ def move(origin_path, destination_path):
     :type origin_path: str
     :param destination_path: Path of the destination file
     :type destination_path: str
+    :param rsync: True to use rsync
+    :type rsync: bool
+    :return: Exit code of rsync command or 0 if rsync is False
+    :rtype: int
     """
-    rename(origin_path, destination_path)
-
+    if not rsync:
+        rename(origin_path, destination_path)
+        return 0
+    return run_with_progress(
+        [
+            "rsync",
+            "--remove-source-files",
+            "--info=progress,flist0",
+            origin_path,
+            destination_path,
+        ],
+        extract_progress_from_rsync_output,
+    )
 
 
 def convert(convert_request):

@@ -9,7 +9,7 @@ RUN dnf update -y \
     && dnf install -y libguestfs libguestfs-tools-c virt-v2v \
         libvirt-daemon libvirt-daemon-config-network \
         python3-pip python3-libvirt python3-libguestfs \
-        git autoconf automake pkg-config gettext-devel libtool python3-devel gcc \
+        git autoconf automake pkg-config gettext-devel libtool python3-devel gcc rsync \
     && git clone https://github.com/libyal/libqcow.git \
     && cd libqcow && sh synclibs.sh && sh autogen.sh \
     && python3 setup.py install \
