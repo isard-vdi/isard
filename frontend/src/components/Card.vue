@@ -19,6 +19,7 @@
         size="small"
         unfold-direction="down"
         :scroll-auto-hide="false"
+        active-icon="more_horiz"
       >
         <fab-item
           v-if="desktop.editable && desktop.needsBooking && !desktop.tag"
@@ -64,7 +65,7 @@
                          customClass: 'isard-tooltip',
                          trigger: 'hover' }"
           :idx="1"
-          icon="delete"
+          icon="close"
           color="#e34934"
           @clickItem="onClickDeleteDesktop"
         />
@@ -196,7 +197,7 @@
               button-class="btn-red"
               :spinner-active="false"
               :butt-text="$t('views.select-template.remove')"
-              icon-name="trash"
+              icon-name="x"
               @buttonClicked="deleteNonpersistentDesktop(desktop.id)"
             />
           </div>
@@ -443,7 +444,8 @@ export default {
       'navigate',
       'goToEditDomain',
       'fetchDirectLink',
-      'goToNewTemplate'
+      'goToNewTemplate',
+      'updateDesktopModal'
     ]),
     getBookingNotificationBar (dateStart, dateEnd) {
       if (DateUtils.dateIsAfter(dateEnd, new Date()) && DateUtils.dateIsBefore(dateStart, new Date())) {
@@ -503,25 +505,13 @@ export default {
     },
     onClickDeleteDesktop (toast) {
       if ([desktopStates.failed, desktopStates.stopped].includes(this.desktopState)) {
-        this.$snotify.clear()
-
-        const yesAction = () => {
-          toast.valid = true // default value
-          this.$snotify.remove(toast.id)
-          this.deleteDesktop(this.desktop.id)
-        }
-
-        const noAction = (toast) => {
-          this.$snotify.remove(toast.id) // default
-        }
-
-        this.$snotify.prompt(`${i18n.t('messages.confirmation.delete-desktop', { name: this.getCardTitle })}`, {
-          position: 'centerTop',
-          buttons: [
-            { text: `${i18n.t('messages.yes')}`, action: yesAction, bold: true },
-            { text: `${i18n.t('messages.no')}`, action: noAction }
-          ],
-          placeholder: ''
+        this.updateDesktopModal({
+          show: true,
+          type: 'delete',
+          item: {
+            id: this.desktop.id
+          },
+          tag: this.desktop.tag
         })
       } else {
         ErrorUtils.showInfoMessage(this.$snotify, i18n.t('messages.info.delete-desktop-stop'), '', true, 2000)

@@ -78,6 +78,26 @@
             },
             "videowall": {
                 "back": "Tornar a desplegaments"
+            },
+            "recycle-bins": {
+                "max-time": "Els elements de la paperera de reciclatge s'esborraran definitivament després de: {time}.",
+                "immediately": "La paperera de reciclatge romandrà buida, els elements s'esborren definitivament de manera immediata.",
+                "empty-recycle-bin": "Buidar paperera de reciclatge"
+            },
+            "recycle-bin": {
+                "title": "Paperera de reciclatge",
+                "back": "Tornar a la paperera",
+                "buttons": {
+                    "restore": {
+                        "title": "Restaurar"
+                    },
+                    "delete": {
+                        "title": "Esborrar"
+                    },
+                    "info": {
+                        "title": "Més informació"
+                    }
+                }
             }
         },
         "desktop-cards": {
@@ -204,7 +224,7 @@
                         "modal-title": "Veure reserva"
                     },
                     "delete": {
-                        "button": "Eliminar"
+                        "button": "Esborrar"
                     }
                 },
                 "new-planning": {
@@ -509,7 +529,12 @@
                 "title": {
                     "make-visible": "Fer visible el desplegament '{name}'",
                     "make-invisible": "Fer invisible el desplegament '{name}'",
-                    "download-csv": "Descarregar el CSV de visors directes de '{name}'"
+                    "download-csv": "Descarregar el CSV de visors directes de '{name}'",
+                    "delete": "Esborrar desplegament"
+                },
+                "body": {
+                    "text":  "Aquesta acció és irreversible i es perdran totes les dades associades.",
+                    "send-to-recycle-bin": "Enviar desplegament a la paperera de reciclatge (l'emmagatzematge continuarà comptant a la quota d'usuari fins que s'esborri definitivament)."
                 },
                 "option": {
                     "dont-stop-desktops": "Fer invisible aquest desplegament pels usuaris i permetre l'ús dels escriptoris fins que s'aturin",
@@ -522,8 +547,9 @@
                     "stop": "Aturar escriptoris",
                     "dont-stop": "No aturar escriptoris",
                     "make-visible": "Fer visible",
-                    "keep-csv": "Mantenir enllaços i descarregar CSV",
-                    "reset-csv": "Reestablir enllaços i descarregar CSV"
+                    "keep-csv": "Mantenir URLs i descarregar CSV",
+                    "reset-csv": "Reestablir URLs i descarregar CSV",
+                    "delete": "Esborrar"
                 }
             }
         },
@@ -712,6 +738,125 @@
                 "actual-size": "Mida",
                 "percentage": "% Quota",
                 "last": "Últim accés"
+            }
+        },
+        "recycle-bin": {
+            "title":{
+                "deployment": "Desplegament '{name}' esborrat en data {date}",
+                "desktop": "Escriptori '{name}' esborrat en data {date}",
+                "template": "Plantilla '{name}' esborrada en data {date}",
+                "bulk": "Diversos escriptoris esborrats en data {date}",
+                "user": "Usuari esborrat en data {date}"
+            },
+            "desktops": {
+                "title": "Escriptoris",
+                "table-header": {
+                    "id": "Id",
+                    "name": "Nom del escriptori",
+                    "user": "Propietari",
+                    "category": "Categoria",
+                    "group": "Grup",
+                    "accessed": "Darrer accés"
+                }
+            },
+            "templates": {
+                "title": "Plantilles",
+                "table-header": {
+                    "id": "Id",
+                    "name": "Nom de la plantilla",
+                    "user": "Propietari",
+                    "category": "Categoria",
+                    "group": "Grup",
+                    "accessed": "Darrer accés"
+                }
+            },
+            "deployments": {
+                "title": "Desplegaments",
+                "table-header": {
+                    "id": "Id",
+                    "name": "Nom del desplegament",
+                    "desktop-name": "Nom de l'escriptori",
+                    "user": "Propietari",
+                    "category": "Categoria",
+                    "group": "Grup"
+                }
+            },
+            "storages": {
+                "title": "Emmagatzematges",
+                "table-header": {
+                    "id": "Id",
+                    "path": "Ruta",
+                    "status": "Estat",
+                    "format": "Format",
+                    "size": "Mida",
+                    "used": "Utilitzat",
+                    "parent": "Pare",
+                    "user": "Usuari",
+                    "category": "Categoria",
+                    "domains": "Dominis"
+                }
+            },
+            "modal": {
+                "title": {
+                    "delete": "Esborrar definitivament entrada",
+                    "restore": "Restaurar entrada",
+                    "empty": "Buidar paperera de reciclatge"
+                },
+                "option": {
+                    "delete": "Aquesta acció és irreversible i es perdran totes les dades associades. Segur que desitja eliminar-la?",
+                    "restore": "Es recuperaran les dades associades (afectarà en cas de tenir quotes aplicades). Segur que desitja restaurar-la?",
+                    "empty": "Es buidarà la paperera de reciclatge. Aquesta acció és irreversible i es perdran totes les dades associades. Segur que desitja eliminar-la?"
+                },
+                "confirmation": {
+                    "delete": "Esborrar",
+                    "restore": "Restaurar",
+                    "empty": "Buidar"
+                }
+            }
+        
+        },
+        "recycle-bins": {
+            "title": "Paperera de reciclatge",
+            "no-recycle-bin": {
+                "title": "No hi ha cap element esborrat de l'usuari actual",
+                "subtitle": "Mou els elements que no necessitis a la paperera de reciclatge. S'esborraran definitivament després de {time}."
+            },
+            "table-header" : {
+                "id": "Id",
+                "accessed": "Data d'esborrat",
+                "size": "Mida",
+                "type": "Tipus",
+                "name": "Nom",
+                "agent-name": "Esborrat per",
+                "status": "Estat",
+                "desktops": "Escriptoris",
+                "templates":"Plantilles",
+                "deployments":"Desplegaments",
+                "actions": "Accions"
+            },
+            "status": {
+                "recycled": "Reciclat"
+            },
+            "item-type": {
+                "desktop": "Escriptori",
+                "deployment": "Desplegament",
+                "template": "Plantilla",
+                "bulk": "Múltiples esborrats",
+                "user": "Usuari"
+            }
+        },
+        "desktop": {
+            "modal": {
+                "title": {
+                    "delete": "Esborrar escriptori"
+                },
+                "body": {
+                    "text": "Aquesta acció és irreversible i es perdran totes les dades associades.",
+                    "send-to-recycle-bin": "Enviar escriptori a la paperera de reciclatge (l'emmagatzematge continuarà comptant a la quota d'usuari fins que s'esborri definitivament)."
+                },
+                "confirmation": {
+                    "delete": "Esborrar"
+                }
             }
         }
     },
@@ -1000,7 +1145,6 @@
             "delete": "Esborrar"
         },
         "confirmation": {
-            "delete-desktop": "'{name}' s'esborrarà, continuar?",
             "create-nonpersistent": "ATENCIÓ! Aquest escriptori és temporal. A l'aturar-ho totes les dades seràn esborrades. Crear escriptori?",
             "visible-deployment": "Els escriptoris seran visibles",
             "recreate-deployment": "Els escriptoris esborrats de '{name}' es crearan de nou, continuar?",
@@ -1061,7 +1205,9 @@
             "wireguard-network-required": "No es poden seleccionar els visors RDP, atès que la xarxa Wireguard és requerida. Contacta amb l'administrador per poder fer servir la xarxa Wireguard",
             "image-uploaded": "Imatge penjada correctament",
             "deleting-template": "Esborrant plantilla",
-            "retry-desktop": "Comprovant l'estat del escriptori"
+            "retry-desktop": "Comprovant l'estat del escriptori",
+            "restoring-recycle-bin": "Restaurant entrada",
+            "deleting-recycle-bin": "Eliminant entrada"
         },
         "loading": "Carregant"
     },
@@ -1090,7 +1236,8 @@
             "direct_viewer": "Visor directe",
             "edit-domain": "Editar domini",
             "storage": "Emmagatzematge",
-            "edit-deployment": "Editar desplegament"
+            "edit-deployment": "Editar desplegament",
+            "recycleBin": "Paperera de reciclatge"
         }
     },
     "message-modal": {

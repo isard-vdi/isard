@@ -340,23 +340,20 @@ def api_v3_admin_user_insert(payload):
 def api_v3_admin_user_delete(payload):
     data = request.get_json()
 
-    for user in data:
-        ownsUserId(payload, user["id"])
+    for user in data["user"]:
+        ownsUserId(payload, user)
 
-        if not user.get("username"):
-            user = users.Get(user["id"])
+        user = users.Get(user)
         if (
             user["username"] == "admin"
-            and users.GroupGet(user["group"])["name"] == "Default"
-            and users.CategoryGet(user["category"])["name"] == "Default"
+            and user["group"] == "default-default"
+            and user["category"] == "default"
         ):
             raise Error(
                 "forbidden", "Can not delete default admin", traceback.format_exc()
             )
-    for user in data:
-        if not user.get("username"):
-            user = users.Get(user["id"])
-        users.Delete(user["id"])
+    for user in data["user"]:
+        users.Delete(user, payload["user_id"], data["delete_user"])
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
@@ -420,28 +417,6 @@ def api_v3_admin_user_desktops(payload, user_id=None):
     ownsUserId(payload, user_id)
     return (
         json.dumps(users.Desktops(user_id)),
-        200,
-        {"Content-Type": "application/json"},
-    )
-
-
-@app.route("/api/v3/admin/users/delete/check", methods=["POST"])
-@is_admin_or_manager
-def api_v3_admin_users_delete_check(payload):
-    data = request.get_json()
-
-    desktops = []
-    for user_id in data:
-        ownsUserId(payload, user_id)
-        user_storage = users._user_storage_delete_checks(user_id)
-        if user_storage:
-            desktops.append(user_storage)
-        for desktop in users._delete_checks(user_id, "user"):
-            ownsDomainId(payload, desktop["id"])
-            desktops.append(desktop)
-
-    return (
-        json.dumps(desktops),
         200,
         {"Content-Type": "application/json"},
     )
@@ -661,7 +636,7 @@ def api_v3_admin_categories(payload, frontend=False):
 @is_admin
 def api_v3_admin_category_delete(category_id, payload):
     return (
-        json.dumps(users.CategoryDelete(category_id)),
+        json.dumps(users.CategoryDelete(category_id, payload["user_id"])),
         200,
         {"Content-Type": "application/json"},
     )
@@ -687,7 +662,7 @@ def api_v3_admin_group_delete(group_id, payload):
         )
 
     ownsCategoryId(payload, users.GroupGet(group_id)["parent_category"])
-    users.GroupDelete(group_id)
+    users.GroupDelete(group_id, payload["user_id"])
     return (
         json.dumps({}),
         200,
@@ -699,17 +674,11 @@ def api_v3_admin_group_delete(group_id, payload):
 @is_admin_or_manager
 def api_v3_admin_user_delete_check(payload):
     data = request.get_json()
-    ownsUserId(payload, data["id"])
-
-    desktops = []
-    user_storage = users._user_storage_delete_checks(data["id"])
-    if user_storage:
-        desktops.append(user_storage)
-    for desktop in users._delete_checks(data["id"], "user"):
-        desktops.append(desktop)
+    for user in data["ids"]:
+        ownsUserId(payload, user)
 
     return (
-        json.dumps(desktops),
+        json.dumps(users._delete_checks(data["ids"], "user")),
         200,
         {"Content-Type": "application/json"},
     )
@@ -717,33 +686,27 @@ def api_v3_admin_user_delete_check(payload):
 
 @app.route("/api/v3/admin/group/delete/check", methods=["POST"])
 @is_admin_or_manager
-def api_v3_admin_group_delete_check(payload):
+def api_v3_admin_groups_delete_check(payload):
     data = request.get_json()
-    ownsCategoryId(payload, users.GroupGet(data["id"])["parent_category"])
-
-    desktops = []
-    for desktop in users._delete_checks(data["id"], "group"):
-        desktops.append(desktop)
+    for user in data["ids"]:
+        ownsCategoryId(payload, users.GroupGet(user)["parent_category"])
 
     return (
-        json.dumps(desktops),
+        json.dumps(users._delete_checks(data["ids"], "group")),
         200,
         {"Content-Type": "application/json"},
     )
 
 
 @app.route("/api/v3/admin/category/delete/check", methods=["POST"])
-@is_admin
-def api_v3_admin_category_delete_check(payload):
+@is_admin_or_manager
+def api_v3_admin_categories_delete_check(payload):
     data = request.get_json()
-    ownsCategoryId(payload, data["id"])
-
-    desktops = []
-    for desktop in users._delete_checks(data["id"], "category"):
-        desktops.append(desktop)
+    for user in data["ids"]:
+        ownsCategoryId(payload, user)
 
     return (
-        json.dumps(desktops),
+        json.dumps(users._delete_checks(data["ids"], "category")),
         200,
         {"Content-Type": "application/json"},
     )

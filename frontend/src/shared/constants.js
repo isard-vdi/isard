@@ -1,6 +1,7 @@
 import i18n from '@/i18n'
 
 export const apiV3Segment = '/api/v3'
+export const schedulerSegment = '/scheduler'
 export const apiWebSockets = '/api/v3/socket.io'
 export const apiAdminSegment = '/isard-admin'
 export const authenticationSegment = '/authentication'

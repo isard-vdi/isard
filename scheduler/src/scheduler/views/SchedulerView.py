@@ -24,7 +24,14 @@ from flask import request
 
 from scheduler import app
 
-from .decorators import is_admin
+from ..lib.exceptions import Error
+from .decorators import (
+    has_token,
+    is_admin,
+    is_admin_or_manager,
+    itemExists,
+    ownsCategoryId,
+)
 
 
 @app.route("/scheduler/healthcheck", methods=["GET"])
@@ -42,11 +49,39 @@ def actions(payload):
     )
 
 
+@app.route("/scheduler/recycle_bin_delete/max_time", methods=["GET"])
+@has_token
+def max_time(payload):
+    max_time = app.scheduler.get_max_time(
+        None if payload["role_id"] == "admin" else payload["category_id"]
+    )
+    return (
+        json.dumps(max_time),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
 @app.route("/scheduler/action/<action_id>", methods=["GET"])
 @is_admin
 def action(payload, action_id):
     return (
         json.dumps(app.scheduler.get_action_kwargs(action_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route(
+    "/scheduler/recycle_bin_delete/max_time_category/<category_id>", methods=["GET"]
+)
+@is_admin_or_manager
+def max_time_category(payload, category_id=None):
+    if category_id:
+        ownsCategoryId(payload, category_id)
+    max_time = app.scheduler.get_max_time_category(category_id)
+    return (
+        json.dumps(max_time),
         200,
         {"Content-Type": "application/json"},
     )
@@ -90,9 +125,10 @@ def get_not_date(payload):
     )
 
 
+@app.route("/scheduler/<type>/<kind>/<action>/<hour>/<minute>/<id>", methods=["POST"])
 @app.route("/scheduler/<type>/<kind>/<action>/<hour>/<minute>", methods=["POST"])
 @is_admin
-def add(payload, type, kind, action, hour, minute):
+def add(payload, type, kind, action, hour, minute, id=None):
     try:
         custom_parameters = request.get_json()
     except:
@@ -105,6 +141,7 @@ def add(payload, type, kind, action, hour, minute):
                 action,
                 hour,
                 minute,
+                id,
                 kwargs=custom_parameters.pop("kwargs", None),
             )
         ),
@@ -159,6 +196,78 @@ def delete(payload, job_id=False):
 def delete_startswith(payload, job_id):
     return (
         json.dumps(app.scheduler.remove_job_startswith(job_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/scheduler/delete/recycle_bin/<category>", methods=["DELETE"])
+@is_admin_or_manager
+def delete_action(payload, category):
+    return (
+        json.dumps(app.scheduler.remove_job(category + ".recycle_bin_delete")),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/scheduler/recycle_bin/<max_time>/<category_id>", methods=["PUT"])
+@app.route("/scheduler/recycle_bin/<max_time>", methods=["PUT"])
+@is_admin_or_manager
+def add_recyclebin(payload, max_time, category_id=None):
+    kwargs = {"max_delete_period": max_time}
+
+    action = (
+        "recycle_bin_delete"
+        if payload["role_id"] == "manager" or category_id
+        else "recycle_bin_delete_admin"
+    )
+    if payload["role_id"] == "manager" or category_id:
+        if payload["role_id"] == "manager":
+            category_id = payload["category_id"]
+        ownsCategoryId(payload, category_id)
+        kwargs["category"] = category_id
+        itemExists("categories", category_id)
+        admin_max_time = app.scheduler.get_max_time()
+        if admin_max_time != "null" and int(max_time) > int(admin_max_time):
+            raise Error(
+                "forbidden",
+                "Category max_time can not be greater than " + admin_max_time,
+            )
+        try:
+            app.scheduler.remove_job(category_id + ".recycle_bin_delete")
+        except:
+            pass
+        job_id = category_id + ".recycle_bin_delete"
+    else:
+        if payload["role_id"] != "admin":
+            raise Error("forbidden", "Not enough rights")
+        app.scheduler.remove_job_action("recycle_bin_delete")
+        try:
+            app.scheduler.remove_job("admin.recycle_bin_delete_admin")
+        except:
+            pass
+        job_id = "admin.recycle_bin_delete_admin"
+    if max_time != "null":
+        try:
+            job_id = app.scheduler.add_job(
+                "system",
+                "interval",
+                action,
+                "00",
+                "05",
+                id=job_id,
+                kwargs=kwargs,
+            )
+            return (
+                json.dumps(job_id),
+                200,
+                {"Content-Type": "application/json"},
+            )
+        except:
+            raise Error("bad_request", "Unable to add job")
+    return (
+        json.dumps({}),
         200,
         {"Content-Type": "application/json"},
     )

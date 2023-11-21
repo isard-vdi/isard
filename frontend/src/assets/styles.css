@@ -60,6 +60,10 @@
   background-color: var(--purple-color);
 }
 
+.bg-green {
+  background-color: var(--green-color);
+}
+
 /* UTILITIES */
 .cursor-pointer {
   cursor: pointer;
@@ -631,6 +635,12 @@
 
 .scrollable-div {
   height: calc(100vh - 200px);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.scrollable-div-main {
+  height: calc(100vh - 5px);
   overflow-y: auto;
   overflow-x: hidden;
 }

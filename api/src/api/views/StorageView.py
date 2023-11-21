@@ -4,7 +4,6 @@
 # License: AGPLv3
 
 import json
-import logging as log
 
 from flask import jsonify, request
 from isardvdi_common.api_exceptions import Error

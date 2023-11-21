@@ -431,6 +431,38 @@ def ownsBookingId(payload, bookings_id):
     )
 
 
+def ownsRecycleBinId(payload, recycle_bin_id):
+    if payload["role_id"] == "admin":
+        return True
+
+    with app.app_context():
+        recycle_bin_user_id = (
+            r.table("recycle_bin")
+            .get(recycle_bin_id)
+            .pluck("owner_id")["owner_id"]
+            .run(db.conn)
+        )
+    if recycle_bin_user_id == payload["user_id"]:
+        return True
+
+    if payload["role_id"] == "manager":
+        with app.app_context():
+            recycle_bin_category_id = (
+                r.table("recycle_bin")
+                .get(recycle_bin_id)
+                .pluck("owner_category_id")["owner_category_id"]
+                .run(db.conn)
+            )
+        if recycle_bin_category_id == payload["category_id"]:
+            return True
+
+    raise Error(
+        "forbidden",
+        "Not enough access rights for this user_id " + payload["user_id"],
+        traceback.format_exc(),
+    )
+
+
 def itemExists(item_table, item_id):
     with app.app_context():
         try:

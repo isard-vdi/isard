@@ -433,7 +433,6 @@
             "delete": "Löschen"
         },
         "confirmation": {
-            "delete-desktop": "'{name}' wird gelöscht werden, fortfahren?"
         }
     }
 }

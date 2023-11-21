@@ -30,7 +30,11 @@ from isardvdi_common.api_exceptions import Error
 
 from api import app
 
-from .api_desktop_events import desktops_delete
+from .bookings.api_booking import Bookings
+
+apib = Bookings()
+
+from .api_desktop_events import category_delete, group_delete, user_delete
 from .quotas import Quotas
 
 quotas = Quotas()
@@ -50,9 +54,6 @@ db.init_app(app)
 
 from ..libv2.api_user_storage import (
     isard_user_storage_add_user,
-    isard_user_storage_remove_category,
-    isard_user_storage_remove_group,
-    isard_user_storage_remove_user,
     isard_user_storage_update_user,
     isard_user_storage_update_user_quota,
     user_storage_quota,
@@ -62,7 +63,13 @@ from .api_admin import (
     change_group_items_owner,
     change_user_items_owner,
 )
-from .helpers import _check, _parse_desktop, _random_password, gen_payload_from_user
+from .helpers import (
+    GetAllTemplateDerivates,
+    _check,
+    _parse_desktop,
+    _random_password,
+    gen_payload_from_user,
+)
 
 
 @cached(cache=TTLCache(maxsize=100, ttl=60))
@@ -757,35 +764,108 @@ class ApiUsers:
                 description_code="desktop_not_found",
             )
 
-    def Delete(self, user_id):
-        isard_user_storage_remove_user(user_id)
+    def Delete(self, user_id, agent_id, delete_user):
         self.Get(user_id)
-        desktops_delete(
-            [desktop["id"] for desktop in self._delete_checks(user_id, "user")],
-            force=True,
-        )
-
         change_user_items_owner("media", user_id)
-        with app.app_context():
-            if not _check(
-                r.table("users").get(user_id).delete().run(db.conn), "deleted"
-            ):
-                raise Error(
-                    "internal_server",
-                    "Unable to delete user_id " + user_id,
-                    traceback.format_exc(),
-                    description_code="unable_to_delete_user" + user_id,
-                )
+        user_delete(agent_id, user_id, delete_user)
 
-    def _delete_checks(self, item_id, table):
+    def _delete_checks(self, item_ids, table):
+        users = []
+        groups = []
+        desktops = []
+        templates = []
+        deployments = []
+        media = []
+        tags = []
         with app.app_context():
-            desktops = list(
+            if table == "user":
+                users = list(
+                    r.table("users")
+                    .get_all(r.args(item_ids))
+                    .pluck("id", "name", "username")
+                    .run(db.conn)
+                )
+                deployments = list(
+                    r.table("deployments")
+                    .get_all(r.args(item_ids), index="user")
+                    .pluck("id", "name", "user")
+                    .merge(
+                        lambda row: {
+                            "user_name": r.table("users").get(row["user"])["name"],
+                            "username": r.table("users").get(row["user"])["username"],
+                        }
+                    )
+                    .run(db.conn)
+                )
+                tags = [deployment["id"] for deployment in deployments]
+                desktops = desktops + list(
+                    r.table("domains")
+                    .get_all(r.args(tags), index="tag")
+                    .pluck("id", "name", "kind", "user", "status", "parents")
+                    .merge(
+                        lambda d: {
+                            "username": r.table("users").get(d["user"])["username"],
+                            "user_name": r.table("users").get(d["user"])["name"],
+                        }
+                    )
+                    .run(db.conn)
+                )
+            elif table in ["category", "group"]:
+                users = list(
+                    r.table("users")
+                    .get_all(r.args(item_ids), index=table)
+                    .pluck("id", "name", "username")
+                    .run(db.conn)
+                )
+                users_ids = [user["id"] for user in users]
+                deployments = list(
+                    r.table("deployments")
+                    .get_all(r.args(users_ids), index="user")
+                    .pluck("id", "name", "user")
+                    .merge(
+                        lambda row: {
+                            "user_name": r.table("users").get(row["user"])["name"],
+                            "username": r.table("users").get(row["user"])["username"],
+                        }
+                    )
+                    .run(db.conn)
+                )
+                tags = [deployment["id"] for deployment in deployments]
+                desktops = desktops + list(
+                    r.table("domains")
+                    .get_all(r.args(tags), index="tag")
+                    .pluck("id", "name", "kind", "user", "status", "parents")
+                    .merge(
+                        lambda d: {
+                            "username": r.table("users").get(d["user"])["username"],
+                            "user_name": r.table("users").get(d["user"])["name"],
+                        }
+                    )
+                    .run(db.conn)
+                )
+                if table == "category":
+                    groups = list(
+                        r.table("groups")
+                        .get_all(r.args(item_ids), index="parent_category")
+                        .pluck("id", "name")
+                        .run(db.conn)
+                    )
+                else:
+                    groups = list(
+                        r.table("groups")
+                        .get_all(r.args(item_ids))
+                        .pluck("id", "name")
+                        .run(db.conn)
+                    )
+
+            desktops = desktops + list(
                 r.table("domains")
-                .get_all(item_id, index=table)
+                .get_all(r.args(item_ids), index=table)
                 .filter({"kind": "desktop"})
                 .pluck("id", "name", "kind", "user", "status", "parents")
                 .merge(
                     lambda d: {
+                        "username": r.table("users").get(d["user"])["username"],
                         "user_name": r.table("users").get(d["user"])["name"],
                     }
                 )
@@ -793,59 +873,53 @@ class ApiUsers:
             )
             templates = list(
                 r.table("domains")
-                .get_all("template", index="kind")
-                .filter({table: item_id})
-                .pluck("id", "name", "kind", "user", "status", "parents")
+                .get_all(r.args(item_ids), index=table)
+                .filter({"kind": "template"})
+                .pluck("id", "name", "kind", "user", "category", "group")
                 .merge(
                     lambda d: {
+                        "username": r.table("users").get(d["user"])["username"],
                         "user_name": r.table("users").get(d["user"])["name"],
                     }
                 )
                 .run(db.conn)
             )
+        domains_derivated = []
+        for template in templates:
+            domains_derivated = domains_derivated + GetAllTemplateDerivates(
+                template["id"]
+            )
+        desktops = desktops + list(
+            filter(lambda d: d["kind"] == "desktop", domains_derivated)
+        )
+        desktops = list({v["id"]: v for v in desktops}.values())
+        templates = templates + list(
+            filter(lambda d: d["kind"] == "template", domains_derivated)
+        )
+        templates = list({v["id"]: v for v in templates}.values())
 
-            users = []
-            if table == "category" or table == "group":
-                users = list(
-                    r.table("users")
-                    .get_all(item_id, index=table)
-                    .pluck("id", "name")
-                    .run(db.conn)
+        with app.app_context():
+            media = list(
+                r.table("media")
+                .get_all(r.args(item_ids), index=table)
+                .pluck("id", "name", "user")
+                .merge(
+                    lambda row: {
+                        "user_name": r.table("users").get(row["user"])["name"],
+                        "username": r.table("users").get(row["user"])["username"],
+                    }
                 )
-            for u in users:
-                u.update({"kind": "user", "user": u["id"]})
+                .run(db.conn)
+            )
 
-            groups = []
-            if table == "category":
-                groups = list(
-                    r.table("groups")
-                    .get_all(item_id, index="parent_category")
-                    .pluck("id", "name")
-                    .run(db.conn)
-                )
-
-            for g in groups:
-                g.update({"kind": "group", "user": g["id"]})
-
-            derivated = []
-            for ut in templates:
-                template_id = ut["id"]
-                derivated = derivated + list(
-                    r.table("domains")
-                    .pluck("id", "name", "kind", "user", "status", "parents")
-                    .filter(
-                        lambda derivates: derivates["parents"].contains(template_id)
-                    )
-                    .merge(
-                        lambda d: {
-                            "user_name": r.table("users").get(d["user"])["name"],
-                        }
-                    )
-                    .run(db.conn)
-                )
-
-        domains = desktops + templates + derivated + users + groups
-        return [i for n, i in enumerate(domains) if i not in domains[n + 1 :]]
+        return {
+            "desktops": desktops,
+            "templates": templates,
+            "deployments": deployments,
+            "media": media,
+            "users": users,
+            "groups": groups,
+        }
 
     def _user_storage_delete_checks(self, user_id):
         with app.app_context():
@@ -1107,88 +1181,9 @@ class ApiUsers:
                 .run(db.conn)
             )
 
-    def category_delete_checks(self, category_id):
-        with app.app_context():
-            category = (
-                r.table("categories").get(category_id).pluck("id", "name").run(db.conn)
-            )
-            if not category:
-                raise Error(
-                    "not_found",
-                    "Category to delete not found.",
-                    traceback.format_exc(),
-                    description_code="category_not_found",
-                )
-            else:
-                category.update({"kind": "category", "user": category["id"]})
-                categories = [category]
-            groups = list(
-                r.table("groups")
-                .filter({"parent_category": category_id})
-                .pluck("id", "name")
-                .run(db.conn)
-            )
-            for g in groups:
-                g.update({"kind": "group", "user": g["id"]})
-            users = list(
-                r.table("users")
-                .get_all(category_id, index="category")
-                .pluck("id", "name")
-                .run(db.conn)
-            )
-            for u in users:
-                u.update({"kind": "user", "user": u["id"]})
-
-            category_desktops = list(
-                r.table("domains")
-                .get_all(["desktop", category_id], index="kind_category")
-                .pluck("id", "name", "kind", "user", "status", "parents")
-                .run(db.conn)
-            )
-            category_templates = list(
-                r.table("domains")
-                .get_all(["template", category_id], index="kind_category")
-                .pluck("id", "name", "kind", "user", "status", "parents")
-                .run(db.conn)
-            )
-            derivated = []
-            for ut in category_templates:
-                id = ut["id"]
-                derivated = derivated + list(
-                    r.table("domains")
-                    .pluck("id", "name", "kind", "user", "status", "parents")
-                    .filter(lambda derivates: derivates["parents"].contains(id))
-                    .run(db.conn)
-                )
-        domains = (
-            categories
-            + groups
-            + users
-            + category_desktops
-            + category_templates
-            + derivated
-        )
-        return [i for n, i in enumerate(domains) if i not in domains[n + 1 :]]
-
-    def CategoryDelete(self, category_id):
-        isard_user_storage_remove_category(category_id)
-
-        desktops_to_delete = []
-        with app.app_context():
-            for d in self.category_delete_checks(category_id):
-                if d["kind"] == "user":
-                    r.table("users").get(d["id"]).delete().run(db.conn)
-                elif d["kind"] == "group":
-                    r.table("groups").get(d["id"]).delete().run(db.conn)
-                elif d["kind"] == "category":
-                    r.table("categories").get(d["id"]).delete().run(db.conn)
-                else:
-                    desktops_to_delete.append(d["id"])
-        desktops_delete(
-            desktops_to_delete,
-            force=True,
-        )
+    def CategoryDelete(self, category_id, agent_id):
         change_category_items_owner("media", category_id)
+        category_delete(agent_id, category_id)
 
     def GroupGet(self, group_id):
         with app.app_context():
@@ -1233,96 +1228,11 @@ class ApiUsers:
             .run(db.conn)
         )
 
-    def group_delete_checks(self, group_id):
-        with app.app_context():
-            group = r.table("groups").get(group_id).pluck("id", "name").run(db.conn)
-            if not group:
-                raise Error(
-                    "not_found",
-                    "Group to delete not found",
-                    traceback.format_exc(),
-                    description_code="group_not_found",
-                )
-            else:
-                group.update({"kind": "group", "user": group["id"]})
-                groups = [group]
-            users = list(
-                r.table("users")
-                .get_all(group_id, index="group")
-                .pluck("id", "name")
-                .run(db.conn)
-            )
-            for u in users:
-                u.update({"kind": "user", "user": u["id"]})
-
-            desktops = list(
-                r.table("domains")
-                .get_all(["desktop", group_id], index="kind_group")
-                .pluck("id", "name", "kind", "user", "status", "parents")
-                .run(db.conn)
-            )
-            group_templates = list(
-                r.table("domains")
-                .get_all(["template", group_id], index="kind_group")
-                .pluck("id", "name", "kind", "user", "status", "parents")
-                .run(db.conn)
-            )
-            derivated = []
-            for gt in group_templates:
-                id = gt["id"]
-                derivated = derivated + list(
-                    r.table("domains")
-                    .pluck("id", "name", "kind", "user", "status", "parents")
-                    .filter(lambda derivates: derivates["parents"].contains(id))
-                    .run(db.conn)
-                )
-        domains = groups + users + desktops + group_templates + derivated
-        return [i for n, i in enumerate(domains) if i not in domains[n + 1 :]]
-
-    def GroupDelete(self, group_id):
+    def GroupDelete(self, group_id, agent_id):
+        # Check the group exists
         self.GroupGet(group_id)
-        isard_user_storage_remove_group(group_id)
-
-        with app.app_context():
-            category = (
-                r.table("groups")
-                .get(group_id)
-                .default({"parent_category": None})
-                .run(db.conn)["parent_category"]
-            )
-        if not category:
-            raise Error(
-                "not_found",
-                "Group id " + str(group_id) + " not found",
-                description_code="group_not_found",
-            )
-
-        desktops = (
-            r.table("domains")
-            .get_all(group_id, index="group")
-            .pluck("id", "status")
-            .run(db.conn)
-        )
-
-        desktops_delete(
-            [desktop["id"] for desktop in desktops],
-            force=True,
-        )
-
-        desktops_to_delete = []
-        with app.app_context():
-            for d in self.group_delete_checks(group_id):
-                if d["kind"] == "user":
-                    r.table("users").get(d["id"]).delete().run(db.conn)
-                elif d["kind"] == "group":
-                    r.table("groups").get(d["id"]).delete().run(db.conn)
-                else:
-                    desktops_to_delete.append(d["id"])
-        desktops_delete(
-            desktops_to_delete,
-            force=True,
-        )
         change_group_items_owner("media", group_id)
+        group_delete(agent_id, group_id)
 
     def EnrollmentAction(self, data):
         if data["action"] == "disable":

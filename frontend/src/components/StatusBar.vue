@@ -20,13 +20,42 @@
             id="statusbar-content"
             class="flex-grow flex-row"
           >
+            <!-- Back to recycle bin -->
+            <b-navbar-nav
+              v-if="checkLocation('recycleBins')"
+              class="flex-grow flex-row"
+            >
+              <b-nav-item disabled>
+                <span
+                  v-if="maxTime === 0"
+                  class="d-none d-lg-inline text-medium-gray"
+                >{{ $t("components.statusbar.recycle-bins.immediately") }}</span>
+                <span
+                  v-else-if="maxTime !== 'null'"
+                  class="d-none d-lg-inline text-medium-gray"
+                >{{ `${$t("components.statusbar.recycle-bins.max-time", { time: maxTime })}` }}</span>
+              </b-nav-item>
+            </b-navbar-nav>
+            <b-nav-item
+              v-if="checkLocation('recycleBin')"
+              href="#"
+              @click="goToRecycleBins"
+            >
+              <div>
+                <b-icon
+                  icon="arrow-left"
+                  aria-hidden="true"
+                  class="text-medium-gray mr-2 mr-lg-2"
+                />
+                {{ $t("components.statusbar.recycle-bin.back") }}
+              </div>
+            </b-nav-item>
             <!-- Back to deployments -->
             <b-nav-item
               v-if="checkLocation('deployment_desktops')"
               href="#"
               @click="goToDeployments"
             >
-              <DeploymentModal />
               <div>
                 <b-icon
                   icon="arrow-left"
@@ -124,6 +153,7 @@
               size="sm"
               @click="navigate('deploymentsnew')"
             >
+              <DeploymentModal />
               {{ `${$t("components.statusbar.new-deployment")}` }}
             </b-button>
           </div>
@@ -153,6 +183,7 @@
                 scale="0.75"
               />
             </b-button> -->
+            <DeploymentModal />
             <b-button
               class="rounded-circle px-2 mr-2 btn-red"
               :title="$t('components.statusbar.deployment.buttons.stop.title')"
@@ -231,8 +262,8 @@
               @click="deleteDeployment()"
             >
               <b-icon
-                icon="trash-fill"
-                scale="0.75"
+                icon="x"
+                scale="1"
               />
             </b-button>
           </div>
@@ -258,7 +289,7 @@
               @click="changeView('list')"
             >
               <b-icon
-                icon="list"
+                icon="list-ul"
                 aria-hidden="true"
                 class="text-medium-gray mt-1"
               />
@@ -293,6 +324,60 @@
               />
             </b-nav-item>
           </b-navbar-nav>
+          <!-- Recycle bin -->
+          <b-navbar-nav
+            v-if="!checkLocation('recycleBin') && !checkLocation('recycleBins')"
+            class="ml-auto flex-row d-xl-flex"
+          >
+            <b-avatar
+              button
+              :badge="`${itemsInRecycleBin}`"
+              badge-variant="danger"
+              icon="trash"
+              :title="$t('components.statusbar.recycle-bin.title')"
+              aria-hidden="true"
+              class="bg-lightgray text-medium-gray ml-2"
+              @click="goToRecycleBins"
+            />
+          </b-navbar-nav>
+          <b-navbar-nav
+            v-if="checkLocation('recycleBin') && [user.user_id, 'system'].includes(recycleBin.agentId)"
+            class="ml-auto flex-row d-xl-flex"
+          >
+            <RecycleBinModal />
+            <b-button
+              class="rounded-circle btn-green mr-2"
+              :title="$t('components.statusbar.recycle-bin.buttons.restore.title')"
+              @click="restoreRecycleBin()"
+            >
+              <b-icon
+                icon="arrow-clockwise"
+                scale="0.75"
+              />
+            </b-button>
+            <b-button
+              class="rounded-circle btn-red mr-2"
+              :title="$t('components.statusbar.recycle-bin.buttons.delete.title')"
+              @click="deleteRecycleBin()"
+            >
+              <b-icon
+                icon="x"
+                scale="1"
+              />
+            </b-button>
+          </b-navbar-nav>
+          <div class="pt-1">
+            <b-button
+              v-if="checkLocation('recycleBins')"
+              :pill="true"
+              class="mr-0 mr-md-4"
+              variant="outline-danger"
+              size="sm"
+              @click="emptyRecycleBin()"
+            >
+              {{ `${$t("components.statusbar.recycle-bins.empty-recycle-bin")}` }}
+            </b-button>
+          </div>
         </div>
       </b-navbar>
     </b-container>
@@ -304,6 +389,7 @@ import { desktopStates } from '@/shared/constants'
 import AllowedModal from '@/components/AllowedModal.vue'
 import DesktopsFilter from '@/components/desktops/DesktopsFilter.vue'
 import DeploymentModal from '@/components/deployments/DeploymentModal.vue'
+import RecycleBinModal from '@/components/recycleBin/RecycleBinModal.vue'
 import { ref, computed, watch } from '@vue/composition-api'
 import i18n from '@/i18n'
 
@@ -311,7 +397,8 @@ export default {
   components: {
     DesktopsFilter,
     DeploymentModal,
-    AllowedModal
+    AllowedModal,
+    RecycleBinModal
   },
   setup (props, context) {
     const $store = context.root.$store
@@ -326,12 +413,22 @@ export default {
       $store.dispatch('checkCreateQuota', { itemType: 'media', routeName: 'medianew' })
     }
 
+    $store.dispatch('fetchItemsInRecycleBin')
+
     const deployment = computed(() => $store.getters.getDeployment)
     const desktops = computed(() => $store.getters.getDesktops)
     const viewType = computed(() => $store.getters.getViewType)
+    const recycleBin = computed(() => $store.getters.getRecycleBin)
+    const user = computed(() => $store.getters.getUser)
+    const maxTime = computed(() => $store.getters.getMaxTime)
+    const itemsInRecycleBin = computed(() => $store.getters.getItemsInRecycleBin)
 
     const goToDeployments = () => {
       context.root.$router.push({ name: 'deployments' })
+    }
+
+    const goToRecycleBins = () => {
+      context.root.$router.push({ name: 'recycleBins' })
     }
 
     const urlTokens = computed(() => $store.getters.getUrlTokens)
@@ -443,24 +540,11 @@ export default {
     }
 
     const deleteDeployment = () => {
-      context.root.$snotify.clear()
-
-      const yesAction = () => {
-        context.root.$snotify.clear()
-        $store.dispatch('deleteDeployment', { id: deployment.value.id, path: 'deployments' })
-      }
-
-      const noAction = (toast) => {
-        context.root.$snotify.clear()
-      }
-
-      context.root.$snotify.prompt(`${i18n.t('messages.confirmation.delete-deployment', { name: deployment.value.name })}`, {
-        position: 'centerTop',
-        buttons: [
-          { text: `${i18n.t('messages.yes')}`, action: yesAction, bold: true },
-          { text: `${i18n.t('messages.no')}`, action: noAction }
-        ],
-        placeholder: ''
+      $store.dispatch('updateDeploymentModal', {
+        show: true,
+        type: 'delete',
+        color: 'red',
+        item: { id: deployment.value.id, name: deployment.value.name }
       })
     }
 
@@ -507,6 +591,37 @@ export default {
       $store.dispatch('navigate', path)
     }
 
+    // Recycle Bin
+    const restoreRecycleBin = () => {
+      $store.dispatch('updateRecycleBinModal', {
+        show: true,
+        type: 'restore',
+        item: {
+          id: recycleBin.value.id
+        }
+      })
+    }
+
+    const deleteRecycleBin = () => {
+      $store.dispatch('updateRecycleBinModal', {
+        show: true,
+        type: 'delete',
+        item: {
+          id: recycleBin.value.id
+        }
+      })
+    }
+
+    const emptyRecycleBin = () => {
+      $store.dispatch('updateRecycleBinModal', {
+        show: true,
+        type: 'empty',
+        item: {
+          id: recycleBin.value.id
+        }
+      })
+    }
+
     return {
       goToDeployments,
       startDesktops,
@@ -532,7 +647,15 @@ export default {
       startedDesktops,
       creationMode,
       navigate,
-      viewType
+      viewType,
+      goToRecycleBins,
+      restoreRecycleBin,
+      deleteRecycleBin,
+      recycleBin,
+      user,
+      maxTime,
+      itemsInRecycleBin,
+      emptyRecycleBin
     }
   }
 }

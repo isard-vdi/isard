@@ -434,16 +434,26 @@ function actionsGroupDetail(){
         }).modal('show');
         // setModalUser()
         // setQuotaTableDefaults('#edit-users-quota','users',pk)
+        showLoadingData('#modalDeleteGroup #table_modal_delete_desktops')
+        showLoadingData('#modalDeleteGroup #table_modal_delete_templates')
+        showLoadingData('#modalDeleteGroup #table_modal_delete_deployments')
+        showLoadingData('#modalDeleteGroup #table_modal_delete_media')
+        showLoadingData('#modalDeleteGroup #table_modal_delete_users')
+        showLoadingData('#modalDeleteGroup #table_modal_delete_groups')
         $.ajax({
             type: "POST",
             url: "/api/v3/admin/group/delete/check",
-            data: JSON.stringify(data),
+            data: JSON.stringify({
+                "ids": [pk]
+            }),
             contentType: "application/json"
-        }).done(function(domains) {
-            $('#table_modal_group_delete tbody').empty()
-            $.each(domains, function(key, value) {
-                infoDomains(value, $('#table_modal_group_delete tbody'));
-            });
+        }).done(function (items) {
+            populateDeleteModalTable(items.desktops, $('#modalDeleteGroup #table_modal_delete_desktops'));
+            populateDeleteModalTable(items.templates, $('#modalDeleteGroup #table_modal_delete_templates'));
+            populateDeleteModalTable(items.deployments, $('#modalDeleteGroup #table_modal_delete_deployments'));
+            populateDeleteModalTable(items.media, $('#modalDeleteGroup #table_modal_delete_media'));
+            populateDeleteModalTable(items.users, $('#modalDeleteGroup #table_modal_delete_users'));
+            populateDeleteModalTable(items.groups, $('#modalDeleteGroup #table_modal_delete_groups'));
         });
     });
 

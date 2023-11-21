@@ -15,14 +15,11 @@ from isardvdi_common.api_exceptions import Error
 # coding=utf-8
 from api import app
 
-from ..libv2.api_admin import (
-    ApiAdmin,
-    admin_domains_delete,
-    admin_table_get,
-    admin_table_update,
-)
+from ..libv2.api_admin import ApiAdmin, admin_table_get, admin_table_update
+from ..libv2.api_desktop_events import templates_delete
 from ..libv2.api_desktops_persistent import ApiDesktopsPersistent, domain_template_tree
 from ..libv2.api_domains import ApiDomains
+from ..libv2.api_storage import get_domains_delete_pending
 from ..libv2.datatables import LogsDesktopsQuery
 from .decorators import is_admin, is_admin_or_manager, ownsDomainId
 
@@ -89,6 +86,22 @@ def api_v3_admin_domain_viewer_data(payload, deployment_id):
     )
 
 
+@app.route("/api/v3/admin/domains/<status>", methods=["GET"])
+@is_admin_or_manager
+def api_v3_admin_domains_status(payload, status):
+    if status == "delete_pending":
+        domains = (
+            get_domains_delete_pending()
+            if payload.get("role_id", "") == "admin"
+            else get_domains_delete_pending(payload["category_id"])
+        )
+    return (
+        json.dumps(domains),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
 @app.route("/api/v3/admin/domain/storage/<domain_id>", methods=["GET"])
 @is_admin_or_manager
 def api_v3_admin_desktop_storage(payload, domain_id):
@@ -144,7 +157,9 @@ def admin_multiple_actions_domains(payload):
     selected_desktops = admins.CheckField("domains", "kind", "desktop", dict["ids"])
     for id in dict.get("ids"):
         ownsDomainId(payload, id)
-    res = admins.MultipleActions("domains", dict["action"], selected_desktops)
+    res = admins.MultipleActions(
+        "domains", dict["action"], selected_desktops, payload["user_id"]
+    )
     if res is True:
         json_data = json.dumps(
             {
@@ -166,27 +181,11 @@ def admin_multiple_actions_domains(payload):
     return json_data, http_code, {"Content-Type": "application/json"}
 
 
-@app.route("/api/v3/admin/domains", methods=["DELETE"])
+@app.route("/api/v3/admin/templates/delete/<template_id>", methods=["DELETE"])
 @is_admin_or_manager
-def api_v3_admin_domains_delete(payload):
-    if request.method == "DELETE":
-        try:
-            domains = request.get_json(force=True)
-        except:
-            import logging as log
-
-            log.debug(traceback.format_exc())
-            raise Error(
-                "internal_server",
-                "Internal server error ",
-                traceback.format_stack(),
-            )
-
-        for i in domains:
-            ownsDomainId(payload, i["id"])
-
-        admin_domains_delete(domains)
-        return json.dumps({}), 200, {"Content-Type": "application/json"}
+def api_v3_admin_templates_delete(payload, template_id):
+    templates_delete(template_id, payload["user_id"])
+    return json.dumps({}), 200, {"Content-Type": "application/json"}
 
 
 @cached(TTLCache(maxsize=10, ttl=5))

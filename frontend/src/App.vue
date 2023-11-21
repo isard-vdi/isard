@@ -19,6 +19,7 @@ export default {
       this.$store.dispatch('setSession', localStorage.token)
       this.$store.dispatch('openSocket', {})
       this.$store.dispatch('fetchConfig')
+      this.$store.dispatch('fetchMaxTime')
     }
     this.$store.dispatch('watchToken')
   },

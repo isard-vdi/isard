@@ -248,6 +248,26 @@
             },
             "videowall": {
                 "back": "Back to deployment"
+            },
+            "recycle-bins": {
+                "max-time": "The items in the recycle bin will be permanently deleted after: {time}.",
+                "immediately": "The recycle bin will remain empty since items are permanently deleted immediately.",
+                "empty-recycle-bin": "Empty recycle bin"
+            },
+            "recycle-bin": {
+                "title": "Recycle Bin",
+                "back": "Back to recycle bin",
+                "buttons": {
+                    "restore": {
+                        "title": "Restore"
+                    },
+                    "delete": {
+                        "title": "Delete"
+                    },
+                    "info": {
+                        "title": "More info"
+                    }
+                }
             }
         },
         "desktop-cards": {
@@ -679,7 +699,12 @@
                 "title": {
                     "make-visible": "Make deployment '{name}' visible",
                     "make-invisible": "Make deployment '{name}' invisible",
-                    "download-csv": "Download '{name}' direct viewer CSV"
+                    "download-csv": "Download '{name}' direct viewer CSV",
+                    "delete": "Delete deployment"
+                },
+                "body": {
+                    "text":  "This action cannot be undone and all its associated data will be lost.",
+                    "send-to-recycle-bin": "Send deployment to recycle bin (its storage will still be considered in the user quota until permanently removed)."
                 },
                 "option": {
                     "dont-stop-desktops": "Make this deployment invisible to the users and allow the use of the desktops until they're stopped",
@@ -692,8 +717,9 @@
                     "stop": "Stop desktops",
                     "dont-stop": "Don't stop desktops",
                     "make-visible": "Make visible",
-                    "keep-csv": "Keep urls and download csv",
-                    "reset-csv": "Reset urls and download csv"
+                    "keep-csv": "Keep URLs and download CSV",
+                    "reset-csv": "Reset URLs and download CSV",
+                    "delete": "Delete"
                 }
             }
         },
@@ -882,6 +908,125 @@
                 "percentage": "% Quota",
                 "last": "Last access"
             }
+        },
+        "recycle-bin": {
+            "title":{
+                "deployment": "Deployment '{name}' deleted at {date}",
+                "desktop": "Desktop '{name}' deleted at {date}",
+                "template": "Template '{name}' deleted at {date}",
+                "bulk": "Multiple desktops deleted at {date}",
+                "user": "User deleted at {date}"
+            },
+            "desktops": {
+                "title": "Desktops",
+                "table-header": {
+                    "id": "Id",
+                    "name": "Desktop name",
+                    "user": "Owner",
+                    "category": "Category",
+                    "group": "Group",
+                    "accessed": "Last access"
+                }
+            },
+            "templates": {
+                "title": "Templates",
+                "table-header": {
+                    "id": "Id",
+                    "name": "Template name",
+                    "user": "Owner",
+                    "category": "Category",
+                    "group": "Group",
+                    "accessed": "Last access"
+                }
+            },
+            "deployments": {
+                "title": "Deployments",
+                "table-header": {
+                    "id": "Id",
+                    "name": "Deployment name",
+                    "desktop-name": "Desktop name",
+                    "user": "Owner",
+                    "category": "Category",
+                    "group": "Group"
+                }
+            },
+            "storages": {
+                "title": "Storages",
+                "table-header": {
+                    "id": "Id",
+                    "path": "Path",
+                    "status": "Status",
+                    "format": "Format",
+                    "size": "Size",
+                    "used": "Used",
+                    "parent": "Parent",
+                    "user": "User",
+                    "category": "Category",
+                    "domains": "Domains"
+                }
+            },
+            "modal": {
+                "title": {
+                    "delete": "Permanently delete entry",
+                    "restore": "Restore entry",
+                    "empty": "Empty recycle bin"
+                },
+                "option": {
+                    "delete": "This action cannot be undone and all its associated data will be lost. Are you sure you want to delete it?",
+                    "restore": "The associated data will be recovered (it will affect if quotas are applied). Are you sure you want to restore it?",
+                    "empty": "The recycle bin will be emptied. This action cannot be undone and all its associated data will be lost. Are you sure you want to delete it?"
+                },
+                "confirmation": {
+                    "delete": "Delete",
+                    "restore": "Restore",
+                    "empty": "Empty"
+                }
+            }
+
+        },
+        "recycle-bins": {
+            "title": "Recycle bin",
+            "no-recycle-bin": {
+                "title": "There are no deleted items from this user",
+                "subtitle": "Move the items that you don't need into the recycle bin. They will be permanently deleted after {time}."
+            },
+            "table-header" : {
+                "id": "Id",
+                "accessed": "Deleted at",
+                "size": "Size",
+                "type": "Type",
+                "name": "Name",
+                "agent-name": "Deleted by",
+                "status": "Status",
+                "desktops": "Desktops",
+                "templates":"Templates",
+                "deployments":"Deployments",
+                "actions": "Actions"
+            },
+            "status": {
+                "recycled": "Recycled"
+            },
+            "item-type": {
+                "desktop": "Desktop",
+                "deployment": "Deployment",
+                "template": "Template",
+                "bulk": "Bulk delete",
+                "user": "User"
+            }
+        },
+        "desktop": {
+            "modal": {
+                "title": {
+                    "delete": "Delete desktop"
+                },
+                "body": {
+                    "text": "This action cannot be undone and all its associated data will be lost.",
+                    "send-to-recycle-bin": "Send desktop to recycle bin (its storage will still be considered in the user quota until permanently removed)."
+                },
+                "confirmation": {
+                    "delete": "Delete"
+                }
+            }
         }
     },
     "messages": {
@@ -889,7 +1034,6 @@
             "delete": "Delete"
         },
         "confirmation": {
-            "delete-desktop": "'{name}' will be deleted, continue?",
             "create-nonpersistent": "WARNING! This desktop is temporal. When stopping it all data will be deleted. Create desktop?",
             "visible-deployment": "Desktops will be visible",
             "recreate-deployment": "'{name}' deleted desktops will be recreated, continue?",
@@ -949,7 +1093,9 @@
             "wireguard-viewers-removed": "The RDP viewers were removed since the wireguard network is required",
             "wireguard-network-required": "Can't select RDP viewers since the wireguard network is required. Contact with the admin in order to use the wireguard network",
             "deleting-template": "Deleting template",
-            "retry-desktop": "Checking desktop status"
+            "retry-desktop": "Checking desktop status",
+            "restoring-recycle-bin": "Restoring entry",
+            "deleting-recycle-bin": "Deleting entry"
         },
         "loading": "Loading"
     },
@@ -1093,7 +1239,8 @@
             "direct_viewer": "Direct viewer",
             "edit-domain": "Edit domain",
             "storage": "Storage",
-            "edit-deployment": "Edit deployment"
+            "edit-deployment": "Edit deployment",
+            "recycleBin": "Recycle bin"
         }
     },
     "message-modal": {

@@ -113,42 +113,124 @@ def isard_user_storage_add_category(category_id):
         )
 
 
+## ENABLE
+def isard_user_storage_enable_users(users):
+    for user in users:
+        try:
+            user_storage_enable_user_th(
+                user["id"], True, _get_isard_category_provider_id(user["category"])
+            )
+        except Exception as e:
+            app.logger.error(
+                f"USER_STORAGE - Error enabling user {user['id']} in user_storage provider"
+            )
+
+
+def isard_user_storage_enable_groups(groups):
+    for group in groups:
+        try:
+            user_storage_enable_group_th(
+                group["id"],
+                True,
+                _get_isard_category_provider_id(group["parent_category"]),
+            )
+        except Exception as e:
+            app.logger.error(
+                f"USER_STORAGE - Error enabling group {group['id']} in user_storage provider"
+            )
+
+
+def isard_user_storage_enable_categories(categories):
+    for category in categories:
+        try:
+            user_storage_enable_category_th(
+                category["id"], True, _get_isard_category_provider_id(category["id"])
+            )
+        except Exception as e:
+            app.logger.error(
+                f"USER_STORAGE - Error enabling category {category['id']} in user_storage provider"
+            )
+
+
+## DISABLE
+def isard_user_storage_disable_users(users):
+    for user in users:
+        try:
+            user_storage_enable_user_th(
+                user["id"], False, _get_isard_category_provider_id(user["category"])
+            )
+        except Exception as e:
+            app.logger.error(
+                f"USER_STORAGE - Error enabling user {user['id']} in user_storage provider"
+            )
+
+
+def isard_user_storage_disable_groups(groups):
+    for group in groups:
+        try:
+            user_storage_enable_group_th(
+                group["id"],
+                False,
+                _get_isard_category_provider_id(group["parent_category"]),
+            )
+        except Exception as e:
+            app.logger.error(
+                f"USER_STORAGE - Error enabling group {group['id']} in user_storage provider"
+            )
+
+
+def isard_user_storage_disable_categories(categories):
+    for category in categories:
+        try:
+            user_storage_enable_category_th(
+                category["id"], False, _get_isard_category_provider_id(category["id"])
+            )
+        except Exception as e:
+            app.logger.error(
+                f"USER_STORAGE - Error enabling category {category['id']} in user_storage provider"
+            )
+
+
 ## REMOVE
-def isard_user_storage_remove_user(user_id):
-    try:
-        user_storage_remove_user_th(user_id, _get_isard_user_provider_id(user_id))
-    except:
-        app.logger.error(
-            f"USER_STORAGE - Error removing user {user_id} in user_storage provider"
-        )
+def isard_user_storage_remove_users(users):
+    for user in users:
+        try:
+            user_storage_remove_user_th(
+                user["id"], _get_isard_category_provider_id(user["category"])
+            )
+        except Exception as e:
+            app.logger.error(
+                f"USER_STORAGE - Error removing user {user['id']} in user_storage provider"
+            )
 
 
-def isard_user_storage_remove_group(group_id, cascade=True):
-    try:
-        user_storage_remove_group_th(
-            group_id,
-            _get_isard_group_provider_id(group_id),
-            cascade,
-        )
-    except:
-        app.logger.error(
-            f"USER_STORAGE - Error removing group {group_id} in user_storage provider"
-        )
+def isard_user_storage_remove_groups(groups):
+    for group in groups:
+        try:
+            user_storage_remove_group_th(
+                group["id"],
+                _get_isard_category_provider_id(group["parent_category"]),
+                cascade=True,
+            )
+        except Exception as e:
+            app.logger.error(
+                f"USER_STORAGE - Error removing group {group['id']} in user_storage provider"
+            )
 
 
-def isard_user_storage_remove_category(category_id, cascade=True):
-    try:
-        user_storage_remove_category_th(
-            category_id,
-            cascade,
-        )
-    except:
-        app.logger.debug(
-            f"USER_STORAGE - Error removing category {category_id} in user_storage provider: {traceback.format_exc()}"
-        )
-        app.logger.error(
-            f"USER_STORAGE - Error removing category {category_id} in user_storage provider"
-        )
+def isard_user_storage_remove_categories(categories, groups):
+    for category in categories:
+        try:
+            user_storage_remove_category_th(
+                category,
+                groups,
+                _get_isard_category_provider_id(category["id"]),
+                cascade=True,
+            )
+        except Exception as e:
+            app.logger.error(
+                f"USER_STORAGE - Error removing category {category['id']} in user_storage provider"
+            )
 
 
 ## UPDATE
@@ -816,6 +898,44 @@ def process_user_storage_add_user_batches(
     gevent.joinall(jobs)
 
 
+def process_user_storage_enable_user_batch(data_batch, enabled, provider_id):
+    # Spawn a greenlet for each item in the batch
+    for item_id in data_batch:
+        user_storage_enable_user(
+            user_id=item_id,
+            enabled=enabled,
+            provider_id=provider_id,
+        )
+
+
+def process_user_storage_enable_user_batches(data_batch, enabled, provider_id):
+    if not len(data_batch):
+        app.logger.debug("USER_STORAGE - No users to disable")
+        return
+    # Number of simultaneous users that can be disabled
+    max_batch_threads = 10
+    batch_size = ceil(len(data_batch) / max_batch_threads)
+
+    batches = [
+        data_batch[i : i + batch_size] for i in range(0, len(data_batch), batch_size)
+    ]
+
+    app.logger.info(
+        "USER_STORAGE ==> DISABLE %s USERS IN PROVIDER IN %s BATCHES OF %s USERS EACH"
+        % (len(data_batch), len(batches), batch_size)
+    )
+
+    # Process each batch in a separate thread
+    jobs = []
+    for batch in batches:
+        jobs.append(
+            gevent.spawn(
+                process_user_storage_enable_user_batch, batch, enabled, provider_id
+            )
+        )
+    gevent.joinall(jobs)
+
+
 def process_user_storage_remove_user_batch(data_batch, provider_id):
     # Spawn a greenlet for each item in the batch
     for item_id in data_batch:
@@ -1307,18 +1427,15 @@ def user_storage_add_user(
         )
 
 
-def user_storage_remove_user_th(user_id, provider_id=None):
+def user_storage_remove_user_th(user_id, provider_id):
     gevent.spawn(user_storage_remove_user, user_id, provider_id)
 
 
-def user_storage_remove_user(user_id, provider_id=None):
+def user_storage_remove_user(user_id, provider_id):
     # The isard database user removal should be be done before this
     if user_id == "admin":
         return
-    if not provider_id:
-        provider = _get_provider(_get_isard_user_provider_id(user_id))
-    else:
-        provider = _get_provider(provider_id)
+    provider = _get_provider(provider_id)
     if not provider:
         # We will return as there are no providers defined in system
         return
@@ -1338,10 +1455,6 @@ def user_storage_remove_user(user_id, provider_id=None):
             namespace="/administrators",
             room="admins",
         )
-        with app.app_context():
-            r.table("users").get(user_id).replace(r.row.without("user_storage")).run(
-                db.conn
-            )
     except Error as e:
         if e.status_code == 404:
             app.logger.error(
@@ -1446,13 +1559,14 @@ def user_storage_update_user(
         )
 
 
-def user_storage_enable_user_th(user_id, enabled):
-    gevent.spawn(user_storage_enable_user, user_id, enabled)
+def user_storage_enable_user_th(user_id, enabled, provider_id=None):
+    gevent.spawn(user_storage_enable_user, user_id, enabled, provider_id)
 
 
-def user_storage_enable_user(user_id, enabled):
-    provider = _get_provider(_get_isard_user_provider_id(user_id))
-    if not provider:
+def user_storage_enable_user(user_id, enabled, provider_id=None):
+    if provider_id:
+        provider = _get_provider(provider_id)
+    else:
         # We will return as there are no providers defined in system
         return
     try:
@@ -1744,7 +1858,11 @@ def _get_provider_categories(provider_id):
 def _get_category_groups(category_id):
     provider = _get_provider(_get_isard_category_provider_id(category_id))
     groups = provider["conn"].get_group_members(category_id)
-    groups.remove("admin")
+    app.logger.error(groups)
+    if "admin" in groups:
+        groups.remove("admin")
+    app.logger.error(groups)
+
     return groups
 
 
@@ -1858,6 +1976,20 @@ def user_storage_update_group(group_id, new_group_name, provider_id):
             namespace="/administrators",
             room="admins",
         )
+
+
+def user_storage_enable_group_th(group_id, enabled, provider_id=None):
+    gevent.spawn(user_storage_enable_group, group_id, enabled, provider_id)
+
+
+def user_storage_enable_group(group_id, enabled, provider_id=None):
+    if not provider_id:
+        # We will return as there are no providers defined in system
+        return
+    provider_group_users = _provider_group_members(group_id, provider_id)
+    process_user_storage_enable_user_batches(
+        data_batch=provider_group_users, enabled=enabled, provider_id=provider_id
+    )
 
 
 def user_storage_remove_group_th(group_id, provider_id, cascade=False):
@@ -1993,25 +2125,44 @@ def user_storage_add_provider_categories(provider_id):
     )
 
 
-def user_storage_remove_category_th(category_id, cascade=False):
-    gevent.spawn(user_storage_remove_category, category_id, cascade=cascade)
+def user_storage_enable_category_th(category_id, enabled, provider_id=None):
+    gevent.spawn(user_storage_enable_category, category_id, enabled, provider_id)
 
 
-def user_storage_remove_category(category_id, cascade=False):
-    provider_id = _get_isard_category_provider_id(category_id)
+def user_storage_enable_category(group_id, enabled, provider_id=None):
+    if not provider_id:
+        # We will return as there are no providers defined in system
+        return
+    provider_group_users = _provider_group_members(group_id, provider_id)
+    process_user_storage_enable_user_batches(
+        data_batch=provider_group_users, enabled=enabled, provider_id=provider_id
+    )
+
+
+def user_storage_remove_category_th(category, groups, provider_id, cascade=False):
+    gevent.spawn(
+        user_storage_remove_category, category, groups, provider_id, cascade=cascade
+    )
+
+
+def user_storage_remove_category(category, groups, provider_id, cascade=False):
     provider = _get_provider(provider_id)
+    if not provider:
+        # We will return as there are no providers defined in system
+        return
+
     if cascade:
         process_user_storage_remove_user_batches(
-            data_batch=_provider_group_members(category_id, provider_id),
+            data_batch=_provider_group_members(category["id"], provider_id),
             provider_id=provider_id,
         )
         _get_provider_users_array.cache_clear()
-
         ## Should only be groups in category_id!!
         process_user_storage_remove_group_batches(
-            data_batch=_get_category_groups(category_id), provider_id=provider_id
+            data_batch=groups,
+            provider_id=provider_id,
         )
-    provider["conn"].remove_group(category_id)
+    provider["conn"].remove_group(category["id"])
 
 
 def user_storage_update_category_th(category_id, new_category_name, provider_id):

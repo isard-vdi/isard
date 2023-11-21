@@ -1,10 +1,14 @@
+<style>
+  .fancytree-unselectable {
+    background-color: lightgrey;
+  }
+</style>
+
 {% block css %}
   <link href="/isard-admin/static/vendor/fancytree/dist/skin-win8/ui.fancytree.css" rel="stylesheet">
 {% endblock %}
 <table class="tree_template_delete template_tree table">
   <colgroup>
-  <col width="30px"></col>
-  <col width="100px"></col>
   <col width="*"></col>
   <col width="100px"></col>
   <col width="100px"></col>
@@ -14,8 +18,6 @@
   </colgroup>
   <thead>
     <tr>
-      <th></th>
-      <th>#</th>
       <th></th>
       <th>Duplicated</th>
       <th>User</th>

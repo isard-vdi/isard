@@ -111,10 +111,18 @@ class Quotas:
             )
 
             user_total_storage_size = (
-                r.table("storage")
-                .get_all([user_id, "ready"], index="user_status")
-                .sum(lambda size: size["qemu-img-info"]["actual-size"].default(0))
-                .run(db.conn)
+                (
+                    r.table("storage")
+                    .get_all([user_id, "ready"], index="user_status")
+                    .sum(lambda size: size["qemu-img-info"]["actual-size"].default(0))
+                    .run(db.conn)
+                )
+                + (
+                    r.table("storage")
+                    .get_all([user_id, "recycled"], index="user_status")
+                    .sum(lambda size: size["qemu-img-info"]["actual-size"].default(0))
+                    .run(db.conn)
+                )
             ) / 1073741824
 
             user_total_media_size = (
@@ -204,7 +212,7 @@ class Quotas:
     def UserCreate(self, category_id, group_id):
         qp.check_new_autoregistered_user(category_id, group_id)
 
-    def desktop_create(self, user_id):
+    def desktop_create(self, user_id, quantity=1):
         try:
             with app.app_context():
                 user = (
@@ -267,14 +275,14 @@ class Quotas:
         self.check_field_quotas_and_limits(
             user,
             "desktops",
-            1,
+            quantity,
             quota_error,
             group_quantity,
             category_quantity,
             limits_error,
         )
 
-    def template_create(self, user_id):
+    def template_create(self, user_id, quantity=1):
         try:
             with app.app_context():
                 user = (
@@ -337,7 +345,7 @@ class Quotas:
         self.check_field_quotas_and_limits(
             user,
             "templates",
-            1,
+            quantity,
             quota_error,
             group_quantity,
             category_quantity,

@@ -931,3 +931,229 @@ def change_owner_domain_data(domain_id, user_id):
     )
 
     return {"user_data": user_data, "domain_data": domain_data}
+
+
+# This has no recursion. Call GetTemplateTreeList
+def TemplateTreeList(template_id):
+    # Get derivated from this template (and derivated from itself)
+    derivated = _derivated(template_id)
+
+    # Duplicated templates should have the same parent as the original
+    # Except for duplicates from root template
+    duplicated = _duplicated(template_id)
+
+    derivated = list(derivated) + list(duplicated)
+
+    domains = []
+    for d in derivated:
+        domains.append(
+            {
+                "id": d["id"],
+                "parent": d["parents"][-1]
+                if d.get("parents")
+                else d["duplicate_parent_template"],
+                "name": d["name"],
+                "kind": d["kind"],
+                "user": d["user"],
+                "category": d["category"],
+                "group": d["group"],
+                "username": d["username"],
+                "user_name": d["user_name"],
+            }
+        )
+    return domains
+
+
+# This is the function to be called
+def GetAllTemplateDerivates(template_id, user_id=None):
+    levels = {}
+    derivated = TemplateTreeList(template_id)
+    with app.app_context():
+        template = (
+            r.table("domains")
+            .get(template_id)
+            .pluck("user", "name", "category", "group")
+            .merge(
+                lambda d: {
+                    "username": r.table("users").get(d["user"])["username"],
+                    "user_name": r.table("users").get(d["user"])["name"],
+                }
+            )
+            .run(db.conn)
+        )
+    for n in derivated:
+        levels.setdefault(n["parent"], []).append(n)
+    recursion = TemplateTreeRecursion(template_id, levels)
+    all_domains_id = [
+        {
+            "id": template_id,
+            "name": template["name"],
+            "kind": "template",
+            "user": template["user"],
+            "category": template["category"],
+            "group": template["group"],
+            "username": template["username"],
+            "user_name": template["user_name"],
+        }
+    ]
+    if user_id:
+        with app.app_context():
+            user = (
+                r.table("users")
+                .get(user_id)
+                .pluck("id", "category", "role")
+                .run(db.conn)
+            )
+    for t in recursion:
+        if not user_id or (
+            (user["role"] == "admin")
+            or (user["role"] == "manager" and t["category"] == user["category"])
+            or (user["role"] == "advanced" and t["user"] == user["id"])
+        ):
+            all_domains_id.append(
+                {
+                    "id": t["id"],
+                    "name": t["name"],
+                    "kind": t["kind"],
+                    "user": t["user"],
+                    "category": t["category"],
+                    "group": t["group"],
+                    "username": t["username"],
+                    "user_name": t["user_name"],
+                }
+            )
+        else:
+            raise Error(
+                "forbidden",
+                "This template has derivatives not owned by your category",
+                traceback.format_exc(),
+            )
+    return all_domains_id
+
+
+# Call GetTemplateTreeList. This is a subfunction only.
+def TemplateTreeRecursion(template_id, levels):
+    nodes = [dict(n) for n in levels.get(template_id, [])]
+    for n in nodes:
+        children = TemplateTreeRecursion(n["id"], levels)
+        if children:
+            n["children"] = children
+    return nodes
+
+
+def _derivated(template_id):
+    with app.app_context():
+        return list(
+            r.db("isard")
+            .table("domains")
+            .get_all(template_id, index="parents")
+            .pluck(
+                "id",
+                "name",
+                "parents",
+                "duplicate_parent_template",
+                "user",
+                "group",
+                "category",
+                "kind",
+            )
+            .merge(
+                lambda d: {
+                    "username": r.table("users").get(d["user"])["username"],
+                    "user_name": r.table("users").get(d["user"])["name"],
+                }
+            )
+            .run(db.conn)
+        )
+
+
+def _duplicated(template_id):
+    with app.app_context():
+        duplicated_from_original = list(
+            r.table("domains")
+            .get_all(template_id, index="duplicate_parent_template")
+            .pluck(
+                "id",
+                "name",
+                "parents",
+                "duplicate_parent_template",
+                "user",
+                "group",
+                "category",
+                "kind",
+            )
+            .merge(
+                lambda d: {
+                    "username": r.table("users").get(d["user"])["username"],
+                    "user_name": r.table("users").get(d["user"])["name"],
+                }
+            )
+            .run(db.conn)
+        )
+
+    # Recursively get templates derived from duplicated templates
+    derivated_from_duplicated = []
+    for d in duplicated_from_original:
+        derivated_from_duplicated += _derivated(d["id"])
+    return duplicated_from_original + derivated_from_duplicated
+
+
+def wait_status(
+    desktops_ids, current_status, wait_seconds=0, interval_seconds=2, raise_exc=False
+):
+    desktops_status = list(
+        r.table("domains")
+        .get_all(r.args(desktops_ids))
+        .pluck("status")["status"]
+        .run(db.conn)
+    )
+    if wait_seconds == 0:
+        return desktops_status
+    seconds = 0
+    while current_status in desktops_status and seconds <= wait_seconds:
+        time.sleep(interval_seconds)
+        seconds += interval_seconds
+        with app.app_context():
+            try:
+                desktops_status = list(
+                    r.table("domains")
+                    .get_all(r.args(desktops_ids))
+                    .pluck("status")["status"]
+                    .run(db.conn)
+                )
+            except:
+                raise Error(
+                    "not_found",
+                    "Desktop not found",
+                    traceback.format_exc(),
+                    description_code="not_found",
+                )
+    if current_status in desktops_status:
+        if raise_exc:
+            raise Error(
+                "internal_server",
+                "Engine could not change "
+                + desktops_ids
+                + " status from "
+                + current_status
+                + " in "
+                + str(wait_seconds),
+                traceback.format_exc(),
+                description_code="generic_error",
+            )
+        else:
+            return False
+    return desktops_status
+
+
+def desktops_stop(desktops_ids, wait_seconds=30):
+    with app.app_context():
+        r.table("domains").get_all(r.args(desktops_ids), index="id").filter(
+            {"status": "Shutting-down"}
+        ).update({"status": "Stopping", "accessed": int(time.time())}).run(db.conn)
+        r.table("domains").get_all(r.args(desktops_ids), index="id").filter(
+            {"status": "Started"}
+        ).update({"status": "Stopping", "accessed": int(time.time())}).run(db.conn)
+    return wait_status(
+        desktops_ids, current_status="Stopping", wait_seconds=wait_seconds
+    )

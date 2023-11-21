@@ -55,12 +55,7 @@ from ..libv2.bookings.api_reservables import Reservables
 api_ri = Reservables()
 api_allowed = ApiAllowed()
 
-from .api_desktop_events import (
-    desktop_delete,
-    desktop_reset,
-    desktop_stop,
-    desktops_delete,
-)
+from .api_desktop_events import desktop_delete, desktop_reset, desktop_stop
 from .helpers import (
     _check,
     _parse_desktop_booking,
@@ -99,7 +94,7 @@ class ApiDesktopsPersistent:
     def __init__(self):
         None
 
-    def Delete(self, desktop_id):
+    def Delete(self, desktop_id, agent_id, permanent):
         with app.app_context():
             desktop = r.table("domains").get(desktop_id).run(db.conn)
         if desktop == None:
@@ -109,10 +104,7 @@ class ApiDesktopsPersistent:
                 traceback.format_exc(),
                 description_code="not_found",
             )
-        desktop_delete(desktop_id)
-
-    def DeleteMultiple(self, desktop_ids):
-        desktops_delete(desktop_ids, True)
+        desktop_delete(desktop_id, agent_id, permanent)
 
     def Get(self, desktop_id):
         with app.app_context():

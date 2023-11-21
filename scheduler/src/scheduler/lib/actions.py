@@ -36,7 +36,7 @@ from .log import log
 db = RDB(app)
 db.init_app(app)
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from .api_client import ApiClient
 from .exceptions import Error
@@ -472,3 +472,21 @@ class Actions:
                         + ": "
                         + traceback.format_exc()
                     )
+
+    def recycle_bin_delete_kwargs(**kwargs):
+        return []
+
+    def recycle_bin_delete(**kwargs):
+        max_delete_period = int(kwargs.get("max_delete_period"))
+        category = kwargs.get("category")
+        api_client.put(
+            "/recycle_bin/delete/",
+            {"max_delete_period": max_delete_period, "category": category},
+        )
+
+    def recycle_bin_delete_admin_kwargs(**kwargs):
+        return []
+
+    def recycle_bin_delete_admin(**kwargs):
+        max_delete_period = int(kwargs.get("max_delete_period"))
+        api_client.put("/recycle_bin/delete/", {"max_delete_period": max_delete_period})

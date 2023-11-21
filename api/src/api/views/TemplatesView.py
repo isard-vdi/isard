@@ -39,7 +39,7 @@ from ..libv2.api_allowed import ApiAllowed
 
 allowed = ApiAllowed()
 
-from ..libv2.api_admin import ApiAdmin, admin_domains_delete
+from ..libv2.api_admin import ApiAdmin
 
 admin = ApiAdmin()
 
@@ -47,6 +47,7 @@ from ..libv2.api_desktops_persistent import ApiDesktopsPersistent
 
 desktops = ApiDesktopsPersistent()
 
+from ..libv2.api_desktop_events import templates_delete
 from ..libv2.validators import _validate_item, check_user_duplicated_domain_name
 from .decorators import allowedTemplateId, has_token, ownsDomainId
 
@@ -149,7 +150,7 @@ def api_v3_template_delete(payload, template_id):
     derivates = templates.check_children(payload, tree)
 
     if not derivates["pending"]:
-        admin_domains_delete(derivates["domains"])
+        templates_delete(template["id"], payload["user_id"])
     else:
         raise Error(
             "forbidden",

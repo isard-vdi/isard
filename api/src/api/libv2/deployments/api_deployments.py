@@ -37,7 +37,7 @@ alloweds = ApiAllowed()
 
 from api.libv2.quotas import Quotas
 
-from ..api_desktop_events import desktops_delete, desktops_stop
+from ..api_desktop_events import deployment_delete_desktops, desktops_stop
 from ..api_desktops_common import ApiDesktopsCommon
 from ..api_desktops_persistent import ApiDesktopsPersistent
 from ..bookings.api_booking import Bookings, is_future
@@ -435,19 +435,21 @@ def edit_deployment_users(payload, deployment_id, allowed):
         payload, allowed, deployment.get("create_dict").get("name"), False, True
     )
 
-    remove_desktops = []
+    desktops_ids = []
     for user in old_users:
         if user not in new_users:
-            domain_id = list(
+            domain_id = (
                 r.table("domains")
-                .get_all(deployment_id, index="tag")
-                .filter({"user": user["id"]})
+                .get_all(["desktop", user["id"], deployment_id], index="kind_user_tag")
                 .pluck("id")["id"]
+                .nth(0)
+                .default(None)
                 .run(db.conn)
-            )[0]
+            )
             if domain_id:
-                remove_desktops.append(domain_id)
-    desktops_delete(remove_desktops, True)
+                desktops_ids.append(domain_id)
+    if len(desktops_ids):
+        deployment_delete_desktops(payload["user_id"], desktops_ids, True)
     recreate(payload, deployment_id)
 
 

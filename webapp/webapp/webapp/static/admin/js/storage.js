@@ -88,6 +88,16 @@ $(document).ready(function() {
           }
         },
         {
+          "targets": 9,
+          "render": function ( data, type, full, meta ) {
+            if( 'domains' in full){
+              return full['domains'].length
+            } else {
+              return 0
+            }
+          }
+        },
+        {
           "targets": 10,
           "render": function ( data, type, full, meta ) {
             if( "status_logs" in full ){

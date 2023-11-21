@@ -141,8 +141,8 @@
                     @click="deleteDeployment(data.item)"
                   >
                     <b-icon
-                      icon="trash-fill"
-                      scale="0.75"
+                      icon="x"
+                      scale="1"
                     />
                   </b-button>
                   <b-button
@@ -221,6 +221,7 @@ export default {
     const totalRows = ref(1)
     const filter = ref('')
     const filterOn = reactive(['name', 'description', 'desktopName', 'template'])
+    const sendToRecycleBin = ref(false)
 
     const onFiltered = (filteredItems) => {
       // Trigger pagination to update the number of buttons/pages due to filtering
@@ -263,24 +264,12 @@ export default {
     }
 
     const deleteDeployment = (deployment) => {
-      context.root.$snotify.clear()
-
-      const yesAction = () => {
-        context.root.$snotify.clear()
-        $store.dispatch('deleteDeployment', { id: deployment.id })
-      }
-
-      const noAction = (toast) => {
-        context.root.$snotify.clear()
-      }
-
-      context.root.$snotify.prompt(`${i18n.t('messages.confirmation.delete-deployment', { name: deployment.name })}`, {
-        position: 'centerTop',
-        buttons: [
-          { text: `${i18n.t('messages.yes')}`, action: yesAction, bold: true },
-          { text: `${i18n.t('messages.no')}`, action: noAction }
-        ],
-        placeholder: ''
+      $store.dispatch('updateDeploymentModal', {
+        show: true,
+        type: 'delete',
+        color: 'red',
+        item: { id: deployment.id, name: deployment.name },
+        permanent: !sendToRecycleBin.value
       })
     }
 

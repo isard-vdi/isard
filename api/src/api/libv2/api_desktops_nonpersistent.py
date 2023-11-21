@@ -17,9 +17,8 @@ import traceback
 
 from ..libv2.quotas import Quotas
 from .api_desktop_events import (
-    desktop_delete,
+    desktop_non_persistent_delete,
     desktop_start,
-    desktops_delete,
     desktops_non_persistent_delete,
 )
 
@@ -69,41 +68,7 @@ class ApiDesktopsNonPersistent:
         return self._nonpersistent_desktop_create_and_start(user_id, template_id)
 
     def Delete(self, desktop_id):
-        desktop_delete(
-            desktop_id,
-            from_started=True,
-        )
-
-    def DeleteOthers(self, user_id, template_id):
-        """Will leave only one nonpersistent desktops form template `template_id`
-
-        :param user_id: User ID
-        :param template_id: Template ID
-        :return: None
-        """
-        with app.app_context():
-            if r.table("users").get(user_id).run(db.conn) is None:
-                raise Error("not_found", "User not found", traceback.format_exc())
-
-        ####### Get how many desktops are from this template and leave only one
-        with app.app_context():
-            desktops = list(
-                r.db("isard")
-                .table("domains")
-                .get_all(["desktop", user_id], index="kind_user")
-                .filter(
-                    {
-                        "from_template": template_id,
-                        "persistent": False,
-                    }
-                )
-                .order_by(r.desc("accessed"))["id"]
-                .run(db.conn)
-            )
-        # This situation should not happen as there should only be a maximum of 1 non persistent desktop
-        # So we delete all but the first one [0] as the descendant order_by lets this as the newer desktop
-        if len(desktops) > 1:
-            desktops_delete(desktops[1:], force=True)
+        desktop_non_persistent_delete(desktop_id)
 
     def _nonpersistent_desktop_create_and_start(self, user_id, template_id):
         with app.app_context():

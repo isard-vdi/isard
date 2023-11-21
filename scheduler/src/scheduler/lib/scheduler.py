@@ -86,6 +86,23 @@ class Scheduler:
         # log.info('Adding default shutting_down_desktops job')
         # self.add_scheduler("interval", "stop_shutting_down_desktops", "0", "1")
 
+        ## DEFAULT RECYCLED PERMANENT DELETE 1 HOUR
+        with app.app_context():
+            if not (
+                r.table("scheduler_jobs")
+                .get("admin.recycle_bin_delete_admin")
+                .run(db.conn)
+            ):
+                self.add_job(
+                    "system",
+                    "interval",
+                    "recycle_bin_delete_admin",
+                    "00",
+                    "05",
+                    id="admin.recycle_bin_delete_admin",
+                    kwargs={"max_delete_period": "1"},
+                )
+
     def load_jobs(self, job_id=None):
         with app.app_context():
             if job_id:
@@ -182,6 +199,7 @@ class Scheduler:
                     "kwargs": kwargs,
                 }
             ).run(db.conn)
+        return id
 
     def add_advanced_interval_job(self, type, action, data, id=None, kwargs=None):
         try:
@@ -255,10 +273,7 @@ class Scheduler:
         try:
             self.scheduler.remove_job(job_id)
         except:
-            raise Error(
-                "not_found",
-                "Job id " + str(job_id) + " not found. Probably was already deleted",
-            )
+            return
 
     def remove_job_startswith(self, job_id):
         with app.app_context():
@@ -277,6 +292,20 @@ class Scheduler:
                     + " not found. Probably was already deleted"
                 )
 
+    def remove_job_action(self, action, category_id=None):
+        if category_id:
+            jobs = (
+                r.table("scheduler_jobs")
+                .get(category_id + ".recycle_bin_delete")
+                .run(db.conn)
+            )
+        else:
+            jobs = (
+                r.table("scheduler_jobs").get_all(action, index="action").run(db.conn)
+            )
+        for job in jobs:
+            self.remove_job(job["id"])
+
     def turnOff(self):
         self.scheduler.shutdown()
 
@@ -285,3 +314,50 @@ class Scheduler:
 
     def removeJobs(self):
         self.scheduler.remove_all_jobs()
+
+    def get_max_time(self, category_id=None):
+        if not category_id:
+            try:
+                return (
+                    r.table("scheduler_jobs")
+                    .get("admin.recycle_bin_delete_admin")["kwargs"][
+                        "max_delete_period"
+                    ]
+                    .run(db.conn)
+                )
+            except:
+                return "null"
+        else:
+            try:
+                with app.app_context():
+                    results = (
+                        r.table("scheduler_jobs")
+                        .get(category_id + ".recycle_bin_delete")["kwargs"][
+                            "max_delete_period"
+                        ]
+                        .run(db.conn)
+                    )
+            except:
+                try:
+                    with app.app_context():
+                        results = (
+                            r.table("scheduler_jobs")
+                            .get("admin.recycle_bin_delete_admin")["kwargs"][
+                                "max_delete_period"
+                            ]
+                            .run(db.conn)
+                        )
+                except:
+                    results = "null"
+            return results
+
+    def get_max_time_category(self, category_id):
+        with app.app_context():
+            results = list(
+                r.table("scheduler_jobs")
+                .get_all(category_id + ".recycle_bin_delete")["kwargs"][
+                    "max_delete_period"
+                ]
+                .run(db.conn)
+            )
+        return results if results else None

@@ -425,7 +425,6 @@
             "deleting-desktop": "Удаление рабочего стола"
         },
         "confirmation": {
-            "delete-desktop": "'{name}' будет удален, продолжить?"
         },
         "loading": "Загрузка"
     },

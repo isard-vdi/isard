@@ -13,10 +13,12 @@ from isardvdi_common.api_exceptions import Error
 from api import app
 
 from ..libv2.api_storage import (
+    delete_storage,
     get_disk_tree,
     get_disks,
     get_media_domains,
     get_storage_domains,
+    restore_disk,
 )
 from ..libv2.helpers import get_user_data
 from .decorators import is_admin_or_manager, ownsMediaId, ownsStorageId
@@ -26,8 +28,14 @@ from .decorators import is_admin_or_manager, ownsMediaId, ownsStorageId
 @app.route("/api/v3/admin/storage/<status>", methods=["GET"])
 @is_admin_or_manager
 def api_v3_admin_storage(payload, status=None):
-    if payload["role_id"] == "manager":
-        disks = get_disks(status=status, category_id=payload["category_id"])
+    if status == "delete_pending":
+        disks = get_disks(
+            status=status,
+            last_domain_attached=True,
+            category_id=payload["category_id"]
+            if payload["role_id"] == "manager"
+            else None,
+        )
     else:
         disks = get_disks(status=status)
     return (
@@ -64,6 +72,16 @@ def api_v3_admin_media_domains(payload, storage_id):
 def api_v3_admin_storage_disk_tree(payload):
     return (
         json.dumps(get_disk_tree()),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/storage/<storage_id>", methods=["DELETE"])
+@is_admin_or_manager
+def api_v3_admin_storage_delete(payload, storage_id):
+    return (
+        json.dumps(delete_storage(storage_id)),
         200,
         {"Content-Type": "application/json"},
     )

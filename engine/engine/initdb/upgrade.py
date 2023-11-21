@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 112
+release_version = 113
+# release 113: Add secondary indexes for storage and scheduler
 # release 112: Merge duplicated users into one unique user
 # release 111: Added interfaces, videos, boot_order and reservables index to domains
 #              Remove deleted resources from domains
@@ -149,6 +150,7 @@ tables = [
     "user_storage",
     "usage_parameter",
     "secrets",
+    "recycle_bin",
 ]
 
 
@@ -4035,6 +4037,12 @@ class Upgrade(object):
             r.table(table).filter({"kind": "date"}).update({"type": "bookings"}).run(
                 self.conn
             )
+
+        if version == 113:
+            try:
+                r.table(table).index_create("action").run(self.conn)
+            except Exception as e:
+                print(e)
         return True
 
     """
@@ -4293,6 +4301,51 @@ class Upgrade(object):
                         }
                     )
                 ).run(self.conn)
+            except Exception as e:
+                print(e)
+        return True
+
+    """
+    RECYCLE BIN TABLE UPGRADES
+    """
+
+    def recycle_bin(self, version):
+        table = "recycle_bin"
+        if version == 113:
+            try:
+                r.table(table).index_create("status").run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).index_create(
+                    "owner_status", [r.row["owner_id"], r.row["status"]]
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).index_create(
+                    "owner_category_status",
+                    [r.row["owner_category_id"], r.row["status"]],
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table(table).index_create(
+                    "agent_status", [r.row["agent_id"], r.row["status"]]
+                ).run(self.conn)
+            except Exception as e:
+                print(e)
+
+            try:
+                r.table("recycle_bin").index_create(
+                    "parents",
+                    r.row["desktops"].concat_map(lambda desktop: desktop["parents"]),
+                    multi=True,
+                ).run(self.conn)
+                r.table("recycle_bin").index_wait("parents").run(self.conn)
             except Exception as e:
                 print(e)
 

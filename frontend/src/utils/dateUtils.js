@@ -77,4 +77,8 @@ export class DateUtils {
     }
     return chunks
   }
+
+  static humanize (amount, type) {
+    return moment.duration(amount, type).humanize(false)
+  }
 }

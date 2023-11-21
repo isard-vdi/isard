@@ -6,6 +6,8 @@
 # License: AGPLv3
 
 
+import time
+
 from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
 
@@ -274,3 +276,84 @@ def get_disk_tree():
 
     recursive(list(query), root)
     return root["children"]
+
+
+def get_domains_delete_pending(category_id=None):
+    query = r.table("storage").get_all("delete_pending", index="status")
+    if category_id:
+        query = query.filter({"last_domain_attached": {"category": category_id}})
+    query = query.pluck(
+        "id",
+        "type",
+        "status",
+        "directory_path",
+        "parent",
+        "user_id",
+        "status_logs",
+        "last_domain_attached",
+        {"qemu-img-info": {"virtual-size": True, "actual-size": True}},
+    )
+    query = query.merge(
+        lambda disk: {
+            "user_name": r.table("users").get(disk["user_id"])["name"],
+            "category_name": r.table("categories").get(
+                r.table("users").get(disk["user_id"])["category"]
+            )["name"],
+        }
+    )
+    with app.app_context():
+        return list(query.run(db.conn))
+
+
+def delete_storage(storage_id):
+    with app.app_context():
+        if not _check(
+            r.table("storage")
+            .get(storage_id)
+            .update({"status": "Deleting"})
+            .run(db.conn),
+            "replaced",
+        ):
+            raise Error(
+                "internal_server",
+                "Internal server error",
+                traceback.format_exc(),
+                description_code="generic_error",
+            )
+
+
+def restore_disk(storage_id, restore_desktops=True):
+    update = {
+        "status": "ready",
+        "status_logs": r.row["status_logs"].append(
+            {"time": int(time.time()), "status": "ready"}
+        ),
+    }
+    if restore_desktops:
+        update["last_domain_attached"] = None
+    try:
+        with app.app_context():
+            if restore_desktops:
+                r.table("domains").insert(
+                    r.table("storage").get(storage_id)["last_domain_attached"]
+                ).run(db.conn)
+
+            r.table("storage").get(storage_id).update(update).run(db.conn)
+    except:
+        raise Error(
+            "internal_server",
+            "Internal server error",
+            traceback.format_exc(),
+            description_code="generic_error",
+        )
+
+
+def _add_storage_log(storage_id, status):
+    with app.app_context():
+        r.table("storage").get(storage_id).update(
+            {
+                "status_logs": r.row["status_logs"].append(
+                    {"time": int(time.time()), "status": status}
+                ),
+            }
+        ).run(db.conn)

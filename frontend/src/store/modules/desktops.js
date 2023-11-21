@@ -38,6 +38,13 @@ const getDefaultState = () => {
         id: '',
         action: ''
       }
+    },
+    desktopModal: {
+      show: false,
+      type: '',
+      item: {
+        id: ''
+      }
     }
   }
 }
@@ -85,6 +92,9 @@ export default {
     },
     getResetModal: state => {
       return state.resetModal
+    },
+    getDesktopModal: state => {
+      return state.desktopModal
     }
   },
   mutations: {
@@ -160,6 +170,9 @@ export default {
     },
     setResetModal: (state, resetModal) => {
       state.resetModal = resetModal
+    },
+    setDesktopModal: (state, desktopModal) => {
+      state.desktopModal = desktopModal
     }
   },
   actions: {
@@ -273,10 +286,13 @@ export default {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
-    deleteDesktop (_, desktopId) {
+    deleteDesktop (context, data) {
       ErrorUtils.showInfoMessage(this._vm.$snotify, i18n.t('messages.info.deleting-desktop'))
+      const url = data.permanent
+        ? `${apiV3Segment}/desktop/${data.id}/permanent`
+        : `${apiV3Segment}/desktop/${data.id}`
 
-      axios.delete(`${apiV3Segment}/desktop/${desktopId}`).then(response => {
+      axios.delete(url).then(response => {
         this._vm.$snotify.clear()
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
@@ -378,6 +394,18 @@ export default {
         item: {
           id: '',
           action: ''
+        }
+      })
+    },
+    updateDesktopModal (context, data) {
+      context.commit('setDesktopModal', data)
+    },
+    resetDesktopModal (context) {
+      context.commit('setDesktopModal', {
+        show: false,
+        type: '',
+        item: {
+          id: ''
         }
       })
     }

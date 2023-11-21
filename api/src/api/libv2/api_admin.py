@@ -36,7 +36,7 @@ db.init_app(app)
 
 from isardvdi_common.api_exceptions import Error
 
-from .api_desktop_events import desktops_start, desktops_stop
+from .api_desktop_events import desktops_delete, desktops_start, desktops_stop
 from .api_desktops_persistent import ApiDesktopsPersistent
 from .api_templates import ApiTemplates
 from .api_user_storage import (
@@ -395,13 +395,6 @@ def admin_table_delete(table, item_id):
                 "Item " + str(item_id) + " not found",
                 description_code="not_found",
             )
-
-
-def admin_domains_delete(list):
-    ApiDesktopsPersistent().DeleteMultiple(
-        [d["id"] for d in list if d["kind"] == "desktop"]
-    )
-    ApiTemplates().DeleteMultiple([d["id"] for d in list if d["kind"] == "template"])
 
 
 ## CHANGE ITEMS OWNER
@@ -808,10 +801,6 @@ class ApiAdmin:
             children = self.TemplateTreeRecursion(n["id"], levels)
             if children:
                 n["children"] = children
-            for c in children:
-                if c["unselectable"] == True:
-                    n["unselectable"] = True
-                    break
         return nodes
 
     def _derivated(self, template_id):
@@ -918,33 +907,76 @@ class ApiAdmin:
         derivated = list(derivated) + list(duplicated)
 
         if user_id["role"] == "manager":
-            if template["category"] != user_id["category"]:
-                return []
-            derivated = [d for d in derivated if d["category"] == user_id["category"]]
+            derivated = [
+                {
+                    **d,
+                    "user": "-",
+                    "username": "-",
+                    "category": "-",
+                    "category_name": "-",
+                    "group": "-",
+                    "group_name": "-",
+                    "unselectable": True,
+                    "name": "-",
+                }
+                if d["category"] != user_id["category"]
+                else d
+                for d in derivated
+            ]
 
         fancyd = []
         for d in derivated:
-            fancyd.append(
-                {
-                    "id": d["id"],
-                    "title": d["name"],
-                    "expanded": True,
-                    "unselectable": False,
-                    "selected": True if user_id["id"] == d["user"] else False,
-                    "parent": d["parents"][-1]
-                    if d.get("parents")
-                    else d["duplicate_parent_template"],
-                    "user": d["username"],
-                    "category": d["category_name"],
-                    "group": d["group_name"],
-                    "kind": d["kind"] if d["kind"] == "desktop" else "template",
-                    "status": d["status"],
-                    "icon": "fa fa-desktop" if d["kind"] == "desktop" else "fa fa-cube",
-                    "duplicate_parent_template": d.get(
-                        "duplicate_parent_template", False
-                    ),
-                }
-            )
+            if user_id["role"] == "manager" or user_id["role"] == "admin":
+                fancyd.append(
+                    {
+                        "id": d["id"],
+                        "title": d["name"],
+                        "expanded": True
+                        if not d.get("unselectable")
+                        else not d["unselectable"],
+                        "unselectable": False
+                        if not d.get("unselectable")
+                        else d["unselectable"],
+                        "selected": True if user_id["id"] == d["user"] else False,
+                        "parent": d["parents"][-1]
+                        if d.get("parents")
+                        else d["duplicate_parent_template"],
+                        "user": d["username"],
+                        "category": d["category_name"],
+                        "group": d["group_name"],
+                        "kind": d["kind"] if d["kind"] == "desktop" else "template",
+                        "status": d["status"],
+                        "icon": "fa fa-desktop"
+                        if d["kind"] == "desktop"
+                        else "fa fa-cube",
+                        "duplicate_parent_template": d.get(
+                            "duplicate_parent_template", False
+                        ),
+                    }
+                )
+            else:
+                ## It can only be an advanced user
+                fancyd.append(
+                    {
+                        "id": d["id"],
+                        "title": d["name"],
+                        "expanded": True,
+                        "unselectable": False if user_id["id"] == d["user"] else True,
+                        "selected": True if user_id["id"] == d["user"] else False,
+                        "parent": d["parents"][-1],
+                        "user": d["username"],
+                        "category": d["category_name"],
+                        "group": d["group_name"],
+                        "kind": d["kind"] if d["kind"] == "desktop" else "template",
+                        "status": d["status"],
+                        "icon": "fa fa-desktop"
+                        if d["kind"] == "desktop"
+                        else "fa fa-cube",
+                        "duplicate_parent_template": d.get(
+                            "duplicate_parent_template", False
+                        ),
+                    }
+                )
         return fancyd
 
     def TemplatesByTerm(self, term):
@@ -970,7 +1002,7 @@ class ApiAdmin:
             )
         return data
 
-    def MultipleActions(self, table, action, ids):
+    def MultipleActions(self, table, action, ids, agent_id):
         with app.app_context():
             if action == "soft_toggle":
                 domains_stopped = self.CheckField(
@@ -1053,7 +1085,7 @@ class ApiAdmin:
                 return data
 
             if action == "delete":
-                ApiDesktopsPersistent().DeleteMultiple(ids)
+                desktops_delete(agent_id, ids)
                 return True
 
             if action == "force_failed":

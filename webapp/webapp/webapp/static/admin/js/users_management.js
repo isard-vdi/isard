@@ -304,53 +304,41 @@ function socketio_on(){
 
 
     $('.btn-bulkdelete').on('click', function () {
-        let usersToDelete = getSelectedUserList();
-
-        if (!(usersToDelete.length == 0)) {
+        let usersToDelete = getSelectedUserList().map(({id})=>id);
+        if (usersToDelete.includes("local-default-admin-admin")) {
+            new PNotify({
+                text: "Can not delete default admin",
+                hide: true,
+                opacity: 1,
+                delay: 1000
+            });
+        } else if (!(usersToDelete.length == 0)) {
             $("#modalDeleteUserForm")[0].reset();
-            $('#modalDeleteUserForm #id').val(JSON.stringify(usersToDelete));
+            $('#modalDeleteUserForm :radio').iCheck('uncheck').iCheck('update');
+            $('#modalDeleteUserForm #id').val(usersToDelete.join(','));
             $('#modalDeleteUser').modal({
                 backdrop: 'static',
                 keyboard: false
             }).modal('show');
-            $('#table_modal_delete tbody').empty();
-            $('#table_modal_delete tbody').append(`
-                <tr class="active" id="loading-warn">
-                    <td colspan="3" style="text-align:center;">
-                        <i class="fa fa-spinner fa-pulse fa-fw">
-                        </i> Loading data...
-                    </td>
-                </tr>
-            `);
+            showLoadingData('#table_modal_delete_desktops')
+            showLoadingData('#table_modal_delete_templates')
+            showLoadingData('#table_modal_delete_deployments')
+            showLoadingData('#table_modal_delete_media')
+            showLoadingData('#table_modal_delete_users')
             $('#modalDeleteUser #send').prop('disabled', true);
-            console.log(usersToDelete)
-            data = []
-            $.each(usersToDelete, function(index, user) {
-                data.push(user['id'])
-            })
-            console.log(data)
             $.ajax({
                 type: "POST",
-                url: "/api/v3/admin/users/delete/check",
-                data: JSON.stringify(data),
+                url: "/api/v3/admin/user/delete/check",
+                data: JSON.stringify({"ids": usersToDelete}),
                 contentType: "application/json"
-            }).done(function (domains) {
+            }).done(function (items) {
                 $('#modalDeleteUser #send').prop('disabled', false)
-                $.each(domains, function (key, value) {
-                    infoDomains(value, $('#table_modal_delete tbody'));
-                });
-                $('#table_modal_delete tbody #loading-warn').remove();
-                if (domains.length==0) {
-                    $('#table_modal_delete tbody').append(`
-                        <tr class="active" id="loading-warn">
-                            <td colspan="3" style="text-align:center;">
-                                <i class="fa fa-fw">
-                                </i> These users have no items
-                            </td>
-                        </tr>
-                    `);
-                }
-            })
+                populateDeleteModalTable(items.desktops, $('#table_modal_delete_desktops'));
+                populateDeleteModalTable(items.templates, $('#table_modal_delete_templates'));
+                populateDeleteModalTable(items.deployments, $('#table_modal_delete_deployments'));
+                populateDeleteModalTable(items.media, $('#table_modal_delete_media'));
+                populateDeleteModalTable(items.users, $('#table_modal_delete_users'));
+            });
         } else {
             new PNotify({
                 text: "Please select the users you want to delete",
@@ -530,47 +518,52 @@ function socketio_on(){
         }
     });
 
-    $('#modalDeleteUser #send').on('click', function(e) {
-        user = $('#modalDeleteUserForm #id').val()
+    $('#modalDeleteUser #send').on('click', function (e) {
+        var form = $('#modalDeleteUserForm');
+        form.parsley().validate();
+        if (form.parsley().isValid()) {
+            var formData = form.serializeObject()
+            user = $('#modalDeleteUserForm #id').val().split(',');
+            var notice = new PNotify({
+                text: 'Deleting user(s)...',
+                hide: false,
+                opacity: 1,
+                icon: 'fa fa-spinner fa-pulse'
+            })
 
-        var notice = new PNotify({
-            text: 'Deleting user(s)...',
-            hide: false,
-            opacity: 1,
-            icon: 'fa fa-spinner fa-pulse'
-        })
-        $('form').each(function() {
-            this.reset()
-        })
-        $('.modal').modal('hide')
-        $.ajax({
-            type: 'DELETE',
-            url: '/api/v3/admin/user',
-            data: user,
-            contentType: 'application/json',
-            error: function(data) {
-                notice.update({
-                    title: 'ERROR deleting user(s)',
-                    text: data.responseJSON.description,
-                    type: 'error',
-                    hide: true,
-                    icon: 'fa fa-warning',
-                    delay: 5000,
-                    opacity: 1
-                })
-            },
-            success: function(data) {
-                notice.update({
-                    title: 'Deleted',
-                    text: 'User(s) deleted successfully',
-                    hide: true,
-                    delay: 2000,
-                    icon: '',
-                    opacity: 1,
-                    type: 'success'
-                })
-            }
-        })
+            $.ajax({
+                type: 'DELETE',
+                url: '/api/v3/admin/user',
+                data: JSON.stringify({ 'user': user, 'delete_user': formData['delete-user'] == 'true' }),
+                contentType: 'application/json',
+                error: function (data) {
+                    notice.update({
+                        title: 'ERROR deleting user(s)',
+                        text: data.responseJSON && data.responseJSON.description ? data.responseJSON.description : 'Something went wrong.',
+                        type: 'error',
+                        hide: true,
+                        icon: 'fa fa-warning',
+                        delay: 5000,
+                        opacity: 1
+                    })
+                },
+                success: function (data) {
+                    $('form').each(function () {
+                        this.reset()
+                    })
+                    $('.modal').modal('hide')
+                    notice.update({
+                        title: 'Deleted',
+                        text: 'User(s) deleted successfully',
+                        hide: true,
+                        delay: 2000,
+                        icon: '',
+                        opacity: 1,
+                        type: 'success'
+                    })
+                }
+            })
+        };
     });
 
     document.getElementById('csv').addEventListener('change', readFile, false);
@@ -1027,43 +1020,35 @@ function actionsUserDetail(){
             $('#modalPasswdUserForm #username').val(username);
 	});
 
-
-    $('#users .btn-delete').on('click', function () {
-            var pk=$(this).closest("div").attr("data-pk");
-            var data = {
-                'id': pk,
-                'table': 'user'
-            }
-
+    $('.btn-delete').on('click', function () {
+        var pk = $(this).closest("div").attr("data-pk");
         $("#modalDeleteUserForm")[0].reset();
-        $('#modalDeleteUserForm #id').val(JSON.stringify([data]));
+        $('#modalDeleteUserForm :radio').iCheck('uncheck').iCheck('update');
+        $('#modalDeleteUserForm #id').val(pk)
         $('#modalDeleteUser').modal({
             backdrop: 'static',
             keyboard: false
         }).modal('show');
+        showLoadingData('#table_modal_delete_desktops')
+        showLoadingData('#table_modal_delete_templates')
+        showLoadingData('#table_modal_delete_deployments')
+        showLoadingData('#table_modal_delete_media')
+        showLoadingData('#table_modal_delete_users')
         $.ajax({
             type: "POST",
             url: "/api/v3/admin/user/delete/check",
-            data: JSON.stringify(data),
+            data: JSON.stringify({
+                "ids": [pk]
+            }),
             contentType: "application/json"
-        }).done(function(domains) {
-            $('#table_modal_delete tbody').empty()
-            $.each(domains, function(key, value) {
-                infoDomains(value, $('#table_modal_delete tbody'));
-            });
-            $('#table_modal_delete tbody #loading-warn').remove();
-            if (domains.length==0) {
-                $('#table_modal_delete tbody').append(`
-                    <tr class="active" id="loading-warn">
-                        <td colspan="3" style="text-align:center;">
-                            <i class="fa fa-fw">
-                            </i> This user has no items
-                        </td>
-                    </tr>
-                `);
-            }
+        }).done(function (items) {
+            populateDeleteModalTable(items.desktops, $('#table_modal_delete_desktops'));
+            populateDeleteModalTable(items.templates, $('#table_modal_delete_templates'));
+            populateDeleteModalTable(items.deployments, $('#table_modal_delete_deployments'));
+            populateDeleteModalTable(items.media, $('#table_modal_delete_media'));
+            populateDeleteModalTable(items.users, $('#table_modal_delete_users'));
         });
-	});
+    });
 
     $('.btn-active').on('click', function () {
         var closest=$(this).closest("div");

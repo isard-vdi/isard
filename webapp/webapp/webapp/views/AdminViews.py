@@ -230,6 +230,12 @@ def admin_domains(nav="Domains"):
             icon=icon,
             monitor_host=monitor_host,
         )
+    if nav == "Recyclebin":
+        icon = "trash"
+        return render_template(
+            "admin/pages/recyclebin.html", title=nav, nav=nav, icon=icon
+        )
+
     return render_template(
         "admin/pages/desktops.html",
         title=nav,
@@ -237,6 +243,17 @@ def admin_domains(nav="Domains"):
         icon=icon,
         monitor_host=monitor_host,
     )
+
+
+@app.route("/isard-admin/admin/domains/render/Recyclebin/<nav>")
+@login_required
+@isAdminManager
+def admin_recyclebin(nav="Disks"):
+    if nav == "Domains":
+        icon = "dektop"
+        return render_template(
+            "admin/pages/recyclebin_domains.html", title=nav, nav=nav, icon=icon
+        )
 
 
 """

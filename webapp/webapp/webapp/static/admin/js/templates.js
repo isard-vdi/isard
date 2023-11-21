@@ -129,7 +129,6 @@ columnDefs = [
 ]
 
 // Templates table render
-if(url!="Desktops"){
     // Remove Select column (used for bulk actions)
     columns.splice(16, 1)
     // Remove Server column
@@ -183,7 +182,6 @@ if(url!="Desktops"){
             }
             return false;
     });
-}
 
 function getGroupParam() {
     return window.location.href.slice(window.location.href.indexOf('?') + 1).split('searchDomainId=')[1];
@@ -196,316 +194,49 @@ $(document).ready(function() {
     var stopping_timer=null
     modal_add_desktops = $('#modal_add_desktops').DataTable()
     initalize_modal_all_desktops_events()
-    $('.btn-add-desktop').on('click', function () {
-        $('#allowed-title').html('')
-        $('#alloweds_panel').css('display','block');
-        setAlloweds_add('#alloweds-block');
-        if ($('meta[id=user_data]').attr('data-role') == 'manager'){
-            $('#categories_pannel').hide();
-            $('#roles_pannel').hide();
-        }
-
-        $("#modalAddDesktop #send-block").unbind('click');
-        $("#modalAddDesktop #send-block").on('click', function(e){
-            var form = $('#modalAdd');
-
-            form.parsley().validate();
-
-            if (form.parsley().isValid()){
-                template_id=$('#modalAddDesktop #template').val();
-                if (template_id !=''){
-                    data=$('#modalAdd').serializeObject();
-                    data=replaceAlloweds_arrays('#modalAddDesktop #alloweds-block',data)
-                    name = data["name"]
-                    description = data["description"]
-                    allowed = data["allowed"]
-
-                    var notice = new PNotify({
-                        text: 'Creating desktops...',
-                        hide: true,
-                        opacity: 1,
-                        icon: 'fa fa-spinner fa-pulse'
-                    })
-
-                    $.ajax({
-                        type: "POST",
-                        url:"/api/v3/persistent_desktop/bulk",
-                        data: JSON.stringify({name, template_id, description, allowed}),
-                        contentType: "application/json",
-                        error: function(data) {
-                            notice.update({
-                                title: 'ERROR creating desktops',
-                                text: data.responseJSON.description,
-                                type: 'error',
-                                hide: true,
-                                icon: 'fa fa-warning',
-                                delay: 5000,
-                                opacity: 1
-                            })
-                        },
-                        success: function(data) {
-                            notice.update({
-                                title: 'New desktops',
-                                text: 'Desktops created successfully',
-                                hide: true,
-                                delay: 2000,
-                                icon: 'fa fa-' + data.icon,
-                                opacity: 1,
-                                type: 'success'
-                            })
-                            $('form').each(function() {
-                                this.reset()
-                            })
-                            $('.modal').modal('hide')
-                        }
-                    });
-                }else{
-                    $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
-                    $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
-                }
-            }
-        });
-
-         if($('.limits-desktops-bar').attr('aria-valuenow') >=100){
-            new PNotify({
-                title: "Quota for creating desktops full.",
-                    text: "Can't create another desktop, category quota full.",
-                    hide: true,
-                    delay: 3000,
-                    icon: 'fa fa-alert-sign',
-                    opacity: 1,
-                    type: 'error'
-                });
-        }else{
-            setHardwareOptions('#modalAddDesktop');
-            $("#modalAdd")[0].reset();
-            $('#modalAddDesktop').modal({
-                backdrop: 'static',
-                keyboard: false
-            }).modal('show');
-            $('#modalAddDesktop #hardware-block').hide();
-            $('#modalAdd').parsley();
-            modal_add_desktop_datatables();
-        }
-    });
-
-
-    $('.btn-bulk-edit-desktops').on('click', function () {
-        ids = []
-        filter = domains_table.rows('.active').data().length ? '.active' : { filter: 'applied' }
-
-        $('#modalBulkEdit #desktops-list').empty()
-        $('#modalBulkEdit #desktops-number').text(domains_table.rows(filter).data().length + " desktop(s) will be updated")
-        $.each(domains_table.rows(filter).data(), function (key, value) {
-            ids.push(value['id']);
-            $('#modalBulkEdit #desktops-list').append(
-                '<p style="font-size:smaller; margin: 0px">' + value['name'] + '</p>'
-            )
-        });
-
-        setHardwareOptions('#modalBulkEdit');
-        disableFirstOption('#modalBulkEdit');
-
-        $('#modalBulkEdit #edit-network-checkbox').show();
-        $('#modalBulkEdit #hardware-interfaces option:first').remove();
-        $('#modalBulkEdit #virtualization_nested-checkbox').remove();
-
-        showAndHideByCheckbox($('#modalBulkEdit #edit-network'), $('#modalBulkEdit #network-row'));
-        showAndHideByCheckbox($('#modalBulkEdit #edit-viewers'), $('#modalBulkEdit #viewers-row'));
-        showAndHideByCheckbox($('#modalBulkEdit #edit-credentials'), $('#modalBulkEdit #credentials-row'))
-
-        $('#modalBulkEdit #ids').val(ids.join(','));
-        $("#modalBulkEditForm")[0].reset();
-        $('#modalBulkEditForm :checkbox').iCheck('uncheck').iCheck('update');
-        $('#modalBulkEdit').modal({
-            backdrop: 'static',
-            keyboard: false
-        }).modal('show');
-    });
-
-    $('#modalBulkEdit #send').on('click', function (e) {
-        var form = $('#modalBulkEditForm')
-        if (form.parsley().isValid()) {
-            data = form.serializeObject()
-
-            for (let [key, value] of Object.entries(data)) {
-                if (key.startsWith('guest_properties-credentials-')) {
-                    if (!data['edit-viewers'] || !data['edit-credentials']) {
-                        delete data[key]
-                    }
-                } else if (key.startsWith('viewers-')) {
-                    if (!data['edit-viewers']) {
-                        delete data[key]
-                    }
-                } else if (key === 'hardware-interfaces') {
-                    if (!data['edit-network']) {
-                        delete data[key]
-                    }
-                } else if (key === 'ids') {
-                    data['ids'] = data['ids'].split(',')
-                } else if (value === '--') {
-                    delete data[key]
-                } else if (value === 'on') {
-                    data[key] = true
-                }
-                if (key.startsWith('hardware-')) {
-                    data['edit-hardware'] = true
-                }
-            }
-        }
-
-        data = parse_desktop_bulk(data)
-
-        var notice = new PNotify({
-            title: 'Updating ' + ids.length + ' desktop(s)',
-            hide: true,
-            opacity: 1,
-            icon: 'fa fa-spinner fa-pulse'
-        })
-
-        $.ajax({
-            type: 'PUT',
-            url: '/api/v3/domain/bulk',
-            data: JSON.stringify(data),
-            contentType: 'application/json',
-            success: function (data) {
-                $('form').each(function () {
-                    this.reset()
-                })
-                $('.modal').modal('hide')
-                notice.update({
-                    title: 'Updated',
-                    text: ids.length + ' desktop(s) updated successfully',
-                    hide: true,
-                    icon: 'fa fa-success',
-                    delay: 4000,
-                    opacity: 1,
-                    type: 'success'
-                })
-            },
-            error: function (data) {
-                notice.update({
-                    title: 'ERROR updating multiple desktops',
-                    text: data.responseJSON.description,
-                    type: 'error',
-                    hide: true,
-                    icon: 'fa fa-warning',
-                    delay: 5000,
-                    opacity: 1
-                })
-            }
-        })
-    })
-
-
-    $("#modalTemplateDesktop #send").on('click', function(e){
-            var form = $('#modalTemplateDesktopForm');
-            form.parsley().validate();
-            if (form.parsley().isValid()){
-                desktop_id=$('#modalTemplateDesktopForm #id').val();
-                if (desktop_id !=''){
-                    data=$('#modalTemplateDesktopForm').serializeObject();
-                    data=replaceAlloweds_arrays('#modalTemplateDesktopForm #alloweds-add',data)
-                    data['enabled']=$('#modalTemplateDesktopForm #enabled').prop('checked')
-
-                    name=data["name"]
-                    allowed=data["allowed"]
-                    description=data["description"]
-                    enabled=data["enabled"]
-
-                    var notice = new PNotify({
-                        text: 'Creating template...',
-                        hide: false,
-                        opacity: 1,
-                        icon: 'fa fa-spinner fa-pulse'
-                    })
-
-                    $.ajax({
-                        type: "POST",
-                        url:"/api/v3/template",
-                        data: JSON.stringify({name, desktop_id, allowed, description, enabled}),
-                        contentType: "application/json",
-                        error: function(data) {
-                            notice.update({
-                                title: 'ERROR creating template',
-                                text: data.responseJSON.description,
-                                type: 'error',
-                                hide: true,
-                                icon: 'fa fa-warning',
-                                delay: 5000,
-                                opacity: 1
-                            })
-                        },
-                        success: function(data) {
-                            $('form').each(function() {
-                                this.reset()
-                            })
-                            $('.modal').modal('hide');
-                            notice.update({
-                                title: 'New template',
-                                text: 'Template created successfully',
-                                hide: true,
-                                delay: 2000,
-                                icon: 'fa fa-' + data.icon,
-                                opacity: 1,
-                                type: 'success'
-                            })
-                        }
-                    });
-
-                }else{
-                    $('#modal_add_desktops').closest('.x_panel').addClass('datatables-error');
-                    $('#modalAddDesktop #datatables-error-status').html('No template selected').addClass('my-error');
-                }
-            }
-        });
 
     $("#modalDeleteTemplate #send").on('click', function(e){
-
-        selected = $("#modalDeleteTemplate .tree_template_delete").fancytree('getTree').getSelectedNodes();
-        todelete = []
-        selected.forEach(function (item) {
-            todelete.push({"id":item.data.id, "title":item.title, "kind":item.data.kind, "status":item.data.status})
-        });
-        var notice = new PNotify({
-            text: 'Deleting selected item(s)...',
-            hide: false,
-            opacity: 1,
-            icon: 'fa fa-spinner fa-pulse'
-        })
-        $('form').each(function() {
-            this.reset()
-        })
-        $('.modal').modal('hide')
-        $.ajax({
-            type: 'DELETE',
-            url: '/api/v3/admin/domains',
-            data: JSON.stringify(todelete),
-            contentType: 'application/json',
-            error: function(data) {
-                notice.update({
-                    title: 'ERROR deleting items',
-                    text: data.responseJSON.description,
-                    type: 'error',
-                    hide: true,
-                    icon: 'fa fa-warning',
-                    delay: 5000,
-                    opacity: 1
-                })
-            },
-            success: function(data) {
-                domains_table.ajax.reload()
-                notice.update({
-                    title: 'Deleted',
-                    text: 'Item(s) deleted successfully',
-                    hide: true,
-                    delay: 2000,
-                    icon: 'fa fa-' + data.icon,
-                    opacity: 1,
-                    type: 'success'
-                })
-            }
-        })
+        var form = $('#modalDeleteTemplateForm');
+        formdata = form.serializeObject()
+        template_id = formdata.id
+            var notice = new PNotify({
+                text: 'Deleting selected item(s)...',
+                hide: false,
+                opacity: 1,
+                icon: 'fa fa-spinner fa-pulse'
+            })
+            $.ajax({
+                type: 'DELETE',
+                url: '/api/v3/admin/templates/delete/'+template_id,
+                contentType: 'application/json',
+                error: function(data) {
+                    notice.update({
+                        title: 'ERROR deleting items',
+                        text: data.responseJSON && data.responseJSON.description ? data.responseJSON.description : 'Something went wrong.',
+                        type: 'error',
+                        hide: true,
+                        icon: 'fa fa-warning',
+                        delay: 5000,
+                        opacity: 1
+                    })
+                },
+                success: function(data) {
+                    $('form').each(function() {
+                        this.reset()
+                    });
+                    $('.modal').modal('hide');
+                    domains_table.ajax.reload();
+                    notice.update({
+                        title: 'Deleted',
+                        text: 'Item(s) deleted successfully',
+                        hide: true,
+                        delay: 2000,
+                        icon: 'fa fa-' + data.icon,
+                        opacity: 1,
+                        type: 'success'
+                    })
+                }
+            })
     });
 
     $("#modalDuplicateTemplate #send").on('click', function(e){
@@ -639,137 +370,6 @@ $(document).ready(function() {
         }
      });
 
-    // Bulk actions
-    $('#mactions').on('change', function () {
-        action=$(this).val();
-        ids=[]
-
-        // Selected desktops
-        if(domains_table.rows('.active').data().length){
-            names = '<ul>'
-            $.each(domains_table.rows('.active').data(),function(key, value){
-                names+= "<li>" + value['name']+'</li>';
-                ids.push(value['id']);
-            });
-            names += '</ul>'
-            new PNotify({
-                title: 'Warning!',
-                text: "You are about to " + action + " these desktops:\n\n" + names,
-                hide: false,
-                opacity: 0.9,
-                type: "error",
-                confirm: {
-                    confirm: true
-                },
-                buttons: {
-                    closer: false,
-                    sticker: false
-                },
-                history: {
-                    history: false
-                },
-                addclass: 'pnotify-center-large',
-                width: '550'
-            }).get().on('pnotify.confirm', function() {
-                $.ajax({
-                    type: "POST",
-                    url:"/api/v3/admin/multiple_actions",
-                    data: JSON.stringify({'ids':ids, 'action':action}),
-                    contentType: "application/json",
-                    accept: "application/json",
-                    error: function(data) {
-                        new PNotify({
-                            title: "ERROR " + action + " desktops",
-                            text: data.responseJSON.description,
-                            hide: true,
-                            delay: 3000,
-                            icon: 'fa fa-alert-sign',
-                            opacity: 1,
-                            type: 'error'
-                        })
-                    },
-                    success: function(data) {
-                        notify(data)
-                    },
-                    always: function() {
-                        $('#mactions option[value="none"]').prop("selected", true);
-                        $('#domains tr.active .form-check-input').prop("checked", true);
-                    }
-                });
-            }).on('pnotify.cancel', function() {
-                $('#mactions option[value="none"]').prop("selected",true);
-            })
-        // All desktops
-        } else {
-            $.each(domains_table.rows({filter: 'applied'}).data(),function(key, value){
-                ids.push(value['id']);
-            });
-            new PNotify({
-                title: 'Warning!',
-                text: "You are about to " + action + " all the desktops in the list (" + domains_table.rows({filter: 'applied'}).data().length + " desktops)!\nPlease write <b>\"I'm aware\"</b> in order to confirm the action",
-                hide: false,
-                opacity: 0.9,
-                type: 'error',
-                confirm: {
-                    confirm: true,
-                    prompt: true,
-                    prompt_multi_line: false,
-                    buttons: [
-                        {
-                            text: "Ok",
-                            addClass: "",
-                            promptTrigger: true,
-                            click: function(notice, value){
-                                if (value == "I'm aware") {
-                                    notice.remove();
-                                    $.ajax({
-                                        type: "POST",
-                                        url:"/api/v3/admin/multiple_actions",
-                                        data: JSON.stringify({'ids':ids, 'action':action}),
-                                        contentType: "application/json",
-                                        accept: "application/json",
-                                        error: function(data) {
-                                            new PNotify({
-                                                title: "ERROR " + action + " desktops",
-                                                text: data.responseJSON.description,
-                                                hide: true,
-                                                delay: 3000,
-                                                icon: 'fa fa-alert-sign',
-                                                opacity: 1,
-                                                type: 'error'
-                                            })
-                                        },
-                                        success: function(data) {
-                                            notify(data)
-                                        },
-                                        always: function() {
-                                            $('#mactions option[value="none"]').prop("selected", true);
-                                        }
-                                    });
-                                }
-                            }
-                        },
-                        {
-                            text: "Cancel",
-                            addClass: "",
-                            click: function(notice){
-                                notice.remove();
-                                $('#mactions option[value="none"]').prop("selected",true);
-                        }
-                    }]
-                },
-                buttons: {
-                    closer: false,
-                    sticker: false
-                },
-                history: {
-                    history: false
-                },
-                addclass: 'pnotify-center-large',
-                width: '550'
-            })
-        }
-    } );
 
     $('#domains').find('tbody').on('click', 'td.details-control', function () {
         var tr = $(this).closest('tr');
@@ -1155,40 +755,131 @@ function actionsDomainDetail(){
         };
     });
 
-    // TEMPLATE DETAIL ACTIONS
-    $('.btn-delete').remove()
-    $('.btn-template').remove()
-
     $('.btn-delete-template').on('click', function () {
+        $('#modalDeleteTemplate #manager-warning').hide();
+        $('#modalDeleteTemplate p').show();
+        $('#modalDeleteTemplate #send').prop('disabled', false);
+        $('#modalDeleteTemplate #send').attr('title', '');
+    
         var pk = $(this).closest("[data-pk]").attr("data-pk")
         $('#modalDeleteTemplate').modal({
             backdrop: 'static',
             keyboard: false
         }).modal('show');
+        $('#modalDeleteTemplateForm #id').val(pk);
         populate_tree_template_delete(pk);
     });
 
-    $('.btn-duplicate-template').on('click', function () {
-        if($('.quota-templates .perc').text() >=100){
-            new PNotify({
-                title: "Quota for creating templates full.",
-                text: "Can't create another template, quota full.",
-                hide: true,
-                delay: 3000,
-                icon: 'fa fa-alert-sign',
-                opacity: 1,
-                type: 'error'
-            });
-        }else{
-            var pk=$(this).closest("[data-pk]").attr("data-pk");
-            setDefaultsTemplate(pk);
-            populate_users();
-            $('#modalDuplicateTemplate').modal({
-                backdrop: 'static',
-                keyboard: false
-            }).modal('show');
-            setAlloweds_add('#modalDuplicateTemplate #alloweds-add');
+$('.btn-duplicate-template').on('click', function () {
+    if($('.quota-templates .perc').text() >=100){
+        new PNotify({
+            title: "Quota for creating templates full.",
+            text: "Can't create another template, quota full.",
+            hide: true,
+            delay: 3000,
+            icon: 'fa fa-alert-sign',
+            opacity: 1,
+            type: 'error'
+        });
+    }else{
+        var pk=$(this).closest("[data-pk]").attr("data-pk");
+        setDefaultsTemplate(pk);
+        populate_users();
+        $('#modalDuplicateTemplate').modal({
+            backdrop: 'static',
+            keyboard: false
+        }).modal('show');
+        setAlloweds_add('#modalDuplicateTemplate #alloweds-add');
+    }
+});
+
+
+    $('.btn-jumperurl').on('click', function () {
+        var pk=$(this).closest("[data-pk]").attr("data-pk");
+        $("#modalJumperurlForm")[0].reset();
+        $('#modalJumperurlForm #id').val(pk);
+        $('#modalJumperurl').modal({
+            backdrop: 'static',
+            keyboard: false
+        }).modal('show');
+        // setModalUser()
+        // setQuotaTableDefaults('#edit-users-quota','users',pk)
+        api.ajax('/api/v3/desktop/jumperurl/' + pk,'GET',{}).done(function(data) {
+            if(data.jumperurl != false){
+                $('#jumperurl').show();
+                $('.btn-copy-jumperurl').show();
+                //NOTE: With this it will fire ifChecked event, and generate new key
+                // and we don't want it now as we are just setting de initial state
+                // and don't want to reset de key again if already exists!
+                //$('#jumperurl-check').iCheck('check');
+                $('#jumperurl-check').prop('checked',true).iCheck('update');
+
+                $('#jumperurl').val(location.protocol + '//' + location.host+'/vw/'+data.jumperurl);
+            }else{
+                $('#jumperurl-check').iCheck('update')[0].unchecked;
+                $('#jumperurl').hide();
+                $('.btn-copy-jumperurl').hide();
+            }
+        });
+    });
+
+    $('#jumperurl-check').unbind('ifChecked').on('ifChecked', function(event){
+        if($('#jumperurl').val()==''){
+            pk=$('#modalJumperurlForm #id').val();
+            $.ajax({
+                url: '/api/v3/desktop/jumperurl_reset/' + pk,
+                type: 'PUT',
+                contentType: "application/json",
+                data: JSON.stringify({"disabled" : false}),
+                success: function(data) {
+                    $('#jumperurl').val(location.protocol + '//' + location.host+'/vw/'+data);
+                }
+            })
+            $('#jumperurl').show();
+            $('.btn-copy-jumperurl').show();
         }
+        });
+    $('#jumperurl-check').unbind('ifUnchecked').on('ifUnchecked', function(event){
+        pk=$('#modalJumperurlForm #id').val();
+        new PNotify({
+            title: 'Confirmation Needed',
+                text: "Are you sure you want to delete direct viewer access url?",
+                hide: false,
+                opacity: 0.9,
+                confirm: {
+                    confirm: true
+                },
+                buttons: {
+                    closer: false,
+                    sticker: false
+                },
+                history: {
+                    history: false
+                },
+                addclass: 'pnotify-center'
+            }).get().on('pnotify.confirm', function() {
+                pk=$('#modalJumperurlForm #id').val();
+                $.ajax({
+                    url: '/api/v3/desktop/jumperurl_reset/' + pk,
+                    type: 'PUT',
+                    contentType: "application/json",
+                    data: JSON.stringify({"disabled" : true}),
+                    success: function(data) {
+                        $('#jumperurl').val('');
+                    }
+                })
+                $('#jumperurl').hide();
+                $('.btn-copy-jumperurl').hide();
+            }).on('pnotify.cancel', function() {
+                $('#jumperurl-check').iCheck('check');
+                $('#jumperurl').show();
+                $('.btn-copy-jumperurl').show();
+            });
+        });
+
+    $('.btn-copy-jumperurl').on('click', function () {
+        $('#jumperurl').prop('disabled',false).select().prop('disabled',true);
+        document.execCommand("copy");
     });
 
     $('.btn-forcedhyp').on('click', function () {
@@ -1539,94 +1230,48 @@ function renderDisplay(data){
         return ''
 }
 
-function renderStatus(data){
-    return data.status;
-    //To return the guest ip
-    if('viewer' in data && 'guest_ip' in data['viewer']){
-        return data['viewer']['guest_ip']
-    }else{
-        return 'No ip'
-    }
-} 
 
-function renderHypStarted(data){
-    res=''
-    if('favourite_hyp' in data && data.favourite_hyp != ''){ res=res+'<b>Fav: </b>'+ data.favourite_hyp;}
-    if('forced_hyp' in data && data.forced_hyp != ''){ res=res+'<br/><b>Forced: </b>'+ data.forced_hyp;}
-    if('hyp_started' in data && data.hyp_started != ''){ res=res+'<br/><b>Started: </b>'+ data.hyp_started;}
-    return res
-}
-
-function renderAction(data){
-    var status=data.status;
-    if(status=='Stopped' || status=='Failed'){
-        return '<button type="button" id="btn-play" class="btn btn-pill-right btn-success btn-xs"><i class="fa fa-play"></i> Start</button>';
-    }
-    if(status=='Started' || status=='Paused'){
-        return '<button type="button" id="btn-stop" class="btn btn-pill-left btn-danger btn-xs"><i class="fa fa-stop"></i> Stop</button>';
-    }
-    if(status=='Shutting-down'){
-        return '<button type="button" id="btn-stop" class="btn btn-pill-left btn-danger btn-xs"><i class="fa fa-spinner fa-pulse fa-fw"></i> Force stop</button>';
-    }
-    if(status=='Crashed'){
-        return '<div class="Change"> <i class="fa fa-thumbs-o-down fa-2x"></i> </div>';
-    }
-    if(status=='Disabled'){
-            return '<i class="fa fa-times fa-2x"></i>';
-    }
-    return '<i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i>';
-}
-
-function populate_tree_template_delete(id){
+function populate_tree_template_delete(id) {
     $(":ui-fancytree").fancytree("destroy")
     $("#modalDeleteTemplate .tree_template_delete").fancytree({
         extensions: ["table"],
         table: {
-          indentation: 20,      // indent 20px per node level
-          nodeColumnIdx: 2,     // render the node title into the 2nd column
-          checkboxColumnIdx: 0  // render the checkboxes into the 1st column
+            indentation: 30,      // indent 20px per node level
+            nodeColumnIdx: 0,     // render the node title into the 0th column
         },
-        source: {url: "/api/v3/admin/desktops/tree_list/" + id,
-                cache: false},
-        lazyLoad: function(event, data){
+        source: {
+            url: "/api/v3/admin/desktops/tree_list/" + id,
+            cache: false
+        },
+        lazyLoad: function (event, data) {
             data.result = $.ajax({
                 url: "/api/v3/admin/desktops/tree_list/" + id,
                 dataType: "json"
             });
-            },
-        checkbox: true,
-        selectMode: 3,
-        renderColumns: function(event, data) {
+        },
+        renderColumns: function (event, data) {
             var node = data.node,
-              $tdList = $(node.tr).find(">td");
+                $tdList = $(node.tr).find(">td");
+            $tdList.eq(1).text(node.data,);
+            if (node.data.duplicate_parent_template == false) {
+                $tdList.eq(1).html('');
 
-            // (index #0 is rendered by fancytree by adding the checkbox)
-            $tdList.eq(1).text(node.getIndexHier());
-            // (index #2 is rendered by fancytree)
-            if( node.data.duplicate_parent_template == false ){
-                $tdList.eq(3).html('');
-
-            }else{
-                $tdList.eq(3).html('<i class="fa fa-check"></i>');
+            } else {
+                $tdList.eq(1).html('<i class="fa fa-check"></i>');
             }
-            if(node.unselectable){
-                $tdList.eq(4).html('<i class="fa fa-exclamation-triangle"></i> '+node.data.user);
-
-            }else{
-                $tdList.eq(4).text(node.data.user);
+            if (node.unselectable) {
+                $tdList.eq(2).html(`<i title="This ${node.data.kind} belongs to a different category" class="fa fa-exclamation-triangle"></i> ${node.data.user}`);
+                $('#modalDeleteTemplate #manager-warning').show();
+                $('#modalDeleteTemplate p').hide();
+                $('#modalDeleteTemplate #send').prop('disabled', true);
+                $('#modalDeleteTemplate #send').attr('title',  'You do not have permission to delete this template');
+            } else {
+                $tdList.eq(2).text(node.data.user);
             }
-            if(node.data.kind != "desktop"){
-                $tdList.eq(5).html('<p style="color:black">'+node.data.kind+'</p>');
-                $tdList.eq(6).html('<p style="color:black">'+node.data.category+'</p>');
-                $tdList.eq(7).html('<p style="color:black">'+node.data.group+'</p>');
-            }else{
-                $tdList.eq(5).text(node.data.kind);
-                $tdList.eq(6).text(node.data.category);
-                $tdList.eq(7).text(node.data.group);
-            }
-            // Rendered by row template:
-    //        $tdList.eq(4).html("<input type='checkbox' name='like' value='" + node.key + "'>");
-          }
+            $tdList.eq(3).text(node.data.kind);
+            $tdList.eq(4).text(node.data.category);
+            $tdList.eq(5).text(node.data.group);
+        }
     });
 }
 
@@ -1747,49 +1392,6 @@ function populate_tree_template_delete(id){
                 }
         }
 
-        function parse_desktop_bulk(data) {
-            return {
-                "ids": data['ids'],
-                ...("edit-hardware" in data) && {
-                    "hardware": {
-                        ...("hardware-vcpus" in data) && { "vcpus": parseInt(data["hardware-vcpus"]) },
-                        ...("hardware-memory" in data) && { "memory": parseFloat(data["hardware-memory"]) },
-                        ...("hardware-videos" in data) && { "videos": [data["hardware-videos"]] },
-                        ...("hardware-boot_order" in data) && { "boot_order": [data["hardware-boot_order"]] },
-                        ...("hardware-edit_network" in data) && { "interfaces": data["hardware-interfaces"] },
-                        ...("hardware-disk_bus" in data) && { "disk_bus": data["hardware-disk_bus"] },
-                        ...("hardware-disk_size" in data) && { "disk_size": parseInt(data["hardware-disk_size"]) },
-                        ...("reservables-vgpus" in data) && {
-                            "reservables": {
-                                ...(true) && { "vgpus": [data["reservables-vgpus"]] },
-                                ...(data["reservables-vgpus"].includes(undefined) || data["reservables-vgpus"] == null || data["reservables-vgpus"].includes("None")) && { "vgpus": null },
-                            },
-                        },
-                        ...("edit-network" in data) && { "interfaces": data['hardware-interfaces'] },
-                    }
-                },
-                ...("edit-viewers" in data) && {
-                    "guest_properties": {
-                        "viewers": {
-                            ...("viewers-file_rdpgw" in data) && { "file_rdpgw": { "options": null } },
-                            ...("viewers-file_rdpvpn" in data) && { "file_rdpvpn": { "options": null } },
-                            ...("viewers-file_spice" in data) && { "file_spice": { "options": null } },
-                            ...("viewers-browser_rdp" in data) && { "browser_rdp": { "options": null } },
-                            ...("viewers-browser_vnc" in data) && { "browser_vnc": { "options": null } },
-                        },
-                        ...("edit-credentials" in data) && {
-                            "credentials": {
-                                ...("guest_properties-credentials-password" in data) && { "password": data["guest_properties-credentials-password"] },
-                                ...("guest_properties-credentials-username" in data) && { "username": data["guest_properties-credentials-username"] },
-                            }
-                        }
-                    },
-                },
-
-            }
-        }
-
-
         function populate_users(){
             if($("#user_id").data('select2')){
                 $("#user_id").select2('destroy');
@@ -1825,53 +1427,3 @@ function populate_tree_template_delete(id){
                 },
             });
         };
-
-        function startDesktop(domain_id) {
-            $.ajax({
-                type: "GET",
-                url: '/api/v3/desktop/start/' + domain_id,
-                data: {'pk':domain_id,'name':'status','value':'Starting'},
-                contentType: "application/json",
-                cache: false,
-                error: function(data) {
-                    new PNotify({
-                        title: 'ERROR starting desktop',
-                        text: data.responseJSON.description,
-                        type: 'error',
-                        hide: true,
-                        icon: 'fa fa-warning',
-                        delay: 5000,
-                        opacity: 1
-                    })
-                },
-            })
-        }
-
-        function checkReservablesAndStart(reservables, domain_id, booking_id) {
-            if (!(!reservables || reservables.length == 0 || !reservables.vgpus || reservables.vgpus.length == 0) || booking_id){
-                        new PNotify({
-                            title: 'Start this non-booked desktop?',
-                            text: "You could interfere with the GPU: " + reservables.vgpus +" from another desktop. Continue?",
-                            hide: false,
-                            opacity: 0.9,
-                            icon: 'fa fa-warning',
-                            type: 'error',
-                            confirm: {
-                                confirm: true
-                            },
-                            buttons: {
-                                closer: false,
-                                sticker: false
-                            },
-                            history: {
-                                history: false
-                            },
-                            addclass: 'pnotify-center'
-                        }).get().on('pnotify.confirm', function() {
-                            startDesktop(domain_id)
-                        }).on('pnotify.cancel', function() { });
-            } else {
-                // start without verifications if it doesn't have bookables or has an active booking
-                startDesktop(domain_id)
-            }
-        }

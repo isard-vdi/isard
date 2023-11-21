@@ -24,6 +24,7 @@ import random
 import time
 import traceback
 import uuid
+from pathlib import PurePath
 
 from isardvdi_common.api_exceptions import Error
 from isardvdi_common.api_rest import ApiRest
@@ -117,6 +118,51 @@ def phy_storage_list(table):
             {**sp, **{"domains": "NaN"}}
             for sp in list(r.table("storage_physical_media").run(db.conn))
         ]
+
+
+# def phy_storage_list():
+#     return ApiRest(_phy_internal_toolbox_host()).get("/storage/list/disks")
+
+
+def phy_storage_update_deleted(type):
+    if type == "disks":
+        disks = phy_storage_list()
+        with app.app_context():
+            deleted_disks = list(
+                r.table("storage")
+                .get_all("deleted", index="status")
+                .pluck("id", "status", "directory_path", "type")
+                .run(db.conn)
+            )
+        deleted_disks = [
+            {
+                "path": str(
+                    PurePath(d.get("directory_path"))
+                    .joinpath(d.get("id"))
+                    .with_suffix(f".{d.get('type')}")
+                ),
+                "id": d["id"],
+                "status": d["status"],
+            }
+            for d in deleted_disks
+        ]
+
+        for dd in deleted_disks:
+            if dd["path"] in disks:
+                log.debug(
+                    "DISK "
+                    + dd["id"]
+                    + " exists in disk but in deleted status in db. Updating status to delete_pending"
+                )
+                with app.app_context():
+                    r.table("storage").get(dd["id"]).update(
+                        {"status": "delete_pending"}
+                    ).run(db.conn)
+
+
+def phy_storage_info(table):
+    query = r.table("storage_physical_" + table)
+    return [{**d, **{"domains": "NaN"}} for d in list(query.run(db.conn))]
 
 
 def phy_storage_reset_domains(data):
