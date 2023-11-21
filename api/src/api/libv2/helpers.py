@@ -218,6 +218,7 @@ def _is_frontend_desktop_status(status):
         "Failed",
         "Downloading",
         "DownloadStarting",
+        "Updating",
     ]
     return True if status in frontend_desktop_status else False
 
