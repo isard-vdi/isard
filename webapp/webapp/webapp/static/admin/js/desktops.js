@@ -1186,8 +1186,6 @@ function actionsDomainDetail(){
         };
     });
 
-    $('.btn-delete-template').remove()
-
     $('.btn-template').on('click', function () {
         if($('.quota-templates .perc').text() >=100){
             new PNotify({
