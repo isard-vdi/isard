@@ -264,11 +264,16 @@ func (a *Authentication) finishLogin(ctx context.Context, u *model.User, redirec
 		return "", "", provider.ErrUserDisabled
 	}
 
-	// // Check if the user has the email verified
-	// const validateEmail = true // TODO: This needs to be at the cfg
-	// if validateEmail && !u.EmailVerified {
-	// 	token.SignCallbackToken(secret string, prv string, cat string, redirect string)
-	// }
+	// Check if the user has the email verified
+	const validateEmail = true // TODO: This needs to be at the cfg
+	if validateEmail && !u.EmailVerified {
+		ss, err := token.SignEmailValidationRequiredToken(a.Secret, u)
+		if err != nil {
+			return "", "", err
+		}
+
+		return ss, "", nil
+	}
 
 	u.Accessed = float64(time.Now().Unix())
 

@@ -44,7 +44,7 @@ func SignLoginToken(secret string, duration time.Duration, u *model.User) (strin
 
 func SignRegisterToken(secret string, duration time.Duration, u *model.User) (string, error) {
 	tkn := jwt.NewWithClaims(signingMethod, &RegisterClaims{
-		typeClaims: typeClaims{
+		TypeClaims: TypeClaims{
 			StandardClaims: &jwt.StandardClaims{
 				Issuer:    issuer,
 				ExpiresAt: time.Now().Add(duration).Unix(),
@@ -71,7 +71,7 @@ func SignRegisterToken(secret string, duration time.Duration, u *model.User) (st
 
 func SignCallbackToken(secret, prv, cat, redirect string) (string, error) {
 	tkn := jwt.NewWithClaims(signingMethod, &CallbackClaims{
-		typeClaims: typeClaims{
+		TypeClaims: TypeClaims{
 			StandardClaims: &jwt.StandardClaims{
 				Issuer: issuer,
 				// TODO: This should be maybe configurable
@@ -95,7 +95,7 @@ func SignCallbackToken(secret, prv, cat, redirect string) (string, error) {
 
 func SignEmailValidationRequiredToken(secret string, u *model.User) (string, error) {
 	tkn := jwt.NewWithClaims(signingMethod, &EmailValidationRequiredClaims{
-		typeClaims: typeClaims{
+		TypeClaims: TypeClaims{
 			StandardClaims: &jwt.StandardClaims{
 				Issuer: issuer,
 				// TODO: This should be maybe configurable

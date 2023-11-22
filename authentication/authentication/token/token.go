@@ -20,7 +20,7 @@ const (
 	TypeEmailValidation         Type = "email-validation"
 )
 
-type typeClaims struct {
+type TypeClaims struct {
 	*jwt.StandardClaims
 	KeyID string `json:"kid"`
 	Type  Type   `json:"type"`
@@ -42,14 +42,14 @@ type LoginClaimsData struct {
 }
 
 type CallbackClaims struct {
-	typeClaims
+	TypeClaims
 	Provider   string `json:"provider"`
 	CategoryID string `json:"category_id"`
 	Redirect   string `json:"redirect"`
 }
 
 type RegisterClaims struct {
-	typeClaims
+	TypeClaims
 	Provider   string `json:"provider"`
 	UserID     string `json:"user_id"`
 	Username   string `json:"username"`
@@ -60,7 +60,7 @@ type RegisterClaims struct {
 }
 
 type ExternalClaims struct {
-	typeClaims
+	TypeClaims
 	UserID   string `json:"user_id"`
 	GroupID  string `json:"group_id"`
 	Role     string `json:"role"`
@@ -73,23 +73,23 @@ type ExternalClaims struct {
 }
 
 type EmailValidationRequiredClaims struct {
-	typeClaims
+	TypeClaims
 	UserID string `json:"user_id"`
 }
 
 type EmailValidationClaims struct {
-	typeClaims
+	TypeClaims
 	UserID string `json:"user_id"`
 	Email  string `json:"email"`
 }
 
 func VerifyToken(db rethinkdb.QueryExecutor, secret, ss string) (*jwt.Token, Type, error) {
-	tkn, _, err := new(jwt.Parser).ParseUnverified(ss, &typeClaims{})
+	tkn, _, err := new(jwt.Parser).ParseUnverified(ss, &TypeClaims{})
 	if err != nil {
 		return nil, TypeUnknown, fmt.Errorf("parse the JWT token: %w", err)
 	}
 
-	claims := tkn.Claims.(*typeClaims)
+	claims := tkn.Claims.(*TypeClaims)
 
 	switch typ := claims.Type; typ {
 	// Register token
@@ -112,7 +112,16 @@ func VerifyToken(db rethinkdb.QueryExecutor, secret, ss string) (*jwt.Token, Typ
 
 	// External token
 	case TypeExternal:
-		tkn, err = ParseExternalToken(db, ss)
+		tkn, err := ParseExternalToken(db, ss)
+		if err != nil {
+			return nil, TypeUnknown, err
+		}
+
+		return tkn, typ, nil
+
+	// Email validation required token
+	case TypeEmailValidationRequired:
+		tkn, err := ParseAuthenticationToken(secret, ss, &EmailValidationRequiredClaims{})
 		if err != nil {
 			return nil, TypeUnknown, err
 		}
