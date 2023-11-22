@@ -1,25 +1,33 @@
 #
 # Build phase
 #
-FROM golang:1.21-alpine as build
+ARG GOLANG_BUILD_IMAGE
+ARG GOLANG_RUN_IMAGE
 
-RUN apk add --no-cache \
-    git
+FROM ${GOLANG_BUILD_IMAGE} AS build
 
-COPY . /build
 WORKDIR /build
 
+COPY go.mod /build
+COPY go.sum /build
 
-RUN go build -o guac cmd/guac/guac.go
+RUN go mod download
+
+WORKDIR /
+
+COPY . /build/guac
+
+WORKDIR /build/guac
+
+RUN CGO_ENABLED=0 go build -o bin/guac cmd/guac/guac.go
+
 
 #
 # Guac
 #
-FROM alpine:3.19
+FROM ${GOLANG_RUN_IMAGE}
 
-COPY --from=build /build/guac /guac
-
-EXPOSE 4567
+COPY --from=build /build/guac/bin/guac /guac
 
 CMD [ "/guac" ]
 USER nobody
