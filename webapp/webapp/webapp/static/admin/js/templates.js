@@ -692,14 +692,13 @@ function actionsDomainDetail(){
             dropdownParent: $('#modalChangeOwnerDomain'),
             ajax: {
                 type: "POST",
-                url: '/admin/allowed/term/users',
+                url: '/admin/users/search',
                 dataType: 'json',
                 contentType: "application/json",
                 delay: 250,
                 data: function (params) {
                     return JSON.stringify({
                         term: params.term,
-                        pluck: ['id', 'name']
                     });
                 },
                 processResults: function (data) {

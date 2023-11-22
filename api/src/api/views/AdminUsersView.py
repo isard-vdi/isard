@@ -36,6 +36,7 @@ from ..libv2.api_admin import (
     admin_table_list,
     admin_table_update,
 )
+from ..libv2.api_allowed import ApiAllowed
 from ..libv2.api_users import ApiUsers, Password, get_user
 from ..libv2.quotas import Quotas
 from ..libv2.quotas_process import QuotasProcess
@@ -44,6 +45,7 @@ from ..libv2.validators import _validate_item
 
 quotas = Quotas()
 users = ApiUsers()
+allowed = ApiAllowed()
 
 from ..libv2.isardVpn import isardVpn
 
@@ -990,3 +992,30 @@ def admin_quotas(payload):
         200,
         {"Content-Type": "application/json"},
     )
+
+
+@cached(TTLCache(maxsize=10, ttl=60))
+@app.route("/api/v3/admin/users/search", methods=["POST"])
+@is_admin_or_manager
+def search_users_for_template(payload):
+    term = request.get_json()["term"]
+    if payload["role_id"] == "admin":
+        result = allowed.get_table_term(
+            "users",
+            "name",
+            term,
+            pluck=["id", "name", "uid"],
+            query_filter=lambda user: user["role"] != "user",
+        )
+    else:
+        result = allowed.get_table_term(
+            "users",
+            "name",
+            term,
+            pluck=["id", "name", "category", "uid"],
+            index_key="category",
+            index_value=payload["category_id"],
+            query_filter=lambda user: user["role"] != "user",
+        )
+
+    return json.dumps(result), 200, {"Content-Type": "application/json"}
