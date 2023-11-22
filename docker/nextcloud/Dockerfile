@@ -1,7 +1,7 @@
 ARG IMG
 FROM ${IMG}
 
-RUN apk update
+RUN apk -U upgrade --no-cache
 RUN set -ex; \
     \
     apk add --no-cache \
