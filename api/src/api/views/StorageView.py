@@ -478,6 +478,7 @@ def storage_update_parent(payload, storage_id):
 
 
 @app.route("/api/v3/storage/<path:storage_id>/path/<path:path>", methods=["PUT"])
+@app.route("/api/v3/storage/<path:storage_id>/path/<path:path>/rsync", methods=["PUT"])
 @has_token
 def storage_move(payload, storage_id, path):
     """
@@ -523,17 +524,22 @@ def storage_move(payload, storage_id, path):
         storage_pool_ids = [storage_pool_origin.id, storage_pool_destination.id]
         storage_pool_ids.sort()
         queue = ":".join(storage_pool_ids)
+    rsync = request.url_rule.rule.endswith("/rsync")
+    move_job_kwargs = {
+        "kwargs": {
+            "origin_path": f"{storage.directory_path}/{storage.id}.{storage.type}",
+            "destination_path": f"{path}/{storage.id}.{storage.type}",
+            "rsync": rsync,
+        }
+    }
+    if rsync:
+        move_job_kwargs["timeout"] = 3600
     try:
         storage.create_task(
             user_id=payload.get("user_id"),
             queue=f"storage.{queue}.default",
             task="move",
-            job_kwargs={
-                "kwargs": {
-                    "origin_path": f"{storage.directory_path}/{storage.id}.{storage.type}",
-                    "destination_path": f"{path}/{storage.id}.{storage.type}",
-                },
-            },
+            job_kwargs=move_job_kwargs,
             dependents=[
                 {
                     "queue": "core",

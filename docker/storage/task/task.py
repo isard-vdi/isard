@@ -29,6 +29,61 @@ from isardvdi_protobuf.queue.storage.v1 import ConvertRequest, DiskFormat
 from rq import Queue, get_current_job
 
 
+def extract_progress_from_qemu_img_convert_output(process):
+    """
+    Extract progress from qemu-img convert standard output
+
+    :param process: Process executed
+    :type process: Popen object
+    :return: Progress percentage as decimal
+    :rtype: float
+    """
+    return (
+        float(process.stdout.read1().decode().split("(", 1)[1].split("/", 1)[0]) / 100
+    )
+
+
+def extract_progress_from_rsync_output(process):
+    """
+    Extract progress from rsync standard output.
+
+    :param process: Process executed
+    :type process: Popen object
+    :return: Progress percentage as decimal
+    :rtype: float
+    """
+    return (
+        float(process.stdout.read1().decode().split("%", 1)[0].rsplit(" ", 1)[-1]) / 100
+    )
+
+
+def run_with_progress(command, extract_progress):
+    """
+    Run command reporting progress to RQ job metadata.
+
+    :param command: Array of command arguments to be executed
+    :type command: List of str
+    :param extract_progress: Function to extract progress from stdout of command executed
+    :type extrct_progress: Callable function with progress as firt parameter
+    :return: Exit code of command executed
+    :rtype: int
+    """
+    job = get_current_job()
+    with Popen(command, stdout=PIPE) as process:
+        while process.poll() is None:
+            job.meta["progress"] = extract_progress(process)
+            job.save_meta()
+            Queue("core", connection=job.connection).enqueue(
+                "task.feedback", task_id=job.id, result_ttl=0
+            )
+            sleep(5)
+            process.stdout.read1()
+        if process.returncode == 0:
+            job.meta["progress"] = 1
+            job.save_meta()
+        return process.returncode
+
+
 def create(storage_path, storage_type, size=None, parent_path=None, parent_type=None):
     """
     Create disk.
@@ -192,7 +247,7 @@ def check_backing_filename():
     return result
 
 
-def move(origin_path, destination_path):
+def move(origin_path, destination_path, rsync=False):
     """
     Move disk.
 
@@ -200,8 +255,24 @@ def move(origin_path, destination_path):
     :type origin_path: str
     :param destination_path: Path of the destination file
     :type destination_path: str
+    :param rsync: True to use rsync
+    :type rsync: bool
+    :return: Exit code of rsync command or 0 if rsync is False
+    :rtype: int
     """
-    rename(origin_path, destination_path)
+    if not rsync:
+        rename(origin_path, destination_path)
+        return 0
+    return run_with_progress(
+        [
+            "rsync",
+            "--remove-source-files",
+            "--info=progress,flist0",
+            origin_path,
+            destination_path,
+        ],
+        extract_progress_from_rsync_output,
+    )
 
 
 def convert(convert_request):
@@ -213,7 +284,6 @@ def convert(convert_request):
     :return: Exit code of qemu-img command
     :rtype: int
     """
-    job = get_current_job()
     if (
         convert_request.compression
         # https://github.com/danielgtaylor/python-betterproto/issues/174
@@ -227,7 +297,7 @@ def convert(convert_request):
         raise ValueError("Please specify a disk format")
     if convert_request.format > 2:
         raise ValueError("Format convert_request.format not supported")
-    with Popen(
+    return run_with_progress(
         [
             "qemu-img",
             "convert",
@@ -239,23 +309,8 @@ def convert(convert_request):
             convert_request.source_disk_path,
             convert_request.dest_disk_path,
         ],
-        stdout=PIPE,
-    ) as process:
-        while process.poll() is None:
-            job.meta["progress"] = (
-                float(process.stdout.read1().decode().split("(", 1)[1].split("/", 1)[0])
-                / 100
-            )
-            job.save_meta()
-            Queue("core.feedback", connection=job.connection).enqueue(
-                "task.feedback", task_id=job.id, result_ttl=0
-            )
-            sleep(5)
-            process.stdout.read1()
-        if process.returncode == 0:
-            job.meta["progress"] = 1
-            job.save_meta()
-        return process.returncode
+        extract_progress_from_qemu_img_convert_output,
+    )
 
 
 def delete(path):
