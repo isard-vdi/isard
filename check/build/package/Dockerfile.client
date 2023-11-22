@@ -1,6 +1,7 @@
 FROM jlesage/baseimage-gui:alpine-3.18-v4
 
 # Install dependencies
+RUN apk -U upgrade --no-cache
 RUN add-pkg \
     sudo \
     dbus \

@@ -28,6 +28,7 @@ RUN CGO_ENABLED=0 go build -o bin/authentication cmd/authentication/main.go
 #
 FROM ${GOLANG_RUN_IMAGE}
 
+RUN apk -U upgrade --no-cache
 RUN apk add --no-cache \
     ca-certificates \
     openssl

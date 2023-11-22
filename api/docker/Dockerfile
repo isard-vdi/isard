@@ -1,7 +1,9 @@
 FROM alpine:3.18 as production
 MAINTAINER isard <info@isard.com>
 
+RUN apk -U upgrade --no-cache
 RUN apk add --no-cache python3 py3-pip curl openssh-client py3-gevent py3-greenlet py3-pillow  ttf-liberation
+
 RUN pip3 install --upgrade pip
 RUN apk add --no-cache --virtual .build_deps \
     build-base \

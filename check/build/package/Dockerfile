@@ -24,6 +24,7 @@ RUN CGO_ENABLED=0 go build -o bin/check cmd/check/main.go
 #
 FROM alpine:3.18
 
+RUN apk -U upgrade --no-cache
 RUN apk add --no-cache \
     bash \
     docker \

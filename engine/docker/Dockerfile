@@ -2,6 +2,7 @@ FROM alpine:3.18 as production
 MAINTAINER isard <info@isard.com>
 WORKDIR /isard
 
+RUN apk -U upgrade --no-cache
 RUN apk add --no-cache \
     yarn \
     py3-libvirt \

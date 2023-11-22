@@ -3,7 +3,10 @@ ARG HAPROXY_RUN_IMAGE
 FROM ${HAPROXY_RUN_IMAGE} as production
 
 USER root
+
+RUN apk -U upgrade --no-cache
 RUN apk add openssl certbot
+
 COPY docker/video/prepare.sh /usr/local/sbin/
 COPY docker/_common/letsencrypt-hook-deploy-concatenante.sh /
 COPY docker/_common/letsencrypt.sh /usr/local/sbin/

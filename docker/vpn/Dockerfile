@@ -7,6 +7,7 @@ FROM ${DOCKER_IMAGE_PREFIX}rdpgw:$DOCKER_IMAGE_TAG as rdpgw
 FROM alpine:3.18 as production
 MAINTAINER isard <info@isardvdi.com>
 
+RUN apk -U upgrade --no-cache
 RUN apk add --no-cache --update wireguard-tools openssh python3
 RUN rm -rf /etc/ssh/ssh_host_rsa_key /etc/ssh/ssh_host_dsa_key
 

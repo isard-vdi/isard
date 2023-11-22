@@ -28,6 +28,8 @@ RUN CGO_ENABLED=0 go build -o bin/orchestrator cmd/orchestrator/main.go
 #
 FROM ${GOLANG_RUN_IMAGE}
 
+RUN apk -U upgrade --no-cache
+
 COPY --from=build /build/orchestrator/bin/orchestrator /orchestrator
 
 CMD [ "/orchestrator" ]

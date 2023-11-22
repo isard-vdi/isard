@@ -14,7 +14,10 @@ RUN git clone https://gitlab.com/isard/backupninja.git && \
 
 FROM alpine:3.18 as production
 MAINTAINER isard <info@isard.com>
+
+RUN apk -U upgrade --no-cache
 RUN apk add --no-cache nfs-utils
+
 COPY --from=build /usr/local/sbin/backupninja /usr/local/sbin/backupninja
 COPY --from=build /usr/local/sbin/ninjahelper /usr/local/sbin/ninjahelper
 COPY --from=build /usr/local/etc/backupninja.conf /usr/local/etc/backupninja.conf
