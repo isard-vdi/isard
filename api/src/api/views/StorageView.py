@@ -629,6 +629,7 @@ def storage_convert(payload, storage_id, new_storage_type, compress=None):
         status="creating",
         type=new_storage_type.lower(),
         directory_path=origin_storage.directory_path,
+        converted_from=origin_storage.id,
     )
     try:
         origin_storage.create_task(
