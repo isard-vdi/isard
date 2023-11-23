@@ -596,11 +596,21 @@ def storage_move(payload, storage_id, path):
     methods=["POST"],
 )
 @app.route(
+    "/api/v3/storage/<path:storage_id>/convert/<new_storage_type>/<new_storage_status>",
+    methods=["POST"],
+)
+@app.route(
     "/api/v3/storage/<path:storage_id>/convert/<new_storage_type>/compress",
     methods=["POST"],
 )
+@app.route(
+    "/api/v3/storage/<path:storage_id>/convert/<new_storage_type>/<new_storage_status>/compress",
+    methods=["POST"],
+)
 @has_token
-def storage_convert(payload, storage_id, new_storage_type, compress=None):
+def storage_convert(
+    payload, storage_id, new_storage_type, new_storage_status="ready", compress=None
+):
     """
     Endpoint that creates a Task to convert an storage to a new storage.
 
@@ -621,6 +631,11 @@ def storage_convert(payload, storage_id, new_storage_type, compress=None):
         raise Error(
             error="bad_request",
             description=f"Storage type {new_storage_type} not supported",
+        )
+    if new_storage_status not in ["ready", "downloadable"]:
+        raise Error(
+            error="bad_request",
+            description=f"Storage status {new_storage_status} not supported",
         )
     origin_storage = set_storage_maintenance(payload, storage_id)
     compress = request.url_rule.rule.endswith("/compress")
@@ -659,7 +674,7 @@ def storage_convert(payload, storage_id, new_storage_type, compress=None):
                                     },
                                 },
                                 "finished": {
-                                    "ready": {
+                                    new_storage_status: {
                                         "storage": [new_storage.id],
                                     },
                                 },
