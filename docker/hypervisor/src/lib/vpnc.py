@@ -3,7 +3,7 @@ import os
 import time
 import traceback
 from pprint import pprint
-from subprocess import check_call, check_output
+from subprocess import DEVNULL, check_call, check_output
 
 from api_client import ApiClient
 from pythonping import ping
@@ -13,7 +13,7 @@ apic = ApiClient()
 
 def connect(peer):
     try:
-        check_output(("/usr/bin/wg-quick", "down", "wg0"), text=True).strip()
+        check_output(("/usr/bin/wg-quick", "down", "wg0"), stderr=DEVNULL).strip()
     except:
         None
     with open("/etc/wireguard/wg0.conf", "w") as f:
@@ -39,7 +39,7 @@ while not ok:
         peer = apic.get("hypervisor_vpn/" + hyper_id)
         if not peer:
             print("Api unable to connect to this host:port through ssh-keyscan.")
-            time.sleep(4)
+            time.sleep(1)
         if peer.get("content"):
             connect(peer["content"])
             gw = peer["content"].split("AllowedIPs = ")[1].split("/")[0]
@@ -52,7 +52,7 @@ while not ok:
     except:
         peer = False
         print("Could not contact api to get wg VPNc config. Retrying...")
-        time.sleep(4)
+        time.sleep(1)
 
 print(check_output(("/usr/bin/wg", "show"), text=True).strip())
 print("Hypervisor wg VPNc networking connected.")

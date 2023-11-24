@@ -5,7 +5,7 @@ import traceback
 from pprint import pprint
 from time import sleep
 
-from setup import DeleteHypervisor, EnableHypervisor, SetupHypervisor
+from setup import DeleteHypervisor, DisableHypervisor, EnableHypervisor, SetupHypervisor
 
 # from wireguard import SetupWireguard
 
@@ -31,6 +31,13 @@ if sys.argv[1] == "delete":
 if sys.argv[1] == "enable":
     try:
         print(EnableHypervisor())
+    except:
+        print(traceback.format_exc())
+        exit(1)
+
+if sys.argv[1] == "disable":
+    try:
+        print(DisableHypervisor())
     except:
         print(traceback.format_exc())
         exit(1)
