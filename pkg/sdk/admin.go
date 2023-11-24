@@ -202,3 +202,51 @@ func (c *Client) AdminHypervisorOnlyForced(ctx context.Context, id string, onlyF
 		OnlyForced: &onlyForced,
 	})
 }
+
+func (c *Client) AdminUserRequiredDisclaimerAcknowledgement(ctx context.Context, id string) (bool, error) {
+	req, err := c.newJSONRequest(http.MethodGet, fmt.Sprintf("admin/user/required/disclaimer-acknowledgement/%s", id), nil)
+	if err != nil {
+		return false, err
+	}
+
+	rsp := struct {
+		Required *bool `json:"required,omitempty"`
+	}{}
+	if _, err := c.do(ctx, req, &rsp); err != nil {
+		return false, fmt.Errorf("check admin user required disclaimer acknowledgement: %w", err)
+	}
+
+	return *rsp.Required, nil
+}
+
+func (c *Client) AdminUserRequiredEmailVerification(ctx context.Context, id string) (bool, error) {
+	req, err := c.newJSONRequest(http.MethodGet, fmt.Sprintf("admin/user/required/email-verification/%s", id), nil)
+	if err != nil {
+		return false, err
+	}
+
+	rsp := struct {
+		Required *bool `json:"required,omitempty"`
+	}{}
+	if _, err := c.do(ctx, req, &rsp); err != nil {
+		return false, fmt.Errorf("check admin user required email verification: %w", err)
+	}
+
+	return *rsp.Required, nil
+}
+
+func (c *Client) AdminUserRequiredPasswordReset(ctx context.Context, id string) (bool, error) {
+	req, err := c.newJSONRequest(http.MethodGet, fmt.Sprintf("admin/user/required/password-reset/%s", id), nil)
+	if err != nil {
+		return false, err
+	}
+
+	rsp := struct {
+		Required *bool `json:"required,omitempty"`
+	}{}
+	if _, err := c.do(ctx, req, &rsp); err != nil {
+		return false, fmt.Errorf("check admin user required password reset: %w", err)
+	}
+
+	return *rsp.Required, nil
+}

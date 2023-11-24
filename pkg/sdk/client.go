@@ -51,6 +51,10 @@ type Interface interface {
 	AdminHypervisorUpdate(context.Context, *Hypervisor) error
 	AdminHypervisorOnlyForced(ctx context.Context, id string, onlyForced bool) error
 
+	AdminUserRequiredDisclaimerAcknowledgement(ctx context.Context, id string) (bool, error)
+	AdminUserRequiredEmailVerification(ctx context.Context, id string) (bool, error)
+	AdminUserRequiredPasswordReset(ctx context.Context, id string) (bool, error)
+
 	HypervisorList(context.Context) ([]*Hypervisor, error)
 	HypervisorGet(ctx context.Context, id string) (*Hypervisor, error)
 	HypervisorDelete(ctx context.Context, id string) error

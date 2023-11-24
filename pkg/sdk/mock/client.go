@@ -92,6 +92,21 @@ func (c *Client) AdminHypervisorOnlyForced(ctx context.Context, id string, onlyF
 	return args.Error(0)
 }
 
+func (c *Client) AdminUserRequiredDisclaimerAcknowledgement(ctx context.Context, id string) (bool, error) {
+	args := c.Called(ctx, id)
+	return args.Bool(0), args.Error(1)
+}
+
+func (c *Client) AdminUserRequiredEmailVerification(ctx context.Context, id string) (bool, error) {
+	args := c.Called(ctx, id)
+	return args.Bool(0), args.Error(1)
+}
+
+func (c *Client) AdminUserRequiredPasswordReset(ctx context.Context, id string) (bool, error) {
+	args := c.Called(ctx, id)
+	return args.Bool(0), args.Error(1)
+}
+
 func (c *Client) HypervisorList(ctx context.Context) ([]*isardvdi.Hypervisor, error) {
 	args := c.Called(ctx)
 	return args.Get(0).([]*isardvdi.Hypervisor), args.Error(1)
