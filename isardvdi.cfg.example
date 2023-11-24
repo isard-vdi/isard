@@ -408,7 +408,7 @@ HAPROXY_LOGGING=.
 ## servers? Then allow here only the hostnames for those hypervisors as
 ## seen from this host with comma (,) delimiters:
 #VIDEO_HYPERVISOR_HOSTNAMES=isard-hypervisor
-#VIDEO_HYPERVISOR_PORTS=5900-6899
+#VIDEO_HYPERVISOR_PORTS=5900-7899
 
 # ------ Docker networking ---------------------------------------------------
 ## Assign a docker /24 network. The host part will be set by system

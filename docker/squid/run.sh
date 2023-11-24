@@ -7,7 +7,7 @@ else
 fi
 
 if [ ! -n "$VIDEO_HYPERVISOR_PORTS" ]; then
-    VIDEO_HYPERVISOR_PORTS='5900-6900'
+    VIDEO_HYPERVISOR_PORTS='5900-7899'
 fi
 
 echo "read_timeout 120 minutes" > /etc/squid/squid.conf
