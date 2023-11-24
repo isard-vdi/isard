@@ -77,6 +77,15 @@ func (u *User) Update(ctx context.Context, sess r.QueryExecutor) error {
 	return err
 }
 
+func (u *User) UpdateEmail(ctx context.Context, sess r.QueryExecutor) error {
+	_, err := r.Table("users").Get(u.ID).Update(map[string]interface{}{
+		"email":                    u.Email,
+		"email_verified":           u.EmailVerified,
+		"email_verification_token": u.EmailVerificationToken,
+	}).Run(sess)
+	return err
+}
+
 func (u *User) Exists(ctx context.Context, sess r.QueryExecutor) (bool, error) {
 	res, err := r.Table("users").Filter(r.And(
 		r.Eq(r.Row.Field("uid"), u.UID),
@@ -131,4 +140,25 @@ func (u *User) LoadWithoutOverride(u2 *User) {
 	if u.Accessed == 0 {
 		u.Accessed = u2.Accessed
 	}
+}
+
+func (u *User) IsEmailUnique(ctx context.Context, sess r.QueryExecutor) (bool, error) {
+	res, err := r.Table("users").Filter(r.And(
+		r.Eq(r.Row.Field("category"), u.Category),
+		r.Eq(r.Row.Field("email"), u.Email),
+	), r.FilterOpts{}).Run(sess)
+	if err != nil {
+		return false, err
+	}
+	defer res.Close()
+
+	if err := res.One(u); err != nil {
+		if !errors.Is(err, r.ErrEmptyResult) {
+			return false, fmt.Errorf("read db response: %w", err)
+		}
+
+		return true, nil
+	}
+
+	return false, nil
 }

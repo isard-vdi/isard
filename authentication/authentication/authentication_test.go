@@ -12,7 +12,7 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/pkg/log"
 
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
@@ -96,12 +96,8 @@ func TestLogin(t *testing.T) {
 				"password": "f0kt3Rf$",
 			},
 			CheckToken: func(ss string) {
-				tkn, typ, err := token.VerifyToken(nil, "", ss)
-
+				claims, err := token.ParseLoginToken("", ss)
 				assert.NoError(err)
-				assert.Equal(token.TypeLogin, typ)
-
-				claims := tkn.Claims.(*token.LoginClaims)
 
 				assert.Equal("isard-authentication", claims.Issuer)
 				assert.Equal("isardvdi", claims.KeyID)
@@ -198,7 +194,7 @@ func TestLogin(t *testing.T) {
 			ExpectedRedirect: "",
 			ExpectedErr:      provider.ErrUserDisabled.Error(),
 		},
-		"should return a EmailValidationRequired token if the email validation is required and the email is not validated": {
+		"should return a EmailVerificationRequired token if the email verification is required and the email is not verified": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("users").Filter(r.And(
 					r.Eq(r.Row.Field("uid"), "nefix"),
@@ -228,29 +224,28 @@ func TestLogin(t *testing.T) {
 				"password": "f0kt3Rf$",
 			},
 			CheckToken: func(ss string) {
-				tkn, typ, err := token.VerifyToken(nil, "", ss)
-
+				claims, err := token.ParseEmailVerificationRequiredToken("", ss)
 				assert.NoError(err)
-				assert.Equal(token.TypeEmailValidationRequired, typ)
-
-				claims := tkn.Claims.(*token.EmailValidationRequiredClaims)
-
-				expires := time.Unix(claims.StandardClaims.ExpiresAt, 0)
 
 				// Ensure the expiration time is correct
-				assert.True(expires.Before(time.Now().Add(61 * time.Minute)))
-				assert.True(expires.After(time.Now().Add(59 * time.Minute)))
+				assert.True(claims.ExpiresAt.Time.Before(time.Now().Add(11 * time.Minute)))
+				assert.True(claims.ExpiresAt.Time.After(time.Now().Add(9 * time.Minute)))
 
-				claims.ExpiresAt = 0
-				assert.Equal(&token.EmailValidationRequiredClaims{
+				claims.ExpiresAt = nil
+				claims.IssuedAt = nil
+				claims.NotBefore = nil
+
+				assert.Equal(&token.EmailVerificationRequiredClaims{
 					TypeClaims: token.TypeClaims{
-						StandardClaims: &jwt.StandardClaims{
+						RegisteredClaims: &jwt.RegisteredClaims{
 							Issuer: "isard-authentication",
 						},
-						Type:  token.TypeEmailValidationRequired,
+						Type:  token.TypeEmailVerificationRequired,
 						KeyID: "isardvdi",
 					},
-					UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					UserID:       "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					CategoryID:   "default",
+					CurrentEmail: "nefix@example.org",
 				}, claims)
 			},
 			ExpectedRedirect: "",

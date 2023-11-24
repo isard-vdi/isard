@@ -27,13 +27,15 @@ type Interface interface {
 	Callback(ctx context.Context, args map[string]string) (tkn, redirect string, err error)
 	Check(ctx context.Context, tkn string) error
 
-	RequestEmailValidation(ctx context.Context, tkn string, email string) error
-	ValidateEmail(ctx context.Context, tkn string) error
+	RequestEmailVerification(ctx context.Context, tkn string, email string) error
+	VerifyEmail(ctx context.Context, tkn string) error
 
 	SAML() *samlsp.Middleware
 	// Refresh()
 	// Register()
 }
+
+var _ Interface = &Authentication{}
 
 type Authentication struct {
 	Log       *zerolog.Logger
@@ -104,59 +106,18 @@ func (a *Authentication) Provider(p string) provider.Provider {
 func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args map[string]string) (string, string, error) {
 	// Check if the user sends a token
 	if args[provider.TokenArgsKey] != "" {
-		tkn, tknType, err := token.VerifyToken(a.DB, a.Secret, args[provider.TokenArgsKey])
+		typ, err := token.GetTokenType(args[provider.TokenArgsKey])
 		if err != nil {
-			return "", "", fmt.Errorf("verify the JWT token: %w", err)
+			return "", "", fmt.Errorf("get the JWT token type: %w", err)
 		}
 
-		switch tknType {
+		switch typ {
 		case token.TypeRegister:
-			register := tkn.Claims.(*token.RegisterClaims)
-
-			u := &model.User{
-				Provider: register.Provider,
-				Category: register.CategoryID,
-				UID:      register.UserID,
-			}
-			if err := u.LoadWithoutID(ctx, a.DB); err != nil {
-				if errors.Is(err, db.ErrNotFound) {
-					return "", "", errors.New("user not registered")
-				}
-
-				return "", "", fmt.Errorf("load user from db: %w", err)
-			}
-
-			ss, err := token.SignLoginToken(a.Secret, a.Duration, u)
-			if err != nil {
-				return "", "", err
-			}
-
-			a.Log.Info().Str("usr", u.ID).Str("tkn", ss).Msg("register succeeded")
-
-			return ss, args[provider.RedirectArgsKey], nil
-
-		case token.TypeExternal:
-			claims := tkn.Claims.(*token.ExternalClaims)
-
-			args["category_id"] = claims.CategoryID
-			args["external_app_id"] = claims.KeyID
-			args["external_group_id"] = claims.GroupID
-			args["user_id"] = claims.UserID
-			args["username"] = claims.Username
-			args["kid"] = claims.KeyID
-			args["role"] = claims.Role
-			args["name"] = claims.Name
-			args["email"] = claims.Email
-			args["photo"] = claims.Photo
-		}
-
-	} else {
-		// There are some login providers that require a token
-		if prv == provider.ExternalString {
-			return "", "", errors.New("missing JWT token")
+			return a.finishRegister(ctx, args[provider.TokenArgsKey], args[provider.RedirectArgsKey])
 		}
 	}
 
+	// Get the provider and log in
 	p := a.Provider(prv)
 	g, u, redirect, err := p.Login(ctx, categoryID, args)
 	if err != nil {
@@ -165,6 +126,7 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 		return "", "", fmt.Errorf("login: %w", err)
 	}
 
+	// If the provider forces us to redirect, do it
 	if redirect != "" {
 		return "", redirect, nil
 	}
@@ -217,14 +179,9 @@ func (a *Authentication) Callback(ctx context.Context, args map[string]string) (
 		return "", "", errors.New("callback state not provided")
 	}
 
-	tkn, err := token.ParseAuthenticationToken(a.Secret, ss, &token.CallbackClaims{})
+	claims, err := token.ParseCallbackToken(a.Secret, ss)
 	if err != nil {
 		return "", "", fmt.Errorf("parse callback state: %w", err)
-	}
-
-	claims, ok := tkn.Claims.(*token.CallbackClaims)
-	if !ok {
-		return "", "", errors.New("unknown callback state claims format")
 	}
 
 	p := a.Provider(claims.Provider)
@@ -264,10 +221,13 @@ func (a *Authentication) finishLogin(ctx context.Context, u *model.User, redirec
 		return "", "", provider.ErrUserDisabled
 	}
 
+	// TODO: Check the user has accepted the disclaimer
+
 	// Check if the user has the email verified
-	const validateEmail = true // TODO: This needs to be at the cfg
-	if validateEmail && !u.EmailVerified {
-		ss, err := token.SignEmailValidationRequiredToken(a.Secret, u)
+	// TODO: This needs to be an API call to API
+	const verifyEmail = true
+	if verifyEmail && !u.EmailVerified {
+		ss, err := token.SignEmailVerificationRequiredToken(a.Secret, u)
 		if err != nil {
 			return "", "", err
 		}
@@ -275,14 +235,21 @@ func (a *Authentication) finishLogin(ctx context.Context, u *model.User, redirec
 		return ss, "", nil
 	}
 
+	// TODO: Check the user has a password in compilance with their policy
+
+	// Set the last accessed time of the user
 	u.Accessed = float64(time.Now().Unix())
 
+	// Load the rest of the data of the user from the DB without overriding the data provided by the
+	// login provider
 	u2 := &model.User{ID: u.ID}
 	if err := u2.Load(ctx, a.DB); err != nil {
 		return "", "", fmt.Errorf("load user from DB: %w", err)
 	}
 
 	u.LoadWithoutOverride(u2)
+
+	// Update the user in the DB with the latest data
 	if err := u.Update(ctx, a.DB); err != nil {
 		return "", "", fmt.Errorf("update user in the DB: %w", err)
 	}
@@ -299,15 +266,39 @@ func (a *Authentication) finishLogin(ctx context.Context, u *model.User, redirec
 	return ss, redirect, nil
 }
 
-func (a *Authentication) Check(ctx context.Context, ss string) error {
-	tkn, err := token.ParseAuthenticationToken(a.Secret, ss, &token.LoginClaims{})
+func (a *Authentication) finishRegister(ctx context.Context, ss, redirect string) (string, string, error) {
+	claims, err := token.ParseRegisterToken(a.Secret, ss)
 	if err != nil {
-		return err
+		return "", "", err
 	}
 
-	_, ok := tkn.Claims.(*token.LoginClaims)
-	if !ok {
-		return errors.New("unknown JWT claims format")
+	u := &model.User{
+		Provider: claims.Provider,
+		Category: claims.CategoryID,
+		UID:      claims.UserID,
+	}
+	if err := u.LoadWithoutID(ctx, a.DB); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			return "", "", errors.New("user not registered")
+		}
+
+		return "", "", fmt.Errorf("load user from db: %w", err)
+	}
+
+	ss, redirect, err = a.finishLogin(ctx, u, redirect)
+	if err != nil {
+		return "", "", err
+	}
+
+	a.Log.Info().Str("usr", u.ID).Str("tkn", ss).Msg("register succeeded")
+
+	return ss, redirect, nil
+}
+
+func (a *Authentication) Check(ctx context.Context, ss string) error {
+	_, err := token.ParseLoginToken(a.Secret, ss)
+	if err != nil {
+		return err
 	}
 
 	return nil

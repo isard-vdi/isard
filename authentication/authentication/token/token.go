@@ -4,30 +4,32 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/golang-jwt/jwt"
-	"gopkg.in/rethinkdb/rethinkdb-go.v6"
+	"github.com/golang-jwt/jwt/v5"
 )
+
+var ErrInvalidTokenType = errors.New("invalid token type")
 
 type Type string
 
 const (
-	TypeUnknown                 Type = "unknown"
-	TypeLogin                   Type = "login"
-	TypeCallback                Type = "callback"
-	TypeRegister                Type = "register"
-	TypeExternal                Type = "external"
-	TypeEmailValidationRequired Type = "email-validation-required"
-	TypeEmailValidation         Type = "email-validation"
+	TypeUnknown                           Type = "unknown"
+	TypeLogin                             Type = "login"
+	TypeCallback                          Type = "callback"
+	TypeRegister                          Type = "register"
+	TypeExternal                          Type = "external"
+	TypeEmailVerificationRequired         Type = "email-verification-required"
+	TypeEmailVerification                 Type = "email-verification"
+	TypeDisclaimerAcknowledgementRequired Type = "disclaimer-acknowledgement-required"
 )
 
 type TypeClaims struct {
-	*jwt.StandardClaims
+	*jwt.RegisteredClaims
 	KeyID string `json:"kid"`
 	Type  Type   `json:"type"`
 }
 
 type LoginClaims struct {
-	*jwt.StandardClaims
+	*jwt.RegisteredClaims
 	KeyID string          `json:"kid"`
 	Data  LoginClaimsData `json:"data"`
 }
@@ -48,6 +50,14 @@ type CallbackClaims struct {
 	Redirect   string `json:"redirect"`
 }
 
+func (c CallbackClaims) Validate() error {
+	if c.Type != TypeCallback {
+		return ErrInvalidTokenType
+	}
+
+	return nil
+}
+
 type RegisterClaims struct {
 	TypeClaims
 	Provider   string `json:"provider"`
@@ -57,6 +67,14 @@ type RegisterClaims struct {
 	Name       string `json:"name"`
 	Email      string `json:"email"`
 	Photo      string `json:"photo"`
+}
+
+func (c RegisterClaims) Validate() error {
+	if c.Type != TypeRegister {
+		return ErrInvalidTokenType
+	}
+
+	return nil
 }
 
 type ExternalClaims struct {
@@ -72,73 +90,80 @@ type ExternalClaims struct {
 	CategoryID string `json:"-"`
 }
 
-type EmailValidationRequiredClaims struct {
-	TypeClaims
-	UserID string `json:"user_id"`
+func (c ExternalClaims) Validate() error {
+	if c.Type != TypeExternal {
+		return ErrInvalidTokenType
+	}
+
+	return nil
 }
 
-type EmailValidationClaims struct {
+type EmailVerificationRequiredClaims struct {
+	TypeClaims
+	UserID       string `json:"user_id"`
+	CategoryID   string `json:"category_id"`
+	CurrentEmail string `json:"current_email"`
+}
+
+func (c EmailVerificationRequiredClaims) Validate() error {
+	if c.Type != TypeEmailVerificationRequired {
+		return ErrInvalidTokenType
+	}
+
+	return nil
+}
+
+type EmailVerificationClaims struct {
 	TypeClaims
 	UserID string `json:"user_id"`
 	Email  string `json:"email"`
 }
 
-func VerifyToken(db rethinkdb.QueryExecutor, secret, ss string) (*jwt.Token, Type, error) {
+func (c EmailVerificationClaims) Validate() error {
+	if c.Type != TypeEmailVerification {
+		return ErrInvalidTokenType
+	}
+
+	return nil
+}
+
+type DisclaimerAcknowledgementRequiredClaims struct {
+	TypeClaims
+	UserID string `json:"user_id"`
+}
+
+func (c DisclaimerAcknowledgementRequiredClaims) Validate() error {
+	if c.Type != TypeDisclaimerAcknowledgementRequired {
+		return ErrInvalidTokenType
+	}
+
+	return nil
+}
+
+func GetTokenType(ss string) (Type, error) {
 	tkn, _, err := new(jwt.Parser).ParseUnverified(ss, &TypeClaims{})
 	if err != nil {
-		return nil, TypeUnknown, fmt.Errorf("parse the JWT token: %w", err)
+		return TypeUnknown, fmt.Errorf("parse the JWT token: %w", err)
 	}
 
 	claims := tkn.Claims.(*TypeClaims)
 
-	switch typ := claims.Type; typ {
-	// Register token
-	case TypeRegister:
-		tkn, err := ParseAuthenticationToken(secret, ss, &RegisterClaims{})
-		if err != nil {
-			return nil, TypeUnknown, err
-		}
+	switch claims.Type {
+	case TypeCallback,
+		TypeRegister,
+		TypeExternal,
+		TypeEmailVerificationRequired,
+		TypeEmailVerification,
+		TypeDisclaimerAcknowledgementRequired:
 
-		return tkn, typ, nil
-
-	// Callback token
-	case TypeCallback:
-		tkn, err := ParseAuthenticationToken(secret, ss, &CallbackClaims{})
-		if err != nil {
-			return nil, TypeUnknown, err
-		}
-
-		return tkn, typ, nil
-
-	// External token
-	case TypeExternal:
-		tkn, err := ParseExternalToken(db, ss)
-		if err != nil {
-			return nil, TypeUnknown, err
-		}
-
-		return tkn, typ, nil
-
-	// Email validation required token
-	case TypeEmailValidationRequired:
-		tkn, err := ParseAuthenticationToken(secret, ss, &EmailValidationRequiredClaims{})
-		if err != nil {
-			return nil, TypeUnknown, err
-		}
-
-		return tkn, typ, nil
+		return claims.Type, nil
 
 	// TODO: This should be replaced by type = "login"
 	// Login token
 	case "":
-		tkn, err = ParseAuthenticationToken(secret, ss, &LoginClaims{})
-		if err != nil {
-			return nil, TypeUnknown, err
-		}
-
-		return tkn, TypeLogin, nil
+		return TypeLogin, nil
 
 	default:
-		return nil, TypeUnknown, errors.New("unknown token type")
+		return TypeUnknown, errors.New("unknown token type")
 	}
 }

@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang-jwt/jwt"
 	"gitlab.com/isard/isardvdi/authentication/model"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 const (
@@ -19,9 +20,11 @@ var signingMethod = jwt.SigningMethodHS256
 
 func SignLoginToken(secret string, duration time.Duration, u *model.User) (string, error) {
 	tkn := jwt.NewWithClaims(signingMethod, &LoginClaims{
-		StandardClaims: &jwt.StandardClaims{
+		RegisteredClaims: &jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(duration)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			NotBefore: jwt.NewNumericDate(time.Now()),
 			Issuer:    issuer,
-			ExpiresAt: time.Now().Add(duration).Unix(),
 		},
 		KeyID: keyID,
 		Data: LoginClaimsData{
@@ -45,9 +48,11 @@ func SignLoginToken(secret string, duration time.Duration, u *model.User) (strin
 func SignRegisterToken(secret string, duration time.Duration, u *model.User) (string, error) {
 	tkn := jwt.NewWithClaims(signingMethod, &RegisterClaims{
 		TypeClaims: TypeClaims{
-			StandardClaims: &jwt.StandardClaims{
+			RegisteredClaims: &jwt.RegisteredClaims{
+				ExpiresAt: jwt.NewNumericDate(time.Now().Add(duration)),
+				IssuedAt:  jwt.NewNumericDate(time.Now()),
+				NotBefore: jwt.NewNumericDate(time.Now()),
 				Issuer:    issuer,
-				ExpiresAt: time.Now().Add(duration).Unix(),
 			},
 			KeyID: keyID,
 			Type:  TypeRegister,
@@ -72,10 +77,12 @@ func SignRegisterToken(secret string, duration time.Duration, u *model.User) (st
 func SignCallbackToken(secret, prv, cat, redirect string) (string, error) {
 	tkn := jwt.NewWithClaims(signingMethod, &CallbackClaims{
 		TypeClaims: TypeClaims{
-			StandardClaims: &jwt.StandardClaims{
-				Issuer: issuer,
+			RegisteredClaims: &jwt.RegisteredClaims{
 				// TODO: This should be maybe configurable
-				ExpiresAt: time.Now().Add(10 * time.Minute).Unix(),
+				ExpiresAt: jwt.NewNumericDate(time.Now().Add(10 * time.Minute)),
+				IssuedAt:  jwt.NewNumericDate(time.Now()),
+				NotBefore: jwt.NewNumericDate(time.Now()),
+				Issuer:    issuer,
 			},
 			KeyID: keyID,
 			Type:  TypeCallback,
@@ -93,23 +100,76 @@ func SignCallbackToken(secret, prv, cat, redirect string) (string, error) {
 	return ss, nil
 }
 
-func SignEmailValidationRequiredToken(secret string, u *model.User) (string, error) {
-	tkn := jwt.NewWithClaims(signingMethod, &EmailValidationRequiredClaims{
+func SignEmailVerificationRequiredToken(secret string, u *model.User) (string, error) {
+	tkn := jwt.NewWithClaims(signingMethod, &EmailVerificationRequiredClaims{
 		TypeClaims: TypeClaims{
-			StandardClaims: &jwt.StandardClaims{
-				Issuer: issuer,
+			RegisteredClaims: &jwt.RegisteredClaims{
 				// TODO: This should be maybe configurable
-				ExpiresAt: time.Now().Add(60 * time.Minute).Unix(),
+				ExpiresAt: jwt.NewNumericDate(time.Now().Add(10 * time.Minute)),
+				IssuedAt:  jwt.NewNumericDate(time.Now()),
+				NotBefore: jwt.NewNumericDate(time.Now()),
+				Issuer:    issuer,
 			},
 			KeyID: keyID,
-			Type:  TypeEmailValidationRequired,
+			Type:  TypeEmailVerificationRequired,
 		},
-		UserID: u.ID,
+		UserID:       u.ID,
+		CategoryID:   u.Category,
+		CurrentEmail: u.Email,
 	})
 
 	ss, err := tkn.SignedString([]byte(secret))
 	if err != nil {
-		return "", fmt.Errorf("sign the email validation required token: %w", err)
+		return "", fmt.Errorf("sign the email verification required token: %w", err)
+	}
+
+	return ss, nil
+}
+
+func SignEmailVerificationToken(secret string, userID string, email string) (string, error) {
+	tkn := jwt.NewWithClaims(signingMethod, &EmailVerificationClaims{
+		TypeClaims: TypeClaims{
+			RegisteredClaims: &jwt.RegisteredClaims{
+				// TODO: This should be maybe configurable
+				ExpiresAt: jwt.NewNumericDate(time.Now().Add(60 * time.Minute)),
+				IssuedAt:  jwt.NewNumericDate(time.Now()),
+				NotBefore: jwt.NewNumericDate(time.Now()),
+				Issuer:    issuer,
+			},
+			KeyID: keyID,
+			Type:  TypeEmailVerification,
+		},
+		UserID: userID,
+		Email:  email,
+	})
+
+	ss, err := tkn.SignedString([]byte(secret))
+	if err != nil {
+		return "", fmt.Errorf("sign the email verification token: %w", err)
+	}
+
+	return ss, nil
+}
+
+func SignDisclaimerAcknowledgementRequiredToken(secret string, userID string) (string, error) {
+	tkn := jwt.NewWithClaims(signingMethod, &DisclaimerAcknowledgementRequiredClaims{
+		TypeClaims: TypeClaims{
+			RegisteredClaims: &jwt.RegisteredClaims{
+				// TODO: This should be maybe configurable
+				ExpiresAt: jwt.NewNumericDate(time.Now().Add(600000 * time.Hour)),
+				IssuedAt:  jwt.NewNumericDate(time.Now()),
+				NotBefore: jwt.NewNumericDate(time.Now()),
+				Issuer:    issuer,
+			},
+			KeyID: keyID,
+			Type:  TypeDisclaimerAcknowledgementRequired,
+		},
+		UserID: userID,
+	})
+
+	ss, err := tkn.SignedString([]byte(secret))
+	if err != nil {
+		return "", fmt.Errorf("sign the disclaimer acknowledgement required token: %w", err)
 	}
 
 	return ss, nil
