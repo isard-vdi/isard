@@ -136,7 +136,8 @@ class ApiMedia:
                     pass
 
         unassign_resource_from_desktops_and_deployments("media", {"id": media_id})
-        desktop_updating(desktop["id"])
+        for desktop in self.DesktopList(media_id):
+            desktop_updating(desktop["id"])
 
     def count(self, user_id):
         return r.table("media").get_all(user_id, index="user").count().run(db.conn)
