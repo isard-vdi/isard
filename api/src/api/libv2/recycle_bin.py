@@ -442,16 +442,27 @@ class RecycleBin(object):
                 )
                 for storage in self.storages:
                     if not Storage.exists(storage["id"]):
-                        raise Error(error="not_found", description="Storage not found")
+                        raise Error(
+                            error="not_found",
+                            description="Storage with id "
+                            + storage["id"]
+                            + "not found",
+                        )
                     storage = Storage(storage["id"])
+                    if storage.status == "deleted":
+                        continue
                     if storage.status not in [
                         "ready",
                         "recycled",
                         "non-existing",
+                        "orphan",
                     ]:
                         raise Error(
                             error="precondition_required",
-                            description="Storage not ready. Status: " + storage.status,
+                            description="Storage with id "
+                            + storage.id
+                            + " not ready. Status: "
+                            + storage.status,
                         )
                     storage.status = "maintenance"
                     _add_storage_log(storage.id, "maintenance")
