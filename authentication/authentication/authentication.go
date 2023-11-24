@@ -11,9 +11,11 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/pkg/db"
+	"gitlab.com/isard/isardvdi/pkg/jwt"
 
 	"github.com/crewjam/saml/samlsp"
 	"github.com/rs/zerolog"
+	"gitlab.com/isard/isardvdi-sdk-go"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
@@ -42,6 +44,7 @@ type Authentication struct {
 	Secret    string
 	Duration  time.Duration
 	DB        r.QueryExecutor
+	Client    isardvdi.Interface
 	providers map[string]provider.Provider
 	saml      *samlsp.Middleware
 }
@@ -53,6 +56,26 @@ func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor) *Authentication 
 		Duration: cfg.Authentication.TokenDuration,
 		DB:       db,
 	}
+
+	cli, err := isardvdi.NewClient(&isardvdi.Cfg{
+		Host: "http://isard-api:5000",
+	})
+	if err != nil {
+		panic(fmt.Sprintf("create API client: %v", err))
+	}
+
+	cli.BeforeRequestHook = func(c *isardvdi.Client) error {
+		ss, err := jwt.SignAPIJWT(a.Secret)
+		if err != nil {
+			return err
+		}
+
+		c.SetToken(ss)
+
+		return nil
+	}
+
+	a.Client = cli
 
 	providers := map[string]provider.Provider{
 		provider.UnknownString:  &provider.Unknown{},
@@ -221,12 +244,21 @@ func (a *Authentication) finishLogin(ctx context.Context, u *model.User, redirec
 		return "", "", provider.ErrUserDisabled
 	}
 
-	// TODO: Check the user has accepted the disclaimer
+	// Check if the user needs to acknowledge the disclaimer
+	// dscl, err := a.client.AdminUserRequiredDisclaimerAcknowledgement(ctx, u.ID)
+	// if err != nil {
+	// 	return "", "", fmt.Errorf("check if the user needs to accept the disclaimer: %w", err)
+	// }
+	// if dscl {
+
+	// }
 
 	// Check if the user has the email verified
-	// TODO: This needs to be an API call to API
-	const verifyEmail = true
-	if verifyEmail && !u.EmailVerified {
+	vfEmail, err := a.Client.AdminUserRequiredEmailVerification(ctx, u.ID)
+	if err != nil {
+		return "", "", fmt.Errorf("check if the user needs to verify the email: %w", err)
+	}
+	if vfEmail {
 		ss, err := token.SignEmailVerificationRequiredToken(a.Secret, u)
 		if err != nil {
 			return "", "", err

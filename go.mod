@@ -7,7 +7,7 @@ require (
 	github.com/crewjam/saml v0.4.14
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/go-ldap/ldap/v3 v3.4.6
-	github.com/golang-jwt/jwt v3.2.2+incompatible
+	github.com/golang-jwt/jwt/v5 v5.1.0
 	// https://github.com/grafana/loki/issues/2826. This is the equivalent of the main branch at 2023/11/27 (d62d4e37d1f3dba83cf10a1f6db82830794e1c05)
 	github.com/grafana/loki v0.0.0-20231124145642-d62d4e37d1f3
 	github.com/jellydator/ttlcache/v3 v3.1.0
@@ -22,7 +22,7 @@ require (
 	github.com/spf13/viper v1.16.0
 	github.com/stretchr/testify v1.8.4
 	github.com/teris-io/shortid v0.0.0-20220617161101-71ec9f2aa569
-	gitlab.com/isard/isardvdi-sdk-go v1.5.2
+	gitlab.com/isard/isardvdi-sdk-go v1.6.0
 	golang.org/x/crypto v0.14.0
 	golang.org/x/oauth2 v0.13.0
 	google.golang.org/api v0.132.0

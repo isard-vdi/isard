@@ -14,6 +14,8 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	apiMock "gitlab.com/isard/isardvdi-sdk-go/mock"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
@@ -21,7 +23,8 @@ func TestLogin(t *testing.T) {
 	assert := assert.New(t)
 
 	cases := map[string]struct {
-		PrepareDB func(*r.Mock)
+		PrepareDB  func(*r.Mock)
+		PrepareAPI func(*apiMock.Client)
 
 		Provider   string
 		CategoryID string
@@ -88,6 +91,9 @@ func TestLogin(t *testing.T) {
 				})).Return(r.WriteResponse{
 					Updated: 1,
 				}, nil)
+			},
+			PrepareAPI: func(c *apiMock.Client) {
+				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 			},
 			Provider:   "form",
 			CategoryID: "default",
@@ -217,6 +223,9 @@ func TestLogin(t *testing.T) {
 					},
 				}, nil)
 			},
+			PrepareAPI: func(c *apiMock.Client) {
+				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(true, nil)
+			},
 			Provider:   "form",
 			CategoryID: "default",
 			Args: map[string]string{
@@ -256,11 +265,18 @@ func TestLogin(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			cfg := cfg.New()
 			log := log.New("authentication-test", "debug")
-			mock := r.NewMock()
+			dbMock := r.NewMock()
+			apiMock := &apiMock.Client{}
 
-			tc.PrepareDB(mock)
+			tc.PrepareDB(dbMock)
 
-			a := authentication.Init(cfg, log, mock)
+			if tc.PrepareAPI != nil {
+				tc.PrepareAPI(apiMock)
+			}
+
+			a := authentication.Init(cfg, log, dbMock)
+			a.Client = apiMock
+
 			tkn, redirect, err := a.Login(context.Background(), tc.Provider, tc.CategoryID, tc.Args)
 
 			if tc.ExpectedErr != "" {
@@ -276,7 +292,8 @@ func TestLogin(t *testing.T) {
 			}
 			assert.Equal(tc.ExpectedRedirect, redirect)
 
-			mock.AssertExpectations(t)
+			dbMock.AssertExpectations(t)
+			apiMock.AssertExpectations(t)
 		})
 	}
 }

@@ -56,27 +56,8 @@ func (a *Authentication) registerUser(u *model.User) error {
 	return nil
 }
 
-// TODO: Make this use the pkg/jwt package
 func (a *Authentication) registerGroup(g *model.Group) error {
-	cli, err := isardvdi.NewClient(&isardvdi.Cfg{
-		Host: "http://isard-api:5000",
-	})
-	if err != nil {
-		return fmt.Errorf("create API client: %w", err)
-	}
-
-	u := &model.User{ID: adminUsr}
-	if err := u.Load(context.Background(), a.DB); err != nil {
-		return fmt.Errorf("load the admin user from the DB: %w", err)
-	}
-
-	tkn, err := token.SignLoginToken(a.Secret, a.Duration, u)
-	if err != nil {
-		return fmt.Errorf("sign the admin token to register the group: %w", err)
-	}
-	cli.Token = tkn
-
-	grp, err := cli.AdminGroupCreate(
+	grp, err := a.Client.AdminGroupCreate(
 		context.Background(),
 		g.Category,
 		// TODO: When UUIDs arrive, this g.Name has to be removed and the dependency has to be updated to v0.14.1
