@@ -87,6 +87,10 @@ func ParseExternalToken(db rethinkdb.QueryExecutor, ss string) (*ExternalClaims,
 	return claims, nil
 }
 
+func ParseDisclaimerAcknowledgementRequiredToken(secret, ss string) (*DisclaimerAcknowledgementRequiredClaims, error) {
+	return parseAuthenticationToken[*DisclaimerAcknowledgementRequiredClaims](secret, ss, &DisclaimerAcknowledgementRequiredClaims{})
+}
+
 func ParseEmailVerificationRequiredToken(secret, ss string) (*EmailVerificationRequiredClaims, error) {
 	return parseAuthenticationToken[*EmailVerificationRequiredClaims](secret, ss, &EmailVerificationRequiredClaims{})
 }

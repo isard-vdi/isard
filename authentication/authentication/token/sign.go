@@ -100,6 +100,30 @@ func SignCallbackToken(secret, prv, cat, redirect string) (string, error) {
 	return ss, nil
 }
 
+func SignDisclaimerAcknowledgementRequiredToken(secret string, userID string) (string, error) {
+	tkn := jwt.NewWithClaims(signingMethod, &DisclaimerAcknowledgementRequiredClaims{
+		TypeClaims: TypeClaims{
+			RegisteredClaims: &jwt.RegisteredClaims{
+				// TODO: This should be maybe configurable
+				ExpiresAt: jwt.NewNumericDate(time.Now().Add(10 * time.Minute)),
+				IssuedAt:  jwt.NewNumericDate(time.Now()),
+				NotBefore: jwt.NewNumericDate(time.Now()),
+				Issuer:    issuer,
+			},
+			KeyID: keyID,
+			Type:  TypeDisclaimerAcknowledgementRequired,
+		},
+		UserID: userID,
+	})
+
+	ss, err := tkn.SignedString([]byte(secret))
+	if err != nil {
+		return "", fmt.Errorf("sign the disclaimer acknowledgement required token: %w", err)
+	}
+
+	return ss, nil
+}
+
 func SignEmailVerificationRequiredToken(secret string, u *model.User) (string, error) {
 	tkn := jwt.NewWithClaims(signingMethod, &EmailVerificationRequiredClaims{
 		TypeClaims: TypeClaims{
@@ -146,30 +170,6 @@ func SignEmailVerificationToken(secret string, userID string, email string) (str
 	ss, err := tkn.SignedString([]byte(secret))
 	if err != nil {
 		return "", fmt.Errorf("sign the email verification token: %w", err)
-	}
-
-	return ss, nil
-}
-
-func SignDisclaimerAcknowledgementRequiredToken(secret string, userID string) (string, error) {
-	tkn := jwt.NewWithClaims(signingMethod, &DisclaimerAcknowledgementRequiredClaims{
-		TypeClaims: TypeClaims{
-			RegisteredClaims: &jwt.RegisteredClaims{
-				// TODO: This should be maybe configurable
-				ExpiresAt: jwt.NewNumericDate(time.Now().Add(600000 * time.Hour)),
-				IssuedAt:  jwt.NewNumericDate(time.Now()),
-				NotBefore: jwt.NewNumericDate(time.Now()),
-				Issuer:    issuer,
-			},
-			KeyID: keyID,
-			Type:  TypeDisclaimerAcknowledgementRequired,
-		},
-		UserID: userID,
-	})
-
-	ss, err := tkn.SignedString([]byte(secret))
-	if err != nil {
-		return "", fmt.Errorf("sign the disclaimer acknowledgement required token: %w", err)
 	}
 
 	return ss, nil

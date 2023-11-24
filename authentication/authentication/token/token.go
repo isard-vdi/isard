@@ -17,9 +17,9 @@ const (
 	TypeCallback                          Type = "callback"
 	TypeRegister                          Type = "register"
 	TypeExternal                          Type = "external"
+	TypeDisclaimerAcknowledgementRequired Type = "disclaimer-acknowledgement-required"
 	TypeEmailVerificationRequired         Type = "email-verification-required"
 	TypeEmailVerification                 Type = "email-verification"
-	TypeDisclaimerAcknowledgementRequired Type = "disclaimer-acknowledgement-required"
 )
 
 type TypeClaims struct {
@@ -98,6 +98,19 @@ func (c ExternalClaims) Validate() error {
 	return nil
 }
 
+type DisclaimerAcknowledgementRequiredClaims struct {
+	TypeClaims
+	UserID string `json:"user_id"`
+}
+
+func (c DisclaimerAcknowledgementRequiredClaims) Validate() error {
+	if c.Type != TypeDisclaimerAcknowledgementRequired {
+		return ErrInvalidTokenType
+	}
+
+	return nil
+}
+
 type EmailVerificationRequiredClaims struct {
 	TypeClaims
 	UserID       string `json:"user_id"`
@@ -127,19 +140,6 @@ func (c EmailVerificationClaims) Validate() error {
 	return nil
 }
 
-type DisclaimerAcknowledgementRequiredClaims struct {
-	TypeClaims
-	UserID string `json:"user_id"`
-}
-
-func (c DisclaimerAcknowledgementRequiredClaims) Validate() error {
-	if c.Type != TypeDisclaimerAcknowledgementRequired {
-		return ErrInvalidTokenType
-	}
-
-	return nil
-}
-
 func GetTokenType(ss string) (Type, error) {
 	tkn, _, err := new(jwt.Parser).ParseUnverified(ss, &TypeClaims{})
 	if err != nil {
@@ -152,9 +152,9 @@ func GetTokenType(ss string) (Type, error) {
 	case TypeCallback,
 		TypeRegister,
 		TypeExternal,
+		TypeDisclaimerAcknowledgementRequired,
 		TypeEmailVerificationRequired,
-		TypeEmailVerification,
-		TypeDisclaimerAcknowledgementRequired:
+		TypeEmailVerification:
 
 		return claims.Type, nil
 

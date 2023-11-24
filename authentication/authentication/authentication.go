@@ -137,6 +137,9 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 		switch typ {
 		case token.TypeRegister:
 			return a.finishRegister(ctx, args[provider.TokenArgsKey], args[provider.RedirectArgsKey])
+
+		case token.TypeDisclaimerAcknowledgementRequired:
+			return a.finishDisclaimerAcknowledgement(ctx, args[provider.TokenArgsKey], args[provider.RedirectArgsKey])
 		}
 	}
 
@@ -245,13 +248,18 @@ func (a *Authentication) finishLogin(ctx context.Context, u *model.User, redirec
 	}
 
 	// Check if the user needs to acknowledge the disclaimer
-	// dscl, err := a.client.AdminUserRequiredDisclaimerAcknowledgement(ctx, u.ID)
-	// if err != nil {
-	// 	return "", "", fmt.Errorf("check if the user needs to accept the disclaimer: %w", err)
-	// }
-	// if dscl {
+	dscl, err := a.Client.AdminUserRequiredDisclaimerAcknowledgement(ctx, u.ID)
+	if err != nil {
+		return "", "", fmt.Errorf("check if the user needs to accept the disclaimer: %w", err)
+	}
+	if dscl {
+		ss, err := token.SignDisclaimerAcknowledgementRequiredToken(a.Secret, u.ID)
+		if err != nil {
+			return "", "", err
+		}
 
-	// }
+		return ss, "", nil
+	}
 
 	// Check if the user has the email verified
 	vfEmail, err := a.Client.AdminUserRequiredEmailVerification(ctx, u.ID)
@@ -325,6 +333,20 @@ func (a *Authentication) finishRegister(ctx context.Context, ss, redirect string
 	a.Log.Info().Str("usr", u.ID).Str("tkn", ss).Msg("register succeeded")
 
 	return ss, redirect, nil
+}
+
+func (a *Authentication) finishDisclaimerAcknowledgement(ctx context.Context, ss, redirect string) (string, string, error) {
+	claims, err := token.ParseDisclaimerAcknowledgementRequiredToken(a.Secret, ss)
+	if err != nil {
+		return "", "", err
+	}
+
+	u := &model.User{ID: claims.UserID}
+	if err := u.Load(ctx, a.DB); err != nil {
+		return "", "", fmt.Errorf("load user from db: %w", err)
+	}
+
+	return a.finishLogin(ctx, u, redirect)
 }
 
 func (a *Authentication) Check(ctx context.Context, ss string) error {

@@ -15,20 +15,22 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	apiMock "gitlab.com/isard/isardvdi-sdk-go/mock"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
 
 func TestLogin(t *testing.T) {
 	assert := assert.New(t)
+	require := require.New(t)
 
 	cases := map[string]struct {
 		PrepareDB  func(*r.Mock)
 		PrepareAPI func(*apiMock.Client)
 
-		Provider   string
-		CategoryID string
-		Args       map[string]string
+		Provider    string
+		CategoryID  string
+		PrepareArgs func() map[string]string
 
 		CheckToken       func(string)
 		ExpectedRedirect string
@@ -93,13 +95,86 @@ func TestLogin(t *testing.T) {
 				}, nil)
 			},
 			PrepareAPI: func(c *apiMock.Client) {
+				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 			},
 			Provider:   "form",
 			CategoryID: "default",
-			Args: map[string]string{
-				"username": "nefix",
-				"password": "f0kt3Rf$",
+			PrepareArgs: func() map[string]string {
+				return map[string]string{
+					"username": "nefix",
+					"password": "f0kt3Rf$",
+				}
+			},
+			CheckToken: func(ss string) {
+				claims, err := token.ParseLoginToken("", ss)
+				assert.NoError(err)
+
+				assert.Equal("isard-authentication", claims.Issuer)
+				assert.Equal("isardvdi", claims.KeyID)
+				// TODO: Test time
+				assert.Equal(token.LoginClaimsData{
+					Provider:   "local",
+					ID:         "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					RoleID:     "user",
+					CategoryID: "default",
+					GroupID:    "default-default",
+					Name:       "Néfix Estrada",
+				}, claims.Data)
+			},
+			ExpectedRedirect: "",
+		},
+		"should finish the login flow if the user provides a disclaimer-acknowledgement-required token": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("users").Get("08fff46e-cbd3-40d2-9d8e-e2de7a8da654")).Return([]interface{}{
+					map[string]interface{}{
+						"id":             "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+						"uid":            "nefix",
+						"username":       "nefix",
+						"password":       "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm", // f0kt3Rf$
+						"provider":       "local",
+						"active":         true,
+						"category":       "default",
+						"role":           "user",
+						"group":          "default-default",
+						"name":           "Néfix Estrada",
+						"email":          "nefix@example.org",
+						"email_verified": true,
+					},
+				}, nil)
+				m.On(r.Table("users").Get("08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Update(map[string]interface{}{
+					"id":                       "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					"uid":                      "nefix",
+					"username":                 "nefix",
+					"password":                 "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm", // f0kt3Rf$
+					"provider":                 "local",
+					"active":                   true,
+					"category":                 "default",
+					"role":                     "user",
+					"group":                    "default-default",
+					"name":                     "Néfix Estrada",
+					"email":                    "nefix@example.org",
+					"email_verified":           true,
+					"email_verification_token": "",
+					"photo":                    "",
+					"accessed":                 r.MockAnything(),
+				})).Return(r.WriteResponse{
+					Updated: 1,
+				}, nil)
+			},
+			PrepareAPI: func(c *apiMock.Client) {
+				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
+				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
+			},
+			Provider:   "form",
+			CategoryID: "default",
+			PrepareArgs: func() map[string]string {
+				ss, err := token.SignDisclaimerAcknowledgementRequiredToken("", "08fff46e-cbd3-40d2-9d8e-e2de7a8da654")
+				require.NoError(err)
+
+				return map[string]string{
+					provider.TokenArgsKey: ss,
+				}
 			},
 			CheckToken: func(ss string) {
 				claims, err := token.ParseLoginToken("", ss)
@@ -129,9 +204,11 @@ func TestLogin(t *testing.T) {
 			},
 			Provider:   "form",
 			CategoryID: "default",
-			Args: map[string]string{
-				"username": "nefix",
-				"password": "f0kt3Rf$",
+			PrepareArgs: func() map[string]string {
+				return map[string]string{
+					"username": "nefix",
+					"password": "f0kt3Rf$",
+				}
 			},
 			ExpectedRedirect: "",
 			ExpectedErr:      fmt.Errorf("login: %w", provider.ErrInvalidCredentials).Error(),
@@ -161,9 +238,11 @@ func TestLogin(t *testing.T) {
 			},
 			Provider:   "form",
 			CategoryID: "default",
-			Args: map[string]string{
-				"username": "nefix",
-				"password": "f0kt3Rf$",
+			PrepareArgs: func() map[string]string {
+				return map[string]string{
+					"username": "nefix",
+					"password": "f0kt3Rf$",
+				}
 			},
 			ExpectedRedirect: "",
 			ExpectedErr:      fmt.Errorf("login: %w", provider.ErrInvalidCredentials).Error(),
@@ -193,14 +272,16 @@ func TestLogin(t *testing.T) {
 			},
 			Provider:   "form",
 			CategoryID: "default",
-			Args: map[string]string{
-				"username": "nefix",
-				"password": "f0kt3Rf$",
+			PrepareArgs: func() map[string]string {
+				return map[string]string{
+					"username": "nefix",
+					"password": "f0kt3Rf$",
+				}
 			},
 			ExpectedRedirect: "",
 			ExpectedErr:      provider.ErrUserDisabled.Error(),
 		},
-		"should return a EmailVerificationRequired token if the email verification is required and the email is not verified": {
+		"should return a DisclaimerAcknowledgementRequired token if the disclaimer acknowledgement is required": {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("users").Filter(r.And(
 					r.Eq(r.Row.Field("uid"), "nefix"),
@@ -224,13 +305,75 @@ func TestLogin(t *testing.T) {
 				}, nil)
 			},
 			PrepareAPI: func(c *apiMock.Client) {
+				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(true, nil)
+			},
+			Provider:   "form",
+			CategoryID: "default",
+			PrepareArgs: func() map[string]string {
+				return map[string]string{
+					"username": "nefix",
+					"password": "f0kt3Rf$",
+				}
+			},
+			CheckToken: func(ss string) {
+				claims, err := token.ParseDisclaimerAcknowledgementRequiredToken("", ss)
+				assert.NoError(err)
+
+				// Ensure the expiration time is correct
+				assert.True(claims.ExpiresAt.Time.Before(time.Now().Add(11 * time.Minute)))
+				assert.True(claims.ExpiresAt.Time.After(time.Now().Add(9 * time.Minute)))
+
+				claims.ExpiresAt = nil
+				claims.IssuedAt = nil
+				claims.NotBefore = nil
+
+				assert.Equal(&token.DisclaimerAcknowledgementRequiredClaims{
+					TypeClaims: token.TypeClaims{
+						RegisteredClaims: &jwt.RegisteredClaims{
+							Issuer: "isard-authentication",
+						},
+						Type:  token.TypeDisclaimerAcknowledgementRequired,
+						KeyID: "isardvdi",
+					},
+					UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+				}, claims)
+			},
+			ExpectedRedirect: "",
+		},
+		"should return a EmailVerificationRequired token if the email verification is required": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("users").Filter(r.And(
+					r.Eq(r.Row.Field("uid"), "nefix"),
+					r.Eq(r.Row.Field("provider"), "local"),
+					r.Eq(r.Row.Field("category"), "default"),
+				), r.FilterOpts{})).Return([]interface{}{
+					map[string]interface{}{
+						"id":             "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+						"uid":            "nefix",
+						"username":       "nefix",
+						"password":       "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm", // f0kt3Rf$
+						"provider":       "local",
+						"active":         true,
+						"category":       "default",
+						"role":           "user",
+						"group":          "default-default",
+						"name":           "Néfix Estrada",
+						"email":          "nefix@example.org",
+						"email_verified": false,
+					},
+				}, nil)
+			},
+			PrepareAPI: func(c *apiMock.Client) {
+				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(true, nil)
 			},
 			Provider:   "form",
 			CategoryID: "default",
-			Args: map[string]string{
-				"username": "nefix",
-				"password": "f0kt3Rf$",
+			PrepareArgs: func() map[string]string {
+				return map[string]string{
+					"username": "nefix",
+					"password": "f0kt3Rf$",
+				}
 			},
 			CheckToken: func(ss string) {
 				claims, err := token.ParseEmailVerificationRequiredToken("", ss)
@@ -277,7 +420,7 @@ func TestLogin(t *testing.T) {
 			a := authentication.Init(cfg, log, dbMock)
 			a.Client = apiMock
 
-			tkn, redirect, err := a.Login(context.Background(), tc.Provider, tc.CategoryID, tc.Args)
+			tkn, redirect, err := a.Login(context.Background(), tc.Provider, tc.CategoryID, tc.PrepareArgs())
 
 			if tc.ExpectedErr != "" {
 				assert.EqualError(err, tc.ExpectedErr)
