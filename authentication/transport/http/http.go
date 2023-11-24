@@ -29,6 +29,7 @@ func (a *AuthenticationServer) Serve(ctx context.Context) {
 	m := http.NewServeMux()
 	m.HandleFunc("/login", a.login)
 	m.HandleFunc("/callback", a.callback)
+	m.HandleFunc("/acknowledge-disclaimer", a.acknowledgeDisclaimer)
 	m.HandleFunc("/check", a.check)
 	m.HandleFunc("/providers", a.providers)
 
@@ -174,6 +175,24 @@ func (a *AuthenticationServer) callback(w http.ResponseWriter, r *http.Request) 
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(tkn))
+}
+
+func (a *AuthenticationServer) acknowledgeDisclaimer(w http.ResponseWriter, r *http.Request) {
+	tkn := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+	if tkn == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte("invalid token"))
+		return
+	}
+
+	if err := a.Authentication.AcknowledgeDisclaimer(r.Context(), tkn); err != nil {
+		// TODO: Better error handling!
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (a *AuthenticationServer) check(w http.ResponseWriter, r *http.Request) {

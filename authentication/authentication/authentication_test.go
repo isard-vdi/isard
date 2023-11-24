@@ -44,34 +44,36 @@ func TestLogin(t *testing.T) {
 					r.Eq(r.Row.Field("category"), "default"),
 				), r.FilterOpts{})).Return([]interface{}{
 					map[string]interface{}{
-						"id":             "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
-						"uid":            "nefix",
-						"username":       "nefix",
-						"password":       "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm", // f0kt3Rf$
-						"provider":       "local",
-						"active":         true,
-						"category":       "default",
-						"role":           "user",
-						"group":          "default-default",
-						"name":           "Néfix Estrada",
-						"email":          "nefix@example.org",
-						"email_verified": true,
+						"id":                      "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+						"uid":                     "nefix",
+						"username":                "nefix",
+						"password":                "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm", // f0kt3Rf$
+						"provider":                "local",
+						"active":                  true,
+						"category":                "default",
+						"role":                    "user",
+						"group":                   "default-default",
+						"name":                    "Néfix Estrada",
+						"email":                   "nefix@example.org",
+						"email_verified":          true,
+						"disclaimer_acknowledged": true,
 					},
 				}, nil)
 				m.On(r.Table("users").Get("08fff46e-cbd3-40d2-9d8e-e2de7a8da654")).Return([]interface{}{
 					map[string]interface{}{
-						"id":             "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
-						"uid":            "nefix",
-						"username":       "nefix",
-						"password":       "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm", // f0kt3Rf$
-						"provider":       "local",
-						"active":         true,
-						"category":       "default",
-						"role":           "user",
-						"group":          "default-default",
-						"name":           "Néfix Estrada",
-						"email":          "nefix@example.org",
-						"email_verified": true,
+						"id":                      "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+						"uid":                     "nefix",
+						"username":                "nefix",
+						"password":                "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm", // f0kt3Rf$
+						"provider":                "local",
+						"active":                  true,
+						"category":                "default",
+						"role":                    "user",
+						"group":                   "default-default",
+						"name":                    "Néfix Estrada",
+						"email":                   "nefix@example.org",
+						"email_verified":          true,
+						"disclaimer_acknowledged": true,
 					},
 				}, nil)
 				m.On(r.Table("users").Get("08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Update(map[string]interface{}{
@@ -90,6 +92,7 @@ func TestLogin(t *testing.T) {
 					"email_verification_token": "",
 					"photo":                    "",
 					"accessed":                 r.MockAnything(),
+					"disclaimer_acknowledged":  true,
 				})).Return(r.WriteResponse{
 					Updated: 1,
 				}, nil)
@@ -128,18 +131,19 @@ func TestLogin(t *testing.T) {
 			PrepareDB: func(m *r.Mock) {
 				m.On(r.Table("users").Get("08fff46e-cbd3-40d2-9d8e-e2de7a8da654")).Return([]interface{}{
 					map[string]interface{}{
-						"id":             "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
-						"uid":            "nefix",
-						"username":       "nefix",
-						"password":       "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm", // f0kt3Rf$
-						"provider":       "local",
-						"active":         true,
-						"category":       "default",
-						"role":           "user",
-						"group":          "default-default",
-						"name":           "Néfix Estrada",
-						"email":          "nefix@example.org",
-						"email_verified": true,
+						"id":                      "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+						"uid":                     "nefix",
+						"username":                "nefix",
+						"password":                "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm", // f0kt3Rf$
+						"provider":                "local",
+						"active":                  true,
+						"category":                "default",
+						"role":                    "user",
+						"group":                   "default-default",
+						"name":                    "Néfix Estrada",
+						"email":                   "nefix@example.org",
+						"email_verified":          true,
+						"disclaimer_acknowledged": true,
 					},
 				}, nil)
 				m.On(r.Table("users").Get("08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Update(map[string]interface{}{
@@ -157,6 +161,7 @@ func TestLogin(t *testing.T) {
 					"email_verified":           true,
 					"email_verification_token": "",
 					"photo":                    "",
+					"disclaimer_acknowledged":  true,
 					"accessed":                 r.MockAnything(),
 				})).Return(r.WriteResponse{
 					Updated: 1,

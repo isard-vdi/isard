@@ -29,6 +29,8 @@ type User struct {
 	EmailVerificationToken string `rethinkdb:"email_verification_token"`
 	Photo                  string `rethinkdb:"photo"`
 
+	DisclaimerAcknowledged bool `rethinkdb:"disclaimer_acknowledged"`
+
 	Accessed float64 `rethinkdb:"accessed"`
 }
 
@@ -82,6 +84,13 @@ func (u *User) UpdateEmail(ctx context.Context, sess r.QueryExecutor) error {
 		"email":                    u.Email,
 		"email_verified":           u.EmailVerified,
 		"email_verification_token": u.EmailVerificationToken,
+	}).Run(sess)
+	return err
+}
+
+func (u *User) UpdateDisclaimerAcknowledged(ctx context.Context, sess r.QueryExecutor) error {
+	_, err := r.Table("users").Get(u.ID).Update(map[string]interface{}{
+		"disclaimer_acknowledged": u.DisclaimerAcknowledged,
 	}).Run(sess)
 	return err
 }

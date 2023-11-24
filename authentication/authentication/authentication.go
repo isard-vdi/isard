@@ -29,6 +29,7 @@ type Interface interface {
 	Callback(ctx context.Context, args map[string]string) (tkn, redirect string, err error)
 	Check(ctx context.Context, tkn string) error
 
+	AcknowledgeDisclaimer(ctx context.Context, tkn string) error
 	RequestEmailVerification(ctx context.Context, tkn string, email string) error
 	VerifyEmail(ctx context.Context, tkn string) error
 
