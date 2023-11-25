@@ -74,7 +74,7 @@
         "showStarred": false,
         "tags": []
       },
-      "pluginVersion": "9.2.5",
+      "pluginVersion": "9.5.10",
       "tags": [],
       "targets": [
         {
@@ -445,7 +445,7 @@
         "defaults": {
           "color": {
             "fixedColor": "blue",
-            "mode": "fixed"
+            "mode": "palette-classic"
           },
           "custom": {
             "axisCenteredZero": false,
@@ -529,6 +529,18 @@
           "legendFormat": "connections count",
           "range": true,
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "rethinkdb_server_client_connections_ip",
+          "hide": false,
+          "legendFormat": "IP: {{ip}}",
+          "range": true,
+          "refId": "B"
         }
       ],
       "title": "Cluster client connections",
@@ -846,9 +858,21 @@
           },
           "editorMode": "code",
           "expr": "rethinkdb_server_client_connections{server=~\"$server_var\"}",
-          "legendFormat": "{{server}}",
+          "legendFormat": "Server: {{server}}",
           "range": true,
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "rethinkdb_server_client_connections_ip{}",
+          "hide": false,
+          "legendFormat": "IP: {{ip}}",
+          "range": true,
+          "refId": "B"
         }
       ],
       "title": "Server client connections",
@@ -1024,7 +1048,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1120,7 +1145,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1216,7 +1242,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1312,7 +1339,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1364,7 +1392,7 @@
     }
   ],
   "refresh": "5s",
-  "schemaVersion": 37,
+  "schemaVersion": 38,
   "style": "dark",
   "tags": [],
   "templating": {

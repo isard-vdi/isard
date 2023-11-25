@@ -3,7 +3,6 @@ services:
   isard-db:
     container_name: isard-db
     image: ${DOCKER_IMAGE_PREFIX}db:${DOCKER_IMAGE_TAG:-latest}
-    entrypoint: ["rethinkdb", "--cores", "64", "--bind", "all"]
     logging:
       driver: "json-file"
       options:
@@ -18,5 +17,8 @@ services:
       interval: 5s
     volumes:
       - /opt/isard/database:/data:rw
+      - /opt/isard-local/stats/prometheus:/var/lib/prometheus:rw
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
+    environment:
+      ENABLE_STATS: ""
