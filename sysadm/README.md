@@ -37,7 +37,7 @@ firewall-cmd --permanent --zone=infrastructure --add-source=172.31.0.0/21
 firewall-cmd --permanent --zone=infrastructure --add-rich-rule='rule family="ipv4" source address="172.31.0.0/21" accept'
 ```
 
-Add **zone hyper** with access to 2022 and video ports 5900-6899. This interface
+Add **zone hyper** with access to 2022 and video ports 5900-7899. This interface
 will be used to redirect videos from isard-portal haproxy to other hypervisors:
 
 ```bash
@@ -54,10 +54,10 @@ firewall-cmd --permanent --zone=hyper --add-rich-rule='rule family="ipv4" source
 firewall-cmd --permanent --zone=hyper --add-forward-port=port=2022:proto=tcp:toport=2022:toaddr=172.31.255.17 --permanent
 
 # Video ports without proxy
-firewall-cmd --permanent --zone=hyper --add-rich-rule='rule family="ipv4" source address="172.16.254.200/32" port port="5900-6899" protocol="tcp" accept' --permanent
-firewall-cmd --permanent --zone=hyper --add-rich-rule='rule family="ipv4" source address="172.16.254.201/32" port port="5900-6899" protocol="tcp" accept' --permanent
+firewall-cmd --permanent --zone=hyper --add-rich-rule='rule family="ipv4" source address="172.16.254.200/32" port port="5900-7899" protocol="tcp" accept' --permanent
+firewall-cmd --permanent --zone=hyper --add-rich-rule='rule family="ipv4" source address="172.16.254.201/32" port port="5900-7899" protocol="tcp" accept' --permanent
 # Forward those ports to isard-hypervisor internal IP
-firewall-cmd --permanent --zone=hyper --add-forward-port=port=5900-6899:proto=tcp:toport=5900-6899:toaddr=172.31.255.17 --permanent
+firewall-cmd --permanent --zone=hyper --add-forward-port=port=5900-7899:proto=tcp:toport=5900-7899:toaddr=172.31.255.17 --permanent
 ```
 
 ## Publicy visible hypervisors
