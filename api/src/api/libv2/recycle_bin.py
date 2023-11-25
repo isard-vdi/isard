@@ -297,7 +297,7 @@ class RecycleBin(object):
     def _update_size(self):
         size = 0
         for s in self.storages:
-            size += s["qemu-img-info"]["actual-size"]
+            size += s.get("qemu-img-info", {}).get("actual-size", 0)
         with app.app_context():
             r.table("recycle_bin").get(self.id).update(
                 {
@@ -969,7 +969,8 @@ class RecycleBinStorage(RecycleBin):
             r.table("recycle_bin").get(self.id).update(
                 {
                     "storages": r.row["storages"].append(storage),
-                    "size": r.row["size"] + storage["qemu-img-info"]["actual-size"],
+                    "size": r.row["size"]
+                    + storage.get("qemu-img-info", {}).get("actual-size", 0),
                 }
             ).run(db.conn)
 
