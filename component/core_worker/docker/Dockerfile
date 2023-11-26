@@ -1,5 +1,6 @@
 FROM alpine:3.18
 
+RUN apk -U upgrade --no-cache
 RUN apk add --no-cache python3 py3-pip
 
 COPY component/core_worker/docker/requirements.txt .

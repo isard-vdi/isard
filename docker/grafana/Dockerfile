@@ -9,6 +9,7 @@ RUN rm -rf /usr/share/grafana/bin /usr/share/grafana/public
 COPY --from=works /usr/share/grafana/bin /usr/share/grafana/bin
 COPY --from=works /usr/share/grafana/public /usr/share/grafana/public
 
+RUN apk -U upgrade --no-cache
 RUN apk add --no-cache \
     curl
 

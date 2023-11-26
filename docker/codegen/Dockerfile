@@ -1,6 +1,8 @@
 FROM alpine:3.18
 
+RUN apk -U upgrade --no-cache
 RUN apk add --no-cache go python3 npm
+
 RUN go install github.com/bufbuild/buf/cmd/buf@v1.27.1 && \
     go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.31.0 && \
     go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.3.0 && \

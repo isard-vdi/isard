@@ -34,6 +34,7 @@ RUN GOEXPERIMENT=loopvar go build -o bin/stats cmd/stats/main.go
 #
 FROM ${GOLANG_RUN_IMAGE}
 
+RUN apk -U upgrade --no-cache
 RUN apk add --no-cache \
     ca-certificates \
     util-linux \
