@@ -1,11 +1,8 @@
-Flask==2.0.1
-Flask-Login==0.5.0
-eventlet==0.33.0
-Flask-SocketIO==5.1.0
-bcrypt==3.2.0
-pem==21.2.0
-rethinkdb==2.4.9
+Flask==3.0.0
+Flask-Login==0.6.3
+Flask-SocketIO==5.3.6
 python-jose==3.3.0
-Werkzeug~=2.0.0
-dnspython==2.2.1
+eventlet==0.33.3
+rethinkdb==2.4.9
+Werkzeug==3.0.1
 requests==2.31.0
