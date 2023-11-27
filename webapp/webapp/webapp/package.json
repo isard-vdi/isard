@@ -3,6 +3,7 @@
     "echarts": "^5.4.2",
     "gentelella": "^1.4.0",
     "mathjs": "^11.8.1",
-    "socket.io": "^4.1.3"
+    "socket.io": "^4.1.3",
+    "jquery.fancytree": "^2.38.3"
   }
 }

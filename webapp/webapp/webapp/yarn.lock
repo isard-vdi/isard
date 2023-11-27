@@ -125,6 +125,11 @@ javascript-natural-sort@^0.7.1:
   resolved "https://registry.yarnpkg.com/javascript-natural-sort/-/javascript-natural-sort-0.7.1.tgz#f9e2303d4507f6d74355a73664d1440fb5a0ef59"
   integrity sha512-nO6jcEfZWQXDhOiBtG2KvKyEptz7RVbpGP4vTD2hLBdmNQSsCiicO2Ioinv6UI4y9ukqnBpy+XZ9H6uLNgJTlw==
 
+jquery.fancytree@^2.38.3:
+  version "2.38.3"
+  resolved "https://registry.yarnpkg.com/jquery.fancytree/-/jquery.fancytree-2.38.3.tgz#20ffee0ee07ffdb99621ce0c7305a82f67c0c2f1"
+  integrity sha512-C3CJcp4sPThy497YBXZNrDSVn/B34sv6kB+toC8gfHrPvJWgYkL3NSMovBxXo6fN6yXUnvWhWaON/ejG3Nsxdg==
+
 mathjs@^11.8.1:
   version "11.8.1"
   resolved "https://registry.yarnpkg.com/mathjs/-/mathjs-11.8.1.tgz#01e19c17d202ac33343a5ed9237cec6f1eda4d15"

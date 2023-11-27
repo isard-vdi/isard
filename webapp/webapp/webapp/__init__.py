@@ -101,6 +101,13 @@ def send_echarts(path):
     )
 
 
+@app.route("/isard-admin/fancytree/<path:path>")
+def send_fancytree(path):
+    return send_from_directory(
+        os.path.join(app.root_path, "node_modules/jquery.fancytree"), path
+    )
+
+
 @app.errorhandler(404)
 def not_found_error(error):
     return render_template("page_404.html"), 404
