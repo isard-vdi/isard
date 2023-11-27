@@ -9,7 +9,7 @@ FROM ${GOLANG_BUILD_IMAGE} as build
 RUN apk add --no-cache \
     git
 
-RUN git clone https://github.com/rethinkdb/prometheus-exporter /build
+RUN git clone https://github.com/isard-vdi/rethinkdb-prometheus-exporter /build
 
 WORKDIR /build
 
