@@ -94,10 +94,6 @@ STORAGE_PARTS="
 	storage
 	stats
 "
-STORAGEBASE_KEY="storage-base"
-STORAGEBASE_PARTS="
-	storage-base
-"
 WEB_KEY="web"
 WEB_PARTS="
 	network
