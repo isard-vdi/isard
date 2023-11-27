@@ -1,4 +1,4 @@
-Flask==2.2.2
+Flask==2.3.3
 Flask-Cors==3.0.10
 gevent-websocket==0.10.1
 Flask-SocketIO==5.1.0
@@ -7,6 +7,6 @@ rethinkdb==2.4.9
 requests~=2.31
 python-jose==3.3.0
 APScheduler==3.9.1
-Werkzeug==2.2.2
+Werkzeug==3.0.1
 pytz==2022.7
 cachetools~=5.3
