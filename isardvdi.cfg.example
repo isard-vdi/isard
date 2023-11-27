@@ -1,4 +1,4 @@
-# Isard main config v2.12.2
+# Isard main config v2.12.3
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -10,7 +10,6 @@
 ##  - hypervisor-standalone: hypervisor without related services
 ##  - video-standalone: services to access to desktops
 ##  - storage: service to manage desktops disks
-##  - storage-base: base image for storage, just to improve CI/CD build
 ##  - web: services to manage desktops
 ##  - monitor: monitoring only host (grafana/loki/influxdb)
 ##  - backupninja: standalone backups
