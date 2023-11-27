@@ -1,8 +1,6 @@
 <!-- extend base layout -->
 {% extends "base.html" %}
 {% block css %}
-   <!-- FancyTree -->
-   <link href="/isard-admin/static/vendor/fancytree/dist/skin-win8/ui.fancytree.css" rel="stylesheet">
 {% endblock %}
 {% block content %}
 <div class="row">
@@ -13,7 +11,6 @@
         Storage files 
         <small>Desktop and template files</small>
       </h3>
-      <button class="btn btn-tree navbar-right" type="button"  data-placement="top" ><i class="fa fa-tree" style="color:darkgreen"></i></button>
       <ul class="nav navbar-right panel_toolbox">
       </ul>
       <div class="clearfix"></div>
@@ -303,9 +300,5 @@
 {% include '/admin/pages/storage_detail.html' %}
 {% endblock %}
 {% block pagescript %}
-   <!-- FancyTree -->
-   <script src="/isard-admin/static/vendor/fancytree/src/jquery-ui-dependencies/jquery-ui.min.js"></script>
-   <script src="/isard-admin/static/vendor/fancytree/dist/jquery.fancytree.min.js"></script>
-   <script src="/isard-admin/static/vendor/fancytree/src/jquery.fancytree.table.js"></script>
-    <script src="/isard-admin/static/admin/js/storage.js"></script>
+  <script src="/isard-admin/static/admin/js/storage.js"></script>
 {% endblock %}
