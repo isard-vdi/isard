@@ -1,4 +1,4 @@
-# Isard main config v2.12.2
+# Isard main config v2.12.3
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -315,9 +315,9 @@ HAPROXY_LOGGING=.
 ## - true: only get domains with forced_hyp
 #ONLY_FORCED_HYP=false
 
-# Comma separated CIDR networks/hosts you want guests to be blocked access
+# Comma separated CIDR networks you want guests to be blocked access
 # WARNING: By default only DOCKER_NET and self hypervisor is filtered for guest
-#BLACKLIST_IPTABLES=10.10.10.1/24,10.10.11.1/24
+#BLACKLIST_IPTABLES=10.10.10.0/24
 
 # Memory free at hypervisor
 ## How much memory (in GB) has to be kept free while starting desktops.
