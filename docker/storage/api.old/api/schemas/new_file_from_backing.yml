@@ -1,5 +1,0 @@
-format:
-  type: string
-  default: qcow2
-size:
-  type: integer
