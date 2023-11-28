@@ -29,6 +29,10 @@ fi
 # Use SKIP_CHECK_DOCKER_COMPOSE_VERSION=true environment variable to skip the check
 REQUIRED_DOCKER_COMPOSE_VERSION="1.28"
 
+# If we're running in a nested environment, we need to have, at least
+# docker compose v2.15, since we need to do some cgroup magic
+REQUIRED_CGROUP_DOCKER_COMPOSE_VERSION="2.15"
+
 GITLAB_PROJECT_ID="21522757"
 CHANGELOG_URL="https://gitlab.com/isard/isardvdi/-/releases/"
 
@@ -154,6 +158,13 @@ check_docker_compose_version(){
 	} | sort -c -V 2> /dev/null
 }
 
+check_cgroup_docker_compose_version(){
+	{
+		echo "$REQUIRED_CGROUP_DOCKER_COMPOSE_VERSION"
+		docker_compose_version
+	} | sort -c -V 2> /dev/null
+}
+
 get_config_files(){
 	ls isardvdi*.cfg
 }
@@ -261,18 +272,39 @@ variants(){
 		local version="legacy"
 		local version_args=""
 	fi
+
+	# Check for cgroup nested docker compose feature
+	if check_cgroup_docker_compose_version
+	then
+		local cgroup="cgroup"
+	else
+		local cgroup=""
+
+		# Check if we're running in a nested environment
+		if command -v systemd-detect-virt &> /dev/null
+		then
+			if systemd-detect-virt | grep -vq 'none' &> /dev/null
+			then
+				echo "=============================================================================="
+				echo "=> CAUTION!! You are running in a nested virtualization scenario"
+				echo "=> The minimum Docker Compose version is '$REQUIRED_CGROUP_DOCKER_COMPOSE_VERSION'"
+				echo "=> Please, update your Docker Compose version, or the hypervisor will not work"
+				echo "=============================================================================="
+			fi
+		fi
+	fi
 	case $USAGE in
 		production)
-			merge "$version_args" "$config_name" $(parts_variant $version $(parts_variant $FLAVOUR $@))
+			merge "$version_args" "$config_name" $(parts_variant $cgroup $(parts_variant $version $(parts_variant $FLAVOUR $@)))
 			;;
 		build)
-			merge "$version_args" "$config_name" $(parts_variant $version $(parts_variant $FLAVOUR $@) $(parts_variant build $@))
+			merge "$version_args" "$config_name" $(parts_variant $cgroup $(parts_variant $version $(parts_variant $FLAVOUR $@) $(parts_variant build $@)))
 			;;
 		test)
-			merge "$version_args" "$config_name" $(parts_variant $version $(parts_variant $FLAVOUR $@) $(parts_variant build $@) $(parts_variant test $@))
+			merge "$version_args" "$config_name" $(parts_variant $cgroup $(parts_variant $version $(parts_variant $FLAVOUR $@) $(parts_variant build $@) $(parts_variant test $@)))
 			;;
 		devel)
-			merge "$version_args" "$config_name" $(parts_variant $version $(parts_variant $FLAVOUR $@) $(parts_variant test $@) $(parts_variant build $@) $(parts_variant devel $@))
+			merge "$version_args" "$config_name" $(parts_variant $cgroup $(parts_variant $version $(parts_variant $FLAVOUR $@) $(parts_variant test $@) $(parts_variant build $@) $(parts_variant devel $@)))
 			;;
 		*)
 			echo "Error: unknow usage $USAGE"

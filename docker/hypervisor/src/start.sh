@@ -1,4 +1,4 @@
-#!/bin/sh -i
+#!/bin/bash -i
 
 export DOMAIN
 export HYPER_ID
