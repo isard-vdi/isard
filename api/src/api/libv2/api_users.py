@@ -173,27 +173,28 @@ class ApiUsers:
 
     def Get(self, user_id, get_quota=False):
         with app.app_context():
-            user = (
-                r.table("users")
-                .get(user_id)
-                .merge(
-                    lambda d: {
-                        "category_name": r.table("categories").get(d["category"])[
-                            "name"
-                        ],
-                        "group_name": r.table("groups").get(d["group"])["name"],
-                        "role_name": r.table("roles").get(d["role"])["name"],
-                    }
+            try:
+                user = (
+                    r.table("users")
+                    .get(user_id)
+                    .merge(
+                        lambda d: {
+                            "category_name": r.table("categories").get(d["category"])[
+                                "name"
+                            ],
+                            "group_name": r.table("groups").get(d["group"])["name"],
+                            "role_name": r.table("roles").get(d["role"])["name"],
+                        }
+                    )
+                    .without("password")
+                    .run(db.conn)
                 )
-                .without("password")
-                .run(db.conn)
-            )
-        if not user:
-            raise Error(
-                "not_found",
-                "Not found user_id " + user_id,
-                traceback.format_exc(),
-            )
+            except:
+                raise Error(
+                    "not_found",
+                    "Not found user_id " + user_id,
+                    traceback.format_exc(),
+                )
         if get_quota:
             user = {**user, **quotas.Get(user_id)}
         return user

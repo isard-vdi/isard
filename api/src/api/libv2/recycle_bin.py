@@ -486,7 +486,7 @@ class RecycleBin(object):
                     storage.status = "maintenance"
                     _add_storage_log(storage.id, "maintenance")
                     task = Task(
-                        user_id=user_id,
+                        user_id=self.owner_id,
                         queue=f"storage.{StoragePool.get_best_for_action('delete', path=storage.directory_path).id}.default",
                         task="delete",
                         job_kwargs={
