@@ -47,12 +47,31 @@ def get_user_data(user_id):
             r.table("users")
             .get(user_id)
             .pluck("id", "category", "group", "name", "role")
+            .default(
+                {
+                    "id": user_id,
+                    "category": "[Deleted]",
+                    "group": "[Deleted]",
+                    "name": "[Deleted]",
+                    "role": "[Deleted]",
+                }
+            )
             .run(db.conn)
         )
         category = (
-            r.table("categories").get(user["category"]).pluck("name", "id").run(db.conn)
+            r.table("categories")
+            .get(user["category"])
+            .pluck("name", "id")
+            .default({"name": "[Deleted]", "id": "[Deleted]"})
+            .run(db.conn)
         )
-        group = r.table("groups").get(user["group"]).pluck("name", "id").run(db.conn)
+        group = (
+            r.table("groups")
+            .get(user["group"])
+            .pluck("name", "id")
+            .default({"name": "[Deleted]", "id": "[Deleted]"})
+            .run(db.conn)
+        )
     return {
         "user_id": user["id"],
         "user_name": user["name"],
