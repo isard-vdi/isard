@@ -8,7 +8,7 @@ RUN dnf update -y \
         libvirt-daemon libvirt-daemon-config-network \
         python3-pip python3-libvirt python3-libguestfs \
         git autoconf automake pkg-config gettext-devel libtool python3-devel gcc rsync \
-        virt-install
+        virt-install python3-cachetools
 
 RUN pip3 install --upgrade pip \
     && pip3 install --no-cache-dir -r requirements.txt
