@@ -37,7 +37,12 @@ def api_v3_admin_storage(payload, status=None):
             else None,
         )
     else:
-        disks = get_disks(status=status)
+        disks = get_disks(
+            status=status,
+            category_id=payload["category_id"]
+            if payload["role_id"] == "manager"
+            else None,
+        )
     return (
         json.dumps(disks),
         200,
