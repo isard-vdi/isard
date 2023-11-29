@@ -2,6 +2,7 @@ import json
 import time
 import traceback
 import urllib.request
+from urllib.parse import quote
 
 from flask import jsonify, request
 from isardvdi_common.api_exceptions import Error
@@ -57,6 +58,7 @@ def api_v3_media_check_quota(payload):
 def api_v3_admin_media_insert(payload):
     try:
         data = request.get_json()
+        data["url"] = quote(data.get("url", ""), safe=":/?=&%")
     except:
         raise Error(
             "bad_request",
