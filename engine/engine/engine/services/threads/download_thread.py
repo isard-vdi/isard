@@ -11,6 +11,7 @@ import subprocess
 import threading
 import uuid
 from os.path import dirname
+from shlex import quote
 from time import sleep
 
 import humanfriendly as hf
@@ -177,9 +178,16 @@ class DownloadThread(threading.Thread, object):
                 confirm = ok
 
                 cookie_file = "./cookie_download_" + str(uuid.uuid4())
-                curl_cmd = f"curl -Lb {cookie_file} 'https://drive.google.com/uc?export=download&{confirm}&id={file_google_drive_id}' -o {self.path}"
+                google_drive_url_to_file = quote(
+                    "https://drive.google.com/uc"
+                    f"?export=download&{confirm}"
+                    f"&id={file_google_drive_id}"
+                )
+                curl_cmd = (
+                    f"curl -Lb {cookie_file} {google_drive_url_to_file} -o {self.path}"
+                )
                 cmds_google = (
-                    f"""curl -c {cookie_file} -s -L '{url_download}' ; """
+                    f"curl -c {cookie_file} -s -L {quote(url_download)};"
                     f"{curl_cmd};"
                     f"""rm -f {cookie_file}"""
                 )
@@ -226,9 +234,7 @@ class DownloadThread(threading.Thread, object):
                 )
                 return False
 
-            curl_cmd = (
-                f"curl {insecure_option} -L -o '{self.path}' {headers} '{self.url}'"
-            )
+            curl_cmd = f"curl {insecure_option} -L -o '{self.path}' {headers} {quote(self.url)}"
             ssh_command = [
                 "ssh",
                 "-oBatchMode=yes",
