@@ -161,6 +161,7 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 		return "", redirect, nil
 	}
 
+	// Remove weird characters from the user and group names
 	normalizeIdentity(g, u)
 
 	uExists, err := u.Exists(ctx, a.DB)
@@ -230,6 +231,9 @@ func (a *Authentication) Callback(ctx context.Context, args map[string]string) (
 	if redirect == "" {
 		redirect = claims.Redirect
 	}
+
+	// Remove weird characters from the user name
+	normalizeIdentity(nil, u)
 
 	if !exists {
 		ss, err = token.SignRegisterToken(a.Secret, a.Duration, u)
@@ -303,13 +307,12 @@ func (a *Authentication) finishLogin(ctx context.Context, u *model.User, redirec
 	}
 
 	u.LoadWithoutOverride(u2)
+	normalizeIdentity(nil, u)
 
 	// Update the user in the DB with the latest data
 	if err := u.Update(ctx, a.DB); err != nil {
 		return "", "", fmt.Errorf("update user in the DB: %w", err)
 	}
-
-	normalizeIdentity(nil, u)
 
 	ss, err := token.SignLoginToken(a.Secret, a.Duration, u)
 	if err != nil {
