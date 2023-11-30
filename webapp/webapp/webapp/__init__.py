@@ -55,16 +55,12 @@ def send_socketio(path):
 
 @app.route("/isard-admin/build/<path:path>")
 def send_build(path):
-    return send_from_directory(
-        os.path.join(app.root_path, "node_modules/gentelella/build"), path
-    )
+    return send_from_directory(os.path.join(app.root_path, "node_modules"), path)
 
 
 @app.route("/isard-admin/vendors/<path:path>")
 def send_vendors(path):
-    return send_from_directory(
-        os.path.join(app.root_path, "node_modules/gentelella/vendors"), path
-    )
+    return send_from_directory(os.path.join(app.root_path, "node_modules"), path)
 
 
 @app.route("/isard-admin/templates/<path:path>")
