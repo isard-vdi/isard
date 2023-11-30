@@ -3,6 +3,8 @@ package authentication_test
 import (
 	"context"
 	"errors"
+	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -10,10 +12,13 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/authentication/model"
+	"gitlab.com/isard/isardvdi/pkg/gen/oas/notifier"
 	"gitlab.com/isard/isardvdi/pkg/log"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
@@ -23,10 +28,11 @@ func TestRequestEmailVerification(t *testing.T) {
 	require := require.New(t)
 
 	cases := map[string]struct {
-		PrepareDB    func(*r.Mock)
-		PrepareToken func() string
-		Email        string
-		ExpectedErr  string
+		PrepareDB       func(*r.Mock)
+		PrepareToken    func() string
+		PrepareNotifier func(*notifier.MockClientWithResponsesInterface)
+		Email           string
+		ExpectedErr     string
 	}{
 		"should work as expected": {
 			PrepareToken: func() string {
@@ -49,6 +55,19 @@ func TestRequestEmailVerification(t *testing.T) {
 					"email_verification_token": r.MockAnything(),
 				})).Return(r.WriteResponse{
 					Updated: 1,
+				}, nil)
+			},
+			PrepareNotifier: func(c *notifier.MockClientWithResponsesInterface) {
+				c.On("PostNotifierMailEmailVerifyWithResponse", mock.AnythingOfType("context.backgroundCtx"), mock.MatchedBy(func(req notifier.PostNotifierMailEmailVerifyJSONRequestBody) bool {
+					return req.Email == "nefix@example.org" &&
+						strings.HasPrefix(req.Url, "https://localhost/verify-email?token=e")
+				})).Return(&notifier.PostNotifierMailEmailVerifyResponse{
+					HTTPResponse: &http.Response{
+						StatusCode: http.StatusOK,
+					},
+					JSON200: &notifier.NotifyEmailVerifyMailResponse0bf6af6{
+						TaskId: uuid.New(),
+					},
 				}, nil)
 			},
 			Email: "nefix@example.org",
@@ -138,12 +157,18 @@ func TestRequestEmailVerification(t *testing.T) {
 			cfg := cfg.New()
 			log := log.New("authentication-test", "debug")
 			mock := r.NewMock()
+			notifier := notifier.NewMockClientWithResponsesInterface(t)
 
 			if tc.PrepareDB != nil {
 				tc.PrepareDB(mock)
 			}
 
 			a := authentication.Init(cfg, log, mock)
+
+			if tc.PrepareNotifier != nil {
+				tc.PrepareNotifier(notifier)
+			}
+			a.Notifier = notifier
 
 			err := a.RequestEmailVerification(context.Background(), tc.PrepareToken(), tc.Email)
 

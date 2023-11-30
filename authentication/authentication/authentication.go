@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"time"
 
 	"gitlab.com/isard/isardvdi/authentication/authentication/provider"
@@ -11,6 +12,7 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/pkg/db"
+	"gitlab.com/isard/isardvdi/pkg/gen/oas/notifier"
 	"gitlab.com/isard/isardvdi/pkg/jwt"
 
 	"github.com/crewjam/saml/samlsp"
@@ -41,28 +43,38 @@ type Interface interface {
 var _ Interface = &Authentication{}
 
 type Authentication struct {
-	Log       *zerolog.Logger
-	Secret    string
-	Duration  time.Duration
-	DB        r.QueryExecutor
-	Client    isardvdi.Interface
+	Log      *zerolog.Logger
+	Secret   string
+	Duration time.Duration
+
+	BaseURL *url.URL
+
+	DB       r.QueryExecutor
+	Client   isardvdi.Interface
+	Notifier notifier.ClientWithResponsesInterface
+
 	providers map[string]provider.Provider
 	saml      *samlsp.Middleware
 }
 
+// TODO: Setup the notifier client
 func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor) *Authentication {
 	a := &Authentication{
 		Log:      log,
 		Secret:   cfg.Authentication.Secret,
 		Duration: cfg.Authentication.TokenDuration,
 		DB:       db,
+		BaseURL: &url.URL{
+			Scheme: "https",
+			Host:   cfg.Authentication.Host,
+		},
 	}
 
 	cli, err := isardvdi.NewClient(&isardvdi.Cfg{
 		Host: "http://isard-api:5000",
 	})
 	if err != nil {
-		panic(fmt.Sprintf("create API client: %v", err))
+		log.Fatal().Err(err).Msg("create API client")
 	}
 
 	cli.BeforeRequestHook = func(c *isardvdi.Client) error {
@@ -77,6 +89,13 @@ func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor) *Authentication 
 	}
 
 	a.Client = cli
+
+	nCli, err := notifier.NewClientWithResponses(cfg.Notifier.Address)
+	if err != nil {
+		log.Fatal().Err(err).Msg("create notifier client")
+	}
+
+	a.Notifier = nCli
 
 	providers := map[string]provider.Provider{
 		provider.UnknownString:  &provider.Unknown{},

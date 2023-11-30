@@ -27,11 +27,13 @@ type AuthenticationServer struct {
 
 func (a *AuthenticationServer) Serve(ctx context.Context) {
 	m := http.NewServeMux()
+	m.HandleFunc("/providers", a.providers)
+
 	m.HandleFunc("/login", a.login)
 	m.HandleFunc("/callback", a.callback)
-	m.HandleFunc("/acknowledge-disclaimer", a.acknowledgeDisclaimer)
 	m.HandleFunc("/check", a.check)
-	m.HandleFunc("/providers", a.providers)
+
+	m.HandleFunc("/acknowledge-disclaimer", a.acknowledgeDisclaimer)
 
 	// SAML authentication
 	m.HandleFunc("/saml/metadata", a.Authentication.SAML().ServeMetadata)

@@ -1,0 +1,552 @@
+{
+    "components": {
+        "schemas": {
+            "NotifyEmailVerifyMailRequest.0bf6af6": {
+                "properties": {
+                    "email": {
+                        "title": "Email",
+                        "type": "string"
+                    },
+                    "payload": {
+                        "title": "Payload"
+                    },
+                    "url": {
+                        "title": "Url",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "email",
+                    "url"
+                ],
+                "title": "NotifyEmailVerifyMailRequest",
+                "type": "object"
+            },
+            "NotifyEmailVerifyMailResponse.0bf6af6": {
+                "properties": {
+                    "task_id": {
+                        "format": "uuid",
+                        "title": "Task Id",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "task_id"
+                ],
+                "title": "NotifyEmailVerifyMailResponse",
+                "type": "object"
+            },
+            "NotifyFrontendDesktopTimeLimitRequest.0bf6af6": {
+                "properties": {
+                    "desktop_name": {
+                        "title": "Desktop Name",
+                        "type": "string"
+                    },
+                    "timestamp": {
+                        "format": "date-time",
+                        "title": "Timestamp",
+                        "type": "string"
+                    },
+                    "user_id": {
+                        "title": "User Id",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "user_id",
+                    "desktop_name",
+                    "timestamp"
+                ],
+                "title": "NotifyFrontendDesktopTimeLimitRequest",
+                "type": "object"
+            },
+            "NotifyFrontendDesktopTimeLimitResponse.0bf6af6": {
+                "properties": {},
+                "title": "NotifyFrontendDesktopTimeLimitResponse",
+                "type": "object"
+            },
+            "NotifyFrontendRequest.0bf6af6": {
+                "properties": {
+                    "level": {
+                        "$ref": "#/components/schemas/NotifyFrontendRequest.0bf6af6.NotifyFrontendRequestLevel"
+                    },
+                    "message": {
+                        "title": "Message",
+                        "type": "string"
+                    },
+                    "user_id": {
+                        "title": "User Id",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "user_id",
+                    "level",
+                    "message"
+                ],
+                "title": "NotifyFrontendRequest",
+                "type": "object"
+            },
+            "NotifyFrontendRequest.0bf6af6.NotifyFrontendRequestLevel": {
+                "description": "An enumeration.",
+                "enum": [
+                    "unspecified",
+                    "success",
+                    "warning",
+                    "danger",
+                    "info"
+                ],
+                "title": "NotifyFrontendRequestLevel"
+            },
+            "NotifyFrontendResponse.0bf6af6": {
+                "properties": {},
+                "title": "NotifyFrontendResponse",
+                "type": "object"
+            },
+            "NotifyFrontendSearchingResourcesRequest.0bf6af6": {
+                "properties": {
+                    "user_id": {
+                        "title": "User Id",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "user_id"
+                ],
+                "title": "NotifyFrontendSearchingResourcesRequest",
+                "type": "object"
+            },
+            "NotifyFrontendSearchingResourcesResponse.0bf6af6": {
+                "properties": {},
+                "title": "NotifyFrontendSearchingResourcesResponse",
+                "type": "object"
+            },
+            "NotifyGuestRequest.0bf6af6": {
+                "properties": {
+                    "desktop_id": {
+                        "title": "Desktop Id",
+                        "type": "string"
+                    },
+                    "message": {
+                        "title": "Message",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "desktop_id",
+                    "message"
+                ],
+                "title": "NotifyGuestRequest",
+                "type": "object"
+            },
+            "NotifyGuestResponse.0bf6af6": {
+                "properties": {},
+                "title": "NotifyGuestResponse",
+                "type": "object"
+            },
+            "NotifyMailRequest.0bf6af6": {
+                "properties": {
+                    "payload": {
+                        "title": "Payload"
+                    },
+                    "subject": {
+                        "title": "Subject",
+                        "type": "string"
+                    },
+                    "text": {
+                        "title": "Text",
+                        "type": "string"
+                    },
+                    "user_id": {
+                        "title": "User Id",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "user_id",
+                    "subject",
+                    "text"
+                ],
+                "title": "NotifyMailRequest",
+                "type": "object"
+            },
+            "NotifyMailResponse.0bf6af6": {
+                "properties": {
+                    "task_id": {
+                        "format": "uuid",
+                        "title": "Task Id",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "task_id"
+                ],
+                "title": "NotifyMailResponse",
+                "type": "object"
+            },
+            "NotifyPasswordResetMailRequest.0bf6af6": {
+                "properties": {
+                    "email": {
+                        "title": "Email",
+                        "type": "string"
+                    },
+                    "payload": {
+                        "title": "Payload"
+                    },
+                    "url": {
+                        "title": "Url",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "email",
+                    "url"
+                ],
+                "title": "NotifyPasswordResetMailRequest",
+                "type": "object"
+            },
+            "NotifyPasswordResetMailResponse.0bf6af6": {
+                "properties": {
+                    "task_id": {
+                        "format": "uuid",
+                        "title": "Task Id",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "task_id"
+                ],
+                "title": "NotifyPasswordResetMailResponse",
+                "type": "object"
+            },
+            "ValidationError.6a07bef": {
+                "description": "Model of a validation error response.",
+                "items": {
+                    "$ref": "#/components/schemas/ValidationError.6a07bef.ValidationErrorElement"
+                },
+                "title": "ValidationError",
+                "type": "array"
+            },
+            "ValidationError.6a07bef.ValidationErrorElement": {
+                "description": "Model of a validation error response element.",
+                "properties": {
+                    "ctx": {
+                        "title": "Error context",
+                        "type": "object"
+                    },
+                    "loc": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "title": "Missing field name",
+                        "type": "array"
+                    },
+                    "msg": {
+                        "title": "Error message",
+                        "type": "string"
+                    },
+                    "type": {
+                        "title": "Error type",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "loc",
+                    "msg",
+                    "type"
+                ],
+                "title": "ValidationErrorElement",
+                "type": "object"
+            }
+        }
+    },
+    "info": {
+        "title": "Notifier API",
+        "version": "v1.0"
+    },
+    "openapi": "3.0.3",
+    "paths": {
+        "/frontend": {
+            "post": {
+                "description": "",
+                "operationId": "post__frontend",
+                "parameters": [],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/NotifyFrontendRequest.0bf6af6"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotifyFrontendResponse.0bf6af6"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "422": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError.6a07bef"
+                                }
+                            }
+                        },
+                        "description": "Unprocessable Entity"
+                    }
+                },
+                "summary": "NotifyFrontend sends a popup notification to the user webpage interface",
+                "tags": []
+            }
+        },
+        "/frontend/desktop-time-limit": {
+            "post": {
+                "description": "",
+                "operationId": "post__frontend_desktop-time-limit",
+                "parameters": [],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/NotifyFrontendDesktopTimeLimitRequest.0bf6af6"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotifyFrontendDesktopTimeLimitResponse.0bf6af6"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "422": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError.6a07bef"
+                                }
+                            }
+                        },
+                        "description": "Unprocessable Entity"
+                    }
+                },
+                "summary": "NotifyFrontendDesktopTimeLimit notifies the user that the time limit is approaching",
+                "tags": []
+            }
+        },
+        "/frontend/searching-resources": {
+            "post": {
+                "description": "",
+                "operationId": "post__frontend_searching-resources",
+                "parameters": [],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/NotifyFrontendSearchingResourcesRequest.0bf6af6"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotifyFrontendSearchingResourcesResponse.0bf6af6"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "422": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError.6a07bef"
+                                }
+                            }
+                        },
+                        "description": "Unprocessable Entity"
+                    }
+                },
+                "summary": "NotifyFrontendSearchingResources notifies the user that there are no resources available and will be in a near future",
+                "tags": []
+            }
+        },
+        "/guest": {
+            "post": {
+                "description": "",
+                "operationId": "post__guest",
+                "parameters": [],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/NotifyGuestRequest.0bf6af6"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotifyGuestResponse.0bf6af6"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "422": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError.6a07bef"
+                                }
+                            }
+                        },
+                        "description": "Unprocessable Entity"
+                    }
+                },
+                "summary": "NotifyGuest sends a QMP notification to the user desktop",
+                "tags": []
+            }
+        },
+        "/mail": {
+            "post": {
+                "description": "Email specifications in JSON: {     \"user_id\": \"User ID to be used to retrieve its email address\",     \"subject\": \"subject of the email that will be sent\",     \"text\": \"text of the email that will be sent\", } :param payload: Data from JWT :type payload: dict :return: Task ID :rtype: Set with Flask response values and data in JSON",
+                "operationId": "post__mail",
+                "parameters": [],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/NotifyMailRequest.0bf6af6"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotifyMailResponse.0bf6af6"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "422": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError.6a07bef"
+                                }
+                            }
+                        },
+                        "description": "Unprocessable Entity"
+                    }
+                },
+                "summary": "Send an email to the user with the email specifications as JSON in body request.",
+                "tags": []
+            }
+        },
+        "/notifier/mail/email-verify": {
+            "post": {
+                "description": "Email specifications in JSON: {     \"email\": \"email address where the mail will be sent\",     \"url\": \"url that will be sent to the user for email verification\", } :param payload: Data from JWT :type payload: dict :return: Task ID :rtype: Set with Flask response values and data in JSON",
+                "operationId": "post__notifier_mail_email-verify",
+                "parameters": [],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/NotifyEmailVerifyMailRequest.0bf6af6"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotifyEmailVerifyMailResponse.0bf6af6"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "422": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError.6a07bef"
+                                }
+                            }
+                        },
+                        "description": "Unprocessable Entity"
+                    }
+                },
+                "summary": "Send an email to the user with the email specifications as JSON in body request.",
+                "tags": []
+            }
+        },
+        "/notifier/mail/password-reset": {
+            "post": {
+                "description": "Email specifications in JSON: {     \"email\": \"email address where the mail will be sent\",     \"url\": \"url that will be sent to the user for password reset\", } :param payload: Data from JWT :type payload: dict :return: Task ID :rtype: Set with Flask response values and data in JSON",
+                "operationId": "post__notifier_mail_password-reset",
+                "parameters": [],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/NotifyPasswordResetMailRequest.0bf6af6"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotifyPasswordResetMailResponse.0bf6af6"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "422": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError.6a07bef"
+                                }
+                            }
+                        },
+                        "description": "Unprocessable Entity"
+                    }
+                },
+                "summary": "Send an email to the user with the email specifications as JSON in body request.",
+                "tags": []
+            }
+        }
+    },
+    "security": [],
+    "tags": []
+}
