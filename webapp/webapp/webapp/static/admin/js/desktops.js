@@ -1000,7 +1000,6 @@ function socketio_on(){
 }
 
 function setDesktopTemplateTree(domain_id) {
-    var fancyTreeData;
      $.ajax({
         url: "/api/v3/admin/domain/template_tree/" + domain_id,
         type: 'GET',
@@ -1756,46 +1755,6 @@ function renderAction(data){
     return '<i class="fa fa-spinner fa-pulse fa-2x fa-fw"></i>';
 }
 
-function populate_tree_template_delete(id){
-    $(":ui-fancytree").fancytree("destroy")
-    $("#modalDeleteTemplate .tree_template_delete").fancytree({
-        extensions: ["table"],
-        table: {
-          indentation: 20,      // indent 20px per node level
-          nodeColumnIdx: 2,     // render the node title into the 2nd column
-          checkboxColumnIdx: 0  // render the checkboxes into the 1st column
-        },
-        source: {url: "/api/v3/admin/desktops/tree_list/" + id,
-                cache: false},
-        lazyLoad: function(event, data){
-            data.result = $.ajax({
-                url: "/api/v3/admin/desktops/tree_list/" + id,
-                dataType: "json"
-            });
-            },
-        checkbox: true,
-        selectMode: 3,
-        renderColumns: function(event, data) {
-            var node = data.node,
-              $tdList = $(node.tr).find(">td");
-
-            // (index #0 is rendered by fancytree by adding the checkbox)
-            $tdList.eq(1).text(node.getIndexHier());
-            // (index #2 is rendered by fancytree)
-            if(node.unselectable){
-                $tdList.eq(3).html('<i class="fa fa-exclamation-triangle"></i> '+node.data.user);
-
-            }else{
-                $tdList.eq(3).text(node.data.user);
-            }
-            $tdList.eq(4).text(node.data.kind);
-            $tdList.eq(5).text(node.data.category);
-            $tdList.eq(6).text(node.data.group);
-            // Rendered by row template:
-    //        $tdList.eq(4).html("<input type='checkbox' name='like' value='" + node.key + "'>");
-          }
-    });
-}
 
     $("#modalEditDesktop #send").on('click', function(e){
             var form = $('#modalEdit');
