@@ -890,6 +890,7 @@
         "password": {
             "modal": {
                 "title": "Canviar la contrasenya",
+                "warning": "La contrasenya ha caducat. S'ha de canviar per una nova per poder continuar",
                 "password": {
                     "label": "Contrasenya",
                     "placeholder": "Contrasenya"
@@ -897,6 +898,10 @@
                 "confirmation-password": {
                     "label": "Confirmació de la contrasenya",
                     "placeholder": "Confirma la contrasenya"
+                },
+                "current-password": {
+                    "label": "Entra la contrasenya actual:",
+                    "placeholder": "Contrasenya actual"
                 },
                 "buttons": {
                     "update": "Actualitzar"
@@ -1142,7 +1147,15 @@
         "vpn_missing_itemid": "Li falta l'identificador de l'element a la VPN",
         "no_reservables": "L'element no té reservables",
         "cant_edit_booked_deployment": "No es poden editar els reservables d'un desplegament amb reserves planificades",
-        "temporal_new_reservable": "No es pot crear un escriptori temporal d'una plantilla amb reservables"
+        "temporal_new_reservable": "No es pot crear un escriptori temporal d'una plantilla amb reservables",
+        "password_character_length": "La contrasenya ha de tenir com a mínim {num} caràcter(s)",
+        "password_uppercase": "La contrasenya ha de tenir com a mínim {num} caràcter(s) en majúscula",
+        "password_lowercase": "La contrasenya ha de tenir com a mínim {num} caràcter(s) en minúscula",
+        "password_digits": "La contrasenya ha de tenir com a mínim {num} número(s)",
+        "password_special_characters":  "La contrasenya ha de tenir com a mínim {num} caràcter(s) especials: !@#$%^&*()-_=+[]{}|;:'\",.<>/?",
+        "password_already_used": "Aquesta contrasenya ja s'ha utilitzat abans",
+        "password_username": "La contrasenya no pot contenir el nom d'usuari",
+        "wrong_password_entered": "La contrasenya introduïda és incorrecta"
     },
     "messages": {
         "title": {
@@ -1241,7 +1254,8 @@
             "edit-domain": "Editar domini",
             "storage": "Emmagatzematge",
             "edit-deployment": "Editar desplegament",
-            "recycleBin": "Paperera de reciclatge"
+            "recycleBin": "Paperera de reciclatge",
+            "password": "Canviar contrasenya"
         }
     },
     "message-modal": {

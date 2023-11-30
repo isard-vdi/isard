@@ -25,6 +25,7 @@
         "password": {
             "modal": {
                 "title": "Cambiar la contraseña",
+                "warning": "La contraseña ha caducado. Debe ser cambiada por una nueva para poder continuar",
                 "password": {
                     "label": "Contraseña",
                     "placeholder": "Contraseña"
@@ -32,6 +33,10 @@
                 "confirmation-password": {
                     "label": "Confirmación de la contraseña",
                     "placeholder": "Confirma la contraseña"
+                },
+                "current-password": {
+                    "label": "Introduce tu contraseña actual",
+                    "placeholder": "Contraseña actual"
                 },
                 "buttons": {
                     "update": "Actualizar"
@@ -1232,7 +1237,14 @@
         "no_reservables": "El ítem no tiene reservables",
         "incorrect_new_plan_body_data": "Datos de nuevo plan incorrectos",
         "cant_edit_booked_deployment": "No se pueden editar los reservables un despliegue con reservas planeadas",
-        "temporal_new_reservable": "No se puede crear un escritorio temporal de una plantilla con reservables"
+        "temporal_new_reservable": "No se puede crear un escritorio temporal de una plantilla con reservables",
+        "password_character_length": "La contraseña debe tener al menos {num} caracter(es) ",
+        "password_uppercase": "La contraseña debe tener al menos {num} caracter(es) en mayúscula",
+        "password_lowercase": "La contraseña debe tener al menos {num} caracter(es) en minúscula",
+        "password_digits": "La contraseña debe tener al menos {num} número(s)",
+        "password_special_characters":  "La contraseña debe tener al menos {num} caracter(es) especiales: !@#$%^&*()-_=+[]{}|;:'\",.<>/?",
+        "password_already_used": "Esta contraseña ya se ha utilizado anteriormente",
+        "password_username": "La contraseña no puede contener el nombre de usuario"
     },
     "router": {
         "titles": {
@@ -1260,7 +1272,8 @@
             "edit-domain": "Editar dominio",
             "storage": "Almacenamiento",
             "edit-deployment": "Editar despliegue",
-            "recycleBins": "Papelera de reciclaje"
+            "recycleBins": "Papelera de reciclaje",
+            "password": "Cambiar contraseña"
         }
     },
     "message-modal": {

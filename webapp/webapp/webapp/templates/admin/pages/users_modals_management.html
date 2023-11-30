@@ -71,9 +71,8 @@
                                     <span class="required">*</span></label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
                                     <input id="password-add-user" type="password" name="password-add-user"
-                                    data-parsley-minlength="8" class="form-control col-md-7 col-xs-12"
-                                    class="form-control col-md-7 col-xs-12"
-                                        required="required" data-parsley-trigger="change">
+                                    class="form-control col-md-7 col-xs-12" class="form-control col-md-7 col-xs-12"
+                                    required="required" data-parsley-trigger="change">
                                 </div>
                             </div>
                             <div class="item form-group">
@@ -287,7 +286,7 @@
                                     class="required">*</span>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
                                     <input id="password-reset" type="password" name="password-reset"
-                                        data-parsley-minlength="8" class="form-control col-md-7 col-xs-12"
+                                        class="form-control col-md-7 col-xs-12"
                                         required="required" data-parsley-trigger="change">
                                 </div>
                             </div>
@@ -300,6 +299,9 @@
                                         required="required">
                                 </div>
                             </div>
+                                <div class="alert alert-info" role="alert" id="password-policy-list">
+                                </div>
+                            <div id="passwd-error" style="display:none" class="alert alert-danger alert-dismissible" role="alert"></div>
                         </div>
                     </div>
                 </form>

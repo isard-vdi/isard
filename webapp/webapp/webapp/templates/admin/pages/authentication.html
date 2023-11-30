@@ -1,0 +1,139 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="row">
+    <div class="col-md-12 col-sm-12 col-xs-12">
+        <div class="x_panel">
+            <div class="page-title">
+                <div class="title_left">
+                    <h3><i class="fa fa-key"></i> Authentication <small>Manage authentication policies</small></h3>
+                </div>
+                <div class="clearfix"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="clearfix"></div>
+
+<div class="row">
+    <div class="col-md-12 col-sm-12 col-xs-12">
+        <div class="x_panel" id="local_panel">
+            <div class="x_title">
+                <h3><i id="local-enabled" class="fa fa-circle" aria-hidden="true" style="color:darkgray"></i> <i
+                        class="fa fa-home"></i> Local users</h3>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><a class="btn-add-policy"><span style="color: #5499c7; "><i class="fa fa-plus"></i> Add
+                                policy</span></a>
+                    <li style="padding-right:46px"><a class="collapse-link"><i class="fa fa-chevron-down"></i></a>
+                </ul>
+                <div class="clearfix"></div>
+            </div>
+            <div class="x_content">
+                <h3>Password policy</h3>
+                <table id="table-password-policy" class="table">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Role</th>
+                            <th>Digits</th>
+                            <th>Length</th>
+                            <th>Lowercase</th>
+                            <th>Uppercase</th>
+                            <th>Special chars</th>
+                            <!-- <th>Expiration days</th> -->
+                            <th>Old passwords</th>
+                            <th>Not username</th>
+                            <th>Action</th>
+                            <th>ID</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+            <!-- <div class="x_content">
+                    <h3>Email verification policy</h3>
+                    <table id="table-email-verification" class="table">
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th>Role</th>
+                                <th>Days</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                </div> -->
+        </div>
+    </div>
+</div>
+
+<div class="row" id="google">
+    <div class="col-md-12 col-sm-12 col-xs-12">
+        <div class="x_panel" id="google_panel">
+            <div class="x_title">
+                <h3><i id="google-enabled" class="fa fa-circle" aria-hidden="true" style="color:darkgray"></i> <i
+                        class="fa fa-google"></i> Google</h3>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><a class="collapse-link"><i class="fa fa-chevron-down"></i></a>
+                    <li>
+                </ul>
+                <div class="clearfix"></div>
+            </div>
+            <div class="x_content">
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="row">
+    <div class="col-md-12 col-sm-12 col-xs-12">
+        <div class="x_panel" id="saml_panel">
+            <div class="x_title">
+                <h3><i id="saml-enabled" class="fa fa-circle" aria-hidden="true" style="color:darkgray"></i> <i
+                        class="fa fa-lock"></i> SAML</h3>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><a class="collapse-link"><i class="fa fa-chevron-down"></i></a>
+                    <li>
+                </ul>
+                <div class="clearfix"></div>
+            </div>
+            <div class="x_content col-md-12">
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="row">
+    <div class="col-md-12 col-sm-12 col-xs-12">
+        <div class="x_panel" id="ldap_panel">
+            <div class="x_title">
+                <h3><i id="ldap-enabled" class="fa fa-circle" aria-hidden="true" style="color:darkgray"></i> <i
+                        class="fa fa-sitemap"></i> LDAP</h3>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><a class="collapse-link"><i class="fa fa-chevron-down"></i></a></li>
+                </ul>
+                <div class="clearfix"></div>
+            </div>
+            <div class="x_content">
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+{% include '/admin/pages/authentication_modals.html' %}
+
+{% endblock %}
+
+{% block pagescript %}
+<script src="/isard-admin/static/admin/js/authentication.js"></script>
+{% endblock %}

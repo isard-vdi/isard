@@ -1,6 +1,5 @@
 password:
   type: string
-  minlength: 8
 name:
   maxlength: 50
   type: string

@@ -310,6 +310,18 @@ def admin_users_user_storage():
     )
 
 
+@app.route("/isard-admin/admin/users/authentication", methods=["POST", "GET"])
+@login_required
+@isAdmin
+def admin_users_authentication():
+    return render_template(
+        "admin/pages/authentication.html",
+        nav="authentication",
+        title="Authentication",
+        monitor_host=monitor_host,
+    )
+
+
 """
 USAGE
 """

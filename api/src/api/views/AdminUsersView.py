@@ -160,6 +160,11 @@ def api_v3_admin_user_csv(payload):
         user_data = _validate_item("user_from_csv_edit", user_data)
         ownsUserId(payload, user_data["id"])
 
+        if user_data.get("password"):
+            user_data[
+                "password_last_updated"
+            ] = 0  # password must be restored by user after an admin changes it
+
         users.Update([user_data["id"]], user_data)
     return json.dumps({}), 200, {"Content-Type": "application/json"}
 
@@ -214,6 +219,11 @@ def api_v3_admin_user_update(payload, user_id=None):
         data = _validate_item("user_update_quota", data)
     else:
         data = _validate_item("user_update", data)
+
+    if data.get("password") and user_id != payload["user_id"]:
+        data[
+            "password_last_updated"
+        ] = 0  # password must be restored by user after an admin changes it
 
     users.Update(data["ids"], data)
     return json.dumps({}), 200, {"Content-Type": "application/json"}
@@ -292,8 +302,7 @@ def api_v3_admin_user_insert(payload):
             "Unable to parse body data.",
             traceback.format_exc(),
         )
-    p = Password()
-    data["password"] = p.encrypt(data["password"])
+
     data["id"] = None
     data["accessed"] = int(time.time())
     data["quota"] = False
@@ -332,6 +341,13 @@ def api_v3_admin_user_insert(payload):
 
     quotas.UserCreate(category_id=data["category"], group_id=data["group"])
 
+    p = Password()
+    policy = users.get_user_password_policy(data["category"], data["role"])
+    p.check_policy(data["password"], policy, username=data["username"])
+    data["password"] = p.encrypt(data["password"])
+
+    data["password_history"] = [data["password"]]
+    data["password_last_updated"] = int(time.time())
     admin_table_insert("users", data)
 
     return (
@@ -836,6 +852,11 @@ def admin_users_validate(payload):
     for i, user in enumerate(user_list):
         user = _validate_item("user_from_csv", user)
 
+        if user.get("password"):
+            p = Password()
+            policy = users.get_user_password_policy(user["category"], user["role"])
+            p.check_policy(user["password"], policy, username=user["username"])
+
         if payload["role_id"] == "manager":
             if user["role"] not in ["manager", "advanced", "user"]:
                 raise Error(
@@ -900,7 +921,6 @@ def admin_users_validate_edit(payload):
             user_list[i]["secondary_groups_names"] = user["secondary_groups"]
         if user.get("name"):
             user_list[i]["name"] = user_list[i]["name"].strip('"')
-
         try:
             user_list[i]["id"] = users.GetByProviderCategoryUID(
                 user["provider"], cg_data["category_id"], user["uid"]
@@ -909,6 +929,13 @@ def admin_users_validate_edit(payload):
         except:
             raise Error(
                 "not_found", "User with username " + user["name"] + " not found"
+            )
+
+        if user.get("password"):
+            p = Password()
+            policy = users.get_user_password_policy(user_id=user_list[i]["id"])
+            p.check_policy(
+                user["password"], policy, user_list[i]["id"], user.get("username")
             )
 
         user_list[i]["category_id"] = cg_data["category_id"]
@@ -1053,3 +1080,62 @@ def admin_secrets(payload):
         200,
         {"Content-Type": "application/json"},
     )
+
+
+@app.route("/api/v3/user/required/password-reset/<user_id>", methods=["GET"])
+@is_admin
+def user_required_password_reset(payload, user_id):
+    return (
+        json.dumps({"required": users.check_password_expiration(user_id)}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/user/password-policy/<user_id>", methods=["GET"])
+@is_admin_or_manager
+def admin_user_password_policy(payload, user_id):
+    ownsUserId(payload, user_id)
+    return (
+        json.dumps(users.get_user_password_policy(user_id=user_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route(
+    "/api/v3/admin/user/required/disclaimer-acknowledgement/<user_id>", methods=["GET"]
+)
+@is_admin
+def user_required_disclaimer_acknowledgement(payload, user_id):
+    return (
+        json.dumps({"required": False}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/user/required/email-verification/<user_id>", methods=["GET"])
+@is_admin
+def user_required_email_verification(payload, user_id):
+    # TODO: Implement
+    return json.dumps({"required": False}), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/admin/user/reset-password/<user_id>", methods=["PUT"])
+@is_admin
+def admin_use_password_update(payload, user_id):
+    data = request.get_json(force=True)
+
+    if not data.get("password") or not user_id:
+        raise Error(
+            "bad_request",
+            "Password and user_id are required",
+        )
+    data = _validate_item("user_password_update", data)
+
+    users.change_password(
+        data["password"],
+        user_id,
+    )
+    return json.dumps({}), 200, {"Content-Type": "application/json"}

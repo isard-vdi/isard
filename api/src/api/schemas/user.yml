@@ -41,7 +41,6 @@ description:
 password:
   required: true
   type: string
-  minlength: 8
 photo:
   required: false
   coerce: sanitize

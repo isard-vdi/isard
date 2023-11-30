@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 115
+release_version = 116
+# release 116: Add new password parameters to users
 # release 115: Add role index to users
 # release 114: Fix domains and deployments with isos as string
 # release 113: Add secondary indexes for storage and scheduler
@@ -3672,6 +3673,13 @@ class Upgrade(object):
             except Exception as e:
                 print(e)
 
+        if version == 116:
+            try:
+                r.table(table).get_all("local", index="provider").update(
+                    {"password_history": [], "password_last_updated": 0}
+                )
+            except Exception as e:
+                None
         return True
 
     """

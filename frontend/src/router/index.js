@@ -27,6 +27,7 @@ import Register from '@/views/Register.vue'
 import Storage from '@/pages/Storage.vue'
 import RecycleBins from '@/pages/RecycleBins.vue'
 import RecycleBin from '@/pages/RecycleBin.vue'
+import ChangePassword from '@/pages/ChangePassword.vue'
 import Vue from 'vue'
 import VueRouter from 'vue-router'
 import { appTitle } from '../shared/constants'
@@ -325,6 +326,14 @@ const router = new VueRouter({
       ],
       meta: {
         requiresAuth: true
+      }
+    },
+    {
+      path: '/password',
+      component: ChangePassword,
+      name: 'ChangePassword',
+      meta: {
+        title: i18n.t('router.titles.password')
       }
     },
     {
