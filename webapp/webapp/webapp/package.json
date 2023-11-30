@@ -7,11 +7,8 @@
     "jquery": "^2.2.3",
     "bootstrap": "^3.3.7",
     "font-awesome": "^4.6.1",
-    "nprogress": "^0.2.0",
-    "bootstrap-progressbar": "^0.9.0",
     "icheck": "^1.0.2",
     "select2": "^4.0.2",
-    "autosize": "^3.0.15",
     "parsleyjs": "^2.3.10",
     "pnotify": "^3.0.0",
     "daterangepicker": "^3.1.0",
@@ -19,14 +16,6 @@
     "datatables.net-bs": "^1.10.11",
     "datatables.net-buttons": "^1.1.2",
     "datatables.net-buttons-bs": "^1.1.2",
-    "datatables.net-fixedheader": "^3.1.1",
-    "datatables.net-fixedheader-bs": "^3.1.1",
-    "datatables.net-keytable": "^2.1.1",
-    "datatables.net-responsive": "^2.0.2",
-    "datatables.net-responsive-bs": "^2.0.2",
-    "datatables.net-scroller": "^1.4.1",
-    "datatables.net-scroller-bs": "^1.4.1",
-    "pdfmake": "^0.1.20",
     "jszip": "Stuk/jszip#v2.6.0"
   }
 }
