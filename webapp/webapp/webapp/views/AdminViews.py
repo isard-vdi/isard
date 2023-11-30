@@ -252,6 +252,16 @@ def admin_recyclebin(nav="Disks"):
         )
 
 
+@app.route("/isard-admin/admin/domains/status")
+@login_required
+@isAdmin
+def admin_desktops_status(nav="Domains"):
+    icon = "dektop"
+    return render_template(
+        "admin/pages/desktops_status.html", title=nav, nav=nav, icon=icon
+    )
+
+
 """
 MEDIA
 """

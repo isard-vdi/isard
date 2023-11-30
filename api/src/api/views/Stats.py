@@ -35,6 +35,16 @@ def stats_general(payload):
     )
 
 
+@app.route("/api/v3/stats/desktops/status", methods=["GET"])
+@is_admin
+def stats_desktops(payload):
+    return (
+        json.dumps(Desktops()),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
 # kind can be users, desktops, templates or hypervisors
 @app.route("/api/v3/stats/<kind>", methods=["GET"])
 @is_admin

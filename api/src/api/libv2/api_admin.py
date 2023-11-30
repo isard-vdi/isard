@@ -693,6 +693,19 @@ class ApiAdmin:
                 traceback.format_exc(),
             )
 
+    def domains_status_minimal(self, status):
+        with app.app_context():
+            return list(
+                r.table("domains")
+                .get_all(["desktop", status], index="kind_status")
+                .pluck(
+                    "id",
+                    "name",
+                    "accessed",
+                )
+                .run(db.conn)
+            )
+
     def get_domain_storage(self, domain_id):
         with app.app_context():
             desktop_disks = (

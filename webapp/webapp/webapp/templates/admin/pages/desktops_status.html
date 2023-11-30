@@ -1,0 +1,102 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+{% block css %}
+<style>
+.echart-card {
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.echart-card:hover {
+    background-color: #d9edf7; /* Light blue on hover */
+}
+
+.echart-card:active,
+.echart-card.active {
+    background-color: #5bc0de !important; /* Medium blue on click, !important to override Bootstrap styles */
+}
+
+.echart-clicked {
+    background-color: #5bc0de !important; /* Medium blue on click, !important to override Bootstrap styles */
+}
+
+.play-btn,
+.stop-btn {
+    background-color: #3498db; /* Default button background color */
+    color: #fff; /* Default button text color */
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.play-btn:hover,
+.stop-btn:hover {
+    background-color: #217dbb; /* Darker blue on hover */
+}
+
+.play-btn:active,
+.play-btn.active,
+.stop-btn:active,
+.stop-btn.active {
+    background-color: #126493 !important; /* Dark blue on click, !important to override Bootstrap styles */
+}
+
+</style>
+{% endblock %}
+{% block content %}
+
+
+
+
+<div class="row">
+   <div class="col">
+      <div class="x_panel">
+         <div class="x_title">
+            <div class="row">
+                <div class="col-6 col-md-4">
+                    <h2>Desktops status</h2>
+                </div>
+                <div class="col-6 col-md-4">
+                    <h3>Total: <span id="total" style="color:black"></span></h3>
+                </div>
+                <div class="col-6 col-md-4">
+                    <h3>Query time: <span id="time" style="color:black"></span>s</h3>
+                </div>
+            </div>
+         </div>
+         
+         <div class="x_content">
+            <div id="statuses"></div>
+         </div>
+         <div class="x_content">
+            <div class="row">
+               <table id="domains" class="table">
+                  <thead>
+                      <tr>
+                          <th>Id</th>
+                          <th>Name</th>
+                          <th>Accessed</th>
+                      </tr>
+                  </thead>
+                  <tbody>
+                  </tbody>
+                  <tfoot>
+                      <tr>
+                          <th>Id</th>
+                          <th>Name</th>
+                          <th>Accessed</th>
+                      </tr>
+                  </tfoot>
+              </table>
+             </div>
+
+         </div>
+      </div>
+   </div>
+</div>
+
+{% endblock %}
+
+{% block pagescript %}
+   <script src="/isard-admin/vendors/echarts/dist/echarts.min.js"></script>
+   <script src="/isard-admin/static/admin/js/echarts.js"></script>
+   <script src="/isard-admin/static/admin/js/desktops_status.js"></script>
+{% endblock %}

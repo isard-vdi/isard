@@ -17,6 +17,49 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+
+
+$.fn.echartHistory = function (data,text,width,height) {
+    const $container = $(this);
+    option = {
+        scale: true,
+        maintainAspectRatio: false,
+        responsive: true,
+        title: {
+          text: text
+        },
+        xAxis: {
+          type: 'category',
+          data: data,
+        },
+        yAxis: {
+          type: 'value',
+        },
+        series: [
+          {
+            name: 'text',
+            type: 'line',
+            showSymbol: false,
+            data: data
+          }
+        ]
+      };
+    // Create a canvas element
+    const canvas = document.createElement("canvas");
+    canvas.height = height;
+    canvas.width = width;
+    // Append the canvas to the container
+    $container.append(canvas);
+
+    // Initialize ECharts instance and set options
+    const chart = echarts.init(canvas);
+    chart.setOption(option);
+
+    $container.data('echartInstance', chart);
+    return chart;
+};
+
+
 $.fn.echartGroupedItems = function (table, group_field, nested_array_field) {
     if (nested_array_field == null){
         kind="grouped_items"
