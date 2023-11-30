@@ -174,3 +174,27 @@ func SignEmailVerificationToken(secret string, userID string, email string) (str
 
 	return ss, nil
 }
+
+func SignPasswordResetRequiredToken(secret string, userID string) (string, error) {
+	tkn := jwt.NewWithClaims(signingMethod, &PasswordResetRequiredClaims{
+		TypeClaims: TypeClaims{
+			RegisteredClaims: &jwt.RegisteredClaims{
+				// TODO: This should be maybe configurable
+				ExpiresAt: jwt.NewNumericDate(time.Now().Add(60 * time.Minute)),
+				IssuedAt:  jwt.NewNumericDate(time.Now()),
+				NotBefore: jwt.NewNumericDate(time.Now()),
+				Issuer:    issuer,
+			},
+			KeyID: keyID,
+			Type:  TypePasswordResetRequired,
+		},
+		UserID: userID,
+	})
+
+	ss, err := tkn.SignedString([]byte(secret))
+	if err != nil {
+		return "", fmt.Errorf("sign the password reset required token: %w", err)
+	}
+
+	return ss, nil
+}

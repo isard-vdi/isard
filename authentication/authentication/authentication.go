@@ -141,6 +141,9 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 
 		case token.TypeDisclaimerAcknowledgementRequired:
 			return a.finishDisclaimerAcknowledgement(ctx, args[provider.TokenArgsKey], args[provider.RedirectArgsKey])
+
+		case token.TypePasswordResetRequired:
+			return a.finishPasswordReset(ctx, args[provider.TokenArgsKey], args[provider.RedirectArgsKey])
 		}
 	}
 
@@ -276,7 +279,18 @@ func (a *Authentication) finishLogin(ctx context.Context, u *model.User, redirec
 		return ss, "", nil
 	}
 
-	// TODO: Check the user has a password in compilance with their policy
+	pwdRst, err := a.Client.AdminUserRequiredPasswordReset(ctx, u.ID)
+	if err != nil {
+		return "", "", fmt.Errorf("check if the user needs to reset the password: %w", err)
+	}
+	if pwdRst {
+		ss, err := token.SignPasswordResetRequiredToken(a.Secret, u.ID)
+		if err != nil {
+			return "", "", err
+		}
+
+		return ss, "", nil
+	}
 
 	// Set the last accessed time of the user
 	u.Accessed = float64(time.Now().Unix())
@@ -338,6 +352,20 @@ func (a *Authentication) finishRegister(ctx context.Context, ss, redirect string
 
 func (a *Authentication) finishDisclaimerAcknowledgement(ctx context.Context, ss, redirect string) (string, string, error) {
 	claims, err := token.ParseDisclaimerAcknowledgementRequiredToken(a.Secret, ss)
+	if err != nil {
+		return "", "", err
+	}
+
+	u := &model.User{ID: claims.UserID}
+	if err := u.Load(ctx, a.DB); err != nil {
+		return "", "", fmt.Errorf("load user from db: %w", err)
+	}
+
+	return a.finishLogin(ctx, u, redirect)
+}
+
+func (a *Authentication) finishPasswordReset(ctx context.Context, ss, redirect string) (string, string, error) {
+	claims, err := token.ParsePasswordResetRequiredToken(a.Secret, ss)
 	if err != nil {
 		return "", "", err
 	}

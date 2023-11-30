@@ -100,6 +100,7 @@ func TestLogin(t *testing.T) {
 			PrepareAPI: func(c *apiMock.Client) {
 				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
+				c.On("AdminUserRequiredPasswordReset", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 			},
 			Provider:   "form",
 			CategoryID: "default",
@@ -170,11 +171,85 @@ func TestLogin(t *testing.T) {
 			PrepareAPI: func(c *apiMock.Client) {
 				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
+				c.On("AdminUserRequiredPasswordReset", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
 			},
 			Provider:   "form",
 			CategoryID: "default",
 			PrepareArgs: func() map[string]string {
 				ss, err := token.SignDisclaimerAcknowledgementRequiredToken("", "08fff46e-cbd3-40d2-9d8e-e2de7a8da654")
+				require.NoError(err)
+
+				return map[string]string{
+					provider.TokenArgsKey: ss,
+				}
+			},
+			CheckToken: func(ss string) {
+				claims, err := token.ParseLoginToken("", ss)
+				assert.NoError(err)
+
+				assert.Equal("isard-authentication", claims.Issuer)
+				assert.Equal("isardvdi", claims.KeyID)
+				// TODO: Test time
+				assert.Equal(token.LoginClaimsData{
+					Provider:   "local",
+					ID:         "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					RoleID:     "user",
+					CategoryID: "default",
+					GroupID:    "default-default",
+					Name:       "Néfix Estrada",
+				}, claims.Data)
+			},
+			ExpectedRedirect: "",
+		},
+		"should finish the login flow if the user provides a password-reset-required token": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("users").Get("08fff46e-cbd3-40d2-9d8e-e2de7a8da654")).Return([]interface{}{
+					map[string]interface{}{
+						"id":                      "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+						"uid":                     "nefix",
+						"username":                "nefix",
+						"password":                "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm", // f0kt3Rf$
+						"provider":                "local",
+						"active":                  true,
+						"category":                "default",
+						"role":                    "user",
+						"group":                   "default-default",
+						"name":                    "Néfix Estrada",
+						"email":                   "nefix@example.org",
+						"email_verified":          true,
+						"disclaimer_acknowledged": true,
+					},
+				}, nil)
+				m.On(r.Table("users").Get("08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Update(map[string]interface{}{
+					"id":                       "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+					"uid":                      "nefix",
+					"username":                 "nefix",
+					"password":                 "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm", // f0kt3Rf$
+					"provider":                 "local",
+					"active":                   true,
+					"category":                 "default",
+					"role":                     "user",
+					"group":                    "default-default",
+					"name":                     "Néfix Estrada",
+					"email":                    "nefix@example.org",
+					"email_verified":           true,
+					"email_verification_token": "",
+					"photo":                    "",
+					"disclaimer_acknowledged":  true,
+					"accessed":                 r.MockAnything(),
+				})).Return(r.WriteResponse{
+					Updated: 1,
+				}, nil)
+			},
+			PrepareAPI: func(c *apiMock.Client) {
+				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
+				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
+				c.On("AdminUserRequiredPasswordReset", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
+			},
+			Provider:   "form",
+			CategoryID: "default",
+			PrepareArgs: func() map[string]string {
+				ss, err := token.SignPasswordResetRequiredToken("", "08fff46e-cbd3-40d2-9d8e-e2de7a8da654")
 				require.NoError(err)
 
 				return map[string]string{
@@ -403,6 +478,67 @@ func TestLogin(t *testing.T) {
 					UserID:       "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
 					CategoryID:   "default",
 					CurrentEmail: "nefix@example.org",
+				}, claims)
+			},
+			ExpectedRedirect: "",
+		},
+		"should return a PasswordResetRequired token if the user needs to reset their password": {
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("users").Filter(r.And(
+					r.Eq(r.Row.Field("uid"), "nefix"),
+					r.Eq(r.Row.Field("provider"), "local"),
+					r.Eq(r.Row.Field("category"), "default"),
+				), r.FilterOpts{})).Return([]interface{}{
+					map[string]interface{}{
+						"id":             "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+						"uid":            "nefix",
+						"username":       "nefix",
+						"password":       "$2y$12$/T3oB8wJOkA1Aq0A02ofL.dfVkGBr.08MnPdBNJP0gl/9OeumzTTm", // f0kt3Rf$
+						"provider":       "local",
+						"active":         true,
+						"category":       "default",
+						"role":           "user",
+						"group":          "default-default",
+						"name":           "Néfix Estrada",
+						"email":          "nefix@example.org",
+						"email_verified": false,
+					},
+				}, nil)
+			},
+			PrepareAPI: func(c *apiMock.Client) {
+				c.On("AdminUserRequiredDisclaimerAcknowledgement", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
+				c.On("AdminUserRequiredEmailVerification", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(false, nil)
+				c.On("AdminUserRequiredPasswordReset", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Return(true, nil)
+			},
+			Provider:   "form",
+			CategoryID: "default",
+			PrepareArgs: func() map[string]string {
+				return map[string]string{
+					"username": "nefix",
+					"password": "f0kt3Rf$",
+				}
+			},
+			CheckToken: func(ss string) {
+				claims, err := token.ParsePasswordResetRequiredToken("", ss)
+				assert.NoError(err)
+
+				// Ensure the expiration time is correct
+				assert.True(claims.ExpiresAt.Time.Before(time.Now().Add(61 * time.Minute)))
+				assert.True(claims.ExpiresAt.Time.After(time.Now().Add(59 * time.Minute)))
+
+				claims.ExpiresAt = nil
+				claims.IssuedAt = nil
+				claims.NotBefore = nil
+
+				assert.Equal(&token.PasswordResetRequiredClaims{
+					TypeClaims: token.TypeClaims{
+						RegisteredClaims: &jwt.RegisteredClaims{
+							Issuer: "isard-authentication",
+						},
+						Type:  token.TypePasswordResetRequired,
+						KeyID: "isardvdi",
+					},
+					UserID: "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
 				}, claims)
 			},
 			ExpectedRedirect: "",
