@@ -16,7 +16,7 @@
         variant="success"
         @click="accept()"
       >
-        Accept
+        Acknowledge
       </b-button>
     </div>
   </b-container>
@@ -38,7 +38,7 @@ export default {
     const messageTemplate = computed(() => $store.getters.getMessageTemplate)
 
     const accept = () => {
-      $store.dispatch('acceptDisclaimer')
+      $store.dispatch('acknowledgeDisclaimer')
     }
     const reject = () => {
       $store.dispatch('logout')

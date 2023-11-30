@@ -31,7 +31,7 @@ export default {
           config.headers.Authorization = `Bearer ${localStorage.token}`
           return config
         })
-        disclaimerAxios.get(`${apiV3Segment}/message-template/` + messageTemplateId).then(response => {
+        disclaimerAxios.get(`${apiV3Segment}/disclaimer`).then(response => {
           context.commit(
             'setMessageTemplate',
             response.data.message
@@ -50,14 +50,22 @@ export default {
         })
       }
     },
-    acceptDisclaimer (context) {
+    acknowledgeDisclaimer (context) {
       const disclaimerAxios = axios.create()
       disclaimerAxios.interceptors.request.use(config => {
         config.headers.Authorization = `Bearer ${localStorage.token}`
         return config
       })
-      return disclaimerAxios.post(`${authenticationSegment}/disclaimer`).then(response => {
-        store.dispatch('loginSuccess', response.data)
+      return disclaimerAxios.post(`${authenticationSegment}/acknowledge-disclaimer`).then(response => {
+        return new Promise((resolve, reject) => {
+          disclaimerAxios.post(`${authenticationSegment}/login`, { timeout: 25000 }).then(response => {
+            store.dispatch('loginSuccess', response.data)
+            resolve()
+          }).catch(e => {
+            store.dispatch('handleLoginError', e)
+            reject(e)
+          })
+        })
       }).catch(e => {
         ErrorUtils.handleAuthErrors(e, this._vm.$snotify)
       })
