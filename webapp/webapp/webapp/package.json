@@ -13,7 +13,6 @@
     "select2": "^4.0.2",
     "autosize": "^3.0.15",
     "parsleyjs": "^2.3.10",
-    "validator": "^3.3.5",
     "pnotify": "^3.0.0",
     "fullcalendar": "^2.6.1",
     "datatables.net": "^1.10.11",
