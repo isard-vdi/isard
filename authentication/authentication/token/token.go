@@ -32,6 +32,7 @@ type TypeClaims struct {
 type LoginClaims struct {
 	*jwt.RegisteredClaims
 	KeyID string          `json:"kid"`
+	Type  Type            `json:"type,omitempty"`
 	Data  LoginClaimsData `json:"data"`
 }
 
@@ -42,6 +43,15 @@ type LoginClaimsData struct {
 	CategoryID string `json:"category_id"`
 	GroupID    string `json:"group_id"`
 	Name       string `json:"name"`
+}
+
+func (c LoginClaims) Validate() error {
+	// TODO: The empty type should be eventually removed
+	if c.Type != TypeLogin && c.Type != "" {
+		return ErrInvalidTokenType
+	}
+
+	return nil
 }
 
 type CallbackClaims struct {
@@ -175,7 +185,7 @@ func GetTokenType(ss string) (Type, error) {
 
 	// TODO: This should be replaced by type = "login"
 	// Login token
-	case "":
+	case TypeLogin, "":
 		return TypeLogin, nil
 
 	default:
