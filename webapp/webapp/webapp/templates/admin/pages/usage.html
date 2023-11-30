@@ -1,6 +1,7 @@
 <!-- extend base layout -->
 {% extends "base.html" %}
 {% block css %}
+<link rel="stylesheet" type="text/css" href="/isard-admin/vendors/daterangepicker/daterangepicker.css" />
 {% endblock %}
 {% block content %}
 <div class="row">
@@ -128,7 +129,9 @@
     </div>
   </div>
 </div>
-{% endblock %} {% block pagescript %}
+{% endblock %}
+{% block pagescript %}
+<script src="/isard-admin/vendors/daterangepicker/daterangepicker.js"></script>
 <script src="/isard-admin/static/admin/js/filters.js"></script>
 <script src="/isard-admin/static/admin/js/usage.js"></script>
 <script src="/isard-admin/echarts/dist/echarts.min.js"></script>
