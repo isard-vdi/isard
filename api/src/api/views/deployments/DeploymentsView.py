@@ -137,7 +137,7 @@ def api_v3_deployment_hardware(payload, deployment_id):
     return (
         json.dumps(api_deployments.get_deployment_details_hardware(deployment_id)),
         200,
-        {"Content-Type": "text/csv"},
+        {"Content-Type": "application/json"},
     )
 
 
