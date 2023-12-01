@@ -34,6 +34,9 @@ func (a *AuthenticationServer) Serve(ctx context.Context) {
 	m.HandleFunc("/check", a.check)
 
 	m.HandleFunc("/acknowledge-disclaimer", a.acknowledgeDisclaimer)
+	m.HandleFunc("/verify-email", a.verifyEmail)
+	m.HandleFunc("/reset-password", a.resetPassword)
+	m.HandleFunc("/forgot-password", a.forgotPassword)
 
 	// SAML authentication
 	m.HandleFunc("/saml/metadata", a.Authentication.SAML().ServeMetadata)
@@ -64,6 +67,7 @@ func (a *AuthenticationServer) login(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
+		return
 	}
 
 	if args[provider.TokenArgsKey] == "" {
@@ -144,6 +148,7 @@ func (a *AuthenticationServer) callback(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
+		return
 	}
 
 	ctx := context.WithValue(r.Context(), provider.HTTPRequest, r)
@@ -180,6 +185,12 @@ func (a *AuthenticationServer) callback(w http.ResponseWriter, r *http.Request) 
 }
 
 func (a *AuthenticationServer) acknowledgeDisclaimer(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		w.Write([]byte("method not allowed"))
+		return
+	}
+
 	tkn := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 	if tkn == "" {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -188,6 +199,106 @@ func (a *AuthenticationServer) acknowledgeDisclaimer(w http.ResponseWriter, r *h
 	}
 
 	if err := a.Authentication.AcknowledgeDisclaimer(r.Context(), tkn); err != nil {
+		// TODO: Better error handling!
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (a *AuthenticationServer) verifyEmail(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		w.Write([]byte("method not allowed"))
+		return
+	}
+
+	tkn := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+	if tkn == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte("invalid token"))
+		return
+	}
+
+	if err := a.Authentication.VerifyEmail(r.Context(), tkn); err != nil {
+		// TODO: Better error handling!
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+type forgotPwdArgs struct {
+	CategoryID string `json:"category_id"`
+	Email      string `json:"email"`
+}
+
+func (a *AuthenticationServer) forgotPassword(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		w.Write([]byte("method not allowed"))
+		return
+	}
+
+	args, err := parseJSONArgs[forgotPwdArgs](r)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	if args == nil || args.CategoryID == "" || args.Email == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("invalid request"))
+		return
+	}
+
+	if err := a.Authentication.ForgotPassword(r.Context(), args.CategoryID, args.Email); err != nil {
+		// TODO: Better error handling!
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+type resetPwdArgs struct {
+	Password string `json:"password"`
+}
+
+func (a *AuthenticationServer) resetPassword(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		w.Write([]byte("method not allowed"))
+		return
+	}
+
+	tkn := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+	if tkn == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte("invalid token"))
+		return
+	}
+
+	args, err := parseJSONArgs[resetPwdArgs](r)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	if args == nil || args.Password == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("invalid request"))
+		return
+	}
+
+	if err := a.Authentication.ResetPassword(r.Context(), tkn, args.Password); err != nil {
 		// TODO: Better error handling!
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))

@@ -37,12 +37,12 @@ func (a *Authentication) RequestEmailVerification(ctx context.Context, ss, email
 		Category: tkn.CategoryID,
 		Email:    addr.Address,
 	}
-	uniq, err := u.IsEmailUnique(ctx, a.DB)
+	exists, err := u.ExistsWithEmail(ctx, a.DB)
 	if err != nil {
 		return fmt.Errorf("check if email is unique: %w", err)
 	}
 
-	if !uniq {
+	if exists {
 		return ErrEmailAlreadyInUse
 	}
 
@@ -51,12 +51,10 @@ func (a *Authentication) RequestEmailVerification(ctx context.Context, ss, email
 		return err
 	}
 
-	u = &model.User{
-		ID:                     tkn.UserID,
-		Email:                  addr.Address,
-		EmailVerified:          false,
-		EmailVerificationToken: verificationTkn,
-	}
+	u.Email = addr.Address
+	u.EmailVerified = false
+	u.EmailVerificationToken = verificationTkn
+
 	if err := u.UpdateEmail(ctx, a.DB); err != nil {
 		return fmt.Errorf("save the email verification token: %w", err)
 	}

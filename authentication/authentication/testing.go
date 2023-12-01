@@ -60,6 +60,16 @@ func (m *AuthenticationMock) VerifyEmail(ctx context.Context, tkn string) error 
 	return mArgs.Error(0)
 }
 
+func (m *AuthenticationMock) ForgotPassword(ctx context.Context, categoryID, email string) error {
+	mArgs := m.Called(ctx, categoryID, email)
+	return mArgs.Error(0)
+}
+
+func (m *AuthenticationMock) ResetPassword(ctx context.Context, tkn, pwd string) error {
+	mArgs := m.Called(ctx, tkn, pwd)
+	return mArgs.Error(0)
+}
+
 func (m *AuthenticationMock) SAML() *samlsp.Middleware {
 	mArgs := m.Called()
 	return mArgs.Get(0).(*samlsp.Middleware)

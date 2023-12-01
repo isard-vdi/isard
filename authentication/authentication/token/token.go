@@ -21,6 +21,7 @@ const (
 	TypeEmailVerificationRequired         Type = "email-verification-required"
 	TypeEmailVerification                 Type = "email-verification"
 	TypePasswordResetRequired             Type = "password-reset-required"
+	TypePasswordReset                     Type = "password-reset"
 )
 
 type TypeClaims struct {
@@ -164,6 +165,19 @@ func (c PasswordResetRequiredClaims) Validate() error {
 	return nil
 }
 
+type PasswordResetClaims struct {
+	TypeClaims
+	UserID string `json:"user_id"`
+}
+
+func (c PasswordResetClaims) Validate() error {
+	if c.Type != TypePasswordReset {
+		return ErrInvalidTokenType
+	}
+
+	return nil
+}
+
 func GetTokenType(ss string) (Type, error) {
 	tkn, _, err := new(jwt.Parser).ParseUnverified(ss, &TypeClaims{})
 	if err != nil {
@@ -179,7 +193,8 @@ func GetTokenType(ss string) (Type, error) {
 		TypeDisclaimerAcknowledgementRequired,
 		TypeEmailVerificationRequired,
 		TypeEmailVerification,
-		TypePasswordResetRequired:
+		TypePasswordResetRequired,
+		TypePasswordReset:
 
 		return claims.Type, nil
 

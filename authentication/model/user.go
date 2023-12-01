@@ -15,13 +15,15 @@ type User struct {
 	ID       string `rethinkdb:"id"`
 	UID      string `rethinkdb:"uid"`
 	Username string `rethinkdb:"username"`
-	Password string `rethinkdb:"password"`
 	Provider string `rethinkdb:"provider"`
 	Active   bool   `rethinkdb:"active"`
 
 	Category string `rethinkdb:"category"`
 	Role     Role   `rethinkdb:"role"`
 	Group    string `rethinkdb:"group"`
+
+	Password           string `rethinkdb:"password"`
+	PasswordResetToken string `rethinkdb:"password_reset_token"`
 
 	Name                   string `rethinkdb:"name"`
 	Email                  string `rethinkdb:"email"`
@@ -79,6 +81,13 @@ func (u *User) Update(ctx context.Context, sess r.QueryExecutor) error {
 	return err
 }
 
+func (u *User) UpdateDisclaimerAcknowledged(ctx context.Context, sess r.QueryExecutor) error {
+	_, err := r.Table("users").Get(u.ID).Update(map[string]interface{}{
+		"disclaimer_acknowledged": u.DisclaimerAcknowledged,
+	}).Run(sess)
+	return err
+}
+
 func (u *User) UpdateEmail(ctx context.Context, sess r.QueryExecutor) error {
 	_, err := r.Table("users").Get(u.ID).Update(map[string]interface{}{
 		"email":                    u.Email,
@@ -88,9 +97,9 @@ func (u *User) UpdateEmail(ctx context.Context, sess r.QueryExecutor) error {
 	return err
 }
 
-func (u *User) UpdateDisclaimerAcknowledged(ctx context.Context, sess r.QueryExecutor) error {
+func (u *User) UpdatePasswordResetToken(ctx context.Context, sess r.QueryExecutor) error {
 	_, err := r.Table("users").Get(u.ID).Update(map[string]interface{}{
-		"disclaimer_acknowledged": u.DisclaimerAcknowledged,
+		"password_reset_token": u.PasswordResetToken,
 	}).Run(sess)
 	return err
 }
@@ -116,6 +125,27 @@ func (u *User) Exists(ctx context.Context, sess r.QueryExecutor) (bool, error) {
 		}
 
 		return false, fmt.Errorf("read db response: %w", err)
+	}
+
+	return true, nil
+}
+
+func (u *User) ExistsWithEmail(ctx context.Context, sess r.QueryExecutor) (bool, error) {
+	res, err := r.Table("users").Filter(r.And(
+		r.Eq(r.Row.Field("category"), u.Category),
+		r.Eq(r.Row.Field("email"), u.Email),
+	), r.FilterOpts{}).Run(sess)
+	if err != nil {
+		return false, err
+	}
+	defer res.Close()
+
+	if err := res.One(u); err != nil {
+		if !errors.Is(err, r.ErrEmptyResult) {
+			return false, fmt.Errorf("read db response: %w", err)
+		}
+
+		return false, nil
 	}
 
 	return true, nil
@@ -149,25 +179,4 @@ func (u *User) LoadWithoutOverride(u2 *User) {
 	if u.Accessed == 0 {
 		u.Accessed = u2.Accessed
 	}
-}
-
-func (u *User) IsEmailUnique(ctx context.Context, sess r.QueryExecutor) (bool, error) {
-	res, err := r.Table("users").Filter(r.And(
-		r.Eq(r.Row.Field("category"), u.Category),
-		r.Eq(r.Row.Field("email"), u.Email),
-	), r.FilterOpts{}).Run(sess)
-	if err != nil {
-		return false, err
-	}
-	defer res.Close()
-
-	if err := res.One(u); err != nil {
-		if !errors.Is(err, r.ErrEmptyResult) {
-			return false, fmt.Errorf("read db response: %w", err)
-		}
-
-		return true, nil
-	}
-
-	return false, nil
 }

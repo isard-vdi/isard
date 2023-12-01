@@ -2,6 +2,7 @@ package http
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -61,4 +62,19 @@ func requiredArgs(requiredArgs []string, args map[string]string) error {
 	}
 
 	return nil
+}
+
+func parseJSONArgs[T any](r *http.Request) (*T, error) {
+	if r.Header.Get("Content-Type") != "application/json" {
+		return nil, errors.New("invalid content type")
+	}
+
+	defer r.Body.Close()
+
+	result := new(T)
+	if err := json.NewDecoder(r.Body).Decode(result); err != nil {
+		return nil, fmt.Errorf("error reading the JSON body: %w", err)
+	}
+
+	return result, nil
 }

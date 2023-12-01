@@ -102,3 +102,7 @@ func ParseEmailVerificationToken(secret, ss string) (*EmailVerificationClaims, e
 func ParsePasswordResetRequiredToken(secret, ss string) (*PasswordResetRequiredClaims, error) {
 	return parseAuthenticationToken[*PasswordResetRequiredClaims](secret, ss, &PasswordResetRequiredClaims{})
 }
+
+func ParsePasswordResetToken(secret, ss string) (*PasswordResetClaims, error) {
+	return parseAuthenticationToken[*PasswordResetClaims](secret, ss, &PasswordResetClaims{})
+}

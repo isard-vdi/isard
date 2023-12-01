@@ -34,6 +34,8 @@ type Interface interface {
 	AcknowledgeDisclaimer(ctx context.Context, tkn string) error
 	RequestEmailVerification(ctx context.Context, tkn string, email string) error
 	VerifyEmail(ctx context.Context, tkn string) error
+	ForgotPassword(ctx context.Context, categoryID, email string) error
+	ResetPassword(ctx context.Context, tkn string, pwd string) error
 
 	SAML() *samlsp.Middleware
 	// Refresh()
