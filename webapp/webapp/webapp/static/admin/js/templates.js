@@ -364,7 +364,7 @@ $(document).ready(function() {
         domains_table.draw();
     });
 
-    domains_table.on( 'click', 'tr[role="row"]', function (e) {
+    domains_table.on( 'click', 'tbody tr', function (e) {
         if (kind =='desktop') {
             toggleRow(this, e);
         }

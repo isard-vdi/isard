@@ -826,7 +826,7 @@ $(document).ready(function() {
       }
       })
 
-      storage_physical.on( 'click', 'tr[role="row"]', function (e) {
+      storage_physical.on( 'click', 'tbody tr', function (e) {
         toggleRow(this, e);
       });
 

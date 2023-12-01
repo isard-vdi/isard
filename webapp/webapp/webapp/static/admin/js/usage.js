@@ -421,7 +421,7 @@ function createUsageTable(data) {
           rowId: "id",
         })
 
-        $(tableId).off('click', 'tr[role="row"]').on('click', 'tr[role="row"]', function (e) {
+        $(tableId).off('click', 'tbody tr').on('click', 'tbody tr', function (e) {
           toggleRow(this, e);
           selectedItems = []
           $.each($(tableId).DataTable().rows('.active').data(), function (key, value) {
