@@ -854,7 +854,7 @@ function socketio_on(){
         } );
     } );
 
-    users_table.on( 'click', 'tr[role="row"]', function (e) {
+    users_table.on( 'click', 'tbody tr', function (e) {
         toggleRow(this, e);
     });
 

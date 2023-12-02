@@ -140,7 +140,7 @@ $(document).ready(function() {
       }
   });
 
-  deployments.on( 'click', 'tr[role="row"]', function (e) {
+  deployments.on( 'click', 'tbody tr', function (e) {
     toggleRow(this, e);
   });
 

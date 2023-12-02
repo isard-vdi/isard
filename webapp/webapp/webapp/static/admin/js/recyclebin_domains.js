@@ -238,7 +238,7 @@ $(document).ready(function () {
     "rowId": "id",
     "deferRender": true,
     "createdRow": (row, data, index) => {
-      if (!['deleted', 'restored', 'deleting'].includes(data.status) ) {
+      if (!['deleted', 'restored'].includes(data.status) ) {
         if ($('thead #select-all').is(':checked')) {
           $(row).find('.select-checkbox input[type="checkbox"]').prop('checked', true)
           $(row).addClass('active');
@@ -325,13 +325,12 @@ $(document).ready(function () {
       },
       {
         "title": '<input type="checkbox" id="select-all" class="form-check-input">',
-        "data": null,
+        "data": "status",
         "orderable": false,
-        "data": null,
         "width": "60px",
-        className: 'select-checkbox',
+        "className": 'select-checkbox',
         render: function (data, type, row, meta) {
-          if (!['deleted', 'restored', 'deleting'].includes(row.status) ) {
+          if (!['deleted', 'restored'].includes(data) ) {
             return '<input type="checkbox" class="form-check-input"></input>'
           }
         },
@@ -348,7 +347,7 @@ $(document).ready(function () {
     var rows = recyclebin_domains.rows({ filter: 'applied' }).data();
     var selectAll = $('#select-all').is(':checked')
     $.each(rows, function (index, row) {
-      if (!['deleted', 'restored', 'deleting'].includes(row.status) ) {
+      if (!['deleted', 'restored'].includes(row.status) ) {
         $("#" + row.id).find('.select-checkbox input[type="checkbox"]').prop('checked', selectAll)
         selectAll ? $("#" + row.id).addClass('active') : $("#" + row.id).removeClass('active')
       }
@@ -506,7 +505,7 @@ $(document).ready(function () {
     })
   }
 
-  recyclebin_domains.on( 'click', 'tr[role="row"]', function (e) {
+  recyclebin_domains.on( 'click', 'tbody tr', function (e) {
     toggleRow(this, e);
   });
   
@@ -519,7 +518,7 @@ $(document).ready(function () {
       var rowNodes = this.nodes();
       var rowData = this.data();
       if ($('#select-all').is(':checked')) {
-        if (!['deleted', 'restored', 'deleting'].includes(rowData.status)) {
+        if (!['deleted', 'restored'].includes(rowData.status)) {
           ids.push(rowData.id)
         }
       } else {
