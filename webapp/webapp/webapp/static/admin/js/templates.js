@@ -512,20 +512,6 @@ $(document).ready(function() {
     $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
 })
 function socketio_on(){
-    startClientVpnSocket(socket)
-    socket.on(kind+'_data', function(data){
-        var data = JSON.parse(data);
-        if(data.status =='Started' && 'viewer' in data && 'guest_ip' in data['viewer']){
-            if(!('viewer' in domains_table.row('#'+data.id).data()) || !('guest_ip' in domains_table.row('#'+data.id).data())){
-                viewerButtonsIP(data.id,data['viewer']['guest_ip'])
-            }
-        }
-        data = {...domains_table.row("#"+data.id).data(),...data}
-        dtUpdateInsert(domains_table,data,false);
-        setDomainDetailButtonsStatus(data.id, data.status, data.server);
-        $('#domains tr.active .form-check-input').prop("checked", true);
-    });
-
     socket.on(kind+'_delete', function(data){
         var data = JSON.parse(data);
         var row = domains_table.row('#'+data.id).remove().draw();
@@ -1182,6 +1168,19 @@ function setDefaultsTemplate(id) {
     });
 }
 
+function populate_tree_template_delete(id) {
+    $.ajax({
+        type: "GET",
+        url:"/api/v3/admin/desktops/tree_list/" + id,
+        contentType: 'application/json',
+        success: function(data)
+        {
+            const rootElement = $('#nestedTemplateTable tbody');
+            renderTable(data, rootElement,1, renderTemplateTree);
+        }
+    });
+}
+
 //~ RENDER DATATABLE
 function addDomainDetailPannel ( d ) {
         $newPanel = $template_domain.clone();
@@ -1227,51 +1226,6 @@ function renderDisplay(data){
                     <i class="fa fa-desktop"></i> Show</button>';
         }
         return ''
-}
-
-
-function populate_tree_template_delete(id) {
-    $(":ui-fancytree").fancytree("destroy")
-    $("#modalDeleteTemplate .tree_template_delete").fancytree({
-        extensions: ["table"],
-        table: {
-            indentation: 30,      // indent 20px per node level
-            nodeColumnIdx: 0,     // render the node title into the 0th column
-        },
-        source: {
-            url: "/api/v3/admin/desktops/tree_list/" + id,
-            cache: false
-        },
-        lazyLoad: function (event, data) {
-            data.result = $.ajax({
-                url: "/api/v3/admin/desktops/tree_list/" + id,
-                dataType: "json"
-            });
-        },
-        renderColumns: function (event, data) {
-            var node = data.node,
-                $tdList = $(node.tr).find(">td");
-            $tdList.eq(1).text(node.data,);
-            if (node.data.duplicate_parent_template == false) {
-                $tdList.eq(1).html('');
-
-            } else {
-                $tdList.eq(1).html('<i class="fa fa-check"></i>');
-            }
-            if (node.unselectable) {
-                $tdList.eq(2).html(`<i title="This ${node.data.kind} belongs to a different category" class="fa fa-exclamation-triangle"></i> ${node.data.user}`);
-                $('#modalDeleteTemplate #manager-warning').show();
-                $('#modalDeleteTemplate p').hide();
-                $('#modalDeleteTemplate #send').prop('disabled', true);
-                $('#modalDeleteTemplate #send').attr('title',  'You do not have permission to delete this template');
-            } else {
-                $tdList.eq(2).text(node.data.user);
-            }
-            $tdList.eq(3).text(node.data.kind);
-            $tdList.eq(4).text(node.data.category);
-            $tdList.eq(5).text(node.data.group);
-        }
-    });
 }
 
     $("#modalEditDesktop #send").on('click', function(e){

@@ -3,7 +3,6 @@
     "echarts": "^5.4.3",
     "mathjs": "^12.1.0",
     "socket.io": "^4.7.2",
-    "jquery.fancytree": "^2.38.3",
     "jquery": "^2.2.4",
     "bootstrap": "^3.3.7",
     "font-awesome": "^4.7.0",

@@ -48,15 +48,29 @@ body {
 }
 
 
-.fancytree-plain span.fancytree-selected span.fancytree-title {
-  background-color: yellow;
-  color: black;
+.nested-table {
+  border-collapse: collapse;
+  width: 100%;
 }
 
-.fancytree-plain span.fancytree-active span.fancytree-title {
-  background-color: blue;
-  color: white;
+.nested-th, .nested-td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
 }
+
+.nested-level-1 {
+  margin-left: 0;
+}
+
+.nested-level-2 {
+  margin-left: 20px;
+}
+
+.nested-level-3 {
+  margin-left: 40px;
+}
+
 
 .quota-form-input {
   width: 100% !important;

@@ -206,41 +206,6 @@ function setHardwareDomainDefaults(div_id,domain){
     }
 }
 
-
-function populate_tree_template(id){
-    $(":ui-fancytree").fancytree("destroy")
-    $(".template_tree").fancytree({
-
-        extensions: ["table"],
-        table: {
-            indentation: 20,      // indent 20px per node level
-            nodeColumnIdx: 2      // render the node title into the 2nd column
-        },
-        source: {
-            url: "/api/v3/admin/desktops/tree_list/" + id,
-            cache: false
-        },
-        lazyLoad: function(event, data) {
-            data.result = $.ajax({
-                url: "/api/v3/admin/desktops/tree_list/" + id,
-                dataType: "json"
-            });
-        },
-        selectMode: 3,
-        renderColumns: function(event, data) {
-            var node = data.node,
-            $tdList = $(node.tr).find(">td");
-            $tdList.eq(1).text(node.getIndexHier());
-            // (index #2 is rendered by fancytree)
-            $tdList.eq(3).text(node.data.user);
-            $tdList.eq(4).text(node.data.kind);
-            $tdList.eq(5).text(node.data.category);
-            $tdList.eq(6).text(node.data.group);
-        }
-    });
-
-}
-
 function setHardwareDomainDefaultsDetails(domain_id,item){
     if (item == "domain"){
         ajaxUrl = "/api/v3/domain/hardware/"+domain_id
@@ -281,9 +246,6 @@ function setHardwareDomainDefaultsDetails(domain_id,item){
                 $(div_id+" #favourite_hyp").closest("tr").show();
             }else{
                 $(div_id+" #favourite_hyp").closest("tr").hide();
-            }
-            if (data.kind == 'desktop') {
-                populate_tree_template(data.origin ? data.origin : data.id);
             }
         }
     });
