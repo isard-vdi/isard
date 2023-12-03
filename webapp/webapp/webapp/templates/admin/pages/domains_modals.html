@@ -232,7 +232,7 @@
                     </div>
                     <hr>
                     <div class="row">
-                        <div class="col-md-6 col-xs-12">                   
+                        <div class="col-md-6 col-xs-12">
                             <div class="row">
                                   <div id="modalInstall" class="x_panel" style="background-color:#efeff5;">
                                      <p style="font-size: 18px;margin-bottom:0px;"> Select OS hardware template</p>
@@ -763,11 +763,23 @@
                   <div class="x_title">
                      <h4>List of domains to be deleted<small>These domains depend on this template</small></h4>
                      <div class="clearfix"></div>
-               </div>
-               <form id="modalDeleteTemplateForm">
-                  <input  id="id" name="id" type="hidden" required>
-               </form>
-                  {% include '/snippets/template_tree.html' %}
+                  </div>
+                  <form id="modalDeleteTemplateForm">
+                     <input  id="id" name="id" type="hidden" required>
+                  </form>
+                  <table id="nestedTemplateTable" class="nested-table">
+                     <thead>
+                       <tr>
+                         <th class="nested-th">Title</th>
+                         <th class="nested-th">Kind</th>
+                         <th class="nested-th">Duplicate</th>
+                         <th class="nested-th">User</th>
+                         <th class="nested-th">Category</th>
+                         <th class="nested-th">Group</th>
+                       </tr>
+                     </thead>
+                     <tbody></tbody>
+                   </table>
                </div>
             </div>
             <div class="row">

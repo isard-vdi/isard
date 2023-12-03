@@ -879,7 +879,6 @@ def check_template_status(template_id=None, template=None):
 
 
 def domain_template_tree(domain_id):
-    domain_tree = {}
     with app.app_context():
         try:
             parents_ids = (
@@ -889,7 +888,7 @@ def domain_template_tree(domain_id):
                 .run(db.conn)
             )
         except:
-            return {}
+            return []
         parents = list(
             r.table("domains")
             .get_all(r.args(parents_ids))
@@ -902,7 +901,7 @@ def domain_template_tree(domain_id):
                     "parents_count": r.expr(domain["parents"]).default([]).count(),
                 }
             )
-            .order_by(r.desc("parents_count"))
+            .order_by(r.asc("parents_count"))
             .pluck(
                 "id",
                 "name",
@@ -910,16 +909,11 @@ def domain_template_tree(domain_id):
                 "username",
                 "category_name",
                 "group_name",
+                "parents_count",
             )
             .run(db.conn)
         )
-    for i in range(len(parents) - 1):
-        parents[i]["expanded"] = True
-        parents[i + 1]["children"] = [parents[i]]
-    parents[-1]["expanded"] = True
-    domain_tree["children"] = [parents[-1]]
-
-    return domain_tree
+    return parents
 
 
 def get_desktops_with_resource(table, item):
