@@ -14,7 +14,7 @@ type Err struct {
 }
 
 func (e Err) Error() string {
-	return fmt.Sprintf("http status code: %d: %s: %s: %s: %s", e.StatusCode, e.Err, e.Msg, e.Description, e.DescriptionCode)
+	return fmt.Sprintf("http status code %d: %s: %s: %s: %s", e.StatusCode, e.Err, e.Msg, e.DescriptionCode, e.Description)
 }
 
 func (e Err) Is(target error) bool {
