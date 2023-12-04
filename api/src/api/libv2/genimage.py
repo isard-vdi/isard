@@ -44,11 +44,11 @@ def draw_multiple_line_text(image, text, font, text_color):
     draw = ImageDraw.Draw(image)
     image_width, image_height = image.size
     lines = textwrap.wrap(text, width=12)
-    lw, lh = font.getsize(lines[0])
+    _, _, lw, lh = font.getbbox(lines[0])
     nlines = len(lines) if len(lines) <= 4 else 4
     y_text = int(image_height / (2**nlines)) if nlines < 4 else 0
     for line in lines:
-        line_width, line_height = font.getsize(line)
+        _, _, line_width, line_height = font.getbbox(line)
         draw.text(
             ((image_width - line_width) / 2, y_text), line, font=font, fill=text_color
         )
