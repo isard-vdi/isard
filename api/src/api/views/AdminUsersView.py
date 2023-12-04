@@ -1082,7 +1082,7 @@ def admin_secrets(payload):
     )
 
 
-@app.route("/api/v3/user/required/password-reset/<user_id>", methods=["GET"])
+@app.route("/api/v3/admin/user/required/password-reset/<user_id>", methods=["GET"])
 @is_admin
 def user_required_password_reset(payload, user_id):
     return (
@@ -1092,7 +1092,7 @@ def user_required_password_reset(payload, user_id):
     )
 
 
-@app.route("/api/v3/user/password-policy/<user_id>", methods=["GET"])
+@app.route("/api/v3/admin/user/password-policy/<user_id>", methods=["GET"])
 @is_admin_or_manager
 def admin_user_password_policy(payload, user_id):
     ownsUserId(payload, user_id)
@@ -1122,16 +1122,17 @@ def user_required_email_verification(payload, user_id):
     return json.dumps({"required": False}), 200, {"Content-Type": "application/json"}
 
 
-@app.route("/api/v3/admin/user/reset-password/<user_id>", methods=["PUT"])
+@app.route("/api/v3/admin/user/reset-password", methods=["PUT"])
 @is_admin
-def admin_use_password_update(payload, user_id):
+def admin_use_password_update(payload):
     data = request.get_json(force=True)
 
-    if not data.get("password") or not user_id:
+    if not data.get("password") or not data.get("user_id"):
         raise Error(
             "bad_request",
             "Password and user_id are required",
         )
+    user_id = data["user_id"]
     data = _validate_item("user_password_update", data)
 
     users.change_password(

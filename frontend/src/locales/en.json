@@ -6,7 +6,8 @@
         "maxLengthValue": "The {property} field has {model} characters, but it must have a maximum length of {max}.",
         "inputFormat": "Valid characters are letters, numbers, comma, dot, -, _",
         "url": "The {property} field must be an url.",
-        "undefined": "Not defined"
+        "undefined": "Not defined",
+        "email": "The {property} field must be a valid email address."
     },
     "forms": {
         "allowed": {
@@ -495,7 +496,8 @@
                 "select-category": "Please, select an option",
                 "usr": "Username",
                 "pwd": "Password",
-                "login": "Login"
+                "login": "Login",
+                "forgot-password": "Forgot your password?"
             },
             "errors": {
                 "401": "Incorrect user or password",
@@ -1036,6 +1038,13 @@
                     "delete": "Delete"
                 }
             }
+        },
+        "forgot-password": {
+            "title": "Forgot password",
+            "label": "Email",
+            "placeholder": "Email",
+            "description": "Requires a verified IsardVDI email address",
+            "reset-password": "Reset password"
         }
     },
     "messages": {

@@ -28,6 +28,7 @@ import Storage from '@/pages/Storage.vue'
 import RecycleBins from '@/pages/RecycleBins.vue'
 import RecycleBin from '@/pages/RecycleBin.vue'
 import ChangePassword from '@/pages/ChangePassword.vue'
+import ForgotPassword from '@/pages/ForgotPassword.vue'
 import Vue from 'vue'
 import VueRouter from 'vue-router'
 import { appTitle } from '../shared/constants'
@@ -329,11 +330,19 @@ const router = new VueRouter({
       }
     },
     {
-      path: '/password',
+      path: '/reset-password',
       component: ChangePassword,
       name: 'ChangePassword',
       meta: {
         title: i18n.t('router.titles.password')
+      }
+    },
+    {
+      path: '/forgot-password',
+      component: ForgotPassword,
+      name: 'ForgotPassword',
+      meta: {
+        title: i18n.t('router.titles.forgot-password')
       }
     },
     {

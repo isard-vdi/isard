@@ -496,7 +496,8 @@
                 "select-category": "Por favor, seleccione una opción",
                 "usr": "Nombre de usuario",
                 "pwd": "Contraseña",
-                "login": "Iniciar sesión"
+                "login": "Iniciar sesión",
+                "forgot-password": "Has olvidado la contraseña?"
             },
             "errors": {
                 "401": "Usuario o password incorrecto",
@@ -1051,6 +1052,13 @@
                     "delete": "Eliminar"
                 }
             }
+        },
+        "forgot-password": {
+            "title": "Reestablecer contraseña",
+            "label": "Correo electrónico",
+            "placeholder": "Correo electrónico",
+            "description": "Requiere una dirección de correo electrónico verificada por IsardVDI",
+            "reset-password": "Reestablecer contraseña"
         }
         
     },

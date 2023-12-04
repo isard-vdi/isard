@@ -114,6 +114,9 @@
                   :disabled="loading"
                   @blur="v$.pwd.$touch"
                 />
+                <!-- <b-link :to="{name: 'ForgotPassword', query: { categoryId: category } }">
+                  {{ $t('views.login.form.forgot-password') }}
+                </b-link> -->
                 <b-button
                   type="submit"
                   :disabled="loading"

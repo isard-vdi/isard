@@ -1663,6 +1663,8 @@ class ApiUsers:
             ).run(db.conn)
 
     def check_password_expiration(self, user_id):
+        if not os.environ.get("NOTIFY_EMAIL"):
+            return False
         with app.app_context():
             user = (
                 r.table("users")

@@ -320,7 +320,8 @@
                 "select-category": "Si us plau, selecciona una opció",
                 "usr": "Nom d'usuari",
                 "pwd": "Contrasenya",
-                "login": "Iniciar sessió"
+                "login": "Iniciar sessió",
+                "forgot-password": "Has oblidat la contrasenya?"
             },
             "other-logins": "O iniciar sessió amb",
             "powered-by": "Funciona amb {isardvdi}",
@@ -862,6 +863,13 @@
                     "delete": "Esborrar"
                 }
             }
+        },
+        "forgot-password": {
+            "title": "Reestablir contrasenya",
+            "label": "Correu electrònic",
+            "placeholder": "Correu electrònic",
+            "description": "Requereix una adreça de correu electrònic verificada per IsardVDI",
+            "reset-password": "Restablir contrasenya"
         }
     },
     "validations": {
