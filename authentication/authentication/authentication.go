@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"time"
 
@@ -92,7 +93,16 @@ func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor) *Authentication 
 
 	a.Client = cli
 
-	nCli, err := notifier.NewClientWithResponses(cfg.Notifier.Address)
+	nCli, err := notifier.NewClientWithResponses(cfg.Notifier.Address, notifier.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
+		ss, err := jwt.SignAPIJWT(a.Secret)
+		if err != nil {
+			return err
+		}
+
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", ss))
+
+		return nil
+	}))
 	if err != nil {
 		log.Fatal().Err(err).Msg("create notifier client")
 	}
