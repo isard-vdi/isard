@@ -45,15 +45,15 @@ type Interface interface {
 	AdminUserList(ctx context.Context) ([]*User, error)
 	AdminUserCreate(ctx context.Context, provider, role, category, group, uid, username, pwd string) (*User, error)
 	AdminUserDelete(ctx context.Context, id string) error
+	AdminUserRequiredDisclaimerAcknowledgement(ctx context.Context, id string) (bool, error)
+	AdminUserRequiredEmailVerification(ctx context.Context, id string) (bool, error)
+	AdminUserRequiredPasswordReset(ctx context.Context, id string) (bool, error)
+
 	AdminGroupCreate(ctx context.Context, category, uid, name, description, externalAppID, externalGID string) (*Group, error)
 	AdminDesktopList(context.Context) ([]*AdminDesktop, error)
 	AdminTemplateList(context.Context) ([]*Template, error)
 	AdminHypervisorUpdate(context.Context, *Hypervisor) error
 	AdminHypervisorOnlyForced(ctx context.Context, id string, onlyForced bool) error
-
-	AdminUserRequiredDisclaimerAcknowledgement(ctx context.Context, id string) (bool, error)
-	AdminUserRequiredEmailVerification(ctx context.Context, id string) (bool, error)
-	AdminUserRequiredPasswordReset(ctx context.Context, id string) (bool, error)
 
 	HypervisorList(context.Context) ([]*Hypervisor, error)
 	HypervisorGet(ctx context.Context, id string) (*Hypervisor, error)

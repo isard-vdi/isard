@@ -67,6 +67,21 @@ func (c *Client) AdminUserDelete(ctx context.Context, id string) error {
 	return args.Error(0)
 }
 
+func (c *Client) AdminUserRequiredDisclaimerAcknowledgement(ctx context.Context, id string) (bool, error) {
+	args := c.Called(ctx, id)
+	return args.Bool(0), args.Error(1)
+}
+
+func (c *Client) AdminUserRequiredEmailVerification(ctx context.Context, id string) (bool, error) {
+	args := c.Called(ctx, id)
+	return args.Bool(0), args.Error(1)
+}
+
+func (c *Client) AdminUserRequiredPasswordReset(ctx context.Context, id string) (bool, error) {
+	args := c.Called(ctx, id)
+	return args.Bool(0), args.Error(1)
+}
+
 func (c *Client) AdminGroupCreate(ctx context.Context, category, uid, name, description, externalAppID, externalGID string) (*isardvdi.Group, error) {
 	args := c.Called(ctx, category, uid, name, description, externalAppID, externalGID)
 	return args.Get(0).(*isardvdi.Group), args.Error(1)
@@ -90,21 +105,6 @@ func (c *Client) AdminHypervisorUpdate(ctx context.Context, hyp *isardvdi.Hyperv
 func (c *Client) AdminHypervisorOnlyForced(ctx context.Context, id string, onlyForced bool) error {
 	args := c.Called(ctx, id, onlyForced)
 	return args.Error(0)
-}
-
-func (c *Client) AdminUserRequiredDisclaimerAcknowledgement(ctx context.Context, id string) (bool, error) {
-	args := c.Called(ctx, id)
-	return args.Bool(0), args.Error(1)
-}
-
-func (c *Client) AdminUserRequiredEmailVerification(ctx context.Context, id string) (bool, error) {
-	args := c.Called(ctx, id)
-	return args.Bool(0), args.Error(1)
-}
-
-func (c *Client) AdminUserRequiredPasswordReset(ctx context.Context, id string) (bool, error) {
-	args := c.Called(ctx, id)
-	return args.Bool(0), args.Error(1)
 }
 
 func (c *Client) HypervisorList(ctx context.Context) ([]*isardvdi.Hypervisor, error) {
