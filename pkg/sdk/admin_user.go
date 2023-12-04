@@ -67,6 +67,22 @@ func (c *Client) AdminUserDelete(ctx context.Context, id string) error {
 
 	return nil
 }
+func (c *Client) AdminUserResetPassword(ctx context.Context, id, pwd string) error {
+	body := map[string]string{
+		"password": pwd,
+	}
+
+	req, err := c.newJSONRequest(http.MethodPut, fmt.Sprintf("admin/user/reset-password/%s", id), body)
+	if err != nil {
+		return err
+	}
+
+	if _, err := c.do(ctx, req, nil); err != nil {
+		return fmt.Errorf("reset user password: %w", err)
+	}
+
+	return nil
+}
 
 func (c *Client) AdminUserRequiredDisclaimerAcknowledgement(ctx context.Context, id string) (bool, error) {
 	req, err := c.newJSONRequest(http.MethodGet, fmt.Sprintf("admin/user/required/disclaimer-acknowledgement/%s", id), nil)

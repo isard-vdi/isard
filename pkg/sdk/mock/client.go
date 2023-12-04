@@ -67,6 +67,11 @@ func (c *Client) AdminUserDelete(ctx context.Context, id string) error {
 	return args.Error(0)
 }
 
+func (c *Client) AdminUserResetPassword(ctx context.Context, id, pwd string) error {
+	args := c.Called(ctx, id, pwd)
+	return args.Error(0)
+}
+
 func (c *Client) AdminUserRequiredDisclaimerAcknowledgement(ctx context.Context, id string) (bool, error) {
 	args := c.Called(ctx, id)
 	return args.Bool(0), args.Error(1)

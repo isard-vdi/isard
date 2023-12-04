@@ -45,6 +45,7 @@ type Interface interface {
 	AdminUserList(ctx context.Context) ([]*User, error)
 	AdminUserCreate(ctx context.Context, provider, role, category, group, uid, username, pwd string) (*User, error)
 	AdminUserDelete(ctx context.Context, id string) error
+	AdminUserResetPassword(ctx context.Context, id, pwd string) error
 	AdminUserRequiredDisclaimerAcknowledgement(ctx context.Context, id string) (bool, error)
 	AdminUserRequiredEmailVerification(ctx context.Context, id string) (bool, error)
 	AdminUserRequiredPasswordReset(ctx context.Context, id string) (bool, error)
