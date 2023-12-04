@@ -15,6 +15,7 @@ import (
 
 	"github.com/crewjam/saml/samlsp"
 	"github.com/rs/zerolog"
+	"gitlab.com/isard/isardvdi-sdk-go"
 )
 
 type AuthenticationServer struct {
@@ -299,9 +300,25 @@ func (a *AuthenticationServer) resetPassword(w http.ResponseWriter, r *http.Requ
 	}
 
 	if err := a.Authentication.ResetPassword(r.Context(), tkn, args.Password); err != nil {
-		// TODO: Better error handling!
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error()))
+		var apiErr isardvdi.Err
+		if !errors.As(err, &apiErr) {
+			// TODO: Better error handling!
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(err.Error()))
+			return
+		}
+
+		b, err := json.Marshal(apiErr)
+		if err != nil {
+			// TODO: Better error handling!
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(err.Error()))
+			return
+		}
+
+		w.Header().Add("Content-Type", "application/json")
+		w.Write(b)
+		w.WriteHeader(apiErr.StatusCode)
 		return
 	}
 
