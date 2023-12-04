@@ -217,7 +217,9 @@ func (c *Client) do(ctx context.Context, req *http.Request, v interface{}) (*htt
 	errRsp := &Err{}
 	_ = json.NewDecoder(errReader).Decode(errRsp)
 
-	if errRsp.Err != nil && errRsp.Msg != nil {
+	if errRsp.Err != "" && errRsp.Msg != "" {
+		errRsp.StatusCode = rsp.StatusCode
+
 		return rsp, errRsp
 	}
 

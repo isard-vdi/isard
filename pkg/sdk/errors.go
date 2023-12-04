@@ -1,44 +1,82 @@
 package isardvdi
 
-import "fmt"
+import (
+	"fmt"
+	"net/http"
+)
 
 type Err struct {
-	Err *string `json:"error,omitempty"`
-	Msg *string `json:"msg,omitempty"`
+	Err             string `json:"error"`
+	Msg             string `json:"msg"`
+	Description     string `json:"description,omitempty"`
+	DescriptionCode string `json:"description_code,omitempty"`
+	StatusCode      int    `json:"-"`
 }
 
-func (e *Err) Error() string {
-	code := ""
-	if e.Err != nil {
-		code = fmt.Sprintf("%v", *e.Err)
-	}
-
-	msg := GetString(e.Msg)
-
-	return fmt.Sprintf("%s: %s", code, msg)
+func (e Err) Error() string {
+	return fmt.Sprintf("http status code: %d: %s: %s: %s: %s", e.StatusCode, e.Err, e.Msg, e.Description, e.DescriptionCode)
 }
 
-func (e *Err) Is(target error) bool {
-	t, ok := target.(*Err)
+func (e Err) Is(target error) bool {
+	t, ok := target.(Err)
 	if !ok {
 		return false
 	}
 
-	return GetString(e.Err) == GetString(t.Err) && GetString(e.Msg) == GetString(t.Msg)
+	if e.StatusCode != 0 {
+		if e.StatusCode != t.StatusCode {
+			return false
+		}
+	}
+
+	return e.Err == t.Err &&
+		e.Msg == t.Msg
 }
 
 var (
-	errNotFoundErr = "not_found"
-	errNotFoundMsg = "Not found"
-	ErrNotFound    = &Err{
-		Err: &errNotFoundErr,
-		Msg: &errNotFoundMsg,
+	ErrBadRequest = Err{
+		Err:        "bad_request",
+		Msg:        "Bad request",
+		StatusCode: http.StatusBadRequest,
 	}
-
-	errForbiddenErr = "forbidden"
-	errForbiddenMsg = "Forbidden"
-	ErrForbidden    = &Err{
-		Err: &errForbiddenErr,
-		Msg: &errForbiddenMsg,
+	ErrUnauthorized = Err{
+		Err:        "unauthorized",
+		Msg:        "Unauthorized",
+		StatusCode: http.StatusUnauthorized,
+	}
+	ErrForbidden = Err{
+		Err:        "forbidden",
+		Msg:        "Forbidden",
+		StatusCode: http.StatusForbidden,
+	}
+	ErrNotFound = Err{
+		Err:        "not_found",
+		Msg:        "Not found",
+		StatusCode: http.StatusNotFound,
+	}
+	ErrConflict = Err{
+		Err:        "conflict",
+		Msg:        "Conflict",
+		StatusCode: http.StatusConflict,
+	}
+	ErrInternalServer = Err{
+		Err:        "internal_server",
+		Msg:        "Internal server error",
+		StatusCode: http.StatusInternalServerError,
+	}
+	ErrGatewayTimeout = Err{
+		Err:        "gateway_timeout",
+		Msg:        "Gateway timeout",
+		StatusCode: http.StatusGatewayTimeout,
+	}
+	ErrPreconditionRequired = Err{
+		Err:        "precondition_required",
+		Msg:        "Precondition required",
+		StatusCode: http.StatusPreconditionRequired,
+	}
+	ErrInsufficientStorage = Err{
+		Err:        "insufficient_storage",
+		Msg:        "Insufficient storage",
+		StatusCode: http.StatusInsufficientStorage,
 	}
 )
