@@ -6,6 +6,7 @@
 import os
 import pprint
 import re
+import shlex
 import signal
 import subprocess
 import threading
@@ -71,10 +72,10 @@ class DownloadThread(threading.Thread, object):
         threading.Thread.__init__(self)
         self.name = "_".join([table, id_down])
         self.table = table
-        self.path = path
-        self.path_selected = path_selected
+        self.path = shlex.quote(path)
+        self.path_selected = shlex.quote(path_selected)
         self.id = id_down
-        self.url = url
+        self.url = shlex.quote(url)
         self.dict_header = dict_header
         self.stop = False
         self.finalished_threads = finalished_threads

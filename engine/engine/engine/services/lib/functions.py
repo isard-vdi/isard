@@ -7,6 +7,7 @@ import ctypes
 import json
 import os
 import queue
+import shlex
 import socket
 import subprocess
 import sys
@@ -206,7 +207,8 @@ def create_new_disk_cmd(
     clustersize=QCOW2_CLUSTER_SIZE,
     extended_l2=QCOW2_EXTENDED_L2,
 ):
-    cmd = 'qemu-img create -f qcow2 -o cluster_size={clustersize},extended_l2={extended_l2} "{filename}" {size}'
+    filename = shlex.quote(filename)
+    cmd = "qemu-img create -f qcow2 -o cluster_size={clustersize},extended_l2={extended_l2} {filename} {size}"
     cmd = cmd.format(
         filename=filename, size=size, clustersize=clustersize, extended_l2=extended_l2
     )
@@ -825,6 +827,7 @@ def check_all_backing_chains(hostname, path_to_write_json=None):
     # pprint(tuples_domain_disk)
     cmds1 = list()
     for domain_id, path_domain_disk in tuples_domain_disk:
+        path_domain_disk = shlex.quote(path_domain_disk)
         cmds1.append({"title": domain_id, "cmd": backing_chain_cmd(path_domain_disk)})
         cmds1.append(
             {"title": domain_id, "cmd": 'stat -c %Y "{}"'.format(path_domain_disk)}
@@ -852,6 +855,7 @@ def check_all_os(hostname, path_to_write_json=None):
     tuples_domain_disk = get_disks_all_domains()
     cmds1 = list()
     for domain_id, path_domain_disk in tuples_domain_disk:
+        path_domain_disk = shlex.quote(path_domain_disk)
         cmds1.append({"title": domain_id, "cmd": cmd_check_os(path_domain_disk)})
 
     # pprint(cmds1)

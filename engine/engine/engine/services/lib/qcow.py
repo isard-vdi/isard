@@ -37,7 +37,8 @@ QCOW2_EXTENDED_L2 = os.environ.get("QCOW2_EXTENDED_L2", "off")
 
 def create_cmds_delete_disk(path_disk, mv_to_extension_deleted=False):
     cmds = list()
-    cmd = 'ls -l "{}"'.format(path_disk)
+    path_disk = shlex.quote(path_disk)
+    cmd = "ls -l {}".format(path_disk)
     cmds.append(cmd)
 
     if mv_to_extension_deleted is True:
@@ -66,7 +67,9 @@ def create_cmd_disk_from_uploaded_disk(
     group_owner="qemu",
 ):
     cmds1 = list()
-    path_dir = extract_dir_path(path_new_disk)
+    path_uploaded_disk = shlex.quote(path_uploaded_disk)
+    path_new_disk = shlex.quote(path_new_disk)
+    path_dir = shlex.quote(extract_dir_path(path_new_disk))
     touch_test_path = path_dir + "/.touch_test"
     cmds1.append({"title": "mkdir dir", "cmd": "mkdir -p {}".format(path_dir)})
     cmds1.append(
@@ -116,6 +119,7 @@ def create_cmd_disk_from_scratch(
     extended_l2=QCOW2_EXTENDED_L2,
 ):
     cmds1 = list()
+    path_new_disk = shlex.quote(path_new_disk)
     path_dir = extract_dir_path(path_new_disk)
     touch_test_path = path_dir + "/.touch_test"
     cmd_qemu_img = "qemu-img create -f {disk_type} -o cluster_size={cluster_size},extended_l2={extended_l2} {file_path} {size_str}".format(
@@ -187,6 +191,7 @@ def create_cmd_disk_from_virtbuilder(
     group_owner="qemu",
 ):
     cmds1 = list()
+    path_new_qcow = shlex.quote(path_new_qcow)
     path_dir = extract_dir_path(path_new_qcow)
     path_big_disk = path_new_qcow + ".big"
     path_dir_tmp_sparsify = path_dir + "/tmp"
@@ -266,12 +271,13 @@ def create_cmds_disk_from_base(path_base, path_new, clustersize=QCOW2_CLUSTER_SI
     # INFO TO DEVELOPER todo: hay que verificar primero si el disco no existe, ya que si no lo machaca creo
     # no se bien cuaqndo hacerlo y si vale la pena, habríamos de manejarlo como una excepción
     # o hacer un stat una vez creado y verificar que devuelve algo
-
     cmds = list()
     path_dir = extract_dir_path(path_new)
+    path_dir = shlex.quote(path_dir)
     cmd = "mkdir -p {}".format(path_dir)
     cmds.append(cmd)
 
+    path_base = shlex.quote(path_base)
     cmd = create_disk_from_base_cmd(path_new, path_base, clustersize)
     log.debug("creating disk cmd: {}".format(cmd))
     cmds.append(cmd)
@@ -309,8 +315,8 @@ def create_cmds_custom_fd(path_new_disk, d_vars_to_flopy):
     """
     cmds = list()
 
-    path_dir = extract_dir_path(path_new_disk)
-    path_custom_fd = f"{path_new_disk}.custom.fd"
+    path_dir = shlex.quote(extract_dir_path(path_new_disk))
+    path_custom_fd = shlex.quote(f"{path_new_disk}.custom.fd")
     cmds.append({"title": "mkdir_domain_disk_dir", "cmd": f"mkdir -p {path_dir}"})
     cmds.append({"title": "mknod loop0", "cmd": "mknod /dev/loop0 b 7 0"})
     cmds.append({"title": "force detach loop device", "cmd": "losetup -d /dev/loop0"})
@@ -394,6 +400,10 @@ def create_cmds_disk_template_from_domain(
 ):
     # INFO TO DEVELOPER, OJO SI NOS PASAN UN PATH CON ESPACIOS,HABRÍA QUE PONER COMILLAS EN TODOS LOS COMANDOS
     cmds1 = list()
+
+    path_template_disk = shlex.quote(path_template_disk)
+    path_domain_disk = shlex.quote(path_domain_disk)
+
     path_dir_template = extract_dir_path(path_template_disk)
     touch_test_path = path_dir_template + "/.touch_test"
 
@@ -830,6 +840,7 @@ def backing_chain(path_disk, disk_operations_hostname, json_format=True):
     return list of backing chain: list[0] is the most newer,
     and list[-1] the last qcow in backing chain
     """
+    path_disk = shlex.quote(path_disk)
     cmd = backing_chain_cmd(path_disk)
 
     d = exec_remote_cmd(cmd, disk_operations_hostname)
@@ -903,6 +914,7 @@ def test_hypers_disk_operations(hyps_disk_operations):
             }
             for k, p in paths.items():
                 for path in p:
+                    path = shlex.quote(path)
                     cmds1.append(
                         {
                             "title": f"try create dir if not exists - pool:{pool_id}, hypervisor: {hyp_id}, path_kind: {k}",

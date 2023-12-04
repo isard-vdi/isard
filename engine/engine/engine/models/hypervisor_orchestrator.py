@@ -7,6 +7,7 @@
 import os
 import pprint
 import queue
+import shlex
 import socket
 import threading
 import traceback
@@ -107,6 +108,7 @@ def add_hyper_to_db(
         for hp in hypervisor["hypervisors_pools"]:
             paths = r.table("hypervisors_pools").get(hp).run(r_conn)["paths"]
             for p in paths:
+                p = shlex.quote(p)
                 for i, path_data in enumerate(paths[p]):
                     if hyp_id not in path_data["disk_operations"]:
                         path_data["disk_operations"].append(hyp_id)
