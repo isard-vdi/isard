@@ -2,18 +2,24 @@ id:
   required: true
   type: string
   default_setter: genuuid
+  coerce: sanitize
 name:
   required: true
   type: string
+  coerce: sanitize
 memory:
   required: true
   type: string
+  coerce: sanitize
 model:
   type: string
+  coerce: sanitize
 description:
   type: string
+  coerce: sanitize
 brand:
   type: string
+  coerce: sanitize
 reservable_type:
   allowed:
     - gpus

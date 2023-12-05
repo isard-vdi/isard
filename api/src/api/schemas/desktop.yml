@@ -2,10 +2,13 @@ id:
   required: true
   type: string
   empty: false
+  coerce: sanitize
 name:
   type: string
+  coerce: sanitize
 description:
   type: string
+  coerce: sanitize
 hardware:
   schema: hardware
 guest_properties:
@@ -18,11 +21,13 @@ forced_hyp:
     - boolean
     - list
   required: false
+  coerce: sanitize
 favourite_hyp:
   type:
     - boolean
     - list
   required: false
+  coerce: sanitize
 image:
   type: dict
   required: false
@@ -36,6 +41,7 @@ image:
     id:
       type: string
       required: false
+      coerce: sanitize
     file:
       type: dict
       required: false
@@ -43,6 +49,8 @@ image:
         data:
           type: string
           required: true
+          coerce: sanitize
         filename:
           type: string
           required: true
+          coerce: sanitize

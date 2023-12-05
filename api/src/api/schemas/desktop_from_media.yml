@@ -2,21 +2,26 @@ id:
   required: yes
   type: string
   default_setter: genuuid
+  coerce: sanitize
 name:
   required: true
   type: string
   minlength: 4
+  coerce: sanitize
 description: 
   type: string
   default: ""
+  coerce: sanitize
 hardware:
   schema: hardware
 media_id:
   type: string
   required: true
+  coerce: sanitize
 disk_bus:
   type: string
   default: default
+  coerce: sanitize
 kind:
   type: string
   allowed:
@@ -26,18 +31,22 @@ kind:
 xml_id:
   type: string
   default: win10Virtio
+  coerce: sanitize
 forced_hyp:
   type:
     - boolean
     - list
   default: false
+  coerce: sanitize
 favourite_hyp:
   type:
     - boolean
     - list
   default: false
+  coerce: sanitize
 user_id:
   type: string
+  coerce: sanitize
 guest_properties:
   type: dict
   schema: guest_properties_update

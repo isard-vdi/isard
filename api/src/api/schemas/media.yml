@@ -3,10 +3,12 @@ id:
   type: string
   empty: false
   default_setter: genuuid
+  coerce: sanitize
 name:
   required: true
   empty: false
   type: string
+  coerce: sanitize
 accessed:
   type: float
 allowed:
@@ -15,26 +17,35 @@ category:
   required: true
   empty: false
   type: string
+  coerce: sanitize
 description:
   type: string
+  coerce: sanitize
 detail:
   type: string
+  coerce: sanitize
 group:
   required: true
   empty: false
   type: string
+  coerce: sanitize
 hypervisors_pools:
   type: list
+  coerce: sanitize
 icon:
   type: string
   default_setter: mediaicon
+  coerce: sanitize
 kind:
   required: true
   type: string
+  coerce: sanitize
 path:
   type: string
+  coerce: sanitize
 path_download:
   type: string
+  coerce: sanitize
 progress:
   default:
     schema:
@@ -42,42 +53,53 @@ progress:
     received:
       type: string
       default: "0"
+      coerce: sanitize
     received_percent:
       type: float
       default: 0
     speed_current:
       type: string
       default: ""
+      coerce: sanitize
     speed_download_average:
       type: string
       default: ""
+      coerce: sanitize
     speed_upload_average:
       type: string
       default: ""
+      coerce: sanitize
     time_left:
       type: string
       default: ""
+      coerce: sanitize
     time_spent:
-      type: string        
+      type: string    
       default: ""
+      coerce: sanitize
     time_total:
       type: string
       default: ""
+      coerce: sanitize
     total:
       type: string
       default: ""
+      coerce: sanitize
     total_percent:
       default: 0
       type: integer
     xferd:
       type: string
       default: "0"
+      coerce: sanitize
     xferd_percent:
       type: string
       default: "0"
+      coerce: sanitize
 status:
   type: string
   default: "DownloadStarting"
+  coerce: sanitize
 url-isard:
   default: False
   type:
@@ -85,8 +107,11 @@ url-isard:
     - boolean
 url-web:
   type: string
+  coerce: sanitize
 user:
   required: true
   type: string
+  coerce: sanitize
 username:
   type: string
+  coerce: sanitize

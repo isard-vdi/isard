@@ -1,5 +1,6 @@
 id:
   type: string
+  coerce: sanitize
 quota:
   type: 
     - dict
@@ -7,3 +8,4 @@ quota:
   schema: quotas
 ids:
   type: list
+  coerce: sanitize

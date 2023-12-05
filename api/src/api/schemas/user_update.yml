@@ -1,9 +1,12 @@
 id:
   type: string
+  coerce: sanitize
 name:
   type: string
+  coerce: sanitize
 email:
   type: string
+  coerce: sanitize
 role:
   type: string
   allowed:
@@ -14,6 +17,7 @@ role:
 secondary_groups:
   required: false
   type: list
+  coerce: sanitize
 password:
   type: string
   minlength: 8
@@ -21,3 +25,4 @@ active:
   type: boolean
 ids:
   type: list
+  coerce: sanitize

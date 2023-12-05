@@ -2,17 +2,21 @@ id:
   required: true
   type: string
   empty: false
+  coerce: sanitize
 name:
   empty: false
   type: string
+  coerce: sanitize
 description: 
   type: string
+  coerce: sanitize
 frontend:
   type: boolean
   nullable: true 
 allowed_domain:
   type: string
   nullable: false
+  coerce: sanitize
 auto:
   type:
     - dict
@@ -22,6 +26,7 @@ auto:
       required: true
       type: list
       minlength: 1
+      coerce: sanitize
 ephimeral:
   type:
     - dict
@@ -41,4 +46,5 @@ ephimeral:
       nullable: false
       empty: false
 custom_url_name:
-  type: string  
+  type: string
+  coerce: sanitize

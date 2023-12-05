@@ -1,5 +1,6 @@
 id:
   type: string
+  coerce: sanitize
 quota:
   type: 
     - dict

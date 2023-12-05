@@ -6,6 +6,7 @@ credentials:
     username:
       type: string
       default: ""
+      coerce: sanitize
     password:
       type: string
       default: ""
@@ -17,11 +18,16 @@ viewers:
   schema:
     browser_rdp:
       type: dict
+      coerce: sanitize
     browser_vnc:
       type: dict
+      coerce: sanitize
     file_rdpgw:
       type: dict
+      coerce: sanitize
     file_rdpvpn:
       type: dict
+      coerce: sanitize
     file_spice:
       type: dict
+      coerce: sanitize

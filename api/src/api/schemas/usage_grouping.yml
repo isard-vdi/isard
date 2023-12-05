@@ -3,12 +3,17 @@ id:
   type: string
   empty: false
   default_setter: genuuid
+  coerce: sanitize
 name:
   type: string
+  coerce: sanitize
 desc:
   type: string
+  coerce: sanitize
 parameters:
   type: list
   required: true
+  coerce: sanitize
 item_type:
   type: string
+  coerce: sanitize

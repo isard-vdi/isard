@@ -2,15 +2,18 @@ name:
   required: true
   type: string
   empty: false
+  coerce: sanitize
 description:
   required: false
   type: string
   default: ""
+  coerce: sanitize
 desktop_name:
   required: false
   type: string
   empty: false
   default: setdeploymentname
+  coerce: sanitize
 allowed:
   schema: allowed
 hardware:

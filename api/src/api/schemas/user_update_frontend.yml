@@ -3,7 +3,10 @@ password:
   minlength: 8
 name:
   type: string
+  coerce: sanitize
 email:
   type: string
+  coerce: sanitize
 photo:
   type: string
+  coerce: sanitize

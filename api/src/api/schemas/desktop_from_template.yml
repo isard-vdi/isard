@@ -2,12 +2,15 @@ name:
   required: true
   type: string
   minlength: 4
+  coerce: sanitize
 description: 
   type: string
   required: false
+  coerce: sanitize
 template_id:
   type: string
   required: true
+  coerce: sanitize
 hardware:
   schema: hardware_update
 guest_properties:
@@ -18,3 +21,4 @@ image:
 id:
   default_setter: genuuid
   empty: false
+  coerce: sanitize

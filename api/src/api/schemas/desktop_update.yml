@@ -1,10 +1,13 @@
 id:
   type: string
   empty: false
+  coerce: sanitize
 name:
   type: string
+  coerce: sanitize
 description:
   type: string
+  coerce: sanitize
 hardware:
   schema: hardware_update
 guest_properties:
@@ -18,11 +21,14 @@ forced_hyp:
   type:
     - boolean
     - list
+  coerce: sanitize
 favourite_hyp:
   type:
     - boolean
     - list
+  coerce: sanitize
 xml:
   type: string
 ids:
   type: list
+  coerce: sanitize

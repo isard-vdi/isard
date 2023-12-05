@@ -1,14 +1,17 @@
 id:
   required: true
   empty: false
+  coerce: sanitize
 start_date:
   type: string
   empty: false
   nullable: false
+  coerce: sanitize
 end_date:
   type: string
   empty: false
   nullable: true
+  coerce: sanitize
 limits:
   required: true
   type: dict

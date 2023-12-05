@@ -2,30 +2,38 @@ id:
   required: true
   empty: false
   default_setter: genuuid
+  coerce: sanitize
 item_ids:
   type: list
   required: true
   empty: false
   nullable: false
+  coerce: sanitize
 grouping_id:
   type: string
   required: true
   empty: false
   nullable: false
+  coerce: sanitize
 start_date:
   type: string
   required: true
   empty: false
   nullable: false
+  coerce: sanitize
 end_date:
   type: string
   required: true
   empty: false
   nullable: true
+  coerce: sanitize
 limit_id:
   type: string
   required: true
+  coerce: sanitize
 item_type:
   type: string
+  coerce: sanitize
 item_consumer:
   type: string
+  coerce: sanitize

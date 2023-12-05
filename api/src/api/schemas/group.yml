@@ -3,35 +3,43 @@ id:
   type: string
   empty: false
   default_setter: genuuid
+  coerce: sanitize
 name:
   required: true
   empty: false
   type: string
+  coerce: sanitize
 description: 
   required: false
   type: string
+  coerce: sanitize
 parent_category: 
   required: true
   empty: false
   type: string
+  coerce: sanitize
 linked_groups:
   type: list
   default: []
+  coerce: sanitize
 uid:
   required: true
   empty: false
   type: string
   default_setter: genuuid
+  coerce: sanitize
 external_app_id:
   required: false
   type: string
   nullable: true
   default: null
+  coerce: sanitize
 external_gid:
   required: false
   type: string
   nullable: true
   default: null
+  coerce: sanitize
 enrollment:
   type: dict
   default:
@@ -42,28 +50,33 @@ enrollment:
         - string 
         - boolean
       default: false
+      coerce: sanitize
     advanced:
       type:
         - string 
         - boolean
       default: false
+      coerce: sanitize
     user:
       type:
         - string 
         - boolean
       default: false
+      coerce: sanitize
 limits:
   type: 
     - dict
     - boolean
   default: false
   schema: limits
+  coerce: sanitize
 quota:
   type: 
     - dict
     - boolean
   default: false
   schema: quotas
+  coerce: sanitize
 auto:
   type:
     - dict
@@ -74,10 +87,12 @@ auto:
       required: true
       type: list
       minlength: 1
+      coerce: sanitize
 ephimeral:
   type: dict
   schema:
     action:
       type: string
+      coerce: sanitize
     minutes:
       type: integer  
