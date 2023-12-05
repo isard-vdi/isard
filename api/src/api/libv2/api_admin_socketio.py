@@ -763,68 +763,57 @@ def start_config_thread():
 
 ## Admin namespace CONNECT
 @socketio.on("connect", namespace="/administrators")
-def socketio_admins_connect(nothing_should_be_here=None):
-    if nothing_should_be_here != None:
-        app.logger.error(
-            "Call to socketio_admins_connect with args, wtf? args="
-            + str(nothing_should_be_here)
-        )
-        return
-
+def socketio_admins_connect(auth=None):
+    if auth == None:
+        return False
     try:
-        payload = get_token_payload(request.args.get("jwt"))
+        payload = get_token_payload(auth.get("jwt"))
     except:
-        quit_admins_rooms(request.args.get("jwt"))
-        return
+        quit_admins_rooms(auth.get("jwt"))
+        return False
 
-    try:
-        if payload["role_id"] == "admin":
-            join_room("admins")
-            if os.environ.get("DEBUG_WEBSOCKETS", "") == "true":
-                app.logger.debug(
-                    {
-                        "websocket": "join_room_admins",
-                        **payload,
-                    },
-                )
-                print(sc.green("join_room_admins", "reverse"))
-                print(sc.magenta(pformat(payload), "reverse"))
-        elif payload["role_id"] == "manager":
-            join_room(payload["category_id"])
-            if os.environ.get("DEBUG_WEBSOCKETS", "") == "true":
-                app.logger.debug(
-                    {
-                        "websocket": "join_room_manager",
-                        **payload,
-                    },
-                )
-                print(sc.green("join_room_manager", "reverse"))
-                print(sc.magenta(pformat(payload), "reverse"))
-        else:
-            if os.environ.get("DEBUG_WEBSOCKETS", "") == "true":
-                app.logger.error(
-                    {
-                        "websocket": "join_room_admins_not_allowed",
-                        **payload,
-                    },
-                )
-                print(sc.red("join_room_admins_not_allowed", "reverse"))
-                print(sc.magenta(pformat(payload), "reverse"))
-    except:
-        payload = quit_admins_rooms(request.args.get("jwt"))
+    if payload.get("role_id") == "admin":
+        join_room("admins")
+        if os.environ.get("DEBUG_WEBSOCKETS", "") == "true":
+            app.logger.debug(
+                {
+                    "websocket": "join_room_admins",
+                    **payload,
+                },
+            )
+            print(sc.green("join_room_admins", "reverse"))
+            print(sc.magenta(pformat(payload), "reverse"))
+        return True
+    if payload.get("role_id") == "manager":
+        join_room(payload.get("category_id"))
+        if os.environ.get("DEBUG_WEBSOCKETS", "") == "true":
+            app.logger.debug(
+                {
+                    "websocket": "join_room_manager",
+                    **payload,
+                },
+            )
+            print(sc.green("join_room_manager", "reverse"))
+            print(sc.magenta(pformat(payload), "reverse"))
+        return True
+
+    quit_admins_rooms(auth.get("jwt"))
+    if os.environ.get("DEBUG_WEBSOCKETS", "") == "true":
         app.logger.error(
             {
-                "websocket": "join_room_admins_internal_server",
+                "websocket": "join_room_admins_not_allowed",
                 **payload,
-                **request.args,
-                "error": str(traceback.format_exc()),
             },
         )
+        print(sc.red("join_room_admins_not_allowed", "reverse"))
+        print(sc.magenta(pformat(payload), "reverse"))
+    return False
 
 
 @socketio.on("disconnect", namespace="/administrators")
-def socketio_admins_disconnect(data=None):
-    quit_admins_rooms(request.args.get("jwt"))
+def socketio_admins_disconnect(auth={}):
+    quit_admins_rooms(auth.get("jwt"))
+    return False
 
 
 def quit_admins_rooms(jwt):

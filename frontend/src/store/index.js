@@ -151,14 +151,13 @@ export default new Vuex.Store({
         commit('setPageErrorMessage', i18n.t('views.login.errors.generic'))
       }
     },
-    login ({ commit }, data, version) {
+    login ({ commit }, data) {
       return new Promise((resolve, reject) => {
         axios.create().post(`${authenticationSegment}/login?provider=${data.get('provider')}&category_id=${data.get('category_id')}&username=${data.get('username')}`, data, { timeout: 25000 }).then(response => {
           const jwt = JSON.parse(atob(response.data.split('.')[1]))
           if (jwt.type === 'register') {
             router.push({ name: 'Register' })
           } else {
-            store.dispatch('checkVersion', version)
             store.dispatch('loginSuccess', response.data)
           }
 
@@ -245,13 +244,6 @@ export default new Vuex.Store({
     },
     showMessageModal (context, show) {
       context.commit('setShowMessageModal', show)
-    },
-    checkVersion (context, version) {
-      return axios.get(`${apiV3Segment}`).then(response => {
-        if (response.data.usage !== 'devel' && response.data.isardvdi_version !== version) {
-          router.go()
-        }
-      })
     },
     checkCreateQuota (context, data) {
       axios.get(`${apiV3Segment}/${data.itemType}/new/check_quota`).then(response => {

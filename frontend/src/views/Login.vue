@@ -191,7 +191,6 @@ export default {
     const usr = ref('')
     const pwd = ref('')
     const showDismissibleAlert = ref(false)
-    const version = ref(null)
 
     const providers = computed(() => $store.getters.getProviders)
     const categories = computed(() => $store.getters.getCategories)
@@ -272,7 +271,7 @@ export default {
         data.append('username', usr.value)
         data.append('password', pwd.value)
         $store
-          .dispatch('login', data, version.value)
+          .dispatch('login', data)
           .then(() => {})
           .catch(err => {
             console.log(err)
