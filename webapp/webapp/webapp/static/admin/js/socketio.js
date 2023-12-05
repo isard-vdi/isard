@@ -17,10 +17,13 @@
  *
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
+
 socket = io.connect(`//${location.host}/administrators`, {
-    'query': {'jwt': localStorage.getItem("token")},
     'path': '/api/v3/socket.io/',
-    'transports': ['websocket']
+    'transports': ['websocket'],
+	auth: {
+		jwt: localStorage.getItem("token")
+	}
 })
 
 socket.on('connect', function () {
@@ -28,5 +31,10 @@ socket.on('connect', function () {
 })
 
 socket.on('connect_error', function (data) {
+    console.log(data)
+    if(data == "Error: Connection rejected by server"){
+        localStorage.removeItem("token")
+        window.location.href = "/login"
+    }
     connection_lost()
 })

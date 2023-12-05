@@ -9,17 +9,10 @@ var users_table= ''
 var current_category = ''
 
 $(document).ready(function() {
-    socket = io.connect(location.protocol+'//' + document.domain + ':' + location.port+'/administrators', {
-        'query': {'jwt': localStorage.getItem("token")},
-        'path': '/api/v3/socket.io/',
-        'transports': ['websocket']
-    });
-
     $template = $(".template-detail-users");
 
     users_table=$('#users').DataTable( {
         "initComplete": function(settings, json) {
-            initUsersSockets()
             let searchUserId = getUrlParam('searchUser');
             if (searchUserId) {
                 this.api().column([2]).search("(^" + searchUserId + "$)", true, false).draw();
@@ -224,21 +217,13 @@ $(document).ready(function() {
                         type: 'success'
                     })
                 }
-            });     
+            });
         }
     });
+    $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
 });
 
-function initUsersSockets () {
-    socket.on('connect', function() {
-        connection_done();
-        console.log('Listening users namespace');
-    });
-
-    socket.on('connect_error', function(data) {
-      connection_lost();
-    });
-
+function socketio_on() {
     socket.on('users_data', function(data) {
         var data = JSON.parse(data);
         data = {...users_table.row("#"+data.id).data(),...data}

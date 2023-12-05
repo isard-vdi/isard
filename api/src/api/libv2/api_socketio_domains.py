@@ -301,26 +301,20 @@ def start_domains_thread():
 
 # Domains namespace
 @socketio.on("connect", namespace="/userspace")
-def socketio_users_connect(nothing_should_be_here=None):
-    if nothing_should_be_here != None:
-        app.logger.error(
-            "Call to socketio_admins_connect with args, wtf? args="
-            + str(nothing_should_be_here)
-        )
-        return
-
+def socketio_users_connect(auth=None):
+    if auth == None:
+        return False
     try:
-        payload = get_token_payload(request.args.get("jwt"))
+        payload = get_token_payload(auth.get("jwt"))
     except:
-        quit_users_rooms(request.args.get("jwt"))
-        return
+        quit_users_rooms(auth.get("jwt"))
+        return False
 
     if payload.get("desktop_id"):
         with app.app_context():
             if not r.table("domains").get(payload.get("desktop_id")).run(db.conn):
-                quit_users_rooms(request.args.get("jwt"))
-                return
-
+                quit_users_rooms(auth.get("jwt"))
+                return False
         join_room(payload.get("desktop_id"))
         if os.environ.get("DEBUG_WEBSOCKETS", "") == "true":
             app.logger.debug(
@@ -331,7 +325,9 @@ def socketio_users_connect(nothing_should_be_here=None):
             )
             print(sc.green("join_room_desktop_id_direct_viewer", "reverse"))
             print(sc.magenta(pformat(payload), "reverse"))
-    elif payload.get("user_id"):
+        return True
+
+    if payload.get("user_id"):
         join_room(payload["user_id"])
         if os.environ.get("DEBUG_WEBSOCKETS", "") == "true":
             app.logger.debug(
@@ -342,17 +338,19 @@ def socketio_users_connect(nothing_should_be_here=None):
             )
             print(sc.green("join_room_user_id", "reverse"))
             print(sc.magenta(pformat(payload), "reverse"))
-    else:
-        quit_users_rooms(request.args.get("jwt"))
-        if os.environ.get("DEBUG_WEBSOCKETS", "") == "true":
-            app.logger.error(
-                {
-                    "websocket": "join_room_users_not_allowed",
-                    **payload,
-                },
-            )
-            print(sc.red("join_room_users_not_allowed", "reverse"))
-            print(sc.magenta(pformat(payload), "reverse"))
+        return True
+
+    quit_users_rooms(auth.get("jwt"))
+    if os.environ.get("DEBUG_WEBSOCKETS", "") == "true":
+        app.logger.error(
+            {
+                "websocket": "join_room_users_not_allowed",
+                **payload,
+            },
+        )
+        print(sc.red("join_room_users_not_allowed", "reverse"))
+        print(sc.magenta(pformat(payload), "reverse"))
+    return False
 
 
 @socketio.on("disconnect", namespace="/userspace")

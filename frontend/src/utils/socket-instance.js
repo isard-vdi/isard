@@ -5,5 +5,15 @@ export const socket = io(`${window.location.protocol}//${window.location.host}/u
   {
     path: apiWebSockets,
     transports: ['websocket'],
-    autoConnect: false
+    rememberUpgrade: true,
+    autoConnect: true,
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 2000,
+    randomizationFactor: 0.5,
+    timeout: 3000,
+    auth: {
+      jwt: localStorage.getItem('token')
+    }
   })
