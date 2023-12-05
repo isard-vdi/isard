@@ -2,12 +2,15 @@ id:
   required: true
   empty: false
   default_setter: genuuid
+  coerce: sanitize
 name:
   type: string
   required: true
   empty: false
+  coerce: sanitize
 description:
   type: string
+  coerce: sanitize
 model:
   required: yes
   type: string
@@ -23,7 +26,10 @@ allowed:
   schema: allowed
 ram:
   required: true
+  coerce: sanitize
 heads:
   required: true
+  coerce: sanitize
 vram:
   required: true
+  coerce: sanitize

@@ -2,18 +2,22 @@ id:
   type: string
   empty: false
   default_setter: genuuid
+  coerce: sanitize
 name:
   required: true
   type: string
   empty: false
+  coerce: sanitize
 description:
   required: false
   type: string
   default: ""
+  coerce: sanitize
 template_id:
   required: true
   type: string
   empty: false
+  coerce: sanitize
 visible:
   required: false
   type: boolean
@@ -23,6 +27,7 @@ desktop_name:
   type: string
   empty: false
   default: setdeploymentname
+  coerce: sanitize
 allowed:
   schema: allowed
 hardware:

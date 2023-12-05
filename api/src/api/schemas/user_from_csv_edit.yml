@@ -1,8 +1,10 @@
 name:
   type: string
   empty: false
+  coerce: sanitize
 email:
   type: string
+  coerce: sanitize
 password:
   type: string
   empty: false
@@ -10,21 +12,27 @@ password:
 group:
   type: string
   empty: false
+  coerce: sanitize
 category:
   type: string
   required: true
   empty: false
+  coerce: sanitize
 secondary_groups:
   type: list
+  coerce: sanitize
 active:
   type: boolean
 uid:
   type: string
   required: true
   empty: false
+  coerce: sanitize
 provider:
   type: string
   required: true
   empty: false
+  coerce: sanitize
 id:
   type: string
+  coerce: sanitize

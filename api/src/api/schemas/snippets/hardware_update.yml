@@ -17,11 +17,14 @@ memory:
 graphics:
   type: list
   empty: false
+  coerce: sanitize
 videos:
   type: list
   empty: false
+  coerce: sanitize
 interfaces:
   type: list
+  coerce: sanitize
 disk_bus:
   type: string
   empty: false
@@ -32,12 +35,14 @@ disk_bus:
   - virtio
 isos:
   type: list
+  coerce: sanitize
 floppies:
   type: list
+  coerce: sanitize
 reservables:
   type: dict
   schema:
     vgpus:
       type: list
       nullable: true
-
+      coerce: sanitize

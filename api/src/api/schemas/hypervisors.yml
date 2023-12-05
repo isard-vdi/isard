@@ -8,44 +8,60 @@ capabilities:
       required: false
 description:
   type: string
+  coerce: sanitize
 detail:
   type: string
+  coerce: sanitize
 enabled:
   type: boolean
 hostname:
   type: string
   required: true
+  coerce: sanitize
 isard_hyper_vpn_host:
   type: string
+  coerce: sanitize
 hypervisors_pools:
   type: list
+  coerce: sanitize
 id:
   required: true
   empty: false
+  coerce: sanitize
 port:
   type: string
+  coerce: sanitize
 status:
   type: string
+  coerce: sanitize
 status_time:
   type: boolean
 uri:
   type: string
+  coerce: sanitize
 user:
   type: string
+  coerce: sanitize
 viewer:
   schema:
     static:
       type: string
+      coerce: sanitize
     proxy_video:
       type: string
+      coerce: sanitize
     spice_ext_port:
       type: string
+      coerce: sanitize
     html5_ext_port:
       type: string
+      coerce: sanitize
     proxy_hyper_host:
       type: string
+      coerce: sanitize
 info: 
   type: dict
+  coerce: sanitize
 only_forced:
   type: boolean
 nvidia_enabled:
@@ -57,6 +73,7 @@ min_free_mem_gb:
 storage_pools:
   type: list
   default_setter: storagepools
+  coerce: sanitize
 buffering_hyper:
   type: boolean
 gpu_only:

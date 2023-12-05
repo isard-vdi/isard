@@ -10,6 +10,7 @@ from secrets import token_bytes
 
 import yaml
 from cerberus import Validator, schema_registry
+from flask import escape
 from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 
 from api import app
@@ -18,6 +19,16 @@ from .helpers import _parse_string
 
 
 class IsardValidator(Validator):
+    def _normalize_coerce_sanitize(self, value):
+        if type(value) == str:
+            return escape(value)
+        elif type(value) == list:
+            return [escape(item) for item in value]
+        elif type(value) == dict:
+            return {escape(key): escape(value) for key, value in value.items()}
+        else:
+            return value
+
     def _normalize_default_setter_storagepools(self):
         return DEFAULT_STORAGE_POOL_ID
 

@@ -3,18 +3,22 @@ roles:
     - list
     - boolean
   default: false
+  coerce: sanitize
 categories:
   type: 
     - list
     - boolean
   default: false
+  coerce: sanitize
 groups:
   type: 
     - list
     - boolean
   default: false
+  coerce: sanitize
 users:
   type: 
     - list
     - boolean
   default: false
+  coerce: sanitize

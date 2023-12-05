@@ -2,10 +2,12 @@ name:
   required: true
   type: string
   empty: false
+  coerce: sanitize
 description: 
   required: false
   type: string
   default: ""
+  coerce: sanitize
 enabled:
   type: boolean
   default: false
@@ -14,3 +16,4 @@ allowed:
   schema: allowed
 user_id:
   type: string
+  coerce: sanitize

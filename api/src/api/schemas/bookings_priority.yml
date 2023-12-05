@@ -2,19 +2,23 @@ id:
   required: true
   empty: false
   default_setter: genuuid
+  coerce: sanitize
 allowed:
   type: dict
   schema: allowed
 description:
   type: string
+  coerce: sanitize
 name:
   type: string
   required: true
   empty: false
+  coerce: sanitize
 priority:
   type: integer
 rule_id:
   type: string
+  coerce: sanitize
 max_items:
   type: integer
 max_time:
@@ -23,5 +27,7 @@ forbid_time:
   type: integer
 priority_id:
   type: string
+  coerce: sanitize
 priority_table:
   type: string
+  coerce: sanitize

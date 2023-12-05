@@ -2,12 +2,15 @@ name:
   required: true
   type: string
   minlength: 4
+  coerce: sanitize
 description: 
   type: string
   required: false
+  coerce: sanitize
 template_id:
   type: string
   required: true
+  coerce: sanitize
 allowed:
   required: true
   schema: allowed

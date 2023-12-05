@@ -2,13 +2,17 @@ id:
   required: true
   type: string
   default_setter: genuuid
+  coerce: sanitize
 name:
   required: true
   type: string
+  coerce: sanitize
 ifname:
   type: string
+  coerce: sanitize
 description:
   type: string
+  coerce: sanitize
 kind:
   required: true
   type: string
@@ -43,7 +47,9 @@ net:
 model:
   required: true
   type: string
+  coerce: sanitize
 qos_id:
   type: string
+  coerce: sanitize
 allowed:
   type: dict

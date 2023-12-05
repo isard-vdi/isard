@@ -4,3 +4,4 @@ reservables:
     vgpus:
       type: list
       nullable: true
+      coerce: sanitize

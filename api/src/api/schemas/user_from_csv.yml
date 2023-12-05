@@ -3,11 +3,14 @@ username:
   empty: false
   regex: "^[A-Za-z0-9._@%+-]+$"
   maxlength: 40
+  coerce: sanitize
 name:
   required: true
   empty: false
+  coerce: sanitize
 email:
   type: string
+  coerce: sanitize
 password:
   required: true
   empty: false
@@ -15,10 +18,13 @@ password:
 group:
   required: true
   empty: false
+  coerce: sanitize
 category:
   required: true
   empty: false
+  coerce: sanitize
 role:
   required: true
   empty: false
+  coerce: sanitize
 

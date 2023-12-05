@@ -2,6 +2,7 @@ id:
   required: true
   empty: false
   default_setter: genuuid
+  coerce: sanitize
 accessed:
   type: float
 active:
@@ -9,35 +10,43 @@ active:
 email:
   required: false
   type: string
+  coerce: sanitize
 group:
   required: true
   empty: false
   type: string
+  coerce: sanitize
 secondary_groups:
   required: false
   type: list
   default: []
+  coerce: sanitize
 name:
   required: true
   type: string
   empty: false
   minlength: 1
+  coerce: sanitize
 category:
   required: true
   empty: false
   type: string
+  coerce: sanitize
 description: 
   required: false
   type: string
+  coerce: sanitize
 password:
   required: true
   type: string
   minlength: 8
 photo:
   required: false
+  coerce: sanitize
 provider:
   required: true
   type: string
+  coerce: sanitize
 role:
   required: true
   type: string
@@ -51,11 +60,13 @@ username:
   type: string
   regex: "^[A-Za-z0-9._@%+-]+$"
   maxlength: 40
+  coerce: sanitize
 uid:
   required: true
   empty: false
   type: string
   default_setter: genuuid
+  coerce: sanitize
 quota:
   type: 
     - dict
@@ -67,3 +78,4 @@ active:
 default_templates:
   type: list
   required: false
+  coerce: sanitize

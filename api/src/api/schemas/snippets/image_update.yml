@@ -7,6 +7,7 @@ type:
 id:
   type: string
   required: false
+  coerce: sanitize
 file:
   type: dict
   required: false
@@ -14,6 +15,8 @@ file:
     data:
       type: string
       required: true
+      coerce: sanitize
     filename:
       type: string
       required: true
+      coerce: sanitize

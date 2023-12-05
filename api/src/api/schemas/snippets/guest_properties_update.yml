@@ -3,6 +3,7 @@ credentials:
   schema:
     username:
       type: string
+      coerce: sanitize
     password:
       type: string
 fullscreen:
@@ -12,11 +13,16 @@ viewers:
   schema:
     browser_rdp:
       type: dict
+      coerce: sanitize
     browser_vnc:
       type: dict
+      coerce: sanitize
     file_rdpgw:
       type: dict
+      coerce: sanitize
     file_rdpvpn:
       type: dict
+      coerce: sanitize
     file_spice:
       type: dict
+      coerce: sanitize

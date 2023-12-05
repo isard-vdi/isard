@@ -3,16 +3,20 @@ template_id:
   type: string
   empty: false
   default_setter: genuuid
+  coerce: sanitize
 name:
   required: true
   type: string
   empty: false
+  coerce: sanitize
 desktop_id: 
   type: string
+  coerce: sanitize
 description: 
   required: false
   type: string
   default: ""
+  coerce: sanitize
 enabled:
   type: boolean
   default: false
@@ -21,6 +25,8 @@ allowed:
   schema: allowed
 user_id:
   type: string
+  coerce: sanitize
 id:
   empty: false
   default_setter: genuuid
+  coerce: sanitize
