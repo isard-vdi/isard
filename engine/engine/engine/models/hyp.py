@@ -8,7 +8,7 @@
 a module to control hypervisor functions and state. Overrides libvirt events and
 
 """
-
+import shlex
 import socket
 import threading
 import time
@@ -578,9 +578,11 @@ class hyp(object):
                         path = [
                             i for i in sub_paths if i.find(d_uuid["pci_mdev_id"]) > 0
                         ][0]
-                    cmds.append(
-                        f"echo {uuid_create} > '{path}/mdev_supported_types/{type_id}/create'"
+                    path = shlex.quote(path)
+                    full_path = shlex.quote(
+                        f"{path}/mdev_supported_types/{type_id}/create"
                     )
+                    cmds.append(f"echo {uuid_create} > {full_path}")
                 else:
                     update_vgpu_created(gpu_id, new_profile, uuid_create, created=True)
                     self.mdevs[pci_id][new_profile][uuid_create]["created"] = True
@@ -622,6 +624,7 @@ class hyp(object):
                         path = [
                             i for i in sub_paths if i.find(d_uuid["pci_mdev_id"]) > 0
                         ][0]
+                    path = shlex.quote(path)
                     cmds.append(
                         f"echo {uuid_create} > '{path}/mdev_supported_types/{type_id}/create'"
                     )
