@@ -1,4 +1,5 @@
 import { socket } from '@/utils/socket-instance'
+import store from '@/store/index.js'
 
 // socket.onAny((event, ...args) => {
 //   console.log('onAny')
@@ -14,8 +15,7 @@ socket.on('connect_error', (err) => {
     console.log('WS connection error')
   } else if (err.message === 'Connection rejected by server') {
     console.log('WS connection not authorized')
-    localStorage.token = ''
-    // window.location.href = '/login'
+    store.dispatch('logout')
   } else {
     console.log('WS connection error: ' + err)
   }
@@ -25,6 +25,7 @@ export default {
   actions: {
     openSocket (context, { jwt, room }) {
       if (!socket.connected) {
+        socket.auth.jwt = localStorage.token
         socket.io.opts.query = {
           room
         }

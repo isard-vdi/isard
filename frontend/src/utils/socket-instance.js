@@ -14,6 +14,6 @@ export const socket = io(`${window.location.protocol}//${window.location.host}/u
     randomizationFactor: 0.5,
     timeout: 3000,
     auth: {
-      jwt: localStorage.getItem('token')
+      jwt: ''
     }
   })
