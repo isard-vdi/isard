@@ -7,6 +7,9 @@
 
 import traceback
 
+from isardvdi_common.media import Media
+from isardvdi_common.storage_pool import StoragePool
+from isardvdi_common.task import Task
 from rethinkdb import RethinkDB
 
 from api import app
@@ -14,8 +17,6 @@ from api import app
 from ..libv2.api_desktop_events import desktop_stop, desktop_updating
 
 r = RethinkDB()
-import logging as log
-import time
 import traceback
 
 from ..libv2.api_cards import ApiCards
@@ -37,6 +38,61 @@ db.init_app(app)
 api_allowed = ApiAllowed()
 
 persistent = ApiDesktopsPersistent()
+
+
+def media_task_delete(media_id, user_id=None, keep_status=False):
+    media = Media(media_id)
+
+    if not Media.exists(media_id):
+        raise Error(error="not_found", description="Media not found")
+
+    if media.status not in [
+        "Downloaded",
+        "DownloadFailed",
+        "DownloadFailedInvalidFormat",
+    ]:
+        raise Error(
+            error="precondition_required",
+            description="Media not ready to be deleted",
+            description_code="media_should_not_be_downloading",
+        )
+
+    actual_status = media.status
+    finished_status = actual_status if keep_status else "deleted"
+    media.status = "maintenance"
+    task_id = Task(
+        user_id=user_id,
+        queue=f"storage.{StoragePool.get_best_for_action('delete', path=media.path_downloaded.rsplit('/', 1)[0]).id}.default",
+        task="delete",
+        job_kwargs={
+            "kwargs": {
+                "path": media.path_downloaded,
+            },
+        },
+        dependents=[
+            {
+                "queue": "core",
+                "task": "update_status",
+                "job_kwargs": {
+                    "kwargs": {
+                        "statuses": {
+                            "finished": {
+                                finished_status: {
+                                    "media": [media.id],
+                                },
+                            },
+                            "canceled": {
+                                "Downloaded": {
+                                    "media": [media.id],
+                                },
+                            },
+                        },
+                    },
+                },
+            }
+        ],
+    ).id
+    return task_id
 
 
 class ApiMedia:

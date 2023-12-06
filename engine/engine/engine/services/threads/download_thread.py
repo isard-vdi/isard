@@ -51,6 +51,7 @@ from rethinkdb import r
 
 URL_DOWNLOAD_INSECURE_SSL = True
 TIMEOUT_WAITING_HYPERVISOR_TO_DOWNLOAD = 10
+FILETYPES_MEDIA_OK = ["application/x-iso9660-image"]
 
 
 class DownloadThread(threading.Thread, object):
@@ -360,19 +361,63 @@ class DownloadThread(threading.Thread, object):
                 update_storage_status(self.storage_id, "ready")
                 update_domain_status("Updating", self.id, detail="downloaded disk")
             else:
-                update_table_field(self.table, self.id, "path_downloaded", self.path)
-                update_table_dict(
-                    self.table,
-                    self.id,
-                    {
-                        "status": "Downloaded",
-                        "progress": {
-                            "received": d_progress["total"],
-                            "total_percent": 100,
-                            "total_bytes": hf.parse_size(d_progress["total"] + "iB"),
-                        },
-                    },
+                # test if downloaded is an iso
+                ssh_command = [
+                    "ssh",
+                    "-p",
+                    self.port,
+                    f"{self.user}@{self.hostname}",
+                    f"file -b --mime-type '{self.path}'",
+                ]
+
+                logs.downloads.debug("SSH COMMAND: {}".format(ssh_command))
+
+                p = subprocess.Popen(
+                    ssh_command,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    preexec_fn=os.setsid,
                 )
+                p.poll()
+                s_error = p.stderr.readline().decode("utf8")
+                s_out = p.stdout.readline().decode("utf8")
+                logs.downloads.info(f"Filetype of path {self.path}: {s_out}")
+
+                if len(s_error) > 0 or s_out.strip() not in FILETYPES_MEDIA_OK:
+                    if len(s_error) > 0:
+                        logs.downloads.error(
+                            f"error in filetype verification: {s_error}"
+                        )
+                    logs.downloads.error(
+                        f"Filetype of path {self.path} verification failed: {s_out}"
+                    )
+                    update_table_dict(
+                        self.table,
+                        self.id,
+                        {
+                            "path_downloaded": self.path,
+                            "status": "DownloadFailedInvalidFormat",
+                        },
+                    )
+                else:
+                    update_to_status = "Downloaded"
+
+                    update_table_dict(
+                        self.table,
+                        self.id,
+                        {
+                            "path_downloaded": self.path,
+                            "status": update_to_status,
+                            "progress": {
+                                "received": d_progress["total"],
+                                "total_percent": 100,
+                                "total_bytes": hf.parse_size(
+                                    d_progress["total"] + "iB"
+                                ),
+                            },
+                        },
+                    )
+
         self.finalished_threads.append(self.path)
 
 
