@@ -64,6 +64,9 @@ def admin_table_list(
     elif id and index:
         query = query.get_all(id, index=index)
 
+    if table == "users":
+        query = query.without("password")
+
     if table == "media":
         query = query.merge(
             lambda media: {
@@ -341,6 +344,8 @@ def admin_table_update(table, data, payload=False):
 def admin_table_get(table, id, pluck=None):
     _validate_table(table)
     query = r.table(table).get(id)
+    if table == "users":
+        query = query.without("password")
     if table == "media":
         query = query.merge(
             lambda media: {

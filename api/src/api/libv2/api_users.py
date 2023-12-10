@@ -75,7 +75,7 @@ from .helpers import (
 @cached(cache=TTLCache(maxsize=100, ttl=60))
 def get_user(user_id):
     with app.app_context():
-        return r.table("users").get(user_id).run(db.conn)
+        return r.table("users").get(user_id).without("password").run(db.conn)
 
 
 def check_category_domain(category_id, domain):
