@@ -27,6 +27,7 @@ services:
       - /opt/isard-local/haproxy/spoe:/usr/local/etc/haproxy/spoe
     environment:
       ENV: /usr/local/etc/environment
+      FORBID_DOMAIN_IP: ${FORBID_DOMAIN_IP:-false}
       CORS: ${CORS:-*}
     env_file:
       - .env

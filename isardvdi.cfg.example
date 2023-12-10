@@ -1,4 +1,4 @@
-# Isard main config v2.12.3
+# Isard main config v2.12.4
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -39,6 +39,10 @@
 ## NOTE: In infrastructure hypervisors should be the reacheable ip/dns from 
 ##       isard-engine
 DOMAIN=localhost
+
+## Allow DOMAIN as IP addr. Select true in production and use a valid domain.
+## https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/01-Information_Gathering/04-Enumerate_Applications_on_Webserver
+#FORBID_DOMAIN_IP=false
 
 ## Allowed CORS. By default will not restrict (testing/develop)
 ## Set it to your main web domain for all your isard servers in production.
