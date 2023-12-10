@@ -30,3 +30,4 @@ RUN apk -U upgrade --no-cache
 COPY --from=build /build/websockify /
 
 CMD [ "/websockify" ]
+USER nobody
