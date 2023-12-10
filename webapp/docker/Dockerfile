@@ -34,3 +34,4 @@ EXPOSE 5000
 WORKDIR /isard
 CMD [ "python3", "-u", "start.py" ]
 STOPSIGNAL SIGINT
+USER nobody
