@@ -15,17 +15,29 @@ from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 
 from api import app
 
-from .helpers import _parse_string
-
 
 class IsardValidator(Validator):
     def _normalize_coerce_sanitize(self, value):
         if type(value) == str:
             return escape(value)
         elif type(value) == list:
-            return [escape(item) for item in value]
+            new_list = []
+            for item in value:
+                if type(item) == str:
+                    new_list.append(escape(item))
+                elif type(item) == dict:
+                    new_list.append(self._normalize_coerce_sanitize(item))
+                else:
+                    new_list.append(item)
+            return new_list
         elif type(value) == dict:
-            return {escape(key): escape(value) for key, value in value.items()}
+            data = {
+                key: escape(value)
+                if type(value) == str
+                else self._normalize_coerce_sanitize(value)
+                for key, value in value.items()
+            }
+            return data
         else:
             return value
 
@@ -37,9 +49,9 @@ class IsardValidator(Validator):
 
     def _normalize_default_setter_mediaicon(self, document):
         if document["kind"] == "iso":
-            return _parse_string("fa-circle-o")
+            return "fa-circle-o"
         else:
-            return _parse_string("fa-floppy-o")
+            return "fa-floppy-o"
 
     def _check_with_validate_vlan(self, field, value):
         """

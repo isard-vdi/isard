@@ -58,9 +58,7 @@ api_allowed = ApiAllowed()
 from .api_desktop_events import desktop_delete, desktop_reset, desktop_stop
 from .helpers import (
     _check,
-    _parse_desktop_booking,
     _parse_media_info,
-    _parse_string,
     default_guest_properties,
     gen_new_mac,
     gen_payload_from_user,

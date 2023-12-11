@@ -27,7 +27,7 @@ db = RDB(app)
 db.init_app(app)
 
 
-from .helpers import _check, _parse_media_info, _parse_string, get_user_data
+from .helpers import _check, _parse_media_info, get_user_data
 
 
 class ApiTemplates:
@@ -44,8 +44,6 @@ class ApiTemplates:
         description="",
         enabled=False,
     ):
-        parsed_name = _parse_string(name)
-
         with app.app_context():
             try:
                 user = (
