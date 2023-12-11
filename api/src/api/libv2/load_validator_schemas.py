@@ -23,9 +23,23 @@ class IsardValidator(Validator):
         if type(value) == str:
             return escape(value)
         elif type(value) == list:
-            return [escape(item) for item in value]
+            new_list = []
+            for item in value:
+                if type(item) == str:
+                    new_list.append(escape(item))
+                elif type(item) == dict:
+                    new_list.append(self._normalize_coerce_sanitize(item))
+                else:
+                    new_list.append(item)
+            return new_list
         elif type(value) == dict:
-            return {escape(key): escape(value) for key, value in value.items()}
+            data = {
+                key: escape(value)
+                if type(value) == str
+                else self._normalize_coerce_sanitize(value)
+                for key, value in value.items()
+            }
+            return data
         else:
             return value
 
