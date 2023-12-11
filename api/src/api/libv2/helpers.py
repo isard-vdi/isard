@@ -7,11 +7,12 @@
 
 import logging as log
 import random
+import re
 import string
 import time
 import traceback
+import unicodedata
 import uuid
-from datetime import timedelta
 
 from isardvdi_common.api_exceptions import Error
 from rethinkdb import RethinkDB
@@ -141,34 +142,6 @@ def _get_domain_reservables(domain_id):
     data = data["create_dict"]["reservables"]
     data_without_falses = {k: v for k, v in data.items() if v}
     return data_without_falses
-
-
-def _parse_string(txt):
-    import locale
-    import re
-    import unicodedata
-
-    if type(txt) is not str:
-        txt = txt.decode("utf-8")
-    # locale.setlocale(locale.LC_ALL, 'ca_ES')
-    prog = re.compile("[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$")
-    if not prog.match(txt):
-        raise Error(
-            "internal_server",
-            "Unable to parse string",
-            traceback.format_exc(),
-            description_code="unable_to_parse_string",
-        )
-    else:
-        # ~ Replace accents
-        txt = "".join(
-            (
-                c
-                for c in unicodedata.normalize("NFD", txt)
-                if unicodedata.category(c) != "Mn"
-            )
-        )
-        return txt.replace(" ", "_")
 
 
 def _check(dict, action):

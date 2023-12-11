@@ -24,14 +24,13 @@ api_cards = ApiCards()
 
 from isardvdi_common.api_exceptions import Error
 
-from ..libv2.api_admin import admin_table_update
 from ..libv2.api_desktops_persistent import (
     ApiDesktopsPersistent,
     unassign_resource_from_desktops_and_deployments,
 )
 from .api_allowed import ApiAllowed
 from .flask_rethink import RDB
-from .helpers import _check, _parse_string
+from .helpers import _check
 
 db = RDB(app)
 db.init_app(app)
@@ -152,7 +151,7 @@ def domain_from_disk(user, name, description, icon, create_dict, hyper_pools):
             .run(db.conn)
         )
 
-    parsed_name = _parse_string(name)
+    parsed_name = name
     media_id = create_dict.pop("media")
     media = r.table("media").get(media_id).run(db.conn)
     create_dict["hardware"]["disks"] = [

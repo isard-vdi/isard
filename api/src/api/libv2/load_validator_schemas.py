@@ -15,8 +15,6 @@ from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
 
 from api import app
 
-from .helpers import _parse_string
-
 
 class IsardValidator(Validator):
     def _normalize_coerce_sanitize(self, value):
@@ -51,9 +49,9 @@ class IsardValidator(Validator):
 
     def _normalize_default_setter_mediaicon(self, document):
         if document["kind"] == "iso":
-            return _parse_string("fa-circle-o")
+            return "fa-circle-o"
         else:
-            return _parse_string("fa-floppy-o")
+            return "fa-floppy-o"
 
     def _check_with_validate_vlan(self, field, value):
         """

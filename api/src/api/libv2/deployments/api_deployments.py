@@ -40,12 +40,11 @@ from api.libv2.quotas import Quotas
 from ..api_desktop_events import deployment_delete_desktops, desktops_stop
 from ..api_desktops_common import ApiDesktopsCommon
 from ..api_desktops_persistent import ApiDesktopsPersistent
-from ..bookings.api_booking import Bookings, is_future
+from ..bookings.api_booking import Bookings
 from ..helpers import (
     _check,
     _parse_deployment_booking,
     _parse_deployment_desktop,
-    _parse_string,
     parse_domain_insert,
     parse_domain_update,
     set_current_booking,
