@@ -86,9 +86,11 @@ def storage_delete_bulk(payload, recycle_bin_id=None):
     tasks = {}
     for recycle_bin_id in recycle_bin_ids:
         ownsRecycleBinId(payload, recycle_bin_id)
-        rb = RecycleBin(recycle_bin_id)
-        tasks = rb.delete_storage(payload["user_id"])
-
+        try:
+            rb = RecycleBin(recycle_bin_id)
+            tasks = rb.delete_storage(payload["user_id"])
+        except:
+            continue
     return (
         json.dumps(tasks),
         200,
@@ -114,8 +116,11 @@ def recycle_bin_update_task(payload):
 def recycle_bin_empty(payload):
     rb_ids = RecycleBin.get_user_recycle_bin_ids(payload["user_id"], "recycled")
     for rb_id in rb_ids:
-        rb = RecycleBin(rb_id)
-        rb.delete_storage(payload["user_id"])
+        try:
+            rb = RecycleBin(rb_id)
+            rb.delete_storage(payload["user_id"])
+        except:
+            continue
     return (
         json.dumps({}),
         200,
