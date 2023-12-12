@@ -1,0 +1,240 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Authentication API",
+        "version": "v1.0"
+    },
+    "paths": {
+        "/acknowledge-disclaimer": {
+            "post": {
+                "operationId": "AcknowledgeDisclaimer",
+                "description": "",
+                "parameters": [],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AcknowledgeDisclaimerRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AcknowledgeDisclaimerResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/verify-email": {
+            "post": {
+                "operationId": "VerifyEmail",
+                "description": "",
+                "parameters": [],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/VerifyEmailRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/VerifyEmailResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/reset-password": {
+            "post": {
+                "operationId": "ResetPassword",
+                "description": "",
+                "parameters": [],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ResetPasswordRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResetPasswordResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/forgot-password": {
+            "post": {
+                "operationId": "ForgotPassword",
+                "description": "",
+                "parameters": [],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ForgotPasswordRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForgotPasswordResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/check": {
+            "get": {
+                "operationId": "Check",
+                "description": "",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CheckResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "BearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT"
+            }
+        },
+        "schemas": {
+            "AcknowledgeDisclaimerRequest": {
+                "properties": {},
+                "required": [],
+                "type": "object"
+            },
+            "AcknowledgeDisclaimerResponse": {
+                "properties": {},
+                "required": [],
+                "type": "object"
+            },
+            "VerifyEmailRequest": {
+                "properties": {},
+                "required": [],
+                "type": "object"
+            },
+            "VerifyEmailResponse": {
+                "properties": {},
+                "required": [],
+                "type": "object"
+            },
+            "ResetPasswordRequest": {
+                "properties": {
+                    "password": {
+                        "nullable": false,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "password"
+                ],
+                "type": "object"
+            },
+            "ResetPasswordResponse": {
+                "properties": {},
+                "required": [],
+                "type": "object"
+            },
+            "ForgotPasswordRequest": {
+                "properties": {
+                    "category_id": {
+                        "nullable": false,
+                        "type": "string"
+                    },
+                    "email": {
+                        "nullable": false,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "category_id",
+                    "email"
+                ],
+                "type": "object"
+            },
+            "ForgotPasswordResponse": {
+                "properties": {},
+                "required": [],
+                "type": "object"
+            },
+            "CheckResponse": {
+                "properties": {},
+                "required": [],
+                "type": "object"
+            }
+        }
+    }
+}

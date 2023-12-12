@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"net/url"
 	"path"
 
@@ -50,18 +49,20 @@ func (a *Authentication) ForgotPassword(ctx context.Context, categoryID, email s
 	params.Add("token", u.PasswordResetToken)
 	resetURL.RawQuery = params.Encode()
 
-	rsp, err := a.Notifier.PostNotifierMailPasswordResetWithResponse(ctx, notifier.PostNotifierMailPasswordResetJSONRequestBody{
+	rsp, err := a.Notifier.PostNotifierMailPasswordReset(ctx, notifier.NewOptNotifyPasswordResetMailRequest0bf6af6(notifier.NotifyPasswordResetMailRequest0bf6af6{
 		Email: u.Email,
-		Url:   resetURL.String(),
-	})
+		URL:   resetURL.String(),
+	}))
 	if err != nil {
 		return fmt.Errorf("error calling the notifier service: %w", err)
 	}
 
-	a.Log.Info().Str("user_id", u.ID).Str("email", u.Email).Str("task_id", rsp.JSON200.TaskId.String()).Msg("password reset email sent")
+	switch r := rsp.(type) {
+	case *notifier.NotifyPasswordResetMailResponse0bf6af6:
+		a.Log.Info().Str("user_id", u.ID).Str("email", u.Email).Str("task_id", r.TaskID.String()).Msg("password reset email sent")
 
-	if rsp.StatusCode() != http.StatusOK {
-		return fmt.Errorf("error calling the notifier service: HTTP status code %d", rsp.StatusCode())
+	default:
+		return fmt.Errorf("unknown response from the notifier service: %v", r)
 	}
 
 	return nil

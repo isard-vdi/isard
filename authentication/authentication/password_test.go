@@ -2,7 +2,6 @@ package authentication_test
 
 import (
 	"context"
-	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -28,7 +27,7 @@ func TestForgotPassword(t *testing.T) {
 
 	cases := map[string]struct {
 		PrepareDB       func(*r.Mock)
-		PrepareNotifier func(*notifier.MockClientWithResponsesInterface)
+		PrepareNotifier func(*notifier.MockInvoker)
 		CategoryID      string
 		Email           string
 		ExpectedErr     string
@@ -50,17 +49,14 @@ func TestForgotPassword(t *testing.T) {
 					Updated: 1,
 				}, nil)
 			},
-			PrepareNotifier: func(c *notifier.MockClientWithResponsesInterface) {
-				c.On("PostNotifierMailPasswordResetWithResponse", mock.AnythingOfType("context.backgroundCtx"), mock.MatchedBy(func(req notifier.PostNotifierMailPasswordResetJSONRequestBody) bool {
-					return req.Email == "nefix@example.org" &&
-						strings.HasPrefix(req.Url, "https://localhost/reset-password?token=e")
-				})).Return(&notifier.PostNotifierMailPasswordResetResponse{
-					HTTPResponse: &http.Response{
-						StatusCode: http.StatusOK,
-					},
-					JSON200: &notifier.NotifyPasswordResetMailResponse0bf6af6{
-						TaskId: uuid.New(),
-					},
+			PrepareNotifier: func(c *notifier.MockInvoker) {
+				c.On("PostNotifierMailPasswordReset", mock.AnythingOfType("context.backgroundCtx"), mock.MatchedBy(func(req notifier.OptNotifyPasswordResetMailRequest0bf6af6) bool {
+					return req.Set &&
+						req.Value.Email == "nefix@example.org" &&
+						strings.HasPrefix(req.Value.URL, "https://localhost/reset-password?token=e")
+
+				})).Return(&notifier.NotifyPasswordResetMailResponse0bf6af6{
+					TaskID: uuid.New(),
 				}, nil)
 			},
 			CategoryID: "default",
@@ -84,7 +80,7 @@ func TestForgotPassword(t *testing.T) {
 			cfg := cfg.New()
 			log := log.New("authentication-test", "debug")
 			mock := r.NewMock()
-			notifier := notifier.NewMockClientWithResponsesInterface(t)
+			notifier := notifier.NewMockInvoker(t)
 
 			if tc.PrepareDB != nil {
 				tc.PrepareDB(mock)

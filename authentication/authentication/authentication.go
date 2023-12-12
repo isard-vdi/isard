@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"net/url"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/model"
 	"gitlab.com/isard/isardvdi/pkg/db"
 	"gitlab.com/isard/isardvdi/pkg/gen/oas/notifier"
+	"gitlab.com/isard/isardvdi/pkg/http"
 	"gitlab.com/isard/isardvdi/pkg/jwt"
 
 	"github.com/crewjam/saml/samlsp"
@@ -21,8 +21,6 @@ import (
 	"gitlab.com/isard/isardvdi-sdk-go"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
-
-const adminUsr = "local-default-admin-admin"
 
 type Interface interface {
 	Providers() []string
@@ -54,7 +52,7 @@ type Authentication struct {
 
 	DB       r.QueryExecutor
 	Client   isardvdi.Interface
-	Notifier notifier.ClientWithResponsesInterface
+	Notifier notifier.Invoker
 
 	providers map[string]provider.Provider
 	saml      *samlsp.Middleware
@@ -93,16 +91,8 @@ func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor) *Authentication 
 
 	a.Client = cli
 
-	nCli, err := notifier.NewClientWithResponses(cfg.Notifier.Address, notifier.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
-		ss, err := jwt.SignAPIJWT(a.Secret)
-		if err != nil {
-			return err
-		}
-
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", ss))
-
-		return nil
-	}))
+	nCli, err := notifier.NewClient(cfg.Notifier.Address, notifier.WithClient(http.NewIsardVDIClient(a.Secret)))
+	nCli.PostFrontend(context.Background(), notifier.OptNotifyFrontendRequest0bf6af6{})
 	if err != nil {
 		log.Fatal().Err(err).Msg("create notifier client")
 	}

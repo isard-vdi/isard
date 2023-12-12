@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"net/mail"
 	"net/url"
 	"path"
@@ -66,18 +65,20 @@ func (a *Authentication) RequestEmailVerification(ctx context.Context, ss, email
 	params.Add("token", u.EmailVerificationToken)
 	verifyURL.RawQuery = params.Encode()
 
-	rsp, err := a.Notifier.PostNotifierMailEmailVerifyWithResponse(ctx, notifier.PostNotifierMailEmailVerifyJSONRequestBody{
+	rsp, err := a.Notifier.PostNotifierMailEmailVerify(ctx, notifier.NewOptNotifyEmailVerifyMailRequest0bf6af6(notifier.NotifyEmailVerifyMailRequest0bf6af6{
 		Email: u.Email,
-		Url:   verifyURL.String(),
-	})
+		URL:   verifyURL.String(),
+	}))
 	if err != nil {
 		return fmt.Errorf("error calling the notifier service: %w", err)
 	}
 
-	a.Log.Info().Str("user_id", u.ID).Str("email", u.Email).Str("task_id", rsp.JSON200.TaskId.String()).Msg("email verification email sent")
+	switch r := rsp.(type) {
+	case *notifier.NotifyEmailVerifyMailResponse0bf6af6:
+		a.Log.Info().Str("user_id", u.ID).Str("email", u.Email).Str("task_id", r.TaskID.String()).Msg("email verification email sent")
 
-	if rsp.StatusCode() != http.StatusOK {
-		return fmt.Errorf("error calling the notifier service: HTTP status code %d", rsp.StatusCode())
+	default:
+		return fmt.Errorf("unknown response from the notifier service: %v", r)
 	}
 
 	return nil
