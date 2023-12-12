@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 113
+release_version = 114
+# release 114: Fix domains and deployments with isos as string
 # release 113: Add secondary indexes for storage and scheduler
 # release 112: Merge duplicated users into one unique user
 # release 111: Added interfaces, videos, boot_order and reservables index to domains
@@ -2619,6 +2620,40 @@ class Upgrade(object):
             except Exception as e:
                 print(e)
 
+        if version == 114:
+            try:
+                domains_with_iso_string = list(
+                    r.table("domains")
+                    .filter(
+                        lambda doc: doc["create_dict"]["hardware"]["isos"].contains(
+                            lambda iso: iso.type_of().eq("STRING")
+                        )
+                    )
+                    .run(self.conn)
+                )
+
+                print(
+                    "Updating "
+                    + str(len(domains_with_iso_string))
+                    + " domains with iso as string"
+                )
+
+                updated_domains_ids = []
+
+                for domain in domains_with_iso_string:
+                    isos = [
+                        json.loads(i.replace("&#39;", '"'))
+                        for i in domain["create_dict"]["hardware"]["isos"]
+                    ]
+                    r.table("domains").get(domain["id"]).update(
+                        {"create_dict": {"hardware": {"isos": isos}}}
+                    ).run(self.conn)
+                    updated_domains_ids.append(domain["id"])
+
+                print("Domains ids updated: " + str(updated_domains_ids))
+            except Exception as e:
+                print(e)
+
         return True
 
     """
@@ -2812,6 +2847,40 @@ class Upgrade(object):
                         )
             except r.ReqlNonExistenceError:
                 pass
+            except Exception as e:
+                print(e)
+
+        if version == 114:
+            try:
+                deployments_with_iso_string = list(
+                    r.table("deployments")
+                    .filter(
+                        lambda doc: doc["create_dict"]["hardware"]["isos"].contains(
+                            lambda iso: iso.type_of().eq("STRING")
+                        )
+                    )
+                    .run(self.conn)
+                )
+
+                print(
+                    "Updating "
+                    + str(len(deployments_with_iso_string))
+                    + " deployments with iso as string"
+                )
+
+                updated_deployments_ids = []
+
+                for deployment in deployments_with_iso_string:
+                    isos = [
+                        json.loads(i.replace("&#39;", '"'))
+                        for i in deployment["create_dict"]["hardware"]["isos"]
+                    ]
+                    r.table("deployments").get(deployment["id"]).update(
+                        {"create_dict": {"hardware": {"isos": isos}}}
+                    ).run(self.conn)
+                    updated_deployments_ids.append(deployment["id"])
+
+                print("Deployments ids updated: " + str(updated_deployments_ids))
             except Exception as e:
                 print(e)
 
