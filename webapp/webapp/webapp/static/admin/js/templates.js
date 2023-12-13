@@ -1176,6 +1176,7 @@ function populate_tree_template_delete(id) {
         success: function(data)
         {
             const rootElement = $('#nestedTemplateTable tbody');
+            $('#nestedTemplateTable tbody').html('')
             renderTable(data, rootElement,1, renderTemplateTree);
         }
     });

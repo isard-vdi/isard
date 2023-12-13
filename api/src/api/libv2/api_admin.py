@@ -746,7 +746,12 @@ class ApiAdmin:
         levels = {}
         derivated = self.TemplateTreeList(template_id, user_id)
         for n in derivated:
-            levels.setdefault(n["parent"], []).append(n)
+            levels.setdefault(
+                n["duplicate_parent_template"]
+                if n.get("duplicate_parent_template", False)
+                else n["parent"],
+                [],
+            ).append(n)
         recursion = self.TemplateTreeRecursion(template_id, levels)
         with app.app_context():
             user_id = r.table("users").get(user_id).run(db.conn)
@@ -767,6 +772,7 @@ class ApiAdmin:
                     "kind",
                     "category",
                     "category_name",
+                    "duplicate_parent_template",
                     "group",
                     "group_name",
                     "user",
@@ -788,6 +794,7 @@ class ApiAdmin:
                 "parent": d["parents"][-1]
                 if "parents" in d.keys() and len(d["parents"]) > 0
                 else "",
+                "duplicate_parent_template": d.get("duplicate_parent_template", False),
                 "user": d["username"],
                 "category": d["category_name"],
                 "group": d["group_name"],
