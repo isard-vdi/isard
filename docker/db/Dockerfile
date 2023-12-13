@@ -1,4 +1,4 @@
-FROM rethinkdb:2.4.2
+FROM rethinkdb:2.4.3
 
 RUN apt-get update && \
     apt-get install -y \
@@ -13,7 +13,7 @@ RUN apt-get update && \
         /var/lib/dpkg \
         /var/lib/cache \
         /var/lib/log
-RUN pip3 install --no-cache-dir \
+RUN pip3 install --no-cache-dir --break-system-packages \
     rethinkdb==2.4.9
 
 COPY docker/db/run.sh /run.sh
