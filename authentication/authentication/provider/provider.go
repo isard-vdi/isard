@@ -11,11 +11,13 @@ import (
 )
 
 const (
-	TokenArgsKey       = "token"
-	ProviderArgsKey    = "provider"
-	CategoryIDArgsKey  = "category_id"
-	RequestBodyArgsKey = "request_body"
-	RedirectArgsKey    = "redirect"
+	TokenArgsKey        = "token"
+	ProviderArgsKey     = "provider"
+	CategoryIDArgsKey   = "category_id"
+	RequestBodyArgsKey  = "request_body"
+	RedirectArgsKey     = "redirect"
+	FormUsernameArgsKey = "form_username"
+	FormPasswordArgsKey = "form_password"
 )
 
 var ErrInvalidCredentials = errors.New("invalid credentials")

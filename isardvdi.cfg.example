@@ -116,6 +116,22 @@ API_HYPERVISORS_SECRET=B5/bUEUzIC+AjNQRmFh3vxR3VeIKirwdeL/xuHPVO+E=
 # The format is the Go time duration: https://pkg.go.dev/time#ParseDuration
 #AUTHENTICATION_AUTHENTICATION_TOKEN_DURATION=4h
 
+# Whether rate limiting for form authentication is enabled
+AUTHENTICATION_AUTHENTICATION_LIMITS_ENABLED=true
+# The number of attempts a user can fail before being rate limited
+AUTHENTICATION_AUTHENTICATION_LIMITS_MAX_ATTEMPTS=10
+# The time duration that the user will be unable to login if gets rate limited
+# The format is the Go time duration: https://pkg.go.dev/time#ParseDuration
+AUTHENTICATION_AUTHENTICATION_LIMITS_RETRY_AFTER=1m
+# This factor will be powered against the RETRY_AFTER and the number of failed attempts after being rate limited.
+# So, for example, given
+# MAX_ATTEMPTS=10
+# RETRY_AFTER=1m
+# INCREMENT_FACTOR=2
+# And the user fails the authentication for 13th time in a row, the user will have to wait (13 - 10) ^ 2 * 1m -> 9 minutes
+# before being able to log in again
+AUTHENTICATION_AUTHENTICATION_LIMITS_INCREMENT_FACTOR=2
+
 ## Local
 ### Local authentication against isard database
 #AUTHENTICATION_AUTHENTICATION_LOCAL_ENABLED=true

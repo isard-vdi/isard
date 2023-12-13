@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -23,46 +22,9 @@ func InitLocal(db r.QueryExecutor) *Local {
 	return &Local{db}
 }
 
-type localArgs struct {
-	Username string `json:"username,omitempty"`
-	Password string `json:"password,omitempty"`
-}
-
-func parseLocalArgs(args map[string]string) (string, string, error) {
-	username := args["username"]
-	password := args["password"]
-
-	creds := &localArgs{}
-	if body, ok := args[RequestBodyArgsKey]; ok && body != "" {
-		if err := json.Unmarshal([]byte(body), creds); err != nil {
-			return "", "", fmt.Errorf("unmarshal local authentication request body: %w", err)
-		}
-	}
-
-	if username == "" {
-		if creds.Username == "" {
-			return "", "", errors.New("username not provided")
-		}
-
-		username = creds.Username
-	}
-
-	if password == "" {
-		if creds.Password == "" {
-			return "", "", errors.New("password not provided")
-		}
-
-		password = creds.Password
-	}
-
-	return username, password, nil
-}
-
 func (l *Local) Login(ctx context.Context, categoryID string, args map[string]string) (*model.Group, *model.User, string, error) {
-	usr, pwd, err := parseLocalArgs(args)
-	if err != nil {
-		return nil, nil, "", err
-	}
+	usr := args[FormUsernameArgsKey]
+	pwd := args[FormPasswordArgsKey]
 
 	u := &model.User{
 		UID:      usr,

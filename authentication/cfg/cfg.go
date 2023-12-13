@@ -21,11 +21,19 @@ type Cfg struct {
 type Authentication struct {
 	Host          string
 	Secret        string
-	TokenDuration time.Duration `mapstructure:"token_duration"`
+	TokenDuration time.Duration        `mapstructure:"token_duration"`
+	Limits        AuthenticationLimits `mapstructure:"limits"`
 	Local         AuthenticationLocal
 	LDAP          AuthenticationLDAP
 	SAML          AuthenticationSAML
 	Google        AuthenticationGoogle
+}
+
+type AuthenticationLimits struct {
+	Enabled         bool          `mapstructure:"enabled"`
+	MaxAttempts     int           `mapstructure:"max_attempts"`
+	RetryAfter      time.Duration `mapstructure:"retry_after"`
+	IncrementFactor int           `mapstructure:"increment_factor"`
 }
 
 type AuthenticationLocal struct {
@@ -121,6 +129,12 @@ func setDefaults() {
 		"host":           getEnv("AUTHENTICATION_AUTHENTICATION_HOST", getEnv("DOMAIN", "localhost")),
 		"secret":         "",
 		"token_duration": "4h",
+		"limits": map[string]interface{}{
+			"enabled":          true,
+			"max_attempts":     10,
+			"retry_after":      "1m",
+			"increment_factor": 2,
+		},
 		"local": map[string]interface{}{
 			"enabled": true,
 		},
