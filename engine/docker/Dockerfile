@@ -4,20 +4,14 @@ WORKDIR /isard
 
 RUN apk -U upgrade --no-cache
 RUN apk add --no-cache \
-    yarn \
     py3-libvirt \
     py3-paramiko \
     py3-openssl \
     py3-bcrypt \
-    py3-gevent \
     py3-flask \
-    py3-netaddr \
-    py3-numpy \
-    py3-pyldap \
     py3-pip \
-    libvirt-client \
-    curl \
     openssh-client \
+    curl \
     sshpass \
     supervisor \
     pciutils-libs \
@@ -28,9 +22,9 @@ RUN apk add --no-cache --virtual .build_deps \
     python3-dev \
     libffi-dev \
     openssl-dev \
-        libc-dev \
-        libxml2-dev \
-        libxslt-dev \
+    libc-dev \
+    libxml2-dev \
+    libxslt-dev \
     gcc
 
 RUN apk upgrade openssh-client
