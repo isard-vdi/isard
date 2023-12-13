@@ -925,6 +925,7 @@ def TemplateTreeList(template_id):
                 "parent": d["parents"][-1]
                 if d.get("parents")
                 else d["duplicate_parent_template"],
+                "duplicate_parent_template": d.get("duplicate_parent_template", False),
                 "name": d["name"],
                 "kind": d["kind"],
                 "user": d["user"],
@@ -955,8 +956,12 @@ def GetAllTemplateDerivates(template_id, user_id=None):
             .run(db.conn)
         )
     for n in derivated:
-        levels.setdefault(n["parent"], []).append(n)
-    recursion = TemplateTreeRecursion(template_id, levels)
+        levels.setdefault(
+            n["duplicate_parent_template"]
+            if n.get("duplicate_parent_template", False)
+            else n["parent"],
+            [],
+        ).append(n)
     all_domains_id = [
         {
             "id": template_id,
@@ -977,30 +982,31 @@ def GetAllTemplateDerivates(template_id, user_id=None):
                 .pluck("id", "category", "role")
                 .run(db.conn)
             )
-    for t in recursion:
-        if not user_id or (
-            (user["role"] == "admin")
-            or (user["role"] == "manager" and t["category"] == user["category"])
-            or (user["role"] == "advanced" and t["user"] == user["id"])
-        ):
-            all_domains_id.append(
-                {
-                    "id": t["id"],
-                    "name": t["name"],
-                    "kind": t["kind"],
-                    "user": t["user"],
-                    "category": t["category"],
-                    "group": t["group"],
-                    "username": t["username"],
-                    "user_name": t["user_name"],
-                }
-            )
-        else:
-            raise Error(
-                "forbidden",
-                "This template has derivatives not owned by your category",
-                traceback.format_exc(),
-            )
+    for key, value in levels.items():
+        for t in value:
+            if not user_id or (
+                (user["role"] == "admin")
+                or (user["role"] == "manager" and t["category"] == user["category"])
+                or (user["role"] == "advanced" and t["user"] == user["id"])
+            ):
+                all_domains_id.append(
+                    {
+                        "id": t["id"],
+                        "name": t["name"],
+                        "kind": t["kind"],
+                        "user": t["user"],
+                        "category": t["category"],
+                        "group": t["group"],
+                        "username": t["username"],
+                        "user_name": t["user_name"],
+                    }
+                )
+            else:
+                raise Error(
+                    "forbidden",
+                    "This template has derivatives not owned by your category",
+                    traceback.format_exc(),
+                )
     return all_domains_id
 
 
