@@ -112,8 +112,24 @@ class ApiUsers:
 
     def Login(self, user_id, user_passwd, provider="local", category_id="default"):
         with app.app_context():
-            user = r.table("users").get(user_id).run(db.conn)
-        if user is None:
+            user = (
+                r.table("users")
+                .get(user_id)
+                .default({})
+                .pluck(
+                    "id",
+                    "password",
+                    "active",
+                    "role",
+                    "category",
+                    "group",
+                    "username",
+                    "email",
+                    "photo",
+                )
+                .run(db.conn)
+            )
+        if user.get("id") == None:
             raise Error("unauthorized", "", traceback.format_exc())
         if not user.get("active", False):
             raise Error(
@@ -124,7 +140,7 @@ class ApiUsers:
 
         pw = Password()
         if pw.valid(user_passwd, user["password"]):
-            user = {
+            logged_user = {
                 "user_id": user["id"],
                 "role_id": user["role"],
                 "category_id": user["category"],
@@ -137,7 +153,7 @@ class ApiUsers:
                 {
                     "exp": datetime.utcnow() + timedelta(hours=4),
                     "kid": "isardvdi",
-                    "data": user,
+                    "data": logged_user,
                 },
                 os.environ.get("API_ISARDVDI_SECRET"),
                 algorithm="HS256",
@@ -204,6 +220,7 @@ class ApiUsers:
             user = list(
                 r.table("users")
                 .get_all([uid, category, provider], index="uid_category_provider")
+                .without("password")
                 .run(db.conn)
             )
         return user

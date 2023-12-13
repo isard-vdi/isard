@@ -250,7 +250,9 @@ def admin_table_update(table, data, payload=False):
 
     if table == "users":
         with app.app_context():
-            user = r.table("users").get(data["id"]).run(db.conn)
+            user = (
+                r.table("users").get(data["id"]).pluck("name", "category").run(db.conn)
+            )
         if not user:
             raise Error(
                 "not_found",
@@ -749,7 +751,7 @@ class ApiAdmin:
             levels.setdefault(n["parent"], []).append(n)
         recursion = self.TemplateTreeRecursion(template_id, levels)
         with app.app_context():
-            user_id = r.table("users").get(user_id).run(db.conn)
+            user = r.table("users").get(user_id).pluck("id", "role").run(db.conn)
             d = (
                 r.table("domains")
                 .get(template_id)
@@ -782,9 +784,9 @@ class ApiAdmin:
                 "title": d["name"],
                 "expanded": True,
                 "unselectable": False
-                if user_id["role"] == "manager" or user_id["role"] == "admin"
+                if user["role"] == "manager" or user["role"] == "admin"
                 else True,
-                "selected": True if user_id["id"] == d["user"] else False,
+                "selected": True if user["id"] == d["user"] else False,
                 "parent": d["parents"][-1]
                 if "parents" in d.keys() and len(d["parents"]) > 0
                 else "",
@@ -874,31 +876,10 @@ class ApiAdmin:
     # This has no recursion. Call GetTemplateTreeList
     def TemplateTreeList(self, template_id, user_id):
         with app.app_context():
-            user_id = r.table("users").get(user_id).run(db.conn)
-            template = (
-                r.table("domains")
-                .get(template_id)
-                .merge(
-                    lambda d: {
-                        "category_name": r.table("categories").get(d["category"])[
-                            "name"
-                        ],
-                        "group_name": r.table("groups").get(d["group"])["name"],
-                    }
-                )
-                .pluck(
-                    "id",
-                    "name",
-                    "kind",
-                    "category",
-                    "category_name",
-                    "group",
-                    "group_name",
-                    "user",
-                    "username",
-                    "status",
-                    "parents",
-                )
+            user = (
+                r.table("users")
+                .get(user_id)
+                .pluck("id", "role", "category")
                 .run(db.conn)
             )
 
@@ -911,7 +892,7 @@ class ApiAdmin:
 
         derivated = list(derivated) + list(duplicated)
 
-        if user_id["role"] == "manager":
+        if user["role"] == "manager":
             derivated = [
                 {
                     **d,
@@ -924,14 +905,14 @@ class ApiAdmin:
                     "unselectable": True,
                     "name": "-",
                 }
-                if d["category"] != user_id["category"]
+                if d["category"] != user["category"]
                 else d
                 for d in derivated
             ]
 
         fancyd = []
         for d in derivated:
-            if user_id["role"] == "manager" or user_id["role"] == "admin":
+            if user["role"] == "manager" or user["role"] == "admin":
                 fancyd.append(
                     {
                         "id": d["id"],
@@ -942,7 +923,7 @@ class ApiAdmin:
                         "unselectable": False
                         if not d.get("unselectable")
                         else d["unselectable"],
-                        "selected": True if user_id["id"] == d["user"] else False,
+                        "selected": True if user["id"] == d["user"] else False,
                         "parent": d["parents"][-1]
                         if d.get("parents")
                         else d["duplicate_parent_template"],
@@ -966,8 +947,8 @@ class ApiAdmin:
                         "id": d["id"],
                         "title": d["name"],
                         "expanded": True,
-                        "unselectable": False if user_id["id"] == d["user"] else True,
-                        "selected": True if user_id["id"] == d["user"] else False,
+                        "unselectable": False if user["id"] == d["user"] else True,
+                        "selected": True if user["id"] == d["user"] else False,
                         "parent": d["parents"][-1],
                         "user": d["username"],
                         "category": d["category_name"],

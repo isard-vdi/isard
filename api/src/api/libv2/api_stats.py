@@ -13,10 +13,11 @@ stable_status = ["Started", "Stopped", "Failed"]
 
 def Users():
     with app.app_context():
-        users = list(r.table("users").pluck("active").run(db.conn))
+        users_count = r.table("users").count().run(db.conn)
+        users_active = (
+            r.table("users").get_all(True, index="active").count().run(db.conn)
+        )
         roles = r.table("users").group("role").count().run(db.conn)
-    users_count = len(users)
-    users_active = len([u for u in users if u["active"]])
     return {
         "total": users_count,
         "status": {
@@ -176,20 +177,17 @@ def GroupByCategories():
                 .run(db.conn)
             )
             query[category]["users"]["status"]["disabled"] = (
+                query[category]["users"]["total"]
+                - query[category]["users"]["status"]["enabled"]
+            )
+
+            query[category]["users"]["roles"] = (
                 r.table("users")
                 .get_all(category, index="category")
-                .filter({"active": False})
+                .group("role")
                 .count()
                 .run(db.conn)
             )
-            for role in user_role:
-                query[category]["users"]["roles"][role] = (
-                    r.table("users")
-                    .get_all(category, index="category")
-                    .filter({"role": role})
-                    .count()
-                    .run(db.conn)
-                )
 
             query[category]["desktops"]["total"] = (
                 r.table("domains")

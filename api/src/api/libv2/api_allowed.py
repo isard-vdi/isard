@@ -24,7 +24,12 @@ db.init_app(app)
 @cached(cache=TTLCache(maxsize=20, ttl=5))
 def get_user(user_id):
     with app.app_context():
-        return r.table("users").get(user_id).run(db.conn)
+        return (
+            r.table("users")
+            .get(user_id)
+            .without("password", "user_storage")
+            .run(db.conn)
+        )
 
 
 @cached(
