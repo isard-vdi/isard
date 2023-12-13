@@ -108,7 +108,7 @@ def create_storage(payload):
                 error="precondition_required", description="Parent storage not ready"
             )
         parent_args = {
-            "parent_path": f"{parent.directory_path}/{parent.id}.{parent.type}",
+            "parent_path": parent.path,
             "parent_type": parent.type,
         }
     storage_pool = StoragePool.get_best_for_action("create")
@@ -128,7 +128,7 @@ def create_storage(payload):
             task="create",
             job_kwargs={
                 "kwargs": {
-                    "storage_path": f"{storage.directory_path}/{storage.id}.{storage.type}",
+                    "storage_path": storage.path,
                     "storage_type": storage.type,
                     "size": request_json.get("size"),
                     **parent_args,
@@ -240,7 +240,7 @@ def storage_delete(payload, storage_id):
             task="delete",
             job_kwargs={
                 "kwargs": {
-                    "path": f"{storage.directory_path}/{storage.id}.{storage.type}",
+                    "path": storage.path,
                 },
             },
             dependents=[
@@ -304,7 +304,7 @@ def storage_update_qemu_img_info(payload, storage_id):
             job_kwargs={
                 "kwargs": {
                     "storage_id": storage.id,
-                    "storage_path": f"{storage.directory_path}/{storage.id}.{storage.type}",
+                    "storage_path": storage.path,
                 }
             },
             dependents=[
@@ -389,7 +389,7 @@ def storage_check_existence(payload, storage_id):
             job_kwargs={
                 "kwargs": {
                     "storage_id": storage.id,
-                    "storage_path": f"{storage.directory_path}/{storage.id}.{storage.type}",
+                    "storage_path": storage.path,
                 }
             },
             dependents=[
@@ -454,7 +454,7 @@ def storage_update_parent(payload, storage_id):
                                     "job_kwargs": {
                                         "kwargs": {
                                             "storage_id": storage.id,
-                                            "storage_path": f"{storage.directory_path}/{storage.id}.{storage.type}",
+                                            "storage_path": storage.path,
                                         }
                                     },
                                 }
@@ -527,7 +527,7 @@ def storage_move(payload, storage_id, path):
     rsync = request.url_rule.rule.endswith("/rsync")
     move_job_kwargs = {
         "kwargs": {
-            "origin_path": f"{storage.directory_path}/{storage.id}.{storage.type}",
+            "origin_path": storage.path,
             "destination_path": f"{path}/{storage.id}.{storage.type}",
             "rsync": rsync,
         }
@@ -655,8 +655,8 @@ def storage_convert(
                 "timeout": 4096,
                 "args": [
                     ConvertRequest(
-                        source_disk_path=f"{origin_storage.directory_path}/{origin_storage.id}.{origin_storage.type}",
-                        dest_disk_path=f"{new_storage.directory_path}/{new_storage.id}.{new_storage.type}",
+                        source_disk_path=origin_storage.path,
+                        dest_disk_path=new_storage.path,
                         format=getattr(DiskFormat, disk_format),
                         compression=compress,
                     )
