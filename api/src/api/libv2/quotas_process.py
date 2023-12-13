@@ -42,7 +42,12 @@ class QuotasProcess:
 
     def process_user_quota(self, user_id):
         with app.app_context():
-            user = r.table("users").get(user_id).without("password", "vpn").run(db.conn)
+            user = (
+                r.table("users")
+                .get(user_id)
+                .without("password", "vpn", "user_storage")
+                .run(db.conn)
+            )
 
         with app.app_context():
             desktops = (
@@ -842,7 +847,12 @@ class QuotasProcess:
 
     def get_user(self, user_id):
         with app.app_context():
-            user = r.table("users").get(user_id).without("password", "vpn").run(db.conn)
+            user = (
+                r.table("users")
+                .get(user_id)
+                .without("password", "vpn", "user_storage")
+                .run(db.conn)
+            )
             group = r.table("groups").get(user["group"]).run(db.conn)
         limits = group["limits"]
         if limits == False:

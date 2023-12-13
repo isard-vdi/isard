@@ -20,6 +20,7 @@ from .log import *
 Update to new database release version when new code version release
 """
 release_version = 114
+# release 115: Add role index to users
 # release 114: Fix domains and deployments with isos as string
 # release 113: Add secondary indexes for storage and scheduler
 # release 112: Merge duplicated users into one unique user
@@ -3662,6 +3663,12 @@ class Upgrade(object):
                     r.db("isard").table("users").get_all(
                         r.args(user["oldest_users"])
                     ).delete().run(self.conn)
+            except Exception as e:
+                print(e)
+
+        if version == 115:
+            try:
+                r.table(table).index_create("role").run(self.conn)
             except Exception as e:
                 print(e)
 

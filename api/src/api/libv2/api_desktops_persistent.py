@@ -131,18 +131,17 @@ class ApiDesktopsPersistent:
                     traceback.format_exc(),
                     description_code="not_found",
                 )
-            user = r.table("users").get(user_id).run(db.conn)
-            if not user:
+            user = (
+                r.table("users")
+                .get(user_id)
+                .default({})
+                .pluck("id", "username", "category", "group")
+                .run(db.conn)
+            )
+            if not user.get("id"):
                 raise Error(
                     "not_found",
-                    "NewFromTemplate: user id not found.",
-                    description_code="not_found",
-                )
-            group = r.table("groups").get(user["group"]).run(db.conn)
-            if not group:
-                raise Error(
-                    "not_found",
-                    "NewFromTemplate: group id not found.",
+                    f"NewFromTemplate: user id {user_id} not found.",
                     description_code="not_found",
                 )
 
@@ -304,7 +303,9 @@ class ApiDesktopsPersistent:
                     # Can't use get_all as has no index in database
                     with app.app_context():
                         users_in_roles = list(
-                            r.table("users").filter({"role": role})["id"].run(db.conn)
+                            r.table("users")
+                            .get_all(role, index="role")["id"]
+                            .run(db.conn)
                         )
                     users = users + users_in_roles
 
@@ -398,7 +399,12 @@ class ApiDesktopsPersistent:
 
     def NewFromMedia(self, payload, data):
         with app.app_context():
-            user = r.table("users").get(payload["user_id"]).run(db.conn)
+            username = (
+                r.table("users")
+                .get(payload["user_id"])
+                .pluck("username")["username"]
+                .run(db.conn)
+            )
 
         with app.app_context():
             if r.table("domains").get(data["id"]).run(db.conn):
@@ -495,7 +501,7 @@ class ApiDesktopsPersistent:
             "status": "CreatingDiskFromScratch",
             "detail": "Creating desktop from existing disk and checking if it is valid (can start)",
             "user": payload["user_id"],
-            "username": user["username"],
+            "username": username,
             "category": payload["category_id"],
             "group": payload["group_id"],
             "server": False,

@@ -273,7 +273,12 @@ class RecycleBin(object):
 
         if user_id and (user_id != "isard-scheduler"):
             with app.app_context():
-                user = r.table("users").get(user_id).run(db.conn)
+                user = (
+                    r.table("users")
+                    .get(user_id)
+                    .pluck("name", "category", "role")
+                    .run(db.conn)
+                )
                 self.agent_category_name = (
                     r.table("categories").get(user["category"])["name"].run(db.conn)
                 )

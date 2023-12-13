@@ -671,11 +671,17 @@ def get_user_data(user_id="admin"):
                 r.table("users")
                 .get_all("admin", index="uid")
                 .filter({"provider": "local"})
+                .pluck("id", "username", "category", "group")
                 .run(db.conn)
             )[0]
     else:
         with app.app_context():
-            user = r.table("users").get(user_id).run(db.conn)
+            user = (
+                r.table("users")
+                .get(user_id)
+                .pluck("id", "username", "category", "group")
+                .run(db.conn)
+            )
     return {
         "category": user["category"],
         "group": user["group"],
@@ -696,7 +702,7 @@ def gen_payload_from_user(user_id):
                     "role_name": r.table("roles").get(d["role"])["name"],
                 }
             )
-            .without("password")
+            .without("password", "user_storage")
             .run(db.conn)
         )
     return {
