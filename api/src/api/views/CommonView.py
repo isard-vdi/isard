@@ -128,7 +128,7 @@ def api_v3_domains_default_hardware_reservables(payload, kind, domain_id):
 # Will get allowed hardware quota max resources for different items
 @app.route("/api/v3/quota/<kind>", methods=["GET"])
 @app.route("/api/v3/quota/<kind>/<item_id>", methods=["GET"])
-@has_token
+@is_admin_or_manager
 def user_quota_max(payload, kind, item_id=None):
     if kind == "user":
         if not item_id:
