@@ -419,6 +419,9 @@
         },
         "edit": {
             "title": "'{name}' bearbeiten"
+        },
+        "duplicate-template": {
+            "title": "Vorlage duplizieren"
         }
     },
     "errors": {
