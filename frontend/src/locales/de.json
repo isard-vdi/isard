@@ -326,6 +326,16 @@
                 "warning": "WARNUNG: Diese Hardware wurde aufgrund von Benutzerberechtigungen geändert:",
                 "interfaces": "Netzwerke",
                 "disk-size": "Festplattengröße (GB)"
+            },
+            "image": {
+                "title": "Bild"
+            },
+            "media": {
+                "title": "Medien",
+                "floppies": "Disketten"
+            },
+            "bookables": {
+                "vgpus": "Grafikkarte"
             }
         },
         "create": "Erstellen",
@@ -431,8 +441,6 @@
         "yes": "Ja",
         "title": {
             "delete": "Löschen"
-        },
-        "confirmation": {
         }
     }
 }
