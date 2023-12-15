@@ -29,14 +29,7 @@ func main() {
 
 	authentication := authentication.Init(cfg, log, db)
 
-	http := &http.AuthenticationServer{
-		Addr:           cfg.HTTP.Addr(),
-		Authentication: authentication,
-		Log:            log,
-		WG:             &wg,
-	}
-
-	go http.Serve(ctx)
+	go http.Serve(ctx, &wg, log, cfg.HTTP.Addr(), authentication)
 	wg.Add(1)
 
 	log.Info().Strs("providers", authentication.Providers()).Msg("service started")

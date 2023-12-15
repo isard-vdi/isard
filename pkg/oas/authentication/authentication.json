@@ -5,141 +5,10 @@
         "version": "v1.0"
     },
     "paths": {
-        "/acknowledge-disclaimer": {
-            "post": {
-                "operationId": "AcknowledgeDisclaimer",
-                "description": "",
-                "parameters": [],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/AcknowledgeDisclaimerRequest"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/AcknowledgeDisclaimerResponse"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ]
-            }
-        },
-        "/verify-email": {
-            "post": {
-                "operationId": "VerifyEmail",
-                "description": "",
-                "parameters": [],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/VerifyEmailRequest"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/VerifyEmailResponse"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ]
-            }
-        },
-        "/reset-password": {
-            "post": {
-                "operationId": "ResetPassword",
-                "description": "",
-                "parameters": [],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/ResetPasswordRequest"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ResetPasswordResponse"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ]
-            }
-        },
-        "/forgot-password": {
-            "post": {
-                "operationId": "ForgotPassword",
-                "description": "",
-                "parameters": [],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/ForgotPasswordRequest"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ForgotPasswordResponse"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ]
-            }
-        },
         "/check": {
             "get": {
                 "operationId": "Check",
+                "summary": "Check if a login token is valid",
                 "description": "",
                 "parameters": [],
                 "responses": {
@@ -152,8 +21,275 @@
                                 }
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Invalid token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Invalid token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
                     }
                 },
+                "tags": [],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/providers": {
+            "get": {
+                "operationId": "Providers",
+                "summary": "List all the available providers",
+                "description": "",
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProvidersResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [],
+                "security": []
+            }
+        },
+        "/acknowledge-disclaimer": {
+            "post": {
+                "operationId": "AcknowledgeDisclaimer",
+                "summary": "Acknowledge the IsardVDI disclaimer",
+                "description": "",
+                "parameters": [],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AcknowledgeDisclaimerRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AcknowledgeDisclaimerResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Invalid token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/verify-email": {
+            "post": {
+                "operationId": "VerifyEmail",
+                "summary": "Verify the user email",
+                "description": "",
+                "parameters": [],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/VerifyEmailRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/VerifyEmailResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Invalid token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/reset-password": {
+            "post": {
+                "operationId": "ResetPassword",
+                "summary": "Reset the user password",
+                "description": "",
+                "parameters": [],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ResetPasswordRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResetPasswordResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Invalid token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/forgot-password": {
+            "post": {
+                "operationId": "ForgotPassword",
+                "summary": "Request a password reset",
+                "description": "",
+                "parameters": [],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ForgotPasswordRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForgotPasswordResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Invalid token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [],
                 "security": [
                     {
                         "BearerAuth": []
@@ -171,24 +307,67 @@
             }
         },
         "schemas": {
+            "Error": {
+                "properties": {
+                    "type": {
+                        "title": "Error type",
+                        "nullable": false,
+                        "type": "string",
+                        "enum": [
+                            "missing_token",
+                            "invalid_token"
+                        ]
+                    },
+                    "msg": {
+                        "title": "Error message",
+                        "nullable": false,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "type",
+                    "msg"
+                ],
+                "type": "object"
+            },
+            "ProvidersResponse": {
+                "properties": {
+                    "providers": {
+                        "title": "List of authentication providers available",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "form",
+                                "saml",
+                                "google"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "providers"
+                ],
+                "type": "object"
+            },
+            "CheckResponse": {
+                "properties": {},
+                "type": "object"
+            },
             "AcknowledgeDisclaimerRequest": {
                 "properties": {},
-                "required": [],
                 "type": "object"
             },
             "AcknowledgeDisclaimerResponse": {
                 "properties": {},
-                "required": [],
                 "type": "object"
             },
             "VerifyEmailRequest": {
                 "properties": {},
-                "required": [],
                 "type": "object"
             },
             "VerifyEmailResponse": {
                 "properties": {},
-                "required": [],
                 "type": "object"
             },
             "ResetPasswordRequest": {
@@ -205,7 +384,6 @@
             },
             "ResetPasswordResponse": {
                 "properties": {},
-                "required": [],
                 "type": "object"
             },
             "ForgotPasswordRequest": {
@@ -227,14 +405,10 @@
             },
             "ForgotPasswordResponse": {
                 "properties": {},
-                "required": [],
-                "type": "object"
-            },
-            "CheckResponse": {
-                "properties": {},
-                "required": [],
                 "type": "object"
             }
         }
-    }
+    },
+    "security": [],
+    "tags": []
 }
