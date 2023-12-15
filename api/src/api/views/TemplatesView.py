@@ -49,7 +49,12 @@ desktops = ApiDesktopsPersistent()
 
 from ..libv2.api_desktop_events import templates_delete
 from ..libv2.validators import _validate_item, check_user_duplicated_domain_name
-from .decorators import allowedTemplateId, has_token, ownsDomainId
+from .decorators import (
+    allowedTemplateId,
+    has_token,
+    is_admin_or_manager_or_advanced,
+    ownsDomainId,
+)
 
 
 @app.route("/api/v3/templates/new/check_quota", methods=["GET"])
@@ -64,7 +69,7 @@ def api_v3_templates_check_quota(payload):
 
 
 @app.route("/api/v3/template", methods=["POST"])
-@has_token
+@is_admin_or_manager_or_advanced
 def api_v3_template_new(payload):
     quotas.template_create(payload["user_id"])
     data = request.get_json(force=True)
