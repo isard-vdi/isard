@@ -72,6 +72,14 @@ FRONTEND_DOCS_URI=https://isard.gitlab.io/isardvdi-docs/
 ## - url
 DIRECTVIEWER_MODE=browser
 
+# ------ Notifier ------------------------------------------------------------
+## Email credentials that will be used to send email notifications.
+# NOTIFY_EMAIL=True
+# NOTIFY_EMAIL_SMTP_SERVER=smtp.gmail.com
+# NOTIFY_EMAIL_SMPT_PORT=587
+# NOTIFY_EMAIL_USERNAME=example@isardvdi.com
+# NOTIFY_EMAIL_PASSWORD=IsardVDI
+
 # ------ Nextcloud Personal Units -- [EXPERIMENTAL]---------------------------
 ## Will start a docker Nextcloud instance integrated into IsardVDI Personal
 ## units. Other Nextcloud providers can be set at admin resources page.

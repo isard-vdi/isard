@@ -1,0 +1,27 @@
+version: '3.5'
+services:
+  isard-notifier:
+    container_name: isard-notifier
+    image: ${DOCKER_IMAGE_PREFIX}notifier:${DOCKER_IMAGE_TAG:-latest}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    networks:
+      isard-network:
+        ipv4_address: ${DOCKER_NET:-172.31.255}.33
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      LOG_LEVEL:
+      API_ISARDVDI_SECRET:
+      RQ_REDIS_URL: "redis://:${REDIS_PASSWORD}@${REDIS_HOST:-isard-redis}:${REDIS_PORT:-6379}"
+      USAGE:
+      NOTIFY_EMAIL: ${NOTIFY_EMAIL}
+      NOTIFY_EMAIL_SMTP_SERVER: ${NOTIFY_EMAIL_SMTP_SERVER}
+      NOTIFY_EMAIL_SMPT_PORT: ${NOTIFY_EMAIL_SMPT_PORT}
+      NOTIFY_EMAIL_USERNAME: ${NOTIFY_EMAIL_USERNAME}
+      NOTIFY_EMAIL_PASSWORD: ${NOTIFY_EMAIL_PASSWORD}
+

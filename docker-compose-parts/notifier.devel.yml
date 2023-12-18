@@ -1,0 +1,9 @@
+version: '3.5'
+services:
+  isard-notifier:
+    container_name: isard-notifier
+    ports:
+      - "5002:5000"
+    volumes:
+      - ${BUILD_ROOT_PATH}/notifier/src:/opt/isardvdi/src
+      - ${BUILD_ROOT_PATH}/component/_common/src:/opt/isardvdi/isardvdi_common

@@ -1,0 +1,12 @@
+cachetools~=5.3
+Flask~=3.0
+gevent==23.9.1
+pydantic~=2.4
+python-jose==3.3.0
+requests==2.31.0
+rethinkdb==2.4.9
+rq~=1.14
+spectree~=1.2
+waitress~=2.1
+simple-colors~=0.1.5
+python-json-logger~=2.0.7

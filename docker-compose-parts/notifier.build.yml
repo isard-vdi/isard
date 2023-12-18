@@ -1,0 +1,7 @@
+version: "3.5"
+services:
+  isard-notifier:
+    build:
+      context: ${BUILD_ROOT_PATH}
+      dockerfile: notifier/docker/Dockerfile
+
