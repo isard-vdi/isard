@@ -73,6 +73,137 @@
                 "security": []
             }
         },
+        "/login": {
+            "post": {
+                "operationId": "Login",
+                "summary": "Login in to IsardVDI",
+                "description": "",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "provider",
+                        "description": "The authentication provider that will be used",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/Providers"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "category_id",
+                        "description": "The ID of the category that will be used to log in against",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "redirect",
+                        "description": "The URL where the user will be redirected",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "cookie",
+                        "name": "token",
+                        "description": "Used for SAML authentication",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LoginRequest"
+                            }
+                        }
+                    },
+                    "required": false
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "headers": {
+                            "Authorization": {
+                                "schema": {
+                                    "type": "string"
+                                },
+                                "required": true
+                            },
+                            "Set-Cookie": {
+                                "schema": {
+                                    "type": "string"
+                                },
+                                "required": true
+                            }
+                        },
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "302": {
+                        "description": "",
+                        "headers": {
+                            "Location": {
+                                "schema": {
+                                    "type": "string"
+                                },
+                                "required": true
+                            },
+                            "Authorization": {
+                                "schema": {
+                                    "type": "string"
+                                },
+                                "required": true
+                            },
+                            "Set-Cookie": {
+                                "schema": {
+                                    "type": "string"
+                                },
+                                "required": false
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid credentials",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "User disabled",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [],
+                "security": [
+                    {},
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
         "/callback": {
             "get": {
                 "operationId": "Callback",
@@ -415,24 +546,40 @@
                 ],
                 "type": "object"
             },
+            "Providers": {
+                "type": "string",
+                "enum": [
+                    "form",
+                    "saml",
+                    "google"
+                ]
+            },
             "ProvidersResponse": {
                 "properties": {
                     "providers": {
                         "title": "List of authentication providers available",
                         "type": "array",
                         "items": {
-                            "type": "string",
-                            "enum": [
-                                "form",
-                                "saml",
-                                "google"
-                            ]
+                            "$ref": "#/components/schemas/Providers"
                         }
                     }
                 },
                 "required": [
                     "providers"
                 ],
+                "type": "object"
+            },
+            "LoginRequest": {
+                "properties": {
+                    "username": {
+                        "nullable": false,
+                        "type": "string"
+                    },
+                    "password": {
+                        "nullable": false,
+                        "type": "string"
+                    }
+                },
                 "type": "object"
             },
             "CheckResponse": {

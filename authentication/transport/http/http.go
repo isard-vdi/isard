@@ -14,10 +14,11 @@ import (
 	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	oasAuthentication "gitlab.com/isard/isardvdi/pkg/gen/oas/authentication"
 
-	"github.com/crewjam/saml/samlsp"
 	"github.com/rs/zerolog"
 	"gitlab.com/isard/isardvdi-sdk-go"
 )
+
+var _ oasAuthentication.Handler = &AuthenticationServer{}
 
 type AuthenticationServer struct {
 	Addr           string
@@ -45,10 +46,8 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, addr st
 
 	m := http.NewServeMux()
 
-	// Non OAS endpoints
-	m.HandleFunc("/login", a.login)
-
 	// SAML authentication
+	m.HandleFunc("/saml/login", a.loginSAML)
 	m.HandleFunc("/saml/metadata", a.Authentication.SAML().ServeMetadata)
 	m.HandleFunc("/saml/acs", a.Authentication.SAML().ServeACS)
 
@@ -74,85 +73,95 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, addr st
 	a.WG.Done()
 }
 
-func (a *AuthenticationServer) login(w http.ResponseWriter, r *http.Request) {
-	args, err := parseArgs(r)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(err.Error()))
-		return
+func (a *AuthenticationServer) loginSAML(w http.ResponseWriter, r *http.Request) {
+	// Hijack the URL to ensure the redirect has the correct path
+	r.URL.Path = "/authentication/login"
+	a.Authentication.SAML().HandleStartAuthFlow(w, r)
+}
+
+func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.OptLoginRequestMultipart, params oasAuthentication.LoginParams) (oasAuthentication.LoginRes, error) {
+	args := map[string]string{}
+
+	// Token provided in the Authorization header
+	tkn, ok := ctx.Value(tokenCtxKey).(string)
+	if ok {
+		args[provider.TokenArgsKey] = tkn
 	}
 
-	if args[provider.TokenArgsKey] == "" {
-		if err := requiredArgs([]string{provider.ProviderArgsKey, provider.CategoryIDArgsKey}, args); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(err.Error()))
-			time.Sleep(2 * time.Second)
-			return
-		}
+	// Redirect the user after login
+	if params.Redirect.Set {
+		args[provider.RedirectArgsKey] = params.Redirect.Value
 	}
 
-	prv := args[provider.ProviderArgsKey]
-	cID := args[provider.CategoryIDArgsKey]
+	// Form parameters (username + password)
+	if req.Set && req.Value.Username.Set {
+		args["username"] = req.Value.Username.Value
+	}
 
-	// Handle SAML authentication
-	p := a.Authentication.Provider(prv)
+	if req.Set && req.Value.Password.Set {
+		args["password"] = req.Value.Password.Value
+	}
+
+	p := a.Authentication.Provider(string(params.Provider))
 	if p.String() == provider.SAMLString {
-		_, err := a.Authentication.SAML().Session.GetSession(r)
-		if err != nil {
-			if err == samlsp.ErrNoSession {
-				// Hijack the URL to ensure the redirect has the correct path
-				r.URL.Path = "/authentication/login"
+		c := &http.Cookie{
+			Name:  "token",
+			Value: params.Token.Value,
+		}
+		r := &http.Request{
+			Header: http.Header{
+				"Cookie": []string{c.String()},
+			},
+		}
 
-				a.Authentication.SAML().HandleStartAuthFlow(w, r)
-				time.Sleep(2 * time.Second)
-				return
-			}
-
-			a.Authentication.SAML().OnError(w, r, err)
-			time.Sleep(2 * time.Second)
-			return
+		if _, err := a.Authentication.SAML().Session.GetSession(r); err != nil {
+			// Redirect to the correct SAML endpoint
+			return &oasAuthentication.LoginFound{
+				Location: "/authentication/saml/login",
+			}, nil
 		}
 	}
 
-	tkn, redirect, err := a.Authentication.Login(r.Context(), prv, cID, args)
+	tkn, redirect, err := a.Authentication.Login(ctx, p.String(), params.CategoryID, args)
 	if err != nil {
 		if errors.Is(err, provider.ErrInvalidCredentials) {
-			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte(err.Error()))
-			time.Sleep(2 * time.Second)
-			return
+			return &oasAuthentication.LoginUnauthorized{
+				Data: bytes.NewReader([]byte(err.Error())),
+			}, nil
 		}
 
 		if errors.Is(err, provider.ErrUserDisabled) {
-			w.WriteHeader(http.StatusForbidden)
-			w.Write([]byte(err.Error()))
-			time.Sleep(2 * time.Second)
-			return
+			return &oasAuthentication.LoginForbidden{
+				Data: bytes.NewReader([]byte(err.Error())),
+			}, nil
 		}
 
-		// TODO: Better error handling!
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error()))
-		time.Sleep(2 * time.Second)
-		return
+		return nil, err
 	}
 
-	w.Header().Set("Authorization", "Bearer "+tkn)
 	c := &http.Cookie{
 		Name:    "authorization",
 		Path:    "/",
 		Value:   tkn,
 		Expires: time.Now().Add(5 * time.Minute),
 	}
-	http.SetCookie(w, c)
+	cookie := c.String()
 
 	if redirect != "" {
-		http.Redirect(w, r, redirect, http.StatusFound)
-		return
+		return &oasAuthentication.LoginFound{
+			Location:      redirect,
+			Authorization: fmt.Sprintf("Bearer %s", tkn),
+			SetCookie:     oasAuthentication.NewOptString(cookie),
+		}, nil
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(tkn))
+	return &oasAuthentication.LoginOKHeaders{
+		Authorization: fmt.Sprintf("Bearer %s", tkn),
+		SetCookie:     cookie,
+		Response: oasAuthentication.LoginOK{
+			Data: bytes.NewReader([]byte(tkn)),
+		},
+	}, nil
 }
 
 func (a *AuthenticationServer) Callback(ctx context.Context, params oasAuthentication.CallbackParams) (oasAuthentication.CallbackRes, error) {
@@ -165,9 +174,14 @@ func (a *AuthenticationServer) Callback(ctx context.Context, params oasAuthentic
 
 	// SAML
 	if params.Token.Set {
+		c := &http.Cookie{
+			Name:  "token",
+			Value: params.Token.Value,
+		}
+
 		ctx = context.WithValue(ctx, provider.HTTPRequest, &http.Request{
 			Header: http.Header{
-				"Cookie": []string{fmt.Sprintf("token=%s", params.Token.Value)},
+				"Cookie": []string{c.String()},
 			},
 		})
 	}
@@ -209,13 +223,13 @@ func (a *AuthenticationServer) Callback(ctx context.Context, params oasAuthentic
 }
 
 func (a *AuthenticationServer) Providers(ctx context.Context) (*oasAuthentication.ProvidersResponse, error) {
-	providers := []oasAuthentication.ProvidersResponseProvidersItem{}
+	providers := []oasAuthentication.Providers{}
 	for _, p := range a.Authentication.Providers() {
 		if p == provider.LocalString || p == provider.LDAPString {
 			continue
 		}
 
-		var i oasAuthentication.ProvidersResponseProvidersItem
+		var i oasAuthentication.Providers
 		if err := i.UnmarshalText([]byte(p)); err != nil {
 			a.Log.Error().Err(err).Msg("list providers")
 			continue
