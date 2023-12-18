@@ -21,6 +21,36 @@ class NotifyMailResponse(BaseModel):
 
 
 #
+# NotifyEmailVerifyMail
+#
+
+
+class NotifyEmailVerifyMailRequest(BaseModel):
+    email: str
+    url: str
+    payload: object
+
+
+class NotifyEmailVerifyMailResponse(BaseModel):
+    task_id: UUID
+
+
+#
+# NotifyPasswordResetMail
+#
+
+
+class NotifyPasswordResetMailRequest(BaseModel):
+    email: str
+    url: str
+    payload: object
+
+
+class NotifyPasswordResetMailResponse(BaseModel):
+    task_id: UUID
+
+
+#
 # NotifyFrontend
 #
 

@@ -76,6 +76,110 @@ def notify_mail(payload, json: notifier.NotifyMailRequest):
     return notifier.NotifyMailResponse(task_id=task_id)
 
 
+@app.route("/notifier/mail/email-verify", methods=["POST"])
+@api.validate(resp=Response(HTTP_200=notifier.NotifyEmailVerifyMailResponse))
+@is_admin
+def email_verify(payload, json: notifier.NotifyEmailVerifyMailRequest):
+    """
+    Send an email to the user with the email specifications as JSON in body request.
+
+    Email specifications in JSON:
+    {
+        "email": "email address where the mail will be sent",
+        "url": "url that will be sent to the user for email verification",
+    }
+    :param payload: Data from JWT
+    :type payload: dict
+    :return: Task ID
+    :rtype: Set with Flask response values and data in JSON
+    """
+    if not os.environ.get("NOTIFY_EMAIL"):
+        return
+    text = """Please go to the following address to verify you email address:\n
+                {link}\n""".format(
+        link=json.url
+    )
+    email_content = """<p>Please verify your email address by clicking on the following button:</p>
+                        <form action="{link}">
+                            <input type="submit" value="Verify email address" />
+                        </form>
+                        <p>If you did not initiate this request, you may safely ignore this message.</p>
+                    """.format(
+        link=json.url
+    )
+    html = render_template(
+        "email/base.html",
+        email_content=email_content,
+        email_footer="Please do not respond since this email has been automatically generated.",
+    )
+    task_id = Task(
+        queue="notifier.default",
+        task="mail",
+        user_id=payload["user_id"],
+        job_kwargs={
+            "kwargs": {
+                "address": [json.email],
+                "subject": "Verify IsardVDI email",
+                "text": text,
+                "html": html,
+            },
+        },
+    ).id
+
+    return notifier.NotifyEmailVerifyMailResponse(task_id=task_id)
+
+
+@app.route("/notifier/mail/password-reset", methods=["POST"])
+@api.validate(resp=Response(HTTP_200=notifier.NotifyPasswordResetMailResponse))
+@is_admin
+def password_reset(payload, json: notifier.NotifyPasswordResetMailRequest):
+    """
+    Send an email to the user with the email specifications as JSON in body request.
+
+    Email specifications in JSON:
+    {
+        "email": "email address where the mail will be sent",
+        "url": "url that will be sent to the user for password reset",
+    }
+    :param payload: Data from JWT
+    :type payload: dict
+    :return: Task ID
+    :rtype: Set with Flask response values and data in JSON
+    """
+    if not os.environ.get("NOTIFY_EMAIL"):
+        return
+    text = """We've received your password reset request to access IsardVDI. Go to the following address to set a new password:\n
+                {link}\n""".format(
+        link=json.url
+    )
+    email_content = """<p>We've received your password reset request to access IsardVDI. Click on the following link to set a new password:</p>
+                        <a href="{link}">{link}</a>
+                        <p>This link can only be used once and it's valid for 24 hours.</p>
+                    """.format(
+        link=json.url
+    )
+    html = render_template(
+        "email/base.html",
+        email_content=email_content,
+        email_footer="Please do not respond since this email has been automatically generated.",
+    )
+    task_id = Task(
+        queue="notifier.default",
+        task="mail",
+        user_id=payload["user_id"],
+        job_kwargs={
+            "kwargs": {
+                "address": [json.email],
+                "subject": "Reset IsardVDI password",
+                "text": text,
+                "html": html,
+            },
+        },
+    ).id
+
+    return notifier.NotifyPasswordResetMailResponse(task_id=task_id)
+
+
 @app.route("/frontend", methods=["POST"])
 @api.validate(resp=Response(HTTP_200=notifier.NotifyFrontendResponse))
 def notify_frontend(json: notifier.NotifyFrontendRequest):
