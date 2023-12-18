@@ -27,7 +27,7 @@ type Interface interface {
 	Provider(provider string) provider.Provider
 
 	Login(ctx context.Context, provider string, categoryID string, args map[string]string) (tkn, redirect string, err error)
-	Callback(ctx context.Context, args map[string]string) (tkn, redirect string, err error)
+	Callback(ctx context.Context, ss string, args map[string]string) (tkn, redirect string, err error)
 	Check(ctx context.Context, tkn string) error
 
 	AcknowledgeDisclaimer(ctx context.Context, tkn string) error
@@ -225,12 +225,7 @@ func (a *Authentication) Login(ctx context.Context, prv, categoryID string, args
 	return a.finishLogin(ctx, u, args[provider.RedirectArgsKey])
 }
 
-func (a *Authentication) Callback(ctx context.Context, args map[string]string) (string, string, error) {
-	ss := args["state"]
-	if ss == "" {
-		return "", "", errors.New("callback state not provided")
-	}
-
+func (a *Authentication) Callback(ctx context.Context, ss string, args map[string]string) (string, string, error) {
 	claims, err := token.ParseCallbackToken(a.Secret, ss)
 	if err != nil {
 		return "", "", fmt.Errorf("parse callback state: %w", err)

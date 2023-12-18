@@ -1,6 +1,7 @@
 package http
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -46,7 +47,6 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, addr st
 
 	// Non OAS endpoints
 	m.HandleFunc("/login", a.login)
-	m.HandleFunc("/callback", a.callback)
 
 	// SAML authentication
 	m.HandleFunc("/saml/metadata", a.Authentication.SAML().ServeMetadata)
@@ -155,45 +155,57 @@ func (a *AuthenticationServer) login(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(tkn))
 }
 
-func (a *AuthenticationServer) callback(w http.ResponseWriter, r *http.Request) {
-	args, err := parseArgs(r)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(err.Error()))
-		return
+func (a *AuthenticationServer) Callback(ctx context.Context, params oasAuthentication.CallbackParams) (oasAuthentication.CallbackRes, error) {
+	args := map[string]string{}
+
+	// OAuth2
+	if params.Code.Set {
+		args["code"] = params.Code.Value
 	}
 
-	ctx := context.WithValue(r.Context(), provider.HTTPRequest, r)
+	// SAML
+	if params.Token.Set {
+		ctx = context.WithValue(ctx, provider.HTTPRequest, &http.Request{
+			Header: http.Header{
+				"Cookie": []string{fmt.Sprintf("token=%s", params.Token.Value)},
+			},
+		})
+	}
 
-	tkn, redirect, err := a.Authentication.Callback(ctx, args)
+	tkn, redirect, err := a.Authentication.Callback(ctx, params.State, args)
 	if err != nil {
 		if errors.Is(err, provider.ErrUserDisabled) {
-			http.Redirect(w, r, "/login?error=user_disabled", http.StatusFound)
-			return
+			return &oasAuthentication.CallbackFound{
+				Location: "/login?error=user_disabled",
+			}, nil
 		}
 
-		// TODO: Better error handling!
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error()))
-		return
+		return nil, err
 	}
 
-	w.Header().Set("Authorization", "Bearer "+tkn)
 	c := &http.Cookie{
 		Name:    "authorization",
 		Path:    "/",
 		Value:   tkn,
 		Expires: time.Now().Add(5 * time.Minute),
 	}
-	http.SetCookie(w, c)
+	cookie := c.String()
 
 	if redirect != "" {
-		http.Redirect(w, r, redirect, http.StatusFound)
-		return
+		return &oasAuthentication.CallbackFound{
+			Location:      redirect,
+			Authorization: fmt.Sprintf("Bearer %s", tkn),
+			SetCookie:     oasAuthentication.NewOptString(cookie),
+		}, nil
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(tkn))
+	return &oasAuthentication.CallbackOKHeaders{
+		Authorization: fmt.Sprintf("Bearer %s", tkn),
+		SetCookie:     cookie,
+		Response: oasAuthentication.CallbackOK{
+			Data: bytes.NewReader([]byte(tkn)),
+		},
+	}, nil
 }
 
 func (a *AuthenticationServer) Providers(ctx context.Context) (*oasAuthentication.ProvidersResponse, error) {

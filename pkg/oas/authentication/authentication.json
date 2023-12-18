@@ -73,6 +73,91 @@
                 "security": []
             }
         },
+        "/callback": {
+            "get": {
+                "operationId": "Callback",
+                "summary": "This method is used as a callback for external identity providers",
+                "description": "",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "state",
+                        "description": "This state has the callback JWT",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "code",
+                        "description": "Used for OAuth2 callback",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "cookie",
+                        "name": "token",
+                        "description": "Used for SAML authentication",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "headers": {
+                            "Authorization": {
+                                "schema": {
+                                    "type": "string"
+                                },
+                                "required": true
+                            },
+                            "Set-Cookie": {
+                                "schema": {
+                                    "type": "string"
+                                },
+                                "required": true
+                            }
+                        },
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "302": {
+                        "description": "",
+                        "headers": {
+                            "Location": {
+                                "schema": {
+                                    "type": "string"
+                                },
+                                "required": true
+                            },
+                            "Authorization": {
+                                "schema": {
+                                    "type": "string"
+                                },
+                                "required": true
+                            },
+                            "Set-Cookie": {
+                                "schema": {
+                                    "type": "string"
+                                },
+                                "required": false
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/acknowledge-disclaimer": {
             "post": {
                 "operationId": "AcknowledgeDisclaimer",

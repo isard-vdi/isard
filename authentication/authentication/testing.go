@@ -26,8 +26,8 @@ func (m *AuthenticationMock) Login(ctx context.Context, provider string, categor
 	return mArgs.String(0), mArgs.String(1), mArgs.Error(2)
 }
 
-func (m *AuthenticationMock) Callback(ctx context.Context, args map[string]string) (string, string, error) {
-	mArgs := m.Called(ctx, args)
+func (m *AuthenticationMock) Callback(ctx context.Context, tkn string, args map[string]string) (string, string, error) {
+	mArgs := m.Called(ctx, tkn, args)
 	return mArgs.String(0), mArgs.String(1), mArgs.Error(2)
 }
 
