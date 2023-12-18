@@ -31,7 +31,10 @@ except:
     try:
         from webapp import app
     except:
-        from scheduler import app
+        try:
+            from scheduler import app
+        except:
+            from notifier import app
 
 content_type = {"Content-Type": "application/json"}
 ex = {
