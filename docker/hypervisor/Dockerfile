@@ -17,7 +17,7 @@ RUN CARGO_INCREMENTAL=0 cargo build --release
 RUN make install || true
 
 # Image isard-hypervisor
-FROM alpine:3.16 as production
+FROM alpine:3.19 as production
 MAINTAINER isard <info@isardvdi.com>
 
 RUN echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories
@@ -155,12 +155,12 @@ COPY docker/hypervisor/networks/ /etc/libvirt/qemu/networks/
 # Api
 COPY docker/hypervisor/requirements.txt requirements.txt
 RUN apk add  --no-cache bash python3 py3-pip py3-requests
-RUN pip3 install --upgrade pip
+RUN pip3 install --break-system-packages --upgrade pip
 RUN apk add --no-cache --virtual .build_deps \
     build-base \
     python3-dev \
     libffi-dev 
-RUN pip3 install --no-cache-dir -r requirements.txt && \
+RUN pip3 install --break-system-packages --no-cache-dir -r requirements.txt && \
     rm requirements.txt
 # RUN apk del .build_deps
 
@@ -198,5 +198,9 @@ COPY docker/hypervisor/src /src
 COPY component/_common/src /src/_common
 COPY docker/hypervisor/kvm/hooks /etc/libvirt/hooks
 WORKDIR /src
+# RUN rm /usr/lib/libspice*
+# COPY docker/hypervisor/spice-dev/* /usr/lib/
+COPY docker/hypervisor/spice-dev/*.sh /usr/lib/
+ENV G_MESSAGES_DEBUG=all
 CMD [ "/src/start.sh"]
 
