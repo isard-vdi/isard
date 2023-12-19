@@ -326,6 +326,17 @@
                 "warning": "WARNUNG: Diese Hardware wurde aufgrund von Benutzerberechtigungen geändert:",
                 "interfaces": "Netzwerke",
                 "disk-size": "Festplattengröße (GB)"
+            },
+            "image": {
+                "title": "Bild"
+            },
+            "media": {
+                "title": "Medien",
+                "floppies": "Disketten",
+                "placeholder": "Geben Sie mindestens 2 Buchstaben ein, um zu suchen."
+            },
+            "bookables": {
+                "vgpus": "Grafikkarte"
             }
         },
         "create": "Erstellen",
@@ -359,7 +370,8 @@
             "title": "Neue Verteilung erstellen:",
             "name": "Name der Verteilung",
             "error": {
-                "groups": "Mindestens eine Gruppe muss selektiert sein"
+                "groups": "Mindestens eine Gruppe muss selektiert sein",
+                "groups-users": "Mindestens ein Nutzer oder eine Gruppe muss ausgewählt werden"
             }
         },
         "filter-placeholder": "Tippe zum suchen",
@@ -409,6 +421,9 @@
         },
         "edit": {
             "title": "'{name}' bearbeiten"
+        },
+        "duplicate-template": {
+            "title": "Vorlage duplizieren"
         }
     },
     "errors": {
@@ -431,8 +446,6 @@
         "yes": "Ja",
         "title": {
             "delete": "Löschen"
-        },
-        "confirmation": {
         }
     }
 }
