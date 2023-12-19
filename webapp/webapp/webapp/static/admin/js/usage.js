@@ -196,11 +196,11 @@ $('#modalEditResetDates #send').on('click', function (e) {
     async: false,
     contentType: "Application/json",
     data: JSON.stringify({ "date_list": dateList })
-  }).success(function (data) {
+  }).done(function (data) {
     $('form').each(function () { this.reset() });
     $('.modal').modal('hide');
     showResetDate();
-  }).error( function (data) {
+  }).fail(function (data) {
     new PNotify({
       title: `ERROR`,
       text: data.responseJSON.description,
