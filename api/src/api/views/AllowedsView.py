@@ -18,7 +18,7 @@ from ..libv2.api_desktops_persistent import (
     unassign_resource_from_desktops_and_deployments,
 )
 from ..libv2.validators import _validate_item
-from .decorators import has_token, owns_table_item_id
+from .decorators import has_token, owns_table_item_id, ownsMediaId
 
 alloweds = ApiAllowed()
 
@@ -131,6 +131,8 @@ def admin_allowed_update(payload, table):
     admin_table_update(table, {"id": data["id"], "allowed": data["allowed"]})
     if table in ["interfaces", "media", "reservables_vgpus", "boots", "videos"]:
         item = data
+        if table == "media":
+            ownsMediaId(payload, data["id"])
         if not data["allowed"].get("roles") or not data["allowed"].get("categories"):
             item = admin_table_get(table, data["id"])
             item["allowed"].update(data["allowed"])

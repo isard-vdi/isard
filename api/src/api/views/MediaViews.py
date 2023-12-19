@@ -36,7 +36,9 @@ from ..libv2.validators import _validate_item
 from .decorators import (
     checkDuplicate,
     has_token,
+    is_admin_or_manager,
     is_admin_or_manager_or_advanced,
+    ownsDomainId,
     ownsMediaId,
 )
 
@@ -172,9 +174,10 @@ def api_v3_user_media_allowed(payload):
 
 
 @app.route("/api/v3/desktops/media_list", methods=["POST"])
-@has_token
+@is_admin_or_manager
 def api_v3_desktops_media_list(payload):
     data = request.get_json(force=True)
+    ownsDomainId(payload, data["id"])
     return (
         json.dumps(api_media.List(data["id"])),
         200,

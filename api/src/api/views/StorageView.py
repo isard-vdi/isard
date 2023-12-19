@@ -20,7 +20,7 @@ from ..libv2.api_storage import (
     get_user_ready_disks,
     parse_disks,
 )
-from .decorators import has_token, is_admin, ownsStorageId
+from .decorators import has_token, is_admin, is_admin_or_manager, ownsStorageId
 
 
 def check_storage_existence_and_permissions(payload, storage_id):
@@ -166,7 +166,7 @@ def create_storage(payload):
 
 
 @app.route("/api/v3/storage/<path:storage_id>/parents", methods=["GET"])
-@has_token
+@is_admin_or_manager
 def storage_parents(payload, storage_id):
     return jsonify(
         [

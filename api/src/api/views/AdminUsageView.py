@@ -326,7 +326,7 @@ def api_v3_admin_usage_limits(payload):
 @is_admin
 def api_v3_admin_usage_limits_add(payload):
     data = request.get_json()
-    _validate_item("usage_limit", data)
+    data = _validate_item("usage_limit", data)
 
     return (
         json.dumps(add_usage_limits(data["name"], data["desc"], data["limits"])),
@@ -339,7 +339,7 @@ def api_v3_admin_usage_limits_add(payload):
 @is_admin
 def api_v3_admin_usage_limits_update(payload, limit_id):
     data = request.get_json()
-    _validate_item("usage_limit", data)
+    data = _validate_item("usage_limit", data)
 
     return (
         json.dumps(
