@@ -41,6 +41,7 @@ from .decorators import (
     is_not_user,
     is_register,
     ownsDomainId,
+    ownsUserId,
 )
 
 """
@@ -59,6 +60,15 @@ def api_v3_jwt(payload):
 @has_token
 def api_v3_user_exists(payload):
     user = users.Get(payload["user_id"], True)
+    return json.dumps(user), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/user/<user_id>", methods=["GET"])
+@has_token
+def api_v3_user_data(payload, user_id=None):
+    if user_id:
+        ownsUserId(payload, user_id)
+    user = users.Get(user_id, True)
     return json.dumps(user), 200, {"Content-Type": "application/json"}
 
 

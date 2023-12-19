@@ -64,6 +64,7 @@ def is_ip(ip):
 container_base_path = {
     "isard-api": "/api/v3",
     "isard-scheduler": "/scheduler",
+    "notifier": "/notifier",
 }
 
 
@@ -77,6 +78,8 @@ class ApiRest:
                 actual_server = os.environ.get("API_DOMAIN")
             if service == "isard-scheduler":
                 actual_server = "isard-scheduler"
+            if service == "isard-notifier":
+                actual_server = "isard-notifier"
 
             if actual_server:
                 if actual_server == "localhost" or actual_server.startswith("isard-"):

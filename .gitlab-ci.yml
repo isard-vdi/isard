@@ -225,6 +225,7 @@ docker-image:
           - guac
           - rdpgw
           - hypervisor
+          - notifier
           - portal
           - squid
           - static
