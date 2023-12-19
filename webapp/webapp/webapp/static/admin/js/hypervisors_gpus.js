@@ -105,13 +105,13 @@ $(document).ready(function () {
                 method: "GET",
                 async: false,
                 url: "/engine/profile/gpu/"+data.physical_device,
-              }).success(function (response) {
+              }).done(function (response) {
                 if( response.changing_to_profile != false ){
                   text= response.vgpu_profile+"->"+response.changing_to_profile
                 }else{
                   text= response.vgpu_profile
                 }
-              }).error(function (XMLHttpRequest, textStatus, errorThrown) {
+              }).fail(function (XMLHttpRequest, textStatus, errorThrown) {
                 console.log("Status: " + textStatus); console.log("Error: " + errorThrown);
               })
           }else{
