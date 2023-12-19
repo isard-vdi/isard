@@ -79,7 +79,11 @@ def api_v3_admin_jwt(payload, user_id):
 @has_token
 def api_v3_admin_user_exists(payload, user_id):
     ownsUserId(payload, user_id)
-    return json.dumps(users.Get(user_id)), 200, {"Content-Type": "application/json"}
+    return (
+        json.dumps(users.get_user_full_data(user_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )
 
 
 @app.route("/api/v3/admin/user/<user_id>/raw", methods=["GET"])
@@ -552,6 +556,16 @@ def api_v3_admin_category_insert(payload):
     )
 
 
+@app.route("/api/v3/admin/group/<group_id>", methods=["GET"])
+@is_admin_or_manager
+def api_v3_admin_group_get(payload, group_id):
+    return (
+        json.dumps(users.group_get_full_data(group_id)),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
 # Add group
 @app.route("/api/v3/admin/group", methods=["POST"])
 @is_admin_or_manager
@@ -1019,3 +1033,24 @@ def search_users_for_template(payload):
         )
 
     return json.dumps(result), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/v3/admin/roles", methods=["GET"])
+@is_admin_or_manager
+def admin_roles(payload):
+    users.RoleGet(payload["role_id"])
+    return (
+        json.dumps(users.RoleGet(payload["role_id"])),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/secrets", methods=["GET"])
+@is_admin
+def admin_secrets(payload):
+    return (
+        json.dumps(users.Secrets()),
+        200,
+        {"Content-Type": "application/json"},
+    )

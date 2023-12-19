@@ -300,9 +300,8 @@ function actionsCategoryDetail() {
             keyboard: false
         }).modal('show');
         $.ajax({
-            type: "POST",
-            url: "/api/v3/admin/table/categories",
-            data: JSON.stringify({ 'id': pk }),
+            type: "GET",
+            url: "/api/v3/admin/category/" + pk,
             contentType: "application/json",
             accept: "application/json"
         }).done(function (category) {

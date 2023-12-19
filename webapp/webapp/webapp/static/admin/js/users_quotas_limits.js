@@ -308,9 +308,8 @@ function actionsUserDetail(){
         });
         setModalUser();
         $.ajax({
-            type: "POST",
-            url: '/api/v3/admin/table/users',
-            data: JSON.stringify({'id':pk}),
+            type: "GET",
+            url: '/api/v3/admin/user/' + pk,
             contentType: "application/json",
             accept: "application/json",
             async: false
