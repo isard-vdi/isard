@@ -370,7 +370,8 @@
             "title": "Neue Verteilung erstellen:",
             "name": "Name der Verteilung",
             "error": {
-                "groups": "Mindestens eine Gruppe muss selektiert sein"
+                "groups": "Mindestens eine Gruppe muss selektiert sein",
+                "groups-users": "Mindestens ein Nutzer oder eine Gruppe muss ausgewählt werden"
             }
         },
         "filter-placeholder": "Tippe zum suchen",
