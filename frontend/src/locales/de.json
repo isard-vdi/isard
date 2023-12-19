@@ -332,7 +332,8 @@
             },
             "media": {
                 "title": "Medien",
-                "floppies": "Disketten"
+                "floppies": "Disketten",
+                "placeholder": "Geben Sie mindestens 2 Buchstaben ein, um zu suchen."
             },
             "bookables": {
                 "vgpus": "Grafikkarte"
