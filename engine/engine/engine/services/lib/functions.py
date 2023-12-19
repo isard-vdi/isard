@@ -9,7 +9,6 @@ import os
 import queue
 import shlex
 import socket
-import subprocess
 import sys
 import threading
 import time
@@ -472,17 +471,12 @@ dict_domain_libvirt_state_to_isard_state = {
     "pmsuspended": "Failed",
 }
 
-dict_state = {
-    eval(a): {
-        "code": a.split("_")[-1].lower(),
-        "cause": {
-            eval(b): b.split("_")[-1].lower()
-            for b in domain_state_cause_codes.split()
-            if b.find(a) >= 0
-        },
-    }
-    for a in domain_state_codes.split()
-}
+dict_state = {}
+for a in domain_state_codes.split():
+    dict_state[a] = {"code": a.split("_")[-1].lower(), "cause": {}}
+    for b in domain_state_cause_codes.split():
+        if b.find(a) >= 0:
+            dict_state[a]["cause"][b] = b.split("_")[-1].lower()
 
 
 def state_and_cause_to_str(state_number, cause_number):
