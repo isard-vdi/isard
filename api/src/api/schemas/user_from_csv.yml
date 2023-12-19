@@ -5,6 +5,7 @@ username:
   maxlength: 40
   coerce: sanitize
 name:
+  maxlength: 50
   required: true
   empty: false
   coerce: sanitize

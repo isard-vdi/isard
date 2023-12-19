@@ -33,7 +33,7 @@
             v-model="name"
             type="text"
             size="sm"
-            maxlength="40"
+            maxlength="50"
             :state="v$.name.$error ? false : null"
             @blur="v$.name.$touch"
           />
@@ -41,7 +41,7 @@
             v-if="v$.name.$error"
             id="nameError"
           >
-            {{ $t(`validations.${v$.name.$errors[0].$validator}`, { property: $t('forms.new-template.name'), model: name.length, min: 4, max: 40 }) }}
+            {{ $t(`validations.${v$.name.$errors[0].$validator}`, { property: $t('forms.new-template.name'), model: name.length, min: 4, max: 50 }) }}
           </b-form-invalid-feedback>
         </b-col>
       </b-row>
@@ -62,8 +62,15 @@
             id="description"
             v-model="description"
             type="text"
+            maxlength="255"
             size="sm"
           />
+          <b-form-invalid-feedback
+            v-if="v$.description.$error"
+            id="descriptionError"
+          >
+            {{ $t(`validations.${v$.description.$errors[0].$validator}`, { property: $t('forms.domain.info.description'), model: description.length, max: 255 }) }}
+          </b-form-invalid-feedback>
         </b-col>
       </b-row>
 
@@ -171,11 +178,14 @@ export default {
     const v$ = useVuelidate({
       name: {
         required,
-        maxLengthValue: maxLength(40),
+        maxLengthValue: maxLength(50),
         minLengthValue: minLength(4),
         inputFormat
+      },
+      description: {
+        maxLengthValue: maxLength(255)
       }
-    }, { name })
+    }, { name, description })
 
     const submitForm = () => {
       // Check if the form is valid

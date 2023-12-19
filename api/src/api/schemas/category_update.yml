@@ -4,10 +4,12 @@ id:
   empty: false
   coerce: sanitize
 name:
+  maxlength: 50
   empty: false
   type: string
   coerce: sanitize
-description: 
+description:
+  maxlength: 255
   type: string
   coerce: sanitize
 frontend:
@@ -46,5 +48,6 @@ ephimeral:
       nullable: false
       empty: false
 custom_url_name:
+  maxlength: 50
   type: string
   coerce: sanitize

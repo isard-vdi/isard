@@ -4,6 +4,7 @@ id:
   default_setter: genuuid
   coerce: sanitize
 name:
+  maxlength: 50
   required: true
   type: string
   coerce: sanitize
@@ -15,6 +16,7 @@ model:
   type: string
   coerce: sanitize
 description:
+  maxlength: 255
   type: string
   coerce: sanitize
 brand:

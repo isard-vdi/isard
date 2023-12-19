@@ -7,8 +7,10 @@ name:
   required: true
   type: string
   minlength: 4
+  maxlength: 50
   coerce: sanitize
-description: 
+description:
+  maxlength: 255
   type: string
   default: ""
   coerce: sanitize

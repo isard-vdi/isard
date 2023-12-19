@@ -1,4 +1,5 @@
 name:
+  maxlength: 50
   type: string
   empty: false
   coerce: sanitize

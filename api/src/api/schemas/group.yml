@@ -5,11 +5,13 @@ id:
   default_setter: genuuid
   coerce: sanitize
 name:
+  maxlength: 50
   required: true
   empty: false
   type: string
   coerce: sanitize
-description: 
+description:
+  maxlength: 255
   required: false
   type: string
   coerce: sanitize

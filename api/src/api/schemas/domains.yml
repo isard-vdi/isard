@@ -9,6 +9,7 @@ category:
 create_dict:
   type: dict
 description:
+  maxlength: 255
   type: string
   default: ""
   coerce: sanitize
@@ -74,6 +75,7 @@ kind:
     - desktop
     - template
 name:
+  maxlength: 50
   type: string
   required: true
   coerce: sanitize

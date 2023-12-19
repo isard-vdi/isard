@@ -2,6 +2,7 @@ id:
   type: string
   coerce: sanitize
 name:
+  maxlength: 50
   type: string
   coerce: sanitize
 email:

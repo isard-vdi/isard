@@ -22,6 +22,7 @@ secondary_groups:
   default: []
   coerce: sanitize
 name:
+  maxlength: 50
   required: true
   type: string
   empty: false
@@ -32,7 +33,8 @@ category:
   empty: false
   type: string
   coerce: sanitize
-description: 
+description:
+  maxlength: 255
   required: false
   type: string
   coerce: sanitize

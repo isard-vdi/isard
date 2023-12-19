@@ -24,12 +24,12 @@
                                 <div class="col-md-4 col-xs-12">
                                     <label class="control-label" for="name">Name <span class="required">*</span>
                                     </label>
-                                    <input id="name" class="roundbox" maxlength="40" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New video name" data-parsley-trigger="change" required type="text">
+                                    <input id="name" class="roundbox" maxlength="50" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 50]" name="name" placeholder="New video name" data-parsley-trigger="change" required type="text">
                                 </div>
                                 <div class="col-md-8 col-xs-12">
                                     <label class="control-label" for="description">Description 
                                     </label>
-                                    <input id="description" class="roundbox" name="description" placeholder="Desktop description"  type="text" style="width:100%">
+                                    <input id="description" class="roundbox"  name="description" data-parsley-length="[0, 255]"    data-parsley-trigger="change"  maxlength="255"  placeholder="Desktop description"  type="text" style="width:100%">
                                 </div>
                             </div>
                             <div class="row">
@@ -111,12 +111,12 @@
                                 <div class="col-md-4 col-xs-12">
                                     <label class="control-label" for="name">Name <span class="required">*</span>
                                     </label>
-                                        <input id="name" class="roundbox" maxlength="40" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New interface name" data-parsley-trigger="change" required type="text">
+                                        <input id="name" class="roundbox" maxlength="50" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 50]" name="name" placeholder="New interface name" data-parsley-trigger="change" required type="text">
                                 </div>
                                 <div class="col-md-8 col-xs-12">
                                     <label class="control-label" for="description">Description 
                                     </label>
-                                    <input id="description" class="roundbox" name="description" placeholder="Interface description"  type="text" style="width:100%">
+                                    <input id="description" class="roundbox"  name="description" data-parsley-length="[0, 255]"    data-parsley-trigger="change"  maxlength="255"  placeholder="Interface description"  type="text" style="width:100%">
                                 </div>
                             </div>
                             <div class="row">
@@ -133,7 +133,7 @@
                                 <div class="col-md-6 col-xs-12">
                                     <label id='ifname_label' class="control-label" for="ifname">(First select type)<span class="required">*</span>
                                     </label>
-                                    <input id="ifname" class="roundbox" maxlength="40" data-parsley-length="[1, 40]" name="ifname" placeholder="Select Type first" data-parsley-trigger="change" required>
+                                    <input id="ifname" class="roundbox" maxlength="50" data-parsley-length="[1, 50]" name="ifname" placeholder="Select Type first" data-parsley-trigger="change" required>
                                 </div>
                                 <!-- <div class="col-md-8 col-xs-12">
                                     <label class="control-label" for="net">Network
@@ -202,12 +202,12 @@
                     <div class="col-md-4 col-xs-12">
                         <label class="control-label" for="name">Name <span class="required">*</span>
                         </label>
-                          <input id="name" class="roundbox" maxlength="40" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text">
+                          <input id="name" class="roundbox" maxlength="50" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 50]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text">
                     </div>
                     <div class="col-md-8 col-xs-12">
                         <label class="control-label" for="description">Description 
                         </label>
-                        <input id="description" class="roundbox" name="description" placeholder="Desktop description"  type="text" style="width:100%">
+                        <input id="description" class="roundbox"  name="description" data-parsley-length="[0, 255]"    data-parsley-trigger="change"  maxlength="255"  placeholder="Desktop description"  type="text" style="width:100%">
                     </div>
                 </div>                     
                 <div class="row">
@@ -289,12 +289,12 @@
                     <div class="col-md-4 col-xs-12">
                         <label class="control-label" for="name">Name <span class="required">*</span>
                         </label>
-                          <input id="name" class="roundbox" maxlength="40" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text" style="width: 100%;">
+                          <input id="name" class="roundbox" maxlength="50" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 50]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text" style="width: 100%;">
                     </div>
                     <div class="col-md-8 col-xs-12">
                         <label class="control-label" for="description">Description 
                         </label>
-                        <input id="description" class="roundbox" name="description" placeholder="Desktop description"  type="text" style="width:100%">
+                        <input id="description" class="roundbox"  name="description" data-parsley-length="[0, 255]"    data-parsley-trigger="change"  maxlength="255"  placeholder="Desktop description"  type="text" style="width:100%">
                     </div>
                 </div>                         
                 <div class="row">
@@ -439,12 +439,12 @@
                             <div class="col-md-4 col-xs-12">
                                 <label class="control-label" for="name">Name <span class="required">*</span>
                                 </label>
-                                  <input id="name" class="roundbox" maxlength="40" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text">
+                                  <input id="name" class="roundbox" maxlength="50" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 50]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text">
                             </div>
                             <div class="col-md-8 col-xs-12">
                                 <label class="control-label" for="description">Description 
                                 </label>
-                                <input id="description" class="roundbox" name="description" placeholder="Desktop description"  type="text" style="width:100%">
+                                <input id="description" class="roundbox"  name="description" data-parsley-length="[0, 255]"    data-parsley-trigger="change"  maxlength="255"  placeholder="Desktop description"  type="text" style="width:100%">
                             </div>
                         </div>
 
@@ -452,7 +452,7 @@
                            <div class="col-md-12 col-xs-12">
                               <label class="control-label" for="type">Optional extra Routed Hosts/Networks 
                               </label>
-                              <input id="interfaces" class="roundbox" maxlength="80" pattern="^[/.,0-9]+$" data-parsley-length="[4, 40]" name="interfaces" placeholder="Comma-separated nets" data-parsley-trigger="change" type="text">
+                              <input id="interfaces" class="roundbox" maxlength="80" pattern="^[/.,0-9]+$" data-parsley-length="[4, 50]" name="interfaces" placeholder="Comma-separated nets" data-parsley-trigger="change" type="text">
                            </div>
                         </div>
 				</div>

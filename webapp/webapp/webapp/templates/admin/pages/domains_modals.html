@@ -41,12 +41,12 @@
                         <div class="col-md-4 col-xs-12">
                            <label class="control-label" for="name">Name <span class="required">*</span>
                            </label>
-                           <input id="name" class="roundbox" maxlength="40" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text" style="width:100%">
+                           <input id="name" class="roundbox" maxlength="50" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 50]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text" style="width:100%">
                         </div>
                         <div class="col-md-8 col-xs-12">
                            <label class="control-label" for="description">Description 
                            </label>
-                           <input id="description" class="roundbox" name="description" placeholder="Desktop description"  type="text" style="width:100%">
+                           <input id="description" class="roundbox"  name="description" data-parsley-length="[0, 255]"    data-parsley-trigger="change"  maxlength="255"  placeholder="Desktop description"  type="text" style="width:100%">
                         </div>
                      </div>
                   </div>
@@ -120,12 +120,12 @@
                            <div class="col-md-4 col-xs-12">
                               <label class="control-label" for="name">Name <span class="required">*</span>
                               </label>
-                              <input id="name" maxlength="40" pattern="^[_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text">
+                              <input id="name" maxlength="50" pattern="^[_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 50]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text">
                            </div>
                            <div class="col-md-8 col-xs-12">
                               <label class="control-label" for="description">Description 
                               </label>
-                              <input id="description" name="description" placeholder="Desktop description"  type="text" style="width:100%">
+                              <input id="description"  name="description" data-parsley-length="[0, 255]"    data-parsley-trigger="change"  maxlength="255"  placeholder="Desktop description"  type="text" style="width:100%">
                            </div>
                         </div>
                      </div>
@@ -205,10 +205,10 @@
                              <p style="font-size: 18px;margin-bottom:0px;">Desktop name and description</p>
                              <div class="x_content">
                                 <label for="name">Name<span class="required"> *</span></label>
-                                <input type="text" id="name" class="form-control" name="name" pattern="^[_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required />
+                                <input type="text" id="name" class="form-control" name="name" pattern="^[_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 50]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required />
                       
                                   <label for="message">Description</label>
-                                  <textarea id="description" class="form-control" name="description"></textarea>                              
+                                  <textarea id="description" class="form-control"  name="description" data-parsley-length="[0, 255]"    data-parsley-trigger="change"  maxlength="255" ></textarea>                              
                              </div>
                           </div>
                         </div>
@@ -687,16 +687,16 @@
                            <div class="col-md-4 col-xs-12">
                               <label class="control-label" for="name">Guest username
                               </label>
-                              <input id="guest_properties-credentials-username" maxlength="40"
-                                 data-parsley-length="[0, 40]" name="guest_properties-credentials-username"
+                              <input id="guest_properties-credentials-username" maxlength="50"
+                                 data-parsley-length="[0, 50]" name="guest_properties-credentials-username"
                                  placeholder="Guest username" data-parsley-trigger="change" type="text"
                                  style="width:100%">
                            </div>
                            <div class="col-md-4 col-xs-12">
                               <label class="control-label" for="name">Guest password
                               </label>
-                              <input id="guest_properties-credentials-password" maxlength="40"
-                                 data-parsley-length="[1, 40]" name="guest_properties-credentials-password"
+                              <input id="guest_properties-credentials-password" maxlength="50"
+                                 data-parsley-length="[1, 50]" name="guest_properties-credentials-password"
                                  placeholder="Guest password" data-parsley-trigger="change" type="text"
                                  style="width:100%">
                            </div>
@@ -847,7 +847,7 @@
                                <div class="col-md-12 col-xs-12">
                                    <label class="control-label" for="description">Template description
                                    </label>
-                                   <textarea id="description" name="description" class="form-control col-md-7 col-xs-12 template-description"></textarea>
+                                   <textarea id="description"  name="description" data-parsley-length="[0, 255]"    data-parsley-trigger="change"  maxlength="255"  class="form-control col-md-7 col-xs-12 template-description"></textarea>
                                </div>
                            </div>
                            <div class="col-md-4 col-xs-12">

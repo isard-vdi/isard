@@ -1,9 +1,11 @@
 name:
+  maxlength: 50
   required: true
   type: string
   minlength: 4
   coerce: sanitize
-description: 
+description:
+  maxlength: 255
   type: string
   required: false
   coerce: sanitize

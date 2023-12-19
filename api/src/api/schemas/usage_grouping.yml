@@ -5,6 +5,7 @@ id:
   default_setter: genuuid
   coerce: sanitize
 name:
+  maxlength: 50
   type: string
   coerce: sanitize
 desc:
