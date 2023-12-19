@@ -345,6 +345,62 @@
                 ]
             }
         },
+        "/request-email-verification": {
+            "post": {
+                "operationId": "RequestEmailVerification",
+                "summary": "Request an email verification",
+                "description": "",
+                "parameters": [],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RequestEmailVerificationRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RequestEmailVerificationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Invalid token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
         "/verify-email": {
             "post": {
                 "operationId": "VerifyEmail",
@@ -591,6 +647,22 @@
                 "type": "object"
             },
             "AcknowledgeDisclaimerResponse": {
+                "properties": {},
+                "type": "object"
+            },
+            "RequestEmailVerificationRequest": {
+                "properties": {
+                    "email": {
+                        "nullable": false,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "email"
+                ],
+                "type": "object"
+            },
+            "RequestEmailVerificationResponse": {
                 "properties": {},
                 "type": "object"
             },

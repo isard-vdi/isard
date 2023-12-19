@@ -276,17 +276,40 @@ func (a *AuthenticationServer) AcknowledgeDisclaimer(ctx context.Context, req *o
 	}
 
 	if err := a.Authentication.AcknowledgeDisclaimer(ctx, tkn); err != nil {
-		if !errors.Is(err, token.ErrInvalidToken) || !errors.Is(err, token.ErrInvalidTokenType) {
-			return nil, fmt.Errorf("acknowledge disclaimer: %w", err)
+		if errors.Is(err, token.ErrInvalidToken) || errors.Is(err, token.ErrInvalidTokenType) {
+			return &oasAuthentication.AcknowledgeDisclaimerForbidden{
+				Type: oasAuthentication.ErrorTypeInvalidToken,
+				Msg:  err.Error(),
+			}, nil
 		}
 
-		return &oasAuthentication.AcknowledgeDisclaimerForbidden{
-			Type: oasAuthentication.ErrorTypeInvalidToken,
-			Msg:  err.Error(),
-		}, nil
+		return nil, fmt.Errorf("acknowledge disclaimer: %w", err)
 	}
 
 	return &oasAuthentication.AcknowledgeDisclaimerResponse{}, nil
+}
+
+func (a *AuthenticationServer) RequestEmailVerification(ctx context.Context, req *oasAuthentication.RequestEmailVerificationRequest) (oasAuthentication.RequestEmailVerificationRes, error) {
+	tkn, ok := ctx.Value(tokenCtxKey).(string)
+	if !ok {
+		return &oasAuthentication.RequestEmailVerificationUnauthorized{
+			Type: oasAuthentication.ErrorTypeMissingToken,
+			Msg:  "missing JWT token",
+		}, nil
+	}
+
+	if err := a.Authentication.RequestEmailVerification(ctx, tkn, req.Email); err != nil {
+		if errors.Is(err, token.ErrInvalidToken) || errors.Is(err, token.ErrInvalidTokenType) {
+			return &oasAuthentication.RequestEmailVerificationForbidden{
+				Type: oasAuthentication.ErrorTypeInvalidToken,
+				Msg:  err.Error(),
+			}, nil
+		}
+
+		return nil, fmt.Errorf("request email verification: %w", err)
+	}
+
+	return &oasAuthentication.RequestEmailVerificationResponse{}, nil
 }
 
 func (a *AuthenticationServer) VerifyEmail(ctx context.Context, req *oasAuthentication.VerifyEmailRequest) (oasAuthentication.VerifyEmailRes, error) {
@@ -299,14 +322,14 @@ func (a *AuthenticationServer) VerifyEmail(ctx context.Context, req *oasAuthenti
 	}
 
 	if err := a.Authentication.VerifyEmail(ctx, tkn); err != nil {
-		if !errors.Is(err, token.ErrInvalidToken) || !errors.Is(err, token.ErrInvalidTokenType) {
-			return nil, fmt.Errorf("verify email: %w", err)
+		if errors.Is(err, token.ErrInvalidToken) || errors.Is(err, token.ErrInvalidTokenType) {
+			return &oasAuthentication.VerifyEmailForbidden{
+				Type: oasAuthentication.ErrorTypeInvalidToken,
+				Msg:  err.Error(),
+			}, nil
 		}
 
-		return &oasAuthentication.VerifyEmailForbidden{
-			Type: oasAuthentication.ErrorTypeInvalidToken,
-			Msg:  err.Error(),
-		}, nil
+		return nil, fmt.Errorf("verify email: %w", err)
 	}
 
 	return &oasAuthentication.VerifyEmailResponse{}, nil
@@ -322,13 +345,20 @@ func (a *AuthenticationServer) ResetPassword(ctx context.Context, req *oasAuthen
 	}
 
 	if err := a.Authentication.ResetPassword(ctx, tkn, req.Password); err != nil {
-		var apiErr isardvdi.Err
-		if !errors.As(err, &apiErr) {
-			return nil, err
+		if errors.Is(err, token.ErrInvalidToken) || errors.Is(err, token.ErrInvalidTokenType) {
+			return &oasAuthentication.ResetPasswordForbidden{
+				Type: oasAuthentication.ErrorTypeInvalidToken,
+				Msg:  err.Error(),
+			}, nil
 		}
 
-		// TODO: Handle API error correctly!
-		return nil, apiErr
+		var apiErr isardvdi.Err
+		if errors.As(err, &apiErr) {
+			// TODO: Handle API error correctly!
+			return nil, apiErr
+		}
+
+		return nil, fmt.Errorf("reset password: %w", err)
 	}
 
 	return &oasAuthentication.ResetPasswordResponse{}, nil
@@ -336,14 +366,14 @@ func (a *AuthenticationServer) ResetPassword(ctx context.Context, req *oasAuthen
 
 func (a *AuthenticationServer) ForgotPassword(ctx context.Context, req *oasAuthentication.ForgotPasswordRequest) (oasAuthentication.ForgotPasswordRes, error) {
 	if err := a.Authentication.ForgotPassword(ctx, req.CategoryID, req.Email); err != nil {
-		if !errors.Is(err, token.ErrInvalidToken) || !errors.Is(err, token.ErrInvalidTokenType) {
-			return nil, fmt.Errorf("forgot password: %w", err)
+		if errors.Is(err, token.ErrInvalidToken) || errors.Is(err, token.ErrInvalidTokenType) {
+			return &oasAuthentication.ForgotPasswordForbidden{
+				Type: oasAuthentication.ErrorTypeInvalidToken,
+				Msg:  err.Error(),
+			}, nil
 		}
 
-		return &oasAuthentication.ForgotPasswordForbidden{
-			Type: oasAuthentication.ErrorTypeInvalidToken,
-			Msg:  err.Error(),
-		}, nil
+		return nil, fmt.Errorf("forgot password: %w", err)
 	}
 
 	return &oasAuthentication.ForgotPasswordResponse{}, nil
