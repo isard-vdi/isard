@@ -1,3 +1,4 @@
+---
 # https://docs.gitlab.com/ee/ci/yaml/index.html#switch-between-branch-pipelines-and-merge-request-pipelines
 workflow:
   rules:
@@ -47,23 +48,20 @@ default:
         - e2e/node_modules
 
 include:
- - template: Security/Dependency-Scanning.gitlab-ci.yml
- - template: Security/SAST.gitlab-ci.yml
- - template: Security/Secret-Detection.gitlab-ci.yml
- - template: Security/Container-Scanning.gitlab-ci.yml
+  - template: Security/Dependency-Scanning.gitlab-ci.yml
+  - template: Security/SAST.gitlab-ci.yml
+  - template: Security/Secret-Detection.gitlab-ci.yml
+  - template: Security/Container-Scanning.gitlab-ci.yml
 
 stages:
- - lint
- - docker-image-codegen
- - gen
- - unit-test
- - version
- - docker-compose
- - docker-images
- - test
- - docker-registry
- - container-scan
- - release
+  - lint
+  - build-codegen
+  - generate
+  - unit-test
+  - build
+  - test
+  - release
+  - container-scan
 
 commit-lint:
   stage: lint
@@ -101,9 +99,9 @@ check-protobuf:
 
 docker-image-codegen:
   image: docker:latest
-  stage: docker-image-codegen
+  stage: build-codegen
   services:
-  - name: "docker:dind-rootless"
+    - name: "docker:dind-rootless"
   parallel:
     matrix:
       - DOCKERFILE: docker/codegen/Dockerfile
@@ -117,7 +115,7 @@ docker-image-codegen:
     - docker push $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA
 
 gen-protobuf:
-  stage: gen
+  stage: generate
   image: docker:latest
   services:
     - name: "docker:dind-rootless"
@@ -129,26 +127,8 @@ gen-protobuf:
     paths:
       - pkg/gen
 
-unit-test-go:
-  stage: unit-test
-  image: golang:1.21
-  before_script:
-    - apt-get update && apt-get install -y libvirt-dev
-    - go install github.com/boumenot/gocover-cobertura@latest
-  script:
-    - export PATH=$PATH:~/go/bin
-    - go test -v -race ./... -coverprofile coverage.out -covermode atomic
-    - go tool cover -func coverage.out
-    - gocover-cobertura < coverage.out > coverage.xml
-  artifacts:
-    reports:
-      coverage_report:
-        coverage_format: cobertura
-        path: coverage.xml
-  coverage: /total:\s+\(statements\)\s+\d+.\d+%/
-
 version:
-  stage: version
+  stage: generate
   image: node:18.17
   rules:
     # semantic-release checks repository write access and we cannot use
@@ -167,7 +147,7 @@ version:
 changelog-preview:
   # This is a workarround to show changelog preview without semantic-release
   # see comment in job "version".
-  stage: version
+  stage: generate
   image: node:18.17
   before_script:
     - npm install -g conventional-changelog-cli conventional-changelog-conventionalcommits@6
@@ -178,30 +158,8 @@ changelog-preview:
     paths:
       - CHANGELOG.md
 
-docker-compose-demo:
-  stage: docker-compose
-  image: docker:latest
-  services:
-    - name: "docker:dind-rootless"
-  before_script:
-    - apk add bash git
-    # Use docker compose < 1.27 to avoid depends_on issue
-    # https://github.com/isard-vdi/isard/issues/390
-    - apk info -q --depends docker-compose | xargs apk add
-    - apk add py3-pip
-    - pip install "Cython<3.0.0" pyyaml==5.3.1  docker-compose~=1.26.0
-  script:
-    - test "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" -a ! -e ".VERSION" && exit 0
-    - cp isardvdi.cfg.example isardvdi.cfg
-    - echo "DOCKER_IMAGE_PREFIX=${CI_REGISTRY_IMAGE}/" >> isardvdi.cfg
-    - echo "DOCKER_IMAGE_TAG=$CI_COMMIT_REF_SLUG" >> isardvdi.cfg
-    - SKIP_CHECK_DOCKER_COMPOSE_VERSION=true CODEGEN=false ./build.sh
-  artifacts:
-    paths:
-      - docker-compose*.yml
-
 docker-compose-build:
-  stage: docker-compose
+  stage: generate
   image: docker:latest
   services:
     - name: "docker:dind-rootless"
@@ -229,9 +187,27 @@ docker-compose-build:
     paths:
       - docker-compose*.yml
 
+unit-test-go:
+  stage: unit-test
+  image: golang:1.21
+  before_script:
+    - apt-get update && apt-get install -y libvirt-dev
+    - go install github.com/boumenot/gocover-cobertura@latest
+  script:
+    - export PATH=$PATH:~/go/bin
+    - go test -v -race ./... -coverprofile coverage.out -covermode atomic
+    - go tool cover -func coverage.out
+    - gocover-cobertura < coverage.out > coverage.xml
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+  coverage: /total:\s+\(statements\)\s+\d+.\d+%/
+
 docker-image:
   image: docker:latest
-  stage: docker-images
+  stage: build
   services:
     - name: "docker:dind-rootless"
   parallel:
@@ -325,14 +301,13 @@ gemnasium-dependency_scanning:
     DS_INCLUDE_DEV_DEPENDENCIES: "false"
 
 docker-tag:
-  stage: docker-registry
+  stage: release
   image:
     name: gcr.io/go-containerregistry/crane:debug
     entrypoint: [""]
   parallel:
     matrix:
-      - IMAGE:
-          *containers
+      - IMAGE: *containers
       - IMAGE:
           - codegen
           - check
@@ -350,27 +325,6 @@ docker-tag:
     - test ! -e ".VERSION" && exit 0
     - crane tag $CI_REGISTRY_IMAGE/$IMAGE:git-$CI_COMMIT_SHORT_SHA v$(cat .VERSION | tr '.' '-')
 
-container_scanning:
-  stage: container-scan
-  variables:
-    CI_APPLICATION_REPOSITORY: $CI_REGISTRY_IMAGE/$IMAGE
-    CI_APPLICATION_TAG: $CI_COMMIT_REF_SLUG
-    CS_DISABLE_LANGUAGE_VULNERABILITY_SCAN: "false"
-  parallel:
-    matrix:
-      - IMAGE:
-          *containers
-      - IMAGE:
-          - codegen
-          - check
-          - check-client
-          - vpn
-          - orchestrator
-          - video
-          - monitor-proxy
-          - nc-proxy
-          - nc-app
-
 release:
   stage: release
   image: node:18.17
@@ -382,3 +336,23 @@ release:
     - npm install -g semantic-release @semantic-release/gitlab conventional-changelog-conventionalcommits@6
     - cp releaserc.release.yml .releaserc.yml
     - semantic-release --branches $CI_DEFAULT_BRANCH
+
+container_scanning:
+  stage: container-scan
+  variables:
+    CI_APPLICATION_REPOSITORY: $CI_REGISTRY_IMAGE/$IMAGE
+    CI_APPLICATION_TAG: $CI_COMMIT_REF_SLUG
+    CS_DISABLE_LANGUAGE_VULNERABILITY_SCAN: "false"
+  parallel:
+    matrix:
+      - IMAGE: *containers
+      - IMAGE:
+          - codegen
+          - check
+          - check-client
+          - vpn
+          - orchestrator
+          - video
+          - monitor-proxy
+          - nc-proxy
+          - nc-app
