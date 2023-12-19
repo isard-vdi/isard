@@ -439,7 +439,6 @@ def api_v3_admin_category(payload, category_id):
 @is_admin
 def api_v3_admin_edit_category(payload, category_id):
     ownsCategoryId(payload, category_id)
-
     try:
         data = request.get_json()
     except:
@@ -463,7 +462,7 @@ def api_v3_admin_quota_group(payload, group_id):
     propagate = True if "propagate" in data.keys() else False
     if data["quota"]:
         data["id"] = group_id
-        _validate_item("group_update_quota", data)
+        data = _validate_item("group_update_quota", data)
     if data["role"] == "all_roles":
         data["role"] = False
     group = users.GroupGet(group_id)
@@ -821,7 +820,7 @@ def admin_userschema(payload):
 def admin_users_validate(payload):
     user_list = request.get_json()
     for i, user in enumerate(user_list):
-        _validate_item("user_from_csv", user)
+        user = _validate_item("user_from_csv", user)
 
         if payload["role_id"] == "manager":
             if user["role"] not in ["manager", "advanced", "user"]:
