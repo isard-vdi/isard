@@ -140,19 +140,27 @@ class Error(Exception):
         self.error = ex[error]["error"].copy()
         self.error["description_code"] = description_code if description_code else error
         self.error["function"] = (
-            inspect.stack()[1][1].split(os.sep)[-1]
-            + ":"
-            + str(inspect.stack()[1][2])
-            + ":"
-            + inspect.stack()[1][3]
+            (
+                inspect.stack()[1][1].split(os.sep)[-1]
+                + ":"
+                + str(inspect.stack()[1][2])
+                + ":"
+                + inspect.stack()[1][3]
+            )
+            if debug
+            else ""
         )
         try:
             self.error["function_call"] = (
-                inspect.stack()[2][1].split(os.sep)[-1]
-                + ":"
-                + str(inspect.stack()[2][2])
-                + ":"
-                + inspect.stack()[2][3]
+                (
+                    inspect.stack()[2][1].split(os.sep)[-1]
+                    + ":"
+                    + str(inspect.stack()[2][2])
+                    + ":"
+                    + inspect.stack()[2][3]
+                )
+                if debug
+                else ""
             )
         except:
             self.error["function_call"] = "-"
@@ -178,7 +186,7 @@ class Error(Exception):
                 self.request.body if hasattr(self.request, "body") else "",
                 "----------- REQUEST STOP  -----------",
             )
-            if self.request
+            if self.request and debug
             else ""
         )
         self.error["data"] = (
