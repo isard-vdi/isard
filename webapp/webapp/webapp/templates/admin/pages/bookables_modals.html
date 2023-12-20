@@ -26,12 +26,12 @@
                         <div class="col-md-4 col-xs-12">
                            <label class="control-label" for="name">Name <span class="required">*</span>
                            </label>
-                           <input id="name" class="roundbox" maxlength="40" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text" style="width:100%">
+                           <input id="name" class="roundbox" maxlength="50" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 50]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text" style="width:100%">
                         </div>
                         <div class="col-md-6 col-xs-12">
                             <label class="control-label" for="description">Description
                             </label>
-                            <input id="description" name="description" class="roundbox" style="width:100%"></input>
+                            <input id="description"  name="description" data-parsley-length="[0, 255]"    data-parsley-trigger="change"  maxlength="255" class="roundbox" style="width:100%"></input>
                         </div> 
                      </div>
                      <div class="row">
@@ -90,14 +90,14 @@
                         <div class="col-md-4 col-xs-12">
                            <label class="control-label" for="name">Name <span class="required">*</span>
                            </label>
-                           <input id="name" class="roundbox" maxlength="40" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text" style="width:100%">
+                           <input id="name" class="roundbox" maxlength="50" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 50]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required type="text" style="width:100%">
                         </div>
                      </div>
                      <div class="row">
                         <div class="col-md-12 col-xs-12">
                             <label class="control-label" for="description">Description
                             </label>
-                            <input id="description" name="description" class="form-control col-md-7 col-xs-12"></input>
+                            <input id="description"  name="description" data-parsley-length="[0, 255]"    data-parsley-trigger="change"  maxlength="255"  class="form-control col-md-7 col-xs-12"></input>
                         </div> 
                      </div>
                   </div>

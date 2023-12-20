@@ -7,6 +7,7 @@ capabilities:
       type: boolean
       required: false
 description:
+  maxlength: 255
   type: string
   coerce: sanitize
 detail:

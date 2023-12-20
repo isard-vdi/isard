@@ -7,9 +7,11 @@ allowed:
   type: dict
   schema: allowed
 description:
+  maxlength: 255
   type: string
   coerce: sanitize
 name:
+  maxlength: 50
   type: string
   required: true
   empty: false

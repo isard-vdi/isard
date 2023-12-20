@@ -36,7 +36,7 @@
             v-if="v$.deploymentName.$error"
             id="deploymentNameError"
           >
-            {{ $t(`validations.${v$.deploymentName.$errors[0].$validator}`, { property: $t('forms.new-deployment.name'), model: deploymentName.length, min: 4, max: 40 }) }}
+            {{ $t(`validations.${v$.deploymentName.$errors[0].$validator}`, { property: $t('forms.new-deployment.name'), model: deploymentName.length, min: 4, max: 50 }) }}
           </b-form-invalid-feedback>
         </b-col>
       </b-row>
@@ -164,9 +164,12 @@ export default {
     const v$ = useVuelidate({
       deploymentName: {
         required,
-        maxLengthValue: maxLength(40),
+        maxLengthValue: maxLength(50),
         minLengthValue: minLength(4),
         inputFormat
+      },
+      description: {
+        maxLengthValue: maxLength(255)
       }
     }, { deploymentName })
 

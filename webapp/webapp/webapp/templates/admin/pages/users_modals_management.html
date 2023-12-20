@@ -42,7 +42,7 @@
                                 </label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
                                     <input id="name" name="name" class="form-control col-md-7 col-xs-12"
-                                        data-parsley-length="[1, 40]" placeholder="Full name" required="required"
+                                        data-parsley-length="[1, 50]" placeholder="Full name" required="required"
                                         type="text">
                                 </div>
                             </div>
@@ -51,8 +51,8 @@
                                         class="required">*</span>
                                 </label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <input id="id" class="form-control col-md-7 col-xs-12" maxlength="40"
-                                        pattern="^[A-Za-z0-9._@%+-]+$" data-parsley-length="[1, 40]"
+                                    <input id="id" class="form-control col-md-7 col-xs-12" maxlength="50"
+                                        pattern="^[A-Za-z0-9._@%+-]+$" data-parsley-length="[1, 50]"
                                         name="id" placeholder="Login username" data-parsley-trigger="change" required
                                         type="text">
                                 </div>
@@ -166,7 +166,7 @@
                                 </label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
                                     <input id="name" name="name" class="form-control col-md-7 col-xs-12"
-                                        data-parsley-length="[1, 40]" placeholder="Full name" required="required"
+                                        data-parsley-length="[1, 50]" placeholder="Full name" required="required"
                                         type="text">
                                 </div>
                             </div>
@@ -270,7 +270,7 @@
                                 </label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
                                     <input id="name" name="name" class="form-control col-md-7 col-xs-12"
-                                        data-parsley-length="[1, 40]" placeholder="Full name" type="text" disabled>
+                                        data-parsley-length="[1, 50]" placeholder="Full name" type="text" disabled>
                                 </div>
                             </div>
                             <div class="item form-group">
@@ -1139,14 +1139,14 @@
                             </div>
                             <div class="col-md-4 col-sm-4 col-xs-12">
                                 <label class="control-label" for="name">Name <span class="required">*</span></label>
-                                <input id="name" class="roundbox" maxlength="40"
-                                    pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9@]+$" data-parsley-length="[1, 40]"
+                                <input id="name" class="roundbox" maxlength="50"
+                                    pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9@]+$" data-parsley-length="[1, 50]"
                                     name="name" placeholder="New category name" data-parsley-trigger="change" required
                                     type="text" style="width:100%" onkeyup='customURLChange(this.value);''>
                             </div>
                             <div class="col-md-8 col-sm-8 col-xs-12">
                                 <label class="control-label" for="description">Description</label>
-                                <input id="description" class="roundbox" name="description"
+                                <input id="description" class="roundbox"  name="description" data-parsley-length="[0, 255]"    data-parsley-trigger="change"  maxlength="255" 
                                     placeholder="Category description" type="text" style="width:100%">
                             </div>
                             <div class="col-md-12 col-sm-12 col-xs-12">
@@ -1345,14 +1345,14 @@
                             <div class="col-md-4 col-sm-4 col-xs-12">
                                 <label class="control-label" for="name">Name <span class="required">*</span>
                                 </label>
-                                <input id="name" class="roundbox" maxlength="40"
-                                    pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9@]+$" data-parsley-length="[1, 40]"
+                                <input id="name" class="roundbox" maxlength="50"
+                                    pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9@]+$" data-parsley-length="[1, 50]"
                                     name="name" placeholder="New category name" data-parsley-trigger="change" required
                                     type="text" style="width:100%">
                             </div>
                             <div class="col-md-8 col-sm-8 col-xs-12">
                                 <label class="control-label" for="description">Description</label>
-                                <input id="description" class="roundbox" name="description"
+                                <input id="description" class="roundbox" name="description" data-parsley-length="[0, 255]"    data-parsley-trigger="change"  maxlength="255" 
                                     placeholder="Category description" type="text" style="width:100%">
                             </div>
                             <div class="col-md-12 col-sm-12 col-xs-12">
@@ -1551,14 +1551,14 @@
                                 <label class="control-label" for="name">Name <span class="required">*</span>
                                 </label>
                                 <input id="name" class="roundbox" maxlength="15"
-                                    pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[1, 40]"
+                                    pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[1, 50]"
                                     name="name" placeholder="New group name" data-parsley-trigger="change" required
                                     type="text">
                             </div>
                             <div class="col-md-8 col-sm-8 col-xs-12">
                                 <label class="control-label" for="description">Description
                                 </label>
-                                <input id="description" class="roundbox" name="description"
+                                <input id="description" class="roundbox" name="description" data-parsley-length="[0, 255]" data-parsley-trigger="change" maxlength="255" 
                                     placeholder="Group description" type="text" style="width:100%">
                             </div>
                             {% if current_user.role == 'manager' %}
@@ -1699,14 +1699,14 @@
                             <div class="col-md-4 col-sm-4 col-xs-12">
                                 <label class="control-label" for="name">Name <span class="required">*</span>
                                 </label>
-                                <input id="name" class="roundbox" maxlength="40"
-                                    pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9@]+$" data-parsley-length="[1, 40]"
+                                <input id="name" class="roundbox" maxlength="50"
+                                    pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9@]+$" data-parsley-length="[1, 50]"
                                     name="name" placeholder="New group name" data-parsley-trigger="change" required
                                     type="text" style="width:100%">
                             </div>
                             <div class="col-md-8 col-sm-8 col-xs-12">
                                 <label class="control-label" for="description">Description</label>
-                                <input id="description" class="roundbox" name="description"
+                                <input id="description" class="roundbox" name="description" data-parsley-length="[0, 255]" data-parsley-trigger="change" maxlength="255" 
                                     placeholder="Group description" type="text" style="width:100%">
                             </div>
                         </div>
@@ -1933,7 +1933,7 @@
                                 <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Name: <span
                                         class="required"></span>*</label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <input id="name" class="form-control col-md-7 col-xs-12" maxlength="40"
+                                    <input id="name" class="form-control col-md-7 col-xs-12" maxlength="50"
                                         pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ.a-zA-Z0-9]+$" data-parsley-length="[4, 60]"
                                         name="name" placeholder="Secret name" data-parsley-trigger="change" required
                                         type="text">
@@ -1945,7 +1945,7 @@
                                 <label class="control-label col-md-3 col-sm-3 col-xs-12" for="description">Description:
                                 </label>
                                 <div class="col-md-6 col-sm-6 col-xs-12">
-                                    <textarea id="textarea" name="description" class="form-control col-md-7 col-xs-12"
+                                    <textarea id="textarea"  name="description" data-parsley-length="[0, 255]"    data-parsley-trigger="change"  maxlength="255"  class="form-control col-md-7 col-xs-12"
                                         placeholder="Description"></textarea>
                                 </div>
                             </div>

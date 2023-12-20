@@ -5,11 +5,13 @@ id:
   default_setter: genuuid
   coerce: sanitize
 name:
+  maxlength: 50
   required: true
   empty: false
   type: string
   coerce: sanitize
-description: 
+description:
+  maxlength: 255
   type: string
   coerce: sanitize
 frontend:
@@ -67,5 +69,6 @@ quota:
   default: false
   schema: quotas
 custom_url_name:
+  maxlength: 50
   type: string
   coerce: sanitize

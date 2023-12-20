@@ -64,7 +64,7 @@
             v-if="v$.name.$error"
             id="nameError"
           >
-            {{ $t(`validations.${v$.name.$errors[0].$validator}`, { property: $t('forms.new-media.name'), model: name.length, min: 4, max: 40 }) }}
+            {{ $t(`validations.${v$.name.$errors[0].$validator}`, { property: $t('forms.new-media.name'), model: name.length, min: 4, max: 50 }) }}
           </b-form-invalid-feedback>
         </b-col>
       </b-row>
@@ -85,8 +85,15 @@
             id="description"
             v-model="description"
             type="text"
+            maxlength="255"
             size="sm"
           />
+          <b-form-invalid-feedback
+            v-if="v$.description.$error"
+            id="descriptionError"
+          >
+            {{ $t(`validations.${v$.description.$errors[0].$validator}`, { property: $t('forms.domain.info.description'), model: description.length, max: 255 }) }}
+          </b-form-invalid-feedback>
         </b-col>
       </b-row>
       <!-- Type -->
@@ -190,11 +197,14 @@ export default {
       },
       name: {
         required,
-        maxLengthValue: maxLength(40),
+        maxLengthValue: maxLength(50),
         minLengthValue: minLength(4),
         inputFormat
+      },
+      description: {
+        maxLengthValue: maxLength(255)
       }
-    }, { mediaUrl, type, name })
+    }, { mediaUrl, type, name, description })
 
     const submitForm = () => {
       // Check if the form is valid

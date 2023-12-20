@@ -60,7 +60,7 @@
                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="description">Description
                        </label>
                        <div class="col-md-6 col-sm-6 col-xs-12">
-                          <textarea id="textarea" name="description" class="form-control col-md-7 col-xs-12"></textarea>
+                          <textarea id="textarea"  name="description" data-parsley-length="[0, 255]"    data-parsley-trigger="change"  maxlength="255"  class="form-control col-md-7 col-xs-12"></textarea>
                        </div>
                     </div>
 
@@ -184,9 +184,9 @@
                       </div>
                        <div class="x_content">
                           <label for="name">Name<span class="required"> *</span></label>
-                          <input type="text" id="name" class="form-control" name="name" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 40]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required />
+                          <input type="text" id="name" class="form-control" name="name" pattern="^[\-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$" data-parsley-length="[4, 50]" name="name" placeholder="New desktop name" data-parsley-trigger="change" required />
                           <label for="message">Description</label>
-                          <textarea id="description" class="form-control" name="description"></textarea>                              
+                          <textarea id="description" class="form-control"  name="description" data-parsley-length="[0, 255]"    data-parsley-trigger="change"  maxlength="255" ></textarea>                              
                        </div>
                     </div>
                     <div class="x_panel">

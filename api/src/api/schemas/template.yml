@@ -5,6 +5,7 @@ template_id:
   default_setter: genuuid
   coerce: sanitize
 name:
+  maxlength: 50
   required: true
   type: string
   empty: false
@@ -12,7 +13,8 @@ name:
 desktop_id: 
   type: string
   coerce: sanitize
-description: 
+description:
+  maxlength: 255
   required: false
   type: string
   default: ""

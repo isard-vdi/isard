@@ -8,6 +8,7 @@ auth_protocol:
   default: basic
   coerce: sanitize
 description:
+  maxlength: 255
   type: string
   required: false
   coerce: sanitize

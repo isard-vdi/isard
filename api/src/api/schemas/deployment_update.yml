@@ -1,14 +1,17 @@
 name:
+  maxlength: 50
   required: true
   type: string
   empty: false
   coerce: sanitize
 description:
+  maxlength: 255
   required: false
   type: string
   default: ""
   coerce: sanitize
 desktop_name:
+  maxlength: 50
   required: false
   type: string
   empty: false
