@@ -10,6 +10,7 @@ import (
 func NewIsardVDIClient(secret string) *http.Client {
 	return &http.Client{
 		Transport: &authenticatedTransport{
+			secret:    secret,
 			Transport: http.DefaultTransport,
 		},
 	}
