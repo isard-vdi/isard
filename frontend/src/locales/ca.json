@@ -495,6 +495,10 @@
                 "reset": {
                     "text": "Reiniciar",
                     "action": "Reiniciant"
+                },
+                "updating": {
+                    "text": "Processant",
+                    "action": "Processant"
                 }
             }
         },

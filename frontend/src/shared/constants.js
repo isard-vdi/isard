@@ -75,6 +75,10 @@ export const status = {
     action: 'reset',
     icon: 'power',
     variant: 'danger'
+  },
+  updating: {
+    action: '',
+    icon: 'arrow-repeat'
   }
 }
 
