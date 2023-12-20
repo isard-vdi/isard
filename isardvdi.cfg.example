@@ -252,7 +252,7 @@ GOLANG_RUN_IMAGE=alpine:3.18
 HAPROXY_RUN_IMAGE=haproxy:lts-alpine3.17
 
 ## Image used to build isard-nextcloud flavour/instance
-#NEXTCLOUD_BASE_IMAGE=nextcloud:27.1.4-fpm-alpine
+#NEXTCLOUD_BASE_IMAGE=nextcloud:28.0.0-fpm-alpine
 ## Image used for nextcloud nginx
 #NEXTCLOUD_NGINX_IMAGE=nginx:1.25.2-alpine-slim
 ## Image used for nextcloud redis
