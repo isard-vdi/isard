@@ -338,16 +338,17 @@ function actionsGroupDetail(){
         });
 
         $.ajax({
-            type: "POST",
-            url: "/api/v3/admin/table/groups",
-            data: JSON.stringify({ 'id': pk }),
+            type: "GET",
+            url: "/api/v3/admin/group/" + pk,
             contentType: "application/json",
             success: function (group) {
                 $('#modalEditGroupForm #id').val(pk);
                 $('#modalEditGroupForm #name').val(group.name);
                 $('#modalEditGroupForm #description').val(group.description);
-                $('#modalEditGroupForm #linked_groups').val(group.linked_groups);
-                $('#modalEditGroupForm #id').val(pk);
+                $.each(group.linked_groups_data, function(i, group) {
+                    var newOption = new Option(group.name, group.id, true, true);
+                    $('#modalEditGroupForm #linked_groups').append(newOption).trigger('change');
+                });
                 $('#modalEditGroupForm :checkbox').iCheck('uncheck').iCheck('update');
 
                 // autoDesktopsShow('#modalEditGroupForm', group)
@@ -465,13 +466,9 @@ function actionsGroupDetail(){
             backdrop: 'static',
             keyboard: false
         }).modal('show');
-        data={}
-        data['id']=pk;
-        // setModalUser()
         $.ajax({
-            type: 'POST',
-            url: '/api/v3/admin/table/groups',
-            data: JSON.stringify(data)
+            type: 'GET',
+            url: '/api/v3/admin/group/' + pk,
         }).done(function(data) {
             if(data.enrollment.manager != false){
                 $('#manager-key').show();

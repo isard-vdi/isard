@@ -215,6 +215,36 @@ class ApiUsers:
             user = {**user, **quotas.Get(user_id)}
         return user
 
+    def get_user_full_data(self, user_id):
+        with app.app_context():
+            try:
+                user = (
+                    r.table("users")
+                    .get(user_id)
+                    .merge(
+                        lambda d: {
+                            "category_name": r.table("categories").get(d["category"])[
+                                "name"
+                            ],
+                            "group_name": r.table("groups").get(d["group"])["name"],
+                            "role_name": r.table("roles").get(d["role"])["name"],
+                            "secondary_groups_data": r.table("groups")
+                            .get_all(r.args(d["secondary_groups"]))
+                            .pluck("id", "name")
+                            .coerce_to("array"),
+                        }
+                    )
+                    .without("password")
+                    .run(db.conn)
+                )
+            except:
+                raise Error(
+                    "not_found",
+                    "Not found user_id " + user_id,
+                    traceback.format_exc(),
+                )
+        return user
+
     def GetByProviderCategoryUID(self, provider, category, uid):
         with app.app_context():
             user = list(
@@ -1117,9 +1147,22 @@ class ApiUsers:
             description_code="code_not_found",
         )
 
-    def CategoryGet(self, category_id, all=False):
+    def CategoryGet(self, category_id):
         with app.app_context():
-            category = r.table("categories").get(category_id).run(db.conn)
+            category = (
+                r.table("categories")
+                .get(category_id)
+                .pluck(
+                    "auto",
+                    "custom_url_name",
+                    "description",
+                    "ephimeral",
+                    "frontend",
+                    "id",
+                    "name",
+                )
+                .run(db.conn)
+            )
         if not category:
             raise Error(
                 "not_found",
@@ -1127,8 +1170,6 @@ class ApiUsers:
                 traceback.format_exc(),
                 description_code="category_not_found",
             )
-        if not all:
-            return {"name": category["name"]}
         else:
             return category
 
@@ -1206,6 +1247,30 @@ class ApiUsers:
     def GroupGet(self, group_id):
         with app.app_context():
             group = r.table("groups").get(group_id).run(db.conn)
+        if not group:
+            raise Error(
+                "not_found",
+                "Not found group_id " + group_id,
+                traceback.format_exc(),
+                description_code="group_not_found",
+            )
+        return group
+
+    def group_get_full_data(self, group_id):
+        with app.app_context():
+            group = (
+                r.table("groups")
+                .get(group_id)
+                .merge(
+                    lambda d: {
+                        "linked_groups_data": r.table("groups")
+                        .get_all(r.args(d["linked_groups"]))
+                        .pluck("id", "name")
+                        .coerce_to("array")
+                    }
+                )
+                .run(db.conn)
+            )
         if not group:
             raise Error(
                 "not_found",
@@ -1315,6 +1380,28 @@ class ApiUsers:
                     "group": found[0]["id"],
                 }
         return False
+
+    def RoleGet(self, role=None):
+        with app.app_context():
+            if role == "manager":
+                return list(
+                    r.table("roles")
+                    .order_by("sortorder")
+                    .pluck("id", "name", "description")
+                    .filter(lambda doc: doc["id"] != "admin")
+                    .run(db.conn)
+                )
+            else:
+                return list(
+                    r.table("roles")
+                    .order_by("sortorder")
+                    .pluck("id", "name", "description")
+                    .run(db.conn)
+                )
+
+    def Secrets(self):
+        with app.app_context():
+            return list(r.table("secrets").run(db.conn))
 
     def UpdateGroupQuota(
         self, group, quota, propagate, role=False, user_role="manager"

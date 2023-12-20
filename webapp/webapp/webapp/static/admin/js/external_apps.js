@@ -8,10 +8,9 @@
 $(document).ready(function(){
     var table=$('#externalapps').DataTable({
         "ajax": {
-            "url": "/admin/table/secrets",
+            "url": "/admin/secrets",
             "dataSrc": "",
-            "type" : "POST",
-            "data": function(d){return JSON.stringify({})}
+            "type" : "GET",
         },
         "language": {
             "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'

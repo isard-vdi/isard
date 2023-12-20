@@ -9,10 +9,9 @@
 $(document).ready(function() {
     var table=$('#roles').DataTable( {
         "ajax": {
-            "url": "/admin/table/roles",
+            "url": "/admin/roles",
             "dataSrc": "",
-            "type" : "POST",
-            "data": function(d){return JSON.stringify({'order_by':'sortorder', 'without':'sortorder'})}
+            "type" : "GET",
         },
             "language": {
                 "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
