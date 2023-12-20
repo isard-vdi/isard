@@ -36,7 +36,7 @@ func (a *Authentication) RequestEmailVerification(ctx context.Context, ss, email
 		Category: tkn.CategoryID,
 		Email:    addr.Address,
 	}
-	exists, err := u.ExistsWithEmail(ctx, a.DB)
+	exists, err := u.ExistsWithVerifiedEmail(ctx, a.DB)
 	if err != nil {
 		return fmt.Errorf("check if email is unique: %w", err)
 	}

@@ -130,10 +130,11 @@ func (u *User) Exists(ctx context.Context, sess r.QueryExecutor) (bool, error) {
 	return true, nil
 }
 
-func (u *User) ExistsWithEmail(ctx context.Context, sess r.QueryExecutor) (bool, error) {
+func (u *User) ExistsWithVerifiedEmail(ctx context.Context, sess r.QueryExecutor) (bool, error) {
 	res, err := r.Table("users").Filter(r.And(
 		r.Eq(r.Row.Field("category"), u.Category),
 		r.Eq(r.Row.Field("email"), u.Email),
+		r.Eq(r.Row.Field("email_verified"), true),
 	), r.FilterOpts{}).Run(sess)
 	if err != nil {
 		return false, err

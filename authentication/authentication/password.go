@@ -22,7 +22,7 @@ func (a *Authentication) ForgotPassword(ctx context.Context, categoryID, email s
 		Category: categoryID,
 		Email:    email,
 	}
-	exists, err := u.ExistsWithEmail(ctx, a.DB)
+	exists, err := u.ExistsWithVerifiedEmail(ctx, a.DB)
 	if err != nil {
 		return fmt.Errorf("check if user exists with email: %w", err)
 	}
