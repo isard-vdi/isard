@@ -56,13 +56,11 @@
 
     function parseAllowed(parent_id,id){
         d=$(parent_id+" #"+id).select2("val")
-        if(d==null){
-            if($(parent_id+' #'+id+'-cb').iCheck('update')[0].checked){
-                return [];
-            }
+        if($(parent_id+' #'+id+'-cb').iCheck('update')[0].checked){
+            return d
+        } else {
             return false
         }
-        return d
     }
 
 
