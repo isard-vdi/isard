@@ -19,7 +19,7 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 114
+release_version = 115
 # release 115: Add role index to users
 # release 114: Fix domains and deployments with isos as string
 # release 113: Add secondary indexes for storage and scheduler
