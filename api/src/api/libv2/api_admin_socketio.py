@@ -314,9 +314,7 @@ class MediaThread(threading.Thread):
                                 == "DownloadFailedInvalidFormat"
                             ):
                                 media_task_delete(
-                                    c["new_val"]["id"],
-                                    c["new_val"]["user"],
-                                    keep_status=True,
+                                    c["new_val"]["id"], c["new_val"]["user"]
                                 )
 
                             data = c["new_val"]

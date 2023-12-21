@@ -40,7 +40,7 @@ api_allowed = ApiAllowed()
 persistent = ApiDesktopsPersistent()
 
 
-def media_task_delete(media_id, user_id=None, keep_status=False):
+def media_task_delete(media_id, user_id=None):
     media = Media(media_id)
 
     if not Media.exists(media_id):
@@ -57,8 +57,6 @@ def media_task_delete(media_id, user_id=None, keep_status=False):
             description_code="media_should_not_be_downloading",
         )
 
-    actual_status = media.status
-    finished_status = actual_status if keep_status else "deleted"
     media.status = "maintenance"
     task_id = Task(
         user_id=user_id,
@@ -77,7 +75,7 @@ def media_task_delete(media_id, user_id=None, keep_status=False):
                     "kwargs": {
                         "statuses": {
                             "finished": {
-                                finished_status: {
+                                "deleted": {
                                     "media": [media.id],
                                 },
                             },
