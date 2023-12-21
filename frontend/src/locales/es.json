@@ -666,6 +666,10 @@
                 "reset": {
                     "text": "Reiniciar",
                     "action": "Reiniciando"
+                },
+                "updating": {
+                    "text": "Procesando",
+                    "action": "Procesando"
                 }
             }
         },

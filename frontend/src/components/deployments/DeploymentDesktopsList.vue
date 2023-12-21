@@ -126,12 +126,12 @@
                 <div class="d-flex justify-content-center align-items-center">
                   <!-- STATE DOT -->
                   <div
-                    v-if="![desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down']].includes(getItemState(data.item))"
+                    v-if="![desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down'], desktopStates.updating].includes(getItemState(data.item))"
                     :class="'state-dot mr-2 ' + stateCssClass(getItemState(data.item))"
                   />
                   <!-- SPINNER -->
                   <b-spinner
-                    v-if="[desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down']].includes(getItemState(data.item))"
+                    v-if="[desktopStates.waitingip, desktopStates.working, desktopStates['shutting-down'], desktopStates.updating].includes(getItemState(data.item))"
                     small
                     class="align-self-center mr-2 spinner-loading"
                   />
@@ -417,7 +417,7 @@ export default {
         started: 'btn-red',
         waitingip: 'btn-red',
         error: 'btn-red',
-        failed: 'btn-red'
+        failed: 'btn-orange'
       }
       return stateColors[state]
     },
