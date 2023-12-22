@@ -355,12 +355,12 @@ function socketio_on(){
 
         if (kind === 'download-edit') {
             viewerFile = new Blob(
-                [`active,name,provider,category,uid,group,secondary_groups,password\ntrue,John Doe,local,Default,jdoe,Default,Default,sup3rs3cr3t\n,Another User,local,Default,auser,Default,`
+                [`active,name,provider,category,uid,group,secondary_groups,password\ntrue,John Doe,local,Default,jdoe,Default,Default,cS227@tB\n,Another User,local,Default,auser,Default,`
                 ], { type: "text/csv" });
 
         } else if (kind === 'download-create') {
             viewerFile = new Blob(
-                [`username,name,email,password,group,category,role\njdoe,John Doe,jdoe@isardvdi.com,sup3rs3cr3t,Default,Default,advanced\nauser,Another User,auser@domain.com,a1sera1ser,Default,Default,user`
+                [`username,name,email,password,group,category,role\njdoe,John Doe,jdoe@isardvdi.com,7j5*0Z/g,Default,Default,advanced\nauser,Another User,auser@domain.com,kE1)n4E1,Default,Default,user`
                 ], { type: "text/csv" });
         }
         var a = document.createElement('a');
@@ -504,6 +504,7 @@ function socketio_on(){
             data['id']=$('#modalPasswdUserForm #id').val();
             data['name']=$('#modalPasswdUserForm #name').val();
             data['password']=$('#modalPasswdUserForm #password-reset').val();
+            $('#passwd-error').empty();
             $.ajax({
                 type: "PUT",
                 url:"/api/v3/admin/user/" + data['id'],
@@ -511,8 +512,14 @@ function socketio_on(){
                 contentType: "application/json",
                 success: function(data)
                 {
+                    $('#passwd-error').hide();
                     $('form').each(function() { this.reset() });
                     $('.modal').modal('hide');
+                },
+                error: function(data) {
+                    $('#passwd-error').show();
+                    const msg = data.responseJSON ? data.responseJSON.description : 'Something went wrong';
+                    $('#passwd-error').html(msg);
                 }
             });
         }
@@ -1010,6 +1017,22 @@ function actionsUserDetail(){
             var name=closest.attr("data-name");
             var username=closest.attr("data-username");
             $("#modalPasswdUserForm")[0].reset();
+            $("#modalPasswdUserForm .alert").empty();
+            $.ajax({
+                url: "/api/v3/admin/user/password-policy/" + pk,
+                success: function (data) {
+                    var alert = $("#modalPasswdUserForm #password-policy-list")
+                    alert.append("<b>Password must contain:</b><br><ul>")
+                    if (data.digits) { alert.find("ul").append(`<li>At least ${data.digits} numerical digit(s)</li>`) }
+                    if (data["length"]) { alert.find("ul").append(`<li>At least ${data["length"]} character(s)</li>`) }
+                    if (data.lowercase) { alert.find("ul").append(`<li>At least ${data.lowercase} lowercase character(s)</li>`) }
+                    if (data.uppercase) { alert.find("ul").append(`<li>At least ${data.uppercase} uppercase character(s)</li>`) }
+                    if (data.special_characters) { alert.find("ul").append(`<li>At least ${data.special_characters} special character(s)</li>`) }
+                    if (data.not_username) { alert.append(`<br><b>It can not contain this user's username<b></br>`) }
+                    if (data.old_passwords) { alert.append(`<br><b>It can not be one of this user's last ${data.old_passwords} passwords<b></br>`) }
+                    alert.append("</ul>")
+                }
+            });
 			$('#modalPasswdUser').modal({
 				backdrop: 'static',
 				keyboard: false

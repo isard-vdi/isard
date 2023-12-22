@@ -21,7 +21,6 @@ secondary_groups:
   coerce: sanitize
 password:
   type: string
-  minlength: 8
 active:
   type: boolean
 ids:

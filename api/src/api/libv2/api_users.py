@@ -642,6 +642,7 @@ class ApiUsers:
                 "default_templates": [],
                 "quota": group["quota"],  # 10GB
                 "secondary_groups": [],
+                "password_history": [password],
             }
             if not _check(r.table("users").insert(user).run(db.conn), "inserted"):
                 raise Error(
@@ -654,8 +655,11 @@ class ApiUsers:
 
     def Update(self, user_ids, data):
         if data.get("password"):
-            p = Password()
-            data["password"] = p.encrypt(data["password"])
+            for user_id in user_ids:
+                self.change_password(data["password"], user_id)
+            data.pop("password")
+        if data.get("ids"):
+            data.pop("ids")
 
         with app.app_context():
             r.table("users").get_all(r.args(user_ids)).update(data).run(db.conn)
@@ -1297,19 +1301,20 @@ class ApiUsers:
         return group[0]
 
     def GroupsGet(self):
-        return list(
-            r.table("groups")
-            .order_by("name")
-            .merge(
-                lambda group: {
-                    "linked_groups_data": r.table("groups")
-                    .get_all(r.args(group["linked_groups"]))
-                    .pluck("id", "name")
-                    .coerce_to("array"),
-                }
+        with app.app_context():
+            return list(
+                r.table("groups")
+                .order_by("name")
+                .merge(
+                    lambda group: {
+                        "linked_groups_data": r.table("groups")
+                        .get_all(r.args(group["linked_groups"]))
+                        .pluck("id", "name")
+                        .coerce_to("array"),
+                    }
+                )
+                .run(db.conn)
             )
-            .run(db.conn)
-        )
 
     def GroupDelete(self, group_id, agent_id):
         # Check the group exists
@@ -1591,6 +1596,108 @@ class ApiUsers:
         with app.app_context():
             r.table("users").get(user_id).update({"lang": lang}).run(db.conn)
 
+    def get_user_password_policy(self, category=None, role=None, user_id=None):
+        if user_id:
+            with app.app_context():
+                user = (
+                    r.table("users").get(user_id).pluck("category", "role").run(db.conn)
+                )
+                category = user["category"]
+                role = user["role"]
+
+        with app.app_context():
+            policies = list(
+                r.table("authentication")
+                .get_all("password", index="subtype")
+                .filter(
+                    (r.row["category"] in [category, "all"])
+                    | (r.row["role"] in [role, "all"])
+                )
+                .run(db.conn)
+            )
+        matching_policies = []
+
+        for policy in policies:
+            if policy["category"] == category and policy["role"] == role:
+                return policy
+            elif policy["category"] == category and policy["role"] == "all":
+                matching_policies.append({"priority": 0, "policy": policy})
+            elif policy["category"] == "all" and policy["role"] == role:
+                matching_policies.append({"priority": 1, "policy": policy})
+            elif policy["category"] == "all" and policy["role"] == "all":
+                matching_policies.append({"priority": 2, "policy": policy})
+            app.logger.error(policy["not_username"])
+
+        matching_policies.sort(key=lambda x: x["priority"])
+        return matching_policies[0]["policy"]
+
+    def change_password(self, password, user_id):
+        with app.app_context():
+            user = (
+                r.table("users")
+                .get(user_id)
+                .pluck("category", "role", "password_history")
+                .run(db.conn)
+            )
+
+        p = Password()
+        policy = self.get_user_password_policy(user["category"], user["role"])
+
+        p.check_policy(password, policy, user_id)
+        password = p.encrypt(password)
+
+        if policy["old_passwords"] == 0:
+            password_history = []
+        else:
+            password_history = user["password_history"]
+            user["password_history"].append(password)
+            password_history = password_history[-policy["old_passwords"] :]
+
+        with app.app_context():
+            r.table("users").get(user_id).update(
+                {
+                    "password_history": password_history,
+                    "password_last_updated": int(time.time()),
+                    "password": password,
+                }
+            ).run(db.conn)
+
+    def check_password_expiration(self, user_id):
+        if not os.environ.get("NOTIFY_EMAIL"):
+            return False
+        with app.app_context():
+            user = (
+                r.table("users")
+                .get(user_id)
+                .pluck("category", "role", "password_last_updated")
+                .run(db.conn)
+            )
+        expiration_days = self.get_user_password_policy(
+            category=user["category"], role=user["role"]
+        )["expire"]
+
+        if expiration_days == 0:
+            return False
+
+        expiration_date = user["password_last_updated"] + (
+            expiration_days * 24 * 60 * 60
+        )
+
+        return int(time.time()) > expiration_date
+
+    def verify_password(self, user_id, password):
+        p = Password()
+        with app.app_context():
+            user_password = r.table("users").get(user_id)["password"].run(db.conn)
+        if not p.valid(password, user_password):
+            raise Error(
+                "forbidden",
+                "Wrong password entered",
+                description_code="wrong_password_entered",
+            )
+        else:
+            return True
+
 
 """
 PASSWORDS MANAGER
@@ -1619,3 +1726,86 @@ class Password(object):
         chars = string.ascii_letters + string.digits + "!@#$*"
         rnd = random.SystemRandom()
         return "".join(rnd.choice(chars) for i in range(length))
+
+    def check_policy(self, password, policy, user_id=None, username=None):
+        if len(password) < policy["length"]:
+            raise Error(
+                "bad_request",
+                "Password must be at least "
+                + str(policy["length"])
+                + " characters long",
+                description_code="password_character_length",
+                params={"num": str(policy["length"])},
+            )
+
+        if policy["uppercase"] > 0 and not any(char.isupper() for char in password):
+            raise Error(
+                "bad_request",
+                "Password must have at least "
+                + str(policy["uppercase"])
+                + " uppercase characters",
+                description_code="password_uppercase",
+                params={"num": str(policy["uppercase"])},
+            )
+
+        if policy["lowercase"] > 0 and not any(char.islower() for char in password):
+            raise Error(
+                "bad_request",
+                "Password must have at least "
+                + str(policy["lowercase"])
+                + " lowercase characters",
+                description_code="password_lowercase",
+                params={"num": str(policy["lowercase"])},
+            )
+
+        if policy["digits"] > 0 and not any(char.isdigit() for char in password):
+            raise Error(
+                "bad_request",
+                "Password must have at least " + str(policy["digits"]) + " numbers",
+                description_code="password_digits",
+                params={"num": str(policy["digits"])},
+            )
+
+        special_characters = "!@#$%^&*()-_=+[]{}|;:'\",.<>/?"
+        if policy["special_characters"] > 0 and not any(
+            char in special_characters for char in password
+        ):
+            raise Error(
+                "bad_request",
+                "Password must have at least "
+                + str(policy["special_characters"])
+                + " special characters: !@#$%^&*()-_=+[]{}|;:'\",.<>/?",
+                description_code="password_special_characters",
+                params={"num": str(policy["special_characters"])},
+            )
+
+        if user_id:  # new users do not have user_id
+            with app.app_context():
+                user = (
+                    r.table("users")
+                    .get(user_id)
+                    .pluck("username", "password_history")
+                    .run(db.conn)
+                )
+                username = user["username"]
+
+                if policy["old_passwords"]:
+                    user_id = user_id
+                    old_passwords = user["password_history"][
+                        -min(policy["old_passwords"], len(user["password_history"])) :
+                    ]
+                    for pw in old_passwords:
+                        if self.valid(password, pw):
+                            raise Error(
+                                "bad_request",
+                                "This password has already been used in the past",
+                                description_code="password_already_used",
+                            )
+        if policy["not_username"] and username.lower() in password.lower():
+            raise Error(
+                "bad_request",
+                "Password can not contain the username",
+                description_code="password_username",
+            )
+
+        return True

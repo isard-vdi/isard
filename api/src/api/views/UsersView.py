@@ -179,6 +179,9 @@ def api_v3_user_owns_desktop(payload):
 @has_token
 def api_v3_user_update(payload):
     data = request.get_json(force=True)
+
+    if data.get("password"):
+        users.verify_password(payload["user_id"], data["current_password"])
     data = _validate_item("user_update_frontend", data)
 
     users.Update(
@@ -292,6 +295,16 @@ def api_v3_user_language(payload, lang):
 
     return (
         json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/user/password-policy", methods=["GET"])
+@has_token
+def user_password_policy(payload):
+    return (
+        json.dumps(users.get_user_password_policy(user_id=payload["user_id"])),
         200,
         {"Content-Type": "application/json"},
     )

@@ -126,6 +126,7 @@ class Populate(object):
             "usage_reset_dates",
             "user_storage",
             "recycle_bin",
+            "authentication",
             # config should be the last table to be created
             # api waits for config table to start
             "config",
@@ -1759,3 +1760,54 @@ class Populate(object):
             r.table_create("recycle_bin", primary_key="id").run(self.conn)
         except:
             None
+
+    """
+    AUTHENTICATION POLICIES
+    """
+
+    def authentication(self):
+        try:
+            log.info("Table authentication not found, creating...")
+            r.table_create("authentication", primary_key="id").run(self.conn)
+            self.index_create("authentication", ["type"])
+            self.index_create("authentication", ["subtype"])
+            self.index_create("authentication", ["provider"])
+
+            r.table("authentication").index_create(
+                "category-role-subtype",
+                [r.row["category"], r.row["role"], r.row["subtype"]],
+            ).run(self.conn)
+            r.table("authentication").index_create(
+                "type-subtype",
+                [r.row["type"], r.row["subtype"]],
+            ).run(self.conn)
+
+            r.table("authentication").insert(
+                [
+                    {
+                        "id": "default-email-verification",
+                        "type": "local",  # provider
+                        "category": "all",
+                        "role": "all",
+                        "subtype": "email_verification",  # policy kind
+                        "days": 0,
+                    },
+                    {
+                        "id": "default-password",
+                        "type": "local",  # provider
+                        "category": "all",
+                        "role": "all",
+                        "subtype": "password",  # policy kind
+                        "digits": 0,
+                        "length": 8,
+                        "lowercase": 0,
+                        "uppercase": 0,
+                        "special_characters": 0,
+                        "not_username": False,
+                        "expire": 0,
+                        "old_passwords": 0,
+                    },
+                ]
+            ).run(self.conn)
+        except Exception as e:
+            log.error(e)

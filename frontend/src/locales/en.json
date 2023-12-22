@@ -6,7 +6,8 @@
         "maxLengthValue": "The {property} field has {model} characters, but it must have a maximum length of {max}.",
         "inputFormat": "Valid characters are letters, numbers, comma, dot, -, _",
         "url": "The {property} field must be an url.",
-        "undefined": "Not defined"
+        "undefined": "Not defined",
+        "email": "The {property} field must be a valid email address."
     },
     "forms": {
         "allowed": {
@@ -25,6 +26,7 @@
         "password": {
             "modal": {
                 "title": "Change password",
+                "warning": "Your password has expired. You must change it in order to continue",
                 "password": {
                     "label": "Password",
                     "placeholder": "Password"
@@ -32,6 +34,10 @@
                 "confirmation-password": {
                     "label": "Confirmation password",
                     "placeholder": "Confirm password"
+                },
+                "current-password":{
+                    "label": "Enter your current password:",
+                    "placeholder": "Current password"
                 },
                 "buttons": {
                     "update": "Update"
@@ -490,7 +496,8 @@
                 "select-category": "Please, select an option",
                 "usr": "Username",
                 "pwd": "Password",
-                "login": "Login"
+                "login": "Login",
+                "forgot-password": "Forgot your password?"
             },
             "errors": {
                 "401": "Incorrect user or password",
@@ -1031,6 +1038,13 @@
                     "delete": "Delete"
                 }
             }
+        },
+        "forgot-password": {
+            "title": "Forgot password",
+            "label": "Email",
+            "placeholder": "Email",
+            "description": "Requires a verified IsardVDI email address",
+            "reset-password": "Reset password"
         }
     },
     "messages": {
@@ -1216,7 +1230,16 @@
         "template_failed": "Due to an error this template can't be used to create a new desktop, please contact the administrator",
         "desktop_storage_not_ready": "Desktop storage is not ready",
         "cant_edit_booked_deployment": "Can't edit the reservables from a deployment with a scheduled booking",
-        "temporal_new_reservable": "Can't create a temporal desktop from a template with a reservable"
+        "temporal_new_reservable": "Can't create a temporal desktop from a template with a reservable",
+        "password_character_length": "Password must be at least {num} character(s) long",
+        "password_uppercase": "Password must have at least {num} uppercase character(s)",
+        "password_lowercase": "Password must have at least {num} lowercase character(s)",
+        "password_digits": "Password must have at least {num} number(s)",
+        "password_special_characters":  "Password must have at least {num} special character(s): !@#$%^&*()-_=+[]{}|;:'\",.<>/?",
+        "password_already_used": "This password has already been used in the past",
+        "password_username": "Password can not contain your own username",
+        "wrong_password_entered": "Wrong password entered"
+
     },
     "router": {
         "titles": {
@@ -1244,7 +1267,8 @@
             "edit-domain": "Edit domain",
             "storage": "Storage",
             "edit-deployment": "Edit deployment",
-            "recycleBin": "Recycle bin"
+            "recycleBin": "Recycle bin",
+            "password": "Change Password"
         }
     },
     "message-modal": {

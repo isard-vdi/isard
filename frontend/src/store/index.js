@@ -251,6 +251,27 @@ export default new Vuex.Store({
       }).catch(e => {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
+    },
+    sendResetPasswordEmail (context, data) {
+      const forgotPasswordAxios = axios.create()
+      return forgotPasswordAxios.post(`${authenticationSegment}/forgot-password`, data).then(response => {
+        router.push({ name: 'Login' })
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
+    updateForgottenPassword (context, data) {
+      const forgotPasswordAxios = axios.create()
+      forgotPasswordAxios.interceptors.request.use(config => {
+        config.headers.Authorization = `Bearer ${data.token}`
+        return config
+      })
+
+      return forgotPasswordAxios.post(`${authenticationSegment}/reset-password`, data).then(response => {
+        router.push({ name: 'Login' })
+      }).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
     }
   },
   modules: {

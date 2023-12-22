@@ -139,7 +139,7 @@
                                 </b-col>
                               </b-row>
                               <b-row
-                                v-if="profile.userStorage.tokenWeb !== false"
+                                v-if="profile.userStorage && (profile.userStorage.tokenWeb !== false)"
                               >
                                 <b-col>
                                   <h6 class="font-weight-bold mt-4">
@@ -246,7 +246,7 @@
                                 </b-col>
                               </b-row>
                               <QuotaProgressBar
-                                v-if="profile.userStorage.providerQuota !== false"
+                                v-if="profile.userStorage && (profile.userStorage.providerQuota !== false)"
                                 :title="$t('components.profile.quota.unit')"
                                 :value="profile.userStorage.providerQuota.used"
                                 :max="profile.userStorage.providerQuota.quota"

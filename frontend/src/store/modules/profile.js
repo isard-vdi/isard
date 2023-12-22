@@ -13,7 +13,9 @@ const getDefaultState = () => {
     password: '',
     passwordConfirmation: '',
     profile_loaded: false,
-    lang: ''
+    lang: '',
+    passwordPolicy: '',
+    currentPassword: ''
   }
 }
 
@@ -39,6 +41,12 @@ export default {
     },
     getLang: state => {
       return state.lang
+    },
+    getPasswordPolicy: state => {
+      return state.passwordPolicy
+    },
+    getCurrentPassword: state => {
+      return state.currentPassword
     }
   },
   mutations: {
@@ -48,6 +56,7 @@ export default {
     resetPasswordState: state => {
       state.password = ''
       state.passwordConfirmation = ''
+      state.currentPassword = ''
     },
     setProfile (state, profile) {
       state.profile = profile
@@ -64,6 +73,12 @@ export default {
     },
     setLang (state, lang) {
       state.lang = lang
+    },
+    setPasswordPolicy (state, passwordPolicy) {
+      state.passwordPolicy = passwordPolicy
+    },
+    setCurrentPassword (state, currentPassword) {
+      state.currentPassword = currentPassword
     }
   },
   actions: {
@@ -98,6 +113,15 @@ export default {
           console.error(e)
         })
       }
+    },
+    fetchPasswordPolicy (context) {
+      return axios.get(`${apiV3Segment}/user/password-policy`)
+        .then(response => {
+          context.commit('setPasswordPolicy', response.data)
+        })
+        .catch(e => {
+          ErrorUtils.handleErrors(e, this._vm.$snotify)
+        })
     }
   }
 }
