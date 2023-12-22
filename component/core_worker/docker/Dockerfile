@@ -13,3 +13,4 @@ COPY component/core_worker/src /opt/isardvdi/isardvdi_core_worker
 COPY pkg/gen/proto/python /opt/isardvdi/isardvdi_protobuf
 # Takes url from RQ_REDIS_URL env var
 CMD ["/bin/sh", "-c", "rq worker --connection-class='isardvdi_common.redis_retry.RedisRetry' core.feedback core -n core:isard-core_worker:$(python3 /opt/isardvdi/uuidgen.py) -P /opt/isardvdi/isardvdi_core_worker"]
+USER nobody

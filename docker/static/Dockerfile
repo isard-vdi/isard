@@ -18,9 +18,11 @@ RUN rm -rf src
 RUN rm -rf node_modules
 RUN rm -rf build
 
-FROM nginx:alpine as production
+FROM nginxinc/nginx-unprivileged:stable-alpine as production
 
+USER root
 RUN apk -U upgrade --no-cache
+USER 101
 
 COPY docker/static/default.conf /etc/nginx/conf.d/default.conf
 COPY docker/static/spice-web-client /usr/share/nginx/html/viewer/spice-web-client

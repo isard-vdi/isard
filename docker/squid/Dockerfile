@@ -5,5 +5,8 @@ RUN apk add --no-cache squid
 
 COPY docker/squid/run.sh /run.sh
 #EXPOSE 8080
-CMD ["/bin/sh", "/run.sh"]
 
+RUN chown -R squid:squid /etc/squid
+USER squid
+
+CMD ["/bin/sh", "/run.sh"]

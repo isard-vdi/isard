@@ -19,3 +19,4 @@ WORKDIR /src
 
 CMD ["python3", "start.py"]
 STOPSIGNAL SIGKILL
+USER nobody

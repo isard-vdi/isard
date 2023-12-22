@@ -34,3 +34,4 @@ RUN apk add --no-cache \
 COPY --from=build /build/rdpgw/bin/rdpgw /rdpgw
 
 CMD [ "/rdpgw" ]
+USER nobody
