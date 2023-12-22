@@ -909,7 +909,8 @@
                 "downloaded": "Descargado",
                 "deleting": "Borrando",
                 "maintenance": "Mantenimiento",
-                "downloadaborting": "Abortando descarga"
+                "downloadaborting": "Abortando descarga",
+                "downloadfailedinvalidformat": "Formato no válido"
             },
             "delete-media": {
                 "title": "Borrar medio",
@@ -1240,6 +1241,7 @@
         "no_wireguard_keys": "Todavía no hay claves de wireguard en la configuración de la aplicación web. Inténtelo de nuevo pasados unos segundos...",
         "one_viewer_minimum": "Se ha de seleccionar mínimo un visor",
         "template_failed": "Debido a un error la plantilla no se puede utilizar para crear un nuevo escritorio, por favor contacta con el administrador",
+        "media_invalid": "El archivo descargado no es un formato de medios válido. Debería ser eliminado, ya que no se puede utilizar",
         "desktop_storage_not_ready": "El almacenamiento del escritorio no está listo",
         "vpn_missing_itemid": "Falta el identificador del elemento en la VPN",
         "no_reservables": "El ítem no tiene reservables",

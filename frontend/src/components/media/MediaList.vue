@@ -82,12 +82,12 @@
               id="media-table"
               :items="media"
               :fields="shared ? sharedFields : fields"
-              tbody-tr-class="cursor-pointer"
               :responsive="true"
               :per-page="perPage"
               :current-page="currentPage"
               :filter="filter"
               :filter-included-fields="filterOn"
+              :tbody-tr-class="rowClass"
               @filtered="onFiltered"
             >
               <template #cell(name)="data">
@@ -120,13 +120,29 @@
                 </p>
               </template>
               <template #cell(status)="data">
-                <p class="text-dark-gray m-0">
-                  {{ $t(`views.media.status.${data.item.status.toLowerCase()}`) }}
-                </p>
+                <b-tooltip
+                  v-if="data.item.status.toLowerCase() === 'downloadfailedinvalidformat'"
+                  :target="() => $refs['invalidTooltip']"
+                  :title="$t(`errors.media_invalid`)"
+                  triggers="hover"
+                  custom-class="isard-tooltip"
+                  show
+                />
+                <span
+                  v-if="data.item.status.toLowerCase() === 'downloadfailedinvalidformat'"
+                  ref="invalidTooltip"
+                >
+                  <b-icon
+                    icon="exclamation-triangle-fill"
+                    variant="danger"
+                    class="danger-icon cursor-pointer"
+                  />
+                </span>
+                {{ $t(`views.media.status.${data.item.status.toLowerCase()}`) }}
               </template>
               <template #cell(progressSize)="data">
                 <p
-                  v-if="data.item.status === 'Downloaded'"
+                  v-if="['Downloaded', 'DownloadFailedInvalidFormat'].includes(data.item.status)"
                   class="text-dark-gray m-0"
                 >
                   {{ data.item.progress.received }}
@@ -155,7 +171,7 @@
                   class="d-flex align-items-center"
                 >
                   <b-button
-                    v-if="data.item.status !== 'DownloadFailed' && data.item.kind === 'iso'"
+                    v-if="!['DownloadFailed', 'DownloadFailedInvalidFormat'].includes(data.item.status) && data.item.kind === 'iso'"
                     class="rounded-circle px-2 mr-2 btn-green"
                     :title="$t('views.media.buttons.new-desktop')"
                     @click="onClickGoToNewFromMedia(data.item)"
@@ -177,7 +193,7 @@
                     />
                   </b-button>
                   <b-button
-                    v-if="!shared && data.item.status !== 'DownloadFailed' && data.item.editable"
+                    v-if="!shared && !['DownloadFailed', 'DownloadFailedInvalidFormat'].includes(data.item.status) && data.item.editable"
                     class="rounded-circle px-2 mr-2 btn-dark-blue"
                     :title="$t('views.media.buttons.allowed.title')"
                     @click="showAllowedModal(data.item)"
@@ -310,6 +326,11 @@ export default {
       $store.dispatch('stopMediaDownload', mediaId)
     }
 
+    const rowClass = (item, type) => {
+      if (!item || type !== 'row') return
+      if (item.status.toLowerCase() === 'downloadfailedinvalidformat') return 'list-red-bar'
+    }
+
     watch(() => props.media, (newVal, prevVal) => {
       totalRows.value = newVal.length
     })
@@ -327,7 +348,8 @@ export default {
       totalRows,
       onClickGoToNewFromMedia,
       onClickDownloadMedia,
-      onClickStopDownload
+      onClickStopDownload,
+      rowClass
     }
   },
   data () {

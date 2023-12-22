@@ -546,7 +546,13 @@ $(document).ready(function() {
           }
     $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
     function socketio_on(){
-        socket.on('media_data', function(data){
+        socket.on('media_add', function(data){
+            var data = JSON.parse(data);
+            data = {...table.row("#"+data.id).data(),...data}
+            dtUpdateInsert(table,data,false);
+        });
+
+        socket.on('media_update', function(data){
             var data = JSON.parse(data);
             data = {...table.row("#"+data.id).data(),...data}
             dtUpdateInsert(table,data,false);
