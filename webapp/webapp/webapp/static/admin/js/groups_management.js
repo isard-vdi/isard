@@ -422,10 +422,6 @@ function actionsGroupDetail(){
 
     $('#groups .btn-delete').off('click').on('click', function () {
         var pk=$(this).closest("div").attr("data-pk");
-        var data = {
-            'id': pk,
-            'table': 'group'
-        }
 
         $("#modalDeleteGroupForm")[0].reset();
         $('#modalDeleteGroupForm #id').val(pk);
@@ -511,7 +507,8 @@ function actionsGroupDetail(){
 
     $('#manager-check').unbind('ifChecked').on('ifChecked', function(event){
         if($('#manager-key').val()==''){
-            pk=$('#modalEnrollmentForm #id').val();
+            const data = {}
+            data['id']=$('#modalEnrollmentForm #id').val();
             data['role']="manager";
             data['action']="reset";
             $.ajax({
@@ -529,7 +526,8 @@ function actionsGroupDetail(){
     });
 
     $('#manager-check').unbind('ifUnchecked').on('ifUnchecked', function(event){
-        pk=$('#modalEnrollmentForm #id').val();
+        const data = {}
+        data['id']=$('#modalEnrollmentForm #id').val();
         data['role']="manager";
         data['action']="disable";
         new PNotify({
@@ -570,7 +568,8 @@ function actionsGroupDetail(){
 
     $('#advanced-check').unbind('ifChecked').on('ifChecked', function(event){
         if($('#advanced-key').val()==''){
-            pk=$('#modalEnrollmentForm #id').val();
+            const data = {}
+            data['id']=$('#modalEnrollmentForm #id').val();
             data['role']="advanced";
             data['action']="reset";
             $.ajax({
@@ -588,7 +587,8 @@ function actionsGroupDetail(){
     });
         
     $('#advanced-check').unbind('ifUnchecked').on('ifUnchecked', function(event){
-        pk=$('#modalEnrollmentForm #id').val();
+        const data = {}
+        data['id']=$('#modalEnrollmentForm #id').val();
         data['role']="advanced";
         data['action']="disable";
         new PNotify({
@@ -629,7 +629,8 @@ function actionsGroupDetail(){
 
     $('#user-check').unbind('ifChecked').on('ifChecked', function(event){
         if($('#user-key').val()==''){
-            pk=$('#modalEnrollmentForm #id').val();
+            const data = {}
+            data['id']=$('#modalEnrollmentForm #id').val();
             data['role']="user";
             data['action']="reset";
             $.ajax({
@@ -647,7 +648,8 @@ function actionsGroupDetail(){
     });
             
     $('#user-check').unbind('ifUnchecked').on('ifUnchecked', function(event){
-        pk=$('#modalEnrollmentForm #id').val();
+        const data = {}
+        data['id']=$('#modalEnrollmentForm #id').val();
         data['role']="user";
         data['action']="disable";
         new PNotify({
