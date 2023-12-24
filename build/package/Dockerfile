@@ -22,3 +22,4 @@ COPY --from=build /build/guac /guac
 EXPOSE 4567
 
 CMD [ "/guac" ]
+USER nobody
