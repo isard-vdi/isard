@@ -8,8 +8,6 @@ services:
       options:
         max-size: "100m"
         tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
-    cap_add:
-    - NET_ADMIN
     networks:
       isard-network:
         ipv4_address: ${DOCKER_NET:-172.31.255}.18
