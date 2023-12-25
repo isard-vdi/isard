@@ -2,7 +2,7 @@ version: '3.5'
 services:
   isard-nc-proxy:
     container_name: isard-nc-proxy
-    image: ${DOCKER_IMAGE_PREFIX}nc-proxy:${DOCKER_IMAGE_TAG-latest}
+    image: ${DOCKER_IMAGE_PREFIX}nc-proxy:${DOCKER_IMAGE_TAG:-latest}
     logging:
       driver: "json-file"
       options:
@@ -20,7 +20,13 @@ services:
       - /opt/isard/certs/letsencrypt:/etc/letsencrypt:rw
       - /opt/isard/certs/default:/certs:rw
       - /opt/isard-local/environment:/usr/local/etc/environment
+      - /opt/isard-local/ipsec-fw/lists:/usr/local/etc/haproxy/lists
+      - /opt/isard-local/haproxy/cfg:/usr/local/etc/haproxy/cfg/customs
+      - /opt/isard-local/haproxy/spoe:/usr/local/etc/haproxy/spoe
     environment:
+      CFG: nc-proxy
+      FORBID_DOMAIN_IP: ${FORBID_DOMAIN_IP:-false}
+      CORS: ${CORS:-*}
       ENV: /usr/local/etc/environment
     env_file:
       - .env

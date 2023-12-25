@@ -1,10 +1,15 @@
 #!/bin/sh
-rm -rf /tmp/cfg
-mkdir -p /tmp/cfg
-for i in `find /usr/local/etc/haproxy/cfg -iname '*.cfg'`; do cp $i /tmp/cfg; done
-echo "Contatenating cfg files for haproxy.cfg:"
-ls -l /tmp/cfg
-cat /tmp/cfg/* > /usr/local/etc/haproxy/haproxy.cfg
+
+tmp_dir=$( mktemp -d )
+for i in `find /usr/local/etc/haproxy/cfg/_base -iname '*.cfg'`; do cp $i "$tmp_dir"; done
+for i in `find /usr/local/etc/haproxy/cfg/$CFG -iname '*.cfg'`; do cp $i "$tmp_dir"; done
+for i in `find /usr/local/etc/haproxy/cfg/customs -iname '*.cfg'`; do cp $i "$tmp_dir"; done
+echo "Building haproxy.cfg for flavour: $CFG"
+if [ "$CFG" != "portal" ] && [ "$CFG" != "video" ]
+then
+  rm "$tmp_dir"/04_squid.cfg
+fi
+cat "$tmp_dir"/*.cfg > /usr/local/etc/haproxy/haproxy.cfg
 
 # Set debug path password
 PASSWD=$(python3 -c 'import os,crypt,getpass; print(crypt.crypt(os.environ["WEBAPP_ADMIN_PWD"], crypt.mksalt(crypt.METHOD_SHA512)))')

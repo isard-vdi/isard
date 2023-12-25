@@ -1,4 +1,4 @@
-# Isard main config v2.12.4
+# Isard main config v2.13.0
 
 # ------ Docker Compose ------------------------------------------------------
 
@@ -15,6 +15,7 @@
 ##  - backupninja: standalone backups
 ##  - check: standalone check service
 ##  - nextcloud: starts an standalone IsardVDI Nextcloud Personal Units [EXPERIMENTAL]
+##  - haproxy: Only to build portal/video/monitor/nc proxy base image
 #FLAVOUR=all-in-one
 
 ## This configuration should generate docker-compose file for the following

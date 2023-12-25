@@ -3,7 +3,7 @@ services:
   isard-video:
     build:
       context: ${BUILD_ROOT_PATH}
-      dockerfile: docker/video/Dockerfile
+      dockerfile: docker/haproxy/Dockerfile
       target: production
       args:
-        - "HAPROXY_RUN_IMAGE=${HAPROXY_RUN_IMAGE}"
+        HAPROXY_RUN_IMAGE: ${HAPROXY_RUN_IMAGE}

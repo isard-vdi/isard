@@ -3,7 +3,7 @@ services:
   isard-portal:
     build:
       context: ${BUILD_ROOT_PATH}
-      dockerfile: docker/portal/Dockerfile
+      dockerfile: docker/haproxy/Dockerfile
       target: production
       args:
-        - "HAPROXY_RUN_IMAGE=${HAPROXY_RUN_IMAGE}"
+        HAPROXY_RUN_IMAGE: ${HAPROXY_RUN_IMAGE}

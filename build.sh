@@ -144,6 +144,11 @@ NEXTCLOUD_INSTANCE_PARTS="
 	nc-proxy
 "
 
+# BASE image builds
+HAPROXY_BUILD_KEY="haproxy"
+HAPROXY_BUILD_PARTS="
+	haproxy
+"
 docker_compose_version(){
 	$DOCKER_COMPOSE version --short | sed 's/^docker-compose version \([^,]\+\),.*$/\1/'
 }
@@ -361,9 +366,6 @@ create_docker_compose_file(){
 		$STORAGE_KEY)
 			parts=$STORAGE_PARTS
 			;;
-		$STORAGEBASE_KEY)
-			parts=$STORAGEBASE_PARTS
-			;;
 		$WEB_KEY)
 			parts=$WEB_PARTS
 			;;
@@ -378,6 +380,9 @@ create_docker_compose_file(){
 			;;
 		$NEXTCLOUD_INSTANCE_KEY)
 			parts=$NEXTCLOUD_INSTANCE_PARTS
+			;;
+		$HAPROXY_BUILD_KEY)
+			parts=$HAPROXY_BUILD_PARTS
 			;;
 		*)
 			echo "Error: Flavour $FLAVOUR of $config_file not found"
