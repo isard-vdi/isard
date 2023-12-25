@@ -249,8 +249,8 @@ GOLANG_BUILD_IMAGE=golang:1.21-alpine3.18
 # Image used for running the images the Golang microservices images
 GOLANG_RUN_IMAGE=alpine:3.18
 
-# Image used for running all the HAProxy services
-HAPROXY_RUN_IMAGE=haproxy:lts-alpine3.17
+# Image used in haproxy.build flavour to build base for all the HAProxy's
+HAPROXY_RUN_IMAGE=haproxy:lts-alpine3.19
 
 ## Image used to build isard-nextcloud flavour/instance
 #NEXTCLOUD_BASE_IMAGE=nextcloud:28.0.0-fpm-alpine
