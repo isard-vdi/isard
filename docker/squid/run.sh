@@ -3,7 +3,7 @@ rm -f /var/run/squid.pid
 if [ ! -n "$VIDEO_HYPERVISOR_HOSTNAMES" ]; then
     HOSTS='isard-hypervisor'
 else
-    HOSTS=$(VIDEO_HYPERVISOR_HOSTNAMES |tr "," " ")
+    HOSTS=$(echo $VIDEO_HYPERVISOR_HOSTNAMES |tr "," " ")
 fi
 
 if [ ! -n "$VIDEO_HYPERVISOR_PORTS" ]; then
