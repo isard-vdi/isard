@@ -40,6 +40,7 @@ from isardvdi_common.tokens import get_expired_user_data, get_token_payload
 
 from .api_admin import ApiAdmin
 from .api_logging import logs_domain_start_engine, logs_domain_stop_engine
+from .api_media import media_task_delete
 from .api_scheduler import Scheduler
 
 admins = ApiAdmin()
@@ -285,6 +286,7 @@ class MediaThread(threading.Thread):
                                         "Deleted",
                                         "Downloaded",
                                         "DownloadFailed",
+                                        "DownloadFailedInvalidFormat",
                                         "DownloadStarting",
                                         "Downloading",
                                         "Download",
@@ -305,6 +307,16 @@ class MediaThread(threading.Thread):
                             data = c["old_val"]
                             event = c["old_val"]["table"] + "_delete"
                         else:
+                            if (
+                                c["old_val"]
+                                and c["old_val"].get("status") == "Downloading"
+                                and c["new_val"].get("status")
+                                == "DownloadFailedInvalidFormat"
+                            ):
+                                media_task_delete(
+                                    c["new_val"]["id"], c["new_val"]["user"]
+                                )
+
                             data = c["new_val"]
                             event = c["new_val"]["table"] + "_data"
 

@@ -7,8 +7,6 @@ from urllib.parse import quote
 from flask import jsonify, request
 from isardvdi_common.api_exceptions import Error
 from isardvdi_common.media import Media
-from isardvdi_common.storage_pool import StoragePool
-from isardvdi_common.task import Task
 from rethinkdb import RethinkDB
 
 from api import app
@@ -19,7 +17,7 @@ from ..libv2.quotas import Quotas
 
 quotas = Quotas()
 
-from ..libv2.api_media import ApiMedia
+from ..libv2.api_media import ApiMedia, media_task_delete
 
 api_media = ApiMedia()
 
@@ -238,52 +236,7 @@ def api_v3_admin_media_delete(payload, media_id):
     :return: Task ID or None
     :rtype: Set with Flask response values and data in JSON
     """
-    if not Media.exists(media_id):
-        raise Error(error="not_found", description="Media not found")
     ownsMediaId(payload, media_id)
-    media = Media(media_id)
-    if media.status not in ["Downloaded", "DownloadFailed"]:
-        raise Error(
-            error="precondition_required",
-            description="Media should not be downloading",
-            description_code="media_should_not_be_downloading",
-        )
-    media.status = "maintenance"
     api_media.DeleteDesktops(media_id)
-    if not media.path_downloaded:
-        media.status = "deleted"
-        task_id = None
-    else:
-        task_id = Task(
-            user_id=payload.get("user_id"),
-            queue=f"storage.{StoragePool.get_best_for_action('delete', path=media.path_downloaded.rsplit('/', 1)[0]).id}.default",
-            task="delete",
-            job_kwargs={
-                "kwargs": {
-                    "path": media.path_downloaded,
-                },
-            },
-            dependents=[
-                {
-                    "queue": "core",
-                    "task": "update_status",
-                    "job_kwargs": {
-                        "kwargs": {
-                            "statuses": {
-                                "finished": {
-                                    "deleted": {
-                                        "media": [media.id],
-                                    },
-                                },
-                                "canceled": {
-                                    "Downloaded": {
-                                        "media": [media.id],
-                                    },
-                                },
-                            },
-                        },
-                    },
-                }
-            ],
-        ).id
+    task_id = media_task_delete(media_id, payload.get("user_id"))
     return jsonify(task_id)
