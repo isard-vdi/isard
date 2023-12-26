@@ -2,7 +2,7 @@ version: '3.5'
 services:
   isard-monitor-proxy:
     container_name: isard-monitor-proxy
-    image: ${DOCKER_IMAGE_PREFIX}monitor-proxy:${DOCKER_IMAGE_TAG-latest}
+    image: ${DOCKER_IMAGE_PREFIX}monitor-proxy:${DOCKER_IMAGE_TAG:-latest}
     logging:
       driver: "json-file"
       options:
@@ -24,6 +24,7 @@ services:
       - /opt/isard-local/haproxy/cfg:/usr/local/etc/haproxy/cfg/customs
       - /opt/isard-local/haproxy/spoe:/usr/local/etc/haproxy/spoe
     environment:
+      CFG: monitor-proxy
       ENV: /usr/local/etc/environment
       FORBID_DOMAIN_IP: ${FORBID_DOMAIN_IP:-false}
       CORS: ${CORS:-*}

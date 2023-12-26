@@ -1,6 +1,6 @@
 version: '3.5'
 services:
-  isard-nc-proxy:
+  isard-haproxy:
     build:
       context: ${BUILD_ROOT_PATH}
       dockerfile: docker/haproxy/Dockerfile

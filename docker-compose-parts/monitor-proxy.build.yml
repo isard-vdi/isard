@@ -3,7 +3,7 @@ services:
   isard-monitor-proxy:
     build:
       context: ${BUILD_ROOT_PATH}
-      dockerfile: docker/monitor-proxy/Dockerfile
+      dockerfile: docker/haproxy/Dockerfile
       target: production
       args:
-        - "HAPROXY_RUN_IMAGE=${HAPROXY_RUN_IMAGE}"
+        HAPROXY_RUN_IMAGE: ${HAPROXY_RUN_IMAGE}
