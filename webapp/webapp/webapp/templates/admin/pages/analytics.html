@@ -1,0 +1,153 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+{% block css %}
+
+{% endblock %}
+{% block content %}
+{% if current_user.role == 'admin' %}
+<div class="row">
+    <div class="col-md-12 col-sm-12 col-xs-12">
+        <div class="x_panel">
+            <div id="filter-section" class="x_content">
+                <div id="filter-boxes"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="row">
+    <div class="col-md-4 col-sm-4 col-xs-12">
+        <div class="x_panel">
+            <div class="x_title">
+                <h2>Storage usage <span id="totalUsage"></span></h2>
+                <div class="clearfix"></div>
+            </div>
+            <div class="x_content">
+                <div id="echart_pie" style="height:350px;"></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8 col-sm-8 col-xs-12">
+        <div class="row">
+            <div class="col-md-12 col-sm-12 col-xs-12">
+                <div class="x_panel">
+                    <div class="x_title">
+                        <h2>Suggested removals</h2>
+                        <div class="clearfix"></div>
+                    </div>
+                    <div class="x_content" id="suggestedRemovals">
+                        <div class="panel-group" id="accordion">
+                            <div class="panel panel-default">
+                                <div class="panel-heading">
+                                    <a data-toggle="collapse" href="#collapseEmptyDeployments">
+                                        <h4 class="panel-title">
+                                            <span id="emptyDeployments"></span> empty deployments could
+                                            be deleted <i class="fa fa-angle-down pull-right"></i>
+                                        </h4>
+                                    </a>
+                                </div>
+                                <div id="collapseEmptyDeployments" class="panel-collapse collapse in">
+                                    <div class="panel-body">
+                                        <table id="emptyDeploymentsTable" class="table table-bordered">
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="panel panel-default">
+                                <div class="panel-heading">
+                                    <a data-toggle="collapse" href="#collapseUnusedDesktops">
+                                        <h4 class="panel-title">
+                                            <span id="unusedDesktops"></span> unused desktops (<span
+                                                id="unusedDesktopsSize"></span> GB)
+                                            <span class="pull-right">
+                                                <b>Showing not used in</b>
+                                                {% for option in [1, 2, 3] %}
+                                                <button type="button"
+                                                    class="btn btn-xs btn-secondary months-without-use-button"
+                                                    data-months-without-use="{{ option }}">{{ option }} months</button>
+                                                {% endfor %}
+                                                <button type="button"
+                                                    class="btn btn-xs btn-success months-without-use-button"
+                                                    data-months-without-use="6">6 months</button>
+                                                <i class="fa fa-angle-down"></i>
+                                            </span>
+                                        </h4>
+                                    </a>
+                                </div>
+                                <div id="collapseUnusedDesktops" class="panel-collapse collapse">
+                                    <div class="panel-body">
+                                        <div class="panel-body">
+                                            <table id="unusedDesktopsTable" class="table table-bordered">
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-12 col-sm-12 col-xs-12">
+            <div class="x_panel">
+                <div class="x_title">
+                    <h2>Resources info</h2>
+                    <div class="clearfix"></div>
+                </div>
+                <div class="x_content" id="resourcesCount">
+                    <div class="text-center">
+                        <div class="col-md-2 col-sm-2 col-xs-12">
+                            <i class="fa fa-desktop fa-2x mr-2"></i>
+                            <h4>
+                                <span id="desktops"></span> desktops
+                            </h4>
+                        </div>
+                        <div class="col-md-2 col-sm-2 col-xs-12">
+                            <i class="fa fa-cubes fa-2x mr-2"></i>
+                            <h4>
+                                <span id="templates"></span> templates
+                            </h4>
+                        </div>
+                        <div class="col-md-2 col-sm-4 col-xs-12">
+                            <i class="fa fa-circle-o fa-2x mr-2"></i>
+                            <h4>
+                                <span id="media"></span> media
+                            </h4>
+                        </div>
+                        <div class="col-md-2 col-sm-4 col-xs-12">
+                            <i class="fa fa-tv fa-2x mr-2"></i>
+                            <h4>
+                                <span id="deployments"></span> deployments
+                            </h4>
+                        </div>
+                        <div class="col-md-2 col-sm-42 col-xs-12">
+                            <i class="fa fa-user fa-2x mr-2"></i>
+                            <h4>
+                                <span id="users"></span> users
+                            </h4>
+                        </div>
+                        <div class="col-md-2 col-sm-2 col-xs-12">
+                            <i class="fa fa-users fa-2x mr-2"></i>
+                            <h4>
+                                <span id="groups"></span> groups
+                            </h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}
+
+{% block pagescript %}
+<!-- ECharts -->
+<script src="/isard-admin/vendors/echarts/dist/echarts.min.js"></script>
+<!-- Isard restful ajax calls -->
+<script src="/isard-admin/static/js/restful.js"></script>
+<script src="/isard-admin/static/admin/js/analytics.js"></script>
+{% endblock %}

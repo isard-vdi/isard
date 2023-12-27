@@ -48,11 +48,7 @@ def admin_landing():
         )
     if current_user.role == "manager":
         return render_template(
-            "admin/pages/desktops.html",
-            title="Desktops",
-            nav="Desktops",
-            icon="desktops",
-            monitor_host=monitor_host,
+            "admin/pages/analytics.html", nav="Analytics", title="Analytics"
         )
 
 
@@ -418,9 +414,23 @@ def admin_config():
     )
 
 
-# """
-# LOGS
-# """
+"""
+ANALYTICS
+"""
+
+
+@app.route("/isard-admin/admin/analytics", methods=["GET"])
+@login_required
+@isAdminManager
+def admin_analytics():
+    return render_template(
+        "admin/pages/analytics.html", nav="Analytics", title="Analytics"
+    )
+
+
+"""
+LOGS
+"""
 
 
 @app.route("/isard-admin/admin/logs_desktops", methods=["GET"])

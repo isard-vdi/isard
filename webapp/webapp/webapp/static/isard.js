@@ -519,4 +519,16 @@ function showExportButtons (table, buttonsRowClass) {
         ]
     } ).container()
     .appendTo( $('.' + buttonsRowClass) );
+}    
+
+function showLoading(loading) {
+    if (loading) {
+        $('#modal-loading').modal({
+            backdrop: 'static',
+            keyboard: false
+        }).modal('show');
+    } else {
+        $('#modal-loading').modal('hide');
+    }
+    return false;
 }

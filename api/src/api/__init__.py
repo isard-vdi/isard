@@ -120,6 +120,7 @@ from .views import (
     AdminUserStorage,
     AdminUsersView,
     AllowedsView,
+    AnalyticsView,
     AuthenticationView,
     CardsView,
     CommonView,

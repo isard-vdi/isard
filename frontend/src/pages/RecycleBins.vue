@@ -125,7 +125,7 @@
             scale="1"
           />
         </b-button>
-        <span v-if="[user.user_id, 'system'].includes(data.item.agentId)">
+        <span>
           <b-button
             class="rounded-circle btn-green px-2 mr-2"
             :title="$t('components.statusbar.recycle-bin.buttons.restore.title')"
