@@ -7,7 +7,7 @@
 
 <div class="clearfix"></div>
 <!-- sidebar menu -->
-<div id="sidebar-menu" class="main_menu_side hidden-print main_menu">        
+<div id="sidebar-menu" class="main_menu_side hidden-print main_menu">
   <div class="menu_section">
     {% if current_user.role == 'manager' %}
     <h3>Manager</h3>
@@ -18,7 +18,8 @@
         <a><i class="fa fa-user"></i> Users<span class="fa fa-chevron-down"></span></a>
         <ul class="nav child_menu">
           <li><a href="/isard-admin/admin/users/Management"><i class="fa fa-book"></i> Management</a></li>
-          <li><a href="/isard-admin/admin/users/QuotasLimits"><i class="fa fa-minus-circle"></i> Quotas / Limits</a></li>
+          <li><a href="/isard-admin/admin/users/QuotasLimits"><i class="fa fa-minus-circle"></i> Quotas / Limits</a>
+          </li>
         </ul>
       </li>
       <li><a href="/isard-admin/admin/domains/render/Desktops"><i class="fa fa-desktop"></i> Desktops</a></li>
@@ -36,6 +37,7 @@
         <a><i class="fa fa-line-chart"></i> Metrics <span class="fa fa-chevron-down"></span></a>
         <ul class="nav child_menu">
           <li><a href="/isard-admin/admin/usage"><i class="fa fa-bar-chart"></i> Usage</a></li>
+          <li><a href="/isard-admin/admin/analytics"><i class="fa fa-pie-chart"></i> Analytics</a></li>
         </ul>
       </li>
     </ul>
@@ -46,40 +48,46 @@
         <div class="container">
           <p>
             <span style="float: left; margin-right: 1em; width:65px;">Desktops</span>
-            <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
-              <div class="limits-desktops-bar progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-            </div>
+          <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
+            <div class="limits-desktops-bar progress-bar progress-bar-striped bg-info" role="progressbar"
+              style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+          </div>
           </p>
           <p>
             <span style="float: left; margin-right: 1em; width:65px;">Concurrent</span>
-            <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
-              <div class="limits-concurrent-bar progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-            </div>
-          </p>   
+          <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
+            <div class="limits-concurrent-bar progress-bar progress-bar-striped bg-info" role="progressbar"
+              style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+          </div>
+          </p>
           <p>
             <span style="float: left; margin-right: 1em; width:65px;">Templates</span>
-            <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
-              <div class="limits-templates-bar progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-            </div>
-          </p> 
+          <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
+            <div class="limits-templates-bar progress-bar progress-bar-striped bg-info" role="progressbar"
+              style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+          </div>
+          </p>
           <p>
             <span style="float: left; margin-right: 1em; width:65px;">Isos</span>
-            <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
-              <div class="limits-isos-bar progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-            </div>
-          </p> 
+          <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
+            <div class="limits-isos-bar progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;"
+              aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+          </div>
+          </p>
           <p>
             <span style="float: left; margin-right: 1em; width:65px;">vCPUs</span>
-            <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
-              <div class="limits-vcpus-bar progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-            </div>
-          </p> 
+          <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
+            <div class="limits-vcpus-bar progress-bar progress-bar-striped bg-info" role="progressbar"
+              style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+          </div>
+          </p>
           <p>
             <span style="float: left; margin-right: 1em; width:65px;">Memory</span>
-            <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
-              <div class="limits-memory-bar progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-            </div>
-          </p>  
+          <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
+            <div class="limits-memory-bar progress-bar progress-bar-striped bg-info" role="progressbar"
+              style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+          </div>
+          </p>
           <p>
             <span style="float: left; margin-right: 1em; width:65px;">Users</span>
             <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
@@ -146,6 +154,7 @@
           <ul class="nav child_menu">
             <li><a href="{{ monitor_host }}" target="_blank"><i class="fa fa-area-chart"></i> Monitoring</a></li>
             <li><a href="/isard-admin/admin/usage"><i class="fa fa-bar-chart"></i> Usage</a></li>
+            <li><a href="/isard-admin/admin/analytics"><i class="fa fa-pie-chart"></i> Analytics</a></li>
             <li><a href="/isard-admin/admin/logs_desktops"><i class="fa fa-gears"></i> Logs Desktops</a></li>
             <li><a href="/isard-admin/admin/usage_config"><i class="fa fa-gears"></i> Config</a></li>
           </ul>
@@ -160,46 +169,53 @@
         <div class="container">
           <p>
             <span style="float: left; margin-right: 1em; width:65px;">Desktops</span>
-            <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
-              <div class="system-desktops progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-            </div>
+          <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
+            <div class="system-desktops progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;"
+              aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+          </div>
           </p>
           <p>
             <span style="float: left; margin-right: 1em; width:65px;">Concurrent</span>
-            <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
-              <div class="system-concurrent progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-            </div>
-          </p>   
+          <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
+            <div class="system-concurrent progress-bar progress-bar-striped bg-info" role="progressbar"
+              style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+          </div>
+          </p>
           <p>
             <span style="float: left; margin-right: 1em; width:65px;">Templates</span>
-            <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
-              <div class="system-templates progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-            </div>
-          </p> 
+          <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
+            <div class="system-templates progress-bar progress-bar-striped bg-info" role="progressbar"
+              style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+          </div>
+          </p>
           <p>
             <span style="float: left; margin-right: 1em; width:65px;">Isos</span>
-            <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
-              <div class="system-isos progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-            </div>
-          </p> 
+          <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
+            <div class="system-isos progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;"
+              aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+          </div>
+          </p>
           <p>
             <span style="float: left; margin-right: 1em; width:65px;">vCPUs</span>
-            <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
-              <div class="system-vcpus progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-            </div>
-          </p> 
+          <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
+            <div class="system-vcpus progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;"
+              aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+          </div>
+          </p>
           <p>
             <span style="float: left; margin-right: 1em; width:65px;">Memory</span>
-            <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
-              <div class="system-memory progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-            </div>
-          </p>   
+          <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
+            <div class="system-memory progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;"
+              aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+          </div>
+          </p>
           <p>
             <span style="float: left; margin-right: 1em; width:65px;">Users</span>
-            <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
-              <div class="system-users progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-            </div>
-          </p>                                                                                                                                                              
+          <div class="progress" style="background-color: #9da8a3;margin-top:0px; margin-bottom:0px;">
+            <div class="system-users progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%;"
+              aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+          </div>
+          </p>
         </div>
       </div>
     </div>
