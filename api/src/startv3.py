@@ -31,7 +31,6 @@ if __name__ == "__main__":
     # Webapp admin websockets
     api_admin_socketio.start_domains_thread()
     api_admin_socketio.start_users_thread()
-    api_admin_socketio.start_media_thread()
     api_admin_socketio.start_hypervisors_thread()
     api_admin_socketio.start_config_thread()
     api_admin_socketio.start_resources_thread()

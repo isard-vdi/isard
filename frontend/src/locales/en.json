@@ -895,7 +895,8 @@
                 "resetdownloading": "Reseting download",
                 "downloaded": "Downloaded",
                 "deleting": "Deleting",
-                "maintenance": "Maintenance"
+                "maintenance": "Maintenance",
+                "downloadfailedinvalidformat": "Invalid format"
             },
             "delete-media": {
                 "title": "Delete media",
@@ -1228,6 +1229,7 @@
         "not_enough_advanced_time": "There's not enough advanced time to start the desktop",
         "one_viewer_minimum": "At least one viewer must be selected",
         "template_failed": "Due to an error this template can't be used to create a new desktop, please contact the administrator",
+        "media_invalid": "The downloaded file is not a valid media format. It should be deleted since it can't be used",
         "desktop_storage_not_ready": "Desktop storage is not ready",
         "cant_edit_booked_deployment": "Can't edit the reservables from a deployment with a scheduled booking",
         "temporal_new_reservable": "Can't create a temporal desktop from a template with a reservable",
