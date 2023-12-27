@@ -1,13 +1,7 @@
-import json
-import os
 import sys
 import traceback
-from pprint import pprint
-from time import sleep
 
 from setup import DeleteHypervisor, DisableHypervisor, EnableHypervisor, SetupHypervisor
-
-# from wireguard import SetupWireguard
 
 if not len(sys.argv):
     print("You should pass action: setup, enable, delete")
