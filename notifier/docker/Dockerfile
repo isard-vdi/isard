@@ -12,3 +12,4 @@ WORKDIR /opt/isardvdi/src
 
 # Takes url from RQ_REDIS_URL env var
 CMD ["/bin/sh", "-c", "rq worker notifier.default -n notifier:isard-notifier:$(uuidgen) -P /opt/isardvdi/src/notifier/lib & python3 -u /opt/isardvdi/src/start.py"]
+USER nobody
