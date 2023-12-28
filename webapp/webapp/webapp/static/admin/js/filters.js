@@ -131,7 +131,7 @@ function populateSelect(item, divId) {
   elem.attr("index", item.value);
   switch (item.value) {
     case ("grouping"):
-      $.ajax({ url: '/api/v3/admin/usage/groupings_dropdown', type: 'GET' })
+      $.ajax({ url: '/api/v3/admin/usage/groupings_dropdown', type: 'GET'})
         .then(function (f) {
           $.each(f, function (key, type) {
             elem.append('<optgroup class="l1" label=' + key.charAt(0).toUpperCase() + key.slice(1) + '>');
@@ -145,22 +145,9 @@ function populateSelect(item, divId) {
             elem.append('</optgroup>');
           });
           // Once finished populating select by default the desktop_all grouping
-          $(`${divId} #grouping`).val($(`${divId} #grouping`).find("[id='desktop_all']").val())
-          $(`${divId} #grouping`).trigger({
-            type: 'select2:select',
-            params: {
-                data: elem.val($(`${divId} #grouping`).find("[id='desktop_all']").val())
-            }
+          $(`${divId} #grouping`).val($(`${divId} #grouping`).find("[id='desktop_all']").val()).trigger('change', function () {
+            $('#btn-filter').trigger("click")
           });
-          // If it's a manager by default show the group consumer selected, if it's an admin the category consumer
-          $(`${divId} #consumer`).val($('meta[id=user_data]').attr('data-role') == 'manager' ? 'group' : 'category');
-          $(`${divId} #consumer`).trigger({
-            type: 'select2:select',
-            params: {
-                data: $('meta[id=user_data]').attr('data-role') == 'manager' ? 'group' : 'category'
-            }
-          });
-          $('#btn-filter').trigger("click")
         })
       break;
   }
@@ -213,46 +200,40 @@ function generate_change_events (divId) {
     callbackFunctionParams.incremental = $('#other-filters #incremental').iCheck('update')[0].checked
   });
 
-  $(divId + " #filter-grouping").on('select2:select', function () {
+  $(divId + " #grouping").on('change', function (e, callback) {
     itemType = JSON.parse($("#grouping").val()).itemType
-    fetchConsumers(divId);
+    fetchConsumers(divId, callback);
   })
 
-  $(divId + " #filter-consumer").on('select2:select', function () {
+  $(divId + " #consumer").on('change', function (e, callback) {
     consumer = $(divId + " #filter-consumer").find('select').val()
     if (consumer !== "null") {
       $(divId).children('[always-shown!=true][id!=filter-' + consumer + ']').hide();
       $(divId).children('[always-shown!=true][id=filter-' + consumer + ']').show();
     }
     $(divId + " #" + consumer).find('option').remove();
-    fetchConsumerItems(divId);
+    fetchConsumerItems(divId, callback);
   });
 }
 
-function fetchConsumers (divId) {
+function fetchConsumers (divId, callback) {
   $.ajax({
     url: '/api/v3/admin/usage/consumers/' + itemType,
     type: 'GET',
-    async: false
   }).then(function (d) {
     $(divId + " #consumer").find('option').remove();
     $.each(d, function (pos, it) {
       $(divId + " #consumer").append('<option value=' + it + '>' + it + '</option>');
     })
-    $(`${divId} #consumer`).trigger({
-      type: 'select2:select',
-      params: {
-          data: $('meta[id=user_data]').attr('data-role') == 'manager' ? 'group' : 'category'
-      }
-    });
+    $(`${divId} #consumer`).val($(`${divId} #consumer option:first`).val())
+    $(`${divId} #consumer`).trigger('change', callback);
   });
 }
 
-function fetchConsumerItems (divId) {
+function fetchConsumerItems (divId, callback) {
   $.ajax({
     url: '/api/v3/admin/usage/distinct_items/' + consumer + "/" + startDate + "/" + endDate,
     type: 'GET',
-    async: false
   }).then(function (items) {
     $(divId + " #" + consumer).find('option').remove();
     $.each(items, function (pos, it) {
@@ -262,7 +243,6 @@ function fetchConsumerItems (divId) {
       </option>`);
     });
     $(divId + " #" + consumer).children('option').sort(function (a, b) {
-
       if (a.value === 'null') {
         return -1;
       } else if (b.value === 'null') {
@@ -271,6 +251,9 @@ function fetchConsumerItems (divId) {
         return a.text.localeCompare(b.text);
       }
     }).appendTo($(divId + " #" + consumer));
+    if (callback) {
+      callback()
+    }
   });
 }
 
