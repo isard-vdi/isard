@@ -309,7 +309,7 @@ docker-tag:
   parallel:
     matrix:
       - IMAGE: *containers
-      - IMAGE:
+      - IMAGE: &containers_extra
           - codegen
           - check
           - check-client
@@ -347,13 +347,4 @@ container_scanning:
   parallel:
     matrix:
       - IMAGE: *containers
-      - IMAGE:
-          - codegen
-          - check
-          - check-client
-          - vpn
-          - orchestrator
-          - video
-          - monitor-proxy
-          - nc-proxy
-          - nc-app
+      - IMAGE: *containers_extra
