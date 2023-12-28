@@ -404,7 +404,7 @@ function createUsageTable(data) {
             type: "PUT",
             data: function (d) {
               return JSON.stringify({
-                items_ids: data.items_ids,
+                items_ids: data.items_ids.length ? data.items_ids : null,
                 start_date: data.startDate,
                 end_date: data.endDate,
                 grouping: data.grouping.parameters,
