@@ -496,7 +496,7 @@ class RecycleBin(object):
                         task="delete",
                         job_kwargs={
                             "kwargs": {
-                                "path": f"{storage.directory_path}/{storage.id}.{storage.type}",
+                                "path": storage.path,
                             },
                         },
                         dependents=[

@@ -49,6 +49,13 @@ class Storage(RethinkCustomBase):
     _rdb_table = "storage"
 
     @property
+    def path(self):
+        """
+        Returns the path of storage.
+        """
+        return f"{self.directory_path}/{self.id}.{self.type}"
+
+    @property
     def children(self):
         """
         Returns the storages that have this storage as parent.
@@ -149,7 +156,7 @@ class Storage(RethinkCustomBase):
             job_kwargs={
                 "kwargs": {
                     "storage_id": self.id,
-                    "storage_path": f"{self.directory_path}/{self.id}.{self.type}",
+                    "storage_path": self.path,
                 }
             },
             dependents=[
