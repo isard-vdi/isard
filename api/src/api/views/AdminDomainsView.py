@@ -86,7 +86,7 @@ def api_v3_admin_domain_viewer_data(payload, deployment_id):
     )
 
 
-@app.route("/api/v3/admin/domains/<status>", methods=["GET"])
+@app.route("/api/v3/admin/domains_status/<status>", methods=["GET"])
 @is_admin_or_manager
 def api_v3_admin_domains_status(payload, status):
     if status == "delete_pending":
@@ -95,6 +95,8 @@ def api_v3_admin_domains_status(payload, status):
             if payload.get("role_id", "") == "admin"
             else get_domains_delete_pending(payload["category_id"])
         )
+    elif payload.get("role_id", "") == "admin":
+        domains = admins.domains_status_minimal(status)
     return (
         json.dumps(domains),
         200,
@@ -236,3 +238,17 @@ def api_v3_logs_desktops(payload, view="raw"):
             200,
             {"Content-Type": "application/json"},
         )
+
+
+@app.route("/api/v3/desktops/<current_status>/<target_status>", methods=["PUT"])
+@is_admin
+def api_v3_desktops_status(payload, current_status, target_status):
+    if not (target_status in ["Shutting-down", "Stopping", "StartingPaused", "Failed"]):
+        raise Error("bad_request", "Invalid target status")
+    desktops_persistent.change_status(current_status, target_status)
+
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )

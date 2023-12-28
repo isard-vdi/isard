@@ -868,6 +868,12 @@ class ApiDesktopsPersistent:
                 if desktop_profile not in vgpu_profiles:
                     raise Error("not_found", "vGPU not found: " + desktop_profile)
 
+    def change_status(self, current_status, target_status):
+        with app.app_context():
+            r.table("domains").get_all(
+                ["desktop", current_status], index="kind_status"
+            ).update({"status": target_status}).run(db.conn)
+
 
 def check_template_status(template_id=None, template=None):
     if template_id:

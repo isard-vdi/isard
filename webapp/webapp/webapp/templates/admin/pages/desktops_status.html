@@ -1,0 +1,128 @@
+<!-- extend base layout -->
+{% extends "base.html" %}
+{% block css %}
+<style>
+.echart-card {
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    padding-top:10px;
+    height: 290px;
+    border-radius:5px;
+}
+
+.echart-card:hover {
+    background-color: #d9edf7; /* Light blue on hover */
+}
+
+.echart-card:active,
+.echart-card.active {
+    background-color: #5bc0de !important; /* Medium blue on click, !important to override Bootstrap styles */
+}
+
+.echart-clicked {
+    background-color: #5bc0de !important; /* Medium blue on click, !important to override Bootstrap styles */
+}
+
+.drop-shadow {
+        -webkit-box-shadow: 0.5px 0.5px 5px 2px rgba(0, 0, 0, .1);
+        box-shadow: 0.5px 0.5px 5px 2px rgba(0, 0, 0, .1);
+}
+
+#title-row span {
+    font-size: 22px;
+    color:black
+}
+
+table {
+    width: 100% !important
+}
+
+</style>
+{% endblock %}
+{% block content %}
+
+<div class="row">
+    <div class="col">
+        <div class="x_panel">
+            <div class="x_title">
+                <div class="row" id="title-row">
+                    <div class="col-6 col-md-6 col-sm-12 col-xs-12">
+                        <h2><i class="fa fa-dashboard"></i> Desktops status</h2>
+                    </div>
+                    <div class="col-2 col-md-2 col-sm-4 col-xs-12">
+                        <div>
+                            <h4>Total Desktops:</h4><b><span id="total"></span></b>
+                        </div>
+                    </div>
+                    <div class="col-2 col-md-2 col-sm-4 col-xs-12">
+                        <div>
+                            <h4>Query time:</h4><b><span id="time"></span><span>s</span></b>
+                        </div>
+                    </div>
+                    <div class="col-md-2 col-sm-4 col-xs-12">
+                        <label class="control-label" for="parameters">Refresh interval: </label>
+                        <select id="change-interval" class="form-control" style="width:100px;display:inline;">
+                            <option value="1000">1 second</option>
+                            <option value="5000" selected>5 seconds</option>
+                            <option value="10000">10 seconds</option>
+                            <option value="15000">15 seconds</option>
+                            <option value="30000">30 seconds</option>
+                            <option value="60000">1 minute</option>
+
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="x_content">
+            <div id="statuses"></div>
+         </div>
+       
+        <label for="show-datatable" class="show-datatable-checkbox" style="display:none;padding:1%">
+            <div class="icheckbox_flat-green" style="position: relative;">
+                <input type="checkbox" id="show-datatable"
+                    title="Show individual desktops info"
+                    style="position: absolute; opacity: 0;">
+                <ins class="iCheck-helper" style="position: absolute; top: 0%; left: 0%; display: block; width: 100%; height: 100%; margin: 0px; padding: 0px; background: rgb(255, 255, 255); border: 0px none; opacity: 0;"></ins>
+            </div>
+            Show desktops
+        </label>
+
+         <div class="x_content">
+            <div class="x_panel" id="table-panel" style="display:none;">
+            <div class="row">
+               <table id="domains" class="table">
+                  <thead>
+                      <tr>
+                          <th>Id</th>
+                          <th>Name</th>
+                          <th>Action</th>
+                          <th>Accessed</th>
+                      </tr>
+                  </thead>
+                  <tbody>      
+                  </tbody>
+                  <tfoot>
+                      <tr>
+                          <th>Id</th>
+                          <th>Name</th>
+                          <th>Action</th>
+                          <th>Accessed</th>
+                      </tr>
+                  </tfoot>
+              </table>
+             </div>
+             </div>
+         </div>
+         
+      </div>
+   </div>
+</div>
+
+{% endblock %}
+
+{% block pagescript %}
+   <script src="/isard-admin/vendors/echarts/dist/echarts.min.js"></script>
+   <script src="/isard-admin/static/admin/js/echarts.js"></script>
+   <script src="/isard-admin/static/admin/js/desktops_status.js"></script>
+{% endblock %}
