@@ -1,4 +1,4 @@
-FROM alpine:3.18 as production
+FROM alpine:3.19 as production
 MAINTAINER isard <info@isard.com>
 
 RUN apk -U upgrade --no-cache
@@ -26,10 +26,9 @@ RUN apk add --no-cache --virtual .build_deps \
     gcc
 
 RUN apk upgrade openssh-client
-RUN pip3 install --upgrade pip
+RUN pip3 install --upgrade pip --break-system-package
 COPY engine/docker/requirements.txt /requirements.txt
-RUN pip3 install --no-cache-dir -r /requirements.txt
-RUN pip3 install tabulate pid
+RUN pip3 install --no-cache-dir -r /requirements.txt  --break-system-package
 RUN apk del .build_deps
 
 RUN apk add --no-cache openssl shadow
