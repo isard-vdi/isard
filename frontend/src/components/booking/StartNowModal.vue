@@ -168,6 +168,7 @@ export default {
     }
 
     const closeModal = () => {
+      v$.value.$reset()
       $store.dispatch('resetStartNowModal')
       availableTimes.value = []
     }
