@@ -61,6 +61,7 @@ export default {
     $store.dispatch('fetchPasswordPolicy')
 
     const closePasswordModal = () => {
+      v$.value.$reset()
       $store.dispatch('resetPasswordState')
       $store.dispatch('showPasswordModal', false)
     }

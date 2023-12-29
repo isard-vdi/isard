@@ -286,6 +286,7 @@ export default {
     }
 
     const closeModal = () => {
+      v$.value.$reset()
       $store.dispatch('resetPlanningModalData')
       $store.dispatch('showPlanningModal', false)
     }

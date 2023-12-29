@@ -250,6 +250,7 @@ export default {
     }
 
     const closeModal = () => {
+      v$.value.$reset()
       $store.dispatch('resetModalData')
       $store.dispatch('showBookingModal', false)
     }
