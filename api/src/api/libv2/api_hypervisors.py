@@ -320,6 +320,12 @@ class ApiHypervisors:
             elif not self.check(result, "inserted"):
                 raise Error("not_found", "Unable to add hypervisor")
         else:
+            # Second time will try to enable itself
+            if hypervisor.get("enabled"):
+                with app.app_context():
+                    r.table("hypervisors").get(hyper_id).update({"enabled": False}).run(
+                        db.conn
+                    )
             result = self.add_hyper(
                 hyper_id,
                 hostname,

@@ -57,12 +57,20 @@ class isardVpn:
 
         if vpn == "hypers":
             with app.app_context():
-                hyper = (
-                    r.table("hypervisors")
-                    .get(itemid)
-                    .pluck("id", "isard_hyper_vpn_host", "vpn")
-                    .run(db.conn)
-                )
+                try:
+                    hyper = (
+                        r.table("hypervisors")
+                        .get(itemid)
+                        .pluck("id", "isard_hyper_vpn_host", "vpn")
+                        .run(db.conn)
+                    )
+                except:
+                    raise Error(
+                        "not_found",
+                        "Hypervisor not found for id " + str(itemid),
+                        traceback.format_exc(),
+                        description_code="hypervisor_not_found",
+                    )
             wgdata = hyper
             port = "4443"
             mtu = os.environ.get("VPN_MTU", "1600")
