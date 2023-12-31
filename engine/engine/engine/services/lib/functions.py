@@ -81,7 +81,7 @@ def get_pools_threads_running(hypervisors):
 def get_diskoperations_pools_threads_running(hypervisors):
     hypervisors_with_thread = []
     for hyp in hypervisors:
-        if "disk_op_" + hyp["id"] in get_threads_names_running():
+        if "diskop_" + hyp["id"] in get_threads_names_running():
             hypervisors_with_thread.append(hyp)
     return hypervisors_with_thread
 

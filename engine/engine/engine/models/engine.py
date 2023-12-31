@@ -30,7 +30,11 @@ from engine.services.db import (
     remove_domain,
     update_domain_history_from_id_domain,
 )
-from engine.services.db.db import new_rethink_connection, update_table_field
+from engine.services.db.db import (
+    new_rethink_connection,
+    update_table_dict,
+    update_table_field,
+)
 from engine.services.db.domains import (
     update_domain_start_after_created,
     update_domain_status,
@@ -212,6 +216,19 @@ class Engine(object):
                         )
                         logs.threads.info(table_tabulated)
 
+                        for t in threads_dead:
+                            if t[0].startswith("worker_"):
+                                update_table_dict(
+                                    "hypervisors",
+                                    t[0].split("_")[1],
+                                    {"cap_status": {"hypervisor": False}},
+                                )
+                            if t[0].startswith("diskop_"):
+                                update_table_dict(
+                                    "hypervisors",
+                                    t[0].split("_")[1],
+                                    {"cap_status": {"disk_operations": False}},
+                                )
                 # pprint.pprint(threads_running)
                 # self.manager.update_info_threads_engine()
 

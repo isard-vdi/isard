@@ -82,7 +82,7 @@ def launch_disk_operations_thread(
     queue_disk_operation = PriorityQueueIsard()
     # thread_disk_operation = threading.Thread(name='disk_op_'+id,target=disk_operations_thread, args=(host_disk_operations,queue_disk_operation))
     thread_disk_operation = DiskOperationsThread(
-        name="disk_op_" + hyp_id,
+        name="diskop_" + hyp_id,
         hyp_id=hyp_id,
         hostname=hostname,
         queue_actions=queue_disk_operation,
