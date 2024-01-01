@@ -5,9 +5,12 @@
  * License: AGPLv3
  */
 
+interval = 5000;
+engine_status_data = ""
 $hypervisor_template = $(".hyper-detail");
 
 $(document).ready(function() {
+  update_engine_status();
   $('.btn-new-hyper').on('click', function() {
     $("#checkbox_add_error").hide()
     $('#modalAddHyper').modal({
@@ -325,6 +328,28 @@ $(document).ready(function() {
   });
   $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
 })
+
+function update_engine_status() {
+  $.ajax({
+    url: "/engine/status",
+    type: "GET",
+    accept: "application/json",
+    contentType: "application/json",
+    success: function(data) {
+      if( engine_status_data != data ){
+        engine_status_data = data
+        $('#engine_status').html('<i class="fa fa-success" style="font-size:16px;color:green"> System Ready</i>')
+      }
+    },
+    error: function(data) {
+      if( engine_status_data != data.responseText ){
+        engine_status_data = data.responseText
+        $('#engine_status').html('<i class="fa fa-warning" style="font-size:16px;color:red"> System Error: '+data.responseText+'</i>')
+      }
+    },
+  });
+  setTimeout(update_engine_status, interval);
+}
 
 function socketio_on() {
   socket.on('hyper_data', function(data) {
