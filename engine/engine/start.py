@@ -2,19 +2,15 @@ from engine.services.lib.debug import check_if_debugging
 
 check_if_debugging()
 
-import inspect
 import logging
-import os
-import sys
 import traceback
 from logging.handlers import RotatingFileHandler
-from subprocess import check_call, check_output
+from subprocess import check_output
 
 from flask import Flask
 
 ## Moved populate & upgrade from webapp
 from initdb.populate import Populate
-from pid import PidFile, PidFileAlreadyLockedError, PidFileAlreadyRunningError
 
 check_output(("/isard/generate_certs.sh"), text=True).strip()
 
@@ -42,28 +38,7 @@ check_tables_populated()
 from engine.models.engine import Engine
 from engine.services import db
 
-
-def run(app):
-    http_server = WSGIServer(("0.0.0.0", 5000), app)
-    http_server.serve_forever()
-
-
-# if app.debug:
-#     from werkzeug.debug import DebuggedApplication
-#     app.wsgi_app = DebuggedApplication( app.wsgi_app, True )
-
 if __name__ == "__main__":
-    p = PidFile("engine")
-    try:
-        p.create()
-    except PidFileAlreadyLockedError:
-        import time
-
-        err_pid = PidFile(str(int(time.time())))
-        err_pid.create()
-        while True:
-            time.sleep(1)
-
     app = Flask(__name__)
 
     app.m = Engine(with_status_threads=False)
@@ -74,7 +49,7 @@ if __name__ == "__main__":
     werk.setLevel(logging.ERROR)
 
     # add log handler
-    handler = RotatingFileHandler("api.log", maxBytes=10000, backupCount=1)
+    handler = RotatingFileHandler("/tmp/api.log", maxBytes=10000, backupCount=1)
     handler.setLevel(logging.INFO)
     app.logger.addHandler(handler)
 

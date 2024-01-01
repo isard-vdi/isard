@@ -1,12 +1,16 @@
 import base64
 import json
+import os
 
+from cachetools import TTLCache, cached
+from engine.models.balancers import BalancerInterface
 from engine.services.db import (
     get_domains_started_in_vgpu,
     get_hyp_hostname_user_port_from_id,
     get_vgpu_info,
     get_vgpu_model_profile_change,
 )
+from engine.services.db.hypervisors import get_hyp_system_info
 from engine.services.lib.functions import execute_commands
 from engine.services.log import logs
 from flask import Blueprint, current_app, jsonify, request
@@ -20,18 +24,6 @@ from .tokens import is_admin
 #### NOTE: The /engine paths are publicy open so they need @is_admin decorator!
 
 
-def shutdown_server():
-    func = request.environ.get("werkzeug.server.shutdown")
-    if func is None:
-        raise RuntimeError("Not running with the Werkzeug Server")
-    func()
-
-
-@api.route("/", methods=["GET"])
-def get_if_running():
-    return jsonify({"running": True}), 200
-
-
 @api.route("/threads", methods=["GET"])
 def get_threads():
     d = {
@@ -43,182 +35,242 @@ def get_threads():
     return jsonify(threads=json_d), 200
 
 
-@api.route(
-    "/create_domain/bulk_to_user/<string:username>/<string:template_id>/<int:quantity>/<string:prefix>",
-    methods=["POST"],
-)
-def create_domain_bulk():
-    pass
-
-
-@api.route(
-    "/create_domain/bulk_random_to_user/<string:username>/<int:quantity>/<string:prefix>",
-    methods=["POST"],
-)
-def create_domain_bulk_random_to_user():
-    pass
-
-
-@api.route(
-    "/create_domain/to_user/<string:username>/<string:template_id>/<string:domain_id>",
-    methods=["POST"],
-)
-def create_domain_bulk_to_user():
-    pass
-
-
-@api.route(
-    "/create_domain/to_group/<string:group>/<string:template_id>/<int:quantity>/<string:prefix>",
-    methods=["POST"],
-)
-def create_domain_to_group():
-    pass
-
-
-@api.route("/action_with_domain/<string:action>/<string:domain_id>", methods=["PUT"])
-def start_domain():
-    pass
-
-
-@api.route(
-    "/action_with_domains_group_by/<string:groupby>/<string:action>/with_prefix/<string:prefix>",
-    methods=["PUT"],
-)
-def action_with_domains_group_by():
-    pass
-
-
-@api.route(
-    "/action_with_domains/<string:action>/from_user/<string:username>", methods=["PUT"]
-)
-def start_domain_with_prefix():
-    pass
-
-
-@api.route(
-    "/action_with_domains/<string:action>/from_template/<string:template>",
-    methods=["PUT"],
-)
-def start_domain_with_prefix_from_template():
-    pass
-
-
-@api.route("/stop_threads", methods=["GET"])
-def stop_threads():
-    app.m.stop_threads()
-    return jsonify({"stop_threads": True}), 200
-
-
-@api.route("/status")
-def engine_status():
-    """all main threads are running"""
-
-    pass
-
-
-@api.route("/pool/<string:id_pool>/status")
-def pool_status(id_pool):
-    """hypervisors ready to start and create disks"""
-    pass
-
-
-@api.route("/events/stop")
-def stop_thread_event():
-    app.m.t_events.stop = True
-    app.t_events.q_event_register.put(
-        {"type": "del_hyp_to_receive_events", "hyp_id": ""}
-    )
-
-
-@api.route("/restart", methods=["GET"])
-def engine_restart():
-    address_from = request.access_route[0]
-    logs.main.info(f"engine_restart api called from {address_from}")
-    pass
-
-
 @api.route("/info", methods=["GET"])
 def engine_info():
-    d_engine = {}
-    http_code = 503
-    # if len(app.db.get_hyp_hostnames_online()) > 0:
+    return "alive", 200
+
+
+engine_threads = [
+    "background",
+    "events",
+    "broom",
+    "downloads_changes",
+    "orchestrator",
+    "changes_domains",
+]
+
+virt_balancer_type = os.environ.get("ENGINE_HYPER_BALANCER", "available_ram_percent")
+virt_balancer = BalancerInterface(
+    "default",
+    balancer_type=virt_balancer_type,
+)
+
+disk_balancer_type = os.environ.get("ENGINE_DISK_BALANCER", "less_cpu")
+disk_balancer = BalancerInterface(
+    "00000000-0000-0000-0000-000000000000",
+    balancer_type=disk_balancer_type,
+)
+
+
+@cached(cache=TTLCache(maxsize=1, ttl=5))
+@api.route("/engine/status", methods=["GET"])
+@is_admin
+def engine_status(payload):
     try:
-        if app.m.t_background != None:
-            try:
-                app.m.t_background.is_alive()
-            except AttributeError:
-                d_engine["background_is_alive"] = False
-                return jsonify(d_engine), http_code
+        if not app.m.t_background.is_alive():
+            return "Thread Background dead.", 428
+        for t in engine_threads:
+            if not (
+                getattr(app.m, "t_" + t).is_alive()
+                if getattr(app.m, "t_" + t) != None
+                else False
+            ):
+                return "Thread {} dead.".format(t), 428
+        disk = disk_balancer.get_next_diskoperations()
+        virt, _ = virt_balancer.get_next_hypervisor()
+        if not disk and not virt:
+            return "No hypervisor available.", 428
+        if not disk:
+            return "No hypervisor for disk operations available.", 428
+        if not virt:
+            return "No hypervisor for virtualization available.", 428
+        return "Ok", 200
+    except:
+        return "Exception!", 500
 
-            if app.m.t_background.is_alive():
-                manager = app.m
-                d_engine["background_is_alive"] = True
-                d_engine["event_thread_is_alive"] = (
-                    app.m.t_events.is_alive() if app.m.t_events != None else False
-                )
-                d_engine["broom_thread_is_alive"] = (
-                    app.m.t_broom.is_alive() if app.m.t_broom != None else False
-                )
-                d_engine["download_changes_thread_is_alive"] = (
-                    app.m.t_downloads_changes.is_alive()
-                    if app.m.t_downloads_changes != None
-                    else False
-                )
-                d_engine["orchestrator_thread_is_alive"] = getattr(
-                    app.m.t_orchestrator, "is_alive", bool
-                )()
-                d_engine["changes_domains_thread_is_alive"] = (
-                    app.m.t_changes_domains.is_alive()
-                    if app.m.t_changes_domains != None
-                    else False
-                )
-                d_engine["working_threads"] = list(app.m.t_workers.keys())
-                d_engine["status_threads"] = list(app.m.t_status.keys())
-                d_engine["disk_operations_threads"] = list(
-                    app.m.t_disk_operations.keys()
-                )
 
-                d_engine["alive_threads"] = dict()
-                d_engine["alive_threads"]["working_threads"] = {
-                    name: t.is_alive() for name, t in app.m.t_workers.items()
-                }
-                d_engine["alive_threads"]["status_threads"] = {
-                    name: t.is_alive() for name, t in app.m.t_status.items()
-                }
-                d_engine["alive_threads"]["disk_operations_threads"] = {
-                    name: t.is_alive() for name, t in app.m.t_disk_operations.items()
-                }
+@cached(cache=TTLCache(maxsize=1, ttl=5))
+@api.route("/engine/status/detail", methods=["GET"])
+@is_admin
+def engine_status_detail(payload):
+    # 0: system ok
+    # 1: system working with minor problems
+    # 2: system malfunctioning
+    engine = {
+        "operational": True,
+        "status_main": 0,
+        "status_virt": 0,
+        "status_disk": 0,
+        "problems": [],
+    }
+    try:
+        # Background thread
+        if not app.m.t_background.is_alive():
+            engine["status_main"] = 2
+            engine["operational"] = False
+            engine["problems"].append([2, "main", "Dead thread(s): background"])
 
-                d_engine["queue_size_working_threads"] = {
-                    k: q.qsize() for k, q in app.m.q.workers.items()
-                }
-                d_engine["queue_disk_operations_threads"] = {
-                    k: q.qsize() for k, q in app.m.q_disk_operations.items()
-                }
-                d_engine["is_alive"] = True
-                http_code = 200
-            else:
-                d_engine["is_alive"] = False
+        # Main threads
+        deads = []
+        for t in engine_threads:
+            if not (
+                getattr(app.m, "t_" + t).is_alive()
+                if getattr(app.m, "t_" + t) != None
+                else False
+            ):
+                deads.append(t)
+        if len(deads) > 0:
+            engine["status_main"] = 2
+            engine["operational"] = False
+            engine["problems"].append(
+                [2, "main", "Dead thread(s): " + ", ".join(deads)]
+            )
+
+        # HYPERVISORS VIRT/DISKOP DATABASE
+        db_hypers = get_hyp_system_info()
+        for hyper in db_hypers:
+            virtualization = None
+            virtualization_queued = 0
+            disk_operations = None
+            disk_operations_queued = 0
+            if hyper["status"] == "Online":
+                if hyper["capabilities"]["hypervisor"]:
+                    if (
+                        hyp["id"] in app.m.t_workers
+                        and app.m.t_workers[hyp["id"]].is_alive()
+                    ):
+                        virtualization = True
+                        engine["hypers_virt"] += 1
+                        virtualization_queued = app.m.q.workers[hyp["id"]].qsize()
+                    else:
+                        virtualization = False
+                        engine["problems"].append(
+                            [
+                                1,
+                                "hypervisor",
+                                "Hypervisor {} virtualization capability not alive".format(
+                                    hyper["id"]
+                                ),
+                            ]
+                        )
+                if hyper["capabilities"]["disk_operations"]:
+                    if (
+                        hyp["id"] in app.m.t_disk_operations
+                        and app.m.t_disk_operations[hyp["id"]].is_alive()
+                    ):
+                        disk_operations = True
+                        engine["hypers_diskop"] += 1
+                        disk_operations_queued = app.m.q_disk_operations[
+                            hyp["id"]
+                        ].qsize()
+                    else:
+                        disk_operations = False
+                        engine["problems"].append(
+                            [
+                                1,
+                                "hypervisor",
+                                "Hypervisor {} disk operations capability not alive".format(
+                                    hyper["id"]
+                                ),
+                            ]
+                        )
+            engine["hypervisors"][hyper["id"]] = {
+                "status": hyper["status"],
+                "stats": hyper["stats"],
+                "virt_cap": virtualization,
+                "virt_op_queued": virtualization_queued,
+                "disk_cap": disk_operations,
+                "disk_op_queued": disk_operations_queued,
+            }
+            engine["queued_virtop"] += virtualization_queued
+            engine["queued_diskop"] += disk_operations_queued
+
+        if not len(db_hypers):
+            if engine["hypers_virt"] == 0:
+                engine["problems"].append(
+                    [2, "database", "No virtualization hypervisors registered."]
+                )
         else:
-            d_engine["is_alive"] = False
-        return jsonify(d_engine), http_code
-    except AttributeError:
-        d_engine["is_alive"] = False
-        print("ERROR ----- ENGINE IS DEATH", flush=True)
-        return jsonify(d_engine), http_code
+            if engine["hypers_virt"] == 0:
+                engine["problems"].append(
+                    [2, "database", "No virtualization hypervisors registered."]
+                )
+                engine["hypers_virt_next"] = False
+            else:
+                engine["hypers_virt_next"] = virt_balancer.get_next_hypervisor()
+            if engine["hypers_diskop"] == 0:
+                engine["problems"].append(
+                    [2, "database", "No disk operations hypervisors registered."]
+                )
+                engine["hypers_diskop_next"] = False
+            else:
+                engine["hypers_diskop_next"] = disk_balancer.get_next_diskoperations()
+
+        # Next host to execute virtualization and disk operations
+        engine["next_virt"] = virt_balancer.get_next_hypervisor()
+        if not engine["next_virt"]:
+            engine["alive_level"] = 2
+            engine["alive_detail"] = "No hypervisor for virtualization available"
+        engine["next_diskop"] = disk_balancer.get_next_diskoperations()
+        if not engine["next_diskop"]:
+            engine["alive_level"] = 2
+            engine["alive_detail"] = "No hypervisor for disk operations available"
+        # Virtualization and disk operations threads and queues
+        for hyp in db_hypers:
+            if hyp["id"] in app.m.t_workers and app.m.t_workers[hyp["id"]].is_alive():
+                engine["virt_th"][hyp["id"]] = hyp
+                engine["virt_th_alive"] += 1
+                engine["virt_th"][hyp["id"]]["queued"] = app.m.q.workers[
+                    hyp["id"]
+                ].qsize()
+                engine["virt_queued_total"] += app.m.q.workers[hyp["id"]].qsize()
+            else:
+                engine["virt_th"][hyp["id"]] = False
+            if (
+                hyp["id"] in app.m.t_disk_operations
+                and app.m.t_disk_operations[hyp["id"]].is_alive()
+            ):
+                engine["disk_th"][hyp["id"]] = hyp
+                engine["disk_th_alive"] += 1
+                engine["disk_th"][hyp["id"]]["queued"] = app.m.q_disk_operations[
+                    hyp["id"]
+                ].qsize()
+                engine["disk_queued_total"] += app.m.q_disk_operations[
+                    hyp["id"]
+                ].qsize()
+            else:
+                engine["disk_th"][hyp["id"]] = False
+        # Compute alive
+
+        # if engine["main_th"]["background"] == False:
+
+        engine["alive_detail"] = engine["main_th"]
+        ## Engine needs restart if any of the virtualization threads is not alive
+        engine["alive_detail"].update(engine["virt_th"])
+        ## Engine needs restart if any of the disk operations threads is not alive
+        engine["alive_detail"].update(engine["disk_th"])
+        engine["alive_detail"]
+        engine["alive"] = (
+            engine["alive"]
+            and engine["virt_th_alive"] == len(db_hypers)
+            and engine["disk_th_alive"] == len(db_hypers)
+        )
+        return jsonify(engine), 200
     except Exception as e:
-        logs.exception_id.debug("0002")
-        d_engine["is_alive"] = False
-        print("ERROR ----- ENGINE IS DEATH AND EXCEPTION DETECTED", flush=True)
-        return jsonify(d_engine), http_code
+        logs.main.error("engine_status: {}".format(e))
+        return jsonify({"alive": False, "error": str(e)}), 500
 
 
-@api.route("/domains/user/<string:username>", methods=["GET"])
-def get_domains(username):
-    domains = app.db.get_domains_from_user(username)
-    json_domains = json.dumps(domains, sort_keys=True, indent=4)
+def _next_hyper(pool_id="default"):
+    next_hyp, extra_info = app.m.pools[pool_id].balancer.get_next_hypervisor()
+    return next_hyp
 
-    return jsonify(domains=json_domains)
+
+def _next_diskop(pool_id="00000000-0000-0000-0000-000000000000"):
+    disk_operations = app.m.diskoperations_pools[
+        pool_id
+    ].balancer.get_next_diskoperations()
+    return disk_operations
 
 
 @api.route("/engine/profile/gpu/<string:gpu_id>", methods=["PUT"])

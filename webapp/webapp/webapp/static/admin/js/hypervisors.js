@@ -5,9 +5,12 @@
  * License: AGPLv3
  */
 
+interval = 5000;
+engine_status_data = ""
 $hypervisor_template = $(".hyper-detail");
 
 $(document).ready(function() {
+  update_engine_status();
   $('.btn-new-hyper').on('click', function() {
     $("#checkbox_add_error").hide()
     $('#modalAddHyper').modal({
@@ -136,6 +139,8 @@ $(document).ready(function() {
       },
       { "data": "enabled" },
       { "data": "status" },
+      { "data": "cap_status.disk_operations" },
+      { "data": "cap_status.hypervisor" },
       { "data": "only_forced" },
       { "data": "gpu_only", "defaultContent": 0 },
       { "data": "id" },
@@ -154,7 +159,7 @@ $(document).ready(function() {
       { "data": "info.libvirt_version", "defaultContent": 'NaN' },
     ],
     "order": [
-      [5, 'asc']
+      [7, 'asc']
     ],
     "columnDefs": [{
         // Enabled
@@ -170,19 +175,57 @@ $(document).ready(function() {
           return renderStatus(full);
         }
       },
+      { // Disk Operations
+        "targets": 3,
+        "render": function(data, type, full, meta) {
+          if ( "capabilities" in full && "disk_operations" in full.capabilities){
+            if (full.capabilities.disk_operations) {
+              if ("cap_status" in full && "disk_operations" in full.cap_status){
+                if (full.cap_status.disk_operations) {
+                  return renderBoolean(true);
+                } else {
+                  return '<i class="fa fa-circle" aria-hidden="true" style="color:red"></i>'
+                }
+              } else {
+                return '<i class="fa fa-spinner fa-lg fa-spin"></i>'
+              }
+            }
+          }
+          return renderBoolean(false);
+        },
+      },
+      { // Hypervisor
+        "targets": 4,
+        "render": function(data, type, full, meta) {
+          if ( "capabilities" in full && "hypervisor" in full.capabilities){
+            if (full.capabilities.hypervisor) {
+              if ("cap_status" in full && "hypervisor" in full.cap_status){
+                if (full.cap_status.hypervisor) {
+                  return renderBoolean(true);
+                } else {
+                  return '<i class="fa fa-circle" aria-hidden="true" style="color:red"></i>'
+                }
+              } else {
+                return '<i class="fa fa-spinner fa-lg fa-spin"></i>'
+              }
+            }
+          }
+          return renderBoolean(false);
+        },
+      },
       {
         //Only Forced
-        "targets": 3,
+        "targets": 5,
         "render": renderBoolean
       },
       {
         //Only GPU
-        "targets": 4,
+        "targets": 6,
         "render": renderBoolean
       },
       {
         // RAM
-        "targets": 7,
+        "targets": 9,
         "render": function(data, type, full, meta) {
           if (!("stats" in full)) { return '<i class="fa fa-spinner fa-lg fa-spin"></i>' }
           if (!("min_free_mem_gb" in full)) { full.min_free_mem_gb = 0 }
@@ -193,7 +236,7 @@ $(document).ready(function() {
       },
       {
         // CPU
-        "targets": 8,
+        "targets": 10,
         "render": function(data, type, full, meta) {
           if (full.info) {
             if (!("stats" in full)) { return '<i class="fa fa-spinner fa-lg fa-spin"></i>' }
@@ -203,14 +246,14 @@ $(document).ready(function() {
       },
       {
         // Last Status Change
-        "targets": 9,
+        "targets": 11,
         "render": function(data, type, full, meta) {
           return moment.unix(full.status_time).fromNow();
         }
       },
       {
         // Desktops
-        "targets": 10,
+        "targets": 12,
         "render": function(data, type, full, meta) {
           if (full.status != "Online") {
             return "0"
@@ -220,17 +263,17 @@ $(document).ready(function() {
       },
       {
         // VPN
-        "targets": 12,
+        "targets": 14,
         "render": renderBoolean
       },
       {
         // Nested
-        "targets": 13,
+        "targets": 15,
         "render": renderBoolean
       },
       {
         // Proxy Video
-        "targets": 15,
+        "targets": 17,
         "render": function(data, type, full, meta) {
           return full.viewer.proxy_video + ' (' + full.viewer.spice_ext_port + ',' + full.viewer.html5_ext_port + ')';
         }
@@ -238,7 +281,7 @@ $(document).ready(function() {
 
       {
         // Virt
-        "targets": 16,
+        "targets": 18,
         "render": function(data, type, full, meta) {
           if (!data) { return renderBoolean }
           return data
@@ -285,6 +328,28 @@ $(document).ready(function() {
   });
   $.getScript("/isard-admin/static/admin/js/socketio.js", socketio_on)
 })
+
+function update_engine_status() {
+  $.ajax({
+    url: "/engine/status",
+    type: "GET",
+    accept: "application/json",
+    contentType: "application/json",
+    success: function(data) {
+      if( engine_status_data != data ){
+        engine_status_data = data
+        $('#engine_status').html('<i class="fa fa-success" style="font-size:16px;color:green"> System Ready</i>')
+      }
+    },
+    error: function(data) {
+      if( engine_status_data != data.responseText ){
+        engine_status_data = data.responseText
+        $('#engine_status').html('<i class="fa fa-warning" style="font-size:16px;color:red"> System Error: '+data.responseText+'</i>')
+      }
+    },
+  });
+  setTimeout(update_engine_status, interval);
+}
 
 function socketio_on() {
   socket.on('hyper_data', function(data) {

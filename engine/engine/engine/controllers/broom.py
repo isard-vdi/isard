@@ -73,9 +73,9 @@ class ThreadBroom(threading.Thread):
                 ids_domains_started_in_db_with_hypervisor = [
                     a["id"] for a in list_domains
                 ]
-                ids_domains_started_in_db_without_hypervisor = [
-                    a["id"] for a in list_domains_without_hyp
-                ]
+                # ids_domains_started_in_db_without_hypervisor = [
+                #     a["id"] for a in list_domains_without_hyp
+                # ]
 
                 for d in list_domains_without_hyp:
                     logs.broom.error(
@@ -89,13 +89,13 @@ class ThreadBroom(threading.Thread):
                         detail="starting or stoping status witouth hypervisor",
                     )
 
-                hyps_with_hyp_started = set(
-                    [
-                        d["hyp_started"]
-                        for d in list_domains
-                        if type(d["hyp_started"]) is str
-                    ]
-                )
+                # hyps_with_hyp_started = set(
+                #     [
+                #         d["hyp_started"]
+                #         for d in list_domains
+                #         if type(d["hyp_started"]) is str
+                #     ]
+                # )
                 hyps_to_try = list(get_hyp_hostnames_online().keys())
 
                 hyps_domain_started = {}

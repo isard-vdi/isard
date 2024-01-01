@@ -1,6 +1,5 @@
-FROM alpine:3.18 as production
+FROM alpine:3.19 as production
 MAINTAINER isard <info@isard.com>
-WORKDIR /isard
 
 RUN apk -U upgrade --no-cache
 RUN apk add --no-cache \
@@ -13,7 +12,6 @@ RUN apk add --no-cache \
     openssh-client \
     curl \
     sshpass \
-    supervisor \
     pciutils-libs \
     hwids-pci
 
@@ -28,20 +26,10 @@ RUN apk add --no-cache --virtual .build_deps \
     gcc
 
 RUN apk upgrade openssh-client
-RUN pip3 install --upgrade pip
+RUN pip3 install --upgrade pip --break-system-package
 COPY engine/docker/requirements.txt /requirements.txt
-RUN pip3 install --no-cache-dir -r /requirements.txt
-RUN pip3 install tabulate pid
+RUN pip3 install --no-cache-dir -r /requirements.txt  --break-system-package
 RUN apk del .build_deps
-
-# Create the required directories
-RUN mkdir -p /var/log/supervisor /isard /root/.ssh
-
-# Configure SSH
-RUN ssh-keygen -A
-#RUN echo -e "Host isard-hypervisor\n \
-#    StrictHostKeyChecking no" >/root/.ssh/config
-#RUN chmod 600 /root/.ssh/config
 
 RUN apk add --no-cache openssl shadow
 RUN useradd -u 1000 -ms /bin/sh qemu
@@ -51,16 +39,16 @@ ENV PYTHONPATH /opt/isardvdi
 COPY component/_common/src /opt/isardvdi/isardvdi_common
 
 COPY engine/docker/genrsa.sh /
+COPY engine/docker/run.sh /
 COPY engine/docker/add-hypervisor.sh /
 COPY engine/docker/add-hyper-rethink.py /
-COPY engine/docker/supervisord.conf /etc/supervisord.conf
 
+WORKDIR /isard
 
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
+CMD ["/run.sh"]
 
 FROM production as development
 RUN apk add --no-cache --update bash vim openssh 
 RUN apk add py3-yaml 
 
-WORKDIR /isard
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
+CMD ["sleep", "infinity"]

@@ -69,11 +69,16 @@ def update_hyp_thread_status(thread_type, hyp_id, status):
         )
 
         if status != "Started":
-            d = (
-                rtable.get(hyp_id)
-                .pluck("thread_status", "status", "capabilities")
-                .run(r_conn)
-            )
+            try:
+                d = (
+                    rtable.get(hyp_id)
+                    .pluck("thread_status", "status", "capabilities")
+                    .run(r_conn)
+                )
+            except:
+                # hypervisor not found. It is weird that it happens.
+                close_rethink_connection(r_conn)
+                return False
             status_hyp = d["status"]
             if status_hyp == "Online":
                 update_hyp_status(
@@ -164,10 +169,22 @@ def update_hyp_status(id, status, detail="", uri=""):
 
         d = (
             rtable.get(id)
-            .pluck("status", "status_time", "prev_status", "detail")
+            .pluck("status", "status_time", "prev_status", "detail", "capabilities")
             .run(r_conn)
         )
 
+        if status == "Online":
+            dict_update["cap_status"] = {
+                "hypervisor": d.get("capabilities", {}).get("hypervisor", False),
+                "disk_operations": d.get("capabilities", {}).get(
+                    "disk_operations", False
+                ),
+            }
+        else:
+            dict_update["cap_status"] = {
+                "hypervisor": False,
+                "disk_operations": False,
+            }
         if "status" in d.keys():
             if "prev_status" not in d.keys():
                 dict_update["prev_status"] = []
@@ -350,6 +367,30 @@ def get_hyp_status(hyp_id):
 
     close_rethink_connection(r_conn)
     return out["status"]
+
+
+def get_hyp_system_info():
+    r_conn = new_rethink_connection()
+    try:
+        hypers = list(
+            r.table("hypervisors")
+            .pluck(
+                "id",
+                "status",
+                "capabilities",
+                "only_forced",
+                "stats",
+                "min_free_mem_gb",
+                "gpu_only",
+            )
+            .run(r_conn)
+        )
+    except:
+        close_rethink_connection(r_conn)
+        return []
+
+    close_rethink_connection(r_conn)
+    return hypers
 
 
 def get_hyp_hostname_from_id(id):
