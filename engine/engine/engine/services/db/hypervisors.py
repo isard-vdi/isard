@@ -369,6 +369,30 @@ def get_hyp_status(hyp_id):
     return out["status"]
 
 
+def get_hyp_system_info():
+    r_conn = new_rethink_connection()
+    try:
+        hypers = list(
+            r.table("hypervisors")
+            .pluck(
+                "id",
+                "status",
+                "capabilities",
+                "only_forced",
+                "stats",
+                "min_free_mem_gb",
+                "gpu_only",
+            )
+            .run(r_conn)
+        )
+    except:
+        close_rethink_connection(r_conn)
+        return []
+
+    close_rethink_connection(r_conn)
+    return hypers
+
+
 def get_hyp_hostname_from_id(id):
     r_conn = new_rethink_connection()
     try:
