@@ -24,6 +24,7 @@ import (
 func TestLogin(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
+	now := float64(time.Now().Unix())
 
 	cases := map[string]struct {
 		PrepareDB  func(*r.Mock)
@@ -57,7 +58,7 @@ func TestLogin(t *testing.T) {
 						"group":                   "default-default",
 						"name":                    "Néfix Estrada",
 						"email":                   "nefix@example.org",
-						"email_verified":          true,
+						"email_verified":          &now,
 						"disclaimer_acknowledged": true,
 					},
 				}, nil)
@@ -75,7 +76,7 @@ func TestLogin(t *testing.T) {
 						"group":                   "default-default",
 						"name":                    "Néfix Estrada",
 						"email":                   "nefix@example.org",
-						"email_verified":          true,
+						"email_verified":          &now,
 						"disclaimer_acknowledged": true,
 					},
 				}, nil)
@@ -92,7 +93,7 @@ func TestLogin(t *testing.T) {
 					"group":                    "default-default",
 					"name":                     "Néfix Estrada",
 					"email":                    "nefix@example.org",
-					"email_verified":           true,
+					"email_verified":           r.MockAnything(),
 					"email_verification_token": "",
 					"photo":                    "",
 					"accessed":                 r.MockAnything(),
@@ -148,7 +149,7 @@ func TestLogin(t *testing.T) {
 						"group":                   "default-default",
 						"name":                    "Néfix Estrada",
 						"email":                   "nefix@example.org",
-						"email_verified":          true,
+						"email_verified":          &now,
 						"disclaimer_acknowledged": true,
 					},
 				}, nil)
@@ -165,7 +166,7 @@ func TestLogin(t *testing.T) {
 					"group":                    "default-default",
 					"name":                     "Néfix Estrada",
 					"email":                    "nefix@example.org",
-					"email_verified":           true,
+					"email_verified":           r.MockAnything(),
 					"email_verification_token": "",
 					"photo":                    "",
 					"disclaimer_acknowledged":  true,
@@ -223,7 +224,7 @@ func TestLogin(t *testing.T) {
 						"group":                   "default-default",
 						"name":                    "Néfix Estrada",
 						"email":                   "nefix@example.org",
-						"email_verified":          true,
+						"email_verified":          &now,
 						"disclaimer_acknowledged": true,
 					},
 				}, nil)
@@ -240,7 +241,7 @@ func TestLogin(t *testing.T) {
 					"group":                    "default-default",
 					"name":                     "Néfix Estrada",
 					"email":                    "nefix@example.org",
-					"email_verified":           true,
+					"email_verified":           r.MockAnything(),
 					"email_verification_token": "",
 					"photo":                    "",
 					"disclaimer_acknowledged":  true,
@@ -321,7 +322,7 @@ func TestLogin(t *testing.T) {
 						"group":                "default-default",
 						"name":                 "Néfix Estrada",
 						"email":                "nefix@example.org",
-						"email_verified":       true,
+						"email_verified":       &now,
 					},
 				}, nil)
 			},
@@ -356,7 +357,7 @@ func TestLogin(t *testing.T) {
 						"group":                "default-default",
 						"name":                 "Néfix Estrada",
 						"email":                "nefix@example.org",
-						"email_verified":       true,
+						"email_verified":       &now,
 					},
 				}, nil)
 			},
@@ -391,7 +392,7 @@ func TestLogin(t *testing.T) {
 						"group":                "default-default",
 						"name":                 "Néfix Estrada",
 						"email":                "nefix@example.org",
-						"email_verified":       false,
+						"email_verified":       nil,
 					},
 				}, nil)
 			},
@@ -451,7 +452,7 @@ func TestLogin(t *testing.T) {
 						"group":                "default-default",
 						"name":                 "Néfix Estrada",
 						"email":                "nefix@example.org",
-						"email_verified":       false,
+						"email_verified":       nil,
 					},
 				}, nil)
 			},
@@ -514,7 +515,7 @@ func TestLogin(t *testing.T) {
 						"group":                "default-default",
 						"name":                 "Néfix Estrada",
 						"email":                "nefix@example.org",
-						"email_verified":       false,
+						"email_verified":       nil,
 					},
 				}, nil)
 			},
@@ -598,6 +599,7 @@ func TestLogin(t *testing.T) {
 func TestCheck(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
+	now := float64(time.Now().Unix())
 
 	cases := map[string]struct {
 		PrepareToken func() string
@@ -617,7 +619,7 @@ func TestCheck(t *testing.T) {
 					Group:                  "default-default",
 					Name:                   "Néfix Estrada",
 					Email:                  "nefix@example.org",
-					EmailVerified:          true,
+					EmailVerified:          &now,
 					DisclaimerAcknowledged: true,
 				})
 				require.NoError(err)
@@ -639,7 +641,7 @@ func TestCheck(t *testing.T) {
 					Group:                  "default-default",
 					Name:                   "Néfix Estrada",
 					Email:                  "nefix@example.org",
-					EmailVerified:          true,
+					EmailVerified:          &now,
 					DisclaimerAcknowledged: true,
 				})
 				require.NoError(err)

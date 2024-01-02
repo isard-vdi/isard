@@ -25,11 +25,11 @@ type User struct {
 	Password           string `rethinkdb:"password"`
 	PasswordResetToken string `rethinkdb:"password_reset_token"`
 
-	Name                   string `rethinkdb:"name"`
-	Email                  string `rethinkdb:"email"`
-	EmailVerified          bool   `rethinkdb:"email_verified"`
-	EmailVerificationToken string `rethinkdb:"email_verification_token"`
-	Photo                  string `rethinkdb:"photo"`
+	Name                   string   `rethinkdb:"name"`
+	Email                  string   `rethinkdb:"email"`
+	EmailVerified          *float64 `rethinkdb:"email_verified"`
+	EmailVerificationToken string   `rethinkdb:"email_verification_token"`
+	Photo                  string   `rethinkdb:"photo"`
 
 	DisclaimerAcknowledged bool `rethinkdb:"disclaimer_acknowledged"`
 
@@ -134,7 +134,7 @@ func (u *User) ExistsWithVerifiedEmail(ctx context.Context, sess r.QueryExecutor
 	res, err := r.Table("users").Filter(r.And(
 		r.Eq(r.Row.Field("category"), u.Category),
 		r.Eq(r.Row.Field("email"), u.Email),
-		r.Eq(r.Row.Field("email_verified"), true),
+		r.Ne(r.Row.Field("email_verified"), nil),
 	), r.FilterOpts{}).Run(sess)
 	if err != nil {
 		return false, err
@@ -171,6 +171,14 @@ func (u *User) LoadWithoutOverride(u2 *User) {
 
 	if u.Email == "" {
 		u.Email = u2.Email
+	}
+
+	if u.EmailVerified == nil {
+		u.EmailVerified = u2.EmailVerified
+	}
+
+	if u.EmailVerificationToken == "" {
+		u.EmailVerificationToken = u2.EmailVerificationToken
 	}
 
 	if u.Photo == "" {

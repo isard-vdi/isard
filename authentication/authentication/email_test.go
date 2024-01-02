@@ -25,6 +25,7 @@ import (
 func TestRequestEmailVerification(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
+	now := float64(time.Now().Unix())
 
 	cases := map[string]struct {
 		PrepareDB       func(*r.Mock)
@@ -47,10 +48,11 @@ func TestRequestEmailVerification(t *testing.T) {
 				m.On(r.Table("users").Filter(r.And(
 					r.Eq(r.Row.Field("category"), "default"),
 					r.Eq(r.Row.Field("email"), "nefix@example.org"),
+					r.Ne(r.Row.Field("email_verified"), nil),
 				))).Return([]interface{}{}, nil)
 				m.On(r.Table("users").Get("néfix néfix imagine this is an UUID").Update(map[string]interface{}{
 					"email":                    "nefix@example.org",
-					"email_verified":           false,
+					"email_verified":           r.MockAnything(),
 					"email_verification_token": r.MockAnything(),
 				})).Return(r.WriteResponse{
 					Updated: 1,
@@ -125,6 +127,7 @@ func TestRequestEmailVerification(t *testing.T) {
 				m.On(r.Table("users").Filter(r.And(
 					r.Eq(r.Row.Field("category"), "default"),
 					r.Eq(r.Row.Field("email"), "nefix@example.org"),
+					r.Ne(r.Row.Field("email_verified"), nil),
 				))).Return([]interface{}{
 					map[string]interface{}{
 						"id":             "local-default-admin-admin",
@@ -137,7 +140,7 @@ func TestRequestEmailVerification(t *testing.T) {
 						"group":          "default",
 						"name":           "Administrator",
 						"email":          "nefix@example.org",
-						"email_verified": true,
+						"email_verified": &now,
 						"photo":          "https://isardvdi.com/path/to/photo.jpg",
 					},
 				}, nil)
@@ -230,7 +233,7 @@ func TestVerifyEmail(t *testing.T) {
 				}, nil)
 				m.On(r.Table("users").Get("néfix néfix imagine this is an UUID").Update(map[string]interface{}{
 					"email":                    "nefix@example.org",
-					"email_verified":           true,
+					"email_verified":           r.MockAnything(),
 					"email_verification_token": "",
 				})).Return(r.WriteResponse{
 					Updated: 1,
@@ -342,7 +345,7 @@ func TestVerifyEmail(t *testing.T) {
 				}, nil)
 				m.On(r.Table("users").Get("néfix néfix imagine this is an UUID").Update(map[string]interface{}{
 					"email":                    "nefix@example.org",
-					"email_verified":           true,
+					"email_verified":           r.MockAnything(),
 					"email_verification_token": "",
 				})).Return(nil, errors.New("hello reader! :D"))
 			},

@@ -16,6 +16,7 @@ import (
 
 func TestSignLoginToken(t *testing.T) {
 	assert := assert.New(t)
+	now := float64(time.Now().Unix())
 
 	cases := map[string]struct {
 		Duration    time.Duration
@@ -37,7 +38,7 @@ func TestSignLoginToken(t *testing.T) {
 				Group:                  "default-default",
 				Name:                   "Néfix Estrada",
 				Email:                  "nefix@example.org",
-				EmailVerified:          true,
+				EmailVerified:          &now,
 				DisclaimerAcknowledged: true,
 			},
 			CheckToken: func(ss string) {

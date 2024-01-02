@@ -7,6 +7,7 @@ import (
 	"net/mail"
 	"net/url"
 	"path"
+	"time"
 
 	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/model"
@@ -51,7 +52,7 @@ func (a *Authentication) RequestEmailVerification(ctx context.Context, ss, email
 	}
 
 	u.Email = addr.Address
-	u.EmailVerified = false
+	u.EmailVerified = nil
 	u.EmailVerificationToken = verificationTkn
 
 	if err := u.UpdateEmail(ctx, a.DB); err != nil {
@@ -103,7 +104,8 @@ func (a *Authentication) VerifyEmail(ctx context.Context, ss string) error {
 	}
 
 	u.Email = tkn.Email
-	u.EmailVerified = true
+	now := float64(time.Now().Unix())
+	u.EmailVerified = &now
 	u.EmailVerificationToken = ""
 
 	if err := u.UpdateEmail(ctx, a.DB); err != nil {

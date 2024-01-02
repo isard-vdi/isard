@@ -15,6 +15,7 @@ import (
 func TestParseLoginToken(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
+	now := float64(time.Now().Unix())
 
 	cases := map[string]struct {
 		PrepareToken func() string
@@ -35,7 +36,7 @@ func TestParseLoginToken(t *testing.T) {
 					Group:                  "default-default",
 					Name:                   "Néfix Estrada",
 					Email:                  "nefix@example.org",
-					EmailVerified:          true,
+					EmailVerified:          &now,
 					DisclaimerAcknowledged: true,
 				})
 				require.NoError(err)
@@ -81,7 +82,7 @@ func TestParseLoginToken(t *testing.T) {
 					Group:                  "default-default",
 					Name:                   "Néfix Estrada",
 					Email:                  "nefix@example.org",
-					EmailVerified:          true,
+					EmailVerified:          &now,
 					DisclaimerAcknowledged: true,
 				})
 				require.NoError(err)

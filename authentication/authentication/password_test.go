@@ -37,6 +37,7 @@ func TestForgotPassword(t *testing.T) {
 				m.On(r.Table("users").Filter(r.And(
 					r.Eq(r.Row.Field("category"), "default"),
 					r.Eq(r.Row.Field("email"), "nefix@example.org"),
+					r.Ne(r.Row.Field("email_verified"), nil),
 				))).Return([]interface{}{
 					map[string]interface{}{
 						"id":    "néfix imagine this is an UUID",
@@ -67,6 +68,7 @@ func TestForgotPassword(t *testing.T) {
 				m.On(r.Table("users").Filter(r.And(
 					r.Eq(r.Row.Field("category"), "default"),
 					r.Eq(r.Row.Field("email"), "nefix@example.org"),
+					r.Ne(r.Row.Field("email_verified"), nil),
 				))).Return([]interface{}{}, nil)
 			},
 			CategoryID:  "default",
@@ -121,6 +123,8 @@ func TestResetPassword(t *testing.T) {
 				c.On("AdminUserResetPassword", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", "f0kt3Rf").Return(nil)
 			},
 			PrepareToken: func() string {
+				now := float64(time.Now().Unix())
+
 				ss, err := token.SignLoginToken("", time.Hour, &model.User{
 					ID:                     "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
 					UID:                    "nefix",
@@ -133,7 +137,7 @@ func TestResetPassword(t *testing.T) {
 					Group:                  "default-default",
 					Name:                   "Néfix Estrada",
 					Email:                  "nefix@example.org",
-					EmailVerified:          true,
+					EmailVerified:          &now,
 					DisclaimerAcknowledged: true,
 				})
 				require.NoError(err)
