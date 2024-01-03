@@ -43,7 +43,11 @@ func (a *Authentication) RequestEmailVerification(ctx context.Context, ss, email
 	}
 
 	if exists {
-		return ErrEmailAlreadyInUse
+		// Check if the email is already being used by the same user that's requesting the verification
+		// and ensure it has already been verified earlier
+		if u.ID != tkn.UserID || u.EmailVerified == nil {
+			return ErrEmailAlreadyInUse
+		}
 	}
 
 	verificationTkn, err := token.SignEmailVerificationToken(a.Secret, tkn.UserID, addr.Address)
