@@ -22,13 +22,14 @@ import os
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.utils import make_msgid
+from email.utils import formatdate, make_msgid
 from time import sleep
 
 
 def mail(address: list, subject: str, text: str, html: str):
     message = MIMEMultipart("alternative")
-    message["Message-ID"] = make_msgid()
+    message["Date"] = formatdate()
+    message["Message-ID"] = make_msgid(domain="NOTIFY_EMAIL_SMTP_SERVER")
     message["Subject"] = subject
     message["From"] = os.environ.get("NOTIFY_EMAIL_USERNAME")
     message["To"] = ", ".join(address)

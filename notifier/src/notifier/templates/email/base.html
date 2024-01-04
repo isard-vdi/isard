@@ -316,8 +316,8 @@
       }
 
       .header img {
-        width: 105px;
-        height: 105px;
+        width: 150px;
+        height: 150px;
       }
 
       .header h1 {
@@ -336,20 +336,6 @@
     "
   >
     <center style="width: 100%; background-color: #f1f1f1">
-      <div
-        style="
-          display: none;
-          font-size: 1px;
-          max-height: 0px;
-          max-width: 0px;
-          opacity: 0;
-          overflow: hidden;
-          mso-hide: all;
-          font-family: sans-serif;
-        "
-      >
-        &zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;
-      </div>
       <div style="max-width: 600px; margin: 0 auto" class="email-container bg_white">
         <table
           align="center"
@@ -375,27 +361,27 @@
                 <tr>
                   <td class="logo" style="text-align: center">
                     <div class="header">
-                      <!-- TODO: Set logo -->
-                      <!-- <img
-                        src="/custom/logo.svg"
-                        alt=""
-                        style="
-                          width: 105px;
-                          max-width: 105px;
-                          height: auto;
-                          margin: auto;
-                          display: block;
-                        "
-                      />
-                    </div> -->
-                    <h1><a href="http://www.isardvdi.com/" target="_blank">Isard VDI</a></h1>
+                      <a href="http://www.isardvdi.com/">
+                        <img
+                          src="https://isardvdi.com/img/logos/isard_logo.png"
+                          alt=""
+                          style="
+                            width: 150px;
+                            max-width: 150px;
+                            height: auto;
+                            margin: auto;
+                            display: block;
+                          "
+                        />
+                      </a>
+                    </div>
                   </td>
                 </tr>
               </table>
             </td>
           </tr>
           <tr style="margin: auto; text-align: center">
-            <td>{{email_content}}</td>
+            <td>{{email_content|safe}}</td>
           </tr>
         </table>
         <table
