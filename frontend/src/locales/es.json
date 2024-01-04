@@ -45,6 +45,19 @@
                 }
             }
         },
+        "email":{
+            "modal": {
+                "title": "Cambio / Validación del correo electrónico",
+                "change-validate-address": "Cambiar o validar el correo electrónico",
+                "email": {
+                    "label": "Correo electrónico",
+                    "placeholder": "Correo electrónico"
+                },
+                "buttons": {
+                    "verify": "Actualizar y validar correo electrónico"
+                }
+            }
+        },
         "registration": {
             "code": "Código de registro"
         },
@@ -423,6 +436,7 @@
         },
         "profile": {
             "change-password": "Cambiar la contraseña",
+            "change-email": "Cambiar / Verificar correo electrónico",
             "info": {
                 "name": "Nombre",
                 "email": "Email",
@@ -515,7 +529,7 @@
             "title": "Actualmente, el servicio de Isard se encuentra en mantenimiento",
             "the-service": "El servicio volverá a estar disponible en un rato",
             "sorry": "Disculpen las molestias",
-            "go-login": "Ir al login"
+            "go-login": "Ir a inicio de sessión"
         },
         "not-found": {
             "title": "Algo fue mal.",
@@ -1061,6 +1075,15 @@
             "placeholder": "Correo electrónico",
             "description": "Requiere una dirección de correo electrónico verificada por IsardVDI",
             "reset-password": "Reestablecer contraseña"
+        },
+        "verify-email": {
+            "title": "Verificación de correo electrónico",
+            "label": "Correo electrónico",
+            "placeholder": "Correo electrónico",
+            "description": "La dirección de correo electrónico será verificada por IsardVDI",
+            "send-verify-email": "Enviar correo de verificación",
+            "email-sent": "Se ha enviado un correo electrónico a la dirección proporcionada para su verificación. Por favor, revisa tu bandeja de entrada y sigue las instrucciones. Redirigiendo al inicio de sesión en {seconds} segundos.",
+            "email-verified": "El correo electrónico se ha verificado correctamente. Redirigiendo al inicio de sesión en {seconds} segundos."
         }
     },
     "messages": {
@@ -1256,7 +1279,8 @@
         "password_special_characters": "La contraseña debe tener al menos {num} caracter(es) especiales: !@#$%^&*()-_=+[]{}|;:'\",.<>/?",
         "password_already_used": "Esta contraseña ya se ha utilizado anteriormente",
         "password_username": "La contraseña no puede contener el nombre de usuario",
-        "wrong_password_entered": "Contraseña incorrecta"
+        "wrong_password_entered": "Contraseña incorrecta",
+        "not_verified": "La dirección de correo no ha sido validada"
     },
     "router": {
         "titles": {
@@ -1286,7 +1310,8 @@
             "edit-deployment": "Editar despliegue",
             "recycleBins": "Papelera de reciclaje",
             "password": "Cambiar contraseña",
-            "recycleBin": "Papelera de reciclaje"
+            "recycleBin": "Papelera de reciclaje",
+            "email": "Verificar correo electrónico"
         }
     },
     "message-modal": {

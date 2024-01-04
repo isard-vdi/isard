@@ -151,12 +151,16 @@ export default new Vuex.Store({
         commit('setPageErrorMessage', i18n.t('views.login.errors.generic'))
       }
     },
-    login ({ commit }, data) {
+    login (context, data) {
       return new Promise((resolve, reject) => {
         axios.create().post(`${authenticationSegment}/login?provider=${data.get('provider')}&category_id=${data.get('category_id')}&username=${data.get('username')}`, data, { timeout: 25000 }).then(response => {
           const jwt = JSON.parse(atob(response.data.split('.')[1]))
           if (jwt.type === 'register') {
             router.push({ name: 'Register' })
+          } else if (jwt.type === 'email-verification-required') {
+            localStorage.token = response.data
+            context.dispatch('setSession', response.data)
+            router.push({ name: 'VerifyEmail' })
           } else {
             store.dispatch('loginSuccess', response.data)
           }
@@ -257,7 +261,7 @@ export default new Vuex.Store({
       return forgotPasswordAxios.post(`${authenticationSegment}/forgot-password`, data).then(response => {
         router.push({ name: 'Login' })
       }).catch(e => {
-        ErrorUtils.handleErrors(e, this._vm.$snotify)
+        ErrorUtils.showErrorMessage(e, this._vm.$snotify)
       })
     },
     updateForgottenPassword (context, data) {
@@ -270,7 +274,27 @@ export default new Vuex.Store({
       return forgotPasswordAxios.post(`${authenticationSegment}/reset-password`, data).then(response => {
         router.push({ name: 'Login' })
       }).catch(e => {
-        ErrorUtils.handleErrors(e, this._vm.$snotify)
+        ErrorUtils.showErrorMessage(e, this._vm.$snotify)
+      })
+    },
+    sendVerifyEmail (context, data) {
+      const verifyEmailAxios = axios.create()
+      verifyEmailAxios.interceptors.request.use(config => {
+        config.headers.Authorization = `Bearer ${localStorage.token}`
+        return config
+      })
+      return verifyEmailAxios.post(`${authenticationSegment}/request-email-verification`, data).catch(e => {
+        ErrorUtils.showErrorMessage(e, this._vm.$snotify)
+      })
+    },
+    verifyEmail (context, token) {
+      const verifyEmailAxios = axios.create()
+      verifyEmailAxios.interceptors.request.use(config => {
+        config.headers.Authorization = `Bearer ${token}`
+        return config
+      })
+      return verifyEmailAxios.post(`${authenticationSegment}/verify-email`, {}).catch(e => {
+        ErrorUtils.showErrorMessage(e, this._vm.$snotify)
       })
     }
   },

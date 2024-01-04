@@ -45,6 +45,19 @@
                 }
             }
         },
+        "email":{
+            "modal": {
+                "title": "Email change / validation",
+                "change-validate-address": "Change or validate your email address",
+                "email": {
+                    "label": "Email",
+                    "placeholder": "Email"
+                },
+                "buttons": {
+                    "verify": "Update and verify email"
+                }
+            }
+        },
         "registration": {
             "code": "Registration code"
         },
@@ -422,6 +435,7 @@
         },
         "profile": {
             "change-password": "Change password",
+            "change-email": "Change / Verify email",
             "info": {
                 "name": "Name",
                 "email": "Email",
@@ -1047,6 +1061,15 @@
             "placeholder": "Email",
             "description": "Requires a verified IsardVDI email address",
             "reset-password": "Reset password"
+        },
+        "verify-email": {
+            "title": "Email verification",
+            "label": "Email",
+            "placeholder": "Email",
+            "description": "The email address must be verified by IsardVDI",
+            "send-verify-email": "Send email",
+            "email-sent": "An email has been sent to the given email for verification. Please check your inbox and follow the instructions. Redirecting to login in {seconds} seconds",
+            "email-verified": "The email address has been correctly verified. Redirecting to login in {seconds} seconds"
         }
     },
     "messages": {
@@ -1242,7 +1265,8 @@
         "password_special_characters":  "Password must have at least {num} special character(s): !@#$%^&*()-_=+[]{}|;:'\",.<>/?",
         "password_already_used": "This password has already been used in the past",
         "password_username": "Password can not contain your own username",
-        "wrong_password_entered": "Wrong password entered"
+        "wrong_password_entered": "Wrong password entered",
+        "not_verified": "Email address not verified"
 
     },
     "router": {
@@ -1272,7 +1296,8 @@
             "storage": "Storage",
             "edit-deployment": "Edit deployment",
             "recycleBin": "Recycle bin",
-            "password": "Change Password"
+            "password": "Change Password",
+            "email": "Verify Email"
         }
     },
     "message-modal": {

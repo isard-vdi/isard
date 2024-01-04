@@ -14,12 +14,14 @@ const getDefaultState = () => {
       }
     },
     modalShow: false,
+    modalEmailShow: false,
     password: '',
     passwordConfirmation: '',
     profile_loaded: false,
     lang: '',
     passwordPolicy: '',
-    currentPassword: ''
+    currentPassword: '',
+    emailAddress: ''
   }
 }
 
@@ -43,6 +45,9 @@ export default {
     getShowPasswordModal: state => {
       return state.modalShow
     },
+    getShowEmailVerificationModal: state => {
+      return state.modalEmailShow
+    },
     getLang: state => {
       return state.lang
     },
@@ -51,7 +56,11 @@ export default {
     },
     getCurrentPassword: state => {
       return state.currentPassword
+    },
+    getEmailAddress: state => {
+      return state.emailAddress
     }
+
   },
   mutations: {
     resetProfileState: (state) => {
@@ -61,6 +70,9 @@ export default {
       state.password = ''
       state.passwordConfirmation = ''
       state.currentPassword = ''
+    },
+    resetEmailAddressState: state => {
+      state.emailAddress = ''
     },
     setProfile (state, profile) {
       state.profile = profile
@@ -75,6 +87,9 @@ export default {
     setShowPasswordModal: (state, modalShow) => {
       state.modalShow = modalShow
     },
+    setShowEmailVerificationModal: (state, modalEmailShow) => {
+      state.modalEmailShow = modalEmailShow
+    },
     setLang (state, lang) {
       state.lang = lang
     },
@@ -83,9 +98,20 @@ export default {
     },
     setCurrentPassword (state, currentPassword) {
       state.currentPassword = currentPassword
+    },
+    setEmailAddress (state, emailAddress) {
+      state.emailAddress = emailAddress
+    },
+    update_profile: (state, profile) => {
+      state.profile = { ...state.profile, ...profile }
     }
   },
   actions: {
+    socket_usersData (context, data) {
+      const userData = JSON.parse(data)
+      const profile = { email: userData.email, emailVerified: userData.email_verified }
+      context.commit('update_profile', profile)
+    },
     resetProfileState (context) {
       context.commit('resetProfileState')
     },
@@ -104,8 +130,16 @@ export default {
         ErrorUtils.handleErrors(e, this._vm.$snotify)
       })
     },
+    updateEmail (context, data) {
+      return axios.put(`${apiV3Segment}/user`, data).catch(e => {
+        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      })
+    },
     showPasswordModal (context, show) {
       context.commit('setShowPasswordModal', show)
+    },
+    showEmailVerificationModal (context, show) {
+      context.commit('setShowEmailVerificationModal', show)
     },
     resetPasswordState (context) {
       context.commit('resetPasswordState')
@@ -126,6 +160,9 @@ export default {
         .catch(e => {
           ErrorUtils.handleErrors(e, this._vm.$snotify)
         })
+    },
+    resetEmailAddressState (context) {
+      context.commit('resetEmailAddressState')
     }
   }
 }

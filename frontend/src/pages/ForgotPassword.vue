@@ -26,6 +26,7 @@
               v-model="emailAddress"
               :placeholder="$t('views.forgot-password.placeholder')"
               :state="v$.emailAddress.$error ? false : null"
+              autocomplete="off"
               @blur="v$.emailAddress.$touch"
             />
             <b-form-invalid-feedback

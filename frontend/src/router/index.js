@@ -29,6 +29,7 @@ import RecycleBins from '@/pages/RecycleBins.vue'
 import RecycleBin from '@/pages/RecycleBin.vue'
 import ChangePassword from '@/pages/ChangePassword.vue'
 import ForgotPassword from '@/pages/ForgotPassword.vue'
+import VerifyEmail from '@/pages/VerifyEmail.vue'
 import Vue from 'vue'
 import VueRouter from 'vue-router'
 import { appTitle } from '../shared/constants'
@@ -232,7 +233,7 @@ const router = new VueRouter({
       component: MainLayout,
       children: [
         {
-          path: '',
+          path: ':action?',
           name: 'profile',
           component: Profile,
           meta: {
@@ -343,6 +344,14 @@ const router = new VueRouter({
       name: 'ForgotPassword',
       meta: {
         title: i18n.t('router.titles.forgot-password')
+      }
+    },
+    {
+      path: '/verify-email',
+      component: VerifyEmail,
+      name: 'VerifyEmail',
+      meta: {
+        title: i18n.t('router.titles.verify-email')
       }
     },
     {

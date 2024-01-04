@@ -15,7 +15,7 @@ import MessageModal from './components/MessageModal.vue'
 export default {
   components: { MessageModal },
   beforeMount () {
-    if (localStorage.token && this.$route.name !== 'DirectViewer') {
+    if (localStorage.token && !['VerifyEmail', 'DirectViewer'].includes(this.$route.name)) {
       this.$store.dispatch('setSession', localStorage.token)
       this.$store.dispatch('openSocket', {})
       this.$store.dispatch('fetchConfig')
