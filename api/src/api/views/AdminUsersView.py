@@ -1100,7 +1100,7 @@ def user_required_password_reset(payload, user_id):
 def admin_user_password_policy(payload, user_id):
     ownsUserId(payload, user_id)
     return (
-        json.dumps(users.get_user_password_policy(user_id=user_id)),
+        json.dumps({"required": users.get_user_password_policy(user_id=user_id)}),
         200,
         {"Content-Type": "application/json"},
     )
@@ -1121,8 +1121,11 @@ def user_required_disclaimer_acknowledgement(payload, user_id):
 @app.route("/api/v3/admin/user/required/email-verification/<user_id>", methods=["GET"])
 @is_admin
 def user_required_email_verification(payload, user_id):
-    # TODO: Implement
-    return json.dumps({"required": False}), 200, {"Content-Type": "application/json"}
+    return (
+        json.dumps({"required": users.check_verified_email(user_id)}),
+        200,
+        {"Content-Type": "application/json"},
+    )
 
 
 @app.route("/api/v3/admin/user/reset-password", methods=["PUT"])

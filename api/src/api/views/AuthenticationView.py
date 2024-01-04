@@ -27,9 +27,14 @@ from isardvdi_common.api_exceptions import Error
 from api import app
 
 from ..libv2.api_authentication import (
+    add_email_policy,
     add_password_policy,
+    delete_email_policy,
     delete_password_policy,
+    edit_email_policy,
     edit_password_policy,
+    get_email_policies,
+    get_email_policy,
     get_password_policies,
     get_password_policy,
     get_providers,
@@ -98,6 +103,73 @@ def admin_authentication_password_policy_edit(payload, policy_id):
 @is_admin
 def admin_authentication_password_policy_delete(payload, policy_id):
     delete_password_policy(policy_id)
+
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+### EMAIL VERIFICATION POLICY
+
+
+@app.route("/api/v3/admin/authentication/policy/email", methods=["POST"])
+@is_admin
+def admin_authentication_email_add(payload):
+    data = request.get_json()
+    data = _validate_item("email_verification", data)
+
+    add_email_policy(data)
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/authentication/policies/local/email/", methods=["GET"])
+@is_admin
+def admin_authentication_email_policies(payload):
+    policies = get_email_policies()
+
+    return (
+        json.dumps(policies),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/authentication/policy/email/<policy_id>", methods=["GET"])
+@is_admin
+def admin_authentication_email(payload, policy_id):
+    policies = get_email_policy(policy_id)
+
+    return (
+        json.dumps(policies),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/authentication/policy/email/<policy_id>", methods=["PUT"])
+@is_admin
+def admin_authentication_email_edit(payload, policy_id):
+    data = request.get_json()
+    data = _validate_item("email_verification_edit", data)
+
+    edit_email_policy(policy_id, data)
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/admin/authentication/policy/email/<policy_id>", methods=["DELETE"])
+@is_admin
+def admin_authentication_email_delete(payload, policy_id):
+    delete_email_policy(policy_id)
 
     return (
         json.dumps({}),

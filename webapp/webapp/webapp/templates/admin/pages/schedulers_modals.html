@@ -132,6 +132,66 @@
     </div>
 </div>
 
+<div class="modal fade" id="modalEmailVerification" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title"> <i class="fa fa-plus"></i><i class="fa fa-envelope"></i> New email validation settings
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <form id="modalEmailVerificationForm" class="form-horizontal form-label-left">
+                    <div class="x_panel">
+                        <p><i class="fa fa-info-circle" ></i>
+                        At login, the system checks if the email is verified.</p>
+                        <div class="item form-group">
+                            <div class="row" style="margin-bottom:15px;" id="scope">
+                                <div class="col-md-6 col-xs-2" id="category-select">
+                                    <label class="control-label" for="category">Category<span class="required">*</span></label>
+                                    <select class="form-control" style="width:100%" name="category" id="category"></select>
+                                    <div class="select2-resize-handle"></div>
+                                </div>
+                                <div class="col-md-6 col-xs-2" id="role-select">
+                                    <label class="control-label" for="role">Role<span class="required">*</span></label>
+                                    <select class="form-control" style="width:100%" name="role" id="role"></select>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 col-xs-12">
+                                    <label class="control-label" for="digits" title="After these days pass, the user must verify the email again">Days after last verification<span
+                                            class="required">*</span></label>
+                                    <input id="days" data-parsley-type="number" class="form-control roundbox" name="days"
+                                        type="number" value="0" style="width:100%" data-parsley-min="0" required="required">
+                                </div>
+                            </div>
+            
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button></li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li><button id="send" type="button" class="btn btn-info">Add</button></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     function hiddenFields(obj) {
         action = obj.value;

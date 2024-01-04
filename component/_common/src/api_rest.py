@@ -29,15 +29,12 @@ import requests
 from jose import jwt
 
 
-def header_auth():
+def header_auth(service):
     token = jwt.encode(
         {
             "exp": datetime.utcnow() + timedelta(seconds=20),
             "kid": "isardvdi",
-            "data": {
-                "role_id": "admin",
-                "category_id": "*",
-            },
+            "data": {"role_id": "admin", "category_id": "*", "user_id": service},
         },
         os.environ["API_ISARDVDI_SECRET"],
         algorithm="HS256",
@@ -64,7 +61,7 @@ def is_ip(ip):
 container_base_path = {
     "isard-api": "/api/v3",
     "isard-scheduler": "/scheduler",
-    "notifier": "/notifier",
+    "isard-notifier": "/notifier",
 }
 
 
@@ -139,7 +136,7 @@ class ApiRest:
     def get(self, url="", timeout=5):
         resp = requests.get(
             self.base_url + url,
-            headers=header_auth(),
+            headers=header_auth(self.service),
             verify=self.verify_cert,
             timeout=timeout,
         )
@@ -150,7 +147,7 @@ class ApiRest:
         resp = requests.post(
             self.base_url + url,
             json=data,
-            headers=header_auth(),
+            headers=header_auth(self.service),
             verify=self.verify_cert,
         )
         resp.raise_for_status()
@@ -160,7 +157,7 @@ class ApiRest:
         resp = requests.put(
             self.base_url + url,
             json=data,
-            headers=header_auth(),
+            headers=header_auth(self.service),
             verify=self.verify_cert,
         )
         resp.raise_for_status()
@@ -170,7 +167,7 @@ class ApiRest:
         resp = requests.delete(
             self.base_url + url,
             json=data,
-            headers=header_auth(),
+            headers=header_auth(self.service),
             verify=self.verify_cert,
         )
         resp.raise_for_status()

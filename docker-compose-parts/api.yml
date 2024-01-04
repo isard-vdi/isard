@@ -25,6 +25,7 @@ services:
       - /etc/localtime:/etc/localtime:ro
     environment:
       PYTHONUNBUFFERED: 1
+      NOTIFY_EMAIL:
       DOMAIN:
       LOG_LEVEL:
       DEBUG_STATS: "false"

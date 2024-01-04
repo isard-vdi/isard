@@ -103,6 +103,59 @@ def check_duplicate_policy(category, role, subtype):
         )
 
 
+### EMAIL VERIFICATION POLICY
+
+
+def add_email_policy(data):
+    if not check_duplicate_policy(data["category"], data["role"], data["subtype"]):
+        raise Error(
+            "conflict",
+            data["type"] + " policy for this category and role already exists",
+        )
+
+    with app.app_context():
+        r.table("authentication").insert(data).run(db.conn)
+
+
+def get_email_policies():
+    with app.app_context():
+        return list(
+            r.table("authentication")
+            .get_all(["local", "email"], index="type-subtype")
+            .merge(
+                lambda policy: {
+                    "category_name": r.branch(
+                        policy["category"].default(None).ne(None),
+                        r.table("categories")
+                        .get(policy["category"])
+                        .default({"name": "all"})["name"],
+                        "all",
+                    )
+                }
+            )
+            .run(db.conn)
+        )
+
+
+def get_email_policy(policy_id):
+    with app.app_context():
+        return r.table("authentication").get(policy_id).run(db.conn)
+
+
+def edit_email_policy(policy_id, data):
+    with app.app_context():
+        r.table("authentication").get(policy_id).update(data).run(db.conn)
+
+
+def delete_email_policy(policy_id):
+    policy = get_email_policy(policy_id)
+    if policy["role"] == "all" and policy["category"] == "all":
+        raise Error("forbidden", "Can not delete default permissions")
+
+    with app.app_context():
+        r.table("authentication").get(policy_id).delete().run(db.conn)
+
+
 ###
 
 

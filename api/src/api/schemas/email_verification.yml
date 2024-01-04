@@ -1,0 +1,22 @@
+category:
+  type: string
+  default: "all"
+role:
+  type: string
+  allowed:
+    - admin
+    - manager
+    - advanced
+    - user
+    - all
+  default: "all"
+days:
+  type: integer
+  min: 0
+subtype:
+  allowed:
+    - email
+  default: email
+type:
+  allowed:
+    - local

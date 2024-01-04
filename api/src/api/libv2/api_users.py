@@ -25,6 +25,7 @@ import uuid
 from datetime import datetime, timedelta
 
 import bcrypt
+import pytz
 from cachetools import TTLCache, cached
 from isardvdi_common.api_exceptions import Error
 
@@ -45,6 +46,7 @@ from string import ascii_lowercase, digits
 from jose import jwt
 from rethinkdb import RethinkDB
 
+from .api_notifier import send_verification_email
 from .flask_rethink import RDB
 
 r = RethinkDB()
@@ -176,6 +178,7 @@ class ApiUsers:
             if os.environ.get("FRONTEND_SHOW_TEMPORAL") == None
             else os.environ.get("FRONTEND_SHOW_TEMPORAL") == "True"
         )
+        frontend_show_change_email = os.environ.get("NOTIFY_EMAIL") == "True"
         isard_user_storage_update_user_quota(payload["user_id"])
         return {
             **{
@@ -183,6 +186,7 @@ class ApiUsers:
                 "documentation_url": os.environ.get(
                     "FRONTEND_DOCS_URI", "https://isard.gitlab.io/isardvdi-docs/"
                 ),
+                "show_change_email_button": frontend_show_change_email,
                 "show_temporal_tab": frontend_show_temporal_tab,
             },
         }
@@ -273,6 +277,7 @@ class ApiUsers:
             "secondary_groups",
             "email",
             "accessed",
+            "email_verified",
             {"vpn": {"wireguard": {"connected": True}}},
             {"user_storage": {"provider_quota": {"used": True, "relative": True}}},
         )
@@ -660,6 +665,22 @@ class ApiUsers:
             data.pop("password")
         if data.get("ids"):
             data.pop("ids")
+
+        for user_id in user_ids:
+            user_email = (
+                r.table("users").get(user_id).pluck("email").run(db.conn)["email"]
+            )
+            if data.get("email") != user_email:
+                if not os.environ.get("NOTIFY_EMAIL"):
+                    r.table("users").get(user_id).update(
+                        {"email_verification_token": "", "email_verified": None}
+                    ).run(db.conn)
+                else:
+                    token = validate_email_jwt(user_id, data["email"])["jwt"]
+                    r.table("users").get(user_id).update(
+                        {"email_verification_token": token, "email_verified": None}
+                    ).run(db.conn)
+                    send_verification_email(data.get("email"), token)
 
         with app.app_context():
             r.table("users").get_all(r.args(user_ids)).update(data).run(db.conn)
@@ -1585,19 +1606,19 @@ class ApiUsers:
         with app.app_context():
             r.table("users").get(user_id).update({"lang": lang}).run(db.conn)
 
-    def get_user_password_policy(self, category=None, role=None, user_id=None):
+    def get_user_policy(self, subtype, category, role, user_id=None):
         if user_id:
             with app.app_context():
                 user = (
                     r.table("users").get(user_id).pluck("category", "role").run(db.conn)
                 )
-                category = user["category"]
-                role = user["role"]
+            category = user["category"]
+            role = user["role"]
 
         with app.app_context():
             policies = list(
                 r.table("authentication")
-                .get_all("password", index="subtype")
+                .get_all(subtype, index="subtype")
                 .filter(
                     (r.row["category"] in [category, "all"])
                     | (r.row["role"] in [role, "all"])
@@ -1605,7 +1626,6 @@ class ApiUsers:
                 .run(db.conn)
             )
         matching_policies = []
-
         for policy in policies:
             if policy["category"] == category and policy["role"] == role:
                 return policy
@@ -1615,10 +1635,18 @@ class ApiUsers:
                 matching_policies.append({"priority": 1, "policy": policy})
             elif policy["category"] == "all" and policy["role"] == "all":
                 matching_policies.append({"priority": 2, "policy": policy})
-            app.logger.error(policy["not_username"])
 
         matching_policies.sort(key=lambda x: x["priority"])
-        return matching_policies[0]["policy"]
+        if matching_policies:
+            return matching_policies[0]["policy"]
+        else:
+            return False
+
+    def get_user_password_policy(self, category=None, role=None, user_id=None):
+        return self.get_user_policy("password", category, role, user_id)
+
+    def get_email_policy(self, category=None, role=None, user_id=None):
+        return self.get_user_policy("email", category, role, user_id)
 
     def change_password(self, password, user_id):
         with app.app_context():
@@ -1661,18 +1689,21 @@ class ApiUsers:
                 .pluck("category", "role", "password_last_updated")
                 .run(db.conn)
             )
-        expiration_days = self.get_user_password_policy(
+        policy = self.get_user_password_policy(
             category=user["category"], role=user["role"]
-        )["expire"]
-
-        if expiration_days == 0:
-            return False
-
-        expiration_date = user["password_last_updated"] + (
-            expiration_days * 24 * 60 * 60
         )
 
-        return int(time.time()) > expiration_date
+        if not policy:
+            return False
+
+        if not policy["expire"] or policy["expire"] == 0:
+            return False
+        else:
+            expiration_date = user["password_last_updated"] + (
+                policy["expire"] * 24 * 60 * 60
+            )
+
+            return int(time.time()) > expiration_date
 
     def verify_password(self, user_id, password):
         p = Password()
@@ -1686,6 +1717,46 @@ class ApiUsers:
             )
         else:
             return True
+
+    def check_verified_email(self, user_id):
+        if not os.environ.get("NOTIFY_EMAIL"):
+            return False
+        with app.app_context():
+            user = (
+                r.table("users")
+                .get(user_id)
+                .pluck("email_verified", "category", "role")
+                .run(db.conn)
+            )
+        policy = self.get_email_policy(user["category"], user["role"])
+        if not policy:
+            return False
+        elif policy["days"] == 0:
+            return True
+        elif not user["email_verified"]:
+            return True
+        else:
+            return (
+                datetime.fromtimestamp(user["email_verified"])
+                + timedelta(days=policy["days"])
+                < datetime.now()
+            )
+
+
+def validate_email_jwt(user_id, email, minutes=60):
+    return {
+        "jwt": jwt.encode(
+            {
+                "exp": datetime.utcnow() + timedelta(minutes=minutes),
+                "kid": "isardvdi",
+                "type": "email-verification",
+                "user_id": user_id,
+                "email": email,
+            },
+            os.environ.get("API_ISARDVDI_SECRET"),
+            algorithm="HS256",
+        )
+    }
 
 
 """

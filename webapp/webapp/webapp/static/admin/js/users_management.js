@@ -805,33 +805,10 @@ function socketio_on(){
                 "width": "10px",
                 "defaultContent": '<button class="btn btn-xs btn-info" type="button"  data-placement="top" ><i class="fa fa-plus"></i></button>'
             },
-            { "data": "active", "width": "10px"},
-            { "data": "name"},
-            { "data": "provider"},
-            { "data": "category_name"},
-            { "data": "uid"},
-            { "data": "username", className: "xe-username" },
-            { "data": "role_name", "width": "10px"},
-            { "data": "group_name", "width": "10px"},
-            { "data": "secondary_groups"},
-            { "data": "vpn.wireguard.connected", "width": "10px", "defaultContent": 'NaN'},
-            { "data": "accessed"},
             {
-                "className": 'select-checkbox',
-                "data": null,
-                "orderable": false,
-                "width": "10px",
-                "defaultContent": '<input type="checkbox" class="form-check-input"></input>'
-            },
-            { "data": "id", "visible": false}
-        ],
-
-		"columnDefs": [
-            {
-                "targets": 1,
-                "render": function ( data, type, full, meta ) {
+                "data": "active", "width": "10px", "render": function (data, type, full, meta) {
                     if (type === "display") {
-                        if(full.active==true){
+                        if (full.active == true) {
                             return '<i class="fa fa-check" style="color:lightgreen"></i>';
                         } else {
                             return '<i class="fa fa-close" style="color:darkgray"></i>';
@@ -840,40 +817,62 @@ function socketio_on(){
                     return data;
                 }
             },
+            { "data": "name" },
+            { "data": "provider", "width": "10px", },
             {
-                "targets": 4,
-                "render": function ( data, type, full, meta ) {
+                "data": "category_name", "render": function (data, type, full, meta) {
                     return full.category_name ? full.category_name : ''
                 }
             },
+            { "data": "uid" },
             {
-                "targets": 6,
-                "render": function ( data, type, full, meta ) {
-                    return '<a href="/isard-admin/admin/users/QuotasLimits?searchUser='+ full.username +'">'+ full.username +'</a>'
+                "data": "username", className: "xe-username", "render": function (data, type, full, meta) {
+                    return '<a href="/isard-admin/admin/users/QuotasLimits?searchUser=' + full.username + '">' + full.username + '</a>'
+                }
+            },
+            { "data": "role_name", "width": "10px" },
+            { "data": "group_name", "width": "10px" },
+            {
+                "data": "secondary_groups", "width": "100px", "render": function (data, type, full, meta) {
+                    var secondary_groups = full.secondary_groups_names.join(",");
+                    if (secondary_groups.length > 50) {
+                        return `<p title="${secondary_groups}">${secondary_groups.substring(0, 50)}...</p>`
+                    } else {
+                        return full.secondary_groups_names
+                    }
                 }
             },
             {
-                "targets": 9,
-                "render": function ( data, type, full, meta ) {
-                    return full.secondary_groups_names
-                }
-            },
-            {
-                "targets": 10,
-                "render": function ( data, type, full, meta ) {
-                    if ('vpn' in full && full['vpn']['wireguard']['connected']) {
-                        return '<i class="fa fa-circle" aria-hidden="true"  style="color:green" title="'+full["vpn"]["wireguard"]["remote_ip"]+':'+full["vpn"]["wireguard"]["remote_port"]+'"></i>'
-                    }else{
+                "data": "email_verified", "defaultContent": 'NaN', "render": function (data, type, full, meta) {
+                    if ('email_verified' in full && full['email_verified']) {
+                        return `<i class="fa fa-circle" aria-hidden="true"  style="color:green" title="Verified ${new Date(full["email_verified"]).toLocaleString()}"</i>`
+                    } else {
                         return '<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>'
                     }
                 }
             },
             {
-                "targets":11,
-                "render": function ( data, type, full, meta ) {
-                    return formatTimestampUTC(full.accessed*1000)
+                "data": "vpn.wireguard.connected", "width": "10px", "defaultContent": 'NaN', "render": function (data, type, full, meta) {
+                    if ('vpn' in full && full['vpn']['wireguard']['connected']) {
+                        return '<i class="fa fa-circle" aria-hidden="true"  style="color:green" title="' + full["vpn"]["wireguard"]["remote_ip"] + ':' + full["vpn"]["wireguard"]["remote_port"] + '"></i>'
+                    } else {
+                        return '<i class="fa fa-circle" aria-hidden="true"  style="color:darkgray"></i>'
+                    }
                 }
-            }
+            },
+            {
+                "data": "accessed", "render": function (data, type, full, meta) {
+                    return formatTimestampUTC(full.accessed * 1000)
+                }
+            },
+            {
+                "className": 'select-checkbox',
+                "data": null,
+                "orderable": false,
+                "width": "10px",
+                "defaultContent": '<input type="checkbox" class="form-check-input"></input>',
+            },
+            { "data": "id", "visible": false }
         ]
     });
 
@@ -896,8 +895,7 @@ function socketio_on(){
 
     // Apply the search
     users_table.columns().every( function () {
-        var that = this;
-
+        var that = this;        
         $( 'input', this.footer() ).on( 'keyup change', function () {
             if ( that.search() !== this.value ) {
                 that
@@ -1408,7 +1406,7 @@ function showUserExportButtons(table, buttonsRowClass) {
                 extend: 'csv',
                 text: 'CSV with import format',
                 exportOptions: {
-                    columns: [13] // ID column
+                    columns: [14] // ID column
                 },
                 title: "csv_with_import_format",
                 titleAttr: "Generate a CSV file from the current displayed data, to use in the \"Update from CSV\" feature.",
