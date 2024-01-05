@@ -78,6 +78,7 @@ func (a *Authentication) ResetPassword(ctx context.Context, tkn, pwd string) err
 	var userID string
 
 	switch typ {
+	// Reset from the profile page in the frontend
 	case token.TypeLogin:
 		claims, err := token.ParseLoginToken(a.Secret, tkn)
 		if err != nil {
@@ -86,8 +87,18 @@ func (a *Authentication) ResetPassword(ctx context.Context, tkn, pwd string) err
 
 		userID = claims.Data.ID
 
+	// Reset from the forgot password URL
 	case token.TypePasswordReset:
 		claims, err := token.ParsePasswordResetToken(a.Secret, tkn)
+		if err != nil {
+			return err
+		}
+
+		userID = claims.UserID
+
+	// Reset when the password policy requires it
+	case token.TypePasswordResetRequired:
+		claims, err := token.ParsePasswordResetRequiredToken(a.Secret, tkn)
 		if err != nil {
 			return err
 		}
