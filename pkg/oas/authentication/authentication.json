@@ -562,11 +562,6 @@
                     }
                 },
                 "tags": [],
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ]
             }
         }
     },
