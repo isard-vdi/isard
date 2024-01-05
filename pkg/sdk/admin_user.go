@@ -69,10 +69,11 @@ func (c *Client) AdminUserDelete(ctx context.Context, id string) error {
 }
 func (c *Client) AdminUserResetPassword(ctx context.Context, id, pwd string) error {
 	body := map[string]string{
+		"user_id": id,
 		"password": pwd,
 	}
 
-	req, err := c.newJSONRequest(http.MethodPut, fmt.Sprintf("admin/user/reset-password/%s", id), body)
+	req, err := c.newJSONRequest(http.MethodPut, "admin/user/reset-password", body)
 	if err != nil {
 		return err
 	}
