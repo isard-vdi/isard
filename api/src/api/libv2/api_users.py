@@ -1700,8 +1700,8 @@ class ApiUsers:
         if not policy["expire"] or policy["expire"] == 0:
             return False
         else:
-            expiration_date = user["password_last_updated"] + (
-                policy["expire"] * 24 * 60 * 60
+            expiration_date = user["password_last_updated"] + timedelta(
+                days=policy["expire"]
             )
 
             return int(time.time()) > expiration_date
