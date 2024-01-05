@@ -1122,7 +1122,7 @@ def user_required_disclaimer_acknowledgement(payload, user_id):
 @is_admin
 def user_required_email_verification(payload, user_id):
     return (
-        json.dumps({"required": users.check_verified_email(user_id)}),
+        json.dumps({"required": users.check_verified_email(user_id) == None}),
         200,
         {"Content-Type": "application/json"},
     )

@@ -1732,16 +1732,8 @@ class ApiUsers:
         policy = self.get_email_policy(user["category"], user["role"])
         if not policy:
             return False
-        elif policy["days"] == 0:
-            return True
-        elif not user["email_verified"]:
-            return True
         else:
-            return (
-                datetime.fromtimestamp(user["email_verified"])
-                + timedelta(days=policy["days"])
-                < datetime.now()
-            )
+            return user["email_verified"]
 
 
 def validate_email_jwt(user_id, email, minutes=60):
