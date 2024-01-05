@@ -666,21 +666,22 @@ class ApiUsers:
         if data.get("ids"):
             data.pop("ids")
 
-        for user_id in user_ids:
-            user_email = (
-                r.table("users").get(user_id).pluck("email").run(db.conn)["email"]
-            )
-            if data.get("email") != user_email:
-                if not os.environ.get("NOTIFY_EMAIL"):
-                    r.table("users").get(user_id).update(
-                        {"email_verification_token": "", "email_verified": None}
-                    ).run(db.conn)
-                else:
-                    token = validate_email_jwt(user_id, data["email"])["jwt"]
-                    r.table("users").get(user_id).update(
-                        {"email_verification_token": token, "email_verified": None}
-                    ).run(db.conn)
-                    send_verification_email(data.get("email"), token)
+        if data.get("email"):
+            for user_id in user_ids:
+                user_email = (
+                    r.table("users").get(user_id).pluck("email").run(db.conn)["email"]
+                )
+                if data.get("email") != user_email:
+                    if not os.environ.get("NOTIFY_EMAIL"):
+                        r.table("users").get(user_id).update(
+                            {"email_verification_token": "", "email_verified": None}
+                        ).run(db.conn)
+                    else:
+                        token = validate_email_jwt(user_id, data["email"])["jwt"]
+                        r.table("users").get(user_id).update(
+                            {"email_verification_token": token, "email_verified": None}
+                        ).run(db.conn)
+                        send_verification_email(data.get("email"), token)
 
         with app.app_context():
             r.table("users").get_all(r.args(user_ids)).update(data).run(db.conn)
