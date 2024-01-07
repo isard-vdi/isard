@@ -1,9 +1,7 @@
 import base64
 import json
-import os
 
 from cachetools import TTLCache, cached
-from engine.models.balancers import BalancerInterface
 from engine.services.db import (
     get_domains_started_in_vgpu,
     get_hyp_hostname_user_port_from_id,
@@ -12,6 +10,11 @@ from engine.services.db import (
 )
 from engine.services.db.hypervisors import get_hyp_system_info
 from engine.services.lib.functions import execute_commands
+from engine.services.lib.status import (
+    engine_threads,
+    get_next_disk,
+    get_next_hypervisor,
+)
 from engine.services.log import logs
 from flask import Blueprint, current_app, jsonify, request
 
@@ -40,28 +43,6 @@ def engine_info():
     return "alive", 200
 
 
-engine_threads = [
-    "background",
-    "events",
-    "broom",
-    "downloads_changes",
-    "orchestrator",
-    "changes_domains",
-]
-
-virt_balancer_type = os.environ.get("ENGINE_HYPER_BALANCER", "available_ram_percent")
-virt_balancer = BalancerInterface(
-    "default",
-    balancer_type=virt_balancer_type,
-)
-
-disk_balancer_type = os.environ.get("ENGINE_DISK_BALANCER", "less_cpu")
-disk_balancer = BalancerInterface(
-    "00000000-0000-0000-0000-000000000000",
-    balancer_type=disk_balancer_type,
-)
-
-
 @cached(cache=TTLCache(maxsize=1, ttl=5))
 @api.route("/engine/status", methods=["GET"])
 @is_admin
@@ -76,8 +57,8 @@ def engine_status(payload):
                 else False
             ):
                 return "Thread {} dead.".format(t), 428
-        disk = disk_balancer.get_next_diskoperations()
-        virt, _ = virt_balancer.get_next_hypervisor()
+        disk = get_next_disk()
+        virt = get_next_hypervisor()
         if not disk and not virt:
             return "No hypervisor available.", 428
         if not disk:
@@ -85,8 +66,9 @@ def engine_status(payload):
         if not virt:
             return "No hypervisor for virtualization available.", 428
         return "Ok", 200
-    except:
-        return "Exception!", 500
+    except Exception as e:
+        logs.main.error("engine_status: {}".format(e))
+        return "Exception! Internal error.", 500
 
 
 @cached(cache=TTLCache(maxsize=1, ttl=5))
@@ -197,21 +179,21 @@ def engine_status_detail(payload):
                 )
                 engine["hypers_virt_next"] = False
             else:
-                engine["hypers_virt_next"] = virt_balancer.get_next_hypervisor()
+                engine["hypers_virt_next"] = get_next_hypervisor()
             if engine["hypers_diskop"] == 0:
                 engine["problems"].append(
                     [2, "database", "No disk operations hypervisors registered."]
                 )
                 engine["hypers_diskop_next"] = False
             else:
-                engine["hypers_diskop_next"] = disk_balancer.get_next_diskoperations()
+                engine["hypers_diskop_next"] = get_next_disk()
 
         # Next host to execute virtualization and disk operations
-        engine["next_virt"] = virt_balancer.get_next_hypervisor()
+        engine["next_virt"] = get_next_hypervisor()
         if not engine["next_virt"]:
             engine["alive_level"] = 2
             engine["alive_detail"] = "No hypervisor for virtualization available"
-        engine["next_diskop"] = disk_balancer.get_next_diskoperations()
+        engine["next_diskop"] = get_next_disk()
         if not engine["next_diskop"]:
             engine["alive_level"] = 2
             engine["alive_detail"] = "No hypervisor for disk operations available"
@@ -259,18 +241,6 @@ def engine_status_detail(payload):
     except Exception as e:
         logs.main.error("engine_status: {}".format(e))
         return jsonify({"alive": False, "error": str(e)}), 500
-
-
-def _next_hyper(pool_id="default"):
-    next_hyp, extra_info = app.m.pools[pool_id].balancer.get_next_hypervisor()
-    return next_hyp
-
-
-def _next_diskop(pool_id="00000000-0000-0000-0000-000000000000"):
-    disk_operations = app.m.diskoperations_pools[
-        pool_id
-    ].balancer.get_next_diskoperations()
-    return disk_operations
 
 
 @api.route("/engine/profile/gpu/<string:gpu_id>", methods=["PUT"])

@@ -299,6 +299,10 @@ HAPROXY_LOGGING=.
 ## ----- Disk operations balancer
 #ENGINE_DISK_BALANCER=less_cpu
 
+# ------ ENGINE TELEGRAM ---------------------------------------------------
+## Will notify this bot/chat if system not fully operational
+#TELEGRAM_ENGINE_TOKEN=
+#TELEGRAM_ENGINE_CHAT_ID=
 
 ##################################################################
 ## INFRASTRUCTURE PARAMETERS. Used on remote hypervisors        ##
