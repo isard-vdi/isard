@@ -92,6 +92,7 @@ def email_verify(payload, json: notifier.NotifyEmailVerifyMailRequest):
 
     Email specifications in JSON:
     {
+        "user_id": "User ID to be used to retrieve the message language",
         "email": "email address where the mail will be sent",
         "url": "url that will be sent to the user for email verification",
     }
@@ -142,6 +143,7 @@ def password_reset(payload, json: notifier.NotifyPasswordResetMailRequest):
 
     Email specifications in JSON:
     {
+        "user_id": "User ID to be used to retrieve the message language",
         "email": "email address where the mail will be sent",
         "url": "url that will be sent to the user for password reset",
     }

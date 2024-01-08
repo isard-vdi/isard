@@ -666,22 +666,25 @@ class ApiUsers:
         if data.get("ids"):
             data.pop("ids")
 
-        if data.get("email"):
+        if os.environ.get("NOTIFY_EMAIL") and data.get("email"):
             for user_id in user_ids:
-                user_email = (
-                    r.table("users").get(user_id).pluck("email").run(db.conn)["email"]
+                user = (
+                    r.table("users")
+                    .get(user_id)
+                    .pluck("email", "category", "role", "email_verified")
+                    .run(db.conn)
                 )
-                if data.get("email") != user_email:
-                    if not os.environ.get("NOTIFY_EMAIL"):
-                        r.table("users").get(user_id).update(
-                            {"email_verification_token": "", "email_verified": None}
-                        ).run(db.conn)
-                    else:
+                if data.get("email") != user["email"]:
+                    if self.get_email_policy(user["category"], user["role"]):
                         token = validate_email_jwt(user_id, data["email"])["jwt"]
                         r.table("users").get(user_id).update(
                             {"email_verification_token": token, "email_verified": None}
                         ).run(db.conn)
                         send_verification_email(data.get("email"), token)
+                    else:
+                        r.table("users").get(user_id).update(
+                            {"email_verification_token": "", "email_verified": None}
+                        ).run(db.conn)
 
         with app.app_context():
             r.table("users").get_all(r.args(user_ids)).update(data).run(db.conn)
@@ -1699,12 +1702,11 @@ class ApiUsers:
 
         if not policy["expiration"] or policy["expiration"] == 0:
             return False
-        else:
-            expiration_date = user["password_last_updated"] + timedelta(
-                days=policy["expiration"] * 24 * 60 * 60
-            )
-
-            return int(time.time()) > expiration_date
+        return (
+            datetime.fromtimestamp(user["password_last_updated"])
+            + timedelta(days=policy["expiration"])
+            < datetime.now()
+        )
 
     def verify_password(self, user_id, password):
         p = Password()

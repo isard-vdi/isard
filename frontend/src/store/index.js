@@ -161,6 +161,10 @@ export default new Vuex.Store({
             localStorage.token = response.data
             context.dispatch('setSession', response.data)
             router.push({ name: 'VerifyEmail' })
+          } else if (jwt.type === 'password-reset-required') {
+            localStorage.token = response.data
+            store.dispatch('setSession', response.data)
+            router.push({ name: 'ResetPassword' })
           } else {
             store.dispatch('loginSuccess', response.data)
           }
@@ -258,22 +262,20 @@ export default new Vuex.Store({
     },
     sendResetPasswordEmail (context, data) {
       const forgotPasswordAxios = axios.create()
-      return forgotPasswordAxios.post(`${authenticationSegment}/forgot-password`, data).then(response => {
-        router.push({ name: 'Login' })
-      }).catch(e => {
+      return forgotPasswordAxios.post(`${authenticationSegment}/forgot-password`, data).catch(e => {
         ErrorUtils.showErrorMessage(e, this._vm.$snotify)
       })
     },
-    updateForgottenPassword (context, data) {
-      const forgotPasswordAxios = axios.create()
-      forgotPasswordAxios.interceptors.request.use(config => {
-        config.headers.Authorization = `Bearer ${data.token}`
+    resetPassword (context, data) {
+      const resetPasswordAxios = axios.create()
+      const token = data.token
+      delete data.token
+      resetPasswordAxios.interceptors.request.use(config => {
+        config.headers.Authorization = `Bearer ${token}`
         return config
       })
 
-      return forgotPasswordAxios.post(`${authenticationSegment}/reset-password`, data).then(response => {
-        router.push({ name: 'Login' })
-      }).catch(e => {
+      return resetPasswordAxios.post(`${authenticationSegment}/reset-password`, data).catch(e => {
         ErrorUtils.showErrorMessage(e, this._vm.$snotify)
       })
     },
@@ -296,6 +298,17 @@ export default new Vuex.Store({
       return verifyEmailAxios.post(`${authenticationSegment}/verify-email`, {}).catch(e => {
         ErrorUtils.showErrorMessage(e, this._vm.$snotify)
       })
+    },
+    fetchExpiredPasswordPolicy (context, token) {
+      const expiredPasswordAxios = axios.create()
+      expiredPasswordAxios.interceptors.request.use(config => {
+        config.headers.Authorization = `Bearer ${token}`
+        return config
+      })
+      return expiredPasswordAxios.get(`${apiV3Segment}/user/expired/password-policy`)
+        .then(response => {
+          context.commit('setPasswordPolicy', response.data)
+        })
     }
   },
   modules: {

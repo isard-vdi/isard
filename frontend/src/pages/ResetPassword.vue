@@ -8,23 +8,41 @@
         class="w-25"
         @submit.prevent="submitForm"
       >
-        <b-row class="mt-2">
-          <h4 class="p-1 mb-2 mt-2 ml-2">
-            <strong>{{ $t('forms.password.modal.title') }}</strong>
-          </h4>
-        </b-row>
+        <h4>
+          <strong>{{ $t('forms.password.modal.title') }}</strong>
+        </h4>
 
-        <b-row
-          class="text-danger mb-4 p-1 ml-2"
+        <p
+          v-if="!route.query.token"
+          class="text-danger"
         >
           {{ $t(`forms.password.modal.warning`) }}
-        </b-row>
+        </p>
         <UpdatePasswordForm />
+        <b-row>
+          <b-col cols="12">
+            <b-alert
+              :show="dismissCountDown"
+              variant="success"
+              @dismissed="dismissCountDown=0"
+              @dismiss-count-down="countDownChanged"
+            >
+              {{ $t('views.reset-password.password-reset', { seconds: dismissCountDown }) }}
+            </b-alert>
+          </b-col>
+        </b-row>
         <b-row align-h="end">
+          <b-button
+            size="md"
+            class="btn-red rounded-pill mt-2"
+            @click="logout()"
+          >
+            {{ $t(`views.maintenance.go-login`) }}
+          </b-button>
           <b-button
             type="submit"
             size="md"
-            class="btn-green rounded-pill mt-4 ml-2 mr-5"
+            class="btn-green rounded-pill mt-2 ml-2 mr-5"
           >
             {{ $t(`forms.password.modal.buttons.update`) }}
           </b-button>
@@ -35,10 +53,11 @@
 </template>
 
 <script>
-import { computed, provide } from '@vue/composition-api'
+import { ref, computed, provide, onMounted } from '@vue/composition-api'
 import useVuelidate from '@vuelidate/core'
 import { required, sameAs } from '@vuelidate/validators'
 import UpdatePasswordForm from '@/components/UpdatePasswordForm'
+import { StringUtils } from '../utils/stringUtils'
 
 export default {
   components: {
@@ -50,6 +69,16 @@ export default {
 
     const password = computed(() => $store.getters.getPassword)
     const passwordConfirmation = computed(() => $store.getters.getPasswordConfirmation)
+
+    const updatePasswordButtonDisabled = ref(false)
+
+    onMounted(() => {
+      if (StringUtils.isNullOrUndefinedOrEmpty(localStorage.token) && !route.query.token) {
+        $store.dispatch('navigate', 'Login')
+      } else {
+        $store.dispatch('fetchExpiredPasswordPolicy', route.query.token ? route.query.token : localStorage.token)
+      }
+    })
 
     const v$ = useVuelidate({
       password: {
@@ -64,16 +93,40 @@ export default {
     provide('vuelidate', v$)
 
     const submitForm = () => {
+      updatePasswordButtonDisabled.value = true
       // Check if the form is valid
       v$.value.$touch()
       if (v$.value.$invalid) {
         document.getElementById(v$.value.$errors[0].$property).focus()
+        updatePasswordButtonDisabled.value = false
         return
       }
-      $store.dispatch('updateForgottenPassword', { token: route.query.token, password: password.value })
+      $store.dispatch('resetPassword', { token: route.query.token ? route.query.token : localStorage.token, password: password.value }).then(() => {
+        localStorage.removeItem('token')
+        showAlert()
+      }).catch(() => {
+        updatePasswordButtonDisabled.value = false
+      })
     }
 
-    return { password, passwordConfirmation, v$, submitForm }
+    const dismissSecs = ref(10)
+    const dismissCountDown = ref(0)
+
+    const countDownChanged = (countDown) => {
+      dismissCountDown.value = countDown
+      if (countDown === 0) {
+        $store.dispatch('logout')
+      }
+    }
+    const showAlert = () => {
+      dismissCountDown.value = dismissSecs.value
+    }
+
+    const logout = () => {
+      $store.dispatch('logout')
+    }
+
+    return { password, passwordConfirmation, v$, submitForm, route, countDownChanged, dismissCountDown, updatePasswordButtonDisabled, logout }
   }
 }
 </script>

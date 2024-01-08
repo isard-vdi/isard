@@ -1060,7 +1060,11 @@
             "label": "Email",
             "placeholder": "Email",
             "description": "Requires a verified IsardVDI email address",
-            "reset-password": "Reset password"
+            "reset-password": "Reset password",
+            "email-sent": "An email has been sent to the given email for password recovery. Please check your inbox and follow the instructions. Redirecting to login in {seconds} seconds"
+        },
+        "reset-password": {
+            "password-reset": "The password has been correctly reset. Redirecting to login in {seconds} seconds"
         },
         "verify-email": {
             "title": "Email verification",
@@ -1296,8 +1300,9 @@
             "storage": "Storage",
             "edit-deployment": "Edit deployment",
             "recycleBin": "Recycle bin",
-            "password": "Change Password",
-            "email": "Verify Email"
+            "password": "Reset password",
+            "email": "Verify Email",
+            "forgot-password": "Forgot password"
         }
     },
     "message-modal": {

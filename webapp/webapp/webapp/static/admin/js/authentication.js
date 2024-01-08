@@ -69,8 +69,8 @@ $(document).ready(function () {
             { "data": "password.lowercase" },
             { "data": "password.uppercase" },
             { "data": "password.special_characters" },
-            // {    "data": "expiration",
-            // "render": function (data, type, full, meta) { return data != undefined ? data : "-"; }, },
+            {    "data": "expiration",
+            "render": function (data, type, full, meta) { return data != undefined ? data : "-"; }, },
             {
                 "data": "password.old_passwords"
             },
@@ -149,8 +149,7 @@ $(document).ready(function () {
             'type': "local",
             "password": {
                 'digits': parseInt(data['digits']),
-                // 'expiration': parseInt(data['expiration']),
-                'expiration': 0,
+                'expiration': parseInt(data['expiration']),
                 'length': parseInt(data['length']),
                 'lowercase': parseInt(data['lowercase']),
                 'old_passwords': parseInt(data['old_passwords']),
@@ -258,7 +257,7 @@ $(document).ready(function () {
                 url: `/api/v3/admin/authentication/policy/${data.id}`,
                 success: function (policy) {
                     $(modal + " #digits").val(policy.password.digits);
-                    // $(modal + " #expiration").val(policy.password.expiration);
+                    $(modal + " #expiration").val(policy.password.expiration);
                     $(modal + " #length").val(policy.password["length"]);
                     $(modal + " #lowercase").val(policy.password.lowercase);
                     $(modal + " #not_username").val(String(policy.password.not_username));
@@ -288,7 +287,7 @@ $(document).ready(function () {
             'type': 'local',
             'password': {
                 'digits': parseInt(formData['digits']),
-                // 'expiration': parseInt(data['expiration']),
+                'expiration': parseInt(formData['expiration']),
                 'length': parseInt(formData['length']),
                 'lowercase': parseInt(formData['lowercase']),
                 'old_passwords': parseInt(formData['old_passwords']),

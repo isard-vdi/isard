@@ -1074,7 +1074,11 @@
             "label": "Correo electrónico",
             "placeholder": "Correo electrónico",
             "description": "Requiere una dirección de correo electrónico verificada por IsardVDI",
-            "reset-password": "Reestablecer contraseña"
+            "reset-password": "Reestablecer contraseña",
+            "email-sent": "Se ha enviado un correo electrónico a la dirección proporcionada para la recuperación de la contraseña. or favor, revisa tu bandeja de entrada y sigue las instrucciones. Redirigiendo al inicio de sesión en {seconds} segundos."
+        },
+        "reset-password": {
+            "password-reset": "La contraseña se ha actualizado correctamente. Redirigiendo al inicio de sesión en {seconds} segundos."
         },
         "verify-email": {
             "title": "Verificación de correo electrónico",
@@ -1311,7 +1315,8 @@
             "recycleBins": "Papelera de reciclaje",
             "password": "Cambiar contraseña",
             "recycleBin": "Papelera de reciclaje",
-            "email": "Verificar correo electrónico"
+            "email": "Verificar correo electrónico",
+            "forgot-password": "Reestablecer contraseña"
         }
     },
     "message-modal": {

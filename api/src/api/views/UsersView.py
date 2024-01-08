@@ -42,6 +42,7 @@ from .decorators import (
     is_register,
     ownsDomainId,
     ownsUserId,
+    password_reset,
 )
 
 """
@@ -303,6 +304,16 @@ def api_v3_user_language(payload, lang):
 @app.route("/api/v3/user/password-policy", methods=["GET"])
 @has_token
 def user_password_policy(payload):
+    return (
+        json.dumps(users.get_user_password_policy(user_id=payload["user_id"])),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route("/api/v3/user/expired/password-policy", methods=["GET"])
+@password_reset
+def user_password_policy_expired(payload):
     return (
         json.dumps(users.get_user_password_policy(user_id=payload["user_id"])),
         200,

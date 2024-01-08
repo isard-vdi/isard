@@ -26,6 +26,9 @@ export function auth (to, from, next, allowedRoles) {
       if (jwt.type === 'email-verification-required') {
         store.dispatch('setSession', localStorage.token)
         next({ name: 'VerifyEmail' })
+      } else if (jwt.type === 'password-reset-required') {
+        store.dispatch('setSession', localStorage.token)
+        next({ name: 'ResetPassword' })
       } else {
         checkRoutePermission(next, allowedRoles)
         store.dispatch('saveNavigation', { url: to })

@@ -19,22 +19,21 @@
               v-if="alertType !== 'verified'"
               :description="$t('views.verify-email.description')"
             >
-              <span>
-                <label for="emailAddress">{{ $t(`views.verify-email.label`) }}</label>
-                <b-form-input
-                  id="emailAddress"
-                  v-model="emailAddress"
-                  :placeholder="$t('views.verify-email.placeholder')"
-                  :state="v$.emailAddress.$error ? false : null"
-                  @blur="v$.emailAddress.$touch"
-                />
-                <b-form-invalid-feedback
-                  v-if="v$.emailAddress.$error"
-                  id="emailAddressError"
-                >
-                  {{ $t(`validations.${v$.emailAddress.$errors[0].$validator}`, { property: $t('views.verify-email.label') }) }}
-                </b-form-invalid-feedback>
-              </span>
+              <label for="emailAddress">{{ $t(`views.verify-email.label`) }}</label>
+              <b-form-input
+                id="emailAddress"
+                v-model="emailAddress"
+                :autofocus="true"
+                :placeholder="$t('views.verify-email.placeholder')"
+                :state="v$.emailAddress.$error ? false : null"
+                @blur="v$.emailAddress.$touch"
+              />
+              <b-form-invalid-feedback
+                v-if="v$.emailAddress.$error"
+                id="emailAddressError"
+              >
+                {{ $t(`validations.${v$.emailAddress.$errors[0].$validator}`, { property: $t('views.verify-email.label') }) }}
+              </b-form-invalid-feedback>
             </b-form-group>
             <b-alert
               :show="dismissCountDown"
@@ -128,10 +127,11 @@ export default {
       v$.value.$touch()
       if (v$.value.$invalid) {
         document.getElementById(v$.value.$errors[0].$property).focus()
+        sendEmailButtonDisabled.value = false
         return
       }
       $store.dispatch('sendVerifyEmail', { email: emailAddress.value }).then(() => {
-        localStorage.token = ''
+        localStorage.removeItem('token')
         alertType.value = 'sent'
         showAlert()
       }).catch(() => {
