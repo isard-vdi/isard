@@ -1,0 +1,28 @@
+password:
+  schema:
+    digits:
+      type: integer
+      min: 0
+    expiration:
+      type: integer
+      min: 0
+    length:
+      type: integer
+      min: 0
+    lowercase:
+      type: integer
+      min: 0
+    not_username:
+      type: boolean
+    old_passwords:
+      type: integer
+      min: 0
+    special_characters:
+      type: integer
+      min: 0
+    uppercase:
+      type: integer
+      min: 0
+email_verification:
+  required: true
+  type: boolean

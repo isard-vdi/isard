@@ -1100,7 +1100,7 @@ def user_required_password_reset(payload, user_id):
 def admin_user_password_policy(payload, user_id):
     ownsUserId(payload, user_id)
     return (
-        json.dumps({"required": users.get_user_password_policy(user_id=user_id)}),
+        json.dumps(users.get_user_password_policy(user_id=user_id)),
         200,
         {"Content-Type": "application/json"},
     )

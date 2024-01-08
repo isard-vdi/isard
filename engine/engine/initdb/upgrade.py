@@ -3703,23 +3703,84 @@ class Upgrade(object):
         log.info("UPGRADING " + table + " VERSION " + str(version))
         if version == 118:
             try:
-                r.table(table).get("default-password").delete().run(self.conn)
-                r.table(table).insert(
-                    {
-                        "type": "local",  # provider
-                        "category": "all",
-                        "role": "all",
-                        "subtype": "password",  # policy kind
-                        "digits": 0,
-                        "length": 8,
-                        "lowercase": 0,
-                        "uppercase": 0,
-                        "special_characters": 0,
-                        "not_username": False,
-                        "expire": 0,
-                        "old_passwords": 0,
-                    }
+                r.table(table).index_drop("subtype").run(self.conn)
+            except Exception as e:
+                print(e)
+            try:
+                r.table(table).index_drop("type-subtype").run(self.conn)
+            except Exception as e:
+                print(e)
+            try:
+                r.table(table).index_drop("category-role-subtype").run(self.conn)
+                r.table("authentication").index_create(
+                    "category-role",
+                    [r.row["category"], r.row["role"]],
                 ).run(self.conn)
+            except Exception as e:
+                print(e)
+            try:
+                result = (
+                    r.table(table)
+                    .update(
+                        lambda policy: {
+                            "disclaimer": False,
+                            "email_verification": False,
+                            "password": {
+                                "digits": policy["digits"],
+                                "length": policy["length"],
+                                "lowercase": policy["lowercase"],
+                                "uppercase": policy["uppercase"],
+                                "special_characters": policy["special_characters"],
+                                "not_username": policy["not_username"],
+                                "expiration": policy["expire"],
+                                "old_passwords": policy["old_passwords"],
+                            },
+                        }
+                    )
+                    .run(self.conn)
+                )
+                if (result["replaced"]) > 0:
+                    r.table(table).replace(
+                        r.row.without(
+                            "subtype",
+                            "digits",
+                            "length",
+                            "lowercase",
+                            "uppercase",
+                            "special_characters",
+                            "not_username",
+                            "expire",
+                            "old_passwords",
+                        )
+                    ).run(self.conn)
+            except Exception as e:
+                print(e)
+            try:
+                if (
+                    r.table(table)
+                    .get("default-password")
+                    .delete()
+                    .run(self.conn)["deleted"]
+                ) > 0:
+                    r.table(table).insert(
+                        {
+                            "type": "local",  # provider
+                            "category": "all",
+                            "role": "all",
+                            "password": {
+                                "digits": 0,
+                                "length": 8,
+                                "lowercase": 0,
+                                "uppercase": 0,
+                                "special_characters": 0,
+                                "not_username": False,
+                                "expiration": 0,
+                                "old_passwords": 0,
+                            },
+                            "disclaimer": False,
+                            "email_verification": False,
+                        }
+                    ).run(self.conn)
             except Exception as e:
                 print(e)
             try:

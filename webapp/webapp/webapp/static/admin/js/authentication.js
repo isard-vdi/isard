@@ -30,16 +30,16 @@ $(document).ready(function () {
                 } else {
                     $(`#${key}_panel`).find('.x_content').css('display', 'none');
                     $(`#${key}_panel li`).find('i').toggleClass('fa-chevron-up fa-chevron-down');
-    
+
                 }
             });
         }
     })
 
 
-    password_policy_table = $('#table-password-policy').DataTable({
+    user_policy_table = $('#users-password-policy').DataTable({
         "ajax": {
-            "url": "/api/v3/admin/authentication/policies/local/password",
+            "url": "/api/v3/admin/authentication/policies/local",
             "type": 'GET',
         },
         "sAjaxDataProp": "",
@@ -59,15 +59,23 @@ $(document).ready(function () {
                     return (data ? data : "all")
                 }
             },
-            { "data": "digits" },
-            { "data": "length" },
-            { "data": "lowercase" },
-            { "data": "uppercase" },
-            { "data": "special_characters" },
-            // { "data": "expire" },
-            { "data": "old_passwords" },
+            { "data": "email_verification" },
+            // {
+            //     "data": "disclaimer",
+            //     "render": function (data, type, full, meta) { return data != undefined ? data : "-"; },
+            // },
+            { "data": "password.digits" },
+            { "data": "password.length" },
+            { "data": "password.lowercase" },
+            { "data": "password.uppercase" },
+            { "data": "password.special_characters" },
+            // {    "data": "expiration",
+            // "render": function (data, type, full, meta) { return data != undefined ? data : "-"; }, },
             {
-                "data": "not_username", "render": function (data, type, row) {
+                "data": "password.old_passwords"
+            },
+            {
+                "data": "password.not_username", "render": function (data, type, row) {
                     return (data == true ? '<i class="fa fa-check" style="color:lightgreen"></i>' : "-");
                 }
             },
@@ -85,47 +93,7 @@ $(document).ready(function () {
             { "data": "id", "visible": false }
         ],
     });
-    adminShowIdCol(password_policy_table);
-
-    email_policy_table = $('#table-email-verification-policy').DataTable({
-        "ajax": {
-            "url": "/api/v3/admin/authentication/policies/local/email",
-            "type": 'GET',
-        },
-        "sAjaxDataProp": "",
-        "language": {
-            "loadingRecords": '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
-        },
-        "rowId": "id",
-        "searching": false,
-        "paging": false,
-        "footer": false,
-        "info": false,
-        "deferRender": true,
-        "columns": [
-            { "data": "category_name" },
-            {
-                "data": "role", "render": function (data, type, row) {
-                    return (data ? data : "all")
-                }
-            },
-            { "data": "days" },
-            {
-                "data": null,
-                "width": '10%',
-                "render": function (data, type, row) {
-                    if (!((row.category_name == "all") && (row.role == "all"))) {
-                        return `<button id="btn-edit-policy" class="btn btn-xs btn-edit" type="button"  data-placement="top" ><i class="fa fa-pencil" style="color:darkblue"></i></button>
-                                <button id="btn-policy-delete" class="btn btn-xs" type="button"  data-placement="top"><i class="fa fa-times" style="color:darkred"></i></button>`;
-                    } else {
-                        return '<button id="btn-edit-policy" class="btn btn-xs btn-edit" type="button"  data-placement="top" ><i class="fa fa-pencil" style="color:darkblue"></i></button>'
-                    }
-                }
-            },
-            { "data": "id", "visible": false }
-        ],
-    });
-    adminShowIdCol(email_policy_table);
+    adminShowIdCol(user_policy_table);
 
     $('.btn-add-policy').on('click', function () {
         var modal = '#modalPolicyAdd';
@@ -175,48 +143,36 @@ $(document).ready(function () {
         const formData = $('#modalPolicyAddForm').serializeObject();
         $('#modalPolicyAddForm').parsley().validate();
         var data = formData;
-        if (data.subtype == "password") {
-            data = {
-                'category': data["category"],
-                'role': data["role"],
-                'type': "local",
-                'subtype': data["subtype"],
+        data = {
+            'category': data["category"],
+            'role': data["role"],
+            'type': "local",
+            "password": {
                 'digits': parseInt(data['digits']),
-                // 'expire': parseInt(data['expire']),
-                'expire': 0,
+                // 'expiration': parseInt(data['expiration']),
+                'expiration': 0,
                 'length': parseInt(data['length']),
                 'lowercase': parseInt(data['lowercase']),
                 'old_passwords': parseInt(data['old_passwords']),
                 'uppercase': parseInt(data['uppercase']),
                 'special_characters': parseInt(data['special_characters']),
-                'not_username': data['not_username'].toLowerCase() === 'true'
-            };
-        } else if (data.subtype == "email") {
-            data = {
-                'category': data["category"],
-                'role': data["role"],
-                'type': "local",
-                'subtype': data["subtype"],
-                'days': parseInt(data["days"])
-            };
-        }
+                'not_username': data['not_username'].toLowerCase() === 'true',
+            },
+            'email_verification': data['verification-cb'] == 'on'
+        };
         $.ajax({
             type: 'POST',
-            url: `/api/v3/admin/authentication/policy/${data["subtype"]}`,
+            url: `/api/v3/admin/authentication/policy/`,
             data: JSON.stringify(data),
             contentType: "application/json",
             success: function (data) {
                 $('form').each(function () { this.reset() });
                 $('.modal').modal('hide');
-                if (formData.subtype == "password") {
-                    password_policy_table.ajax.reload();
-                } else if (formData.subtype == "email") {
-                    email_policy_table.ajax.reload();
-                }
+                user_policy_table.ajax.reload();
             },
             error: function (data) {
                 new PNotify({
-                    title: `ERROR adding ${formData.subtype} policy`,
+                    title: `ERROR adding user policy`,
                     text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
                     type: 'error',
                     hide: true,
@@ -239,8 +195,8 @@ $(document).ready(function () {
         var data = $(this).closest("table").DataTable().row($(this).parents('tr')).data();
         if ($(this).attr('id') == 'btn-policy-delete') {
             new PNotify({
-                title: `Delete ${data.subtype} policy`,
-                text: `Do you really want to delete ${data.subtype} policy for category "${data.category_name}" and role "${data.role}"`,
+                title: `Delete user policy`,
+                text: `Do you really want to delete user policy for category "${data.category_name}" and role "${data.role}"`,
                 hide: false,
                 opacity: 0.9,
                 confirm: { confirm: true },
@@ -250,7 +206,7 @@ $(document).ready(function () {
             }).get().on('pnotify.confirm', function () {
                 $.ajax({
                     type: 'DELETE',
-                    url: `/api/v3/admin/authentication/policy/${data.subtype}/${data.id}`,
+                    url: `/api/v3/admin/authentication/policy/${data.id}`,
                     accept: "application/json",
                     success: function (resp) {
                         new PNotify({
@@ -261,15 +217,11 @@ $(document).ready(function () {
                             opacity: 1,
                             type: 'success'
                         });
-                        if (data.subtype == "password") {
-                            password_policy_table.ajax.reload();
-                        } else if (data.subtype == "email") {
-                            email_policy_table.ajax.reload();
-                        }
+                        user_policy_table.ajax.reload();
                     },
                     error: function (data) {
                         new PNotify({
-                            title: `ERROR deleting ${data.subtype} policy`,
+                            title: `ERROR deleting user policy`,
                             text: data.responseJSON ? data.responseJSON.description : 'Something went wrong',
                             type: 'error',
                             hide: true,
@@ -282,11 +234,10 @@ $(document).ready(function () {
             });
         } else if ($(this).attr('id') == 'btn-edit-policy') {
             var modal = '#modalPolicyEdit';
-            $(modal + ` .policy_fields`).hide();
-            $(modal + ` #${data.subtype}_fields`).show();
             $(modal + " #id").val(data.id);
-            $(modal + " #subtype").val(data.subtype);
-            $(modal + " #category").append(`<option value="${data.category}">${data.category_name}</option>`);
+            $(modal + " #category").append(
+                `<option value="${data.category}">${data.category_name}</option>`
+            );
             $.ajax({
                 type: "GET",
                 url: "/api/v3/admin/roles",
@@ -304,19 +255,20 @@ $(document).ready(function () {
             $(modal + " #role").val(data.role);
             $.ajax({
                 type: "GET",
-                url: `/api/v3/admin/authentication/policy/${data.subtype}/${data.id}`,
+                url: `/api/v3/admin/authentication/policy/${data.id}`,
                 success: function (policy) {
-                    if (policy.subtype == "password") {
-                        $(modal + " #digits").val(policy.digits);
-                        // $(modal + " #expire").val(policy.expire);
-                        $(modal + " #length").val(policy["length"]);
-                        $(modal + " #lowercase").val(policy.lowercase);
-                        $(modal + " #not_username").val(String(policy.not_username));
-                        $(modal + " #old_passwords").val(policy.old_passwords);
-                        $(modal + " #special_characters").val(policy.special_characters);
-                        $(modal + " #uppercase").val(policy.uppercase);
-                    } else if (policy.subtype == "email") {
-                        $(modal + " #days").val(policy.days);
+                    $(modal + " #digits").val(policy.password.digits);
+                    // $(modal + " #expiration").val(policy.password.expiration);
+                    $(modal + " #length").val(policy.password["length"]);
+                    $(modal + " #lowercase").val(policy.password.lowercase);
+                    $(modal + " #not_username").val(String(policy.password.not_username));
+                    $(modal + " #old_passwords").val(policy.password.old_passwords);
+                    $(modal + " #special_characters").val(policy.password.special_characters);
+                    $(modal + " #uppercase").val(policy.password.uppercase);
+                    if (policy.email_verification) {
+                        $(modal + ' #verification-cb').iCheck('check').iCheck('update');
+                    } else {
+                        $(modal + ' #verification-cb').iCheck('uncheck').iCheck('update');
                     }
                 }
             })
@@ -332,38 +284,30 @@ $(document).ready(function () {
         var modal = '#modalPolicyEditForm';
         const formData = $(modal).serializeObject();
         $(modal).parsley().validate();
-        var subtype = $(modal + ' #subtype').val();
-        if (subtype == "password") {
-            var data = {
+        var data = {
+            'type': 'local',
+            'password': {
                 'digits': parseInt(formData['digits']),
-                'type': "local",
-                // 'expire': parseInt(data['expire']),
+                // 'expiration': parseInt(data['expiration']),
                 'length': parseInt(formData['length']),
                 'lowercase': parseInt(formData['lowercase']),
                 'old_passwords': parseInt(formData['old_passwords']),
                 'uppercase': parseInt(formData['uppercase']),
                 'special_characters': parseInt(formData['special_characters']),
-                'not_username': formData['not_username'].toLowerCase() === 'true'
-            };
-        } else if (subtype == "email") {
-            var data = {
-                'days': parseInt(formData['days']),
-            };
-        }
+                'not_username': formData['not_username'].toLowerCase() === 'true',
+            },
+            'email_verification': formData['verification-cb'] == 'on'
+        };
 
         $.ajax({
             type: 'PUT',
-            url: `/api/v3/admin/authentication/policy/${subtype}/${formData.id}`,
+            url: `/api/v3/admin/authentication/policy/${formData.id}`,
             data: JSON.stringify(data),
             contentType: "application/json",
             success: function (data) {
                 $('form').each(function () { this.reset() });
                 $('.modal').modal('hide');
-                if (subtype == "password") {
-                    password_policy_table.ajax.reload();
-                } else if (subtype == "email") {
-                    email_policy_table.ajax.reload();
-                }
+                user_policy_table.ajax.reload();
             },
             error: function (data) {
                 new PNotify({

@@ -1619,7 +1619,6 @@ class ApiUsers:
         with app.app_context():
             policies = list(
                 r.table("authentication")
-                .get_all(subtype, index="subtype")
                 .filter(
                     (r.row["category"] in [category, "all"])
                     | (r.row["role"] in [role, "all"])
@@ -1628,14 +1627,15 @@ class ApiUsers:
             )
         matching_policies = []
         for policy in policies:
-            if policy["category"] == category and policy["role"] == role:
-                return policy
-            elif policy["category"] == category and policy["role"] == "all":
-                matching_policies.append({"priority": 0, "policy": policy})
-            elif policy["category"] == "all" and policy["role"] == role:
-                matching_policies.append({"priority": 1, "policy": policy})
-            elif policy["category"] == "all" and policy["role"] == "all":
-                matching_policies.append({"priority": 2, "policy": policy})
+            if policy.get(subtype):
+                if policy["category"] == category and policy["role"] == role:
+                    return policy[subtype]
+                elif policy["category"] == category and policy["role"] == "all":
+                    matching_policies.append({"priority": 0, "policy": policy[subtype]})
+                elif policy["category"] == "all" and policy["role"] == role:
+                    matching_policies.append({"priority": 1, "policy": policy[subtype]})
+                elif policy["category"] == "all" and policy["role"] == "all":
+                    matching_policies.append({"priority": 2, "policy": policy[subtype]})
 
         matching_policies.sort(key=lambda x: x["priority"])
         if matching_policies:
@@ -1647,7 +1647,7 @@ class ApiUsers:
         return self.get_user_policy("password", category, role, user_id)
 
     def get_email_policy(self, category=None, role=None, user_id=None):
-        return self.get_user_policy("email", category, role, user_id)
+        return self.get_user_policy("email_verification", category, role, user_id)
 
     def change_password(self, password, user_id):
         with app.app_context():
@@ -1697,11 +1697,11 @@ class ApiUsers:
         if not policy:
             return False
 
-        if not policy["expire"] or policy["expire"] == 0:
+        if not policy["expiration"] or policy["expiration"] == 0:
             return False
         else:
             expiration_date = user["password_last_updated"] + timedelta(
-                days=policy["expire"]
+                days=policy["expiration"] * 24 * 60 * 60
             )
 
             return int(time.time()) > expiration_date
