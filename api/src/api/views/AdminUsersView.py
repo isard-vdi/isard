@@ -449,7 +449,7 @@ def api_v3_admin_user_desktops(payload, user_id=None):
 def api_v3_admin_category(payload, category_id):
     ownsCategoryId(payload, category_id)
     return (
-        json.dumps(users.CategoryGet(category_id)),
+        json.dumps(users.CategoryGet(category_id, True)),
         200,
         {"Content-Type": "application/json"},
     )
@@ -514,7 +514,7 @@ def api_v3_admin_limits_group(payload, group_id):
     data = request.get_json()
     if data["limits"]:
         data["id"] = group_id
-        _validate_item("group_update_quota", data)
+        data = _validate_item("group_update_quota", data)
     group = users.GroupGet(group_id)
     ownsCategoryId(payload, group["parent_category"])
     users.UpdateGroupLimits(group, data["limits"])
