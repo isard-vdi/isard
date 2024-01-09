@@ -1151,22 +1151,9 @@ class ApiUsers:
             description_code="code_not_found",
         )
 
-    def CategoryGet(self, category_id):
+    def CategoryGet(self, category_id, all_data=False):
         with app.app_context():
-            category = (
-                r.table("categories")
-                .get(category_id)
-                .pluck(
-                    "auto",
-                    "custom_url_name",
-                    "description",
-                    "ephimeral",
-                    "frontend",
-                    "id",
-                    "name",
-                )
-                .run(db.conn)
-            )
+            category = r.table("categories").get(category_id).run(db.conn)
         if not category:
             raise Error(
                 "not_found",
@@ -1174,6 +1161,8 @@ class ApiUsers:
                 traceback.format_exc(),
                 description_code="category_not_found",
             )
+        if not all_data:
+            return {"name": category["name"]}
         else:
             return category
 
