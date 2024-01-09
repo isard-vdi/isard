@@ -85,7 +85,7 @@ def api_v2_desktop_viewers(payload, desktop_id=False, protocol=False):
 
 @app.route("/api/v3/domains/allowed/<kind>", methods=["GET"])
 @app.route("/api/v3/domains/allowed/<kind>/<domain_id>", methods=["GET"])
-@is_admin_or_manager
+@has_token
 def api_v3_domains_allowed_hardware_reservables(payload, kind, domain_id=None):
     if kind == "reservables":
         if domain_id and ownsDomainId(payload, domain_id):
