@@ -11,7 +11,8 @@ COPY --from=works /usr/share/grafana/public /usr/share/grafana/public
 
 RUN apk -U upgrade --no-cache
 RUN apk add --no-cache \
-    curl
+    curl \
+    jq
 
 USER grafana
 
