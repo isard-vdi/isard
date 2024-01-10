@@ -104,6 +104,7 @@ export default {
   setup (props, { emit }) {
     const onViewChange = (event) => {
       console.log('cal onViewChange')
+      event.startDate = event.firstCellDate
       emit('viewChanged', event)
     }
 
@@ -189,6 +190,4 @@ export default {
 
 .vuecal__cell--before-min {color: 'grey'}
 .vuecal__cell--disabled {color: 'grey'}
-/* TODO: Hide out of scope cells */
-.vuecal__cell--out-of-scope {display: none}
 </style>
