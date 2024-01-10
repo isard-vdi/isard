@@ -30,6 +30,7 @@ from ..libv2.api_authentication import (
     add_policy,
     delete_policy,
     edit_policy,
+    force_policy_at_login,
     get_policies,
     get_policy,
     get_providers,
@@ -108,6 +109,47 @@ def admin_authentication_providers(payload):
     providers = get_providers()
     return (
         json.dumps(providers),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route(
+    "/api/v3/admin/authentication/force_validate/email/<policy_id>", methods=["PUT"]
+)
+@is_admin
+def admin_force_email(payload, policy_id):
+    force_policy_at_login(policy_id, "email_verified")
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route(
+    "/api/v3/admin/authentication/force_validate/disclaimer/<policy_id>",
+    methods=["PUT"],
+)
+@is_admin
+def admin_force_disclaimer(payload, policy_id):
+    force_policy_at_login(policy_id, "disclaimer_accepted")
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route(
+    "/api/v3/admin/authentication/force_validate/password/<policy_id>",
+    methods=["PUT"],
+)
+@is_admin
+def admin_force_password(payload, policy_id):
+    force_policy_at_login(policy_id, "password_last_updated")
+    return (
+        json.dumps({}),
         200,
         {"Content-Type": "application/json"},
     )

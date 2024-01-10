@@ -118,3 +118,15 @@ def get_providers():
         os.environ.get("AUTHENTICATION_AUTHENTICATION_LDAP_ENABLED") == "true"
     )
     return providers
+
+
+def force_policy_at_login(policy_id, policy_field):
+    policy = get_policy(policy_id)
+
+    query = r.table("users").get_all("local", index="provider")
+    if policy["category"] != "all":
+        query.filter({"category": policy["category"]})
+    if policy["role"] != "all":
+        query.filter({"role": policy["role"]})
+    with app.app_context():
+        query.update({policy_field: None}).run(db.conn)

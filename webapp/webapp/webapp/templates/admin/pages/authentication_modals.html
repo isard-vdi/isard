@@ -120,7 +120,7 @@
                                 </div>
                                 <div id="email_fields" class="policy_fields">
                                     <label class="control-label" for="verification-enabled" style="margin-top:10px"
-                                           title="Email address must be verified in order to log in">
+                                        title="Email address must be verified in order to log in">
                                         <div class="icheckbox_flat-green" style="position: relative;">
                                             <input type="checkbox" id="verification-cb" name="verification-cb"
                                                 class="flat" style="position: absolute; opacity: 0;">
@@ -289,7 +289,7 @@
                                 </div>
                                 <div id="email_fields" class="policy_fields">
                                     <label class="control-label" for="verification-enabled" style="margin-top:10px"
-                                           title="Email address must be verified in order to log in">
+                                        title="Email address must be verified in order to log in">
                                         <div class="icheckbox_flat-green" style="position: relative;">
                                             <input type="checkbox" id="verification-cb" name="verification-cb"
                                                 class="flat" style="position: absolute; opacity: 0;">
@@ -338,3 +338,53 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="modalForceVerification" tabindex="-1" role="dialog"
+    aria-labelledby="modalConsolidateDesktops" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                    <span class="sr-only">Close</span>
+                </button>
+                <h4 class="modal-title" id="myModalLabel">
+                    <i class="fa fa-repeat fa-1x"></i> Force validation on login
+                </h4>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <div class="x_panel">
+                    <h5 style="margin-bottom:25px;">Force validation on login for users in category "<b><span id="span-category"> </span></b>" and
+                        role "<b><span id="span-role"> </span></b>" on the chosen policies:</h5>
+                    <div class="container">
+                        <div class="row" style="display:flex;justify-content:center;">
+                            <button id="force-password" data-policy="password" type="button" class="btn btn-primary">
+                                <i class="fa fa-asterisk fa-1x"></i> Force Update Password</button>
+                            <button id="force-email" data-policy="email" type="button" class="btn btn-primary">
+                                <i class="fa fa-envelope fa-1x>"></i> Force Verify Email</button>
+                            <!-- <button id="force-disclaimer" data-policy="disclaimer" type="button" class="btn btn-primary">
+                                <i class="fa fa-file-text fa-1x"></i> Force Accept Disclaimer</button> -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <ul class="nav navbar-left panel_toolbox">
+                    <li>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    </li>
+                </ul>
+                <ul class="nav navbar-right panel_toolbox">
+                    <li>
+                        <button id="send" type="button" class="btn btn-info" data-dismiss="modal">Done</button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
