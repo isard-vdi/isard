@@ -198,9 +198,11 @@ COPY docker/hypervisor/src /src
 COPY component/_common/src /src/_common
 COPY docker/hypervisor/kvm/hooks /etc/libvirt/hooks
 WORKDIR /src
-# RUN rm /usr/lib/libspice*
-# COPY docker/hypervisor/spice-dev/* /usr/lib/
-COPY docker/hypervisor/spice-dev/*.sh /usr/lib/
+
+# Compiled spice libs avoid initial one minute red channel connection close bug
+RUN rm /usr/lib/libspice*
+COPY docker/hypervisor/spice-dev/* /usr/lib/
+
 ENV G_MESSAGES_DEBUG=all
 CMD [ "/src/start.sh"]
 
