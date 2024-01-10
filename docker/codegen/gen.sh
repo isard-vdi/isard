@@ -1,5 +1,7 @@
 #!/bin/sh
 
+rm -rf pkg/gen
+
 # Protobuf
 source /venv/bin/activate
 export HOME=/tmp
