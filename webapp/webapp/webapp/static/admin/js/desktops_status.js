@@ -58,9 +58,15 @@ function update() {
             $.each(statuses, function (key, value) {
                 if (!echart_objects.hasOwnProperty(key)) {
                     $("#statuses").append(chart_html(key));
-                    echart_objects[key] = { "obj": $("#echart_history_" + key).echartHistory([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], key, 200, 210), "data": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] };
+                    var chart_height = 210;
+                    var chart_width = parseInt($("#echart_history_" + key).width());
+
+                    echart_objects[key] = { "obj": $("#echart_history_" + key).echartHistory([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], key, chart_width, chart_height), "data": ['-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', value, value] };
                     option = echart_objects[key].obj.getOption();
                     option.xAxis[0].axisLabel.show = false
+                    option.yAxis[0].axisLabel.inside = true
+                    option.yAxis[0].axisLabel.margin = -15
+                    option.yAxis[0].min = value/2
                     echart_objects[key].obj.setOption(option);
                     var el = document.getElementById("card_" + key)
                     el.addEventListener('click', e => {
@@ -76,8 +82,8 @@ function update() {
                         $('.echart-card select').on('change', function () {
                             changeStatus($(this).closest('article').data("status"), $(this).val(), $(this));
                         });
-
                     });
+                    update_history_echart(key, echart_objects[key], value);
                 } else {
                     update_history_echart(key, echart_objects[key], value);
                 }
@@ -219,9 +225,9 @@ function chart_html(id) {
         style = "style='background-color:mistyrose;'"
     }
     echart_template = `<article id="card_${id}" data-status="${id}"
-                        class="col-xs-12 col-sm-4 col-md-3 col-lg-2 col-xl-1 echart-card"
+                        class="col-xs-12 col-sm-4 col-md-4 col-lg-2 col-xl-1 echart-card"
                         >
-                            <div class="well drop-shadow"  ${style}><div id="echart_history_${id}">
+                            <div class="well drop-shadow" ${style}><div id="echart_history_${id}" class="canvas_wrapper">
                             </div><div class="row" style="margin-top:-20px;">
                                 <select class="form-control echart-card-select" id="select_${id}" style="display:none">
                                         <option disabled value="placeholder" selected>Actions</option>
@@ -254,6 +260,17 @@ function update_history_echart(chart_id, chart, newdata) {
         ]
     });
 }
+
+$(window).on('resize', function(){
+    var chart_width = parseInt($(".well .canvas_wrapper").width()-10);
+    var chart_height = 210
+    $.each(echart_objects, function(key, chart) {
+        chart["obj"].resize({
+            width: chart_width,
+            height: chart_height
+        });
+    });
+})
 
 
 function initialize_table(status) {
