@@ -648,6 +648,8 @@ class ApiUsers:
                 "quota": group["quota"],  # 10GB
                 "secondary_groups": [],
                 "password_history": [password],
+                "email_verification_token": None,
+                "email_verified": None,
             }
             if not _check(r.table("users").insert(user).run(db.conn), "inserted"):
                 raise Error(
@@ -683,7 +685,7 @@ class ApiUsers:
                         send_verification_email(data.get("email"), token)
                     else:
                         r.table("users").get(user_id).update(
-                            {"email_verification_token": "", "email_verified": None}
+                            {"email_verification_token": None, "email_verified": None}
                         ).run(db.conn)
 
         with app.app_context():
@@ -1690,13 +1692,14 @@ class ApiUsers:
             user = (
                 r.table("users")
                 .get(user_id)
-                .pluck("category", "role", "password_last_updated")
+                .pluck("category", "role", "password_last_updated", "provider")
                 .run(db.conn)
             )
+        if user["provider"] != "local":
+            return False
         policy = self.get_user_password_policy(
             category=user["category"], role=user["role"]
         )
-
         if not policy:
             return False
 
@@ -1728,9 +1731,11 @@ class ApiUsers:
             user = (
                 r.table("users")
                 .get(user_id)
-                .pluck("email_verified", "category", "role")
+                .pluck("email_verified", "category", "role", "provider")
                 .run(db.conn)
             )
+        if user["provider"] != "local":
+            return False
         policy = self.get_email_policy(user["category"], user["role"])
         if not policy:
             return False
