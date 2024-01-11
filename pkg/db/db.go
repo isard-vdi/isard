@@ -1,14 +1,11 @@
 package db
 
 import (
-	"errors"
 	"fmt"
 
 	"gitlab.com/isard/isardvdi/pkg/cfg"
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
-
-var ErrNotFound = errors.New("not found")
 
 func New(cfg cfg.DB) (r.QueryExecutor, error) {
 	sess, err := r.Connect(r.ConnectOpts{

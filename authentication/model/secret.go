@@ -3,7 +3,6 @@ package model
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"gitlab.com/isard/isardvdi/pkg/db"
 
@@ -19,7 +18,9 @@ type Secret struct {
 func (s *Secret) Load(ctx context.Context, sess r.QueryExecutor) error {
 	res, err := r.Table("secrets").Get(s.ID).Run(sess)
 	if err != nil {
-		return err
+		return &db.Err{
+			Err: err,
+		}
 	}
 	defer res.Close()
 
@@ -28,7 +29,10 @@ func (s *Secret) Load(ctx context.Context, sess r.QueryExecutor) error {
 			return db.ErrNotFound
 		}
 
-		return fmt.Errorf("read db response: %w", err)
+		return &db.Err{
+			Msg: "read db response",
+			Err: err,
+		}
 	}
 
 	return nil
