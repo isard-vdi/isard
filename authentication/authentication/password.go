@@ -96,6 +96,19 @@ func (a *Authentication) ResetPassword(ctx context.Context, tkn, pwd string) err
 
 		userID = claims.UserID
 
+		u := &model.User{
+			ID:                 userID,
+			PasswordResetToken: tkn,
+		}
+		exists, err := u.ExistsWithPasswordResetToken(ctx, a.DB)
+		if err != nil {
+			return fmt.Errorf("check if the password reset token exists: %w", err)
+		}
+
+		if !exists {
+			return token.ErrInvalidToken
+		}
+
 	// Reset when the password policy requires it
 	case token.TypePasswordResetRequired:
 		claims, err := token.ParsePasswordResetRequiredToken(a.Secret, tkn)
@@ -116,6 +129,14 @@ func (a *Authentication) ResetPassword(ctx context.Context, tkn, pwd string) err
 		}
 
 		return err
+	}
+
+	u := &model.User{
+		ID:                 userID,
+		PasswordResetToken: "",
+	}
+	if err := u.UpdatePasswordResetToken(ctx, a.DB); err != nil {
+		return fmt.Errorf("remove password reset token: %w", err)
 	}
 
 	a.Log.Info().Str("user_id", userID).Msg("reset password")

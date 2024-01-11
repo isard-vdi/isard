@@ -191,6 +191,32 @@ func (u *User) ExistsWithVerifiedEmail(ctx context.Context, sess r.QueryExecutor
 	return true, nil
 }
 
+func (u *User) ExistsWithPasswordResetToken(ctx context.Context, sess r.QueryExecutor) (bool, error) {
+	res, err := r.Table("users").Filter(r.And(
+		r.Eq(r.Row.Field("id"), u.ID),
+		r.Eq(r.Row.Field("password_reset_token"), u.PasswordResetToken),
+	), r.FilterOpts{}).Run(sess)
+	if err != nil {
+		return false, &db.Err{
+			Err: err,
+		}
+	}
+	defer res.Close()
+
+	if err := res.One(u); err != nil {
+		if !errors.Is(err, r.ErrEmptyResult) {
+			return false, &db.Err{
+				Msg: "read db response",
+				Err: err,
+			}
+		}
+
+		return false, nil
+	}
+
+	return true, nil
+}
+
 func (u *User) LoadWithoutOverride(u2 *User) {
 	if u.Category == "" {
 		u.Category = u2.Category
