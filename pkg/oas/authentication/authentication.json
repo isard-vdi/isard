@@ -27,7 +27,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/Error"
+                                    "$ref": "#/components/schemas/CheckError"
                                 }
                             }
                         }
@@ -37,7 +37,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/Error"
+                                    "$ref": "#/components/schemas/CheckError"
                                 }
                             }
                         }
@@ -321,7 +321,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/Error"
+                                    "$ref": "#/components/schemas/AcknowledgeDisclaimerError"
                                 }
                             }
                         }
@@ -331,7 +331,17 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/Error"
+                                    "$ref": "#/components/schemas/AcknowledgeDisclaimerError"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AcknowledgeDisclaimerError"
                                 }
                             }
                         }
@@ -372,12 +382,22 @@
                             }
                         }
                     },
+                    "400": {
+                        "description": "Invalid email",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RequestEmailVerificationError"
+                                }
+                            }
+                        }
+                    },
                     "401": {
                         "description": "Invalid token",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/Error"
+                                    "$ref": "#/components/schemas/RequestEmailVerificationError"
                                 }
                             }
                         }
@@ -387,7 +407,27 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/Error"
+                                    "$ref": "#/components/schemas/RequestEmailVerificationError"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Email already in use",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RequestEmailVerificationError"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RequestEmailVerificationError"
                                 }
                             }
                         }
@@ -433,7 +473,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/Error"
+                                    "$ref": "#/components/schemas/VerifyEmailError"
                                 }
                             }
                         }
@@ -443,63 +483,17 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        }
-                    }
-                },
-                "tags": [],
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ]
-            }
-        },
-        "/reset-password": {
-            "post": {
-                "operationId": "ResetPassword",
-                "summary": "Reset the user password",
-                "description": "",
-                "parameters": [],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/ResetPasswordRequest"
-                            }
-                        }
-                    },
-                    "required": true
-                },
-                "responses": {
-                    "200": {
-                        "description": "",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ResetPasswordResponse"
+                                    "$ref": "#/components/schemas/VerifyEmailError"
                                 }
                             }
                         }
                     },
-                    "401": {
-                        "description": "Invalid token",
+                    "500": {
+                        "description": "Internal server error",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Invalid token",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
+                                    "$ref": "#/components/schemas/VerifyEmailError"
                                 }
                             }
                         }
@@ -545,7 +539,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/Error"
+                                    "$ref": "#/components/schemas/ForgotPasswordError"
                                 }
                             }
                         }
@@ -555,13 +549,109 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/Error"
+                                    "$ref": "#/components/schemas/ForgotPasswordError"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForgotPasswordError"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ForgotPasswordError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": []
+            }
+        },
+        "/reset-password": {
+            "post": {
+                "operationId": "ResetPassword",
+                "summary": "Reset the user password",
+                "description": "",
+                "parameters": [],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ResetPasswordRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResetPasswordResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResetPasswordError"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResetPasswordError"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Invalid token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResetPasswordError"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResetPasswordError"
                                 }
                             }
                         }
                     }
                 },
                 "tags": [],
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
             }
         }
     },
@@ -574,29 +664,6 @@
             }
         },
         "schemas": {
-            "Error": {
-                "properties": {
-                    "type": {
-                        "title": "Error type",
-                        "nullable": false,
-                        "type": "string",
-                        "enum": [
-                            "missing_token",
-                            "invalid_token"
-                        ]
-                    },
-                    "msg": {
-                        "title": "Error message",
-                        "nullable": false,
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "type",
-                    "msg"
-                ],
-                "type": "object"
-            },
             "Providers": {
                 "type": "string",
                 "enum": [
@@ -637,12 +704,59 @@
                 "properties": {},
                 "type": "object"
             },
+            "CheckError": {
+                "properties": {
+                    "type": {
+                        "title": "Error type",
+                        "nullable": false,
+                        "type": "string",
+                        "enum": [
+                            "missing_token",
+                            "invalid_token"
+                        ]
+                    },
+                    "msg": {
+                        "title": "Error message",
+                        "nullable": false,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "type",
+                    "msg"
+                ],
+                "type": "object"
+            },
             "AcknowledgeDisclaimerRequest": {
                 "properties": {},
                 "type": "object"
             },
             "AcknowledgeDisclaimerResponse": {
                 "properties": {},
+                "type": "object"
+            },
+            "AcknowledgeDisclaimerError": {
+                "properties": {
+                    "type": {
+                        "title": "Error type",
+                        "nullable": false,
+                        "type": "string",
+                        "enum": [
+                            "missing_token",
+                            "invalid_token",
+                            "internal_server"
+                        ]
+                    },
+                    "msg": {
+                        "title": "Error message",
+                        "nullable": false,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "type",
+                    "msg"
+                ],
                 "type": "object"
             },
             "RequestEmailVerificationRequest": {
@@ -661,6 +775,32 @@
                 "properties": {},
                 "type": "object"
             },
+            "RequestEmailVerificationError": {
+                "properties": {
+                    "type": {
+                        "title": "Error type",
+                        "nullable": false,
+                        "type": "string",
+                        "enum": [
+                            "missing_token",
+                            "invalid_token",
+                            "invalid_email",
+                            "email_already_in_use",
+                            "internal_server"
+                        ]
+                    },
+                    "msg": {
+                        "title": "Error message",
+                        "nullable": false,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "type",
+                    "msg"
+                ],
+                "type": "object"
+            },
             "VerifyEmailRequest": {
                 "properties": {},
                 "type": "object"
@@ -669,20 +809,28 @@
                 "properties": {},
                 "type": "object"
             },
-            "ResetPasswordRequest": {
+            "VerifyEmailError": {
                 "properties": {
-                    "password": {
+                    "type": {
+                        "title": "Error type",
+                        "nullable": false,
+                        "type": "string",
+                        "enum": [
+                            "missing_token",
+                            "invalid_token",
+                            "internal_server"
+                        ]
+                    },
+                    "msg": {
+                        "title": "Error message",
                         "nullable": false,
                         "type": "string"
                     }
                 },
                 "required": [
-                    "password"
+                    "type",
+                    "msg"
                 ],
-                "type": "object"
-            },
-            "ResetPasswordResponse": {
-                "properties": {},
                 "type": "object"
             },
             "ForgotPasswordRequest": {
@@ -704,6 +852,72 @@
             },
             "ForgotPasswordResponse": {
                 "properties": {},
+                "type": "object"
+            },
+            "ForgotPasswordError": {
+                "properties": {
+                    "type": {
+                        "title": "Error type",
+                        "nullable": false,
+                        "type": "string",
+                        "enum": [
+                            "missing_token",
+                            "invalid_token",
+                            "internal_server",
+                            "user_not_found"
+                        ]
+                    },
+                    "msg": {
+                        "title": "Error message",
+                        "nullable": false,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "type",
+                    "msg"
+                ],
+                "type": "object"
+            },
+            "ResetPasswordRequest": {
+                "properties": {
+                    "password": {
+                        "nullable": false,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "password"
+                ],
+                "type": "object"
+            },
+            "ResetPasswordResponse": {
+                "properties": {},
+                "type": "object"
+            },
+            "ResetPasswordError": {
+                "properties": {
+                    "type": {
+                        "title": "Error type",
+                        "nullable": false,
+                        "type": "string",
+                        "enum": [
+                            "missing_token",
+                            "invalid_token",
+                            "internal_server",
+                            "bad_request"
+                        ]
+                    },
+                    "msg": {
+                        "title": "Error message",
+                        "nullable": false,
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "type",
+                    "msg"
+                ],
                 "type": "object"
             }
         }
