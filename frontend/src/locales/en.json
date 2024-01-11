@@ -1270,7 +1270,9 @@
         "password_already_used": "This password has already been used in the past",
         "password_username": "Password can not contain your own username",
         "wrong_password_entered": "Wrong password entered",
-        "not_verified": "Email address not verified"
+        "not_verified": "Email address not verified",
+        "user_not_found": "There's no user with the given email",
+        "invalid_token": "Invalid token"
 
     },
     "router": {

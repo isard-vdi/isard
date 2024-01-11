@@ -58,6 +58,7 @@ import useVuelidate from '@vuelidate/core'
 import { required, sameAs } from '@vuelidate/validators'
 import UpdatePasswordForm from '@/components/UpdatePasswordForm'
 import { StringUtils } from '../utils/stringUtils'
+import { ErrorUtils } from '@/utils/errorUtils'
 
 export default {
   components: {
@@ -104,7 +105,8 @@ export default {
       $store.dispatch('resetPassword', { token: route.query.token ? route.query.token : localStorage.token, password: password.value }).then(() => {
         localStorage.removeItem('token')
         showAlert()
-      }).catch(() => {
+      }).catch((e) => {
+        ErrorUtils.showErrorMessage(context.root.$snotify, e)
         updatePasswordButtonDisabled.value = false
       })
     }

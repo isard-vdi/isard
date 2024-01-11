@@ -26,7 +26,6 @@ class NotifyMailResponse(BaseModel):
 
 
 class NotifyEmailVerifyMailRequest(BaseModel):
-    user_id: str
     email: str
     url: str
     payload: object
@@ -42,7 +41,6 @@ class NotifyEmailVerifyMailResponse(BaseModel):
 
 
 class NotifyPasswordResetMailRequest(BaseModel):
-    user_id: str
     email: str
     url: str
     payload: object

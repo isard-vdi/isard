@@ -1195,7 +1195,9 @@
         "password_already_used": "Aquesta contrasenya ja s'ha utilitzat abans",
         "password_username": "La contrasenya no pot contenir el nom d'usuari",
         "wrong_password_entered": "La contrasenya introduïda és incorrecta",
-        "not_verified": "L'adreça de correu no ha estat validada"
+        "not_verified": "L'adreça de correu no ha estat validada",
+        "user_not_found": "No existeix cap usuari amb el correu electrònic proporcionat",
+        "invalid_token": "Token no vàlid"
     },
     "messages": {
         "title": {

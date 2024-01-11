@@ -69,6 +69,7 @@
 import { ref } from '@vue/composition-api'
 import useVuelidate from '@vuelidate/core'
 import { required, email } from '@vuelidate/validators'
+import { ErrorUtils } from '@/utils/errorUtils'
 
 export default {
   setup (_, context) {
@@ -98,7 +99,8 @@ export default {
       $store.dispatch('sendResetPasswordEmail', { email: emailAddress.value, category_id: category }).then(() => {
         localStorage.removeItem('token')
         showAlert()
-      }).catch(() => {
+      }).catch((e) => {
+        ErrorUtils.showErrorMessage(context.root.$snotify, e)
         sendEmailButtonDisabled.value = false
       })
     }

@@ -185,9 +185,10 @@ export default new Vuex.Store({
         return config
       })
       const provider = JSON.parse(atob(getCookie('authorization').split('.')[1])).provider
+      const categoryId = JSON.parse(atob(getCookie('authorization').split('.')[1])).category_id
       await registerAxios.post(`${apiV3Segment}/user/register`, data).then(response => {
         return new Promise((resolve, reject) => {
-          registerAxios.post(`${authenticationSegment}/login?provider=${provider}`, data, { timeout: 25000 }).then(response => {
+          registerAxios.post(`${authenticationSegment}/login?provider=${provider}&category_id=${categoryId}`, data, { timeout: 25000 }).then(response => {
             store.dispatch('loginSuccess', response.data)
             resolve()
           }).catch(e => {
@@ -262,9 +263,7 @@ export default new Vuex.Store({
     },
     sendResetPasswordEmail (context, data) {
       const forgotPasswordAxios = axios.create()
-      return forgotPasswordAxios.post(`${authenticationSegment}/forgot-password`, data).catch(e => {
-        ErrorUtils.showErrorMessage(e, this._vm.$snotify)
-      })
+      return forgotPasswordAxios.post(`${authenticationSegment}/forgot-password`, data)
     },
     resetPassword (context, data) {
       const resetPasswordAxios = axios.create()
@@ -275,9 +274,7 @@ export default new Vuex.Store({
         return config
       })
 
-      return resetPasswordAxios.post(`${authenticationSegment}/reset-password`, data).catch(e => {
-        ErrorUtils.showErrorMessage(e, this._vm.$snotify)
-      })
+      return resetPasswordAxios.post(`${authenticationSegment}/reset-password`, data)
     },
     sendVerifyEmail (context, data) {
       const verifyEmailAxios = axios.create()
@@ -285,9 +282,7 @@ export default new Vuex.Store({
         config.headers.Authorization = `Bearer ${localStorage.token}`
         return config
       })
-      return verifyEmailAxios.post(`${authenticationSegment}/request-email-verification`, data).catch(e => {
-        ErrorUtils.showErrorMessage(e, this._vm.$snotify)
-      })
+      return verifyEmailAxios.post(`${authenticationSegment}/request-email-verification`, data)
     },
     verifyEmail (context, token) {
       const verifyEmailAxios = axios.create()
@@ -295,9 +290,7 @@ export default new Vuex.Store({
         config.headers.Authorization = `Bearer ${token}`
         return config
       })
-      return verifyEmailAxios.post(`${authenticationSegment}/verify-email`, {}).catch(e => {
-        ErrorUtils.showErrorMessage(e, this._vm.$snotify)
-      })
+      return verifyEmailAxios.post(`${authenticationSegment}/verify-email`, {})
     },
     fetchExpiredPasswordPolicy (context, token) {
       const expiredPasswordAxios = axios.create()

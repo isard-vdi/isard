@@ -25,7 +25,7 @@ export class ErrorUtils {
   }
 
   static showErrorMessage (snotify, error, message = '', title = '', position = 'centerTop') {
-    const errorMessage = message.length > 0 ? message : ErrorUtils.getErrorMessageText(get(error, 'response.data.description_code'), get(error, 'response.data.params'))
+    const errorMessage = message.length > 0 ? message : ErrorUtils.getErrorMessageText(get(error, 'response.data.description_code', get(error, 'response.data.type')), get(error, 'response.data.params'))
 
     this.showErrorNotification(snotify, errorMessage, position)
   }

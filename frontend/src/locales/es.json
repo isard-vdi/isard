@@ -1284,7 +1284,9 @@
         "password_already_used": "Esta contraseña ya se ha utilizado anteriormente",
         "password_username": "La contraseña no puede contener el nombre de usuario",
         "wrong_password_entered": "Contraseña incorrecta",
-        "not_verified": "La dirección de correo no ha sido validada"
+        "not_verified": "La dirección de correo no ha sido validada",
+        "user_not_found": "No existe ningún usuario con el correo electrónico proporcionado",
+        "invalid_token": "Token no válido"
     },
     "router": {
         "titles": {

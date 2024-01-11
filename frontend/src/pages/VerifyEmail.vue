@@ -82,6 +82,7 @@ import { ref, computed, onMounted } from '@vue/composition-api'
 import useVuelidate from '@vuelidate/core'
 import { required, email } from '@vuelidate/validators'
 import { StringUtils } from '../utils/stringUtils'
+import { ErrorUtils } from '@/utils/errorUtils'
 
 export default {
   setup (_, context) {
@@ -134,7 +135,8 @@ export default {
         localStorage.removeItem('token')
         alertType.value = 'sent'
         showAlert()
-      }).catch(() => {
+      }).catch((e) => {
+        ErrorUtils.showErrorMessage(context.root.$snotify, e)
         sendEmailButtonDisabled.value = false
       })
     }
