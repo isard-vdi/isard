@@ -3,6 +3,7 @@
 #      Josep Maria Viñolas Auquer
 # License: AGPLv3
 
+
 import pprint
 import queue
 import threading
@@ -48,6 +49,8 @@ from engine.services.lib.functions import (
     get_threads_running,
     get_tid,
 )
+from engine.services.lib.status import get_next_disk, get_next_hypervisor
+from engine.services.lib.telegram import telegram_send_thread
 from engine.services.log import logs
 from engine.services.threads.download_thread import launch_thread_download_changes
 from isardvdi_common.default_storage_pool import DEFAULT_STORAGE_POOL_ID
@@ -164,6 +167,7 @@ class Engine(object):
 
             l_old_threads_running = False
             threads_running = False
+            next_available = False
             while self.manager.quit is False:
                 ####################################################################
                 ### MAIN LOOP ######################################################
@@ -216,6 +220,27 @@ class Engine(object):
                         )
                         logs.threads.info(table_tabulated)
 
+                        workers_started = [
+                            t[0].split("_")[1]
+                            for t in threads_started
+                            if t[0].startswith("worker_")
+                        ]
+                        diskop_started = [
+                            t[0].split("_")[1]
+                            for t in threads_started
+                            if t[0].startswith("diskop_")
+                        ]
+                        # Sometimes engine starts with no hypervisors available
+                        # Afterwards we are testing if hypervisors are available through balancer
+                        # if not len(workers_started) or not len(diskop_started):
+                        #     telegram_send_thread("DOWN", "No hypervisors available")
+                        if len(workers_started) != len(diskop_started):
+                            telegram_send_thread(
+                                "WARN",
+                                f"Engine Workers threads ({workers_started}) and diskop threads ({diskop_started}) are not equal",
+                            )
+                            next_available = False  # Just to check afterwards if we have hypervisors available and send an UP
+
                         for t in threads_dead:
                             if t[0].startswith("worker_"):
                                 update_table_dict(
@@ -223,12 +248,48 @@ class Engine(object):
                                     t[0].split("_")[1],
                                     {"cap_status": {"hypervisor": False}},
                                 )
+                                telegram_send_thread(
+                                    "WARN",
+                                    f"Hypervisor {t[0].split('_')[1]} worker is dead\n",
+                                )
+                                next_available = False  # Just to check afterwards if we have hypervisors available and send an UP
                             if t[0].startswith("diskop_"):
                                 update_table_dict(
                                     "hypervisors",
                                     t[0].split("_")[1],
                                     {"cap_status": {"disk_operations": False}},
                                 )
+                                telegram_send_thread(
+                                    "WARN",
+                                    f"Hypervisor {t[0].split('_')[1]} disk_operations is dead\n",
+                                )
+                                next_available = False  # Just to check afterwards if we have hypervisors available and send an UP
+
+                disk = get_next_disk()
+                virt = get_next_hypervisor()
+                if next_available is True:
+                    if not disk and not virt:
+                        telegram_send_thread(
+                            "DOWN",
+                            "No hypervisor for virtualization neither disk operations available.",
+                        )
+                    elif not virt:
+                        telegram_send_thread(
+                            "DOWN", "No hypervisor for virtualization available."
+                        )
+                    elif not disk:
+                        telegram_send_thread(
+                            "DOWN", "No disk operations hypervisor available."
+                        )
+                    if not disk or not virt:
+                        next_available = False
+                else:
+                    if disk and virt:
+                        telegram_send_thread(
+                            "UP",
+                            f"Engine threads changes detected, workers started: {workers_started}, diskop started: {diskop_started}",
+                        )
+                        next_available = True
                 # pprint.pprint(threads_running)
                 # self.manager.update_info_threads_engine()
 

@@ -1,5 +1,11 @@
 from engine.services.lib.debug import check_if_debugging
+from engine.services.lib.status import disk_balancer_type, virt_balancer_type
+from engine.services.lib.telegram import telegram_send_thread
 
+telegram_send_thread(
+    "STARTING",
+    f"------------------------\nWARNING: Engine is starting now...\n - virt_balancer_type: {virt_balancer_type}\n - disk_balancer_type: {disk_balancer_type}",
+)
 check_if_debugging()
 
 import logging

@@ -24,3 +24,6 @@ services:
       - isard-db
     env_file:
       - .env
+    environment:
+      - TELEGRAM_ENGINE_TOKEN=${TELEGRAM_ENGINE_TOKEN}
+      - TELEGRAM_ENGINE_CHAT_ID=${TELEGRAM_ENGINE_CHAT_ID}
