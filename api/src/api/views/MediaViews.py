@@ -1,8 +1,9 @@
 import json
+import re
 import time
 import traceback
 import urllib.request
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 from flask import jsonify, request
 from isardvdi_common.api_exceptions import Error
@@ -64,6 +65,19 @@ def api_v3_admin_media_insert(payload):
             "bad_request",
             "Unable to parse body data.",
             traceback.format_exc(),
+        )
+    url = urlparse(data["url"])
+    if url.scheme != "https" or not re.compile(
+        r"^(([a-zA-Z]{1})|([a-zA-Z]{1}[a-zA-Z]{1})|"
+        r"([a-zA-Z]{1}[0-9]{1})|([0-9]{1}[a-zA-Z]{1})|"
+        r"([a-zA-Z0-9][-_.a-zA-Z0-9]{0,61}[a-zA-Z0-9]))\."
+        r"([a-zA-Z]{2,13}|[a-zA-Z0-9-]{2,30}.[a-zA-Z]{2,3})$"
+    ).match(url.netloc):
+        raise Error(
+            "bad_request",
+            "The url does not meet the requirements.",
+            traceback.format_exc(),
+            "media_url_bad_format",
         )
     try:
         response = urllib.request.urlopen(data["url"])

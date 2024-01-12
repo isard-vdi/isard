@@ -5,6 +5,7 @@
         "minLengthValue": "El campo {property} es de {model} caracteres, el minimo es {min}.",
         "maxLengthValue": "El campo {property} es de {model} caracteres, el máximo es {max}.",
         "inputFormat": "Los caracteres validos son letras, numeros, coma, punto, -, _",
+        "URLFormat": "Debe comenzar con \"https://\"",
         "url": "El campo {property} debe ser una dirección web.",
         "undefined": "No definido"
     },
@@ -1161,6 +1162,7 @@
         "media_should_not_be_downloading": "El medio no tiene que estar descargandose",
         "media_url_not_found": "No se ha encontrado la dirección proporcionada",
         "media_url_not_valid": "La dirección proporcionada no es válida",
+        "media_url_bad_format": "El formato de la dirección proporcionada no es válido",
         "total_size_quota_exceeded": "Has excedido tu cuota de tamaño de disco. Es necesario que elimines un escritorio, una plantilla o un medio para liberar espacio.",
         "quota_general_exception": "Se ha producido un error relacionado con las cuotas de usuario",
         "desktop_new_template_forbidden": "Error de permisos creando el escritorio",
