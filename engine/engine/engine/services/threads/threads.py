@@ -452,7 +452,7 @@ def hyp_from_hyp_id(hyp_id):
             force_get_hyp_info,
             init_vgpu_profiles,
         ) = get_hyp_hostname_from_id(hyp_id)
-        h = hyp(host, user=user, port=port)
+        h = hyp(hyp_id, host, user=user, port=port)
         return h
     except:
         return False

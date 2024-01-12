@@ -16,6 +16,22 @@ from rethinkdb.errors import ReqlNonExistenceError
 from .db import rethink
 
 
+def get_hypervisor(hyp_id):
+    r_conn = new_rethink_connection()
+    rtable = r.table("hypervisors")
+    try:
+        out = rtable.get(hyp_id).run(r_conn)
+    # except ReqlNonExistenceError:
+    #     close_rethink_connection(r_conn)
+    #     return None
+    except:
+        close_rethink_connection(r_conn)
+        return None
+
+    close_rethink_connection(r_conn)
+    return out
+
+
 def get_hyps_ready_to_start():
     r_conn = new_rethink_connection()
     rtable = r.table("hypervisors")

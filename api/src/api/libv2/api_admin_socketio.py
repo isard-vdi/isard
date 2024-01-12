@@ -468,6 +468,7 @@ class HypervisorsThread(threading.Thread):
                                 "stats",
                                 "cap_status",
                                 "capabilities",
+                                "viewer_status",
                                 "status",
                                 "status_time",
                                 {

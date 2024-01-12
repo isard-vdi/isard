@@ -83,6 +83,8 @@ echo "---> Checking hypervisor by creating/destroying test domain..."
 virsh create /src/checks/domain.xml
 virsh destroy domain
 
+python3 /src/lib/check-cert.py &
+
 if [ -z "$HYPER_ENABLED" ] || [ "$HYPER_ENABLED" == "true" ]
 then
   echo "---> Enabling hypervisor..."

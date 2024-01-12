@@ -168,6 +168,7 @@ class Engine(object):
             l_old_threads_running = False
             threads_running = False
             next_available = False
+            last_workers_started = []
             while self.manager.quit is False:
                 ####################################################################
                 ### MAIN LOOP ######################################################
@@ -220,7 +221,7 @@ class Engine(object):
                         )
                         logs.threads.info(table_tabulated)
 
-                        workers_started = [
+                        last_workers_started = workers_started = [
                             t[0].split("_")[1]
                             for t in threads_started
                             if t[0].startswith("worker_")
@@ -264,6 +265,28 @@ class Engine(object):
                                     f"Hypervisor {t[0].split('_')[1]} disk_operations is dead\n",
                                 )
                                 next_available = False  # Just to check afterwards if we have hypervisors available and send an UP
+
+                # Check viewers in hypers started
+                for w in last_workers_started:
+                    result = self.manager.t_workers[w].h.get_hyp_video_status()
+                    try:
+                        update_table_field(
+                            "hypervisors",
+                            w,
+                            "viewer_status",
+                            result,
+                        )
+                    except Exception as e:
+                        logs.main.error(e)
+                        logs.main.error(
+                            f"Error updating viewer status for hypervisor {w}"
+                        )
+                    for k, v in result.items():
+                        if v is False:
+                            telegram_send_thread(
+                                "DOWN",
+                                f"Video {k} connection to hypervisor {w} not functional",
+                            )
 
                 disk = get_next_disk()
                 virt = get_next_hypervisor()
