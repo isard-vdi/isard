@@ -3,7 +3,6 @@
 #      Josep Maria Viñolas Auquer
 # License: AGPLv3
 
-# coding=utf-8
 """
 a module to control hypervisor functions and state. Overrides libvirt events and
 
@@ -15,9 +14,7 @@ import time
 import traceback
 import uuid
 from copy import deepcopy
-from datetime import datetime
 from io import StringIO
-from statistics import mean
 
 import libvirt
 import paramiko
@@ -25,8 +22,6 @@ import xmltodict
 from engine.config import *
 from engine.models.nvidia_models import NVIDIA_MODELS
 from engine.services.db import (
-    get_hyp,
-    get_hyp_default_gpu_models,
     get_hyp_info,
     get_id_hyp_from_uri,
     get_vgpu,
@@ -49,26 +44,21 @@ from engine.services.db.domains import (
     get_domains_with_status_in_list,
     update_domain_status,
 )
+from engine.services.db.hypervisors import get_hypervisor
 from engine.services.lib.functions import (
     calcule_cpu_hyp_stats,
     exec_remote_cmd,
     execute_commands,
     get_tid,
     hostname_to_uri,
-    new_dict_from_raw_dict_stats,
-    state_and_cause_to_str,
     test_hypervisor_conn,
-    timelimit,
     try_socket,
 )
 from engine.services.lib.libvirt_dicts import virDomainState
+from engine.services.lib.status import get_hypervisor_video_status
 from engine.services.log import *
-from flatten_dict import flatten
 from libpci import LibPCI
 from lxml import etree
-
-# ~ import pandas as pd
-
 
 TIMEOUT_QUEUE = 20
 TIMEOUT_CONN_HYPERVISOR = (
@@ -209,16 +199,35 @@ class hyp(object):
 
     def __init__(
         self,
+        hyp_id,
         address,
         user="root",
         port=22,
         nvidia_enabled=False,
         capture_events=False,
         try_ssh_autologin=False,
-        hyp_id=None,
     ):
         # dictionary of domains
         # self.id = 0
+        self.hypervisor = get_hypervisor(hyp_id)
+        self.spice_host = (
+            self.hypervisor["viewer"]["proxy_hyper_host"] if self.hypervisor else None
+        )
+        self.spice_proxy_host = (
+            self.hypervisor["viewer"]["proxy_video"] if self.hypervisor else None
+        )
+        self.spice_proxy_port = (
+            self.hypervisor["viewer"]["spice_ext_port"] if self.hypervisor else None
+        )
+        self.static_host = (
+            self.hypervisor["viewer"]["static"] if self.hypervisor else None
+        )
+        self.html5_host = (
+            self.hypervisor["viewer"]["proxy_video"] if self.hypervisor else None
+        )
+        self.html5_port = (
+            self.hypervisor["viewer"]["html5_ext_port"] if self.hypervisor else None
+        )
         self.domains = {}
         self.domains_states = {}
         port = int(port)
@@ -892,6 +901,16 @@ class hyp(object):
 
         # nested virtualization
         self.info["nested"] = self.get_nested()
+
+    def get_hyp_video_status(self):
+        return get_hypervisor_video_status(
+            self.html5_host,
+            self.html5_port,
+            self.static_host,
+            self.spice_host,
+            self.spice_proxy_host,
+            self.spice_proxy_port,
+        )
 
     def get_system_stats(self):
         try:

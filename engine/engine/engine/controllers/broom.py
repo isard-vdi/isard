@@ -116,7 +116,7 @@ class ThreadBroom(threading.Thread):
                                 )
                             )
                         else:
-                            h = hyp(hostname, user=user, port=port)
+                            h = hyp(hyp_id, hostname, user=user, port=port)
                             if h.connected:
                                 hyps_domain_started[hyp_id] = {}
                                 hyps_domain_started[hyp_id]["hyp"] = h

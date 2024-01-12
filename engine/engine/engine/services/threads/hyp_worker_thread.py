@@ -78,10 +78,10 @@ class HypWorkerThread(threading.Thread):
             self.hostname = host
             try:
                 self.h = hyp(
+                    self.hyp_id,
                     self.hostname,
                     user=user,
                     port=port,
-                    hyp_id=self.hyp_id,
                     nvidia_enabled=nvidia_enabled,
                 )
                 if not self.h.conn:
@@ -139,6 +139,14 @@ class HypWorkerThread(threading.Thread):
                     force_get_hyp_info=force_get_hyp_info,
                     # force_get_hyp_info=True,
                     init_vgpu_profiles=init_vgpu_profiles,
+                )
+
+                update_table_field(
+                    "hypervisors",
+                    self.hyp_id,
+                    "viewer_status",
+                    self.h.get_hyp_video_status(),
+                    soft=True,
                 )
 
                 self.h.get_system_stats()
