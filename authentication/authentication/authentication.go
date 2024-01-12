@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"gitlab.com/isard/isardvdi/authentication/authentication/provider"
+	"gitlab.com/isard/isardvdi/authentication/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/authentication/model"
@@ -100,9 +101,9 @@ func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor) *Authentication 
 	a.Notifier = nCli
 
 	providers := map[string]provider.Provider{
-		provider.UnknownString:  &provider.Unknown{},
-		provider.FormString:     provider.InitForm(cfg.Authentication, db),
-		provider.ExternalString: &provider.External{},
+		types.Unknown:  &provider.Unknown{},
+		types.Form:     provider.InitForm(cfg.Authentication, db),
+		types.External: &provider.External{},
 	}
 
 	if cfg.Authentication.SAML.Enabled {
@@ -124,11 +125,11 @@ func Init(cfg cfg.Cfg, log *zerolog.Logger, db r.QueryExecutor) *Authentication 
 func (a *Authentication) Providers() []string {
 	providers := []string{}
 	for k, v := range a.providers {
-		if k == provider.UnknownString || k == provider.ExternalString {
+		if k == types.Unknown || k == types.External {
 			continue
 		}
 
-		if k == provider.FormString {
+		if k == types.Form {
 			providers = append(providers, v.(*provider.Form).Providers()...)
 			continue
 		}
@@ -142,7 +143,7 @@ func (a *Authentication) Providers() []string {
 func (a *Authentication) Provider(p string) provider.Provider {
 	prv := a.providers[p]
 	if prv == nil {
-		return a.providers[provider.UnknownString]
+		return a.providers[types.Unknown]
 	}
 
 	return prv

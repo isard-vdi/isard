@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"gitlab.com/isard/isardvdi/authentication/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/authentication/model"
@@ -15,8 +16,6 @@ import (
 	"google.golang.org/api/option"
 )
 
-const GoogleString = "google"
-
 type Google struct {
 	provider *oauth2Provider
 }
@@ -24,7 +23,7 @@ type Google struct {
 func InitGoogle(cfg cfg.Authentication) *Google {
 	return &Google{
 		&oauth2Provider{
-			GoogleString,
+			types.Google,
 			cfg.Secret,
 			&oauth2.Config{
 				ClientID:     cfg.Google.ClientID,
@@ -84,5 +83,5 @@ func (Google) AutoRegister() bool {
 }
 
 func (g *Google) String() string {
-	return GoogleString
+	return types.Google
 }

@@ -5,13 +5,12 @@ import (
 	"errors"
 	"fmt"
 
+	"gitlab.com/isard/isardvdi/authentication/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/model"
 
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
-
-const ExternalString = "external"
 
 type External struct {
 	db r.QueryExecutor
@@ -83,5 +82,5 @@ func (External) AutoRegister() bool {
 }
 
 func (External) String() string {
-	return ExternalString
+	return types.External
 }

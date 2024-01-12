@@ -5,6 +5,7 @@ import (
 	"errors"
 	"regexp"
 
+	"gitlab.com/isard/isardvdi/authentication/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/model"
 )
@@ -34,12 +35,10 @@ type HTTPRequestType string
 
 const HTTPRequest HTTPRequestType = "req"
 
-const UnknownString = "unknown"
-
 type Unknown struct{}
 
 func (Unknown) String() string {
-	return UnknownString
+	return types.Unknown
 }
 
 func (Unknown) Login(context.Context, string, map[string]string) (*model.Group, *model.User, string, error) {

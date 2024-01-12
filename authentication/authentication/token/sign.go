@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"gitlab.com/isard/isardvdi/authentication/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/model"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -46,6 +47,12 @@ func SignLoginToken(secret string, duration time.Duration, u *model.User) (strin
 }
 
 func SignRegisterToken(secret string, duration time.Duration, u *model.User) (string, error) {
+	// If the provider is local or ldap, use the user facing provider 'form'
+	p := u.Provider
+	if u.Provider == types.Local || u.Provider == types.LDAP {
+		p = types.Form
+	}
+
 	tkn := jwt.NewWithClaims(signingMethod, &RegisterClaims{
 		TypeClaims: TypeClaims{
 			RegisteredClaims: &jwt.RegisteredClaims{
@@ -57,7 +64,7 @@ func SignRegisterToken(secret string, duration time.Duration, u *model.User) (st
 			KeyID: keyID,
 			Type:  TypeRegister,
 		},
-		Provider:   u.Provider,
+		Provider:   p,
 		UserID:     u.UID,
 		Username:   u.Username,
 		CategoryID: u.Category,

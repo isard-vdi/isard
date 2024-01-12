@@ -11,6 +11,7 @@ import (
 
 	"gitlab.com/isard/isardvdi/authentication/authentication"
 	"gitlab.com/isard/isardvdi/authentication/authentication/provider"
+	"gitlab.com/isard/isardvdi/authentication/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/pkg/db"
 	oasAuthentication "gitlab.com/isard/isardvdi/pkg/gen/oas/authentication"
@@ -104,7 +105,7 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 	}
 
 	p := a.Authentication.Provider(string(params.Provider))
-	if p.String() == provider.SAMLString {
+	if p.String() == types.SAML {
 		c := &http.Cookie{
 			Name:  "token",
 			Value: params.Token.Value,
@@ -226,7 +227,7 @@ func (a *AuthenticationServer) Callback(ctx context.Context, params oasAuthentic
 func (a *AuthenticationServer) Providers(ctx context.Context) (*oasAuthentication.ProvidersResponse, error) {
 	providers := []oasAuthentication.Providers{}
 	for _, p := range a.Authentication.Providers() {
-		if p == provider.LocalString || p == provider.LDAPString {
+		if p == types.Local || p == types.LDAP {
 			continue
 		}
 

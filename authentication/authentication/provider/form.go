@@ -4,14 +4,13 @@ import (
 	"context"
 	"errors"
 
+	"gitlab.com/isard/isardvdi/authentication/authentication/provider/types"
 	"gitlab.com/isard/isardvdi/authentication/authentication/token"
 	"gitlab.com/isard/isardvdi/authentication/cfg"
 	"gitlab.com/isard/isardvdi/authentication/model"
 
 	r "gopkg.in/rethinkdb/rethinkdb-go.v6"
 )
-
-const FormString = "form"
 
 type Form struct {
 	cfg       cfg.Authentication
@@ -41,7 +40,7 @@ func (f *Form) Login(ctx context.Context, categoryID string, args map[string]str
 	invCreds := false
 
 	if f.cfg.Local.Enabled {
-		g, u, redirect, err := f.providers[LocalString].Login(ctx, categoryID, args)
+		g, u, redirect, err := f.providers[types.Local].Login(ctx, categoryID, args)
 		if err == nil {
 			return g, u, redirect, err
 		}
@@ -54,7 +53,7 @@ func (f *Form) Login(ctx context.Context, categoryID string, args map[string]str
 	}
 
 	if f.cfg.LDAP.Enabled {
-		g, u, redirect, err := f.providers[LDAPString].Login(ctx, categoryID, args)
+		g, u, redirect, err := f.providers[types.LDAP].Login(ctx, categoryID, args)
 		if !errors.Is(err, ErrInvalidCredentials) {
 			return g, u, redirect, err
 		}
@@ -84,7 +83,7 @@ func (f *Form) AutoRegister() bool {
 }
 
 func (f *Form) String() string {
-	return FormString
+	return types.Form
 }
 
 func (f *Form) Providers() []string {
