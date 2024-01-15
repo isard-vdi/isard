@@ -7,7 +7,8 @@
         "inputFormat": "Los caracteres validos son letras, numeros, coma, punto, -, _",
         "URLFormat": "Debe comenzar con \"https://\"",
         "url": "El campo {property} debe ser una dirección web.",
-        "undefined": "No definido"
+        "undefined": "No definido",
+        "email": "El campo {property} debe ser una dirección de correo electrónico válida."
     },
     "forms": {
         "allowed": {
@@ -715,7 +716,7 @@
                     "delete": "Eliminar despliegue"
                 },
                 "body": {
-                    "text":  "Esta acción es irreversible y se perderán todos los datos asociados.",
+                    "text": "Esta acción es irreversible y se perderán todos los datos asociados.",
                     "send-to-recycle-bin": "Enviar despliegue a la papelera de reciclaje (el almacenamiento seguirá considerandose en la cuota de usuario hasta que se elimine definitivamente)"
                 },
                 "option": {
@@ -773,7 +774,7 @@
                     "spice-client-required": "pero requiere instalar un aplicativo externo.",
                     "generic-text": "En el siguiente enlace se puede consultar enlaces de descarga e instrucciones para instalarlo:",
                     "download-install": "Descarga de software de visores",
-                    "download-link":"https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers.es/",
+                    "download-link": "https://isard.gitlab.io/isardvdi-docs/user/viewers/viewers.es/",
                     "once-installed": "Después de la instalación, haz clic en el botón «SPICE», y se descargará el archivo del escritorio virtual.",
                     "close-guide": "Cerrar la guía"
                 },
@@ -937,7 +938,7 @@
             }
         },
         "recycle-bin": {
-            "title":{
+            "title": {
                 "deployment": "Depliegue '{name}' eliminado en fecha {date}",
                 "desktop": "Escritorio '{name}' eliminado en fecha {date}",
                 "template": "Plantilla '{name}' eliminada en fecha {date}",
@@ -1009,7 +1010,6 @@
                     "empty": "Vaciar"
                 }
             }
-        
         },
         "recycle-bins": {
             "title": "Papelera de reciclaje",
@@ -1017,7 +1017,7 @@
                 "title": "No hay elementos eliminados de este usuario",
                 "subtitle": "Mueve los elementos que no necesites a la papelera de reciclaje. Se eliminarán definitivamente después de {time}."
             },
-            "table-header" : {
+            "table-header": {
                 "id": "Id",
                 "accessed": "Eliminado en fecha",
                 "size": "Tamaño",
@@ -1026,8 +1026,8 @@
                 "agent-name": "Eliminado por",
                 "status": "Estado",
                 "desktops": "Escritorios",
-                "templates":"Plantillas",
-                "deployments":"Despliegues",
+                "templates": "Plantillas",
+                "deployments": "Despliegues",
                 "actions": "Acciones"
             },
             "status": {
@@ -1062,7 +1062,6 @@
             "description": "Requiere una dirección de correo electrónico verificada por IsardVDI",
             "reset-password": "Reestablecer contraseña"
         }
-        
     },
     "messages": {
         "title": {
@@ -1254,9 +1253,10 @@
         "password_uppercase": "La contraseña debe tener al menos {num} caracter(es) en mayúscula",
         "password_lowercase": "La contraseña debe tener al menos {num} caracter(es) en minúscula",
         "password_digits": "La contraseña debe tener al menos {num} número(s)",
-        "password_special_characters":  "La contraseña debe tener al menos {num} caracter(es) especiales: !@#$%^&*()-_=+[]{}|;:'\",.<>/?",
+        "password_special_characters": "La contraseña debe tener al menos {num} caracter(es) especiales: !@#$%^&*()-_=+[]{}|;:'\",.<>/?",
         "password_already_used": "Esta contraseña ya se ha utilizado anteriormente",
-        "password_username": "La contraseña no puede contener el nombre de usuario"
+        "password_username": "La contraseña no puede contener el nombre de usuario",
+        "wrong_password_entered": "Contraseña incorrecta"
     },
     "router": {
         "titles": {
@@ -1285,7 +1285,8 @@
             "storage": "Almacenamiento",
             "edit-deployment": "Editar despliegue",
             "recycleBins": "Papelera de reciclaje",
-            "password": "Cambiar contraseña"
+            "password": "Cambiar contraseña",
+            "recycleBin": "Papelera de reciclaje"
         }
     },
     "message-modal": {
