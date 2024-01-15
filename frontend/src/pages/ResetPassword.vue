@@ -13,12 +13,12 @@
         </h4>
 
         <p
-          v-if="!route.query.token"
+          v-if="!route.query.token && showUpdatePasswordForm"
           class="text-danger"
         >
           {{ $t(`forms.password.modal.warning`) }}
         </p>
-        <UpdatePasswordForm />
+        <UpdatePasswordForm v-if="showUpdatePasswordForm" />
         <b-row>
           <b-col cols="12">
             <b-alert
@@ -40,6 +40,7 @@
             {{ $t(`views.maintenance.go-login`) }}
           </b-button>
           <b-button
+            v-if="showUpdatePasswordForm"
             type="submit"
             size="md"
             class="btn-green rounded-pill mt-2 ml-2 mr-5"
@@ -72,6 +73,7 @@ export default {
     const passwordConfirmation = computed(() => $store.getters.getPasswordConfirmation)
 
     const updatePasswordButtonDisabled = ref(false)
+    const showUpdatePasswordForm = ref(true)
 
     onMounted(() => {
       if (StringUtils.isNullOrUndefinedOrEmpty(localStorage.token) && !route.query.token) {
@@ -103,9 +105,12 @@ export default {
         return
       }
       $store.dispatch('resetPassword', { token: route.query.token ? route.query.token : localStorage.token, password: password.value }).then(() => {
+        showUpdatePasswordForm.value = false
+        $store.dispatch('resetPasswordState')
         localStorage.removeItem('token')
         showAlert()
       }).catch((e) => {
+        showUpdatePasswordForm.value = true
         ErrorUtils.showErrorMessage(context.root.$snotify, e)
         updatePasswordButtonDisabled.value = false
       })
@@ -128,7 +133,7 @@ export default {
       $store.dispatch('logout')
     }
 
-    return { password, passwordConfirmation, v$, submitForm, route, countDownChanged, dismissCountDown, updatePasswordButtonDisabled, logout }
+    return { password, passwordConfirmation, v$, submitForm, route, countDownChanged, dismissCountDown, updatePasswordButtonDisabled, logout, showUpdatePasswordForm }
   }
 }
 </script>

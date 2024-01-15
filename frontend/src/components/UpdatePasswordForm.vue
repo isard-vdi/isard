@@ -84,6 +84,9 @@
             <li v-if="passwordPolicy.not_username">
               {{ $t('errors.password_username') }}
             </li>
+            <li v-if="passwordPolicy.old_passwords">
+              {{ $t('errors.old_passwords', { num: passwordPolicy.old_passwords }) }}
+            </li>
           </ul>
         </b-alert>
       </b-col>

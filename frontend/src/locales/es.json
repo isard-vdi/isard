@@ -1286,7 +1286,8 @@
         "wrong_password_entered": "Contraseña incorrecta",
         "not_verified": "La dirección de correo no ha sido validada",
         "user_not_found": "No existe ningún usuario con el correo electrónico proporcionado",
-        "invalid_token": "Token no válido"
+        "invalid_token": "Token no válido",
+        "old_passwords": "La contraseña actual no puede ser ninguna de las últimas {num} contraseñas"
     },
     "router": {
         "titles": {

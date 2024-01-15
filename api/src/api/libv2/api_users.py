@@ -1706,9 +1706,13 @@ class ApiUsers:
         if not policy["expiration"] or policy["expiration"] == 0:
             return False
         return (
-            datetime.fromtimestamp(user["password_last_updated"])
-            + timedelta(days=policy["expiration"])
-            < datetime.now()
+            True
+            if not user["password_last_updated"]
+            else (
+                datetime.fromtimestamp(user["password_last_updated"])
+                + timedelta(days=policy["expiration"])
+                < datetime.now()
+            )
         )
 
     def verify_password(self, user_id, password):

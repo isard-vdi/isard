@@ -1197,7 +1197,8 @@
         "wrong_password_entered": "La contrasenya introduïda és incorrecta",
         "not_verified": "L'adreça de correu no ha estat validada",
         "user_not_found": "No existeix cap usuari amb el correu electrònic proporcionat",
-        "invalid_token": "Token no vàlid"
+        "invalid_token": "Token no vàlid",
+        "old_passwords": "L'última contrasenya no pot ser cap de les últimes {num} contrasenyes"
     },
     "messages": {
         "title": {
