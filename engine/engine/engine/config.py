@@ -3,9 +3,6 @@
 #      Josep Maria Viñolas Auquer
 # License: AGPLv3
 
-# /bin/python3
-# coding=utf-8
-
 import os
 import sys
 import time
@@ -37,7 +34,7 @@ while not table_exists:
     except:
         if first_loop is True:
             print(
-                "ENGINE START PENDING: Missing database isard. Run webapp and access to http://localhost:5000 or https://localhost on dockers."
+                "ENGINE START PENDING: Missing database isard. Waiting for database to be populated and online."
             )
             first_loop = False
             fail_first_loop = True

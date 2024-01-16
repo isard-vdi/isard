@@ -14,12 +14,9 @@ from logging.handlers import RotatingFileHandler
 from subprocess import check_output
 
 from flask import Flask
-
-## Moved populate & upgrade from webapp
 from initdb.populate import Populate
 
 check_output(("/isard/generate_certs.sh"), text=True).strip()
-
 try:
     p = Populate()
 except Exception as e:
