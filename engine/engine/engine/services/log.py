@@ -3,9 +3,7 @@
 #      Josep Maria Viñolas Auquer
 #      Daniel Criado Casas
 # License: AGPLv3
-# coding=utf-8
 
-# import coloredlogs
 import logging as log
 import os.path
 

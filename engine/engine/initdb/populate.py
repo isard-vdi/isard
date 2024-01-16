@@ -3,15 +3,11 @@
 #      Alberto Larraz Dalmases
 # License: AGPLv3
 
-# !/usr/bin/env python
-# coding=utf-8
-
 import json
 import sys
 import time
 import traceback
 import uuid
-from string import ascii_lowercase, digits
 
 from rethinkdb import r
 

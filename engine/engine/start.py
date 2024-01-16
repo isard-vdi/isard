@@ -1,11 +1,5 @@
 from engine.services.lib.debug import check_if_debugging
-from engine.services.lib.status import disk_balancer_type, virt_balancer_type
-from engine.services.lib.telegram import telegram_send_thread
 
-telegram_send_thread(
-    "STARTING",
-    f"------------------------\nWARNING: Engine is starting now...\n - virt_balancer_type: {virt_balancer_type}\n - disk_balancer_type: {disk_balancer_type}",
-)
 check_if_debugging()
 
 import logging
@@ -14,18 +8,23 @@ from logging.handlers import RotatingFileHandler
 from subprocess import check_output
 
 from flask import Flask
-
-## Moved populate & upgrade from webapp
 from initdb.populate import Populate
 
 check_output(("/isard/generate_certs.sh"), text=True).strip()
-
 try:
     p = Populate()
 except Exception as e:
     print(traceback.format_exc())
     print("Error populating...")
     exit(1)
+
+from engine.services.lib.status import disk_balancer_type, virt_balancer_type
+from engine.services.lib.telegram import telegram_send_thread
+
+telegram_send_thread(
+    "STARTING",
+    f"------------------------\nWARNING: Engine is starting now...\n - virt_balancer_type: {virt_balancer_type}\n - disk_balancer_type: {disk_balancer_type}",
+)
 
 from initdb.upgrade import Upgrade
 
