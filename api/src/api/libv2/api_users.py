@@ -1799,7 +1799,7 @@ class Password(object):
                 + str(policy["length"])
                 + " characters long",
                 description_code="password_character_length",
-                params={"num": str(policy["length"])},
+                params={"num": policy["length"]},
             )
 
         if policy["uppercase"] > 0 and not any(char.isupper() for char in password):
@@ -1809,7 +1809,7 @@ class Password(object):
                 + str(policy["uppercase"])
                 + " uppercase characters",
                 description_code="password_uppercase",
-                params={"num": str(policy["uppercase"])},
+                params={"num": policy["uppercase"]},
             )
 
         if policy["lowercase"] > 0 and not any(char.islower() for char in password):
@@ -1819,7 +1819,7 @@ class Password(object):
                 + str(policy["lowercase"])
                 + " lowercase characters",
                 description_code="password_lowercase",
-                params={"num": str(policy["lowercase"])},
+                params={"num": policy["lowercase"]},
             )
 
         if policy["digits"] > 0 and not any(char.isdigit() for char in password):
@@ -1827,7 +1827,7 @@ class Password(object):
                 "bad_request",
                 "Password must have at least " + str(policy["digits"]) + " numbers",
                 description_code="password_digits",
-                params={"num": str(policy["digits"])},
+                params={"num": policy["digits"]},
             )
 
         special_characters = "!@#$%^&*()-_=+[]{}|;:'\",.<>/?"
@@ -1840,7 +1840,7 @@ class Password(object):
                 + str(policy["special_characters"])
                 + " special characters: !@#$%^&*()-_=+[]{}|;:'\",.<>/?",
                 description_code="password_special_characters",
-                params={"num": str(policy["special_characters"])},
+                params={"num": policy["special_characters"]},
             )
 
         if user_id:  # new users do not have user_id
