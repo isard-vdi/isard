@@ -66,7 +66,7 @@ stages:
 
 commit-lint:
   stage: lint
-  image: node:18.17
+  image: node:lts
   before_script:
     - npm install -g @commitlint/config-conventional
   script:
@@ -130,7 +130,7 @@ gen-protobuf:
 
 version:
   stage: generate
-  image: node:18.17
+  image: node:lts
   rules:
     # semantic-release checks repository write access and we cannot use
     # GITLAB_TOKEN in unprotected branches due to security reasons.
@@ -149,7 +149,7 @@ changelog-preview:
   # This is a workarround to show changelog preview without semantic-release
   # see comment in job "version".
   stage: generate
-  image: node:18.17
+  image: node:lts
   before_script:
     - npm install -g conventional-changelog-cli conventional-changelog-conventionalcommits@6
   script:
@@ -329,7 +329,7 @@ docker-tag:
 
 release:
   stage: release
-  image: node:18.17
+  image: node:lts
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   script:
