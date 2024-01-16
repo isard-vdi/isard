@@ -6,15 +6,30 @@ import (
 )
 
 type Err struct {
-	Err             string `json:"error"`
-	Msg             string `json:"msg"`
-	Description     string `json:"description,omitempty"`
-	DescriptionCode string `json:"description_code,omitempty"`
-	StatusCode      int    `json:"-"`
+	Err             string  `json:"error"`
+	Msg             string  `json:"msg"`
+	Description     *string `json:"description,omitempty"`
+	DescriptionCode *string `json:"description_code,omitempty"`
+	StatusCode      int     `json:"-"`
+	Params          *map[string]interface{}
 }
 
 func (e Err) Error() string {
-	return fmt.Sprintf("http status code %d: %s: %s: %s: %s", e.StatusCode, e.Err, e.Msg, e.DescriptionCode, e.Description)
+	msg := fmt.Sprintf("http status code: %d: %s: %s", e.StatusCode, e.Err, e.Msg)
+
+	if e.DescriptionCode != nil {
+		msg += fmt.Sprintf(": %s", *e.DescriptionCode)
+	}
+
+	if e.Description != nil {
+		msg += fmt.Sprintf(": %s", *e.Description)
+	}
+
+	if e.Params != nil {
+		msg += fmt.Sprintf(": %+v", *e.Params)
+	}
+
+	return msg
 }
 
 func (e Err) Is(target error) bool {

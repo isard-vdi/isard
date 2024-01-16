@@ -18,4 +18,41 @@ func TestErrors(t *testing.T) {
 
 	assert.NoError(err)
 	assert.True(errors.Is(workingErr, isardvdi.ErrNotFound))
+
+	const BadRequest = `{
+  "data": "",
+  "debug": "",
+  "description": "Password must be at least 8 characters long",
+  "description_code": "password_character_length",
+  "error": "bad_request",
+  "function": "",
+  "function_call": "",
+  "msg": "Bad request",
+  "params": {
+    "num": 8
+  },
+  "request": ""
+}`
+
+	workingErr = isardvdi.Err{}
+	err = json.Unmarshal([]byte(BadRequest), &workingErr)
+
+	assert.NoError(err)
+
+	assert.True(errors.Is(workingErr, isardvdi.ErrBadRequest))
+
+	expectedDescriptionCode := "password_character_length"
+	expectedDescription := "Password must be at least 8 characters long"
+	expectedParams := map[string]interface{}{
+		"num": float64(8),
+	}
+	expectedErr := isardvdi.Err{
+		Err:             "bad_request",
+		Msg:             "Bad request",
+		DescriptionCode: &expectedDescriptionCode,
+		Description:     &expectedDescription,
+		Params:          &expectedParams,
+	}
+
+	assert.Equal(expectedErr, workingErr)
 }
