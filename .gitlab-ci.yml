@@ -23,6 +23,7 @@ variables:
   # `/certs/client` to share between the service and job
   # container, thanks to volume mount from config.toml
   DOCKER_HOST: tcp://docker:2376
+  DOCKER_VERSION: "23"
   DOCKER_TLS_CERTDIR: "/certs"
   FF_NETWORK_PER_BUILD: 1
 
@@ -98,10 +99,10 @@ check-protobuf:
     - buf breaking --against https://gitlab.com/isard/isardvdi.git
 
 docker-image-codegen:
-  image: docker:latest
+  image: "docker:${DOCKER_VERSION}"
   stage: build-codegen
   services:
-    - name: "docker:dind-rootless"
+    - name: "docker:${DOCKER_VERSION}-dind-rootless"
   parallel:
     matrix:
       - DOCKERFILE: docker/codegen/Dockerfile
@@ -116,9 +117,9 @@ docker-image-codegen:
 
 gen-protobuf:
   stage: generate
-  image: docker:latest
+  image: "docker:${DOCKER_VERSION}"
   services:
-    - name: "docker:dind-rootless"
+    - name: "docker:${DOCKER_VERSION}-dind-rootless"
   before_script:
     - until docker info; do sleep 1; done
   script:
@@ -160,9 +161,9 @@ changelog-preview:
 
 docker-compose-build:
   stage: generate
-  image: docker:23
+  image: "docker:${DOCKER_VERSION}"
   services:
-    - name: "docker:dind-rootless"
+    - name: "docker:${DOCKER_VERSION}-dind-rootless"
   before_script:
     - apk add bash git docker-compose yq
   script:
@@ -206,10 +207,10 @@ unit-test-go:
   coverage: /total:\s+\(statements\)\s+\d+.\d+%/
 
 docker-image:
-  image: docker:latest
+  image: "docker:${DOCKER_VERSION}"
   stage: build
   services:
-    - name: "docker:dind-rootless"
+    - name: "docker:${DOCKER_VERSION}-dind-rootless"
   parallel:
     matrix:
       - DOCKER_COMPOSE: build
