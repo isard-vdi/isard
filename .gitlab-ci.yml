@@ -160,7 +160,7 @@ changelog-preview:
 
 docker-compose-build:
   stage: generate
-  image: docker:latest
+  image: docker:23
   services:
     - name: "docker:dind-rootless"
   before_script:
