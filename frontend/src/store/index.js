@@ -186,9 +186,10 @@ export default new Vuex.Store({
       })
       const provider = JSON.parse(atob(getCookie('authorization').split('.')[1])).provider
       const categoryId = JSON.parse(atob(getCookie('authorization').split('.')[1])).category_id
+      const username = JSON.parse(atob(getCookie('authorization').split('.')[1])).username
       await registerAxios.post(`${apiV3Segment}/user/register`, data).then(response => {
         return new Promise((resolve, reject) => {
-          registerAxios.post(`${authenticationSegment}/login?provider=${provider}&category_id=${categoryId}`, data, { timeout: 25000 }).then(response => {
+          registerAxios.post(`${authenticationSegment}/login?provider=${provider}&category_id=${categoryId}&username=${username}`, data, { timeout: 25000 }).then(response => {
             store.dispatch('loginSuccess', response.data)
             resolve()
           }).catch(e => {
