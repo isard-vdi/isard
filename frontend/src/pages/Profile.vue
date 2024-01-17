@@ -47,13 +47,10 @@
                           <h5 class="text-medium-gray">
                             {{ profile.username }}
                           </h5>
-                          <div
-                            v-if="profile.provider === 'local'"
-                            class="pt-1"
-                          >
+                          <template v-if="profile.provider === 'local'">
                             <PasswordModal />
                             <b-button
-                              class="rounded-pill mr-2 pl-2 pr-3 btn-dark-blue"
+                              class="rounded-pill mx-1 pr-3 btn-dark-blue"
                               :title="$t('components.profile.change-password')"
                               @click="showPasswordModal(true)"
                             >
@@ -63,7 +60,21 @@
                               />
                               {{ $t('components.profile.change-password') }}
                             </b-button>
-                          </div>
+                          </template>
+                          <span>
+                            <b-button
+                              v-if="profile.userStorage.tokenWeb !== false"
+                              class="rounded-pill btn-green mx-1 pr-3"
+                              :title="$t('components.profile.info.user-storage')"
+                              :href="profile.userStorage.tokenWeb"
+                              target="_blank"
+                            >
+                              <b-icon
+                                icon="hdd"
+                              />
+                              {{ $t('components.profile.info.user-storage') }}
+                            </b-button>
+                          </span>
                           <b-row class="text-left">
                             <b-col xl="12">
                               <b-row>
@@ -135,20 +146,6 @@
                                 <b-col>
                                   <h6 class="mt-4">
                                     {{ profile.group }}
-                                  </h6>
-                                </b-col>
-                              </b-row>
-                              <b-row
-                                v-if="profile.userStorage && (profile.userStorage.tokenWeb !== false)"
-                              >
-                                <b-col>
-                                  <h6 class="font-weight-bold mt-4">
-                                    {{ $t('components.profile.info.user-storage') }}
-                                  </h6>
-                                </b-col>
-                                <b-col>
-                                  <h6 class="mt-4">
-                                    <a :href="profile.userStorage.tokenWeb">{{ profile.userStorage.tokenWeb }}</a>
                                   </h6>
                                 </b-col>
                               </b-row>

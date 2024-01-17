@@ -7,7 +7,11 @@ const getDefaultState = () => {
   return {
     profile: {
       quota: {},
-      used: {}
+      used: {},
+      userStorage: {
+        tokenWeb: false,
+        providerQuota: false
+      }
     },
     modalShow: false,
     password: '',
