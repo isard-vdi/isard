@@ -20,12 +20,18 @@
                  <div class="x_content">
                     <input id="id" hidden/>
                     <div class="item form-group">
-                       <label class="control-label col-md-3 col-sm-3 col-xs-12" for="url">URL <span class="required">*</span>
-                       </label>
-                       <div class="col-md-6 col-sm-6 col-xs-12">
-                          <input id="url" class="form-control col-md-7 col-xs-12" parsley-trigger="change" parsley-type="url"  name="url" placeholder="http://" required="required" type="text">
-                       </div>
-                    </div>
+                     <label class="control-label col-md-3 col-sm-3 col-xs-12" for="url">
+                        <i class="fa fa-question-circle" aria-hidden="true"
+                           title='- Start with "https://" (http is not valid)&#10;- Make sure the URL contains a valid ".iso" filename.'>
+                        </i>
+                        URL <span class="required">*</span>
+                     </label>
+                     <div class="col-md-6 col-sm-6 col-xs-12">
+                        <input id="url" class="form-control col-md-7 col-xs-12"
+                           pattern="^https:\/\/[a-zA-Z0-9.-_~:/?#[\]@!$&'()*+,;=%]+(?:\/[a-zA-Z0-9.-_~:/?#[\]@!$&'()*+,;=%]+)*(?:\/)?[^\s?#]+(?:\?.*)?$"                           "
+                           parsley-trigger="change" parsley-type="url" name="url" placeholder="https://" required="required" type="text">
+                     </div>
+                 </div>
                  
                     <div class="item form-group">
                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">Name <span class="required">*</span>

@@ -162,6 +162,7 @@ import { required, minLength, maxLength, url } from '@vuelidate/validators'
 import { map } from 'lodash'
 import i18n from '@/i18n'
 const inputFormat = value => /^[-_àèìòùáéíóúñçÀÈÌÒÙÁÉÍÓÚÑÇ .a-zA-Z0-9]+$/.test(value)
+const URLFormat = value => /^https:\/\/[a-zA-Z0-9.-_~:/?#[\]@!$&'()*+,;=%]+(?:\/[a-zA-Z0-9.-_~:/?#[\]@!$&'()*+,;=%]+)*(?:\/)?[^\s?#]+(?:\?.*)?$/.test(value)
 
 export default {
   components: {
@@ -190,7 +191,8 @@ export default {
     const v$ = useVuelidate({
       mediaUrl: {
         required,
-        url
+        url,
+        URLFormat
       },
       type: {
         required
