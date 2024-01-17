@@ -537,23 +537,55 @@ func (a *AuthenticationServer) ResetPassword(ctx context.Context, req *oasAuthen
 
 		var apiErr isardvdi.Err
 		if errors.As(err, &apiErr) {
+			// Extract the extra description_code and params from the error
+			var (
+				descCode oasAuthentication.OptResetPasswordErrorDescrpitionCode
+				params   oasAuthentication.OptResetPasswordErrorParams
+			)
+
+			if apiErr.DescriptionCode != nil {
+				var code oasAuthentication.ResetPasswordErrorDescrpitionCode
+				// Only set the code if there's no error unmarshaling it
+				if err := code.UnmarshalText([]byte(*apiErr.DescriptionCode)); err == nil {
+					descCode = oasAuthentication.NewOptResetPasswordErrorDescrpitionCode(code)
+				}
+			}
+
+			if apiErr.Params != nil {
+				params = oasAuthentication.NewOptResetPasswordErrorParams(oasAuthentication.ResetPasswordErrorParams{})
+				rawNum, ok := (*apiErr.Params)["num"]
+				if ok {
+					num, ok := rawNum.(float64)
+					if ok {
+						params.Value.Num = oasAuthentication.NewOptFloat64(num)
+					}
+				}
+			}
+
+			// Handle the error
 			if errors.Is(err, isardvdi.ErrBadRequest) {
 				return &oasAuthentication.ResetPasswordBadRequest{
-					Error: oasAuthentication.ResetPasswordErrorErrorBadRequest,
-					Msg:   "bad request",
+					Error:           oasAuthentication.ResetPasswordErrorErrorBadRequest,
+					DescrpitionCode: descCode,
+					Params:          params,
+					Msg:             "bad request",
 				}, nil
 			}
 
 			if errors.Is(err, isardvdi.ErrInternalServer) {
 				return &oasAuthentication.ResetPasswordInternalServerError{
-					Error: oasAuthentication.ResetPasswordErrorErrorInternalServer,
-					Msg:   "api error",
+					Error:           oasAuthentication.ResetPasswordErrorErrorInternalServer,
+					DescrpitionCode: descCode,
+					Params:          params,
+					Msg:             "api error",
 				}, nil
 			}
 
 			return &oasAuthentication.ResetPasswordInternalServerError{
-				Error: oasAuthentication.ResetPasswordErrorErrorInternalServer,
-				Msg:   "unknown api error",
+				Error:           oasAuthentication.ResetPasswordErrorErrorInternalServer,
+				DescrpitionCode: descCode,
+				Params:          params,
+				Msg:             "unknown api error",
 			}, nil
 		}
 
