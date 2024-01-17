@@ -561,6 +561,12 @@ def get_usage_groupings_dropdown():
     return groupings
 
 
+def get_usage_grouping(grouping_id):
+    with app.app_context():
+        grouping = r.table("usage_grouping").get(grouping_id).run(db.conn)
+    return grouping
+
+
 def add_usage_grouping(data):
     with app.app_context():
         r.table("usage_grouping").insert(data).run(db.conn)
