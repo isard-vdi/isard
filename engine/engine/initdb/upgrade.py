@@ -19,7 +19,8 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 116
+release_version = 117
+# release 117: Remove computed usage totals
 # release 116: Add new password parameters to users
 # release 115: Add role index to users
 # release 114: Fix domains and deployments with isos as string
@@ -152,6 +153,7 @@ tables = [
     "logs_desktops",
     "user_storage",
     "usage_parameter",
+    "usage_consumption",
     "secrets",
     "recycle_bin",
 ]
@@ -4497,6 +4499,22 @@ class Upgrade(object):
         if version == 105:
             try:
                 r.table(table).get("str_created").update({"units": ""}).run(self.conn)
+            except Exception as e:
+                print(e)
+        return True
+
+    """
+    USAGE CONSUMPTION TABLE UPGRADES
+    """
+
+    def usage_consumption(self, version):
+        table = "usage_consumption"
+        log.info("UPGRADING " + table + " TABLE TO VERSION " + str(version))
+        if version == 117:
+            try:
+                r.table(table).get_all("_total_", index="item_id").delete().run(
+                    self.conn
+                )
             except Exception as e:
                 print(e)
         return True
