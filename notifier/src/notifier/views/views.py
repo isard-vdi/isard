@@ -23,11 +23,12 @@ from flask import render_template
 from html_sanitizer import Sanitizer
 from isardvdi_common.api_exceptions import Error
 from isardvdi_common.task import Task
+from jinja2.exceptions import TemplateNotFound
 from spectree import Response
 
 from notifier import api, app
 
-from ..lib.api_actions import get_user
+from ..lib.api_actions import get_notification_message, get_user
 from ..schemas import notifier
 from .decorators import is_admin
 
@@ -106,16 +107,14 @@ def email_verify(payload, json: notifier.NotifyEmailVerifyMailRequest):
                 {link}\n""".format(
         link=json.url
     )
-    email_content = """<p>Please verify your email address by clicking on the following button:</p>
-                        <a href="{link}" class="btn btn-primary">Verify email</a>
-                        <p>This button can only be used once and it's valid for 1 hour.</p>
-                    """.format(
-        link=json.url
+    # TODO: get user_id and maybe change to a generic endpoint?
+    email_content = get_notification_message(
+        {"user_id": None, "event": "email-verify", "data": {"url": json.url}}
     )
     email_html = render_template(
         "email/base.html",
-        email_content=sanitizer.sanitize(email_content),
-        email_footer="Please do not answer since this email has been automatically generated.",
+        email_content=sanitizer.sanitize(email_content["body"]),
+        email_footer=email_content["footer"],
     )
     task_id = Task(
         queue="notifier.default",
@@ -123,7 +122,7 @@ def email_verify(payload, json: notifier.NotifyEmailVerifyMailRequest):
         job_kwargs={
             "kwargs": {
                 "address": [json.email],
-                "subject": "Verify IsardVDI email",
+                "subject": email_content["title"],
                 "text": text,
                 "html": email_html,
             },
@@ -156,17 +155,14 @@ def password_reset(payload, json: notifier.NotifyPasswordResetMailRequest):
                 {link}\n""".format(
         link=json.url
     )
-    email_content = """<p>We've received your password reset request to access IsardVDI. Click on the following button to set a new password:</p>
-                        <a href="{link}" class="btn btn-primary">Set password</a>
-                        <p>This button can only be used once and it's valid for 24 hours.</p>
-                        <p>If you did not initiate this request, you may safely ignore this message.</p>
-                    """.format(
-        link=json.url
+    # TODO: get user_id and maybe change to a generic endpoint?
+    email_content = get_notification_message(
+        {"user_id": None, "event": "password-reset", "data": {"url": json.url}}
     )
     email_html = render_template(
         "email/base.html",
-        email_content=sanitizer.sanitize(email_content),
-        email_footer="Please do not answer since this email has been automatically generated.",
+        email_content=sanitizer.sanitize(email_content["body"]),
+        email_footer=email_content["footer"],
     )
     task_id = Task(
         queue="notifier.default",
@@ -174,7 +170,7 @@ def password_reset(payload, json: notifier.NotifyPasswordResetMailRequest):
         job_kwargs={
             "kwargs": {
                 "address": [json.email],
-                "subject": "Reset IsardVDI password",
+                "subject": email_content["title"],
                 "text": text,
                 "html": email_html,
             },

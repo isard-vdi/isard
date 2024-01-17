@@ -38,3 +38,15 @@ def get_user(user_id):
             "Exception when retrieving user data from user" + user_id,
             traceback.format_exc(),
         )
+
+
+def get_notification_message(data):
+    try:
+        message = api_client.put("/admin/notification/template", data)
+        return message
+    except:
+        raise Error(
+            "internal_server",
+            "Exception when retrieving notification template",
+            traceback.format_exc(),
+        )

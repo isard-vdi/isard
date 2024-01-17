@@ -23,6 +23,8 @@ from spectree import SpecTree
 print("Starting notifier...")
 
 app = Flask(__name__, template_folder="templates")
+app.config["TEMPLATES_AUTO_RELOAD"] = True
+
 app_bp = Blueprint("notifier", __name__)
 app.register_blueprint(app_bp, url_prefix="/notifier/api/v1")
 api = SpecTree("flask", annotations=True, title="Notifier API", version="v1.0")
