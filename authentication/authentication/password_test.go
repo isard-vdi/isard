@@ -114,6 +114,7 @@ func TestResetPassword(t *testing.T) {
 
 	cases := map[string]struct {
 		PrepareAPI   func(*apiMock.Client)
+		PrepareDB    func(*r.Mock)
 		PrepareToken func() string
 		Password     string
 		ExpectedErr  string
@@ -121,6 +122,13 @@ func TestResetPassword(t *testing.T) {
 		"should work as expected with a login token": {
 			PrepareAPI: func(c *apiMock.Client) {
 				c.On("AdminUserResetPassword", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", "f0kt3Rf").Return(nil)
+			},
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("users").Get("08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Update(map[string]interface{}{
+					"password_reset_token": "",
+				})).Return(r.WriteResponse{
+					Updated: 1,
+				}, nil)
 			},
 			PrepareToken: func() string {
 				now := float64(time.Now().Unix())
@@ -150,6 +158,19 @@ func TestResetPassword(t *testing.T) {
 			PrepareAPI: func(c *apiMock.Client) {
 				c.On("AdminUserResetPassword", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", "f0kt3Rf").Return(nil)
 			},
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("users").Filter(r.And(
+					r.Eq(r.Row.Field("id"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"),
+					r.Eq(r.Row.Field("password_reset_token"), r.MockAnything()),
+				))).Return(map[string]interface{}{
+					"id": "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+				}, nil)
+				m.On(r.Table("users").Get("08fff46e-cbd3-40d2-9d8e-e2de7a8da654").Update(map[string]interface{}{
+					"password_reset_token": "",
+				})).Return(r.WriteResponse{
+					Updated: 1,
+				}, nil)
+			},
 			PrepareToken: func() string {
 				ss, err := token.SignPasswordResetToken("", "08fff46e-cbd3-40d2-9d8e-e2de7a8da654")
 				require.NoError(err)
@@ -168,6 +189,14 @@ func TestResetPassword(t *testing.T) {
 
 				c.On("AdminUserResetPassword", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", "weak password :3").Return(err)
 			},
+			PrepareDB: func(m *r.Mock) {
+				m.On(r.Table("users").Filter(r.And(
+					r.Eq(r.Row.Field("id"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654"),
+					r.Eq(r.Row.Field("password_reset_token"), r.MockAnything()),
+				))).Return(map[string]interface{}{
+					"id": "08fff46e-cbd3-40d2-9d8e-e2de7a8da654",
+				}, nil)
+			},
 			PrepareToken: func() string {
 				ss, err := token.SignPasswordResetToken("", "08fff46e-cbd3-40d2-9d8e-e2de7a8da654")
 				require.NoError(err)
@@ -175,7 +204,7 @@ func TestResetPassword(t *testing.T) {
 				return ss
 			},
 			Password:    "weak password :3",
-			ExpectedErr: "http status code 400: bad_request: Bad request: password_special_characters: Password must have at least 1 special characters: !@#$%^&*()-_=+[]{}|;:'\",.<>/?",
+			ExpectedErr: "http status code: 400: bad_request: Bad request: password_special_characters: Password must have at least 1 special characters: !@#$%^&*()-_=+[]{}|;:'\",.<>/?",
 		},
 	}
 
@@ -184,12 +213,17 @@ func TestResetPassword(t *testing.T) {
 			cfg := cfg.New()
 			log := log.New("authentication-test", "debug")
 			apiMock := &apiMock.Client{}
+			dbMock := r.NewMock()
 
 			if tc.PrepareAPI != nil {
 				tc.PrepareAPI(apiMock)
 			}
 
-			a := authentication.Init(cfg, log, nil)
+			if tc.PrepareDB != nil {
+				tc.PrepareDB(dbMock)
+			}
+
+			a := authentication.Init(cfg, log, dbMock)
 			a.Client = apiMock
 
 			err := a.ResetPassword(context.Background(), tc.PrepareToken(), tc.Password)
