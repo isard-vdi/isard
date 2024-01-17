@@ -5,7 +5,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -76,9 +78,97 @@ func Serve(ctx context.Context, wg *sync.WaitGroup, log *zerolog.Logger, addr st
 }
 
 func (a *AuthenticationServer) loginSAML(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		w.Write([]byte("method not allowed"))
+		return
+	}
+
 	// Hijack the URL to ensure the redirect has the correct path
-	r.URL.Path = "/authentication/login"
-	a.Authentication.SAML().HandleStartAuthFlow(w, r)
+	r.URL.Path = "/authentication/saml/login"
+
+	// Get the login parameters
+	var provider oasAuthentication.Providers
+	if err := provider.UnmarshalText([]byte(r.URL.Query().Get("provider"))); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("invalid provider"))
+		return
+	}
+
+	categoryID := r.URL.Query().Get("category_id")
+
+	redirect := oasAuthentication.OptString{}
+	if red := r.URL.Query().Get("redirect"); red != "" {
+		redirect = oasAuthentication.NewOptString(red)
+	}
+
+	var tkn oasAuthentication.OptString
+	c, _ := r.Cookie("token")
+	if c != nil {
+		tkn = oasAuthentication.NewOptString(c.Value)
+	}
+
+	// Ensure the user has logged in through SAML
+	a.Authentication.SAML().RequireAccount(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Call the login function with the correct parameters
+		rsp, err := a.Login(r.Context(), oasAuthentication.OptLoginRequestMultipart{}, oasAuthentication.LoginParams{
+			Provider:   provider,
+			CategoryID: categoryID,
+			Redirect:   redirect,
+			Token:      tkn,
+		})
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(err.Error()))
+			return
+		}
+
+		switch t := rsp.(type) {
+		case *oasAuthentication.LoginFound:
+			w.Header().Add("Authorization", t.Authorization)
+
+			if t.SetCookie.Set {
+				c := &http.Cookie{
+					Name:    "authorization",
+					Path:    "/",
+					Value:   t.SetCookie.Value,
+					Secure:  true,
+					Expires: time.Now().Add(5 * time.Minute),
+				}
+
+				http.SetCookie(w, c)
+			}
+
+			http.Redirect(w, r, t.Location, http.StatusFound)
+			return
+
+		case *oasAuthentication.LoginOKHeaders:
+			w.Header().Add("Authorization", t.Authorization)
+
+			c := &http.Cookie{
+				Name:    "authorization",
+				Path:    "/",
+				Value:   t.SetCookie,
+				Secure:  true,
+				Expires: time.Now().Add(5 * time.Minute),
+			}
+
+			http.SetCookie(w, c)
+
+			w.WriteHeader(http.StatusOK)
+			b, err := io.ReadAll(t.Response.Data)
+			if err == nil {
+				w.Write(b)
+			}
+
+		default:
+			// TODO: This shouldn't really be here...
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("internal server error"))
+			return
+		}
+
+	})).ServeHTTP(w, r)
 }
 
 func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.OptLoginRequestMultipart, params oasAuthentication.LoginParams) (oasAuthentication.LoginRes, error) {
@@ -117,9 +207,20 @@ func (a *AuthenticationServer) Login(ctx context.Context, req oasAuthentication.
 		}
 
 		if _, err := a.Authentication.SAML().Session.GetSession(r); err != nil {
+			// Prepeare the redirection
+			q := url.Values{}
+			q.Add("provider", string(params.Provider))
+			q.Add("category_id", params.CategoryID)
+			if params.Redirect.Set {
+				q.Add("redirect", params.Redirect.Value)
+			}
+
+			u, _ := url.Parse("/authentication/saml/login")
+			u.RawQuery = q.Encode()
+
 			// Redirect to the correct SAML endpoint
 			return &oasAuthentication.LoginFound{
-				Location: "/authentication/saml/login",
+				Location: u.String(),
 			}, nil
 		}
 	}
@@ -249,8 +350,8 @@ func (a *AuthenticationServer) Check(ctx context.Context) (oasAuthentication.Che
 	tkn, ok := ctx.Value(tokenCtxKey).(string)
 	if !ok {
 		return &oasAuthentication.CheckUnauthorized{
-			Type: oasAuthentication.CheckErrorTypeMissingToken,
-			Msg:  "missing JWT token",
+			Error: oasAuthentication.CheckErrorErrorMissingToken,
+			Msg:   "missing JWT token",
 		}, nil
 	}
 
@@ -260,8 +361,8 @@ func (a *AuthenticationServer) Check(ctx context.Context) (oasAuthentication.Che
 		}
 
 		return &oasAuthentication.CheckForbidden{
-			Type: oasAuthentication.CheckErrorTypeInvalidToken,
-			Msg:  err.Error(),
+			Error: oasAuthentication.CheckErrorErrorInvalidToken,
+			Msg:   err.Error(),
 		}, nil
 	}
 
@@ -272,30 +373,30 @@ func (a *AuthenticationServer) AcknowledgeDisclaimer(ctx context.Context, req *o
 	tkn, ok := ctx.Value(tokenCtxKey).(string)
 	if !ok {
 		return &oasAuthentication.AcknowledgeDisclaimerUnauthorized{
-			Type: oasAuthentication.AcknowledgeDisclaimerErrorTypeMissingToken,
-			Msg:  "missing JWT token",
+			Error: oasAuthentication.AcknowledgeDisclaimerErrorErrorMissingToken,
+			Msg:   "missing JWT token",
 		}, nil
 	}
 
 	if err := a.Authentication.AcknowledgeDisclaimer(ctx, tkn); err != nil {
 		if errors.Is(err, token.ErrInvalidToken) || errors.Is(err, token.ErrInvalidTokenType) {
 			return &oasAuthentication.AcknowledgeDisclaimerForbidden{
-				Type: oasAuthentication.AcknowledgeDisclaimerErrorTypeInvalidToken,
-				Msg:  err.Error(),
+				Error: oasAuthentication.AcknowledgeDisclaimerErrorErrorInvalidToken,
+				Msg:   err.Error(),
 			}, nil
 		}
 
 		var dbErr *db.Err
 		if !errors.As(err, &dbErr) {
 			return &oasAuthentication.AcknowledgeDisclaimerInternalServerError{
-				Type: oasAuthentication.AcknowledgeDisclaimerErrorTypeInternalServer,
-				Msg:  "database error",
+				Error: oasAuthentication.AcknowledgeDisclaimerErrorErrorInternalServer,
+				Msg:   "database error",
 			}, nil
 		}
 
 		return &oasAuthentication.AcknowledgeDisclaimerInternalServerError{
-			Type: oasAuthentication.AcknowledgeDisclaimerErrorTypeInternalServer,
-			Msg:  "unknown error",
+			Error: oasAuthentication.AcknowledgeDisclaimerErrorErrorInternalServer,
+			Msg:   "unknown error",
 		}, nil
 	}
 
@@ -306,44 +407,44 @@ func (a *AuthenticationServer) RequestEmailVerification(ctx context.Context, req
 	tkn, ok := ctx.Value(tokenCtxKey).(string)
 	if !ok {
 		return &oasAuthentication.RequestEmailVerificationUnauthorized{
-			Type: oasAuthentication.RequestEmailVerificationErrorTypeMissingToken,
-			Msg:  "missing JWT token",
+			Error: oasAuthentication.RequestEmailVerificationErrorErrorMissingToken,
+			Msg:   "missing JWT token",
 		}, nil
 	}
 
 	if err := a.Authentication.RequestEmailVerification(ctx, tkn, req.Email); err != nil {
 		if errors.Is(err, token.ErrInvalidToken) || errors.Is(err, token.ErrInvalidTokenType) {
 			return &oasAuthentication.RequestEmailVerificationForbidden{
-				Type: oasAuthentication.RequestEmailVerificationErrorTypeInvalidToken,
-				Msg:  err.Error(),
+				Error: oasAuthentication.RequestEmailVerificationErrorErrorInvalidToken,
+				Msg:   err.Error(),
 			}, nil
 		}
 
 		if errors.Is(err, authentication.ErrInvalidEmail) {
 			return &oasAuthentication.RequestEmailVerificationBadRequest{
-				Type: oasAuthentication.RequestEmailVerificationErrorTypeInvalidEmail,
-				Msg:  "invalid email",
+				Error: oasAuthentication.RequestEmailVerificationErrorErrorInvalidEmail,
+				Msg:   "invalid email",
 			}, nil
 		}
 
 		if errors.Is(err, authentication.ErrEmailAlreadyInUse) {
 			return &oasAuthentication.RequestEmailVerificationConflict{
-				Type: oasAuthentication.RequestEmailVerificationErrorTypeEmailAlreadyInUse,
-				Msg:  err.Error(),
+				Error: oasAuthentication.RequestEmailVerificationErrorErrorEmailAlreadyInUse,
+				Msg:   err.Error(),
 			}, nil
 		}
 
 		var dbErr *db.Err
 		if errors.As(err, &dbErr) {
 			return &oasAuthentication.RequestEmailVerificationInternalServerError{
-				Type: oasAuthentication.RequestEmailVerificationErrorTypeInternalServer,
-				Msg:  "database error",
+				Error: oasAuthentication.RequestEmailVerificationErrorErrorInternalServer,
+				Msg:   "database error",
 			}, nil
 		}
 
 		return &oasAuthentication.RequestEmailVerificationInternalServerError{
-			Type: oasAuthentication.RequestEmailVerificationErrorTypeInternalServer,
-			Msg:  "unknown error",
+			Error: oasAuthentication.RequestEmailVerificationErrorErrorInternalServer,
+			Msg:   "unknown error",
 		}, nil
 	}
 
@@ -354,30 +455,30 @@ func (a *AuthenticationServer) VerifyEmail(ctx context.Context, req *oasAuthenti
 	tkn, ok := ctx.Value(tokenCtxKey).(string)
 	if !ok {
 		return &oasAuthentication.VerifyEmailUnauthorized{
-			Type: oasAuthentication.VerifyEmailErrorTypeMissingToken,
-			Msg:  "missing JWT token",
+			Error: oasAuthentication.VerifyEmailErrorErrorMissingToken,
+			Msg:   "missing JWT token",
 		}, nil
 	}
 
 	if err := a.Authentication.VerifyEmail(ctx, tkn); err != nil {
 		if errors.Is(err, token.ErrInvalidToken) || errors.Is(err, token.ErrInvalidTokenType) {
 			return &oasAuthentication.VerifyEmailForbidden{
-				Type: oasAuthentication.VerifyEmailErrorTypeInvalidToken,
-				Msg:  err.Error(),
+				Error: oasAuthentication.VerifyEmailErrorErrorInvalidToken,
+				Msg:   err.Error(),
 			}, nil
 		}
 
 		var dbErr *db.Err
 		if errors.As(err, &dbErr) {
 			return &oasAuthentication.VerifyEmailInternalServerError{
-				Type: oasAuthentication.VerifyEmailErrorTypeInternalServer,
-				Msg:  "database error",
+				Error: oasAuthentication.VerifyEmailErrorErrorInternalServer,
+				Msg:   "database error",
 			}, nil
 		}
 
 		return &oasAuthentication.VerifyEmailInternalServerError{
-			Type: oasAuthentication.VerifyEmailErrorTypeInternalServer,
-			Msg:  "unknown error",
+			Error: oasAuthentication.VerifyEmailErrorErrorInternalServer,
+			Msg:   "unknown error",
 		}, nil
 	}
 
@@ -388,29 +489,29 @@ func (a *AuthenticationServer) ForgotPassword(ctx context.Context, req *oasAuthe
 	if err := a.Authentication.ForgotPassword(ctx, req.CategoryID, req.Email); err != nil {
 		if errors.Is(err, token.ErrInvalidToken) || errors.Is(err, token.ErrInvalidTokenType) {
 			return &oasAuthentication.ForgotPasswordForbidden{
-				Type: oasAuthentication.ForgotPasswordErrorTypeInvalidToken,
-				Msg:  err.Error(),
+				Error: oasAuthentication.ForgotPasswordErrorErrorInvalidToken,
+				Msg:   err.Error(),
 			}, nil
 		}
 
 		if errors.Is(err, authentication.ErrUserNotFound) {
 			return &oasAuthentication.ForgotPasswordNotFound{
-				Type: oasAuthentication.ForgotPasswordErrorTypeUserNotFound,
-				Msg:  "user not found",
+				Error: oasAuthentication.ForgotPasswordErrorErrorUserNotFound,
+				Msg:   "user not found",
 			}, nil
 		}
 
 		var dbErr *db.Err
 		if errors.As(err, &dbErr) {
 			return &oasAuthentication.ForgotPasswordInternalServerError{
-				Type: oasAuthentication.ForgotPasswordErrorTypeInternalServer,
-				Msg:  "database error",
+				Error: oasAuthentication.ForgotPasswordErrorErrorInternalServer,
+				Msg:   "database error",
 			}, nil
 		}
 
 		return &oasAuthentication.ForgotPasswordInternalServerError{
-			Type: oasAuthentication.ForgotPasswordErrorTypeInternalServer,
-			Msg:  "unknown error",
+			Error: oasAuthentication.ForgotPasswordErrorErrorInternalServer,
+			Msg:   "unknown error",
 		}, nil
 	}
 
@@ -421,16 +522,16 @@ func (a *AuthenticationServer) ResetPassword(ctx context.Context, req *oasAuthen
 	tkn, ok := ctx.Value(tokenCtxKey).(string)
 	if !ok {
 		return &oasAuthentication.ResetPasswordUnauthorized{
-			Type: oasAuthentication.ResetPasswordErrorTypeMissingToken,
-			Msg:  "missing JWT token",
+			Error: oasAuthentication.ResetPasswordErrorErrorMissingToken,
+			Msg:   "missing JWT token",
 		}, nil
 	}
 
 	if err := a.Authentication.ResetPassword(ctx, tkn, req.Password); err != nil {
 		if errors.Is(err, token.ErrInvalidToken) || errors.Is(err, token.ErrInvalidTokenType) {
 			return &oasAuthentication.ResetPasswordForbidden{
-				Type: oasAuthentication.ResetPasswordErrorTypeInvalidToken,
-				Msg:  err.Error(),
+				Error: oasAuthentication.ResetPasswordErrorErrorInvalidToken,
+				Msg:   err.Error(),
 			}, nil
 		}
 
@@ -438,27 +539,27 @@ func (a *AuthenticationServer) ResetPassword(ctx context.Context, req *oasAuthen
 		if errors.As(err, &apiErr) {
 			if errors.Is(err, isardvdi.ErrBadRequest) {
 				return &oasAuthentication.ResetPasswordBadRequest{
-					Type: oasAuthentication.ResetPasswordErrorTypeBadRequest,
-					Msg:  "bad request",
+					Error: oasAuthentication.ResetPasswordErrorErrorBadRequest,
+					Msg:   "bad request",
 				}, nil
 			}
 
 			if errors.Is(err, isardvdi.ErrInternalServer) {
 				return &oasAuthentication.ResetPasswordInternalServerError{
-					Type: oasAuthentication.ResetPasswordErrorTypeInternalServer,
-					Msg:  "api error",
+					Error: oasAuthentication.ResetPasswordErrorErrorInternalServer,
+					Msg:   "api error",
 				}, nil
 			}
 
 			return &oasAuthentication.ResetPasswordInternalServerError{
-				Type: oasAuthentication.ResetPasswordErrorTypeInternalServer,
-				Msg:  "unknown api error",
+				Error: oasAuthentication.ResetPasswordErrorErrorInternalServer,
+				Msg:   "unknown api error",
 			}, nil
 		}
 
 		return &oasAuthentication.ResetPasswordInternalServerError{
-			Type: oasAuthentication.ResetPasswordErrorTypeInternalServer,
-			Msg:  "unknown error",
+			Error: oasAuthentication.ResetPasswordErrorErrorInternalServer,
+			Msg:   "unknown error",
 		}, nil
 	}
 

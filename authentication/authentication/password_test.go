@@ -161,8 +161,10 @@ func TestResetPassword(t *testing.T) {
 		"should return an API error if there's an error calling the API": {
 			PrepareAPI: func(c *apiMock.Client) {
 				err := isardvdi.ErrBadRequest
-				err.Description = "Password must have at least 1 special characters: !@#$%^&*()-_=+[]{}|;:'\",.<>/?"
-				err.DescriptionCode = "password_special_characters"
+				description := "Password must have at least 1 special characters: !@#$%^&*()-_=+[]{}|;:'\",.<>/?"
+				err.Description = &description
+				descriptionCode := "password_special_characters"
+				err.DescriptionCode = &descriptionCode
 
 				c.On("AdminUserResetPassword", mock.AnythingOfType("context.backgroundCtx"), "08fff46e-cbd3-40d2-9d8e-e2de7a8da654", "weak password :3").Return(err)
 			},

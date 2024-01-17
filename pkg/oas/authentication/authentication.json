@@ -706,7 +706,7 @@
             },
             "CheckError": {
                 "properties": {
-                    "type": {
+                    "error": {
                         "title": "Error type",
                         "nullable": false,
                         "type": "string",
@@ -722,7 +722,7 @@
                     }
                 },
                 "required": [
-                    "type",
+                    "error",
                     "msg"
                 ],
                 "type": "object"
@@ -737,7 +737,7 @@
             },
             "AcknowledgeDisclaimerError": {
                 "properties": {
-                    "type": {
+                    "error": {
                         "title": "Error type",
                         "nullable": false,
                         "type": "string",
@@ -754,7 +754,7 @@
                     }
                 },
                 "required": [
-                    "type",
+                    "error",
                     "msg"
                 ],
                 "type": "object"
@@ -777,7 +777,7 @@
             },
             "RequestEmailVerificationError": {
                 "properties": {
-                    "type": {
+                    "error": {
                         "title": "Error type",
                         "nullable": false,
                         "type": "string",
@@ -796,7 +796,7 @@
                     }
                 },
                 "required": [
-                    "type",
+                    "error",
                     "msg"
                 ],
                 "type": "object"
@@ -811,7 +811,7 @@
             },
             "VerifyEmailError": {
                 "properties": {
-                    "type": {
+                    "error": {
                         "title": "Error type",
                         "nullable": false,
                         "type": "string",
@@ -828,7 +828,7 @@
                     }
                 },
                 "required": [
-                    "type",
+                    "error",
                     "msg"
                 ],
                 "type": "object"
@@ -856,7 +856,7 @@
             },
             "ForgotPasswordError": {
                 "properties": {
-                    "type": {
+                    "error": {
                         "title": "Error type",
                         "nullable": false,
                         "type": "string",
@@ -874,7 +874,7 @@
                     }
                 },
                 "required": [
-                    "type",
+                    "error",
                     "msg"
                 ],
                 "type": "object"
@@ -897,7 +897,7 @@
             },
             "ResetPasswordError": {
                 "properties": {
-                    "type": {
+                    "error": {
                         "title": "Error type",
                         "nullable": false,
                         "type": "string",
@@ -912,10 +912,37 @@
                         "title": "Error message",
                         "nullable": false,
                         "type": "string"
+                    },
+                    "descrpition_code": {
+                        "title": "Error description code",
+                        "nullable": false,
+                        "type": "string",
+                        "enum": [
+                            "bad_request",
+                            "password_character_length",
+                            "password_uppercase",
+                            "password_lowercase",
+                            "password_digits",
+                            "password_special_characters",
+                            "password_already_used",
+                            "password_username"
+                        ]
+                    },
+                    "params": {
+                        "title": "Error extra parameters",
+                        "nullable": false,
+                        "type": "object",
+                        "properties": {
+                            "num": {
+                                "title": "Number related with the description_code",
+                                "nullable": false,
+                                "type": "number"
+                            }
+                        }
                     }
                 },
                 "required": [
-                    "type",
+                    "error",
                     "msg"
                 ],
                 "type": "object"
