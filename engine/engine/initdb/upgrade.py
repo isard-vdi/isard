@@ -19,7 +19,7 @@ from .log import *
 """ 
 Update to new database release version when new code version release
 """
-release_version = 117
+release_version = 118
 # release 118: Authentication uuid ids and email verification upgrade
 # release 117: Remove computed usage totals
 # release 116: Add new password parameters to users
