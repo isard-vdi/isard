@@ -178,7 +178,11 @@ class ApiUsers:
             if os.environ.get("FRONTEND_SHOW_TEMPORAL") == None
             else os.environ.get("FRONTEND_SHOW_TEMPORAL") == "True"
         )
-        frontend_show_change_email = os.environ.get("NOTIFY_EMAIL") == "True"
+        frontend_show_change_email = os.environ.get(
+            "NOTIFY_EMAIL"
+        ) == "True" and self.get_email_policy(
+            payload["category_id"], payload["role_id"]
+        )
         isard_user_storage_update_user_quota(payload["user_id"])
         return {
             **{
