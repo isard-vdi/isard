@@ -18,6 +18,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import html
 import json
 import logging as log
 import time
@@ -850,6 +851,8 @@ def admin_userschema(payload):
 def admin_users_validate(payload):
     user_list = request.get_json()
     for i, user in enumerate(user_list):
+        for field in user:
+            user[field] = html.escape(str(user[field]))
         user = _validate_item("user_from_csv", user)
 
         if user.get("password"):
