@@ -412,14 +412,38 @@ CONFIG
 """
 
 
-@app.route("/isard-admin/admin/config", methods=["GET"])
+@app.route("/isard-admin/admin/schedulers", methods=["GET"])
 @login_required
-@isAdminManager
-def admin_config():
+@isAdmin
+def admin_schedulers():
     return render_template(
-        "admin/pages/config.html",
-        nav="Config",
-        title="Config",
+        "admin/pages/schedulers.html",
+        nav="Schedulers",
+        title="Schedulers",
+        monitor_host=monitor_host,
+    )
+
+
+@app.route("/isard-admin/admin/notification_tmpls", methods=["GET"])
+@login_required
+@isAdmin
+def admin_notification_tmpls():
+    return render_template(
+        "admin/pages/notification_tmpls.html",
+        nav="Notification templates",
+        title="Notification Templates",
+        monitor_host=monitor_host,
+    )
+
+
+@app.route("/isard-admin/admin/system", methods=["GET"])
+@login_required
+@isAdmin
+def admin_system():
+    return render_template(
+        "admin/pages/system.html",
+        nav="System",
+        title="System",
         monitor_host=monitor_host,
     )
 

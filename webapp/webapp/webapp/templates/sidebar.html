@@ -161,7 +161,13 @@
           </ul>
         </li>
         <li><a href="/isard-admin/admin/updates"><i class="fa fa-cloud-download"></i> Downloads</a></li>
-        <li><a href="/isard-admin/admin/config"><i class="fa fa-gear"></i> Config</span></a></li>
+        <li><a><i class="fa fa-gear"></i> Config<span class="fa fa-chevron-down"></span></a>
+          <ul class="nav child_menu">
+            <li><a href="/isard-admin/admin/schedulers"><i class="fa fa-clock-o"></i> Schedulers</a></li>
+            <!-- <li><a href="/isard-admin/admin/notification_tmpls"><i class="fa fa-edit"></i> Notification Templates</a></li> -->
+            <li><a href="/isard-admin/admin/system"><i class="fa fa-cogs"></i> System</a></li>
+          </ul>
+        </li>
       </ul>
     {% endif %}
 
