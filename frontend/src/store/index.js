@@ -184,7 +184,11 @@ export default new Vuex.Store({
         config.headers.Authorization = `Bearer ${getCookie('authorization')}`
         return config
       })
-      const provider = JSON.parse(atob(getCookie('authorization').split('.')[1])).provider
+
+      let provider = JSON.parse(atob(getCookie('authorization').split('.')[1])).provider
+      if (provider === 'local' || provider === 'ldap') {
+        provider = 'form'
+      }
       const categoryId = JSON.parse(atob(getCookie('authorization').split('.')[1])).category_id
       const username = JSON.parse(atob(getCookie('authorization').split('.')[1])).username
       await registerAxios.post(`${apiV3Segment}/user/register`, data).then(response => {
