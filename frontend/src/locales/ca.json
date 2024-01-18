@@ -540,7 +540,7 @@
                     "delete": "Esborrar desplegament"
                 },
                 "body": {
-                    "text":  "Aquesta acció és irreversible i es perdran totes les dades associades.",
+                    "text": "Aquesta acció és irreversible i es perdran totes les dades associades.",
                     "send-to-recycle-bin": "Enviar desplegament a la paperera de reciclatge (l'emmagatzematge continuarà comptant a la quota d'usuari fins que s'esborri definitivament)."
                 },
                 "option": {
@@ -749,7 +749,7 @@
             }
         },
         "recycle-bin": {
-            "title":{
+            "title": {
                 "deployment": "Desplegament '{name}' esborrat en data {date}",
                 "desktop": "Escriptori '{name}' esborrat en data {date}",
                 "template": "Plantilla '{name}' esborrada en data {date}",
@@ -821,7 +821,6 @@
                     "empty": "Buidar"
                 }
             }
-        
         },
         "recycle-bins": {
             "title": "Paperera de reciclatge",
@@ -829,7 +828,7 @@
                 "title": "No hi ha cap element esborrat de l'usuari actual",
                 "subtitle": "Mou els elements que no necessitis a la paperera de reciclatge. S'esborraran definitivament després de {time}."
             },
-            "table-header" : {
+            "table-header": {
                 "id": "Id",
                 "accessed": "Data d'esborrat",
                 "size": "Mida",
@@ -838,8 +837,8 @@
                 "agent-name": "Esborrat per",
                 "status": "Estat",
                 "desktops": "Escriptoris",
-                "templates":"Plantilles",
-                "deployments":"Desplegaments",
+                "templates": "Plantilles",
+                "deployments": "Desplegaments",
                 "actions": "Accions"
             },
             "status": {
@@ -941,7 +940,7 @@
                 }
             }
         },
-        "email":{
+        "email": {
             "modal": {
                 "title": "Canvi / Validació del correu electrònic",
                 "change-validate-address": "Canviar o validar el correu electrònic",
@@ -1200,7 +1199,7 @@
         "password_uppercase": "La contrasenya ha de tenir com a mínim {num} caràcter(s) en majúscula",
         "password_lowercase": "La contrasenya ha de tenir com a mínim {num} caràcter(s) en minúscula",
         "password_digits": "La contrasenya ha de tenir com a mínim {num} número(s)",
-        "password_special_characters":  "La contrasenya ha de tenir com a mínim {num} caràcter(s) especials: !@#$%^&*()-_=+[]{}|;:'\",.<>/?",
+        "password_special_characters": "La contrasenya ha de tenir com a mínim {num} caràcter(s) especials: !@#$%^&*()-_=+[]{}|;:'\",.<>/?",
         "password_already_used": "Aquesta contrasenya ja s'ha utilitzat abans",
         "password_username": "La contrasenya no pot contenir el nom d'usuari",
         "wrong_password_entered": "La contrasenya introduïda és incorrecta",
