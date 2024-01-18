@@ -7,33 +7,32 @@ from api import app
 
 from .decorators import is_admin
 
-default_texts = {
-    # event: default
-    "email-verify": {
-        "title": "Verify IsardVDI email",
-        "body": """<p>Please verify your email address by clicking on the following button:</p>
-                        <a href="{url}" class="btn btn-primary">Verify email</a>
-                        <p>This button can only be used once and it's valid for 1 hour.</p>
-                    """,
-        "footer": "Please do not answer since this email has been automatically generated.",
-        "channels": ["mail"],
-    },
-    "password-reset": {
-        "title": "Reset IsardVDI password",
-        "body": """<p>We've received your password reset request to access IsardVDI. Click on the following button to set a new password:</p>
-                        <a href="{url}" class="btn btn-primary">Set password</a>
-                        <p>This button can only be used once and it's valid for 24 hours.</p>
-                        <p>If you did not initiate this request, you may safely ignore this message.</p>
-                    """,
-        "footer": "Please do not answer since this email has been automatically generated.",
-        "channels": ["mail"],
-    },
-}
-
 
 @app.route("/api/v3/admin/notification/template", methods=["PUT"])
 @is_admin
 def api_v3_admin_get_notification_template(payload):
+    default_texts = {
+        # event: default
+        "email-verify": {
+            "title": "Verify IsardVDI email",
+            "body": """<p>Please verify your email address by clicking on the following button:</p>
+                            <a href="{url}" class="btn btn-primary">Verify email</a>
+                            <p>This button can only be used once and it's valid for 1 hour.</p>
+                        """,
+            "footer": "Please do not answer since this email has been automatically generated.",
+            "channels": ["mail"],
+        },
+        "password-reset": {
+            "title": "Reset IsardVDI password",
+            "body": """<p>We've received your password reset request to access IsardVDI. Click on the following button to set a new password:</p>
+                            <a href="{url}" class="btn btn-primary">Set password</a>
+                            <p>This button can only be used once and it's valid for 24 hours.</p>
+                            <p>If you did not initiate this request, you may safely ignore this message.</p>
+                        """,
+            "footer": "Please do not answer since this email has been automatically generated.",
+            "channels": ["mail"],
+        },
+    }
     data = request.get_json()
     try:
         with open(
