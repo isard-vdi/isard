@@ -5,9 +5,12 @@
     size="lg"
     :title="$t(`forms.password.modal.title`)"
     centered
+    class="px-2"
     @hidden="closePasswordModal"
   >
-    <UpdatePasswordForm />
+    <div class="mx-4">
+      <UpdatePasswordForm />
+    </div>
     <template #modal-footer>
       <div class="w-100">
         <b-button

@@ -56,7 +56,10 @@
             <!-- Login form -->
             <b-form
               v-if="showLoginForm"
+              ref="loginForm"
               class="m-0"
+              method="POST"
+              enctype="multipart/form-data"
               @submit.prevent="login('form')"
             >
               <!-- Error message -->
@@ -126,30 +129,30 @@
                   {{ $t('views.login.form.login') }}
                 </b-button>
               </b-overlay>
-            </b-form>
-            <div v-if="showLoginProviders">
-              <hr
-                class="m-4"
-                style="border-bottom: 1px solid #ececec;"
-              >
-              <div class="d-flex flex-row flex-wrap justify-content-center align-items-center">
-                <p class="w-100 text-center">
-                  {{ $t('views.login.other-logins') }}
-                </p>
-                <b-button
-                  v-for="provider in providers"
-                  :key="provider"
-                  :class="'rounded-pill mt-0 btn-sm login-btn btn-' + provider.toLowerCase()"
-                  @click="login(provider.toLowerCase())"
+              <div v-if="showLoginProviders">
+                <hr
+                  class="m-4"
+                  style="border-bottom: 1px solid #ececec;"
                 >
-                  <font-awesome-icon
-                    v-if="!['saml'].includes(provider)"
-                    :icon="['fab', provider.toLowerCase()]"
-                  />
-                  {{ provider }}
-                </b-button>
+                <div class="d-flex flex-row flex-wrap justify-content-center align-items-center">
+                  <p class="w-100 text-center">
+                    {{ $t('views.login.other-logins') }}
+                  </p>
+                  <b-button
+                    v-for="provider in providers"
+                    :key="provider"
+                    :class="'rounded-pill mt-0 btn-sm login-btn btn-' + provider.toLowerCase()"
+                    @click="login(provider.toLowerCase())"
+                  >
+                    <font-awesome-icon
+                      v-if="!['saml'].includes(provider)"
+                      :icon="['fab', provider.toLowerCase()]"
+                    />
+                    {{ provider }}
+                  </b-button>
+                </div>
               </div>
-            </div>
+            </b-form>
             <!-- Powered By-->
             <b-row
               id="powered-by"
@@ -196,6 +199,7 @@ export default {
     const usr = ref('')
     const pwd = ref('')
     const showDismissibleAlert = ref(false)
+    const loginForm = ref(null)
 
     const providers = computed(() => $store.getters.getProviders)
     const categories = computed(() => $store.getters.getCategories)
@@ -285,7 +289,8 @@ export default {
           })
       } else {
         if (category.value) {
-          window.location = `${window.location.protocol}//${window.location.host}${authenticationSegment}/login?provider=${provider}&category_id=${category.value}&redirect=/`
+          loginForm.value.action = `${authenticationSegment}/login?provider=${provider}&category_id=${category.value}&redirect=/`
+          loginForm.value.submit()
         } else {
           v$.value.$reset()
           document.getElementById('category').focus()
@@ -310,7 +315,9 @@ export default {
       categoriesSelect,
       showLoginForm,
       v$,
-      login
+      login,
+      loginForm,
+      authenticationSegment
     }
   }
 }

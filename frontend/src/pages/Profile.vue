@@ -49,6 +49,7 @@
                           </h5>
                           <template v-if="profile.provider === 'local'">
                             <PasswordModal />
+                            <EmailVerificationModal v-if="config.showChangeEmailButton" />
                             <b-button
                               class="rounded-pill mx-1 pr-3 btn-dark-blue"
                               :title="$t('components.profile.change-password')"
@@ -59,6 +60,18 @@
                                 scale="0.75"
                               />
                               {{ $t('components.profile.change-password') }}
+                            </b-button>
+                            <b-button
+                              v-if="config.showChangeEmailButton"
+                              class="rounded-pill mr-2 pl-2 pr-3 btn-blue"
+                              :title="$t('components.profile.change-email')"
+                              @click="showEmailVerificationModal()"
+                            >
+                              <b-icon
+                                icon="envelope-fill"
+                                scale="0.75"
+                              />
+                              {{ $t('components.profile.change-email') }}
                             </b-button>
                           </template>
                           <span>
@@ -98,6 +111,27 @@
                                 <b-col>
                                   <h6 class="mt-4">
                                     {{ profile.email }}
+                                    <span v-if="config.showChangeEmailButton">
+                                      <b-icon
+                                        v-if="profile.emailVerified"
+                                        variant="success"
+                                        icon="patch-check-fill"
+                                      />
+                                      <template v-else>
+                                        <b-tooltip
+                                          :target="() => $refs['invalidTooltip']"
+                                          :title="$t(`errors.not_verified`)"
+                                          triggers="hover"
+                                          custom-class="isard-tooltip"
+                                          show
+                                        />
+                                        <b-icon
+                                          ref="invalidTooltip"
+                                          variant="warning"
+                                          icon="patch-exclamation-fill"
+                                        />
+                                      </template>
+                                    </span>
                                   </h6>
                                 </b-col>
                               </b-row>
@@ -271,12 +305,14 @@ import Language from '@/components/Language.vue'
 import PasswordModal from '@/components/profile/PasswordModal.vue'
 import QuotaProgressBar from '@/components/profile/QuotaProgressBar.vue'
 import { computed } from '@vue/composition-api'
+import EmailVerificationModal from '@/components/profile/EmailVerificationModal.vue'
 
 export default {
   components: {
     ProfileCardSkeleton,
     Language,
     PasswordModal,
+    EmailVerificationModal,
     QuotaProgressBar
   },
   setup (_, context) {
@@ -284,9 +320,13 @@ export default {
 
     $store.dispatch('fetchProfile')
     const profile = computed(() => $store.getters.getProfile)
+    const config = computed(() => $store.getters.getConfig)
     const profileLoaded = computed(() => $store.getters.getProfileLoaded)
+    const showEmailVerificationModal = () => {
+      $store.dispatch('showEmailVerificationModal', true)
+    }
 
-    return { profile, profileLoaded }
+    return { profile, profileLoaded, showEmailVerificationModal, config }
   },
   destroyed () {
     this.$store.dispatch('resetProfileState')

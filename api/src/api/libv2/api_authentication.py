@@ -36,11 +36,8 @@ db.init_app(app)
 users = ApiUsers()
 
 
-### PASSWORD POLICY
-
-
-def add_password_policy(data):
-    if not check_duplicate_policy(data["category"], data["role"], data["subtype"]):
+def add_policy(data):
+    if not check_duplicate_policy(data["category"], data["role"]):
         raise Error(
             "conflict",
             data["type"] + " policy for this category and role already exists",
@@ -50,11 +47,11 @@ def add_password_policy(data):
         r.table("authentication").insert(data).run(db.conn)
 
 
-def get_password_policies():
+def get_policies():
     with app.app_context():
         return list(
             r.table("authentication")
-            .get_all(["local", "password"], index="type-subtype")
+            .get_all("local", index="type")
             .merge(
                 lambda policy: {
                     "category_name": r.branch(
@@ -70,18 +67,18 @@ def get_password_policies():
         )
 
 
-def get_password_policy(policy_id):
+def get_policy(policy_id):
     with app.app_context():
         return r.table("authentication").get(policy_id).run(db.conn)
 
 
-def edit_password_policy(policy_id, data):
+def edit_policy(policy_id, data):
     with app.app_context():
         r.table("authentication").get(policy_id).update(data).run(db.conn)
 
 
-def delete_password_policy(policy_id):
-    policy = get_password_policy(policy_id)
+def delete_policy(policy_id):
+    policy = get_policy(policy_id)
     if policy["role"] == "all" and policy["category"] == "all":
         raise Error("forbidden", "Can not delete default permissions")
 
@@ -89,13 +86,13 @@ def delete_password_policy(policy_id):
         r.table("authentication").get(policy_id).delete().run(db.conn)
 
 
-def check_duplicate_policy(category, role, subtype):
+def check_duplicate_policy(category, role):
     with app.app_context():
         return (
             len(
                 list(
                     r.table("authentication")
-                    .get_all([category, role, subtype], index="category-role-subtype")
+                    .get_all([category, role], index="category-role")
                     .run(db.conn)
                 )
             )
@@ -121,3 +118,15 @@ def get_providers():
         os.environ.get("AUTHENTICATION_AUTHENTICATION_LDAP_ENABLED") == "true"
     )
     return providers
+
+
+def force_policy_at_login(policy_id, policy_field):
+    policy = get_policy(policy_id)
+
+    query = r.table("users").get_all("local", index="provider")
+    if policy["category"] != "all":
+        query.filter({"category": policy["category"]})
+    if policy["role"] != "all":
+        query.filter({"role": policy["role"]})
+    with app.app_context():
+        query.update({policy_field: None}).run(db.conn)

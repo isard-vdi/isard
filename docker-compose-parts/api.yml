@@ -19,12 +19,14 @@ services:
       - /opt/isard/sshkeys/:/sshkeys:rw
       - /opt/isard/certs/viewers:/viewers:ro
       - /opt/isard/assets/img/desktops:/api/api/static/assets/img/desktops:rw
+      - /opt/isard/assets/templates/email:/api/api/static/assets/templates/email:rw
       - /opt/isard/config:/usr/local/etc/isardvdi
       - /opt/isard/backups:/api/backups:rw
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     environment:
       PYTHONUNBUFFERED: 1
+      NOTIFY_EMAIL:
       DOMAIN:
       LOG_LEVEL:
       DEBUG_STATS: "false"

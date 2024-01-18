@@ -1781,15 +1781,6 @@ class Populate(object):
             r.table("authentication").insert(
                 [
                     {
-                        "id": "default-email-verification",
-                        "type": "local",  # provider
-                        "category": "all",
-                        "role": "all",
-                        "subtype": "email_verification",  # policy kind
-                        "days": 0,
-                    },
-                    {
-                        "id": "default-password",
                         "type": "local",  # provider
                         "category": "all",
                         "role": "all",

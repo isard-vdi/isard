@@ -1,8 +1,6 @@
 <template>
   <div>
-    <b-row
-      class="ml-2 mr-2"
-    >
+    <b-row>
       <b-col
         v-if="v$.currentPassword"
         cols="12"
@@ -12,6 +10,7 @@
           id="currentPassword"
           v-model="currentPassword"
           type="password"
+          :autofocus="v$.currentPassword ? true : false"
           :placeholder="$t(`forms.password.modal.current-password.placeholder`)"
           :state="v$.currentPassword.$error ? false : null"
           @blur="v$.currentPassword.$touch"
@@ -31,6 +30,7 @@
           v-model="password"
           type="password"
           :placeholder="$t(`forms.password.modal.password.placeholder`)"
+          :autofocus="v$.currentPassword ? false : true"
           :state="v$.password.$error ? false : null"
           @blur="v$.password.$touch"
         />
@@ -62,10 +62,10 @@
         </b-form-invalid-feedback>
       </b-col>
     </b-row>
-    <b-row class="ml-2 mr-2 mt-4">
+    <b-row class="mt-4">
       <b-col cols="12">
         <b-alert show>
-          <ul class="px-2">
+          <ul class="px-2 my-0">
             <li v-if="passwordPolicy.digits">
               {{ $t(`errors.password_digits`, { num: passwordPolicy.digits }) }}
             </li>
@@ -83,6 +83,9 @@
             </li>
             <li v-if="passwordPolicy.not_username">
               {{ $t('errors.password_username') }}
+            </li>
+            <li v-if="passwordPolicy.old_passwords">
+              {{ $t('errors.old_passwords', { num: passwordPolicy.old_passwords }) }}
             </li>
           </ul>
         </b-alert>

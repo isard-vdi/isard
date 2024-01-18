@@ -27,26 +27,25 @@ from isardvdi_common.api_exceptions import Error
 from api import app
 
 from ..libv2.api_authentication import (
-    add_password_policy,
-    delete_password_policy,
-    edit_password_policy,
-    get_password_policies,
-    get_password_policy,
+    add_policy,
+    delete_policy,
+    edit_policy,
+    force_policy_at_login,
+    get_policies,
+    get_policy,
     get_providers,
 )
 from ..libv2.validators import _validate_item
 from .decorators import is_admin
 
-### PASSWORD POLICY
 
-
-@app.route("/api/v3/admin/authentication/policy/password", methods=["POST"])
+@app.route("/api/v3/admin/authentication/policy", methods=["POST"])
 @is_admin
-def admin_authentication_password_policy_add(payload):
+def admin_authentication_policy_add(payload):
     data = request.get_json()
-    data = _validate_item("password_policy", data)
+    data = _validate_item("policy", data)
 
-    add_password_policy(data)
+    add_policy(data)
     return (
         json.dumps({}),
         200,
@@ -54,10 +53,10 @@ def admin_authentication_password_policy_add(payload):
     )
 
 
-@app.route("/api/v3/admin/authentication/policies/local/password/", methods=["GET"])
+@app.route("/api/v3/admin/authentication/policies/local", methods=["GET"])
 @is_admin
-def admin_authentication_password_policies(payload):
-    policies = get_password_policies()
+def admin_authentication_policies(payload):
+    policies = get_policies()
 
     return (
         json.dumps(policies),
@@ -66,10 +65,10 @@ def admin_authentication_password_policies(payload):
     )
 
 
-@app.route("/api/v3/admin/authentication/policy/password/<policy_id>", methods=["GET"])
+@app.route("/api/v3/admin/authentication/policy/<policy_id>", methods=["GET"])
 @is_admin
-def admin_authentication_password_policy(payload, policy_id):
-    policies = get_password_policy(policy_id)
+def admin_authentication_policy(payload, policy_id):
+    policies = get_policy(policy_id)
 
     return (
         json.dumps(policies),
@@ -78,13 +77,13 @@ def admin_authentication_password_policy(payload, policy_id):
     )
 
 
-@app.route("/api/v3/admin/authentication/policy/password/<policy_id>", methods=["PUT"])
+@app.route("/api/v3/admin/authentication/policy/<policy_id>", methods=["PUT"])
 @is_admin
-def admin_authentication_password_policy_edit(payload, policy_id):
+def admin_authentication_policy_edit(payload, policy_id):
     data = request.get_json()
-    data = _validate_item("password_policy_edit", data)
+    data = _validate_item("policy_edit", data)
 
-    edit_password_policy(policy_id, data)
+    edit_policy(policy_id, data)
     return (
         json.dumps({}),
         200,
@@ -92,21 +91,16 @@ def admin_authentication_password_policy_edit(payload, policy_id):
     )
 
 
-@app.route(
-    "/api/v3/admin/authentication/policy/password/<policy_id>", methods=["DELETE"]
-)
+@app.route("/api/v3/admin/authentication/policy/<policy_id>", methods=["DELETE"])
 @is_admin
-def admin_authentication_password_policy_delete(payload, policy_id):
-    delete_password_policy(policy_id)
+def admin_authentication_policy_delete(payload, policy_id):
+    delete_policy(policy_id)
 
     return (
         json.dumps({}),
         200,
         {"Content-Type": "application/json"},
     )
-
-
-###
 
 
 @app.route("/api/v3/admin/authentication/providers", methods=["GET"])
@@ -115,6 +109,47 @@ def admin_authentication_providers(payload):
     providers = get_providers()
     return (
         json.dumps(providers),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route(
+    "/api/v3/admin/authentication/force_validate/email/<policy_id>", methods=["PUT"]
+)
+@is_admin
+def admin_force_email(payload, policy_id):
+    force_policy_at_login(policy_id, "email_verified")
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route(
+    "/api/v3/admin/authentication/force_validate/disclaimer/<policy_id>",
+    methods=["PUT"],
+)
+@is_admin
+def admin_force_disclaimer(payload, policy_id):
+    force_policy_at_login(policy_id, "disclaimer_accepted")
+    return (
+        json.dumps({}),
+        200,
+        {"Content-Type": "application/json"},
+    )
+
+
+@app.route(
+    "/api/v3/admin/authentication/force_validate/password/<policy_id>",
+    methods=["PUT"],
+)
+@is_admin
+def admin_force_password(payload, policy_id):
+    force_policy_at_login(policy_id, "password_last_updated")
+    return (
+        json.dumps({}),
         200,
         {"Content-Type": "application/json"},
     )

@@ -38,6 +38,25 @@ def maintenance():
         abort(503)
 
 
+def password_reset(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        payload = get_header_jwt_payload()
+        if (
+            payload.get("type") == "password-reset-required"
+            or payload.get("type") == "password-reset"
+        ):
+            kwargs["payload"] = payload
+            return f(*args, **kwargs)
+        raise Error(
+            "forbidden",
+            "Token not valid for this operation.",
+            traceback.format_exc(),
+        )
+
+    return decorated
+
+
 def has_token(f):
     @wraps(f)
     def decorated(*args, **kwargs):

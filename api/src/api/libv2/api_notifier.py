@@ -18,35 +18,28 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import os
 import traceback
 
 from isardvdi_common.api_exceptions import Error
 from isardvdi_common.api_rest import ApiRest
 
-api_client = ApiRest("isard-api")
+notifier_client = ApiRest("isard-notifier")
 
 
-def get_user(user_id):
+def send_verification_email(email, token):
     try:
-        user = api_client.get(
-            "/user/" + user_id,
-        )
+        data = {
+            "email": email,
+            "url": "https://"
+            + os.environ.get("DOMAIN")
+            + "/verify-email?token={token}".format(token=token),
+        }
+        user = notifier_client.post("/mail/email-verify", data)
         return user
     except:
         raise Error(
             "internal_server",
-            "Exception when retrieving user data from user" + user_id,
-            traceback.format_exc(),
-        )
-
-
-def get_notification_message(data):
-    try:
-        message = api_client.put("/admin/notification/template", data)
-        return message
-    except:
-        raise Error(
-            "internal_server",
-            "Exception when retrieving notification template",
+            "Exception when sending verification email to user",
             traceback.format_exc(),
         )

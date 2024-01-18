@@ -346,7 +346,6 @@ class UsersThread(threading.Thread):
                             "password",
                             {"vpn": {"wireguard": "keys"}},
                             "photo",
-                            "email",
                         )
                         .changes(include_initial=False, squash=0.5)
                         .union(
@@ -397,6 +396,12 @@ class UsersThread(threading.Thread):
                                         .get(data["group"])
                                         .run(db.conn)["name"]
                                     )
+                        socketio.emit(
+                            event,
+                            json.dumps(data),
+                            namespace="/userspace",
+                            room=data["id"],
+                        )
                         # Admins receive all events
                         socketio.emit(
                             event,

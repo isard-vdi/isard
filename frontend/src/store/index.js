@@ -151,12 +151,20 @@ export default new Vuex.Store({
         commit('setPageErrorMessage', i18n.t('views.login.errors.generic'))
       }
     },
-    login ({ commit }, data) {
+    login (context, data) {
       return new Promise((resolve, reject) => {
         axios.create().post(`${authenticationSegment}/login?provider=${data.get('provider')}&category_id=${data.get('category_id')}&username=${data.get('username')}`, data, { timeout: 25000 }).then(response => {
           const jwt = JSON.parse(atob(response.data.split('.')[1]))
           if (jwt.type === 'register') {
             router.push({ name: 'Register' })
+          } else if (jwt.type === 'email-verification-required') {
+            localStorage.token = response.data
+            context.dispatch('setSession', response.data)
+            router.push({ name: 'VerifyEmail' })
+          } else if (jwt.type === 'password-reset-required') {
+            localStorage.token = response.data
+            store.dispatch('setSession', response.data)
+            router.push({ name: 'ResetPassword' })
           } else {
             store.dispatch('loginSuccess', response.data)
           }
@@ -176,10 +184,16 @@ export default new Vuex.Store({
         config.headers.Authorization = `Bearer ${getCookie('authorization')}`
         return config
       })
-      const provider = JSON.parse(atob(getCookie('authorization').split('.')[1])).provider
+
+      let provider = JSON.parse(atob(getCookie('authorization').split('.')[1])).provider
+      if (provider === 'local' || provider === 'ldap') {
+        provider = 'form'
+      }
+      const categoryId = JSON.parse(atob(getCookie('authorization').split('.')[1])).category_id
+      const username = JSON.parse(atob(getCookie('authorization').split('.')[1])).username
       await registerAxios.post(`${apiV3Segment}/user/register`, data).then(response => {
         return new Promise((resolve, reject) => {
-          registerAxios.post(`${authenticationSegment}/login?provider=${provider}`, data, { timeout: 25000 }).then(response => {
+          registerAxios.post(`${authenticationSegment}/login?provider=${provider}&category_id=${categoryId}&username=${username}`, data, { timeout: 25000 }).then(response => {
             store.dispatch('loginSuccess', response.data)
             resolve()
           }).catch(e => {
@@ -254,24 +268,45 @@ export default new Vuex.Store({
     },
     sendResetPasswordEmail (context, data) {
       const forgotPasswordAxios = axios.create()
-      return forgotPasswordAxios.post(`${authenticationSegment}/forgot-password`, data).then(response => {
-        router.push({ name: 'Login' })
-      }).catch(e => {
-        ErrorUtils.handleErrors(e, this._vm.$snotify)
-      })
+      return forgotPasswordAxios.post(`${authenticationSegment}/forgot-password`, data)
     },
-    updateForgottenPassword (context, data) {
-      const forgotPasswordAxios = axios.create()
-      forgotPasswordAxios.interceptors.request.use(config => {
-        config.headers.Authorization = `Bearer ${data.token}`
+    resetPassword (context, data) {
+      const resetPasswordAxios = axios.create()
+      const token = data.token
+      delete data.token
+      resetPasswordAxios.interceptors.request.use(config => {
+        config.headers.Authorization = `Bearer ${token}`
         return config
       })
 
-      return forgotPasswordAxios.post(`${authenticationSegment}/reset-password`, data).then(response => {
-        router.push({ name: 'Login' })
-      }).catch(e => {
-        ErrorUtils.handleErrors(e, this._vm.$snotify)
+      return resetPasswordAxios.post(`${authenticationSegment}/reset-password`, data)
+    },
+    sendVerifyEmail (context, data) {
+      const verifyEmailAxios = axios.create()
+      verifyEmailAxios.interceptors.request.use(config => {
+        config.headers.Authorization = `Bearer ${localStorage.token}`
+        return config
       })
+      return verifyEmailAxios.post(`${authenticationSegment}/request-email-verification`, data)
+    },
+    verifyEmail (context, token) {
+      const verifyEmailAxios = axios.create()
+      verifyEmailAxios.interceptors.request.use(config => {
+        config.headers.Authorization = `Bearer ${token}`
+        return config
+      })
+      return verifyEmailAxios.post(`${authenticationSegment}/verify-email`, {})
+    },
+    fetchExpiredPasswordPolicy (context, token) {
+      const expiredPasswordAxios = axios.create()
+      expiredPasswordAxios.interceptors.request.use(config => {
+        config.headers.Authorization = `Bearer ${token}`
+        return config
+      })
+      return expiredPasswordAxios.get(`${apiV3Segment}/user/expired/password-policy`)
+        .then(response => {
+          context.commit('setPasswordPolicy', response.data)
+        })
     }
   },
   modules: {

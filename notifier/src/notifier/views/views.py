@@ -20,15 +20,23 @@
 import os
 
 from flask import render_template
+from html_sanitizer import Sanitizer
 from isardvdi_common.api_exceptions import Error
 from isardvdi_common.task import Task
+from jinja2.exceptions import TemplateNotFound
 from spectree import Response
 
 from notifier import api, app
 
-from ..lib.api_actions import get_user
+from ..lib.api_actions import get_notification_message, get_user
 from ..schemas import notifier
 from .decorators import is_admin
+
+sanitizer = Sanitizer(
+    {
+        "attributes": {"a": ("href", "name", "target", "title", "id", "rel", "class")},
+    }
+)
 
 
 @app.route("/notifier/mail", methods=["POST"])
@@ -54,9 +62,9 @@ def notify_mail(payload, json: notifier.NotifyMailRequest):
     user = get_user(json.user_id)
     if not user.get("email"):
         raise Error("bad_request", "The given user does not have an email address.")
-    html = render_template(
+    email_html = render_template(
         "email/base.html",
-        email_content=json.text,
+        email_content=sanitizer.sanitize(json.text),
         email_footer="Si us plau no respongueu a aquest correu ja que ha estat generat automàticament.",
     )
     task_id = Task(
@@ -68,7 +76,7 @@ def notify_mail(payload, json: notifier.NotifyMailRequest):
                 "address": [user.get("email")],
                 "subject": json.subject,
                 "text": json.text,
-                "html": html,
+                "html": email_html,
             },
         },
     ).id
@@ -99,29 +107,24 @@ def email_verify(payload, json: notifier.NotifyEmailVerifyMailRequest):
                 {link}\n""".format(
         link=json.url
     )
-    email_content = """<p>Please verify your email address by clicking on the following button:</p>
-                        <form action="{link}">
-                            <input type="submit" value="Verify email address" />
-                        </form>
-                        <p>If you did not initiate this request, you may safely ignore this message.</p>
-                    """.format(
-        link=json.url
+    # TODO: get user_id and maybe change to a generic endpoint?
+    email_content = get_notification_message(
+        {"user_id": None, "event": "email-verify", "data": {"url": json.url}}
     )
-    html = render_template(
+    email_html = render_template(
         "email/base.html",
-        email_content=email_content,
-        email_footer="Please do not respond since this email has been automatically generated.",
+        email_content=sanitizer.sanitize(email_content["body"]),
+        email_footer=email_content["footer"],
     )
     task_id = Task(
         queue="notifier.default",
         task="mail",
-        user_id=payload["user_id"],
         job_kwargs={
             "kwargs": {
                 "address": [json.email],
-                "subject": "Verify IsardVDI email",
+                "subject": email_content["title"],
                 "text": text,
-                "html": html,
+                "html": email_html,
             },
         },
     ).id
@@ -152,27 +155,24 @@ def password_reset(payload, json: notifier.NotifyPasswordResetMailRequest):
                 {link}\n""".format(
         link=json.url
     )
-    email_content = """<p>We've received your password reset request to access IsardVDI. Click on the following link to set a new password:</p>
-                        <a href="{link}">{link}</a>
-                        <p>This link can only be used once and it's valid for 24 hours.</p>
-                    """.format(
-        link=json.url
+    # TODO: get user_id and maybe change to a generic endpoint?
+    email_content = get_notification_message(
+        {"user_id": None, "event": "password-reset", "data": {"url": json.url}}
     )
-    html = render_template(
+    email_html = render_template(
         "email/base.html",
-        email_content=email_content,
-        email_footer="Please do not respond since this email has been automatically generated.",
+        email_content=sanitizer.sanitize(email_content["body"]),
+        email_footer=email_content["footer"],
     )
     task_id = Task(
         queue="notifier.default",
         task="mail",
-        user_id=payload["user_id"],
         job_kwargs={
             "kwargs": {
                 "address": [json.email],
-                "subject": "Reset IsardVDI password",
+                "subject": email_content["title"],
                 "text": text,
-                "html": html,
+                "html": email_html,
             },
         },
     ).id

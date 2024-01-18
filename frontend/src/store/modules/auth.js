@@ -10,7 +10,8 @@ export default {
     token: '',
     registerToken: '',
     expirationDate: '',
-    urlTokens: []
+    urlTokens: [],
+    verified: null
   },
   getters: {
     getUser: state => {
@@ -27,13 +28,21 @@ export default {
     },
     getUrlTokens: state => {
       return state.urlTokens
+    },
+    getVerified: state => {
+      return state.Verified
     }
   },
   actions: {
     setSession (context, token) {
+      const jwt = JSON.parse(atob(token.split('.')[1]))
       context.commit('setToken', token)
-      context.commit('setExpirationDate', JSON.parse(atob(token.split('.')[1])).exp * 1000)
-      context.commit('setUser', JSON.parse(decodeURIComponent(escape(atob(token.split('.')[1])))).data)
+      context.commit('setExpirationDate', jwt.exp * 1000)
+      if (jwt.type) {
+        context.commit('setUser', jwt)
+      } else {
+        context.commit('setUser', JSON.parse(decodeURIComponent(escape(atob(token.split('.')[1])))).data)
+      }
     },
     deleteSessionAndGoToLogin (context) {
       localStorage.token = ''
@@ -83,6 +92,9 @@ export default {
     },
     setUrlTokens (state, tokens) {
       state.urlTokens = tokens
+    },
+    setVerified (state, verified) {
+      state.verified = verified
     }
   }
 }

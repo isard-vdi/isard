@@ -245,6 +245,7 @@
         },
         "profile": {
             "change-password": "Canviar contrasenya",
+            "change-email": "Canviar / Verificar correu electrònic",
             "info": {
                 "name": "Nom",
                 "email": "Email",
@@ -870,7 +871,20 @@
             "label": "Correu electrònic",
             "placeholder": "Correu electrònic",
             "description": "Requereix una adreça de correu electrònic verificada per IsardVDI",
-            "reset-password": "Restablir contrasenya"
+            "reset-password": "Restablir contrasenya",
+            "email-sent": "S'ha enviat un correu electrònic a l'adreça proporcionada per a la recuperació de la contrasenya. Si us plau, comprova la teva safata d'entrada i segueix les instruccions. Redirigint a l'inici de sessió en {seconds} segons."
+        },
+        "reset-password": {
+            "password-reset": "La contrasenya ha estat actualitzada correctament. Redirigint a l'inici de sessió en {seconds} segons."
+        },
+        "verify-email": {
+            "title": "Verificació de correu electrònic",
+            "label": "Correu electrònic",
+            "placeholder": "Correu electrònic",
+            "description": "L'adreça de correu electrònic serà verificada per IsardVDI",
+            "send-verify-email": "Enviar correu de verificació",
+            "email-sent": "S'ha enviat un correu electrònic a l'adreça proporcionada per a la verificació. Si us plau, comprova la teva safata d'entrada i segueix les instruccions. Redirigint a l'inici de sessió en {seconds} segons.",
+            "email-verified": "El correu electrònic ha estat verificat correctament. Redirigint a l'inici de sessió en {seconds} segons."
         }
     },
     "validations": {
@@ -915,6 +929,19 @@
                 },
                 "buttons": {
                     "update": "Actualitzar"
+                }
+            }
+        },
+        "email":{
+            "modal": {
+                "title": "Canvi / Validació del correu electrònic",
+                "change-validate-address": "Canviar o validar el correu electrònic",
+                "email": {
+                    "label": "Correu electrònic",
+                    "placeholder": "Correu electrònic"
+                },
+                "buttons": {
+                    "verify": "Actualitzar i validar correu electrònic"
                 }
             }
         },
@@ -1167,7 +1194,11 @@
         "password_special_characters":  "La contrasenya ha de tenir com a mínim {num} caràcter(s) especials: !@#$%^&*()-_=+[]{}|;:'\",.<>/?",
         "password_already_used": "Aquesta contrasenya ja s'ha utilitzat abans",
         "password_username": "La contrasenya no pot contenir el nom d'usuari",
-        "wrong_password_entered": "La contrasenya introduïda és incorrecta"
+        "wrong_password_entered": "La contrasenya introduïda és incorrecta",
+        "not_verified": "L'adreça de correu no ha estat validada",
+        "user_not_found": "No existeix cap usuari amb el correu electrònic proporcionat",
+        "invalid_token": "Token no vàlid",
+        "old_passwords": "L'última contrasenya no pot ser cap de les últimes {num} contrasenyes"
     },
     "messages": {
         "title": {
@@ -1267,7 +1298,9 @@
             "storage": "Emmagatzematge",
             "edit-deployment": "Editar desplegament",
             "recycleBin": "Paperera de reciclatge",
-            "password": "Canviar contrasenya"
+            "password": "Canviar contrasenya",
+            "email": "Verificar correu electrònic",
+            "forgot-password": "Reestablir contrasenya"
         }
     },
     "message-modal": {

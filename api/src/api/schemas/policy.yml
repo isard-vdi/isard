@@ -1,0 +1,55 @@
+password:
+  schema:
+    digits:
+      type: integer
+      required: true
+      min: 0
+    expiration:
+      type: integer
+      min: 0
+    length:
+      type: integer
+      required: true
+      min: 0
+    lowercase:
+      type: integer
+      required: true
+      min: 0
+    not_username:
+      required: true
+      type: boolean
+    old_passwords:
+      type: integer
+      required: true
+      min: 0
+    special_characters:
+      type: integer
+      required: true
+      min: 0
+    uppercase:
+      type: integer
+      required: true
+      min: 0
+email_verification:
+  required: true
+  type: boolean
+category:
+  type: string
+  required: true
+  default: "all"
+role:
+  type: string
+  required: true
+  allowed:
+    - admin
+    - manager
+    - advanced
+    - user
+    - all
+  default: "all"
+id:
+  default_setter: genuuid
+  required: true
+type:
+  allowed:
+    - local
